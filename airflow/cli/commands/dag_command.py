@@ -28,7 +28,7 @@ import sys
 import warnings
 
 from graphviz.dot import Dot
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -287,7 +287,7 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-    dr = session.query(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date).one_or_none()
+    dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date))
     out = dr.state if dr else None
     conf_out = ""
     if out and dr.conf:
@@ -309,7 +309,9 @@ def dag_next_execution(args) -> None:
         print("[INFO] Please be reminded this DAG is PAUSED now.", file=sys.stderr)
 
     with create_session() as session:
-        last_parsed_dag: DagModel = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
+        last_parsed_dag: DagModel = session.scalars(
+            select(DagModel).where(DagModel.dag_id == dag.dag_id)
+        ).one()
 
     def print_execution_interval(interval: DataInterval | None):
         if interval is None:
@@ -428,8 +430,10 @@ def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) 
         queries.append(Job.state == args.state)
 
     fields = ["dag_id", "state", "job_type", "start_date", "end_date"]
-    all_jobs = session.query(Job).filter(*queries).order_by(Job.start_date.desc()).limit(args.limit).all()
-    all_jobs = [{f: str(job.__getattribute__(f)) for f in fields} for job in all_jobs]
+    all_jobs_iter = session.scalars(
+        select(Job).where(*queries).order_by(Job.start_date.desc()).limit(args.limit)
+    )
+    all_jobs = [{f: str(job.__getattribute__(f)) for f in fields} for job in all_jobs_iter]
 
     AirflowConsole().print_as(
         data=all_jobs,
@@ -492,14 +496,12 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
     imgcat = args.imgcat_dagrun
     filename = args.save_dagrun
     if show_dagrun or imgcat or filename:
-        tis = (
-            session.query(TaskInstance)
-            .filter(
+        tis = session.scalars(
+            select(TaskInstance).where(
                 TaskInstance.dag_id == args.dag_id,
                 TaskInstance.execution_date == execution_date,
             )
-            .all()
-        )
+        ).all()
 
         dot_graph = render_dag(dag, tis=tis)
         print()

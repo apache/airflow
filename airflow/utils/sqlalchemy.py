@@ -22,14 +22,14 @@ import copy
 import datetime
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Generator, Iterable
+from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
 import pendulum
 from dateutil import relativedelta
 from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
 from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.sql import ColumnElement
+from sqlalchemy.sql import ColumnElement, Select
 from sqlalchemy.sql.expression import ColumnOperators
 from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 
@@ -515,11 +515,31 @@ def is_lock_not_available_error(error: OperationalError):
     return False
 
 
+@overload
 def tuple_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
 ) -> ColumnOperators:
-    """Generates a tuple-in-collection operator to use in ``.filter()``.
+    ...
+
+
+@overload
+def tuple_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Select,
+    *,
+    session: Session,
+) -> ColumnOperators:
+    ...
+
+
+def tuple_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Iterable[Any] | Select,
+    *,
+    session: Session | None = None,
+) -> ColumnOperators:
+    """Generates a tuple-in-collection operator to use in ``.where()``.
 
     For most SQL backends, this generates a simple ``([col, ...]) IN [condition]``
     clause. This however does not work with MSSQL, where we need to expand to
@@ -529,17 +549,43 @@ def tuple_in_condition(
     """
     if settings.engine.dialect.name != "mssql":
         return tuple_(*columns).in_(collection)
-    clauses = [and_(*(c == v for c, v in zip(columns, values))) for values in collection]
+    if not isinstance(collection, Select):
+        rows = collection
+    elif session is None:
+        raise TypeError("session is required when passing in a subquery")
+    else:
+        rows = session.execute(collection)
+    clauses = [and_(*(c == v for c, v in zip(columns, values))) for values in rows]
     if not clauses:
         return false()
     return or_(*clauses)
 
 
+@overload
 def tuple_not_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
 ) -> ColumnOperators:
-    """Generates a tuple-not-in-collection operator to use in ``.filter()``.
+    ...
+
+
+@overload
+def tuple_not_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Select,
+    *,
+    session: Session,
+) -> ColumnOperators:
+    ...
+
+
+def tuple_not_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Iterable[Any] | Select,
+    *,
+    session: Session | None = None,
+) -> ColumnOperators:
+    """Generates a tuple-not-in-collection operator to use in ``.where()``.
 
     This is similar to ``tuple_in_condition`` except generating ``NOT IN``.
 
@@ -547,7 +593,13 @@ def tuple_not_in_condition(
     """
     if settings.engine.dialect.name != "mssql":
         return tuple_(*columns).not_in(collection)
-    clauses = [or_(*(c != v for c, v in zip(columns, values))) for values in collection]
+    if not isinstance(collection, Select):
+        rows = collection
+    elif session is None:
+        raise TypeError("session is required when passing in a subquery")
+    else:
+        rows = session.execute(collection)
+    clauses = [or_(*(c != v for c, v in zip(columns, values))) for values in rows]
     if not clauses:
         return true()
     return and_(*clauses)

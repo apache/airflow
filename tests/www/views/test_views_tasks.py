@@ -29,10 +29,10 @@ import time_machine
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.executors.celery_executor import CeleryExecutor
 from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
 from airflow.operators.bash import BashOperator
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin

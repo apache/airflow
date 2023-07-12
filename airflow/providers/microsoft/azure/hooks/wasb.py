@@ -687,10 +687,10 @@ class WasbAsyncHook(WasbHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        blob_list = []
+        blob_list: list[BlobProperties] = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         async for blob in blobs:
-            blob_list.append(blob.name)
+            blob_list.append(blob)
         return blob_list
 
     async def check_for_prefix_async(self, container_name: str, prefix: str, **kwargs: Any) -> bool:

@@ -58,15 +58,45 @@ def test_create_connection(admin_client, session):
     _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
 
 
-def test_invalid_connection_id_trailing_blanks(admin_client, session):
-    invalid_conn_id = "conn_id_with_trailing_blanks   "
-    invalid_connection = {**CONNECTION, "conn_id": invalid_conn_id}
-    resp = admin_client.post("/connection/add", data=invalid_connection, follow_redirects=True)
-    check_content_in_response(
-        f"The key '{invalid_conn_id}' has to be made of alphanumeric characters, "
-        + "dashes, dots and underscores exclusively",
-        resp,
-    )
+def test_connection_id_trailing_blanks(admin_client, session):
+    conn_id_with_blanks = "conn_id_with_trailing_blanks   "
+    conn = {**CONNECTION, "conn_id": conn_id_with_blanks}
+    resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
+    check_content_in_response("Added Row", resp)
+
+    conn = session.query(Connection).one()
+    assert "conn_id_with_trailing_blanks" == conn.conn_id
+
+
+def test_connection_id_leading_blanks(admin_client, session):
+    conn_id_with_blanks = "   conn_id_with_leading_blanks"
+    conn = {**CONNECTION, "conn_id": conn_id_with_blanks}
+    resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
+    check_content_in_response("Added Row", resp)
+
+    conn = session.query(Connection).one()
+    assert "conn_id_with_leading_blanks" == conn.conn_id
+
+
+def test_all_fields_with_blanks(admin_client, session):
+    connection = {
+        **CONNECTION,
+        "conn_id": "   connection_id_with_space",
+        "description": "  a sample http connection with leading and trailing blanks  ",
+        "host": "localhost    ",
+        "schema": "    airflow    ",
+        "port": 3306,
+    }
+
+    resp = admin_client.post("/connection/add", data=connection, follow_redirects=True)
+    check_content_in_response("Added Row", resp)
+
+    # validate all the fields
+    conn = session.query(Connection).one()
+    assert "connection_id_with_space" == conn.conn_id
+    assert "a sample http connection with leading and trailing blanks" == conn.description
+    assert "localhost" == conn.host
+    assert "airflow" == conn.schema
 
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
@@ -314,16 +344,17 @@ def test_duplicate_connection(admin_client):
 
     data = {"action": "mulduplicate", "rowid": [conn1.id, conn3.id]}
     resp = admin_client.post("/connection/action_post", data=data, follow_redirects=True)
-    expected_result = {
+    assert resp.status_code == 200
+
+    expected_connections_ids = {
         "test_duplicate_gcp_connection",
         "test_duplicate_gcp_connection_copy1",
         "test_duplicate_mysql_connection",
         "test_duplicate_postgres_connection_copy1",
         "test_duplicate_postgres_connection_copy2",
     }
-    response = {conn[0] for conn in session.query(Connection.conn_id).all()}
-    assert resp.status_code == 200
-    assert expected_result == response
+    connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id)}
+    assert expected_connections_ids == connections_ids
 
 
 def test_duplicate_connection_error(admin_client):
@@ -350,12 +381,11 @@ def test_duplicate_connection_error(admin_client):
 
     data = {"action": "mulduplicate", "rowid": [connections[0].id]}
     resp = admin_client.post("/connection/action_post", data=data, follow_redirects=True)
-
-    expected_result = {f"test_duplicate_postgres_connection_copy{i}" for i in range(1, 11)}
-
     assert resp.status_code == 200
-    response = {conn[0] for conn in session.query(Connection.conn_id).all()}
-    assert expected_result == response
+
+    expected_connections_ids = {f"test_duplicate_postgres_connection_copy{i}" for i in range(1, 11)}
+    connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id)}
+    assert expected_connections_ids == connections_ids
 
 
 @pytest.fixture()

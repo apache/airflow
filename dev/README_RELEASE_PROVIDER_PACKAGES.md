@@ -408,7 +408,7 @@ All providers (including overriding documentation for doc-only changes):
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-./docs/publish_docs.py \
+breeze release-management publish-docs \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
     --override-versioned

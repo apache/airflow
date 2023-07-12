@@ -25,6 +25,7 @@ RELEASE_MANAGEMENT_COMMANDS: dict[str, str | list[str]] = {
         "prepare-airflow-package",
         "release-prod-images",
         "generate-constraints",
+        "publish-docs",
     ],
 }
 
@@ -139,6 +140,16 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-latest",
             ],
         }
+    ],
+    "breeze release-management publish-docs": [
+        {
+            "name": "Publish Docs",
+            "options": [
+                "--override-versioned",
+                "--package-filter",
+                "--airflow-site-directory",
+            ],
+        },
     ],
     "breeze release-management generate-issue-content-providers": [
         {
