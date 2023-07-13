@@ -50,8 +50,8 @@ using_mysql = conf.get_mandatory_value("database", "sql_alchemy_conn").lower().s
 
 class UtcDateTime(TypeDecorator):
     """
-    Almost equivalent to :class:`~sqlalchemy.types.TIMESTAMP` with
-    ``timezone=True`` option, but it differs from that by:
+    Similar to :class:`~sqlalchemy.types.TIMESTAMP` with ``timezone=True`` option, with some differences.
+
     - Never silently take naive :class:`~datetime.datetime`, instead it
       always raise :exc:`ValueError` unless time zone aware value.
     - :class:`~datetime.datetime` value's :attr:`~datetime.datetime.tzinfo`
@@ -86,11 +86,11 @@ class UtcDateTime(TypeDecorator):
 
     def process_result_value(self, value, dialect):
         """
-        Processes DateTimes from the DB making sure it is always
-        returning UTC. Not using timezone.convert_to_utc as that
-        converts to configured TIMEZONE while the DB might be
-        running with some other setting. We assume UTC datetimes
-        in the database.
+        Processes DateTimes from the DB making sure it is always returning UTC.
+
+        Not using timezone.convert_to_utc as that converts to configured TIMEZONE
+        while the DB might be running with some other setting. We assume UTC
+        datetimes in the database.
         """
         if value is not None:
             if value.tzinfo is None:
@@ -110,8 +110,9 @@ class UtcDateTime(TypeDecorator):
 
 class ExtendedJSON(TypeDecorator):
     """
-    A version of the JSON column that uses the Airflow extended JSON
-    serialization provided by airflow.serialization.
+    A version of the JSON column that uses the Airflow extended JSON serialization.
+
+    See airflow.serialization.
     """
 
     impl = Text
@@ -244,10 +245,11 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
 
 class ExecutorConfigType(PickleType):
     """
-    Adds special handling for K8s executor config. If we unpickle a k8s object that was
-    pickled under an earlier k8s library version, then the unpickled object may throw an error
-    when to_dict is called.  To be more tolerant of version changes we convert to JSON using
-    Airflow's serializer before pickling.
+    Adds special handling for K8s executor config.
+
+    If we unpickle a k8s object that was pickled under an earlier k8s library version, then
+    the unpickled object may throw an error when to_dict is called.  To be more tolerant of
+    version changes we convert to JSON using Airflow's serializer before pickling.
     """
 
     cache_ok = True
@@ -293,11 +295,11 @@ class ExecutorConfigType(PickleType):
 
     def compare_values(self, x, y):
         """
-        The TaskInstance.executor_config attribute is a pickled object that may contain
-        kubernetes objects.  If the installed library version has changed since the
-        object was originally pickled, due to the underlying ``__eq__`` method on these
-        objects (which converts them to JSON), we may encounter attribute errors. In this
-        case we should replace the stored object.
+        The TaskInstance.executor_config attribute is a pickled object that may contain kubernetes objects.
+
+        If the installed library version has changed since the object was originally pickled,
+        due to the underlying ``__eq__`` method on these objects (which converts them to JSON),
+        we may encounter attribute errors. In this case we should replace the stored object.
 
         From https://github.com/apache/airflow/pull/24356 we use our serializer to store
         k8s objects, but there could still be raw pickled k8s objects in the database,
