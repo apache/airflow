@@ -364,7 +364,7 @@
               <div class="btn-group">
                 {# Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag #}
                 {% if dag %}
-                  <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint), unpause=True) }}"
+                  <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
                     title="Trigger&nbsp;DAG"
                     aria-label="Trigger DAG"
                     class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn">
