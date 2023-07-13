@@ -64,7 +64,7 @@ def __getattr__(name):
     # celery_executor module without the time cost of its import and
     # construction
     if name == "app":
-        from airflow.executors.celery_executor_utils import app
+        from airflow.providers.celery.executors.celery_executor_utils import app
 
         return app
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
@@ -99,7 +99,7 @@ class CeleryExecutor(BaseExecutor):
         self._sync_parallelism = conf.getint("celery", "SYNC_PARALLELISM")
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
-        from airflow.executors.celery_executor_utils import BulkStateFetcher
+        from airflow.providers.celery.executors.celery_executor_utils import BulkStateFetcher
 
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
         self.tasks = {}
@@ -118,7 +118,7 @@ class CeleryExecutor(BaseExecutor):
         return max(1, int(math.ceil(1.0 * to_send_count / self._sync_parallelism)))
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
-        from airflow.executors.celery_executor_utils import execute_command
+        from airflow.providers.celery.executors.celery_executor_utils import execute_command
 
         task_tuples_to_send = [task_tuple[:3] + (execute_command,) for task_tuple in task_tuples]
         first_task = next(t[3] for t in task_tuples_to_send)
@@ -129,7 +129,7 @@ class CeleryExecutor(BaseExecutor):
 
         key_and_async_results = self._send_tasks_to_celery(task_tuples_to_send)
         self.log.debug("Sent all tasks.")
-        from airflow.executors.celery_executor_utils import ExceptionWithTraceback
+        from airflow.providers.celery.executors.celery_executor_utils import ExceptionWithTraceback
 
         for key, _, result in key_and_async_results:
             if isinstance(result, ExceptionWithTraceback) and isinstance(
@@ -165,7 +165,7 @@ class CeleryExecutor(BaseExecutor):
                 self.update_task_state(key, result.state, getattr(result, "info", None))
 
     def _send_tasks_to_celery(self, task_tuples_to_send: list[TaskInstanceInCelery]):
-        from airflow.executors.celery_executor_utils import send_task_to_executor
+        from airflow.providers.celery.executors.celery_executor_utils import send_task_to_executor
 
         if len(task_tuples_to_send) == 1 or self._sync_parallelism == 1:
             # One tuple, or max one process -> send it in the main thread.
@@ -304,7 +304,7 @@ class CeleryExecutor(BaseExecutor):
         :return: List of readable task instances for a warning message
         """
         readable_tis = []
-        from airflow.executors.celery_executor_utils import app
+        from airflow.providers.celery.executors.celery_executor_utils import app
 
         for ti in tis:
             readable_tis.append(repr(ti))

@@ -341,12 +341,6 @@ def start_airflow(
     is_flag=True,
 )
 @click.option(
-    "--for-production",
-    help="Builds documentation for official release i.e. all links point to stable version. "
-    "Implies --clean-build",
-    is_flag=True,
-)
-@click.option(
     "--one-pass-only",
     help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
     is_flag=True,
@@ -357,17 +351,12 @@ def start_airflow(
 def build_docs(
     docs_only: bool,
     spellcheck_only: bool,
-    for_production: bool,
     builder: str,
     clean_build: bool,
     one_pass_only: bool,
     package_filter: tuple[str],
     github_repository: str,
 ):
-    """Build documentation in the container."""
-    if for_production and not clean_build:
-        get_console().print("\n[warning]When building docs for production, clean-build is forced\n")
-        clean_build = True
     perform_environment_checks()
     cleanup_python_generated_files()
     params = BuildCiParams(
@@ -385,7 +374,7 @@ def build_docs(
         package_filter=package_filter,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
-        for_production=for_production,
+        one_pass_only=one_pass_only,
         skip_environment_initialization=True,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)

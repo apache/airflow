@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+7.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Logging from all containers in KubernetesOperatorPod (#31663)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix async KPO by waiting pod termination in 'execute_complete' before cleanup (#32467)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Stragglers and new additions (#32447)``
+
 7.2.0
 .....
 

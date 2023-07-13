@@ -696,7 +696,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
             _dag_runs = ti_status.active_runs[:]
             for run in _dag_runs:
                 run.update_state(session=session)
-                if run.state in State.finished:
+                if run.state in State.finished_dr_states:
                     ti_status.finished_runs += 1
                     ti_status.active_runs.remove(run)
                     executed_run_dates.append(run.execution_date)
@@ -824,7 +824,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
         """
         for dag_run in dag_runs:
             dag_run.update_state()
-            if dag_run.state not in State.finished:
+            if dag_run.state not in State.finished_dr_states:
                 dag_run.set_state(DagRunState.FAILED)
             session.merge(dag_run)
 
