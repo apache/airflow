@@ -81,7 +81,7 @@ const InstanceTooltip = ({
       {startDate && (
         <>
           <Text>
-            yar Started: <Time dateTime={startDate} />
+            Started: <Time dateTime={startDate} />
           </Text>
           <Text>
             Duration: {formatDuration(getDuration(startDate, endDate))}
