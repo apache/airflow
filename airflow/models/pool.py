@@ -175,12 +175,12 @@ class Pool(Base):
 
         state_count_by_pool = session.execute(
             select(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
-            .filter(TaskInstance.state.in_(list(EXECUTION_STATES)))
+            .filter(TaskInstance.state.in_(EXECUTION_STATES))
             .group_by(TaskInstance.pool, TaskInstance.state)
         )
 
         # calculate queued and running metrics
-        for (pool_name, state, count) in state_count_by_pool:
+        for pool_name, state, count in state_count_by_pool:
             # Some databases return decimal.Decimal here.
             count = int(count)
 
@@ -188,9 +188,9 @@ class Pool(Base):
             if not stats_dict:
                 continue
             # TypedDict key must be a string literal, so we use if-statements to set value
-            if state == "running":
+            if state == TaskInstanceState.RUNNING:
                 stats_dict["running"] = count
-            elif state == "queued":
+            elif state == TaskInstanceState.QUEUED:
                 stats_dict["queued"] = count
             else:
                 raise AirflowException(f"Unexpected state. Expected values: {EXECUTION_STATES}.")

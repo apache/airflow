@@ -60,8 +60,9 @@ class ExecutorLoader:
         LOCAL_EXECUTOR: "airflow.executors.local_executor.LocalExecutor",
         LOCAL_KUBERNETES_EXECUTOR: "airflow.executors.local_kubernetes_executor.LocalKubernetesExecutor",
         SEQUENTIAL_EXECUTOR: "airflow.executors.sequential_executor.SequentialExecutor",
-        CELERY_EXECUTOR: "airflow.executors.celery_executor.CeleryExecutor",
-        CELERY_KUBERNETES_EXECUTOR: "airflow.executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
+        CELERY_EXECUTOR: "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+        CELERY_KUBERNETES_EXECUTOR: "airflow.providers.celery."
+        "executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
         DASK_EXECUTOR: "airflow.executors.dask_executor.DaskExecutor",
         KUBERNETES_EXECUTOR: "airflow.executors.kubernetes_executor.KubernetesExecutor",
         DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",

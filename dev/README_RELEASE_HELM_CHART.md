@@ -613,7 +613,7 @@ between the two repositories to be able to build the documentation.
     ```shell
     cd "${AIRFLOW_REPO_ROOT}"
     git checkout helm-chart/${VERSION}
-    breeze build-docs --package-filter helm-chart --clean-build --for-production
+    breeze build-docs --package-filter helm-chart --clean-build
     ```
 
 - Now you can preview the documentation.
@@ -625,7 +625,7 @@ between the two repositories to be able to build the documentation.
 - Copy the documentation to the ``airflow-site`` repository.
 
     ```shell
-    ./docs/publish_docs.py --package-filter helm-chart
+    breeze release-management publish-docs --package-filter helm-chart
     ```
 
 - Update `index.yaml`

@@ -74,7 +74,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -625,7 +625,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         """
         # actually enqueue them
         for ti in task_instances:
-            if ti.dag_run.state in State.finished:
+            if ti.dag_run.state in State.finished_dr_states:
                 ti.set_state(None, session=session)
                 continue
             command = ti.command_as_list(
@@ -1449,7 +1449,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
         # Check if DAG not scheduled then skip interval calculation to same scheduler runtime
-        if dag_run.state in State.finished:
+        if dag_run.state in State.finished_dr_states:
             # Work out if we should allow creating a new DagRun now?
             if self._should_update_dag_next_dagruns(dag, dag_model, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
@@ -1586,10 +1586,10 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         update(Job)
                         .where(
                             Job.job_type == "SchedulerJob",
-                            Job.state == State.RUNNING,
+                            Job.state == JobState.RUNNING,
                             Job.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
                         )
-                        .values(state=State.FAILED)
+                        .values(state=JobState.FAILED)
                     ).rowcount
 
                     if num_failed:
@@ -1605,7 +1605,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
                         # released.
                         .outerjoin(TI.queued_by_job)
-                        .where(or_(TI.queued_by_job_id.is_(None), Job.state != State.RUNNING))
+                        .where(or_(TI.queued_by_job_id.is_(None), Job.state != JobState.RUNNING))
                         .join(TI.dag_run)
                         .where(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
@@ -1690,7 +1690,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     .where(TI.state == TaskInstanceState.RUNNING)
                     .where(
                         or_(
-                            Job.state != State.RUNNING,
+                            Job.state != JobState.RUNNING,
                             Job.latest_heartbeat < limit_dttm,
                         )
                     )
