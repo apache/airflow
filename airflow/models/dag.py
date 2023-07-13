@@ -91,7 +91,7 @@ from airflow.exceptions import (
     TaskNotFound,
 )
 from airflow.jobs.job import run_job
-from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.abstractoperator import AbstractOperator, TaskStateChangeCallback
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
@@ -1387,8 +1387,9 @@ class DAG(LoggingMixin):
         dagrun: DagRun | DagRunPydantic,
         success: bool = True,
         reason: str | None = None,
+        *,
         session: Session = NEW_SESSION,
-    ):
+    ) -> tuple[list[TaskStateChangeCallback], Context] | None:
         """
         Fetch the appropriate callbacks depending on the value of success, namely the
         on_failure_callback or on_success_callback. This method gets the context of a
@@ -1409,6 +1410,7 @@ class DAG(LoggingMixin):
             context = ti.get_template_context(session=session)
             context["reason"] = reason
             return callbacks, context
+        return None
 
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=NEW_SESSION):
