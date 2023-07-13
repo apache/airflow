@@ -4,7 +4,7 @@ from unittest import mock
 
 import pytest
 from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
-from tests.providers.google.cloud.utils.compat import async_mock
+from unittest import mock
 from google.cloud.batch_v1 import Job, JobStatus
 from airflow.triggers.base import TriggerEvent
 
@@ -44,7 +44,7 @@ class TestCloudBatchJobFinishedTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
     async def test_trigger_on_success_yield_successfully(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
         """
         Tests the CloudBuildCreateBuildTrigger fires once the job execution reaches a successful state.
@@ -66,7 +66,7 @@ class TestCloudBatchJobFinishedTrigger:
 
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
     async def test_trigger_on_deleted_yield_successfully(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
         """
         Tests the CloudBuildCreateBuildTrigger fires once the job execution reaches a successful state.
@@ -88,7 +88,7 @@ class TestCloudBatchJobFinishedTrigger:
 
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
     async def test_trigger_on_deleted_yield_exception(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
         """
         Tests the CloudBuildCreateBuildTrigger fires once the job execution reaches an state with an error message.
@@ -108,7 +108,7 @@ class TestCloudBatchJobFinishedTrigger:
 
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
     async def test_trigger_timeout(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
         """
         Tests the CloudBuildCreateBuildTrigger fires once the job execution times out with an error message.
