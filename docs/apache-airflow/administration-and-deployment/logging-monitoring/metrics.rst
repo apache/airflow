@@ -81,20 +81,16 @@ Enable Https
 To establish an HTTPS connection to the OpenTelemetry collector
 You need to configure the SSL certificate and key within the OpenTelemetry collector's ``config.yml`` file.
 
-.. code-block:: yaml
+.. code-block:: yml
 
-
-receivers:
-  otlp:
-    protocols:
-      grpc:
-      http:
-        endpoint:
-        tls:
-          cert_file: "/path/to/cert/cert.crt"
-          key_file: "/path/to/key/key.pem"
-
-
+   receivers:
+     otlp:
+       protocols:
+         http:
+           endpoint: 0.0.0.0:4318
+           tls:
+             cert_file: "/path/to/cert/cert.crt"
+             key_file: "/path/to/key/key.pem"
 
 Allow/Block Lists
 -----------------
