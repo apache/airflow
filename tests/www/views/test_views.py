@@ -91,14 +91,11 @@ def test_redoc_should_render_template(capture_templates, admin_client):
 
 
 def test_plugin_should_list_on_page_with_details(admin_client):
-    from airflow.configuration import TEST_PLUGINS_FOLDER
-
-    with conf_vars({("core", "plugins"): TEST_PLUGINS_FOLDER}):
-        resp = admin_client.get("/plugin")
-        check_content_in_response("test_plugin", resp)
-        check_content_in_response("Airflow Plugins", resp)
-        check_content_in_response("source", resp)
-        check_content_in_response("<em>$PLUGINS_FOLDER/</em>test_plugin.py", resp)
+    resp = admin_client.get("/plugin")
+    check_content_in_response("test_plugin", resp)
+    check_content_in_response("Airflow Plugins", resp)
+    check_content_in_response("source", resp)
+    check_content_in_response("<em>$PLUGINS_FOLDER/</em>test_plugin.py", resp)
 
 
 def test_plugin_should_list_entrypoint_on_page_with_details(admin_client):
