@@ -86,6 +86,9 @@ TI = TaskInstance
 DR = DagRun
 DM = DagModel
 
+# type alias for task concurrency map,
+# (dag_id, run_id, task_group_id) -> concurrency limitation and set of running map indexes
+TaskGroupConcurrencyMap = dict[tuple[str, str, str], tuple[int, set[int]]]
 
 @dataclass
 class ConcurrencyMap:
@@ -104,11 +107,11 @@ class ConcurrencyMap:
     # (dag_id, run_id, task_id) -> # of active tasks
     task_dagrun_concurrency_map: dict[tuple[str, str, str], int]
     # (dag_id, run_id, task_group_id) -> concurrency limitation and set of running map indexes
-    task_group_concurrency_map: dict[tuple[str, str, str], tuple[int, set[int]]]
+    task_group_concurrency_map: TaskGroupConcurrencyMap
 
     @classmethod
     def from_concurrency_map(
-        cls, ti_map: dict[tuple[str, str, str], int], tg_map: dict[tuple[str, str, str], tuple[int, set[int]]]
+        cls, ti_map: dict[tuple[str, str, str], int], tg_map: TaskGroupConcurrencyMap
     ) -> ConcurrencyMap:
         instance = cls(Counter(), Counter(), Counter(ti_map), tg_map)
         for (d, r, t), c in ti_map.items():
@@ -288,38 +291,45 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             (dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query
         }
 
-        tg_concurrency_query: list[tuple[str, str, str, int]] = (
-            session.query(TI.task_id, TI.run_id, TI.dag_id, TI.map_index)
-            .filter(
+        tg_concurrency_query: Iterator[tuple[str, str, str, int]] = session.execute(
+            select(TI.task_id, TI.run_id, TI.dag_id, TI.map_index)
+            .where(
+                TI.map_index >= 0,
                 TI.state.in_(
-                    [
-                        State.SCHEDULED,
-                        State.QUEUED,
-                        State.RUNNING,
-                        State.UP_FOR_RESCHEDULE,
-                        State.UP_FOR_RETRY,
-                    ]
+                    (
+                        TaskInstanceState.SCHEDULED,
+                        TaskInstanceState.QUEUED,
+                        TaskInstanceState.RUNNING,
+                        TaskInstanceState.UP_FOR_RESCHEDULE,
+                        TaskInstanceState.UP_FOR_RETRY,
+                    )
                 )
             )
-            .filter(TI.map_index >= 0)
             .order_by(TI.dag_id, TI.run_id, TI.map_index)
         )
-        tg_concurrency: dict[tuple[str, str, str], tuple[int, set[int]]] = dict()
+        tg_concurrency: TaskGroupConcurrencyMap = {}
         for (task_id, run_id, dag_id, map_index) in tg_concurrency_query:
             dag = self.dagbag.get_dag(dag_id, session)
-            task = dag.get_task(task_id) if dag else None
-            if task and task.task_group and task.task_group.max_active_groups_per_dagrun is not None:
-                group_id = task.task_group.group_id
-                key = (dag_id, run_id, group_id)
-                if key not in tg_concurrency:
-                    tg_concurrency[key] = (task.task_group.max_active_groups_per_dagrun, set())
-                (limitation, allow_idx) = tg_concurrency[key]
-                if len(allow_idx) < limitation:
-                    allow_idx.add(map_index)
-                # elif map_index in allow_idx:
-                #     # will this happen?
-                # else:
-                #     # reach limitation, should not allow the map index
+            if not dag:
+                continue
+            task = dag.get_task(task_id)
+            if not task:
+                continue
+            task_group = task.task_group
+            if not task_group:
+                continue
+            group_concurrency_limit = task.task_group.max_active_groups_per_dagrun
+            if not group_concurrency_limit:
+                continue
+
+            key = (dag_id, run_id, task_group.group_id)
+            if key not in tg_concurrency:
+                tg_concurrency[key] = (group_concurrency_limit, set())
+            (limitation, allow_idx) = tg_concurrency[key]
+            if len(allow_idx) < limitation:
+                allow_idx.add(map_index)
+            # else:
+            #     # reach limitation, should not allow the map index
 
         return ConcurrencyMap.from_concurrency_map(ti_concurrency, tg_concurrency)
 
