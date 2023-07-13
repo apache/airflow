@@ -106,7 +106,8 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
         output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
         log.debug("Returning response")
         return Response(
-            response=json.dumps(output_json or "{}"), headers={"Content-Type": "application/json"}
+            response=json.dumps(output_json or "{}", default=BaseSerialization.serialize),
+            headers={"Content-Type": "application/json"},
         )
     except Exception as e:
         log.error("Error when calling method %s.", method_name)

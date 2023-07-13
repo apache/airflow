@@ -747,17 +747,13 @@ class DagFileProcessor(LoggingMixin):
     def _execute_dag_callbacks(self, dagbag: DagBag, request: DagCallbackRequest, session: Session):
         dag = dagbag.dags[request.dag_id]
         dagrun = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=request.run_id, session=session)
-        callbacks, context = (
-            DAG.fetch_callback(
-                dag=dag,
-                dagrun=dagrun,
-                success=not request.is_failure_callback,
-                reason=request.msg,
-                session=session,
-            )
-            or None,
-            None,
-        )
+        callbacks, context = DAG.fetch_callback(
+            dag=dag,
+            dagrun=dagrun,
+            success=not request.is_failure_callback,
+            reason=request.msg,
+            session=session,
+        ) or (None, None)
 
         if callbacks and context:
             DAG.execute_callback(callbacks, context, dag.dag_id)
