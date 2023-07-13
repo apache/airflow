@@ -354,7 +354,7 @@ class BaseOperatorMeta(abc.ABCMeta):
     @classmethod
     def _apply_defaults(cls, func: T) -> T:
         """
-        Look for an argument named "default_args", and fills the unspecified arguments from it.
+        Look for an argument named "default_args", and fill the unspecified arguments from it.
 
         Since python2.* isn't clear about which arguments are missing when
         calling a function, and that this can be quite confusing with multi-level
@@ -463,9 +463,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
     Abstract base class for all operators.
 
-    Since operators create objects that become nodes in the dag, BaseOperator
-    contains many recursive methods for dag crawling behavior. To derive this
-    class, you are expected to override the constructor as well as the 'execute'
+    Since operators create objects that become nodes in the DAG, BaseOperator
+    contains many recursive methods for DAG crawling behavior. To derive from
+    this class, you are expected to override the constructor and the 'execute'
     method.
 
     Operators derived from this class should perform or trigger certain tasks
@@ -1128,7 +1128,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
 
     def prepare_for_execution(self) -> BaseOperator:
-        """Lock task for execution to disable custom action in __setattr__ and returns a copy of the task."""
+        """Lock task for execution to disable custom action in ``__setattr__`` and returns a copy of the task."""
         other = copy.copy(self)
         other._lock_for_execution = True
         return other
