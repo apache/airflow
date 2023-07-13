@@ -2595,16 +2595,15 @@ class TaskInstance(Base, LoggingMixin):
                         State.QUEUED,
                         State.RUNNING,
                         State.UP_FOR_RETRY,
-                        State.UP_FOR_RESCHEDULE
+                        State.UP_FOR_RESCHEDULE,
                     ]
-                )
+                ),
             )
             .order_by(TaskInstance.map_index.asc())
             .limit(limit)
         )
         ret = query.scalar()
         return set(ret)
-
 
     def init_run_context(self, raw: bool = False) -> None:
         """Sets the log context."""

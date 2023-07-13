@@ -297,7 +297,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         State.QUEUED,
                         State.RUNNING,
                         State.UP_FOR_RESCHEDULE,
-                        State.UP_FOR_RETRY
+                        State.UP_FOR_RETRY,
                     ]
                 )
             )
@@ -606,7 +606,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         tg_key: tuple[str, str, str] = (dag_id, run_id, group_id)
                         if tg_key not in concurrency_map.task_group_concurrency_map:
                             concurrency_map.task_group_concurrency_map[tg_key] = (
-                                task_group_concurrency_limit ,set()
+                                task_group_concurrency_limit,
+                                set(),
                             )
 
                         acceptable = False

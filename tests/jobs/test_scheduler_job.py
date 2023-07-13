@@ -1207,13 +1207,14 @@ class TestSchedulerJob:
         schedule_count: int,
         schedule_tids: set,
         queued_count: int,
-        queued_tids: set
+        queued_tids: set,
     ):
         """
         Test if _executable_task_instances_to_queued puts the right task instances into the
         mock_list.
         """
         with dag_maker(dag_id="test_find_executable_task_instances_with_task_group_concurrency_limit"):
+
             @task(task_id="dummy")
             def t1() -> [str]:
                 return ["zhong", "xiao", "jie", "yong", "he"]
