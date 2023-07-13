@@ -128,7 +128,9 @@ class SerializedDagModel(Base):
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ) -> bool:
-        """Serializes a DAG and writes it into database.
+        """
+        Serializes a DAG and writes it into database.
+
         If the record already exists, it checks if the Serialized DAG changed or not. If it is
         changed, it updates the record, ignores otherwise.
 
@@ -225,7 +227,9 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def remove_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> None:
-        """Deletes a DAG with given dag_id.
+        """
+        Deletes a DAG with given dag_id.
+
         :param dag_id: dag_id to be deleted
         :param session: ORM Session.
         """
@@ -286,8 +290,8 @@ class SerializedDagModel(Base):
     def get(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDagModel | None:
         """
         Get the SerializedDAG for the given dag ID.
-        It will cope with being passed the ID of a subdag by looking up the
-        root dag_id from the DAG table.
+
+        It will cope with being passed the ID of a subdag by looking up the root dag_id from the DAG table.
 
         :param dag_id: the DAG to fetch
         :param session: ORM Session
@@ -310,8 +314,9 @@ class SerializedDagModel(Base):
         session: Session = NEW_SESSION,
     ) -> None:
         """
-        Saves DAGs as Serialized DAG objects in the database. Each
-        DAG is saved in a separate database query.
+        Saves DAGs as Serialized DAG objects in the database.
+
+        Each DAG is saved in a separate database query.
 
         :param dags: the DAG objects to save to the DB
         :param session: ORM Session
@@ -330,8 +335,7 @@ class SerializedDagModel(Base):
     @provide_session
     def get_last_updated_datetime(cls, dag_id: str, session: Session = NEW_SESSION) -> datetime | None:
         """
-        Get the date when the Serialized DAG associated to DAG was last updated
-        in serialized_dag table.
+        Get the date when the Serialized DAG associated to DAG was last updated in serialized_dag table.
 
         :param dag_id: DAG ID
         :param session: ORM Session
@@ -368,8 +372,7 @@ class SerializedDagModel(Base):
         session: Session,
     ) -> tuple[str, datetime] | None:
         """
-        Get the latest DAG version for a given DAG ID, as well as the date when the Serialized DAG associated
-        to DAG was last updated in serialized_dag table.
+        Get the latest version for a DAG ID and the date it was last updated in serialized_dag table.
 
         :meta private:
         :param dag_id: DAG ID
