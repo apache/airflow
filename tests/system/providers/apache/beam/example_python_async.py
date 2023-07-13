@@ -33,9 +33,6 @@ from tests.system.providers.apache.beam.utils import (
     START_DATE,
 )
 
-# DAG_ID = "dataflow_native_python_async"
-
-
 with models.DAG(
     dag_id="dataflow_native_python_async",
     start_date=START_DATE,
