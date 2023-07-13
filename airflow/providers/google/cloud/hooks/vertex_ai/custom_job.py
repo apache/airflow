@@ -357,7 +357,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a PipelineJob. Starts asynchronous cancellation on the PipelineJob. The server makes a best
+        Cancels a PipelineJob.
+
+        Starts asynchronous cancellation on the PipelineJob. The server makes a best
         effort to cancel the pipeline, but success is not guaranteed. Clients can use
         [PipelineService.GetPipelineJob][google.cloud.aiplatform.v1.PipelineService.GetPipelineJob] or other
         methods to check whether the cancellation succeeded or whether the pipeline completed despite
@@ -396,7 +398,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a TrainingPipeline. Starts asynchronous cancellation on the TrainingPipeline. The server makes
+        Cancels a TrainingPipeline.
+
+        Starts asynchronous cancellation on the TrainingPipeline. The server makes
         a best effort to cancel the pipeline, but success is not guaranteed. Clients can use
         [PipelineService.GetTrainingPipeline][google.cloud.aiplatform.v1.PipelineService.GetTrainingPipeline]
         or other methods to check whether the cancellation succeeded or whether the pipeline completed despite
@@ -435,7 +439,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a CustomJob. Starts asynchronous cancellation on the CustomJob. The server makes a best effort
+        Cancels a CustomJob.
+
+        Starts asynchronous cancellation on the CustomJob. The server makes a best effort
         to cancel the job, but success is not guaranteed. Clients can use
         [JobService.GetCustomJob][google.cloud.aiplatform.v1.JobService.GetCustomJob] or other methods to
         check whether the cancellation succeeded or whether the job completed despite cancellation. On

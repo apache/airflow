@@ -388,6 +388,7 @@ class ClusterGenerator:
     def make(self):
         """
         Helper method for easier migration.
+
         :return: Dict representing Dataproc cluster.
         """
         return self._build_cluster_data()
@@ -655,8 +656,8 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         cluster_state = event["cluster_state"]
         cluster_name = event["cluster_name"]
@@ -895,8 +896,8 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event and event["status"] == "error":
             raise AirflowException(event["message"])
@@ -1074,8 +1075,8 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context, event=None) -> None:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         job_state = event["job_state"]
         job_id = event["job_id"]
@@ -1087,10 +1088,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         return job_id
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.dataproc_job_id:
             self.hook.cancel_job(project_id=self.project_id, job_id=self.dataproc_job_id, region=self.region)
 
@@ -2201,8 +2199,8 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         cluster_state = event["cluster_state"]
         cluster_name = event["cluster_name"]

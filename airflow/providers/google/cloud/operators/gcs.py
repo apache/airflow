@@ -43,8 +43,10 @@ from airflow.utils import timezone
 
 class GCSCreateBucketOperator(GoogleCloudBaseOperator):
     """
-    Creates a new bucket. Google Cloud Storage uses a flat namespace,
-    so you can't create a bucket with a name that is already in use.
+    Creates a new bucket.
+
+    Google Cloud Storage uses a flat namespace, so you
+    can't create a bucket with a name that is already in use.
 
         .. seealso::
             For more information, see Bucket Naming Guidelines:
@@ -158,8 +160,7 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
 
 class GCSListObjectsOperator(GoogleCloudBaseOperator):
     """
-    List all objects from the bucket filtered by given string prefix and delimiter in name,
-    or match_glob.
+    List all objects from the bucket filtered by given string prefix and delimiter in name or match_glob.
 
     This operator returns a python list with the name of objects which can be used by
     XCom in the downstream task.
@@ -265,9 +266,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
 
 class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
     """
-    Deletes objects from a Google Cloud Storage bucket, either
-    from an explicit list of object names or all objects
-    matching a prefix.
+    Deletes objects from a list or all objects matching a prefix from a Google Cloud Storage bucket.
 
     :param bucket_name: The GCS bucket to delete from
     :param objects: List of objects to delete. These should be the names
@@ -495,11 +494,11 @@ class GCSObjectCreateAclEntryOperator(GoogleCloudBaseOperator):
 
 class GCSFileTransformOperator(GoogleCloudBaseOperator):
     """
-    Copies data from a source GCS location to a temporary location on the
-    local filesystem. Runs a transformation on this file as specified by
-    the transformation script and uploads the output to a destination bucket.
-    If the output bucket is not specified the original file will be
-    overwritten.
+    Copies data from a source GCS location to a temporary location on the local filesystem.
+
+    Runs a transformation on this file as specified by the transformation script
+    and uploads the output to a destination bucket. If the output bucket is not
+    specified the original file will be overwritten.
 
     The locations of the source and the destination files in the local
     filesystem is provided as an first and second arguments to the
@@ -601,6 +600,8 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
 
 class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
     """
+    Copy objects that were modified during a time span, run a transform, and upload results to a bucket.
+
     Determines a list of objects that were added or modified at a GCS source
     location during a specific time-span, copies them to a temporary location
     on the local file system, runs a transform on this file as specified by

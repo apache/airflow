@@ -210,13 +210,19 @@ class WasbHook(BaseHook):
             if sas_token.startswith("https"):
                 return BlobServiceClient(account_url=sas_token, **extra)
             else:
-                return BlobServiceClient(account_url=f"{account_url}/{sas_token}", **extra)
+                if not account_url.startswith("https://"):
+                    # TODO: require url in the host field in the next major version?
+                    account_url = f"https://{conn.login}.blob.core.windows.net"
+                return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
         if not credential:
             credential = DefaultAzureCredential()
             self.log.info("Using DefaultAzureCredential as credential")
+        if not account_url.startswith("https://"):
+            # TODO: require url in the host field in the next major version?
+            account_url = f"https://{conn.login}.blob.core.windows.net/"
         return BlobServiceClient(
             account_url=account_url,
             credential=credential,
@@ -687,10 +693,10 @@ class WasbAsyncHook(WasbHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        blob_list = []
+        blob_list: list[BlobProperties] = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         async for blob in blobs:
-            blob_list.append(blob.name)
+            blob_list.append(blob)
         return blob_list
 
     async def check_for_prefix_async(self, container_name: str, prefix: str, **kwargs: Any) -> bool:

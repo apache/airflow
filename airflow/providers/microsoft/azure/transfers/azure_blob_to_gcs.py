@@ -17,102 +17,28 @@
 # under the License.
 from __future__ import annotations
 
-import tempfile
-from typing import TYPE_CHECKING, Sequence
+import warnings
 
-from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import (
+    AzureBlobStorageToGCSOperator as AzureBlobStorageToGCSOperatorFromGoogleProvider,
+)
 
 
-class AzureBlobStorageToGCSOperator(BaseOperator):
+class AzureBlobStorageToGCSOperator(AzureBlobStorageToGCSOperatorFromGoogleProvider):
     """
-    Operator transfers data from Azure Blob Storage to specified bucket in Google Cloud Storage.
+    This class is deprecated.
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AzureBlobStorageToGCSOperator`
-
-    :param wasb_conn_id: Reference to the wasb connection.
-    :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param blob_name: Name of the blob
-    :param container_name: Name of the container
-    :param bucket_name: The bucket to upload to
-    :param object_name: The object name to set when uploading the file
-    :param filename: The local file path to the file to be uploaded
-    :param gzip: Option to compress local file or file data for upload
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account.
+    Please use
+    :class:`airflow.providers.google.cloud.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`.
     """
 
-    def __init__(
-        self,
-        *,
-        wasb_conn_id="wasb_default",
-        gcp_conn_id: str = "google_cloud_default",
-        blob_name: str,
-        container_name: str,
-        bucket_name: str,
-        object_name: str,
-        filename: str,
-        gzip: bool,
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.wasb_conn_id = wasb_conn_id
-        self.gcp_conn_id = gcp_conn_id
-        self.blob_name = blob_name
-        self.container_name = container_name
-        self.bucket_name = bucket_name
-        self.object_name = object_name
-        self.filename = filename
-        self.gzip = gzip
-        self.impersonation_chain = impersonation_chain
-
-    template_fields: Sequence[str] = (
-        "blob_name",
-        "container_name",
-        "bucket_name",
-        "object_name",
-        "filename",
-    )
-
-    def execute(self, context: Context) -> str:
-        azure_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
-        gcs_hook = GCSHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use
+            `airflow.providers.google.cloud.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`.""",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
-
-        with tempfile.NamedTemporaryFile() as temp_file:
-            self.log.info("Downloading data from blob: %s", self.blob_name)
-            azure_hook.get_file(
-                file_path=temp_file.name,
-                container_name=self.container_name,
-                blob_name=self.blob_name,
-            )
-            self.log.info(
-                "Uploading data from blob's: %s into GCP bucket: %s", self.object_name, self.bucket_name
-            )
-            gcs_hook.upload(
-                bucket_name=self.bucket_name,
-                object_name=self.object_name,
-                filename=temp_file.name,
-                gzip=self.gzip,
-            )
-            self.log.info(
-                "Resources have been uploaded from blob: %s to GCS bucket:%s",
-                self.blob_name,
-                self.bucket_name,
-            )
-        return f"gs://{self.bucket_name}/{self.object_name}"
+        super().__init__(*args, **kwargs)

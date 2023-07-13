@@ -129,6 +129,7 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
 def container_is_completed(pod: V1Pod, container_name: str) -> bool:
     """
     Examines V1Pod ``pod`` to determine whether ``container_name`` is completed.
+
     If that container is present and completed, returns True.  Returns False otherwise.
     """
     container_status = get_container_status(pod, container_name)
@@ -430,8 +431,9 @@ class PodManager(LoggingMixin):
         self, pod: V1Pod, container_logs: Iterable[str] | str | Literal[True], follow_logs=False
     ) -> list[PodLoggingStatus]:
         """
-        Follow the logs of containers in the pod specified by input parameter and publish
-        it to airflow logging. Returns when all the containers exit.
+        Follow the logs of containers in the specified pod and publish it to airflow logging.
+
+        Returns when all the containers exit.
         """
         pod_logging_statuses = []
         all_containers = self.get_container_names(pod)

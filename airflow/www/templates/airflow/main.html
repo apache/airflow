@@ -91,7 +91,7 @@
 {% endblock %}
 
 {% block footer %}
-  {% if not current_user.is_anonymous %}
+  {% if auth_manager.is_logged_in() %}
     {% set version_label = 'Version' %}
     <footer class="footer">
       <div class="container">

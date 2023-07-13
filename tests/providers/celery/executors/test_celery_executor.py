@@ -34,11 +34,11 @@ from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
 from airflow.configuration import conf
-from airflow.executors import celery_executor, celery_executor_utils
-from airflow.executors.celery_executor import CeleryExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+from airflow.providers.celery.executors import celery_executor, celery_executor_utils
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.utils import timezone
 from airflow.utils.state import State
 from tests.test_utils import db
@@ -71,8 +71,10 @@ def _prepare_app(broker_url=None, execute=None):
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
-    patch_app = mock.patch("airflow.executors.celery_executor.app", test_app)
-    patch_execute = mock.patch("airflow.executors.celery_executor_utils.execute_command", test_execute)
+    patch_app = mock.patch("airflow.providers.celery.executors.celery_executor.app", test_app)
+    patch_execute = mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.execute_command", test_execute
+    )
 
     backend = test_app.backend
 
@@ -110,7 +112,9 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self, caplog):
-        caplog.set_level(logging.ERROR, logger="airflow.executors.celery_executor_utils.BulkStateFetcher")
+        caplog.set_level(
+            logging.ERROR, logger="airflow.providers.celery.executors.celery_executor_utils.BulkStateFetcher"
+        )
         with _prepare_app():
             executor = celery_executor.CeleryExecutor()
             executor.tasks = {"key": FakeCeleryResult()}
@@ -118,8 +122,8 @@ class TestCeleryExecutor:
         assert celery_executor_utils.CELERY_FETCH_ERR_MSG_HEADER in caplog.text, caplog.record_tuples
         assert FAKE_EXCEPTION_MSG in caplog.text, caplog.record_tuples
 
-    @mock.patch("airflow.executors.celery_executor.CeleryExecutor.sync")
-    @mock.patch("airflow.executors.celery_executor.CeleryExecutor.trigger_tasks")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.sync")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.trigger_tasks")
     @mock.patch("airflow.executors.base_executor.Stats.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
         executor = celery_executor.CeleryExecutor()
@@ -154,9 +158,9 @@ class TestCeleryExecutor:
             )
 
         with mock.patch(
-            "airflow.executors.celery_executor_utils._execute_in_subprocess"
+            "airflow.providers.celery.executors.celery_executor_utils._execute_in_subprocess"
         ) as mock_subproc, mock.patch(
-            "airflow.executors.celery_executor_utils._execute_in_fork"
+            "airflow.providers.celery.executors.celery_executor_utils._execute_in_fork"
         ) as mock_fork, mock.patch(
             "celery.app.task.Task.request"
         ) as mock_task:
@@ -224,7 +228,7 @@ class TestCeleryExecutor:
             yield app.control.revoke
 
     @pytest.mark.backend("mysql", "postgres")
-    @mock.patch("airflow.executors.celery_executor.CeleryExecutor.fail")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.fail")
     def test_cleanup_stuck_queued_tasks(self, mock_fail):
         start_date = timezone.utcnow() - timedelta(days=2)
 
@@ -255,7 +259,7 @@ class TestCeleryExecutor:
         import importlib
 
         from airflow.config_templates import default_celery
-        from airflow.executors import celery_executor_utils
+        from airflow.providers.celery.executors import celery_executor_utils
 
         # reload celery conf to apply the new config
         importlib.reload(default_celery)

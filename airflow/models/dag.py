@@ -127,7 +127,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
@@ -714,11 +714,14 @@ class DAG(LoggingMixin):
         :meta private:
         """
         for task in self.tasks:
-            if not task.is_setup:
-                continue
-            if not any(x.is_teardown for x in task.downstream_list):
+            if task.is_setup and not any(x.is_teardown for x in task.downstream_list):
                 raise AirflowDagInconsistent(
-                    "Dag has setup without teardown: dag='%s', task='%s'", self.dag_id, task.task_id
+                    f"Dag has setup without teardown: dag='{self.dag_id}', task='{task.task_id}'"
+                )
+            if task.is_teardown and all(x.is_setup for x in task.upstream_list):
+                raise AirflowDagInconsistent(
+                    f"Dag has teardown task without an upstream work task: dag='{self.dag_id}',"
+                    f" task='{task.task_id}'"
                 )
 
     def __repr__(self):
@@ -1413,7 +1416,7 @@ class DAG(LoggingMixin):
 
         :return: List of execution dates
         """
-        runs = DagRun.find(dag_id=self.dag_id, state=State.RUNNING)
+        runs = DagRun.find(dag_id=self.dag_id, state=DagRunState.RUNNING)
 
         active_dates = []
         for run in runs:
@@ -2115,7 +2118,7 @@ class DAG(LoggingMixin):
     @provide_session
     def set_dag_runs_state(
         self,
-        state: str = State.RUNNING,
+        state: DagRunState = DagRunState.RUNNING,
         session: Session = NEW_SESSION,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -2196,12 +2199,12 @@ class DAG(LoggingMixin):
                 stacklevel=2,
             )
 
-        state = []
+        state: list[TaskInstanceState] = []
         if only_failed:
-            state += [State.FAILED, State.UPSTREAM_FAILED]
+            state += [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
         if only_running:
             # Yes, having `+=` doesn't make sense, but this was the existing behaviour
-            state += [State.RUNNING]
+            state += [TaskInstanceState.RUNNING]
 
         tis = self._get_task_instances(
             task_ids=task_ids,
@@ -2373,6 +2376,8 @@ class DAG(LoggingMixin):
                 also_include.extend(t.get_upstreams_follow_setups())
             else:
                 also_include.extend(t.get_upstreams_only_setups_and_teardowns())
+            if t.is_setup and not include_downstream:
+                also_include.extend(x for x in t.downstream_list if x.is_teardown)
 
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
@@ -2720,6 +2725,8 @@ class DAG(LoggingMixin):
             session=session,
         )
         self.log.debug("Getting dagrun for dag %s", self.dag_id)
+        logical_date = timezone.coerce_datetime(execution_date)
+        data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
         dr: DagRun = _get_or_create_dagrun(
             dag=self,
             start_date=execution_date,
@@ -2727,6 +2734,7 @@ class DAG(LoggingMixin):
             run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
             session=session,
             conf=run_conf,
+            data_interval=data_interval,
         )
 
         tasks = self.task_dict
@@ -2734,7 +2742,7 @@ class DAG(LoggingMixin):
         # Instead of starting a scheduler, we run the minimal loop possible to check
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
-        while dr.state == State.RUNNING:
+        while dr.state == DagRunState.RUNNING:
             schedulable_tis, _ = dr.update_state(session=session)
             try:
                 for ti in schedulable_tis:
@@ -2925,27 +2933,30 @@ class DAG(LoggingMixin):
             session.add(orm_dag)
             orm_dags.append(orm_dag)
 
-        # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
-        most_recent_subq = (
-            select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
-            .where(
-                DagRun.dag_id.in_(existing_dags),
-                or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+        most_recent_runs: dict[str, DagRun] = {}
+        num_active_runs: dict[str, int] = {}
+        # Skip these queries entirely if no DAGs can be scheduled to save time.
+        if any(dag.timetable.can_be_scheduled for dag in dags):
+            # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
+            most_recent_subq = (
+                select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
+                .where(
+                    DagRun.dag_id.in_(existing_dags),
+                    or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+                )
+                .group_by(DagRun.dag_id)
+                .subquery()
             )
-            .group_by(DagRun.dag_id)
-            .subquery()
-        )
-        most_recent_runs_iter = session.scalars(
-            select(DagRun).where(
-                DagRun.dag_id == most_recent_subq.c.dag_id,
-                DagRun.execution_date == most_recent_subq.c.max_execution_date,
+            most_recent_runs_iter = session.scalars(
+                select(DagRun).where(
+                    DagRun.dag_id == most_recent_subq.c.dag_id,
+                    DagRun.execution_date == most_recent_subq.c.max_execution_date,
+                )
             )
-        )
-        most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
+            most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
 
-        # Get number of active dagruns for all dags we are processing as a single query.
-
-        num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
+            # Get number of active dagruns for all dags we are processing as a single query.
+            num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
 
         filelocs = []
 
@@ -3890,6 +3901,7 @@ def _get_or_create_dagrun(
     execution_date: datetime,
     run_id: str,
     session: Session,
+    data_interval: tuple[datetime, datetime] | None = None,
 ) -> DagRun:
     """Create a DAG run, replacing an existing instance if needed to prevent collisions.
 
@@ -3917,6 +3929,7 @@ def _get_or_create_dagrun(
         start_date=start_date or execution_date,
         session=session,
         conf=conf,
+        data_interval=data_interval,
     )
     log.info("created dagrun %s", dr)
     return dr

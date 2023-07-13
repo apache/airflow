@@ -270,6 +270,8 @@ def dict_hash(dictionary: dict[str, Any]) -> str:
 
 
 def get_command_hash_export() -> str:
+    import rich_click
+
     hashes = []
     with Context(main) as ctx:
         the_context_dict = ctx.to_info_dict()
@@ -277,12 +279,30 @@ def get_command_hash_export() -> str:
             get_stderr_console().print(the_context_dict)
         hashes.append(f"main:{dict_hash(the_context_dict['command']['params'])}")
         commands_dict = the_context_dict["command"]["commands"]
+        options = rich_click.rich_click.OPTION_GROUPS
         for command in sorted(commands_dict.keys()):
             current_command_dict = commands_dict[command]
             if "commands" in current_command_dict:
                 subcommands = current_command_dict["commands"]
                 for subcommand in sorted(subcommands.keys()):
-                    hashes.append(f"{command}:{subcommand}:{dict_hash(subcommands[subcommand])}")
+                    subcommand_click_dict = subcommands[subcommand]
+                    try:
+                        subcommand_rich_click_dict = options[f"breeze {command} {subcommand}"]
+                    except KeyError:
+                        get_console().print(
+                            f"[error]The `breeze {command} {subcommand}` is missing in rich-click options[/]"
+                        )
+                        get_console().print(
+                            "[info]Please add add it to rich_click.OPTION_GROUPS "
+                            "via one of the `*_commands_config.py` "
+                            "files in `dev/breeze/src/airflow_breeze/commands`[/]"
+                        )
+                        sys.exit(1)
+                    final_dict = {
+                        "click_commands": subcommand_click_dict,
+                        "rich_click_options": subcommand_rich_click_dict,
+                    }
+                    hashes.append(f"{command}:{subcommand}:{dict_hash(final_dict)}")
                 hashes.append(f"{command}:{dict_hash(current_command_dict)}")
             else:
                 hashes.append(f"{command}:{dict_hash(current_command_dict)}")
