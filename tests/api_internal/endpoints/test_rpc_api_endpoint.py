@@ -25,7 +25,6 @@ from flask import Flask
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.state import State
@@ -127,9 +126,9 @@ class TestRpcApiEndpoint:
         )
         assert response.status_code == 200
         print(response.data)
-        response_data = BaseSerialization.deserialize(json.loads(response.data), use_pydantic_models=True)
-        expected_data = TaskInstancePydantic.from_orm(ti)
-        assert response_data == expected_data
+        assert response.data.decode("utf-8") == json.dumps(
+            BaseSerialization.serialize(ti, use_pydantic_models=True), default=BaseSerialization.serialize
+        )
 
     def test_method_with_exception(self):
         mock_test_method.side_effect = ValueError("Error!!!")
