@@ -248,9 +248,11 @@ class BaseDatabricksHook(BaseHook):
                         azure_ad_endpoint = self.databricks_conn.extra_dejson.get(
                             "azure_ad_endpoint", AZURE_DEFAULT_AD_ENDPOINT
                         )
+                        azure_databricks_proxy = self.databricks_conn.extra_dejson.get("databricks_proxy")
                         resp = requests.post(
                             AZURE_TOKEN_SERVICE_URL.format(azure_ad_endpoint, tenant_id),
                             data=data,
+                            proxies=azure_databricks_proxy,
                             headers={
                                 **self.user_agent_header,
                                 "Content-Type": "application/x-www-form-urlencoded",
