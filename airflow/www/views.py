@@ -383,6 +383,12 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             else:
                 instances = list(map(_get_summary, grouped_tis.get(item.task_id, [])))
 
+            setup_teardown_type = {}
+            if item.is_setup is True:
+                setup_teardown_type["setupTeardownType"] = "setup"
+            elif item.is_teardown is True:
+                setup_teardown_type["setupTeardownType"] = "teardown"
+
             return {
                 "id": item.task_id,
                 "instances": instances,
@@ -392,6 +398,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,
+                **setup_teardown_type,
             }
 
         # Task Group

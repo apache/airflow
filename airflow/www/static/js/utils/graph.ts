@@ -169,6 +169,7 @@ const generateGraph = ({
       id: `${e.sourceId}-${e.targetId}`,
       sources: [e.sourceId],
       targets: [e.targetId],
+      isSetupTeardown: e.isSetupTeardown,
       labels: e.label
         ? [
             {
