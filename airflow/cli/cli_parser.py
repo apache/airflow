@@ -24,6 +24,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from argparse import Action
 from functools import lru_cache
 from typing import Iterable
@@ -46,8 +47,17 @@ from airflow.utils.helpers import partition
 
 airflow_commands = core_commands
 
-executor, _ = ExecutorLoader.import_default_executor_cls(validate=False)
-airflow_commands.extend(executor.get_cli_commands())
+log = logging.getLogger(__name__)
+try:
+    executor, _ = ExecutorLoader.import_default_executor_cls(validate=False)
+    airflow_commands.extend(executor.get_cli_commands())
+except Exception:
+    executor_name = ExecutorLoader.get_default_executor_name()
+    log.exception("Failed to load CLI commands from executor: %s", executor_name)
+    log.error("Ensure all dependencies are met and try again")
+    # Do no re-raise the exception since we want the CLI to still function for
+    # other commands.
+
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 
