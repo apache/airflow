@@ -2391,7 +2391,7 @@ class Airflow(AirflowBaseView):
     @expose("/blocked", methods=["POST"])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         ]
     )
