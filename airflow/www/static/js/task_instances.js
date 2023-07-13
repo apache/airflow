@@ -21,7 +21,11 @@
 
 // We don't re-import moment again, otherwise webpack will include it twice in the bundle!
 import { escapeHtml } from "./main";
-import { defaultFormat, formatDateTime } from "./datetime_utils";
+import {
+  defaultFormat,
+  isoFormatWithTZ,
+  formatDateTime,
+} from "./datetime_utils";
 import { dagTZ } from "./dag";
 import { finalStatesMap } from "./utils";
 
@@ -100,7 +104,7 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
     tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
   }
   if (ti.execution_date !== undefined) {
-    tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
+    tt += `Run: ${moment(ti.execution_date).format(isoFormatWithTZ)}<br>`;
   }
   if (ti.run_id !== undefined) {
     tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;

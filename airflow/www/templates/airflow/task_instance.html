@@ -26,7 +26,7 @@
   <br>
   <h4>
     <span class="text-muted">Task Instance:</span> <span>{{ task_id }}</span>
-    <span class="text-muted">at</span> <time datetime="{{ execution_date }}" data-datetime-convert="false">{{ execution_date }}</time>
+    <span class="text-muted">at</span> <time datetime="{{ execution_date }}" data-attribute="execution_date">{{ execution_date }}</time>
     {% if map_index is defined and map_index >= 0 %}
       <span class="text-muted">Map Index:</span> <span>{{ map_index }}</span>
     {% endif %}

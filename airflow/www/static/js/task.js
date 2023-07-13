@@ -32,10 +32,7 @@ document.addEventListener("DOMContentLoaded", () => {
       attr.innerHTML = "";
       const timeElement = document.createElement("time");
       timeElement.setAttribute("datetime", value);
-      timeElement.setAttribute(
-        "data-datetime-convert",
-        attrName === "execution_date" ? "false" : "true"
-      );
+      timeElement.dataset.attribute = attrName;
       const textNode = document.createTextNode(value);
       timeElement.appendChild(textNode);
       attr.appendChild(timeElement);

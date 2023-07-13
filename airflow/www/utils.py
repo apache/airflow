@@ -463,12 +463,12 @@ def datetime_f(attr_name):
 
     def dt(attr):
         f = attr.get(attr_name)
-        return datetime_html(f)
+        return datetime_html(f, attr_name)
 
     return dt
 
 
-def datetime_html(dttm: DateTime | None) -> str:
+def datetime_html(dttm: DateTime | None, attr_name: str) -> str:
     """Return an HTML formatted string with time element to support timezone changes in UI."""
     as_iso = dttm.isoformat() if dttm else ""
     if not as_iso:
@@ -477,7 +477,9 @@ def datetime_html(dttm: DateTime | None) -> str:
     if timezone.utcnow().isoformat()[:4] == as_iso[:4]:
         as_iso_short = as_iso[5:]
     # The empty title will be replaced in JS code when non-UTC dates are displayed
-    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso_short)
+    return Markup('<nobr><time title="" datetime="{}" data-attribute="{}">{}</time></nobr>').format(
+        as_iso, attr_name, as_iso_short
+    )
 
 
 def json_f(attr_name):

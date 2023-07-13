@@ -20,6 +20,7 @@
 /* global moment, $, document */
 export const defaultFormat = "YYYY-MM-DD, HH:mm:ss";
 export const isoFormatWithoutTZ = "YYYY-MM-DDTHH:mm:ss.SSS";
+export const isoFormatWithTZ = "YYYY-MM-DDTHH:mm:ss.SSSZ";
 export const defaultFormatWithTZ = "YYYY-MM-DD, HH:mm:ss z";
 export const defaultTZFormat = "z (Z)";
 export const dateTimeAttrFormat = "YYYY-MM-DDThh:mm:ssTZD";
@@ -83,6 +84,12 @@ export const secondsToString = (seconds) => {
 
 export function updateAllDateTimes() {
   // Called after `moment.tz.setDefault` has changed the default TZ to display.
+  const formatMap = {
+    execution_date: isoFormatWithTZ,
+    "dag_run.execution_date": isoFormatWithTZ,
+    ti_log: defaultFormatWithTZ,
+    default: defaultFormat,
+  };
 
   $('time[data-datetime-convert!="false"]').each((_, el) => {
     const $el = $(el);
@@ -90,7 +97,7 @@ export function updateAllDateTimes() {
     // eslint-disable-next-line no-underscore-dangle
     if (dt._isValid) {
       $el.text(
-        dt.format($el.data("with-tz") ? defaultFormatWithTZ : defaultFormat)
+        dt.format(formatMap[$el.data("attribute")] || formatMap.default)
       );
     }
     if ($el.attr("title") !== undefined) {

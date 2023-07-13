@@ -138,14 +138,14 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
           .replaceAll(
             dateRegex,
             (date) =>
-              `<time datetime="${date}+00:00" data-with-tz="true">${formatDateTime(
+              `<time datetime="${date}+00:00" data-attribute="ti_log">${formatDateTime(
                 `${date}+00:00`
               )}</time>`
           )
           .replaceAll(
             iso8601Regex,
             (date) =>
-              `<time datetime="${date}" data-with-tz="true">${formatDateTime(
+              `<time datetime="${date}" data-attribute="ti_log">${formatDateTime(
                 `${date}`
               )}</time>`
           );
