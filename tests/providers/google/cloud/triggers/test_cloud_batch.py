@@ -5,7 +5,7 @@ from unittest import mock
 import pytest
 from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
 from tests.providers.google.cloud.utils.compat import async_mock
-from google.cloud import batch_v1
+from google.cloud.batch_v1 import Job, JobStatus
 from airflow.triggers.base import TriggerEvent
 
 JOB_NAME = 'jobName'
@@ -49,7 +49,7 @@ class TestCloudBatchJobFinishedTrigger:
         """
         Tests the CloudBuildCreateBuildTrigger fires once the job execution reaches a successful state.
         """
-        state = batch_v1.JobStatus.State.SUCCEEDED
+        state = JobStatus.State.SUCCEEDED
         mock_hook.return_value.get_build_job.return_value = self._mock_job_with_state(state)
         generator = trigger.run()
         actual = await generator.asend(None)
@@ -71,7 +71,7 @@ class TestCloudBatchJobFinishedTrigger:
         """
         Tests the CloudBuildCreateBuildTrigger fires once the job execution reaches a successful state.
         """
-        state = batch_v1.JobStatus.State.DELETION_IN_PROGRESS
+        state = JobStatus.State.DELETION_IN_PROGRESS
         mock_hook.return_value.get_build_job.return_value = self._mock_job_with_state(state)
         generator = trigger.run()
         actual = await generator.asend(None)
@@ -115,7 +115,7 @@ class TestCloudBatchJobFinishedTrigger:
         """
         async def _mock_job(job_name):
             job = mock.MagicMock()
-            job.status.state = batch_v1.JobStatus.State.RUNNING
+            job.status.state = JobStatus.State.RUNNING
             return job
         
         mock_hook.return_value.get_build_job = _mock_job
@@ -134,8 +134,8 @@ class TestCloudBatchJobFinishedTrigger:
         )
 
 
-    async def _mock_job_with_state(self, state: batch_v1.JobStatus.State):
-        job: batch_v1.Job = mock.MagicMock()
+    async def _mock_job_with_state(self, state: JobStatus.State):
+        job: Job = mock.MagicMock()
         job.status.state = state
         return job
         

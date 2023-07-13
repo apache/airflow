@@ -28,6 +28,6 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 class TestCloudBatchSystem(GoogleSystemTest):
     @provide_gcp_context(GCP_CLOUD_BATCH_KEY)
     def test_run_cloud_batch_example_dag(self):
-        self.run_dag(dag_id="example_gcp_cloud_batch", dag_folder=CLOUD_DAG_FOLDER)
+        self.run_dag(dag_id="example_cloud_batch", dag_folder=CLOUD_DAG_FOLDER)
 
   

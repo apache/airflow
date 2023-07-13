@@ -20,8 +20,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any, AsyncIterator, Sequence, Union
 
-
-from google.cloud import batch_v1
+from google.cloud.batch_v1 import Job, JobStatus
 
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -97,12 +96,12 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
         while timeout == None or timeout > 0:
             
             try:
-                job: batch_v1.Job = await hook.get_build_job(
+                job: Job = await hook.get_build_job(
                     job_name=self.job_name
                 )
                 
-                status: batch_v1.JobStatus.State = job.status.state
-                if status == batch_v1.JobStatus.State.SUCCEEDED:
+                status: JobStatus.State = job.status.state
+                if status == JobStatus.State.SUCCEEDED:
                     yield TriggerEvent(
                         {
                             "job_name": self.job_name,
@@ -111,7 +110,7 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                         }
                     )
                     return
-                elif status == batch_v1.JobStatus.State.FAILED:
+                elif status == JobStatus.State.FAILED:
                     yield TriggerEvent(
                         {
                             "job_name": self.job_name,
@@ -120,7 +119,7 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                         }
                     )
                     return
-                elif status == batch_v1.JobStatus.State.DELETION_IN_PROGRESS:
+                elif status == JobStatus.State.DELETION_IN_PROGRESS:
                     yield TriggerEvent(
                         {
                             "job_name": self.job_name,

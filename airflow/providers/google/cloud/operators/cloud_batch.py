@@ -1,5 +1,6 @@
 from airflow.models.baseoperator import BaseOperator
-from google.cloud import batch_v1
+
+from google.cloud.batch_v1 import Job, Task
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchHook
 from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
 from typing import Sequence
@@ -24,7 +25,7 @@ class CloudBatchSubmitJobOperator(BaseOperator):
         project_id: str,
         region: str,
         job_name: str,
-        job: batch_v1.Job,
+        job: Job,
         polling_period_seconds: float = 10,
         timeout_seconds: Union[float, None] = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -76,7 +77,7 @@ class CloudBatchSubmitJobOperator(BaseOperator):
             completed_job = hook.wait_for_job(
                 job_name=job.name, polling_period_seconds=self.polling_period_seconds, timeout=self.timeout_seconds)
 
-            return batch_v1.Job.to_dict(completed_job)
+            return Job.to_dict(completed_job)
 
         else:
             self.defer(
@@ -98,7 +99,7 @@ class CloudBatchSubmitJobOperator(BaseOperator):
             hook: CloudBatchHook = CloudBatchHook(
                 self.gcp_conn_id, self.impersonation_chain)
             job = hook.get_job(job_name=event["job_name"])
-            return batch_v1.Job.to_dict(job)
+            return Job.to_dict(job)
         else:
             raise AirflowException(
                 f"Unexpected error in the operation: {event['message']}")
@@ -224,7 +225,7 @@ class CloudBatchListJobsOperator(BaseOperator):
             filter=self.filter,
             limit=self.limit)
 
-        return [batch_v1.Job.to_dict(job) for job in jobs_list]
+        return [Job.to_dict(job) for job in jobs_list]
 
 
 class CloudBatchListTasksOperator(BaseOperator):
@@ -294,4 +295,4 @@ class CloudBatchListTasksOperator(BaseOperator):
             filter=self.filter,
             limit=self.limit)
 
-        return [batch_v1.Task.to_dict(task) for task in tasks_list]
+        return [Task.to_dict(task) for task in tasks_list]

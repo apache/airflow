@@ -1,3 +1,24 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""
+Example Airflow DAG that uses Google Cloud Batch Operators.
+"""
+
 from __future__ import annotations
 
 import os
@@ -11,7 +32,7 @@ from google.cloud import batch_v1
 
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
-DAG_ID = "example_gcp_cloud_batch"
+DAG_ID = "example_cloud_batch"
 
 region = "us-central1"
 job_name_prefix = 'batch-system-test-job'
@@ -32,19 +53,17 @@ clean2_task_name = 'clean_job_2'
 
 
 def _get_jobs_names(ti):
-    pulled = ti.xcom_pull(task_ids=[list_jobs_task_name], key='return_value')
-    print("FREDDY", pulled)
-    name1 = pulled[0][0]['name'].split('/')[-1]
-    name2 = pulled[0][1]['name'].split('/')[-1]
+    job_names = ti.xcom_pull(task_ids=[list_jobs_task_name], key='return_value')
+    name1 = job_names[0][0]['name'].split('/')[-1]
+    name2 = job_names[0][1]['name'].split('/')[-1]
     return [name1, name2]
 
 
 def _assert_tasks(ti):
-    pulled = ti.xcom_pull(task_ids=[list_tasks_task_name], key='return_value')
-
-    assert (len(pulled[0]) == 2)
-    assert 'tasks/0' in pulled[0][0]['name']
-    assert 'tasks/1' in pulled[0][1]['name']
+    tasks_names = ti.xcom_pull(task_ids=[list_tasks_task_name], key='return_value')
+    assert (len(tasks_names[0]) == 2)
+    assert 'tasks/0' in tasks_names[0][0]['name']
+    assert 'tasks/1' in tasks_names[0][1]['name']
 
 
 def _create_job():
@@ -54,29 +73,20 @@ def _create_job():
     runnable.container.entrypoint = "/bin/sh"
     runnable.container.commands = [
         "-c", "echo Hello world! This is task ${BATCH_TASK_INDEX}. This job has a total of ${BATCH_TASK_COUNT} tasks."]
-
-    # Jobs can be divided into tasks. In this case, we have only one task.
+    
     task = batch_v1.TaskSpec()
     task.runnables = [runnable]
 
-    # We can specify what resources are requested by each task.
+   
     resources = batch_v1.ComputeResource()
-    # in milliseconds per cpu-second. This means the task requires 2 whole CPUs.
     resources.cpu_milli = 2000
-    resources.memory_mib = 16  # in MiB
+    resources.memory_mib = 16
     task.compute_resource = resources
-
     task.max_retry_count = 2
 
-    # Tasks are grouped inside a job using TaskGroups.
-    # Currently, it's possible to have only one task group.
     group = batch_v1.TaskGroup()
     group.task_count = 2
     group.task_spec = task
-
-    # Policies are used to define on what kind of virtual machines the tasks will run on.
-    # In this case, we tell the system to use "e2-standard-4" machine type.
-    # Read more about machine types here: https://cloud.google.com/compute/docs/machine-types
     policy = batch_v1.AllocationPolicy.InstancePolicy()
     policy.machine_type = "e2-standard-4"
     instances = batch_v1.AllocationPolicy.InstancePolicyOrTemplate()
@@ -89,7 +99,6 @@ def _create_job():
     job.allocation_policy = allocation_policy
     job.labels = {"env": "testing", "type": "container"}
 
-    # We use Cloud Logging as it's an out of the box available option
     job.logs_policy = batch_v1.LogsPolicy()
     job.logs_policy.destination = batch_v1.LogsPolicy.Destination.CLOUD_LOGGING
 
@@ -155,7 +164,7 @@ with models.DAG(
     )
 
     delete_job1 = CloudBatchDeleteJobOperator(
-        task_id='delete2',
+        task_id='delete1',
         project_id=PROJECT_ID,
         region=region,
         job_name="{{ti.xcom_pull(task_ids=['get-names-python'], key='return_value')[0][0]}}",
@@ -164,7 +173,7 @@ with models.DAG(
     )
 
     delete_job2 = CloudBatchDeleteJobOperator(
-        task_id='delete3',
+        task_id='delete2',
         project_id=PROJECT_ID,
         region=region,
         job_name="{{ti.xcom_pull(task_ids=['get-names-python'], key='return_value')[0][1]}}",
@@ -172,29 +181,7 @@ with models.DAG(
 
     )
 
-    # clean_job1 = CloudBatchDeleteJobOperator(
-    #     task_id=clean1_task_name,
-    #     project_id=PROJECT_ID,
-    #     region=region,
-    #     job_name=job1_name,
-    #     dag=dag,
-    #     trigger_rule="one_failed"
-    # )
-
-    # clean_job2 = CloudBatchDeleteJobOperator(
-    #     task_id=clean2_task_name,
-    #     project_id=PROJECT_ID,
-    #     region=region,
-    #     job_name=job2_name,
-    #     dag=dag,
-    #     trigger_rule="one_failed"
-    #  )
-
-    # submit1>>submit2>>list_tasks>>assert_tasks>>list_jobs>>get_name>>delete_job1>>delete_job2
-
     (submit1, submit2) >> list_tasks >> assert_tasks >> list_jobs >> get_name >> (delete_job1, delete_job2)
-    # delete_job1 >> clean_job1
-    # delete_job2 >> clean_job2
 
     from tests.system.utils.watcher import watcher
 
@@ -206,4 +193,3 @@ from tests.system.utils import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)
-
