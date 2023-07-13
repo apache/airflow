@@ -122,23 +122,23 @@ class DependencyMixin:
         """Add the task to the given task group."""
         raise NotImplementedError()
 
-    @staticmethod
-    def _iter_references(obj: Any) -> Iterable[DependencyMixin]:
+    @classmethod
+    def _iter_references(cls, obj: Any) -> Iterable[tuple[DependencyMixin, str]]:
         from airflow.models.baseoperator import AbstractOperator
         from airflow.models.xcom_arg import PlainXComArg
 
         if isinstance(obj, AbstractOperator):
-            yield obj
+            yield obj, "operator"
         elif isinstance(obj, PlainXComArg):
-            yield obj.operator
+            yield from obj.iter_references()
         elif isinstance(obj, Sequence):
             for o in obj:
-                yield from DependencyMixin._iter_references(o)
+                yield from cls._iter_references(o)
 
     def set_setup_teardown_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
         if not SetupTeardownContext.active:
             return
-        for op in DependencyMixin._iter_references([self, other]):
+        for op, _ in self._iter_references([self, other]):
             SetupTeardownContext.update_context_map(op)
 
     def set_taskgroup_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
@@ -147,7 +147,7 @@ class DependencyMixin:
         if not TaskGroupContext.active:
             return
         task_group = TaskGroupContext.get_current_task_group(None)
-        for op in DependencyMixin._iter_references([self, other]):
+        for op, _ in self._iter_references([self, other]):
             if task_group:
                 op.add_to_taskgroup(task_group)
 
@@ -180,11 +180,6 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     @property
     @abstractmethod
     def node_id(self) -> str:
-        raise NotImplementedError()
-
-    @abstractmethod
-    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
-        """Add the task to the given task group."""
         raise NotImplementedError()
 
     @property
