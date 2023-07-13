@@ -26,6 +26,10 @@ from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAPLEX_STRING = "airflow.providers.google.cloud.hooks.dataplex.{}"
+DATAPLEX_HOOK_CLIENT = "airflow.providers.google.cloud.hooks.dataplex.DataplexHook.get_dataplex_client"
+DATAPLEX_HOOK_DS_CLIENT = (
+    "airflow.providers.google.cloud.hooks.dataplex.DataplexHook.get_dataplex_data_scan_client"
+)
 
 PROJECT_ID = "project-id"
 REGION = "region"
@@ -35,6 +39,15 @@ DATAPLEX_TASK_ID = "testTask001"
 
 GCP_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+
+DATA_SCAN_ID = "test-data-scan-id"
+ASSET_ID = "test_asset_id"
+ZONE_ID = "test_zone_id"
+DATA_SCAN_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/dataScans/{DATA_SCAN_ID}"
+ZONE_NAME = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}"
+ZONE_PARENT = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/{ZONE_ID}"
+ASSET_PARENT = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/{ZONE_ID}/assets/{ASSET_ID}"
+DATASCAN_PARENT = f"projects/{PROJECT_ID}/locations/{REGION}"
 
 
 class TestDataplexHook:
@@ -52,7 +65,7 @@ class TestDataplexHook:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
 
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_create_task(self, mock_client):
         self.hook.create_task(
             project_id=PROJECT_ID,
@@ -75,7 +88,7 @@ class TestDataplexHook:
             metadata=(),
         )
 
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_delete_task(self, mock_client):
         self.hook.delete_task(
             project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
@@ -91,7 +104,7 @@ class TestDataplexHook:
             metadata=(),
         )
 
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_list_tasks(self, mock_client):
         self.hook.list_tasks(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
 
@@ -109,7 +122,7 @@ class TestDataplexHook:
             metadata=(),
         )
 
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_get_task(self, mock_client):
         self.hook.get_task(
             project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
@@ -125,7 +138,7 @@ class TestDataplexHook:
             metadata=(),
         )
 
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_create_lake(self, mock_client):
         self.hook.create_lake(
             project_id=PROJECT_ID,
@@ -147,7 +160,7 @@ class TestDataplexHook:
             metadata=(),
         )
 
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_delete_lake(self, mock_client):
         self.hook.delete_lake(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
 
@@ -161,7 +174,7 @@ class TestDataplexHook:
             metadata=(),
         )
 
-    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
     def test_get_lake(self, mock_client):
         self.hook.get_lake(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
 
@@ -170,6 +183,132 @@ class TestDataplexHook:
             request=dict(
                 name=name,
             ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
+    def test_create_zone(self, mock_client):
+        self.hook.create_zone(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, zone_id=ZONE_ID, zone={})
+
+        mock_client.return_value.create_zone.assert_called_once_with(
+            request=dict(
+                parent=ZONE_NAME,
+                zone_id=ZONE_ID,
+                zone={},
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
+    def test_delete_zone(self, mock_client):
+        self.hook.delete_zone(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, zone_id=ZONE_ID)
+
+        mock_client.return_value.delete_zone.assert_called_once_with(
+            request=dict(
+                name=ZONE_PARENT,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
+    def test_create_asset(self, mock_client):
+        self.hook.create_asset(
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            zone_id=ZONE_ID,
+            asset_id=ASSET_ID,
+            asset={},
+        )
+
+        mock_client.return_value.create_asset.assert_called_once_with(
+            request=dict(
+                parent=ZONE_PARENT,
+                asset={},
+                asset_id=ASSET_ID,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_HOOK_CLIENT)
+    def test_delete_asset(self, mock_client):
+        self.hook.delete_asset(
+            project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, zone_id=ZONE_ID, asset_id=ASSET_ID
+        )
+
+        mock_client.return_value.delete_asset.assert_called_once_with(
+            request=dict(
+                name=ASSET_PARENT,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_HOOK_DS_CLIENT)
+    def test_create_data_scan(self, mock_client):
+        self.hook.create_data_scan(
+            project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID, data_scan={}
+        )
+
+        mock_client.return_value.create_data_scan.assert_called_once_with(
+            request=dict(parent=DATASCAN_PARENT, data_scan_id=DATA_SCAN_ID, data_scan={}),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_HOOK_DS_CLIENT)
+    def test_run_data_scan(self, mock_client):
+        self.hook.run_data_scan(project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID)
+
+        mock_client.return_value.run_data_scan.assert_called_once_with(
+            request=dict(
+                name=DATA_SCAN_NAME,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_HOOK_DS_CLIENT)
+    def test_get_data_scan_job(self, mock_client):
+        self.hook.get_data_scan_job(project_id=PROJECT_ID, region=REGION, name="test/test")
+
+        mock_client.return_value.get_data_scan_job.assert_called_once_with(
+            request=dict(name="test/test", view="FULL"),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_HOOK_DS_CLIENT)
+    def test_delete_data_scan(self, mock_client):
+        self.hook.delete_data_scan(project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID)
+
+        mock_client.return_value.delete_data_scan.assert_called_once_with(
+            request=dict(
+                name=DATA_SCAN_NAME,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_HOOK_DS_CLIENT)
+    def test_get_data_scan(self, mock_client):
+        self.hook.get_data_scan(project_id=PROJECT_ID, region=REGION, data_scan_id=DATA_SCAN_ID)
+
+        mock_client.return_value.get_data_scan.assert_called_once_with(
+            request=dict(name=DATA_SCAN_NAME, view="FULL"),
             retry=DEFAULT,
             timeout=None,
             metadata=(),

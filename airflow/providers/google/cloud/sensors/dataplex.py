@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
+from google.cloud.dataplex_v1.types import DataScanJob
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataplex import DataplexHook
@@ -114,3 +115,81 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         self.log.info("Current status of the Dataplex task %s => %s", self.dataplex_task_id, task_status)
 
         return task_status == TaskState.ACTIVE
+
+
+class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
+    """
+    Check the status of the Dataplex data scan job is SUCCEEDED.
+
+    :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
+    :param region: Required. The ID of the Google Cloud region that the task belongs to.
+    :param data_scan_id: Required. DataScan identifier.
+    :param job_id: Required. Job ID.
+    :param api_version: The version of the api that will be requested for example 'v3'.
+    :param retry: A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :param metadata: Additional metadata that is provided to the method.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :return: Boolean indicating if the job run has reached the ``DataScanJob.State.SUCCEEDED``.
+    """
+
+    template_fields = ["job_id"]
+
+    def __init__(
+        self,
+        project_id: str,
+        region: str,
+        data_scan_id: str,
+        job_id: str,
+        api_version: str = "v1",
+        retry: Retry | _MethodDefault = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self.project_id = project_id
+        self.region = region
+        self.data_scan_id = data_scan_id
+        self.job_id = job_id
+        self.api_version = api_version
+        self.retry = retry
+        self.metadata = metadata
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def poke(self, context: Context) -> bool:
+        self.log.info("Waiting for job %s to be %s", self.job_id, DataScanJob.State.SUCCEEDED)
+
+        hook = DataplexHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        job = hook.get_data_scan_job(
+            project_id=self.project_id,
+            region=self.region,
+            data_scan_id=self.data_scan_id,
+            job_id=self.job_id,
+            retry=self.retry,
+            metadata=self.metadata,
+        )
+        job_status = job.state
+
+        if job_status == DataScanJob.State.FAILED:
+            raise AirflowException(f"Data scan job failed: {self.job_id}")
+
+        self.log.info("Current status of the Dataplex data scan job %s => %s", self.job_id, job_status)
+
+        return job_status == DataScanJob.State.SUCCEEDED

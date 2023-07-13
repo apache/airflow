@@ -20,9 +20,14 @@ from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.dataplex_v1.types import DataScanJob
 
 from airflow import AirflowException
-from airflow.providers.google.cloud.sensors.dataplex import DataplexTaskStateSensor, TaskState
+from airflow.providers.google.cloud.sensors.dataplex import (
+    DataplexDataQualityJobStatusSensor,
+    DataplexTaskStateSensor,
+    TaskState,
+)
 
 DATAPLEX_HOOK = "airflow.providers.google.cloud.sensors.dataplex.DataplexHook"
 
@@ -36,6 +41,8 @@ DATAPLEX_TASK_ID = "testTask001"
 GCP_CONN_ID = "google_cloud_default"
 API_VERSION = "v1"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+TEST_JOB_ID = "test_job_id"
+TEST_DATA_SCAN_ID = "test-data-scan-id"
 
 
 class TestDataplexTaskStateSensor:
@@ -99,3 +106,38 @@ class TestDataplexTaskStateSensor:
             retry=DEFAULT,
             metadata=(),
         )
+
+
+class TestDataplexDataQualityJobStatusSensor:
+    def run_job(self, state: int):
+        job = mock.Mock()
+        job.state = state
+        return job
+
+    @mock.patch(DATAPLEX_HOOK)
+    def test_done(self, mock_hook):
+        job = self.run_job(DataScanJob.State.SUCCEEDED)
+        mock_hook.return_value.get_data_scan_job.return_value = job
+
+        sensor = DataplexDataQualityJobStatusSensor(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            data_scan_id=TEST_DATA_SCAN_ID,
+            region=REGION,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        result = sensor.poke(context={})
+
+        mock_hook.return_value.get_data_scan_job.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_id=TEST_JOB_ID,
+            data_scan_id=TEST_DATA_SCAN_ID,
+            retry=DEFAULT,
+            metadata=(),
+        )
+
+        assert result
