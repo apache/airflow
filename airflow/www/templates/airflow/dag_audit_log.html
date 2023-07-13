@@ -85,7 +85,7 @@
               <!--     Event    -->
               <td>{{ log.event if log.event else None }}</td>
               <!--     Execution Date     -->
-              <td>{{ log.execution_date if log.execution_date else None }}</td>
+              <td>{% if log.execution_date %}<time datetime="{{ log.execution_date }}" data-attribute="execution_date">{{ log.execution_date }}</time>{% endif %}</td>
               <!--     By User     -->
               <td>{{ log.owner if log.owner else None }}</td>
               <!--     Details     -->
