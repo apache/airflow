@@ -20,7 +20,6 @@ from contextlib import nullcontext
 
 import pytest
 
-from airflow import PY311
 from airflow.decorators import task
 from airflow.exceptions import ParamValidationError, RemovedInAirflow3Warning
 from airflow.models.param import Param, ParamsDict
@@ -127,25 +126,20 @@ class TestParam:
         "date_string",
         [
             "2021-01-01",
-            pytest.param(
-                "20120503",
-                marks=pytest.mark.skipif(not PY311, reason="Improved fromisoformat() in 3.11."),
-            ),
         ],
     )
     def test_string_date_format(self, date_string):
         """Test string date format."""
         assert Param(date_string, type="string", format="date").resolve() == date_string
 
+    # Note that 20120503 behaved differently in 3.11.3 Official python image. It was validated as a date
+    # there but it started to fail again in 3.11.4 released on 2023-07-05.
     @pytest.mark.parametrize(
         "date_string",
         [
             "01/01/2021",
             "21 May 1975",
-            pytest.param(
-                "20120503",
-                marks=pytest.mark.skipif(PY311, reason="Improved fromisoformat() in 3.11."),
-            ),
+            "20120503",
         ],
     )
     def test_string_date_format_error(self, date_string):

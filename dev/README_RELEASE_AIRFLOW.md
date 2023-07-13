@@ -792,7 +792,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build --for-production
+    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build
     ```
 
 - Now you can preview the documentation.
@@ -804,13 +804,17 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 - Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
 
     ```shell script
-    ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
+    breeze release-management publish-docs --package-filter apache-airflow --package-filter docker-stack
     cd "${AIRFLOW_SITE_DIRECTORY}"
+    cd post-docs
+    python add-back-references.py airflow
+    cd ..
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
     # and finally open a PR
     ```
+
 
 ## Notify developers of release
 
@@ -921,7 +925,9 @@ Announcement is done from official Apache-Airflow accounts.
 
 * Twitter: https://twitter.com/ApacheAirflow
 * Linkedin: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
 
+Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------

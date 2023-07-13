@@ -285,6 +285,10 @@ as the state of the listed objects in the Amazon S3 bucket will be lost between 
     :start-after: [START howto_sensor_s3_keys_unchanged]
     :end-before: [END howto_sensor_s3_keys_unchanged]
 
+You can also run this sensor in deferrable mode by setting the parameter ``deferrable`` to True.
+This will lead to efficient utilization of Airflow workers as polling for job status happens on
+the triggerer asynchronously. Note that this will need triggerer to be available on your Airflow deployment.
+
 Reference
 ---------
 

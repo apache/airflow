@@ -48,10 +48,7 @@ class Neo4jHook(BaseHook):
         self.client: Driver | None = None
 
     def get_conn(self) -> Driver:
-        """
-        Function that initiates a new Neo4j connection
-        with username, password and database schema.
-        """
+        """Function that initiates a new Neo4j connection with username, password and database schema."""
         if self.client is not None:
             return self.client
 
@@ -112,8 +109,7 @@ class Neo4jHook(BaseHook):
 
     def run(self, query) -> list[Any]:
         """
-        Function to create a neo4j session
-        and execute the query in the session.
+        Function to create a neo4j session and execute the query in the session.
 
         :param query: Neo4j query
         :return: Result

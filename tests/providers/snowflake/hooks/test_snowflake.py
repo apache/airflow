@@ -393,6 +393,24 @@ class TestPytestSnowflakeHook:
         ), pytest.raises(TypeError, match="Password was given but private key is not encrypted."):
             SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
 
+    def test_get_conn_params_should_fail_on_invalid_key(self):
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "password": None,
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "warehouse": "af_wh",
+                "region": "af_region",
+                "role": "af_role",
+                "private_key_file": "/dev/urandom",
+            },
+        }
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ), pytest.raises(ValueError, match="The private_key_file path points to an empty or invalid file."):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
+
     def test_should_add_partner_info(self):
         with mock.patch.dict(
             "os.environ",

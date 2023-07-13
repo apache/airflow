@@ -109,8 +109,8 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   if (ti.map_index >= 0 && !ti.mapped_states) {
     tt += `Map Index: ${escapeHtml(ti.map_index)}<br>`;
   }
-  if (ti.operator !== undefined) {
-    tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
+  if (ti.operator_name !== undefined) {
+    tt += `Operator: ${escapeHtml(ti.operator_name)}<br>`;
   }
   if (task && task.trigger_rule) {
     tt += `Trigger Rule: ${task.trigger_rule}<br>`;
@@ -119,12 +119,14 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   if (ti.state === "running") {
     const startDate =
       ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+    // eslint-disable-next-line no-param-reassign
     ti.duration = moment().diff(startDate, "second");
   } else if (!ti.duration && ti.end_date) {
     const startDate =
       ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
     const endDate =
       ti.end_date instanceof moment ? ti.end_date : moment(ti.end_date);
+    // eslint-disable-next-line no-param-reassign
     ti.duration = moment(endDate).diff(startDate, "second");
   }
 
@@ -168,8 +170,8 @@ export function taskQueuedStateTooltip(ti) {
   if (ti.run_id !== undefined) {
     tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;
   }
-  if (ti.operator !== undefined) {
-    tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
+  if (ti.operator_name !== undefined) {
+    tt += `Operator: ${escapeHtml(ti.operator_name)}<br>`;
   }
   if (ti.start_date && ti.queued_dttm) {
     const startDate =

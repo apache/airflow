@@ -22,11 +22,11 @@ import base64
 import datetime
 import json
 import logging
-import re
 from functools import cached_property
 from typing import Any
 from uuid import uuid4
 
+import re2
 from flask import Flask, current_app, g, session, url_for
 from flask_appbuilder import AppBuilder
 from flask_appbuilder.const import (
@@ -73,7 +73,7 @@ from flask_limiter.util import get_remote_address
 from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.configuration import conf
+from airflow.configuration import auth_manager, conf
 from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
@@ -540,7 +540,7 @@ class BaseSecurityManager:
     @property
     def current_user(self):
         """Current user object."""
-        if current_user.is_authenticated:
+        if auth_manager.is_logged_in():
             return g.user
         elif current_user_jwt:
             return current_user_jwt
@@ -703,7 +703,7 @@ class BaseSecurityManager:
 
     def _azure_parse_jwt(self, id_token):
         jwt_token_parts = r"^([^\.\s]*)\.([^\.\s]+)\.([^\.\s]*)$"
-        matches = re.search(jwt_token_parts, id_token)
+        matches = re2.search(jwt_token_parts, id_token)
         if not matches or len(matches.groups()) < 3:
             log.error("Unable to parse token.")
             return {}
@@ -1375,8 +1375,8 @@ class BaseSecurityManager:
     def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
         """Checks permission on builtin role."""
         perms = self.builtin_roles.get(role.name, [])
-        for (_resource_name, _action_name) in perms:
-            if re.match(_resource_name, resource_name) and re.match(_action_name, action_name):
+        for _resource_name, _action_name in perms:
+            if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
                 return True
         return False
 
@@ -1415,7 +1415,7 @@ class BaseSecurityManager:
         return result
 
     def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
-        if current_user.is_authenticated:
+        if auth_manager.is_logged_in():
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
             return self._get_user_permission_resources(

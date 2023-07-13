@@ -761,6 +761,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         run_id=None,
         run_type=None,
         data_interval=None,
+        map_index=-1,
         **kwargs,
     ) -> TaskInstance:
         if execution_date is None:
@@ -780,6 +781,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         (ti,) = dagrun.task_instances
         ti.task = task
         ti.state = state
+        ti.map_index = map_index
 
         dag_maker.session.flush()
         return ti

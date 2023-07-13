@@ -36,10 +36,10 @@ from kombu.asynchronous import set_event_loop
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowTaskTimeout
-from airflow.executors import celery_executor, celery_executor_utils
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.bash import BashOperator
+from airflow.providers.celery.executors import celery_executor, celery_executor_utils
 from airflow.utils.state import State
 from tests.test_utils import db
 
@@ -68,8 +68,10 @@ def _prepare_app(broker_url=None, execute=None):
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
-    patch_app = mock.patch("airflow.executors.celery_executor.app", test_app)
-    patch_execute = mock.patch("airflow.executors.celery_executor_utils.execute_command", test_execute)
+    patch_app = mock.patch("airflow.providers.celery.executors.celery_executor.app", test_app)
+    patch_execute = mock.patch(
+        "airflow.providers.celery.executors.celery_executor_utils.execute_command", test_execute
+    )
 
     backend = test_app.backend
 
@@ -259,7 +261,7 @@ class ClassWithCustomAttributes:
 @pytest.mark.integration("celery")
 @pytest.mark.backend("mysql", "postgres")
 class TestBulkStateFetcher:
-    bulk_state_fetcher_logger = "airflow.executors.celery_executor_utils.BulkStateFetcher"
+    bulk_state_fetcher_logger = "airflow.providers.celery.executors.celery_executor_utils.BulkStateFetcher"
 
     @mock.patch(
         "celery.backends.base.BaseKeyValueStoreBackend.mget",
@@ -269,7 +271,9 @@ class TestBulkStateFetcher:
         caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
         with _prepare_app():
             mock_backend = BaseKeyValueStoreBackend(app=celery_executor.app)
-            with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
+            with mock.patch(
+                "airflow.providers.celery.executors.celery_executor_utils.Celery.backend", mock_backend
+            ):
                 caplog.clear()
                 fetcher = celery_executor_utils.BulkStateFetcher()
                 result = fetcher.get_many(
@@ -292,7 +296,9 @@ class TestBulkStateFetcher:
         caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
         with _prepare_app():
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
-            with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
+            with mock.patch(
+                "airflow.providers.celery.executors.celery_executor_utils.Celery.backend", mock_backend
+            ):
                 caplog.clear()
                 mock_session = mock_backend.ResultSession.return_value
                 mock_session.query.return_value.filter.return_value.all.return_value = [
@@ -317,7 +323,9 @@ class TestBulkStateFetcher:
 
         with _prepare_app():
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
-            with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
+            with mock.patch(
+                "airflow.providers.celery.executors.celery_executor_utils.Celery.backend", mock_backend
+            ):
                 caplog.clear()
                 mock_session = mock_backend.ResultSession.return_value
                 mock_retry_db_result = mock_session.query.return_value.filter.return_value.all
@@ -348,7 +356,9 @@ class TestBulkStateFetcher:
         with _prepare_app():
             mock_backend = mock.MagicMock(autospec=BaseBackend)
 
-            with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
+            with mock.patch(
+                "airflow.providers.celery.executors.celery_executor_utils.Celery.backend", mock_backend
+            ):
                 caplog.clear()
                 fetcher = celery_executor_utils.BulkStateFetcher(1)
                 result = fetcher.get_many(

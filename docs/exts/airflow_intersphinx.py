@@ -42,8 +42,7 @@ def _create_init_py(app, config):
 
 def _generate_provider_intersphinx_mapping():
     airflow_mapping = {}
-    for_production = os.environ.get("AIRFLOW_FOR_PRODUCTION", "false") == "true"
-    current_version = "stable" if for_production else "latest"
+    current_version = "stable"
 
     for provider in load_package_data():
         package_name = provider["package-name"]
@@ -71,7 +70,7 @@ def _generate_provider_intersphinx_mapping():
 
         airflow_mapping[pkg_name] = (
             # base URI
-            f'/docs/{pkg_name}/{"stable" if for_production else "latest"}/',
+            f"/docs/{pkg_name}/stable/",
             (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),
         )
     for pkg_name in ["apache-airflow-providers", "docker-stack"]:

@@ -162,6 +162,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
     def build_path(path_prefix: str, secret_id: str, sep: str = "-") -> str:
         """
         Given a path_prefix and secret_id, build a valid secret name for the Azure Key Vault Backend.
+
         Also replaces underscore in the path with dashes to support easy switching between
         environment variables, so ``connection_default`` becomes ``connection-default``.
 

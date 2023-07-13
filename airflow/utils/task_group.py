@@ -24,9 +24,10 @@ from __future__ import annotations
 import copy
 import functools
 import operator
-import re
 import weakref
 from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
+
+import re2
 
 from airflow.compat.functools import cache
 from airflow.exceptions import (
@@ -166,11 +167,11 @@ class TaskGroup(DAGNode):
         if self._group_id in self.used_group_ids:
             if not add_suffix_on_collision:
                 raise DuplicateTaskIdFound(f"group_id '{self._group_id}' has already been added to the DAG")
-            base = re.split(r"__\d+$", self._group_id)[0]
+            base = re2.split(r"__\d+$", self._group_id)[0]
             suffixes = sorted(
-                int(re.split(r"^.+__", used_group_id)[1])
+                int(re2.split(r"^.+__", used_group_id)[1])
                 for used_group_id in self.used_group_ids
-                if used_group_id is not None and re.match(rf"^{base}__\d+$", used_group_id)
+                if used_group_id is not None and re2.match(rf"^{base}__\d+$", used_group_id)
             )
             if not suffixes:
                 self._group_id += "__1"
@@ -653,15 +654,21 @@ def task_group_to_dict(task_item_or_group):
     """
     from airflow.models.abstractoperator import AbstractOperator
 
-    if isinstance(task_item_or_group, AbstractOperator):
+    if isinstance(task := task_item_or_group, AbstractOperator):
+        setup_teardown_type = {}
+        if task.is_setup is True:
+            setup_teardown_type["setupTeardownType"] = "setup"
+        elif task.is_teardown is True:
+            setup_teardown_type["setupTeardownType"] = "teardown"
         return {
-            "id": task_item_or_group.task_id,
+            "id": task.task_id,
             "value": {
-                "label": task_item_or_group.label,
-                "labelStyle": f"fill:{task_item_or_group.ui_fgcolor};",
-                "style": f"fill:{task_item_or_group.ui_color};",
+                "label": task.label,
+                "labelStyle": f"fill:{task.ui_fgcolor};",
+                "style": f"fill:{task.ui_color};",
                 "rx": 5,
                 "ry": 5,
+                **setup_teardown_type,
             },
         }
     task_group = task_item_or_group

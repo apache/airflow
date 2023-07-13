@@ -21,13 +21,13 @@ import dataclasses
 import enum
 import functools
 import logging
-import re
 import sys
 from importlib import import_module
 from types import ModuleType
-from typing import Any, TypeVar, Union, cast
+from typing import Any, Pattern, TypeVar, Union, cast
 
 import attr
+import re2
 
 import airflow.serialization.serializers
 from airflow.configuration import conf
@@ -47,6 +47,7 @@ CACHE = "__cache__"
 OLD_TYPE = "__type"
 OLD_SOURCE = "__source"
 OLD_DATA = "__var"
+OLD_DICT = "dict"
 
 DEFAULT_VERSION = 0
 
@@ -275,7 +276,11 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 def _convert(old: dict) -> dict:
     """Converts an old style serialization to new style."""
     if OLD_TYPE in old and OLD_DATA in old:
-        return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA][OLD_DATA]}
+        # Return old style dicts directly as they do not need wrapping
+        if old[OLD_TYPE] == OLD_DICT:
+            return old[OLD_DATA]
+        else:
+            return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
 
     return old
 
@@ -352,9 +357,9 @@ def _register():
 
 
 @functools.lru_cache(maxsize=None)
-def _get_patterns() -> list[re.Pattern]:
+def _get_patterns() -> list[Pattern]:
     patterns = conf.get("core", "allowed_deserialization_classes").split()
-    return [re.compile(re.sub(r"(\w)\.", r"\1\..", p)) for p in patterns]
+    return [re2.compile(re2.sub(r"(\w)\.", r"\1\..", p)) for p in patterns]
 
 
 _register()

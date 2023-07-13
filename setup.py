@@ -266,7 +266,9 @@ deprecated_api = [
 doc = [
     "astroid>=2.12.3",
     "checksumdir",
-    "click>=8.0",
+    # Click 8.1.4 breaks our mypy checks. The upper limit can be lifted when the
+    # https://github.com/apache/airflow/issues/32412 issue is resolved
+    "click>=8.0,<8.1.4",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections
@@ -289,7 +291,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.1",
+    "flask-appbuilder[oauth]==4.3.3",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -727,6 +729,9 @@ EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
 PREINSTALLED_PROVIDERS = [
+    # TODO: When we release 3.3.0 version of celery provider we should change it to "celery>=3.3.0" here
+    #       In order to make sure executors are available in the celery provider
+    "celery",
     "common.sql",
     "ftp",
     "http",
@@ -742,8 +747,17 @@ def get_provider_package_name_from_package_id(package_id: str) -> str:
     :param package_id: id of the package (like amazon or microsoft.azure)
     :return: full name of package in PyPI
     """
-    package_suffix = package_id.replace(".", "-")
-    return f"apache-airflow-providers-{package_suffix}"
+    version_spec = ""
+    if ">=" in package_id:
+        package, version = package_id.split(">=")
+        version_spec = f">={version}"
+        version_suffix = os.environ.get("VERSION_SUFFIX_FOR_PYPI")
+        if version_suffix:
+            version_spec += version_suffix
+    else:
+        package = package_id
+    package_suffix = package.replace(".", "-")
+    return f"apache-airflow-providers-{package_suffix}{version_spec}"
 
 
 def get_excluded_providers() -> list[str]:

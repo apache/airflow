@@ -28,7 +28,7 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import nowait, with_row_locks
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 
 class PoolStats(TypedDict):
@@ -175,12 +175,12 @@ class Pool(Base):
 
         state_count_by_pool = session.execute(
             select(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
-            .filter(TaskInstance.state.in_(list(EXECUTION_STATES)))
+            .filter(TaskInstance.state.in_(EXECUTION_STATES))
             .group_by(TaskInstance.pool, TaskInstance.state)
         )
 
         # calculate queued and running metrics
-        for (pool_name, state, count) in state_count_by_pool:
+        for pool_name, state, count in state_count_by_pool:
             # Some databases return decimal.Decimal here.
             count = int(count)
 
@@ -188,9 +188,9 @@ class Pool(Base):
             if not stats_dict:
                 continue
             # TypedDict key must be a string literal, so we use if-statements to set value
-            if state == "running":
+            if state == TaskInstanceState.RUNNING:
                 stats_dict["running"] = count
-            elif state == "queued":
+            elif state == TaskInstanceState.QUEUED:
                 stats_dict["queued"] = count
             else:
                 raise AirflowException(f"Unexpected state. Expected values: {EXECUTION_STATES}.")
@@ -247,7 +247,7 @@ class Pool(Base):
             session.scalar(
                 select(func.sum(TaskInstance.pool_slots))
                 .filter(TaskInstance.pool == self.pool)
-                .filter(TaskInstance.state == State.RUNNING)
+                .filter(TaskInstance.state == TaskInstanceState.RUNNING)
             )
             or 0
         )
@@ -266,7 +266,7 @@ class Pool(Base):
             session.scalar(
                 select(func.sum(TaskInstance.pool_slots))
                 .filter(TaskInstance.pool == self.pool)
-                .filter(TaskInstance.state == State.QUEUED)
+                .filter(TaskInstance.state == TaskInstanceState.QUEUED)
             )
             or 0
         )
@@ -285,7 +285,7 @@ class Pool(Base):
             session.scalar(
                 select(func.sum(TaskInstance.pool_slots))
                 .filter(TaskInstance.pool == self.pool)
-                .filter(TaskInstance.state == State.SCHEDULED)
+                .filter(TaskInstance.state == TaskInstanceState.SCHEDULED)
             )
             or 0
         )
