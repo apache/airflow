@@ -33,7 +33,7 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence, cast
 
-import dill
+import cloudpickle
 
 from airflow.exceptions import (
     AirflowConfigException,
@@ -337,7 +337,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         self,
         *,
         python_callable: Callable,
-        use_dill: bool = False,
+        use_cloudpickle: bool = False,
         op_args: Collection[Any] | None = None,
         op_kwargs: Mapping[str, Any] | None = None,
         string_args: Iterable[str] | None = None,
@@ -362,8 +362,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             **kwargs,
         )
         self.string_args = string_args or []
-        self.use_dill = use_dill
-        self.pickling_library = dill if self.use_dill else pickle
+        self.use_cloudpickle = use_cloudpickle
+        self.pickling_library = cloudpickle if self.use_cloudpickle else pickle
         self.expect_airflow = expect_airflow
         self.skip_on_exit_code = (
             skip_on_exit_code
@@ -482,9 +482,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         "requirements file" as specified by pip.
     :param python_version: The Python version to run the virtualenv with. Note that
         both 2 and 2.7 are acceptable forms.
-    :param use_dill: Whether to use dill to serialize
+    :param use_cloudpickle: Whether to use cloudpickle to serialize
         the args and result (pickle is default). This allow more complex types
-        but requires you to include dill in your requirements.
+        but requires you to include cloudpickle in your requirements.
     :param system_site_packages: Whether to include
         system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
@@ -518,7 +518,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         python_callable: Callable,
         requirements: None | Iterable[str] | str = None,
         python_version: str | int | float | None = None,
-        use_dill: bool = False,
+        use_cloudpickle: bool = False,
         system_site_packages: bool = True,
         pip_install_options: list[str] | None = None,
         op_args: Collection[Any] | None = None,
@@ -553,7 +553,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         self.pip_install_options = pip_install_options
         super().__init__(
             python_callable=python_callable,
-            use_dill=use_dill,
+            use_cloudpickle=use_cloudpickle,
             op_args=op_args,
             op_kwargs=op_kwargs,
             string_args=string_args,
@@ -574,8 +574,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             else:
                 requirements_file_contents = self.requirements
 
-            if not self.system_site_packages and self.use_dill:
-                requirements_file_contents += "\ndill"
+            if not self.system_site_packages and self.use_cloudpickle:
+                requirements_file_contents += "\ncloudpickle"
 
             with open(requirements_file_name, "w") as file:
                 file.write(requirements_file_contents)
@@ -627,9 +627,9 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         (so usually start with "/" or "X:/" depending on the filesystem/os used).
     :param python_callable: A python function with no references to outside variables,
         defined with def, which will be run in a virtualenv
-    :param use_dill: Whether to use dill to serialize
+    :param use_cloudpickle: Whether to use cloudpickle to serialize
         the args and result (pickle is default). This allow more complex types
-        but if dill is not preinstalled in your venv, the task will fail with use_dill enabled.
+        but if cloudpickle is not preinstalled in your venv, the task will fail with use_cloudpickle enabled.
     :param op_args: A list of positional arguments to pass to python_callable.
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
     :param string_args: Strings that are present in the global var virtualenv_string_args,
@@ -656,7 +656,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         *,
         python: str,
         python_callable: Callable,
-        use_dill: bool = False,
+        use_cloudpickle: bool = False,
         op_args: Collection[Any] | None = None,
         op_kwargs: Mapping[str, Any] | None = None,
         string_args: Iterable[str] | None = None,
@@ -673,7 +673,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         self.expect_pendulum = expect_pendulum
         super().__init__(
             python_callable=python_callable,
-            use_dill=use_dill,
+            use_cloudpickle=use_cloudpickle,
             op_args=op_args,
             op_kwargs=op_kwargs,
             string_args=string_args,
