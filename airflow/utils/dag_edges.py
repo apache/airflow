@@ -63,35 +63,35 @@ def dag_edges(dag: DAG):
             # For every TaskGroup immediately downstream, add edges between downstream_join_id
             # and upstream_join_id. Skip edges between individual tasks of the TaskGroups.
             target_group = task_group_map[target_id]
-            edges_to_add.add((task_group.downstream_join_id, target_group.upstream_join_id, False))
+            edges_to_add.add((task_group.downstream_join_id, target_group.upstream_join_id))
 
             for child in task_group.get_leaves():
-                edges_to_add.add((child.task_id, task_group.downstream_join_id, False))
+                edges_to_add.add((child.task_id, task_group.downstream_join_id))
                 for target in target_group.get_roots():
                     edges_to_skip.add((child.task_id, target.task_id))
                 edges_to_skip.add((child.task_id, target_group.upstream_join_id))
 
             for child in target_group.get_roots():
-                edges_to_add.add((target_group.upstream_join_id, child.task_id, False))
+                edges_to_add.add((target_group.upstream_join_id, child.task_id))
                 edges_to_skip.add((task_group.downstream_join_id, child.task_id))
 
         # For every individual task immediately downstream, add edges between downstream_join_id and
         # the downstream task. Skip edges between individual tasks of the TaskGroup and the
         # downstream task.
         for target_id in task_group.downstream_task_ids:
-            edges_to_add.add((task_group.downstream_join_id, target_id, False))
+            edges_to_add.add((task_group.downstream_join_id, target_id))
 
             for child in task_group.get_leaves():
-                edges_to_add.add((child.task_id, task_group.downstream_join_id, False))
+                edges_to_add.add((child.task_id, task_group.downstream_join_id))
                 edges_to_skip.add((child.task_id, target_id))
 
         # For every individual task immediately upstream, add edges between the upstream task
         # and upstream_join_id. Skip edges between the upstream task and individual tasks
         # of the TaskGroup.
         for source_id in task_group.upstream_task_ids:
-            edges_to_add.add((source_id, task_group.upstream_join_id, False))
+            edges_to_add.add((source_id, task_group.upstream_join_id))
             for child in task_group.get_roots():
-                edges_to_add.add((task_group.upstream_join_id, child.task_id, False))
+                edges_to_add.add((task_group.upstream_join_id, child.task_id))
                 edges_to_skip.add((source_id, child.task_id))
 
         for child in task_group.children.values():
@@ -101,13 +101,16 @@ def dag_edges(dag: DAG):
 
     # Collect all the edges between individual tasks
     edges = set()
+    setup_teardown_edges = set()
 
     tasks_to_trace: list[Operator] = dag.roots
     while tasks_to_trace:
         tasks_to_trace_next: list[Operator] = []
         for task in tasks_to_trace:
             for child in task.downstream_list:
-                edge = (task.task_id, child.task_id, task.is_setup and child.is_teardown)
+                edge = (task.task_id, child.task_id)
+                if task.is_setup and child.is_teardown:
+                    setup_teardown_edges.add(edge)
                 if edge in edges:
                     continue
                 edges.add(edge)
@@ -117,10 +120,10 @@ def dag_edges(dag: DAG):
     result = []
     # Build result dicts with the two ends of the edge, plus any extra metadata
     # if we have it.
-    for source_id, target_id, is_setup_teardown in sorted(edges.union(edges_to_add) - edges_to_skip):
+    for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip):
         record = {"source_id": source_id, "target_id": target_id}
         label = dag.get_edge_info(source_id, target_id).get("label")
-        if is_setup_teardown is True:
+        if (source_id, target_id) in setup_teardown_edges:
             record["is_setup_teardown"] = True
         if label:
             record["label"] = label

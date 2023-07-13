@@ -536,6 +536,34 @@ def test_dag_edges():
     ]
 
 
+def test_dag_edges_setup_teardown():
+    execution_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", start_date=execution_date) as dag:
+        setup1 = EmptyOperator(task_id="setup1").as_setup()
+        teardown1 = EmptyOperator(task_id="teardown1").as_teardown()
+
+        with setup1 >> teardown1:
+            EmptyOperator(task_id="task1")
+
+        with TaskGroup("group_a"):
+            setup2 = EmptyOperator(task_id="setup2").as_setup()
+            teardown2 = EmptyOperator(task_id="teardown2").as_teardown()
+
+            with setup2 >> teardown2:
+                EmptyOperator(task_id="task2")
+
+    edges = dag_edges(dag)
+
+    assert sorted((e["source_id"], e["target_id"], e.get("is_setup_teardown")) for e in edges) == [
+        ("group_a.setup2", "group_a.task2", None),
+        ("group_a.setup2", "group_a.teardown2", True),
+        ("group_a.task2", "group_a.teardown2", None),
+        ("setup1", "task1", None),
+        ("setup1", "teardown1", True),
+        ("task1", "teardown1", None),
+    ]
+
+
 def test_duplicate_group_id():
     from airflow.exceptions import DuplicateTaskIdFound
 
