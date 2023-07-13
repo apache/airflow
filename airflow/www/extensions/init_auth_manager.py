@@ -17,13 +17,13 @@
 from __future__ import annotations
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 
-auth_manager: BaseAuthManager | None = None
 
-
-def init_auth_manager() -> BaseAuthManager:
+@cache
+def get_auth_manager() -> BaseAuthManager:
     """
     Initialize auth manager.
 
@@ -38,11 +38,3 @@ def init_auth_manager() -> BaseAuthManager:
         )
 
     return auth_manager_cls()
-
-
-def get_auth_manager() -> BaseAuthManager:
-    """Get the auth manager."""
-    global auth_manager
-    if not auth_manager:
-        auth_manager = init_auth_manager()
-    return auth_manager
