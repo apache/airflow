@@ -27,7 +27,9 @@ class FabAirflowSecurityManagerOverride:
     """
     This security manager overrides the default AirflowSecurityManager security manager.
 
-    This security manager is used only if the auth manager FabAuthManager is used.
+    This security manager is used only if the auth manager FabAuthManager is used. It defines everything in
+    the security manager that is needed for the FabAuthManager to work. Any operation specific to
+    the AirflowSecurityManager should be defined here instead of AirflowSecurityManager.
 
     :param appbuilder: The appbuilder.
     :param actionmodelview: The obj instance for action model view.
