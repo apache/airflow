@@ -28,6 +28,10 @@ class PostgresOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Postgres database.
 
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+
     :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file.
         Template references are recognized by str ending in '.sql'
