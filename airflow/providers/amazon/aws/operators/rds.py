@@ -720,6 +720,10 @@ class RdsStartDbOperator(RdsBaseOperator):
     :param db_identifier: The AWS identifier of the DB to start
     :param db_type: Type of the DB - either "instance" or "cluster" (default: "instance")
     :param wait_for_completion:  If True, waits for DB to start. (default: True)
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check DB instance state
+    :param waiter_max_attempts: The maximum number of attempts to check DB instance state
+    :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
     """
 
     template_fields = ("db_identifier", "db_type")
@@ -730,6 +734,8 @@ class RdsStartDbOperator(RdsBaseOperator):
         db_identifier: str,
         db_type: RdsDbType | str = RdsDbType.INSTANCE,
         wait_for_completion: bool = True,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 40,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -737,6 +743,8 @@ class RdsStartDbOperator(RdsBaseOperator):
         self.db_identifier = db_identifier
         self.db_type = db_type
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> str:
@@ -746,8 +754,8 @@ class RdsStartDbOperator(RdsBaseOperator):
             self.defer(
                 trigger=RdsDbAvailableTrigger(
                     db_identifier=self.db_identifier,
-                    waiter_delay=30,
-                    waiter_max_attempts=60,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     response=start_db_response,
@@ -768,9 +776,17 @@ class RdsStartDbOperator(RdsBaseOperator):
     def _start_db(self):
         self.log.info("Starting DB %s '%s'", self.db_type.value, self.db_identifier)
         if self.db_type == RdsDbType.INSTANCE:
-            response = self.hook.conn.start_db_instance(DBInstanceIdentifier=self.db_identifier)
+            response = self.hook.conn.start_db_instance(
+                DBInstanceIdentifier=self.db_identifier,
+                check_interval=self.waiter_delay,
+                max_attempts=self.waiter_max_attempts,
+            )
         else:
-            response = self.hook.conn.start_db_cluster(DBClusterIdentifier=self.db_identifier)
+            response = self.hook.conn.start_db_cluster(
+                DBClusterIdentifier=self.db_identifier,
+                check_interval=self.waiter_delay,
+                max_attempts=self.waiter_max_attempts,
+            )
         return response
 
     def _wait_until_db_available(self):
@@ -795,6 +811,10 @@ class RdsStopDbOperator(RdsBaseOperator):
         stopping the DB instance. The default value (None) skips snapshot creation. This
         parameter is ignored when ``db_type`` is "cluster"
     :param wait_for_completion:  If True, waits for DB to stop. (default: True)
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check DB instance state
+    :param waiter_max_attempts: The maximum number of attempts to check DB instance state
+    :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
     """
 
     template_fields = ("db_identifier", "db_snapshot_identifier", "db_type")
@@ -806,6 +826,8 @@ class RdsStopDbOperator(RdsBaseOperator):
         db_type: RdsDbType | str = RdsDbType.INSTANCE,
         db_snapshot_identifier: str | None = None,
         wait_for_completion: bool = True,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 40,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -814,6 +836,8 @@ class RdsStopDbOperator(RdsBaseOperator):
         self.db_type = db_type
         self.db_snapshot_identifier = db_snapshot_identifier
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
 
     def execute(self, context: Context) -> str:
@@ -823,8 +847,8 @@ class RdsStopDbOperator(RdsBaseOperator):
             self.defer(
                 trigger=RdsDbStoppedTrigger(
                     db_identifier=self.db_identifier,
-                    waiter_delay=30,
-                    waiter_max_attempts=60,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     response=stop_db_response,
@@ -863,9 +887,19 @@ class RdsStopDbOperator(RdsBaseOperator):
     def _wait_until_db_stopped(self):
         self.log.info("Waiting for DB %s to reach 'stopped' state", self.db_type.value)
         if self.db_type == RdsDbType.INSTANCE:
-            self.hook.wait_for_db_instance_state(self.db_identifier, target_state="stopped")
+            self.hook.wait_for_db_instance_state(
+                self.db_identifier,
+                target_state="stopped",
+                check_interval=self.waiter_delay,
+                max_attempts=self.waiter_max_attempts,
+            )
         else:
-            self.hook.wait_for_db_cluster_state(self.db_identifier, target_state="stopped")
+            self.hook.wait_for_db_cluster_state(
+                self.db_identifier,
+                target_state="stopped",
+                check_interval=self.waiter_delay,
+                max_attempts=self.waiter_max_attempts,
+            )
 
 
 __all__ = [
