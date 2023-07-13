@@ -62,6 +62,9 @@ const InstanceTooltip = ({
   return (
     <Box py="2px">
       <Text>Task Id: {taskId}</Text>
+      {!!group.setupTeardownType && (
+        <Text>Type: {group.setupTeardownType}</Text>
+      )}
       {group.tooltip && <Text>{group.tooltip}</Text>}
       {isMapped && totalTasks > 0 && (
         <Text>
@@ -78,7 +81,7 @@ const InstanceTooltip = ({
       {startDate && (
         <>
           <Text>
-            Started: <Time dateTime={startDate} />
+            yar Started: <Time dateTime={startDate} />
           </Text>
           <Text>
             Duration: {formatDuration(getDuration(startDate, endDate))}
