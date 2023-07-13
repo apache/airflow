@@ -288,7 +288,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             (dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query
         }
 
-        tg_concurrency_query: list[tuple[str, str, str, str, int]] = (
+        tg_concurrency_query: list[tuple[str, str, str, int]] = (
             session.query(TI.task_id, TI.run_id, TI.dag_id, TI.map_index)
             .filter(
                 TI.state.in_(
@@ -526,7 +526,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 dag_id: str = task_instance.dag_id
                 run_id: str = task_instance.run_id
                 task_id: str = task_instance.task_id
-                group_id: str = None
+                group_id: str | None = None
 
                 current_active_tasks_per_dag = concurrency_map.dag_active_tasks_map[dag_id]
                 max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks

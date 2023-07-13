@@ -138,7 +138,7 @@ class TestSchedulerJob:
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
         self.clean_db()
-        self.job_runner = None
+        self.job_runner: SchedulerJobRunner | None = None
 
         yield
 
