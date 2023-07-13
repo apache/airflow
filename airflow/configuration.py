@@ -382,21 +382,19 @@ class AirflowConfigParser(ConfigParser):
     def _validate_max_tis_per_query(self) -> None:
         """
         Check if config ``scheduler.max_tis_per_query`` is not greater than ``core.parallelism``.
-        If not met, a warning message printed, to guide user for best practice.
+        If not met, a warning message is printed to guide the user to correct it.
 
-        More info: https://github.com/apache/airflow/pull/29602
-
+        More info: https://github.com/apache/airflow/pull/32572
         """
-        # TODO: this type of checking can be generalized like the deprecate checking
         max_tis_per_query = self.getint("scheduler", "max_tis_per_query")
         parallelism = self.getint("core", "parallelism")
 
         if max_tis_per_query > parallelism:
             warnings.warn(
-                f"Configure `scheduler.max_tis_per_query`(value:{max_tis_per_query}) "
+                f"Config value `scheduler.max_tis_per_query`(value:{max_tis_per_query}) "
                 f"should NOT be greater than `core.parallelism`(value:{parallelism}). "
-                f"Now, SchedulerJob will take up to `core.parallelism` as the query batch "
-                f"size when enqueue TaskInstances.",
+                "Will now use `core.parallelism` as the max task instances per query "
+                "instead of specified value.",
                 UserWarning,
             )
 

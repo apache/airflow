@@ -369,11 +369,11 @@ However, you can also look at other non-performance-related scheduler configurat
 
 - :ref:`config:scheduler__max_tis_per_query`
   The batch size of queries in the scheduling main loop. This should not be greater than
-  ``core.parallelism``.If this is too high, SQL query performance may be impacted by
+  ``core.parallelism``. If this is too high then SQL query performance may be impacted by
   complexity of query predicate, and/or excessive locking.
 
   Additionally, you may hit the maximum allowable query length for your db.
-  Setting this to 0 for using the value of ``core.parallelism``.
+  Set this to 0 to use the value of ``core.parallelism``.
 
 - :ref:`config:scheduler__min_file_process_interval`
   Number of seconds after which a DAG file is re-parsed. The DAG file is parsed every
