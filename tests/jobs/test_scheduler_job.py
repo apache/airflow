@@ -1216,18 +1216,17 @@ class TestSchedulerJob:
         with dag_maker(dag_id="test_find_executable_task_instances_with_task_group_concurrency_limit"):
 
             @task(task_id="dummy")
-            def t1() -> [str]:
+            def t1(llw: str) -> [str]:
                 return ["zhong", "xiao", "jie", "yong", "he"]
 
             @task_group(max_active_groups_per_dagrun=1)
-            def tg(who: str):
+            def tg(what: str):
                 tgt1 = BashOperator(task_id="dummy1", bash_command="sleep 300")
                 tgt2 = BashOperator(task_id="dummy2", bash_command="echo done")
                 tgt1 >> tgt2
 
             # tg.expand(concurrency_limit=1, who=t1())
-            # t1() >> tg.expand(concurrency_limit=concurrency_limit, who=["zeng", "bo", "li", "hui"])
-            t1() >> tg.expand(who=["ren", "yi", "li", "zhi", "xin"])
+            t1("qy") >> tg.expand(what=["ren", "yi", "li", "zhi", "xin"])
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
