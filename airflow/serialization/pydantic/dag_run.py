@@ -20,14 +20,13 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, Optional
 
 from pydantic import BaseModel as BaseModelPydantic
-from sqlalchemy import PickleType
 from sqlalchemy.orm import Session
 
+from airflow import DAG
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow import DAG
     from airflow.jobs.scheduler_job_runner import TI
 
 
@@ -46,7 +45,7 @@ class DagRunPydantic(BaseModelPydantic):
     creating_job_id: Optional[int]
     external_trigger: bool
     run_type: str
-    conf: PickleType
+    conf: dict
     data_interval_start: Optional[datetime]
     data_interval_end: Optional[datetime]
     last_scheduling_decision: Optional[datetime]
@@ -91,3 +90,6 @@ class DagRunPydantic(BaseModelPydantic):
         from airflow.models.dagrun import _get_task_instance
 
         return _get_task_instance(self, task_id, session, map_index)
+
+
+DagRunPydantic.update_forward_refs()

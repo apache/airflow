@@ -27,10 +27,9 @@ from airflow.models.dataset import (
     DatasetModel,
     TaskOutletDatasetReference,
 )
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.job import JobPydantic
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -44,12 +43,10 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
     ti.next_kwargs = {"foo": "bar"}
     session.commit()
 
-    pydantic_task_instance = TaskInstancePydantic.from_orm(ti)
-
-    json_string = pydantic_task_instance.json()
+    json_string = BaseSerialization.serialize(ti, use_pydantic_models=True)
     print(json_string)
 
-    deserialized_model = parse_raw_as(TaskInstancePydantic, json_string)
+    deserialized_model = BaseSerialization.deserialize(json_string, use_pydantic_models=True)
     assert deserialized_model.dag_id == dag_id
     assert deserialized_model.state == State.RUNNING
     assert deserialized_model.try_number == ti.try_number
@@ -63,12 +60,10 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
     ti.dag_run.state = State.RUNNING
     session.commit()
 
-    pydantic_dag_run = DagRunPydantic.from_orm(ti.dag_run)
-
-    json_string = pydantic_dag_run.json()
+    json_string = BaseSerialization.serialize(ti.dag_run, use_pydantic_models=True)
     print(json_string)
 
-    deserialized_model = parse_raw_as(DagRunPydantic, json_string)
+    deserialized_model = BaseSerialization.deserialize(json_string, use_pydantic_models=True)
     assert deserialized_model.dag_id == dag_id
     assert deserialized_model.state == State.RUNNING
 
@@ -135,8 +130,7 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     json_string2 = pydantic_dse2.json()
     print(json_string2)
 
-    pydantic_dag_run = DagRunPydantic.from_orm(dr)
-    json_string_dr = pydantic_dag_run.json()
+    json_string_dr = BaseSerialization.serialize(dr, use_pydantic_models=True)
     print(json_string_dr)
 
     deserialized_model1 = parse_raw_as(DatasetEventPydantic, json_string1)
@@ -151,5 +145,5 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     assert len(deserialized_model2.dataset.consuming_dags) == 0
     assert len(deserialized_model2.dataset.producing_tasks) == 0
 
-    deserialized_dr = parse_raw_as(DagRunPydantic, json_string_dr)
+    deserialized_dr = BaseSerialization.deserialize(json_string_dr, use_pydantic_models=True)
     assert len(deserialized_dr.consumed_dataset_events) == 3
