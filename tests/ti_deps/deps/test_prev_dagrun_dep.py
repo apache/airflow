@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -218,7 +218,9 @@ class TestPrevDagrunDep:
         ),
     ],
 )
+@patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
 def test_dagrun_dep(
+    mock_get_previous_scheduled_dagrun,
     depends_on_past,
     wait_for_past_depends_before_skipping,
     wait_for_downstream,
@@ -241,9 +243,9 @@ def test_dagrun_dep(
         )
     else:
         prev_dagrun = None
+    mock_get_previous_scheduled_dagrun.return_value = prev_dagrun
     dagrun = Mock(
         **{
-            "get_previous_scheduled_dagrun.return_value": prev_dagrun,
             "get_previous_dagrun.return_value": prev_dagrun,
         },
     )
