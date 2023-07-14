@@ -393,7 +393,7 @@ breeze release-management publish-docs \
     --override-versioned
 
 cd "${AIRFLOW_SITE_DIRECTORY}"
-breeze release-management add-back-references --airflow-site-director DIRECTORY --gen-type providers
+breeze release-management add-back-references --airflow-site-directory --gen-type providers
 cd ..
 
 ```

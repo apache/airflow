@@ -634,7 +634,7 @@ between the two repositories to be able to build the documentation.
 
     ```shell
     cd "${AIRFLOW_SITE_DIRECTORY}"
-    breeze release-management add-back-references --airflow-site-director DIRECTORY --gen-type helm
+    breeze release-management add-back-references --airflow-site-directory --gen-type helm
     cd ..
     curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC/index.yaml -o index.yaml
     cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
