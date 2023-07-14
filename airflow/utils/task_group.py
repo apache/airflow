@@ -381,7 +381,7 @@ class TaskGroup(DAGNode):
                     yield upstream_task
 
         for task in tasks:
-            if not task.upstream_task_ids.intersection(ids):
+            if not task.downstream_task_ids.intersection(ids):
                 if not (task.is_teardown or task.is_setup):
                     yield task
                 else:
