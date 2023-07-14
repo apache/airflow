@@ -221,9 +221,9 @@
       <div class="col-md-2">
         <div class="btn-group pull-right">
           {% if 'dag_id' in request.args %}
-            <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, **request.args), unpause=True) }}"
+            <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, **request.args)) }}"
           {% else %}
-            <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id, **request.args), unpause=True) }}"
+            <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id, **request.args)) }}"
           {% endif %}
               title="Trigger&nbsp;DAG"
               aria-label="Trigger DAG"

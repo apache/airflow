@@ -64,19 +64,15 @@ class NameDeterminer:
         self, entity: Any, entity_id: str | None, location: str | None, project_id: str
     ) -> Any:
         """
-        Check if entity has the `name` attribute set:
-        * If so, no action is taken.
+        Check if entity has the `name` attribute set.
 
+        * If so, no action is taken.
         * If not, and the name can be constructed from other parameters provided, it is created and filled in
             the entity.
-
         * If both the entity's 'name' attribute is set and the name can be constructed from other parameters
             provided:
-
             * If they are the same - no action is taken
-
             * if they are different - an exception is thrown.
-
 
         :param entity: Entity
         :param entity_id: Entity id
@@ -178,6 +174,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> str:
         """
+        Create product set.
+
         For the documentation see:
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator`.
         """
@@ -213,6 +211,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> dict:
         """
+        Get product set.
+
         For the documentation see:
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionGetProductSetOperator`.
         """
@@ -237,6 +237,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> dict:
         """
+        Update product set.
+
         For the documentation see:
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductSetOperator`.
         """
@@ -270,6 +272,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
+        Delete product set.
+
         For the documentation see:
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductSetOperator`.
         """
@@ -291,6 +295,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
+        Create product.
+
         For the documentation see:
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductOperator`.
         """
@@ -329,6 +335,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
+        Get product.
+
         For the documentation see:
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionGetProductOperator`.
         """
@@ -353,6 +361,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
+        Update product.
+
         For the documentation see:
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductOperator`.
         """
@@ -384,6 +394,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
+        Delete product.
+
         For the documentation see:
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductOperator`.
         """
@@ -406,6 +418,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> str:
         """
+        Create reference image.
+
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator`.
         """
@@ -448,6 +462,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
+        Delete reference image.
+
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator`.
         """
@@ -478,6 +494,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
+        Add product to product set.
+
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionAddProductToProductSetOperator`.
         """
@@ -506,6 +524,8 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
+        Remove product from product set.
+
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator`.
         """
@@ -529,6 +549,8 @@ class CloudVisionHook(GoogleBaseHook):
         timeout: float | None = None,
     ) -> dict:
         """
+        Annotate image.
+
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`.
         """
@@ -550,6 +572,8 @@ class CloudVisionHook(GoogleBaseHook):
         timeout: float | None = None,
     ) -> dict:
         """
+        Batch annotate images.
+
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`.
         """
@@ -574,6 +598,8 @@ class CloudVisionHook(GoogleBaseHook):
         additional_properties: dict | None = None,
     ) -> dict:
         """
+        Text detection.
+
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectTextOperator`.
         """
@@ -604,6 +630,8 @@ class CloudVisionHook(GoogleBaseHook):
         additional_properties: dict | None = None,
     ) -> dict:
         """
+        Document text detection.
+
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionTextDetectOperator`.
         """
@@ -634,6 +662,8 @@ class CloudVisionHook(GoogleBaseHook):
         additional_properties: dict | None = None,
     ) -> dict:
         """
+        Label detection.
+
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageLabelsOperator`.
         """
@@ -664,6 +694,8 @@ class CloudVisionHook(GoogleBaseHook):
         additional_properties: dict | None = None,
     ) -> dict:
         """
+        Safe search detection.
+
         For the documentation see:
         :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageSafeSearchOperator`.
         """

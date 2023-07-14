@@ -22,6 +22,54 @@ import pytest
 from tests.charts.helm_template_generator import render_chart
 
 
+class TestCleanupDeployment:
+    """Tests cleanup pods deployments."""
+
+    def test_should_have_a_schedule_with_defaults(self):
+        doc = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )[0]
+
+        assert doc["spec"]["schedule"] == "*/15 * * * *"
+
+    cron_tests = [
+        ("release-name", "*/5 * * * *", "*/5 * * * *"),
+        ("something-else", "@hourly", "@hourly"),
+        (
+            "custom-name",
+            '{{- add 3 (regexFind ".$" (adler32sum .Release.Name)) -}}-59/15 * * * *',
+            "7-59/15 * * * *",
+        ),
+        (
+            "airflow-rules",
+            '{{- add 3 (regexFind ".$" (adler32sum .Release.Name)) -}}-59/15 * * * *',
+            "10-59/15 * * * *",
+        ),
+    ]
+
+    @pytest.mark.parametrize(
+        "release_name,schedule_value,schedule_result",
+        cron_tests,
+        ids=[x[0] for x in cron_tests],
+    )
+    def test_should_work_with_custom_schedule_string(self, release_name, schedule_value, schedule_result):
+        doc = render_chart(
+            name=release_name,
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "schedule": schedule_value,
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )[0]
+
+        assert doc["spec"]["schedule"] == schedule_result
+
+
 class TestCleanupPods:
     """Tests cleanup of pods."""
 

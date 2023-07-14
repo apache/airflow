@@ -15,11 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains various Google Cloud Tasks operators
-which allow you to perform basic operations using
-Cloud Tasks queues/tasks.
-"""
+"""Google Cloud Tasks operators which allow you to perform basic operations using Cloud Tasks queues/tasks."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence, Tuple

@@ -347,7 +347,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --for-production --package-filter apache-airflow-providers \
+breeze build-docs --clean-build --package-filter apache-airflow-providers \
    --package-filter 'apache-airflow-providers-*'
 ```
 
@@ -359,7 +359,7 @@ If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --for-production \
+breeze build-docs --clean-build \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
@@ -380,40 +380,23 @@ If you have providers as list of provider ids because you just released them, yo
 ./docs/start_doc_server.sh
 ```
 
-You should navigate the providers and make sure the docs render properly.
-Note: if you used ``--for-production`` then default of url paths goes to ``latest``
-thus viewing the pages will result in 404 file not found error.
-You will need to change it manually to see the docs
-
 - Copy the documentation to the ``airflow-site`` repository
-
-**NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
-apache-airflow with doc extra:
-
-* `pip install 'apache-airflow[doc_gen]'`
-
-If you don't have virtual env set you can do:
-
-```shell script
-cd <path_you_want_to_save_your_virtual_env>
-virtualenv providers
-
-source venv/providers/bin/activate
-
-pip install 'apache-airflow[doc_gen]'
-```
 
 All providers (including overriding documentation for doc-only changes):
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-./docs/publish_docs.py \
+breeze release-management publish-docs \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
     --override-versioned
 
 cd "${AIRFLOW_SITE_DIRECTORY}"
+cd post-docs
+python add-back-references.py providers
+cd ..
+
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:
@@ -488,7 +471,8 @@ cat <<EOF
 Hey all,
 
 I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
-which will last for 72 hours - which means that it will end on $(date -d '+3 days').
+which will last for 72 hours - which means that it will end on $(date -d '+3 days') and until 3 binding +1 votes have been received.
+
 
 Consider this my (binding) +1.
 

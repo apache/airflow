@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -16,45 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-Azure Blob Storage to Google Cloud Storage (GCS) Transfer Operator
-==================================================================
-The Blob service stores text and binary data as objects in the cloud.
-The Blob service offers the following three resources: the storage account, containers, and blobs.
-Within your storage account, containers provide a way to organize sets of blobs.
-For more information about the service visit `Azure Blob Storage API documentation <https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-rest-api>`_.
 
-Before you begin
-^^^^^^^^^^^^^^^^
-Before using Blob Storage within Airflow you need to authenticate your account with Token, Login and Password.
-Please follow Azure
-`instructions <https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?tabs=azure-portal>`_
-to do it.
-
-TOKEN should be added to the Connection in Airflow in JSON format, Login and Password as plain text.
-You can check `how to do such connection <https://airflow.apache.org/docs/apache-airflow/stable/howto/connection/index.html#editing-a-connection-with-the-ui>`_.
-
-See following example.
-Set values for these fields:
-
-.. code-block::
-
-  Connection Id: wasb_default
-  Login: Storage Account Name
-  Password: KEY1
-  Extra: {"sas_token": "TOKEN"}
-
-.. _howto/operator:AzureBlobStorageToGCSOperator:
-
-Transfer Data from Blob Storage to Google Cloud Storage
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Operator transfers data from Azure Blob Storage to specified bucket in Google Cloud Storage
-
-To get information about jobs within a Azure Blob Storage use:
-:class:`~airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`
-
-Example usage:
-
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_blob_to_gcs.py
-    :language: python
-    :start-after: [START how_to_azure_blob_to_gcs]
-    :end-before: [END how_to_azure_blob_to_gcs]
+Upload data from Azure Blob Storage to Google Cloud Storage (Moved to Google Providers)
+=======================================================================================

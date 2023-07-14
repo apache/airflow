@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
+from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 
 WASB_CONN_ID = "wasb_default"
 GCP_CONN_ID = "google_cloud_default"
@@ -57,9 +57,9 @@ class TestAzureBlobStorageToGCSTransferOperator:
         assert operator.impersonation_chain == IMPERSONATION_CHAIN
         assert operator.task_id == TASK_ID
 
-    @mock.patch("airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.WasbHook")
-    @mock.patch("airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.GCSHook")
-    @mock.patch("airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs.tempfile")
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.WasbHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.azure_blob_to_gcs.tempfile")
     def test_execute(self, mock_temp, mock_hook_gcs, mock_hook_wasb):
         op = AzureBlobStorageToGCSOperator(
             wasb_conn_id=WASB_CONN_ID,

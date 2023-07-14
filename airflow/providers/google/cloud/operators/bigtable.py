@@ -52,9 +52,10 @@ class BigtableValidationMixin:
 class BigtableCreateInstanceOperator(GoogleCloudBaseOperator, BigtableValidationMixin):
     """
     Creates a new Cloud Bigtable instance.
+
     If the Cloud Bigtable instance with the given ID exists, the operator does not
-    compare its configuration
-    and immediately succeeds. No changes are made to the existing instance.
+    compare its configuration and immediately succeeds. No changes are made to the
+    existing instance.
 
     For more details about instance creation have a look at the reference:
     https://googleapis.github.io/google-cloud-python/latest/bigtable/instance.html#google.cloud.bigtable.instance.Instance.create

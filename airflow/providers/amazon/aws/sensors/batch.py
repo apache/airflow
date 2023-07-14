@@ -25,7 +25,7 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.aws.triggers.batch import BatchSensorTrigger
+from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -98,11 +98,12 @@ class BatchSensor(BaseSensorOperator):
             )
             self.defer(
                 timeout=timeout,
-                trigger=BatchSensorTrigger(
+                trigger=BatchJobTrigger(
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
-                    poke_interval=self.poke_interval,
+                    waiter_delay=int(self.poke_interval),
+                    waiter_max_attempts=self.max_retries,
                 ),
                 method_name="execute_complete",
             )
@@ -113,9 +114,10 @@ class BatchSensor(BaseSensorOperator):
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
-        if "status" in event and event["status"] == "failure":
-            raise AirflowException(event["message"])
-        self.log.info(event["message"])
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        job_id = event["job_id"]
+        self.log.info("Batch Job %s complete", job_id)
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> BatchClientHook:

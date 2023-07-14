@@ -80,10 +80,7 @@ class AutoMLTrainingJobBaseOperator(GoogleCloudBaseOperator):
         self.hook: AutoMLHook | None = None
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_auto_ml_job()
 
@@ -537,8 +534,11 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
 
 class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
-    """Deletes an AutoMLForecastingTrainingJob, AutoMLImageTrainingJob, AutoMLTabularTrainingJob,
-    AutoMLTextTrainingJob, or AutoMLVideoTrainingJob.
+    """
+    Delete an AutoML training job.
+
+    Can be used with AutoMLForecastingTrainingJob, AutoMLImageTrainingJob,
+    AutoMLTabularTrainingJob, AutoMLTextTrainingJob, or AutoMLVideoTrainingJob.
     """
 
     template_fields = ("training_pipeline", "region", "project_id", "impersonation_chain")
@@ -588,7 +588,10 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
 
 
 class ListAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
-    """Lists AutoMLForecastingTrainingJob, AutoMLImageTrainingJob, AutoMLTabularTrainingJob,
+    """
+    List an AutoML training job.
+
+    Can be used with AutoMLForecastingTrainingJob, AutoMLImageTrainingJob, AutoMLTabularTrainingJob,
     AutoMLTextTrainingJob, or AutoMLVideoTrainingJob in a Location.
     """
 

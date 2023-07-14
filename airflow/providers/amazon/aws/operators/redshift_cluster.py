@@ -267,8 +267,8 @@ class RedshiftCreateClusterOperator(BaseOperator):
             self.defer(
                 trigger=RedshiftCreateClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    poll_interval=self.poll_interval,
-                    max_attempt=self.max_attempt,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_attempt,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -361,8 +361,8 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
             self.defer(
                 trigger=RedshiftCreateClusterSnapshotTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    poll_interval=self.poll_interval,
-                    max_attempts=self.max_attempt,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_attempt,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -510,8 +510,8 @@ class RedshiftResumeClusterOperator(BaseOperator):
             self.defer(
                 trigger=RedshiftResumeClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    poll_interval=self.poll_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -598,8 +598,8 @@ class RedshiftPauseClusterOperator(BaseOperator):
             self.defer(
                 trigger=RedshiftPauseClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    poll_interval=self.poll_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -690,8 +690,8 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                 timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
                 trigger=RedshiftDeleteClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    poll_interval=self.poll_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
