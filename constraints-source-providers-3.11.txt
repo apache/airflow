@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-13T17:26:21Z
+# This constraints file was automatically generated on 2023-07-14T17:30:17Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -58,7 +58,7 @@ alibabacloud-endpoint-util==0.0.3
 alibabacloud-gateway-spi==0.0.1
 alibabacloud-openapi-util==0.2.1
 alibabacloud-tea-openapi==0.3.7
-alibabacloud-tea-util==0.3.8
+alibabacloud-tea-util==0.3.10
 alibabacloud-tea-xml==0.0.2
 alibabacloud-tea==0.3.3
 aliyun-python-sdk-core==2.13.36
@@ -286,7 +286,7 @@ jsonpickle==3.0.1
 jsonpointer==2.4
 jsonschema-spec==0.2.3
 jsonschema-specifications==2023.6.1
-jsonschema==4.18.2
+jsonschema==4.18.3
 junit-xml==1.9
 jupyter_client==8.3.0
 jupyter_core==5.3.1
@@ -328,7 +328,7 @@ multidict==6.0.4
 mypy-boto3-appflow==1.28.0
 mypy-boto3-rds==1.28.0
 mypy-boto3-redshift-data==1.28.0
-mypy-boto3-s3==1.28.0
+mypy-boto3-s3==1.28.3.post1
 mypy-extensions==1.0.0
 mypy==1.2.0
 mysqlclient==2.2.0
@@ -431,7 +431,7 @@ pytest-rerunfailures==12.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.3.1
 pytest==7.4.0
-python-arango==7.5.8
+python-arango==7.5.9
 python-daemon==3.0.1
 python-dateutil==2.8.2
 python-dotenv==1.0.0
