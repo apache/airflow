@@ -1,14 +1,31 @@
-from airflow.models.baseoperator import BaseOperator
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from typing import Optional, Sequence, Union
 
-from google.cloud.batch_v1 import Job, Task
-from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchHook
-from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
-from typing import Sequence
-from typing import Optional
-from typing import Union
-from airflow.utils.context import Context
-from airflow.exceptions import AirflowException
 from google.api_core import operation  # type: ignore
+from google.cloud.batch_v1 import Job, Task
+
+from airflow.exceptions import AirflowException
+from airflow.models.baseoperator import BaseOperator
+from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchHook
+from airflow.providers.google.cloud.triggers.cloud_batch import \
+    CloudBatchJobFinishedTrigger
+from airflow.utils.context import Context
 
 
 class CloudBatchSubmitJobOperator(BaseOperator):
@@ -75,7 +92,9 @@ class CloudBatchSubmitJobOperator(BaseOperator):
 
         if not self.deferrable:
             completed_job = hook.wait_for_job(
-                job_name=job.name, polling_period_seconds=self.polling_period_seconds, timeout=self.timeout_seconds)
+                job_name=job.name,
+                polling_period_seconds=self.polling_period_seconds,
+                timeout=self.timeout_seconds)
 
             return Job.to_dict(completed_job)
 
@@ -156,7 +175,9 @@ class CloudBatchDeleteJobOperator(BaseOperator):
             self.gcp_conn_id, self.impersonation_chain)
 
         operation = hook.delete_job(
-            job_name=self.job_name, region=self.region, project_id=self.project_id)
+            job_name=self.job_name,
+            region=self.region,
+            project_id=self.project_id)
 
         self._wait_for_operation(operation)
 
@@ -218,12 +239,17 @@ class CloudBatchListJobsOperator(BaseOperator):
     def execute(self, context):
         hook: CloudBatchHook = CloudBatchHook(
             self.gcp_conn_id, self.impersonation_chain)
+        
+        print("FILTER:", self.filter)
+        print("PROJECTID:", self.project_id)
 
         jobs_list = hook.list_jobs(
             region=self.region,
             project_id=self.project_id,
             filter=self.filter,
             limit=self.limit)
+        
+        print("Freddy jobs", [Job.to_dict(job) for job in jobs_list])
 
         return [Job.to_dict(job) for job in jobs_list]
 

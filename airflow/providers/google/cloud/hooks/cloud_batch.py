@@ -1,15 +1,34 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 from __future__ import annotations
 
-from typing import Sequence, Union, Iterable, Optional
-
 from time import sleep
+from typing import Iterable, Optional, Sequence, Union
 
-from google.cloud.batch_v1.services.batch_service import pagers
-from google.cloud.batch_v1 import BatchServiceClient, BatchServiceAsyncClient, JobStatus, Job, CreateJobRequest, Task
-from google.cloud.batch import ListJobsRequest, ListTasksRequest
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
-from airflow.exceptions import AirflowException
 from google.api_core import operation  # type: ignore
+from google.cloud.batch import ListJobsRequest, ListTasksRequest
+from google.cloud.batch_v1 import (BatchServiceAsyncClient, BatchServiceClient,
+                                   CreateJobRequest, Job, JobStatus, Task)
+from google.cloud.batch_v1.services.batch_service import pagers
+
+from airflow.exceptions import AirflowException
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID, GoogleBaseHook)
 
 
 class CloudBatchHook(GoogleBaseHook):
@@ -24,7 +43,8 @@ class CloudBatchHook(GoogleBaseHook):
                 "The `delegate_to` parameter has been deprecated before and finally removed in this version"
                 " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id,
+                         impersonation_chain=impersonation_chain)
         self._client: BatchServiceClient | None = None
 
     def get_conn(self) -> BatchServiceClient:
@@ -32,7 +52,7 @@ class CloudBatchHook(GoogleBaseHook):
         Retrieves connection to GCE Batch.
         :return: BatchServiceClient
         """
-        if self._client == None:
+        if self._client is None:
             self._client = BatchServiceClient()
         return self._client
 
@@ -75,6 +95,7 @@ class CloudBatchHook(GoogleBaseHook):
             raise AirflowException(
                 "The limit for the list jobs request should be greater or equal to zero")
 
+        print("fdasf", f"projects/{project_id}/locations/{region}")
         list_jobs_request: ListJobsRequest = ListJobsRequest(
             parent=f"projects/{project_id}/locations/{region}",
             filter=filter
@@ -82,6 +103,8 @@ class CloudBatchHook(GoogleBaseHook):
 
         jobs: pagers.ListJobsPager = self.get_conn().list_jobs(
             request=list_jobs_request)
+        
+        print("FDASF", jobs)
 
         return self._limit_list(jobs, limit)
 
@@ -116,7 +139,7 @@ class CloudBatchHook(GoogleBaseHook):
             timeout: Union[float, None] = None
     ) -> Job:
         client = self.get_conn()
-        while timeout == None or timeout > 0:
+        while timeout is None or timeout > 0:
             try:
                 job = client.get_job(name=f"{job_name}")
                 status: JobStatus.State = job.status.state
@@ -131,7 +154,7 @@ class CloudBatchHook(GoogleBaseHook):
                     "Exception occurred while checking for job completion.")
                 raise e
 
-            if timeout != None:
+            if timeout is not None:
                 timeout -= polling_period_seconds
 
         raise AirflowException(f"Job with name [{job_name}] timed out")
@@ -165,7 +188,8 @@ class CloudBatchAsyncHook(GoogleBaseHook):
             )
 
         self._client: BatchServiceAsyncClient = BatchServiceAsyncClient()
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id,
+                         impersonation_chain=impersonation_chain)
 
     def get_conn(self):
         if self._client == None:

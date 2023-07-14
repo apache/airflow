@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import asyncio
@@ -22,7 +21,8 @@ from typing import Any, AsyncIterator, Sequence, Union
 
 from google.cloud.batch_v1 import Job, JobStatus
 
-from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchAsyncHook
+from airflow.providers.google.cloud.hooks.cloud_batch import \
+    CloudBatchAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 DEFAULT_BATCH_LOCATION = "us-central1"
@@ -77,7 +77,7 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                 "location": self.location,
                 "gcp_conn_id": self.gcp_conn_id,
                 "polling_period_seconds": self.polling_period_seconds,
-                "timeout" : self.timeout,
+                "timeout": self.timeout,
                 "impersonation_chain": self.impersonation_chain,
             },
         )
@@ -93,13 +93,13 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
         """
         timeout = self.timeout
         hook = self._get_async_hook()
-        while timeout == None or timeout > 0:
-            
+        while timeout is None or timeout > 0:
+
             try:
                 job: Job = await hook.get_build_job(
                     job_name=self.job_name
                 )
-                
+
                 status: JobStatus.State = job.status.state
                 if status == JobStatus.State.SUCCEEDED:
                     yield TriggerEvent(
@@ -133,18 +133,16 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                     self.log.info("Current job status is: %s", status)
                     self.log.info("Sleeping for %s seconds.",
                                   self.polling_period_seconds)
-                    if timeout != None:
+                    if timeout is not None:
                         timeout -= self.polling_period_seconds
                     await asyncio.sleep(self.polling_period_seconds)
-                   
-                    
+
             except Exception as e:
                 self.log.exception(
                     "Exception occurred while checking for job completion.")
                 yield TriggerEvent({"status": "error", "message": str(e)})
                 return
-            
-        
+
         self.log.exception(f"Job with name [{self.job_name}] timed out")
         yield TriggerEvent(
                 {
