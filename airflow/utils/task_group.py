@@ -360,7 +360,7 @@ class TaskGroup(DAGNode):
         tasks = list(self)
         ids = {x.task_id for x in tasks}
         for task in tasks:
-            if not any(parent.task_id in ids for parent in task.get_direct_relatives(upstream=True)):
+            if not task.upstream_task_ids.intersection(ids):
                 yield task
 
     def get_leaves(self) -> Generator[BaseOperator, None, None]:
@@ -381,7 +381,7 @@ class TaskGroup(DAGNode):
                     yield upstream_task
 
         for task in tasks:
-            if not any(x.task_id in ids for x in task.get_direct_relatives(upstream=False)):
+            if not task.upstream_task_ids.intersection(ids):
                 if not (task.is_teardown or task.is_setup):
                     yield task
                 else:
