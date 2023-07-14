@@ -815,12 +815,15 @@ class TestCliDags:
         when calling `dags test` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
         """
+        from airflow import plugins_manager
         from airflow.configuration import TEST_PLUGINS_FOLDER
         from tests.test_utils.config import conf_vars
 
         with conf_vars({("core", "plugins"): TEST_PLUGINS_FOLDER}), mock.patch(
             "workday.AfterWorkdayTimetable"
         ):
+            plugins_manager.initialize_timetables_plugins()
+
             cli_args = self.parser.parse_args(
                 ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
             )
