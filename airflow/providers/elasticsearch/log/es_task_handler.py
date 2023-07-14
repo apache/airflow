@@ -24,7 +24,7 @@ from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import TYPE_CHECKING, Any, List, Tuple
+from typing import TYPE_CHECKING, Any, Callable, List, Tuple
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -415,7 +415,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         """Whether we can support external links."""
         return bool(self.frontend)
 
-    def _resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> Hit:
+    def _resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:
         """
         Resolves nested hits from Elasticsearch by iteratively navigating the `_nested` field.
         The result is used to fetch the appropriate document class to handle the hit.
@@ -425,15 +425,15 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         """
         doc_class = Hit
 
-        nested_path = []
+        nested_path: list[str] = []
         nesting = hit["_nested"]
         while nesting and "field" in nesting:
             nested_path.append(nesting["field"])
             nesting = nesting.get("_nested")
-        nested_path = ".".join(nested_path)
+        nested_path_str = ".".join(nested_path)
 
         if hasattr(parent_class, "_index"):
-            nested_field = parent_class._index.resolve_field(nested_path)
+            nested_field = parent_class._index.resolve_field(nested_path_str)
 
         if nested_field is not None:
             return nested_field._doc_class
@@ -505,7 +505,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             hit["inner_hits"][t] = ElasticSearchResponse(self, hit["inner_hits"][t], doc_class=doc_class)
 
         # callback should get the Hit class if "from_es" is not defined
-        callback: Hit | Any = getattr(doc_class, "from_es", doc_class)
+        callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
         return callback(hit)
 
 
