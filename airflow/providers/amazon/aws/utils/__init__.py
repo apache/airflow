@@ -18,20 +18,29 @@ from __future__ import annotations
 
 import logging
 import re
+import warnings
 from datetime import datetime
 from enum import Enum
 
-from deprecated import deprecated
-
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.utils.helpers import prune_dict
 from airflow.version import version
 
 log = logging.getLogger(__name__)
 
 
-@deprecated(reason="use prune_dict() instead")
 def trim_none_values(obj: dict):
-    return prune_dict(obj)
+    from packaging.version import Version
+
+    from airflow.version import version
+
+    if Version(version) < Version("2.7"):
+        return {key: val for key, val in obj.items() if val is not None}
+    else:
+        warnings.warn(
+            "use airflow.utils.helpers.prune_dict() instead", AirflowProviderDeprecationWarning, stacklevel=2
+        )
+        return prune_dict(obj)
 
 
 def datetime_to_epoch(date_time: datetime) -> int:
