@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.task_group import TaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
@@ -381,6 +382,14 @@ class AbstractOperator(Templater, DAGNode):
             if isinstance(parent, MappedTaskGroup):
                 yield parent
             parent = parent.task_group
+
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """Add the task to the given task group.
+
+        :meta private:
+        """
+        if self.node_id not in task_group.children:
+            task_group.add(self)
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """Get the mapped task group "closest" to this task in the DAG.
