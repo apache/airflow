@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, Iterable, Iterator, Set, Tuple
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.engine import Result
@@ -88,7 +88,7 @@ DM = DagModel
 
 # type alias for task concurrency map,
 # (dag_id, run_id, task_group_id) -> concurrency limitation and set of running map indexes
-TaskGroupConcurrencyMap = dict[tuple[str, str, str], tuple[int, set[int]]]
+TaskGroupConcurrencyMap = Dict[Tuple[str, str, str], Tuple[int, Set[int]]]
 
 @dataclass
 class ConcurrencyMap:
@@ -536,7 +536,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 dag_id: str = task_instance.dag_id
                 run_id: str = task_instance.run_id
                 task_id: str = task_instance.task_id
-                group_id: str | None = None
+                group_id: str = ""
 
                 current_active_tasks_per_dag = concurrency_map.dag_active_tasks_map[dag_id]
                 max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
