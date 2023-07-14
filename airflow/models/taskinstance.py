@@ -3109,7 +3109,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         from sqlalchemy.exc import OperationalError
 
-        from airflow.models import DagRun
+        from airflow.models.dagrun import DagRun
 
         try:
             # Re-select the row with a lock

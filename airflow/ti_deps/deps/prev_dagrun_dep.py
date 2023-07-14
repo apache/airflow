@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from sqlalchemy import func
 
-from airflow.models import DagRun
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session

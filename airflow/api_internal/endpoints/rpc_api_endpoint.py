@@ -34,10 +34,12 @@ log = logging.getLogger(__name__)
 def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
-    from airflow.models import DagRun, TaskInstance, Trigger, Variable, XCom
+    from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DAG, DagModel
+    from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.serialized_dag import SerializedDagModel
+    from airflow.models.taskinstance import TaskInstance
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
