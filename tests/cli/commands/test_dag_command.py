@@ -809,21 +809,18 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
+    @mock.patch("workday.AfterWorkdayTimetable")
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
-    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun):
+    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun, _):
         """
         when calling `dags test` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
         """
-        from airflow import plugins_manager
-        from airflow.configuration import TEST_PLUGINS_FOLDER
-        from tests.test_utils.config import conf_vars
+        from airflow.configuration import conf
 
-        with conf_vars({("core", "plugins"): TEST_PLUGINS_FOLDER}):
-            plugins_manager.initialize_timetables_plugins()
-            with mock.patch("workday.AfterWorkdayTimetable"):
-                cli_args = self.parser.parse_args(
-                    ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
-                )
-                dag_command.dag_test(cli_args)
-                assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
+        print("========================AIRFLOW PLUGINS=========================", conf.get("core", "plugins"))
+        cli_args = self.parser.parse_args(
+            ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
+        )
+        dag_command.dag_test(cli_args)
+        assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
