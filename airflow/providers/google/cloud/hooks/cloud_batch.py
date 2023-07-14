@@ -95,7 +95,6 @@ class CloudBatchHook(GoogleBaseHook):
             raise AirflowException(
                 "The limit for the list jobs request should be greater or equal to zero")
 
-        print("fdasf", f"projects/{project_id}/locations/{region}")
         list_jobs_request: ListJobsRequest = ListJobsRequest(
             parent=f"projects/{project_id}/locations/{region}",
             filter=filter
@@ -104,8 +103,6 @@ class CloudBatchHook(GoogleBaseHook):
         jobs: pagers.ListJobsPager = self.get_conn().list_jobs(
             request=list_jobs_request)
         
-        print("FDASF", jobs)
-
         return self._limit_list(jobs, limit)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -192,7 +189,7 @@ class CloudBatchAsyncHook(GoogleBaseHook):
                          impersonation_chain=impersonation_chain)
 
     def get_conn(self):
-        if self._client == None:
+        if self._client is None:
             self._client = BatchServiceAsyncClient()
 
         return self._client

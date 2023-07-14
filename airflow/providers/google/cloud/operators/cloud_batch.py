@@ -239,17 +239,12 @@ class CloudBatchListJobsOperator(BaseOperator):
     def execute(self, context):
         hook: CloudBatchHook = CloudBatchHook(
             self.gcp_conn_id, self.impersonation_chain)
-        
-        print("FILTER:", self.filter)
-        print("PROJECTID:", self.project_id)
 
         jobs_list = hook.list_jobs(
             region=self.region,
             project_id=self.project_id,
             filter=self.filter,
             limit=self.limit)
-        
-        print("Freddy jobs", [Job.to_dict(job) for job in jobs_list])
 
         return [Job.to_dict(job) for job in jobs_list]
 
