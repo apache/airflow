@@ -129,7 +129,7 @@ class DependencyMixin:
 
         if isinstance(obj, AbstractOperator):
             yield obj, "operator"
-        elif isinstance(obj, PlainXComArg):
+        elif isinstance(obj, ResolveMixin):
             yield from obj.iter_references()
         elif isinstance(obj, Sequence):
             for o in obj:
