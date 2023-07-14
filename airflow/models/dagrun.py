@@ -45,7 +45,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Query, Session, declared_attr, joinedload, relationship, synonym, validates
+from sqlalchemy.orm import Query, Session, declared_attr, joinedload, lazyload, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
@@ -461,11 +461,12 @@ class DagRun(Base, LoggingMixin):
         self,
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
+        lazy: bool = True
     ) -> list[TI]:
         """Returns the task instances for this dag run."""
         tis = (
             select(TI)
-            .options(joinedload(TI.dag_run))
+            .options(lazyload(TI.dag_run) if lazy else joinedload(TI.dag_run))
             .where(
                 TI.dag_id == self.dag_id,
                 TI.run_id == self.run_id,

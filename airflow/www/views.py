@@ -3145,7 +3145,7 @@ class Airflow(AirflowBaseView):
         form.execution_date.choices = dt_nr_dr_data["dr_choices"]
 
         task_instances = {}
-        for ti in dag.get_task_instances(dttm, dttm):
+        for ti in dag.get_task_instances(dttm, dttm, lazy=False):
             if ti.task_id not in task_instances:
                 task_instances[ti.task_id] = wwwutils.get_instance_with_map(ti, session)
                 # Need to add operator_name explicitly because it's not a column in task_instances model.
@@ -3818,7 +3818,7 @@ class Airflow(AirflowBaseView):
         with create_session() as session:
             task_instances = {
                 ti.task_id: wwwutils.get_instance_with_map(ti, session)
-                for ti in dag.get_task_instances(dttm, dttm)
+                for ti in dag.get_task_instances(dttm, dttm, lazy=False)
             }
 
         return flask.json.jsonify(task_instances)
