@@ -41,9 +41,7 @@ with DAG(
 
     # [START howto_operator_eventbridge_put_events]
 
-    put_events = EventBridgePutEventsOperator(
-        task_id="put_events_task", entries=ENTRIES, region_name="us-east-1"
-    )
+    put_events = EventBridgePutEventsOperator(task_id="put_events_task", entries=ENTRIES)
 
     # [END howto_operator_eventbridge_put_events]
 
