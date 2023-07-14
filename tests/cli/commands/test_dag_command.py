@@ -819,13 +819,11 @@ class TestCliDags:
         from airflow.configuration import TEST_PLUGINS_FOLDER
         from tests.test_utils.config import conf_vars
 
-        with conf_vars({("core", "plugins"): TEST_PLUGINS_FOLDER}), mock.patch(
-            "workday.AfterWorkdayTimetable"
-        ):
+        with conf_vars({("core", "plugins"): TEST_PLUGINS_FOLDER}):
             plugins_manager.initialize_timetables_plugins()
-
-            cli_args = self.parser.parse_args(
-                ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
-            )
-            dag_command.dag_test(cli_args)
-            assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
+            with mock.patch("workday.AfterWorkdayTimetable"):
+                cli_args = self.parser.parse_args(
+                    ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
+                )
+                dag_command.dag_test(cli_args)
+                assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
