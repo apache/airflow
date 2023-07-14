@@ -125,7 +125,7 @@ class DependencyMixin:
     @classmethod
     def _iter_references(cls, obj: Any) -> Iterable[tuple[DependencyMixin, str]]:
         from airflow.models.baseoperator import AbstractOperator
-        from airflow.models.xcom_arg import PlainXComArg
+        from airflow.utils.mixins import ResolveMixin
 
         if isinstance(obj, AbstractOperator):
             yield obj, "operator"
