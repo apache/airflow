@@ -778,23 +778,27 @@ class RdsStartDbOperator(RdsBaseOperator):
         if self.db_type == RdsDbType.INSTANCE:
             response = self.hook.conn.start_db_instance(
                 DBInstanceIdentifier=self.db_identifier,
-                check_interval=self.waiter_delay,
-                max_attempts=self.waiter_max_attempts,
             )
         else:
-            response = self.hook.conn.start_db_cluster(
-                DBClusterIdentifier=self.db_identifier,
-                check_interval=self.waiter_delay,
-                max_attempts=self.waiter_max_attempts,
-            )
+            response = self.hook.conn.start_db_cluster(DBClusterIdentifier=self.db_identifier)
         return response
 
     def _wait_until_db_available(self):
         self.log.info("Waiting for DB %s to reach 'available' state", self.db_type.value)
         if self.db_type == RdsDbType.INSTANCE:
-            self.hook.wait_for_db_instance_state(self.db_identifier, target_state="available")
+            self.hook.wait_for_db_instance_state(
+                self.db_identifier,
+                target_state="available",
+                check_interval=self.waiter_delay,
+                max_attempts=self.waiter_max_attempts,
+            )
         else:
-            self.hook.wait_for_db_cluster_state(self.db_identifier, target_state="available")
+            self.hook.wait_for_db_cluster_state(
+                self.db_identifier,
+                target_state="available",
+                check_interval=self.waiter_delay,
+                max_attempts=self.waiter_max_attempts,
+            )
 
 
 class RdsStopDbOperator(RdsBaseOperator):
