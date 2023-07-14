@@ -1128,7 +1128,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
 
     def prepare_for_execution(self) -> BaseOperator:
-        """Lock task for execution to disable custom action in ``__setattr__`` and returns a copy of the task."""
+        """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
         other = copy.copy(self)
         other._lock_for_execution = True
         return other
