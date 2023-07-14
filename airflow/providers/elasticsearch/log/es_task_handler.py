@@ -415,7 +415,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         """Whether we can support external links."""
         return bool(self.frontend)
 
-    def _resolve_nested(self, hit, parent_class=None):
+    def _resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> Hit:
+        """
+        Resolves nested hits from Elasticsearch by iteratively navigating the `_nested` field.
+        The result is used to fetch the appropriate document class to handle the hit.
+
+        This method can be used with nested Elasticsearch fields which are structured
+        as dictionaries with "field" and "_nested" keys.
+        """
         doc_class = Hit
 
         nested_path = []
@@ -433,7 +440,52 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         return doc_class
 
-    def _get_result(self, hit, parent_class=None):
+    def _get_result(self, hit: dict[Any, Any], parent_class=None) -> Hit:
+        """
+        This method processes a hit (i.e., a result) from an Elasticsearch response and transforms it into an
+        appropriate class instance.
+
+        The transformation depends on the contents of the hit. If the document in hit contains a nested field,
+        the '_resolve_nested' method is used to determine the appropriate class (based on the nested path).
+        If the hit has a document type that is present in the '_doc_type_map', the corresponding class is
+        used. If not, the method iterates over the '_doc_type' classes and uses the first one whose '_matches'
+        method returns True for the hit.
+
+        If the hit contains any 'inner_hits', these are also processed into 'ElasticSearchResponse' instances
+        using the determined class.
+
+        Finally, the transformed hit is returned. If the determined class has a 'from_es' method, this is
+        used to transform the hit
+
+        An example of the hit argument:
+
+        {'_id': 'jdeZT4kBjAZqZnexVUxk',
+         '_index': '.ds-filebeat-8.8.2-2023.07.09-000001',
+         '_score': 2.482621,
+         '_source': {'@timestamp': '2023-07-13T14:13:15.140Z',
+                     'asctime': '2023-07-09T07:47:43.907+0000',
+                     'container': {'id': 'airflow'},
+                     'dag_id': 'example_bash_operator',
+                     'ecs': {'version': '8.0.0'},
+                     'execution_date': '2023_07_09T07_47_32_000000',
+                     'filename': 'taskinstance.py',
+                     'input': {'type': 'log'},
+                     'levelname': 'INFO',
+                     'lineno': 1144,
+                     'log': {'file': {'path': "/opt/airflow/Documents/GitHub/airflow/logs/
+                     dag_id=example_bash_operator'/run_id=owen_run_run/
+                     task_id=run_after_loop/attempt=1.log"},
+                             'offset': 0},
+                     'log.offset': 1688888863907337472,
+                     'log_id': 'example_bash_operator-run_after_loop-owen_run_run--1-1',
+                     'message': 'Dependencies all met for dep_context=non-requeueable '
+                                'deps ti=<TaskInstance: '
+                                'example_bash_operator.run_after_loop owen_run_run '
+                                '[queued]>',
+                     'task_id': 'run_after_loop',
+                     'try_number': '1'},
+         '_type': '_doc'}
+        """
         doc_class = Hit
         dt = hit.get("_type")
 
@@ -452,7 +504,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         for t in hit.get("inner_hits", ()):
             hit["inner_hits"][t] = ElasticSearchResponse(self, hit["inner_hits"][t], doc_class=doc_class)
 
-        callback = getattr(doc_class, "from_es", doc_class)
+        # callback should get the Hit class if "from_es" is not defined
+        callback: Hit | Any = getattr(doc_class, "from_es", doc_class)
         return callback(hit)
 
 

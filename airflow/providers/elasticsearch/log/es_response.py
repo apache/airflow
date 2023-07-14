@@ -107,6 +107,54 @@ class ElasticSearchResponse(AttributeDict):
 
     The hits property returns an AttributeList of hits in the response, with each hit transformed into
     an instance of the doc_class if provided.
+
+    The response parameter stores the dictionary returned by the Elasticsearch client search method. Example:
+    {
+        "_shards": {"failed": 0, "skipped": 0, "successful": 7, "total": 7},
+        "hits": {
+            "hits": [
+                {
+                    "_id": "jdeZT4kBjAZqZnexVUxk",
+                    "_index": ".ds-filebeat-8.8.2-2023.07.09-000001",
+                    "_score": 2.482621,
+                    "_source": {
+                        "@timestamp": "2023-07-13T14:13:15.140Z",
+                        "asctime": "2023-07-09T07:47:43.907+0000",
+                        "container": {"id": "airflow"},
+                        "dag_id": "example_bash_operator",
+                        "ecs": {"version": "8.0.0"},
+                        "execution_date": "2023_07_09T07_47_32_000000",
+                        "filename": "taskinstance.py",
+                        "input": {"type": "log"},
+                        "levelname": "INFO",
+                        "lineno": 1144,
+                        "log": {
+                            "file": {
+                                "path": "/opt/airflow/Documents/GitHub/airflow/logs/"
+                                "dag_id=example_bash_operator'"
+                                "/run_id=owen_run_run/task_id=run_after_loop/attempt=1.log"
+                            },
+                            "offset": 0,
+                        },
+                        "log.offset": 1688888863907337472,
+                        "log_id": "example_bash_operator-run_after_loop-owen_run_run--1-1",
+                        "message": "Dependencies all met for "
+                        "dep_context=non-requeueable deps "
+                        "ti=<TaskInstance: "
+                        "example_bash_operator.run_after_loop "
+                        "owen_run_run [queued]>",
+                        "task_id": "run_after_loop",
+                        "try_number": "1",
+                    },
+                    "_type": "_doc",
+                },
+            ],
+            "max_score": 2.482621,
+            "total": {"relation": "eq", "value": 36},
+        },
+        "timed_out": False,
+        "took": 7,
+    }
     """
 
     def __init__(self, search, response, doc_class=None):
@@ -127,6 +175,20 @@ class ElasticSearchResponse(AttributeDict):
 
     @property
     def hits(self):
+        """
+        This property provides access to the hits (i.e., the results) of the Elasticsearch response.
+
+        The hits are represented as an `AttributeList` of `Hit` instances, which allow for easy,
+        attribute-like access to the hit data.
+
+        The hits are lazily loaded, meaning they're not processed until this property is accessed.
+        Upon first access, the hits data from the response is processed using the `_get_result` method
+        of the associated `Search` instance (i.e. an instance from ElasticsearchTaskHandler class),
+        and the results are stored for future accesses.
+
+        Each hit also includes all the additional data present in the "hits" field of the response,
+        accessible as attributes of the hit.
+        """
         if not hasattr(self, "_hits"):
             h = self._d_["hits"]
 
