@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import os
 import pickle
 import shutil
@@ -30,7 +31,7 @@ from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Collection, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence, cast
 
 import dill
 
@@ -48,6 +49,9 @@ from airflow.utils.context import Context, context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
+
+if TYPE_CHECKING:
+    from pendulum.datetime import DateTime
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
@@ -251,27 +255,35 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.log.info("Proceeding with downstream tasks...")
             return condition
 
-        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task IDs %s", downstream_tasks)
+        if not self.downstream_task_ids:
+            self.log.info("No downstream tasks; nothing to do.")
+            return
 
-        if downstream_tasks:
-            dag_run = context["dag_run"]
-            execution_date = dag_run.execution_date
+        dag_run = context["dag_run"]
 
+        def get_tasks_to_skip():
             if self.ignore_downstream_trigger_rules is True:
-                self.log.info("Skipping all downstream tasks...")
-                self.skip(dag_run, execution_date, downstream_tasks, map_index=context["ti"].map_index)
+                tasks = context["task"].get_flat_relatives(upstream=False)
             else:
-                self.log.info("Skipping downstream tasks while respecting trigger rules...")
-                # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
-                # Scheduler handle the remaining downstream task(s) appropriately.
-                self.skip(
-                    dag_run,
-                    execution_date,
-                    context["task"].get_direct_relatives(upstream=False),
-                    map_index=context["ti"].map_index,
-                )
+                tasks = context["task"].get_direct_relatives(upstream=False)
+            for t in tasks:
+                if not t.is_teardown:
+                    yield t
 
+        to_skip = get_tasks_to_skip()
+
+        # this let's us avoid an intermediate list unless debug logging
+        if self.log.getEffectiveLevel() <= logging.DEBUG:
+            self.log.debug("Downstream task IDs %s", to_skip := list(get_tasks_to_skip()))
+
+        self.log.info("Skipping downstream tasks")
+
+        self.skip(
+            dag_run=dag_run,
+            execution_date=cast("DateTime", dag_run.execution_date),
+            tasks=to_skip,
+            map_index=context["ti"].map_index,
+        )
         self.log.info("Done.")
 
 
