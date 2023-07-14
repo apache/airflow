@@ -362,8 +362,10 @@ class TaskGroup(DAGNode):
         Returns a generator of tasks that are root tasks, i.e. those with no upstream
         dependencies within the TaskGroup.
         """
-        for task in self:
-            if not any(self.has_task(parent) for parent in task.get_direct_relatives(upstream=True)):
+        tasks = list(self)
+        ids = {x.task_id for x in tasks}
+        for task in tasks:
+            if not task.upstream_task_ids.intersection(ids):
                 yield task
 
     def get_leaves(self) -> Generator[BaseOperator, None, None]:
@@ -371,22 +373,24 @@ class TaskGroup(DAGNode):
         Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
         dependencies within the TaskGroup.
         """
+        tasks = list(self)
+        ids = {x.task_id for x in tasks}
 
-        def recurse_for_first_non_setup_teardown(group, task):
+        def recurse_for_first_non_setup_teardown(task):
             for upstream_task in task.upstream_list:
-                if not group.has_task(upstream_task):
+                if upstream_task.task_id not in ids:
                     continue
                 if upstream_task.is_setup or upstream_task.is_teardown:
-                    yield from recurse_for_first_non_setup_teardown(group, upstream_task)
+                    yield from recurse_for_first_non_setup_teardown(upstream_task)
                 else:
                     yield upstream_task
 
-        for task in self:
-            if not any(self.has_task(x) for x in task.get_direct_relatives(upstream=False)):
+        for task in tasks:
+            if not task.downstream_task_ids.intersection(ids):
                 if not (task.is_teardown or task.is_setup):
                     yield task
                 else:
-                    yield from recurse_for_first_non_setup_teardown(self, task)
+                    yield from recurse_for_first_non_setup_teardown(task)
 
     def child_id(self, label):
         """
