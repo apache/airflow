@@ -136,7 +136,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
 
         yield TriggerEvent({"status": "deleted"})
 
-    async def delete_any_nodegroups(self, client):
+    async def delete_any_nodegroups(self, client) -> None:
         """
         Deletes all EKS Nodegroups for a provided Amazon EKS Cluster.
 
@@ -146,10 +146,14 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         nodegroups = await client.list_nodegroups(clusterName=self.cluster_name)
         if nodegroups.get("nodegroups", None):
             self.log.info("Deleting nodegroups")
+            # ignoring attr-defined here because aws_base hook defines get_waiter for all hooks
+            waiter = self.hook.get_waiter(  # type: ignore[attr-defined]
+                "all_nodegroups_deleted", deferrable=True, client=client
+            )
             for group in nodegroups["nodegroups"]:
                 await client.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
             await async_wait(
-                waiter=self.hook.get_waiter("all_nodegroups_deleted", deferrable=True, client=client),
+                waiter=waiter,
                 waiter_delay=int(self.waiter_delay),
                 waiter_max_attempts=int(self.waiter_max_attempts),
                 args={"clusterName": self.cluster_name},
