@@ -207,13 +207,17 @@ class TaskGroup(DAGNode):
             else:
                 yield child
 
-    def add(self, task: DAGNode) -> None:
+    def add(self, task: DAGNode) -> DAGNode:
         """Add a task to this TaskGroup.
 
         :meta private:
         """
         from airflow.models.abstractoperator import AbstractOperator
 
+        if TaskGroupContext.active:
+            if task.task_group and task.task_group != self:
+                task.task_group.children.pop(task.node_id, None)
+                task.task_group = self
         existing_tg = task.task_group
         if isinstance(task, AbstractOperator) and existing_tg is not None and existing_tg != self:
             raise TaskAlreadyInTaskGroup(task.node_id, existing_tg.node_id, self.node_id)
@@ -237,6 +241,7 @@ class TaskGroup(DAGNode):
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
+        return task
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
@@ -543,6 +548,26 @@ class TaskGroup(DAGNode):
                         f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
                     )
 
+    def add_task(self, task: AbstractOperator) -> None:
+        """Add a task to the task group.
+
+        :param task: the task to add
+        """
+        if not TaskGroupContext.active:
+            raise AirflowException(
+                "Using this method on a task group that's not a context manager is not supported."
+            )
+        task.add_to_taskgroup(self)
+
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """No-op, since we're not a task.
+
+        We only add tasks to TaskGroups and not TaskGroup, but we need
+        this to satisfy the interface.
+
+        :meta private:
+        """
+
 
 class MappedTaskGroup(TaskGroup):
     """A mapped task group.
@@ -613,6 +638,7 @@ class MappedTaskGroup(TaskGroup):
 class TaskGroupContext:
     """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
 
+    active: bool = False
     _context_managed_task_group: TaskGroup | None = None
     _previous_context_managed_task_groups: list[TaskGroup] = []
 
@@ -622,6 +648,7 @@ class TaskGroupContext:
         if cls._context_managed_task_group:
             cls._previous_context_managed_task_groups.append(cls._context_managed_task_group)
         cls._context_managed_task_group = task_group
+        cls.active = True
 
     @classmethod
     def pop_context_managed_task_group(cls) -> TaskGroup | None:
@@ -631,6 +658,7 @@ class TaskGroupContext:
             cls._context_managed_task_group = cls._previous_context_managed_task_groups.pop()
         else:
             cls._context_managed_task_group = None
+        cls.active = False
         return old_task_group
 
     @classmethod
