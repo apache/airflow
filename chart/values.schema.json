@@ -1476,7 +1476,7 @@
                             "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if eq .Values.executor \"CeleryKubernetesExecutor\" }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
                         },
                         "usePgbouncer": {
-                            "description": "Weather to use PGBouncer to connect to the database or not when it is enabled\nThis configuration will be ignored if PGBouncer is not enabled",
+                            "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
                             "type": "boolean",
                             "default": true
                         }
