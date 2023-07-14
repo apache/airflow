@@ -275,7 +275,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         """
         from airflow.models.taskinstance import _get_previous_execution_date
 
-        return _get_previous_execution_date(self, state, session)
+        return _get_previous_execution_date(self, session, state)
 
     def email_alert(self, exception, task: BaseOperator) -> None:
         """

@@ -1132,8 +1132,8 @@ def _get_previous_ti(
     The task instance for the task that ran before this task instance.
 
     :param task_instance: the task instance
-    :param session: SQLAlchemy ORM Session
     :param state: If passed, it only take into account instances of a specific state.
+    :param session: SQLAlchemy ORM Session
 
     :meta private:
     """
@@ -1756,7 +1756,7 @@ class TaskInstance(Base, LoggingMixin):
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session.
         """
-        return _get_previous_dagrun(self, state, session)
+        return _get_previous_dagrun(task_instance=self, state=state, session=session)
 
     @provide_session
     def get_previous_ti(
@@ -1770,7 +1770,7 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :param state: If passed, it only take into account instances of a specific state.
         """
-        return _get_previous_ti(self, state, session)
+        return _get_previous_ti(self, session, state)
 
     @property
     def previous_ti(self) -> TaskInstance | None:
@@ -1816,7 +1816,7 @@ class TaskInstance(Base, LoggingMixin):
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session
         """
-        return _get_previous_execution_date(self, state, session)
+        return _get_previous_execution_date(self, session, state)
 
     @provide_session
     def get_previous_start_date(
