@@ -421,12 +421,14 @@ def _execute_task(task_instance, context, task_orig):
             xcom_value = None
         if xcom_value is not None:  # If the task returns a result, push an XCom containing it.
             task_instance.xcom_push(key=XCOM_RETURN_KEY, value=xcom_value, session=session)
-        _record_task_map_for_downstreams(task_instance, task_orig, xcom_value, session)
+        _record_task_map_for_downstreams(
+            task_instance=task_instance, task=task_orig, value=xcom_value, session=session
+        )
     return result
 
 
 def _refresh_from_db(
-    task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
+    *, task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
 ) -> None:
     """
     Refreshes the task instance from the database based on the primary key.
@@ -482,7 +484,7 @@ def _refresh_from_db(
         task_instance.state = None
 
 
-def _set_duration(task_instance: TaskInstance | TaskInstancePydantic) -> None:
+def _set_duration(*, task_instance: TaskInstance | TaskInstancePydantic) -> None:
     """
     Set task instance duration.
 
@@ -497,7 +499,7 @@ def _set_duration(task_instance: TaskInstance | TaskInstancePydantic) -> None:
     log.debug("Task Duration set to %s", task_instance.duration)
 
 
-def _stats_tags(task_instance: TaskInstance | TaskInstancePydantic) -> dict[str, str]:
+def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[str, str]:
     """
     Returns task instance tags.
 
@@ -508,7 +510,7 @@ def _stats_tags(task_instance: TaskInstance | TaskInstancePydantic) -> dict[str,
     return prune_dict({"dag_id": task_instance.dag_id, "task_id": task_instance.task_id})
 
 
-def _clear_next_method_args(task_instance: TaskInstance | TaskInstancePydantic) -> None:
+def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydantic) -> None:
     """
     Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them.
 
@@ -523,6 +525,7 @@ def _clear_next_method_args(task_instance: TaskInstance | TaskInstancePydantic) 
 
 
 def _get_template_context(
+    *,
     task_instance,
     session: Session | None = None,
     ignore_param_exceptions: bool = True,
@@ -735,7 +738,7 @@ def _get_template_context(
     return Context(context)  # type: ignore
 
 
-def _is_eligible_to_retry(task_instance: TaskInstance | TaskInstancePydantic):
+def _is_eligible_to_retry(*, task_instance: TaskInstance | TaskInstancePydantic):
     """
     Is task instance is eligible for retry.
 
@@ -755,6 +758,7 @@ def _is_eligible_to_retry(task_instance: TaskInstance | TaskInstancePydantic):
 
 
 def _handle_failure(
+    *,
     task_instance: TaskInstance | TaskInstancePydantic,
     error: None | str | Exception | KeyboardInterrupt,
     session: Session,
@@ -786,7 +790,7 @@ def _handle_failure(
         session=session,
     )
 
-    _log_state(task_instance, "Immediate failure requested. " if force_fail else "")
+    _log_state(task_instance=task_instance, lead_msg="Immediate failure requested. " if force_fail else "")
     if (
         failure_context["task"]
         and failure_context["email_for_state"](failure_context["task"])
@@ -799,15 +803,15 @@ def _handle_failure(
 
     if failure_context["callbacks"] and failure_context["context"]:
         _run_finished_callback(
-            failure_context["callbacks"],
-            failure_context["context"],
+            callbacks=failure_context["callbacks"],
+            context=failure_context["context"],
         )
 
     if not test_mode:
         TaskInstance.save_to_db(failure_context["ti"], session)
 
 
-def _get_try_number(task_instance: TaskInstance | TaskInstancePydantic):
+def _get_try_number(*, task_instance: TaskInstance | TaskInstancePydantic):
     """
     Return the try number that a task number will be when it is actually run.
 
@@ -825,7 +829,7 @@ def _get_try_number(task_instance: TaskInstance | TaskInstancePydantic):
     return task_instance._try_number + 1
 
 
-def _set_try_number(task_instance: TaskInstance | TaskInstancePydantic, value: int) -> None:
+def _set_try_number(*, task_instance: TaskInstance | TaskInstancePydantic, value: int) -> None:
     """
     Set a task try number.
 
@@ -838,7 +842,7 @@ def _set_try_number(task_instance: TaskInstance | TaskInstancePydantic, value: i
 
 
 def _refresh_from_task(
-    task_instance: TaskInstance | TaskInstancePydantic, task: Operator, pool_override: str | None = None
+    *, task_instance: TaskInstance | TaskInstancePydantic, task: Operator, pool_override: str | None = None
 ) -> None:
     """
     Copy common attributes from the given task.
@@ -863,7 +867,7 @@ def _refresh_from_task(
 
 
 def _record_task_map_for_downstreams(
-    task_instance: TaskInstance | TaskInstancePydantic, task: Operator, value: Any, session: Session
+    *, task_instance: TaskInstance | TaskInstancePydantic, task: Operator, value: Any, session: Session
 ) -> None:
     """
     Record the task map for downstream tasks.
@@ -895,6 +899,7 @@ def _record_task_map_for_downstreams(
 
 
 def _get_previous_dagrun(
+    *,
     task_instance: TaskInstance | TaskInstancePydantic,
     state: DagRunState | None = None,
     session: Session | None = None,
@@ -934,9 +939,10 @@ def _get_previous_dagrun(
 
 
 def _get_previous_execution_date(
+    *,
     task_instance: TaskInstance | TaskInstancePydantic,
+    state: DagRunState | None,
     session: Session,
-    state: DagRunState | None = None,
 ) -> pendulum.DateTime | None:
     """
     The execution date from property previous_ti_success.
@@ -952,7 +958,9 @@ def _get_previous_execution_date(
     return prev_ti and pendulum.instance(prev_ti.execution_date)
 
 
-def _email_alert(task_instance: TaskInstance | TaskInstancePydantic, exception, task: BaseOperator) -> None:
+def _email_alert(
+    *, task_instance: TaskInstance | TaskInstancePydantic, exception, task: BaseOperator
+) -> None:
     """
     Send alert email with exception information.
 
@@ -971,6 +979,7 @@ def _email_alert(task_instance: TaskInstance | TaskInstancePydantic, exception, 
 
 
 def _get_email_subject_content(
+    *,
     task_instance: TaskInstance | TaskInstancePydantic,
     exception: BaseException,
     task: BaseOperator | None = None,
@@ -1061,6 +1070,7 @@ def _get_email_subject_content(
 
 
 def _run_finished_callback(
+    *,
     callbacks: None | TaskStateChangeCallback | list[TaskStateChangeCallback],
     context: Context,
 ) -> None:
@@ -1082,7 +1092,7 @@ def _run_finished_callback(
                 log.exception("Error when executing %s callback", callback_name)  # type: ignore[attr-defined]
 
 
-def _log_state(task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
+def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
     """
     Log task state.
 
@@ -1104,13 +1114,13 @@ def _log_state(task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str
     log.info(
         message + "execution_date=%s, start_date=%s, end_date=%s",
         *params,
-        _date_or_empty(task_instance, "execution_date"),
-        _date_or_empty(task_instance, "start_date"),
-        _date_or_empty(task_instance, "end_date"),
+        _date_or_empty(task_instance=task_instance, attr="execution_date"),
+        _date_or_empty(task_instance=task_instance, attr="start_date"),
+        _date_or_empty(task_instance=task_instance, attr="end_date"),
     )
 
 
-def _date_or_empty(task_instance: TaskInstance | TaskInstancePydantic, attr: str) -> str:
+def _date_or_empty(*, task_instance: TaskInstance | TaskInstancePydantic, attr: str) -> str:
     """
     Fetch a date attribute or None of it does not exist.
 
@@ -1124,6 +1134,7 @@ def _date_or_empty(task_instance: TaskInstance | TaskInstancePydantic, attr: str
 
 
 def _get_previous_ti(
+    *,
     task_instance: TaskInstance | TaskInstancePydantic,
     session: Session,
     state: DagRunState | None = None,
@@ -1337,7 +1348,7 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
-        return _stats_tags(self)
+        return _stats_tags(task_instance=self)
 
     @staticmethod
     def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
@@ -1381,7 +1392,7 @@ class TaskInstance(Base, LoggingMixin):
 
         This is designed so that task logs end up in the right file.
         """
-        return _get_try_number(self)
+        return _get_try_number(task_instance=self)
 
     @try_number.setter
     def try_number(self, value: int) -> None:
@@ -1390,7 +1401,7 @@ class TaskInstance(Base, LoggingMixin):
 
         :param value: the try number
         """
-        _set_try_number(self, value)
+        _set_try_number(task_instance=self, value=value)
 
     @property
     def prev_attempted_tries(self) -> int:
@@ -1648,7 +1659,7 @@ class TaskInstance(Base, LoggingMixin):
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
         """
-        _refresh_from_db(self, session, lock_for_update)
+        _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
 
     def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
         """
@@ -1657,7 +1668,7 @@ class TaskInstance(Base, LoggingMixin):
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
         """
-        _refresh_from_task(self, task, pool_override)
+        _refresh_from_task(task_instance=self, task=task, pool_override=pool_override)
 
     @provide_session
     def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
@@ -1770,7 +1781,7 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :param state: If passed, it only take into account instances of a specific state.
         """
-        return _get_previous_ti(self, session, state)
+        return _get_previous_ti(task_instance=self, state=state, session=session)
 
     @property
     def previous_ti(self) -> TaskInstance | None:
@@ -1816,7 +1827,7 @@ class TaskInstance(Base, LoggingMixin):
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session
         """
-        return _get_previous_execution_date(self, session, state)
+        return _get_previous_execution_date(task_instance=self, state=state, session=session)
 
     @provide_session
     def get_previous_start_date(
@@ -2155,7 +2166,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def clear_next_method_args(self) -> None:
         """Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them."""
-        _clear_next_method_args(self)
+        _clear_next_method_args(task_instance=self)
 
     @provide_session
     @Sentry.enrich_errors
@@ -2227,8 +2238,8 @@ class TaskInstance(Base, LoggingMixin):
                 "Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s",
                 self.dag_id,
                 self.task_id,
-                _date_or_empty(self, "execution_date"),
-                _date_or_empty(self, "start_date"),
+                _date_or_empty(task_instance=self, attr="execution_date"),
+                _date_or_empty(task_instance=self, attr="start_date"),
             )
             if not test_mode:
                 session.add(Log(self.state, self))
@@ -2280,13 +2291,13 @@ class TaskInstance(Base, LoggingMixin):
         # Recording SKIPPED or SUCCESS
         self.clear_next_method_args()
         self.end_date = timezone.utcnow()
-        _log_state(self)
+        _log_state(task_instance=self)
         self.set_duration()
 
         # run on_success_callback before db committing
         # otherwise, the LocalTaskJob sees the state is changed to `success`,
         # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
-        _run_finished_callback(self.task.on_success_callback, context)
+        _run_finished_callback(callbacks=self.task.on_success_callback, context=context)
 
         if not test_mode:
             session.add(Log(self.state, self))
@@ -2679,7 +2690,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry."""
-        return _is_eligible_to_retry(self)
+        return _is_eligible_to_retry(task_instance=self)
 
     def get_template_context(
         self,
@@ -2804,7 +2815,7 @@ class TaskInstance(Base, LoggingMixin):
         :param exception: the exception sent in the email
         :param task:
         """
-        return _get_email_subject_content(self, exception, task)
+        return _get_email_subject_content(task_instance=self, exception=exception, task=task)
 
     def email_alert(self, exception, task: BaseOperator) -> None:
         """
@@ -2813,11 +2824,11 @@ class TaskInstance(Base, LoggingMixin):
         :param exception: the exception
         :param task: task related to the exception
         """
-        _email_alert(self, exception, task)
+        _email_alert(task_instance=self, exception=exception, task=task)
 
     def set_duration(self) -> None:
         """Set task instance duration."""
-        _set_duration(self)
+        _set_duration(task_instance=self)
 
     @provide_session
     def xcom_push(

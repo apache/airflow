@@ -145,7 +145,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         """
         from airflow.models.taskinstance import _execute_task
 
-        return _execute_task(self, context, task_orig)
+        return _execute_task(task_instance=self, context=context, task_orig=task_orig)
 
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION, lock_for_update: bool = False) -> None:
@@ -159,26 +159,26 @@ class TaskInstancePydantic(BaseModelPydantic):
         """
         from airflow.models.taskinstance import _refresh_from_db
 
-        _refresh_from_db(self, session, lock_for_update)
+        _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
 
     def set_duration(self) -> None:
         """Set task instance duration."""
         from airflow.models.taskinstance import _set_duration
 
-        _set_duration(self)
+        _set_duration(task_instance=self)
 
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
         from airflow.models.taskinstance import _stats_tags
 
-        return _stats_tags(self)
+        return _stats_tags(task_instance=self)
 
     def clear_next_method_args(self) -> None:
         """Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them."""
         from airflow.models.taskinstance import _clear_next_method_args
 
-        _clear_next_method_args(self)
+        _clear_next_method_args(task_instance=self)
 
     def get_template_context(
         self,
@@ -203,7 +203,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         """Is task instance is eligible for retry."""
         from airflow.models.taskinstance import _is_eligible_to_retry
 
-        return _is_eligible_to_retry(self)
+        return _is_eligible_to_retry(task_instance=self)
 
     @provide_session
     def handle_failure(
@@ -243,7 +243,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         """
         from airflow.models.taskinstance import _refresh_from_task
 
-        _refresh_from_task(self, task, pool_override)
+        _refresh_from_task(task_instance=self, task=task, pool_override=pool_override)
 
     @provide_session
     def get_previous_dagrun(
@@ -259,7 +259,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         """
         from airflow.models.taskinstance import _get_previous_dagrun
 
-        return _get_previous_dagrun(self, state, session)
+        return _get_previous_dagrun(task_instance=self, state=state, session=session)
 
     @provide_session
     def get_previous_execution_date(
@@ -275,7 +275,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         """
         from airflow.models.taskinstance import _get_previous_execution_date
 
-        return _get_previous_execution_date(self, session, state)
+        return _get_previous_execution_date(task_instance=self, state=state, session=session)
 
     def email_alert(self, exception, task: BaseOperator) -> None:
         """
@@ -286,7 +286,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         """
         from airflow.models.taskinstance import _email_alert
 
-        _email_alert(self, exception, task)
+        _email_alert(task_instance=self, exception=exception, task=task)
 
     def get_email_subject_content(
         self, exception: BaseException, task: BaseOperator | None = None
@@ -299,7 +299,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         """
         from airflow.models.taskinstance import _get_email_subject_content
 
-        return _get_email_subject_content(self, exception, task)
+        return _get_email_subject_content(task_instance=self, exception=exception, task=task)
 
     @provide_session
     def get_previous_ti(
@@ -315,4 +315,4 @@ class TaskInstancePydantic(BaseModelPydantic):
         """
         from airflow.models.taskinstance import _get_previous_ti
 
-        return _get_previous_ti(self, state, session)
+        return _get_previous_ti(task_instance=self, state=state, session=session)
