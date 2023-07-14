@@ -43,8 +43,8 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
+from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
-from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -279,7 +279,7 @@ class BatchOperator(BaseOperator):
         }
 
         try:
-            response = self.hook.client.submit_job(**prune_dict(args))
+            response = self.hook.client.submit_job(**trim_none_values(args))
         except Exception as e:
             self.log.error(
                 "AWS Batch job failed submission - job definition: %s - on queue %s",
@@ -484,7 +484,7 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
             "serviceRole": self.service_role,
             "tags": self.tags,
         }
-        response = self.hook.client.create_compute_environment(**prune_dict(kwargs))
+        response = self.hook.client.create_compute_environment(**trim_none_values(kwargs))
         arn = response["computeEnvironmentArn"]
 
         if self.deferrable:

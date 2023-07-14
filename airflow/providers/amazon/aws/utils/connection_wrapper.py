@@ -27,7 +27,7 @@ from botocore import UNSIGNED
 from botocore.config import Config
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.utils.helpers import prune_dict
+from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -293,7 +293,7 @@ class AwsConnectionWrapper(LoggingMixin):
     @property
     def session_kwargs(self) -> dict[str, Any]:
         """Additional kwargs passed to boto3.session.Session."""
-        return prune_dict(
+        return trim_none_values(
             {
                 "aws_access_key_id": self.aws_access_key_id,
                 "aws_secret_access_key": self.aws_secret_access_key,

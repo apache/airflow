@@ -21,8 +21,8 @@ from __future__ import annotations
 import re
 from functools import cached_property
 
+from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
-from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -118,7 +118,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         conn_id = f"{self.__class__.__name__}__connection"
         conn_config = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=self.kwargs)
-        client_kwargs = prune_dict(
+        client_kwargs = trim_none_values(
             {
                 "region_name": conn_config.region_name,
                 "verify": conn_config.verify,

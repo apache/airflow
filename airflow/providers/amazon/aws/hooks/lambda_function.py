@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.helpers import prune_dict
+from airflow.providers.amazon.aws.utils import trim_none_values
 
 
 class LambdaHook(AwsBaseHook):
@@ -76,7 +76,7 @@ class LambdaHook(AwsBaseHook):
             "Payload": payload,
             "Qualifier": qualifier,
         }
-        return self.conn.invoke(**prune_dict(invoke_args))
+        return self.conn.invoke(**trim_none_values(invoke_args))
 
     def create_lambda(
         self,
@@ -178,4 +178,4 @@ class LambdaHook(AwsBaseHook):
             "CodeSigningConfigArn": code_signing_config_arn,
             "Architectures": architectures,
         }
-        return self.conn.create_function(**prune_dict(create_function_args))
+        return self.conn.create_function(**trim_none_values(create_function_args))
