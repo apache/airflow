@@ -17,7 +17,7 @@
 # under the License.
 """This module contains a Google Cloud Vertex AI hook.
 
-.. spelling::
+.. spelling:word-list::
 
     undeployed
     undeploy
@@ -316,8 +316,7 @@ class EndpointServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Undeploys a Model from an Endpoint, removing a DeployedModel from it, and freeing all resources it's
-        using.
+        Undeploys a Model from an Endpoint, removing a DeployedModel from it, and freeing all used resources.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

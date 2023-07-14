@@ -82,7 +82,7 @@ class ValidJson:
 
 class ValidKey:
     """
-    Validates values that will be used as keys
+    Validates values that will be used as keys.
 
     :param max_length:
         The maximum length of the given key

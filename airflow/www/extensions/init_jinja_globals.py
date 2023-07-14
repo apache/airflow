@@ -21,14 +21,14 @@ import logging
 import pendulum
 
 import airflow
-from airflow.configuration import conf
+from airflow.configuration import auth_manager, conf
 from airflow.settings import IS_K8S_OR_K8SCELERY_EXECUTOR, STATE_COLORS
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import get_airflow_git_version
 
 
 def init_jinja_globals(app):
-    """Add extra globals variable to Jinja context"""
+    """Add extra globals variable to Jinja context."""
     server_timezone = conf.get("core", "default_timezone")
     if server_timezone == "system":
         server_timezone = pendulum.local_timezone().name
@@ -68,6 +68,8 @@ def init_jinja_globals(app):
             "git_version": git_version,
             "k8s_or_k8scelery_executor": IS_K8S_OR_K8SCELERY_EXECUTOR,
             "rest_api_enabled": False,
+            "auth_manager": auth_manager,
+            "config_test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         }
 
         backends = conf.get("api", "auth_backends")

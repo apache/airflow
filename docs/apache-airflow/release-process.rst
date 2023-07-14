@@ -30,6 +30,9 @@ Since Airflow 2.0.0 and provider packages 1.0.0 we aim to follow SemVer, meaning
 
 In git, each minor version will have its own branch, called ``vX-Y-stable`` where bugfix/security releases will be issued from.
 Commits and PRs should not normally go direct to these branches, but instead should target the main branch and then be cherry-picked by the release managers to these release branches.
+As a general rule of thumb, changes that will be included in a bugfix/security release will be associated with the corresponding github milestone in the PR but this is currently a manual process and deviations may occur.
+In all cases, the release managers reserve the right to postpone a PR to a later release if they deem it prudent.
+Additionally, no new features will be added to a patch release and minor releases are currently targeted at a roughly 2-3 month cadence.
 
 Each Airflow release will also have a tag in git indicating its version number, signed with the release manager's key.
 Tags for the main Airflow release have the form ``X.Y.Z`` (no leading ``v``) and provider packages are tagged with the form ``providers-<name>/X.Y.Z``.

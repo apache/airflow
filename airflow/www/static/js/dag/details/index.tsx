@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback } from "react";
 import {
   Flex,
   Divider,
@@ -33,7 +33,7 @@ import { useSearchParams } from "react-router-dom";
 import useSelection from "src/dag/useSelection";
 import { getTask, getMetaValue } from "src/utils";
 import { useGridData, useTaskInstance } from "src/api";
-import { MdDetails, MdAccountTree, MdReorder } from "react-icons/md";
+import { MdDetails, MdAccountTree, MdReorder, MdCode } from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
@@ -42,6 +42,7 @@ import TaskInstanceContent from "./taskInstance";
 import DagRunContent from "./dagRun";
 import DagContent from "./Dag";
 import Graph from "./graph";
+import DagCode from "./dagCode";
 import MappedInstances from "./taskInstance/MappedInstances";
 import Logs from "./taskInstance/Logs";
 import BackToTaskSummary from "./taskInstance/BackToTaskSummary";
@@ -63,6 +64,7 @@ const tabToIndex = (tab?: string) => {
   switch (tab) {
     case "graph":
       return 1;
+    case "code":
     case "logs":
     case "mapped_tasks":
       return 2;
@@ -74,6 +76,7 @@ const tabToIndex = (tab?: string) => {
 
 const indexToTab = (
   index: number,
+  taskId: string | null,
   showLogs: boolean,
   showMappedTasks: boolean
 ) => {
@@ -81,6 +84,7 @@ const indexToTab = (
     case 1:
       return "graph";
     case 2:
+      if (!taskId) return "code";
       if (showMappedTasks) return "mapped_tasks";
       if (showLogs) return "logs";
       return undefined;
@@ -112,6 +116,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
   const showLogs = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
+  const showDagCode = !taskId;
   const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -121,19 +126,13 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const onChangeTab = useCallback(
     (index: number) => {
       const params = new URLSearchParamsWrapper(searchParams);
-      const newTab = indexToTab(index, showLogs, showMappedTasks);
+      const newTab = indexToTab(index, taskId, showLogs, showMappedTasks);
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, showLogs, showMappedTasks]
+    [setSearchParams, searchParams, showLogs, showMappedTasks, taskId]
   );
-
-  useEffect(() => {
-    if ((!taskId || isGroup) && tabIndex > 1) {
-      onChangeTab(1);
-    }
-  }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
 
   const run = dagRuns.find((r) => r.runId === runId);
   const { data: mappedTaskInstance } = useTaskInstance({
@@ -213,6 +212,14 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               Graph
             </Text>
           </Tab>
+          {showDagCode && (
+            <Tab>
+              <MdCode size={16} />
+              <Text as="strong" ml={1}>
+                Code
+              </Text>
+            </Tab>
+          )}
           {showLogs && (
             <Tab>
               <MdReorder size={16} />
@@ -255,6 +262,11 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               hoveredTaskState={hoveredTaskState}
             />
           </TabPanel>
+          {showDagCode && (
+            <TabPanel height="100%">
+              <DagCode />
+            </TabPanel>
+          )}
           {showLogs && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}

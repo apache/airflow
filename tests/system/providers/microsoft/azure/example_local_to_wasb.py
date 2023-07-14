@@ -30,15 +30,23 @@ from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFiles
 PATH_TO_UPLOAD_FILE = os.environ.get("AZURE_PATH_TO_UPLOAD_FILE", "example-text.txt")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_local_to_wasb"
+AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "mycontainer")
+AZURE_BLOB_NAME = os.environ.get("AZURE_BLOB_NAME", "myblob")
 
 with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    default_args={"container_name": "mycontainer", "blob_name": "myblob"},
 ) as dag:
-    upload = LocalFilesystemToWasbOperator(task_id="upload_file", file_path=PATH_TO_UPLOAD_FILE)
+    # [START howto_operator_local_to_wasb]
+    upload = LocalFilesystemToWasbOperator(
+        task_id="upload_file",
+        file_path=PATH_TO_UPLOAD_FILE,
+        container_name=AZURE_CONTAINER_NAME,
+        blob_name=AZURE_BLOB_NAME,
+    )
+    # [END howto_operator_local_to_wasb]
     delete = WasbDeleteBlobOperator(task_id="delete_file")
 
     upload >> delete

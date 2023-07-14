@@ -102,6 +102,20 @@ class TestPostgresHookConn:
         )
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
+    def test_get_conn_from_connection_with_options(self, mock_connect):
+        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
+        hook = PostgresHook(connection=conn, options="-c statement_timeout=3000ms")
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user="login-conn",
+            password="password-conn",
+            host="host",
+            dbname="database",
+            port=None,
+            options="-c statement_timeout=3000ms",
+        )
+
+    @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
     @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
     @pytest.mark.parametrize("port", [65432, 5432, None])
@@ -292,7 +306,7 @@ class TestPostgresHook:
             assert self.cur.close.call_count == 1
             assert self.conn.commit.call_count == 1
             self.cur.copy_expert.assert_called_once_with(statement, open_mock.return_value)
-            assert open_mock.call_args[0] == (filename, "r+")
+            assert open_mock.call_args.args == (filename, "r+")
 
     def test_bulk_load(self):
         hook = PostgresHook()

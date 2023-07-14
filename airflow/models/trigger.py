@@ -20,7 +20,7 @@ import datetime
 from traceback import format_exception
 from typing import Any, Iterable
 
-from sqlalchemy import Column, Integer, String, func, or_
+from sqlalchemy import Column, Integer, String, delete, func, or_
 from sqlalchemy.orm import Session, joinedload, relationship
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -95,7 +95,7 @@ class Trigger(Base):
     def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
         """
         Fetches all the Triggers by ID and returns a dict mapping
-        ID -> Trigger instance
+        ID -> Trigger instance.
         """
         query = (
             session.query(cls)
@@ -112,9 +112,11 @@ class Trigger(Base):
     @internal_api_call
     @provide_session
     def clean_unused(cls, session: Session = NEW_SESSION) -> None:
-        """
-        Deletes all triggers that have no tasks/DAGs dependent on them
-        (triggers have a one-to-many relationship to both)
+        """Deletes all triggers that have no tasks dependent on them.
+
+        Triggers have a one-to-many relationship to task instances, so we need
+        to clean those up first. Afterwards we can drop the triggers not
+        referenced by anyone.
         """
         # Update all task instances with trigger IDs that are not DEFERRED to remove them
         for attempt in run_with_db_retries():
@@ -133,7 +135,9 @@ class Trigger(Base):
             )
         ]
         # ...and delete them (we can't do this in one query due to MySQL)
-        session.query(Trigger).filter(Trigger.id.in_(ids)).delete(synchronize_session=False)
+        session.execute(
+            delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
+        )
 
     @classmethod
     @internal_api_call
@@ -196,10 +200,11 @@ class Trigger(Base):
     @classmethod
     @internal_api_call
     @provide_session
-    def assign_unassigned(cls, triggerer_id, capacity, session: Session = NEW_SESSION) -> None:
+    def assign_unassigned(cls, triggerer_id, capacity, heartrate, session: Session = NEW_SESSION) -> None:
         """
-        Takes a triggerer_id and the capacity for that triggerer and assigns unassigned
-        triggers until that capacity is reached, or there are no more unassigned triggers.
+        Takes a triggerer_id, the capacity for that triggerer and the Triggerer job heartrate,
+        and assigns unassigned triggers until that capacity is reached, or there are no more
+        unassigned triggers.
         """
         from airflow.jobs.job import Job  # To avoid circular import
 
@@ -208,12 +213,14 @@ class Trigger(Base):
 
         if capacity <= 0:
             return
-
+        # we multiply heartrate by a grace_multiplier to give the triggerer
+        # a chance to heartbeat before we consider it dead
+        health_check_threshold = heartrate * 2.1
         alive_triggerer_ids = [
             row[0]
             for row in session.query(Job.id).filter(
                 Job.end_date.is_(None),
-                Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=30),
+                Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=health_check_threshold),
                 Job.job_type == "TriggererJob",
             )
         ]

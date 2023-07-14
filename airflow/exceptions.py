@@ -169,8 +169,15 @@ class AirflowClusterPolicyViolation(AirflowException):
     """Raise when there is a violation of a Cluster Policy in DAG definition."""
 
 
+class AirflowClusterPolicySkipDag(AirflowException):
+    """Raise when skipping dag is needed in Cluster Policy."""
+
+
 class AirflowClusterPolicyError(AirflowException):
-    """Raise when there is an error except AirflowClusterPolicyViolation in Cluster Policy."""
+    """
+    Raise when there is an error in Cluster Policy,
+    except AirflowClusterPolicyViolation and AirflowClusterPolicySkipDag.
+    """
 
 
 class AirflowTimetableInvalid(AirflowException):
@@ -208,7 +215,7 @@ class DagFileExists(AirflowBadRequest):
 
 
 class DagInvalidTriggerRule(AirflowException):
-    """Raise when a dag has 'fail_stop' enabled yet has a non-default trigger rule"""
+    """Raise when a dag has 'fail_stop' enabled yet has a non-default trigger rule."""
 
     @classmethod
     def check(cls, dag: DAG | None, trigger_rule: str):

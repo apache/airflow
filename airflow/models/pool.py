@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import Any
 
-from sqlalchemy import Column, Integer, String, Text, func
+from sqlalchemy import Column, Integer, String, Text, func, select
 from sqlalchemy.orm.session import Session
 
 from airflow.exceptions import AirflowException, PoolNotFound
@@ -28,11 +28,11 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import nowait, with_row_locks
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 
 class PoolStats(TypedDict):
-    """Dictionary containing Pool Stats"""
+    """Dictionary containing Pool Stats."""
 
     total: int
     running: int
@@ -60,7 +60,7 @@ class Pool(Base):
     @provide_session
     def get_pools(session: Session = NEW_SESSION) -> list[Pool]:
         """Get all pools."""
-        return session.query(Pool).all()
+        return session.scalars(select(Pool)).all()
 
     @staticmethod
     @provide_session
@@ -72,7 +72,7 @@ class Pool(Base):
         :param session: SQLAlchemy ORM Session
         :return: the pool object
         """
-        return session.query(Pool).filter(Pool.pool == pool_name).first()
+        return session.scalar(select(Pool).where(Pool.pool == pool_name))
 
     @staticmethod
     @provide_session
@@ -96,9 +96,9 @@ class Pool(Base):
         :return: True if id is default_pool, otherwise False
         """
         return (
-            session.query(func.count(Pool.id))
-            .filter(Pool.id == id, Pool.pool == Pool.DEFAULT_POOL_NAME)
-            .scalar()
+            session.scalar(
+                select(func.count(Pool.id)).where(Pool.id == id, Pool.pool == Pool.DEFAULT_POOL_NAME)
+            )
             > 0
         )
 
@@ -114,7 +114,7 @@ class Pool(Base):
         if not name:
             raise ValueError("Pool name must not be empty")
 
-        pool = session.query(Pool).filter_by(pool=name).one_or_none()
+        pool = session.scalar(select(Pool).filter_by(pool=name))
         if pool is None:
             pool = Pool(pool=name, slots=slots, description=description)
             session.add(pool)
@@ -132,7 +132,7 @@ class Pool(Base):
         if name == Pool.DEFAULT_POOL_NAME:
             raise AirflowException(f"{Pool.DEFAULT_POOL_NAME} cannot be deleted")
 
-        pool = session.query(Pool).filter_by(pool=name).first()
+        pool = session.scalar(select(Pool).filter_by(pool=name))
         if pool is None:
             raise PoolNotFound(f"Pool '{name}' doesn't exist")
 
@@ -149,7 +149,7 @@ class Pool(Base):
         session: Session = NEW_SESSION,
     ) -> dict[str, PoolStats]:
         """
-        Get Pool stats (Number of Running, Queued, Open & Total tasks)
+        Get Pool stats (Number of Running, Queued, Open & Total tasks).
 
         If ``lock_rows`` is True, and the database engine in use supports the ``NOWAIT`` syntax, then a
         non-blocking lock will be attempted -- if the lock is not available then SQLAlchemy will throw an
@@ -162,25 +162,25 @@ class Pool(Base):
 
         pools: dict[str, PoolStats] = {}
 
-        query = session.query(Pool.pool, Pool.slots)
+        query = select(Pool.pool, Pool.slots)
 
         if lock_rows:
             query = with_row_locks(query, session=session, **nowait(session))
 
-        pool_rows: Iterable[tuple[str, int]] = query.all()
+        pool_rows = session.execute(query)
         for (pool_name, total_slots) in pool_rows:
             if total_slots == -1:
                 total_slots = float("inf")  # type: ignore
             pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0)
 
-        state_count_by_pool = (
-            session.query(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
-            .filter(TaskInstance.state.in_(list(EXECUTION_STATES)))
+        state_count_by_pool = session.execute(
+            select(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
+            .filter(TaskInstance.state.in_(EXECUTION_STATES))
             .group_by(TaskInstance.pool, TaskInstance.state)
-        ).all()
+        )
 
         # calculate queued and running metrics
-        for (pool_name, state, count) in state_count_by_pool:
+        for pool_name, state, count in state_count_by_pool:
             # Some databases return decimal.Decimal here.
             count = int(count)
 
@@ -188,9 +188,9 @@ class Pool(Base):
             if not stats_dict:
                 continue
             # TypedDict key must be a string literal, so we use if-statements to set value
-            if state == "running":
+            if state == TaskInstanceState.RUNNING:
                 stats_dict["running"] = count
-            elif state == "queued":
+            elif state == TaskInstanceState.QUEUED:
                 stats_dict["queued"] = count
             else:
                 raise AirflowException(f"Unexpected state. Expected values: {EXECUTION_STATES}.")
@@ -203,7 +203,7 @@ class Pool(Base):
 
     def to_json(self) -> dict[str, Any]:
         """
-        Get the Pool in a json structure
+        Get the Pool in a json structure.
 
         :return: the pool object in json format
         """
@@ -225,10 +225,11 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         return int(
-            session.query(func.sum(TaskInstance.pool_slots))
-            .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state.in_(EXECUTION_STATES))
-            .scalar()
+            session.scalar(
+                select(func.sum(TaskInstance.pool_slots))
+                .filter(TaskInstance.pool == self.pool)
+                .filter(TaskInstance.state.in_(EXECUTION_STATES))
+            )
             or 0
         )
 
@@ -243,10 +244,11 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         return int(
-            session.query(func.sum(TaskInstance.pool_slots))
-            .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state == State.RUNNING)
-            .scalar()
+            session.scalar(
+                select(func.sum(TaskInstance.pool_slots))
+                .filter(TaskInstance.pool == self.pool)
+                .filter(TaskInstance.state == TaskInstanceState.RUNNING)
+            )
             or 0
         )
 
@@ -261,10 +263,11 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         return int(
-            session.query(func.sum(TaskInstance.pool_slots))
-            .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state == State.QUEUED)
-            .scalar()
+            session.scalar(
+                select(func.sum(TaskInstance.pool_slots))
+                .filter(TaskInstance.pool == self.pool)
+                .filter(TaskInstance.state == TaskInstanceState.QUEUED)
+            )
             or 0
         )
 
@@ -279,10 +282,11 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         return int(
-            session.query(func.sum(TaskInstance.pool_slots))
-            .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state == State.SCHEDULED)
-            .scalar()
+            session.scalar(
+                select(func.sum(TaskInstance.pool_slots))
+                .filter(TaskInstance.pool == self.pool)
+                .filter(TaskInstance.state == TaskInstanceState.SCHEDULED)
+            )
             or 0
         )
 

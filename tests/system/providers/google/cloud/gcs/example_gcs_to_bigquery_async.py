@@ -80,7 +80,7 @@ with models.DAG(
         write_disposition="WRITE_TRUNCATE",
         external_table=False,
         autodetect=True,
-        max_id_key=MAX_ID_STR,
+        max_id_key="string_field_0",
         deferrable=True,
     )
 

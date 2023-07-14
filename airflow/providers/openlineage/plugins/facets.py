@@ -24,7 +24,7 @@ from openlineage.client.utils import RedactMixin
 
 @define(slots=False)
 class AirflowMappedTaskRunFacet(BaseFacet):
-    """Run facet containing information about mapped tasks"""
+    """Run facet containing information about mapped tasks."""
 
     mapIndex: int
     operatorClass: str
@@ -55,9 +55,9 @@ class AirflowRunFacet(BaseFacet):
 
 @define(slots=False)
 class UnknownOperatorInstance(RedactMixin):
-    """
-    Describes an unknown operator - specifies the (class) name of the operator
-    and its properties
+    """Describes an unknown operator.
+
+    This specifies the (class) name of the operator and its properties.
     """
 
     name: str
@@ -69,6 +69,6 @@ class UnknownOperatorInstance(RedactMixin):
 
 @define(slots=False)
 class UnknownOperatorAttributeRunFacet(BaseFacet):
-    """RunFacet that describes unknown operators in an Airflow DAG"""
+    """RunFacet that describes unknown operators in an Airflow DAG."""
 
     unknownItems: list[UnknownOperatorInstance]

@@ -20,7 +20,7 @@ from enum import Enum
 
 
 class RdsDbType(Enum):
-    """Only available types for the RDS"""
+    """Only available types for the RDS."""
 
     INSTANCE: str = "instance"
     CLUSTER: str = "cluster"

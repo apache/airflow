@@ -15,10 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains sensor that check the existence
-of a table in a Cassandra cluster.
-"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence

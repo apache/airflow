@@ -45,7 +45,7 @@ NOTSET = ArgNotSet()
 
 
 class DagRunType(str, enum.Enum):
-    """Class with DagRun types"""
+    """Class with DagRun types."""
 
     BACKFILL_JOB = "backfill"
     SCHEDULED = "scheduled"

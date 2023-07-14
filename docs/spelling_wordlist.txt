@@ -13,6 +13,9 @@ acyclic
 AddressesType
 adhoc
 adls
+adobjects
+AdsInsights
+adsinsights
 afterall
 AgentKey
 aio
@@ -382,6 +385,7 @@ DataTransferServiceClient
 datatypes
 DateFrame
 datestamp
+DateTime
 datetime
 Datetimepicker
 Datetimes
@@ -422,6 +426,7 @@ deps
 deques
 deregister
 desc
+descendents
 deserialization
 Deserialize
 deserialize
@@ -481,6 +486,7 @@ Drivy
 dropdown
 druidHook
 ds
+dsl
 Dsn
 dsn
 dttm
@@ -593,6 +599,7 @@ fn
 fo
 followsa
 formatter
+formatters
 Formaturas
 forwardability
 forwardable
@@ -600,6 +607,7 @@ fqdn
 frontend
 fs
 fsGroup
+fullname
 func
 Fundera
 ga
@@ -855,6 +863,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Lakehouse
 LanguageServiceClient
 lastname
 latencies
@@ -925,6 +934,7 @@ metadatabase
 metarouter
 Metastore
 metastore
+metavar
 mget
 mgmt
 microservice
@@ -1025,6 +1035,7 @@ onboarded
 OnFailure
 onkill
 Oozie
+openapi
 openfaas
 openlineage
 oper
@@ -1045,6 +1056,7 @@ ot
 otel
 overridable
 oversubscription
+PaaS
 Pagerduty
 pagerduty
 pageviews
@@ -1213,6 +1225,7 @@ redbubble
 Reddit
 Redhat
 redis
+rediss
 redoc
 redownloading
 redshift
@@ -1347,6 +1360,7 @@ sourceArchiveUrl
 sourceRepository
 sourceUploadUrl
 Spark
+sparkappinfo
 sparkApplication
 sparkcmd
 SparkPi
@@ -1414,7 +1428,7 @@ Subdirectory
 subdirectory
 subfolder
 subfolders
-Submodules
+submodule
 submodules
 subnet
 subnets
@@ -1554,6 +1568,7 @@ undead
 Undeads
 ungenerated
 unicode
+unicodecsv
 unindent
 unittest
 unittests
@@ -1573,6 +1588,7 @@ unprocessable
 unqueued
 unterminated
 untransformed
+untrusted
 unutilized
 updateMask
 updateonly

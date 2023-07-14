@@ -34,32 +34,35 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLImportDataOperator,
     AutoMLTrainModelOperator,
 )
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_automl_vision"
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
-GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
-GCP_AUTOML_VISION_BUCKET = os.environ.get("GCP_AUTOML_VISION_BUCKET", "gs://INVALID BUCKET NAME")
+GCP_AUTOML_LOCATION = "us-central1"
 
-# Example values
-DATASET_ID = "ICN123455678"
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+RESOURCE_DATA_BUCKET = "system-tests-resources"
 
-# Example model
-MODEL = {
-    "display_name": "auto_model_2",
-    "dataset_id": DATASET_ID,
-    "image_classification_model_metadata": {"train_budget": 1},
-}
-
-# Example dataset
+DATASET_NAME = "test_dataset_vision"
 DATASET = {
-    "display_name": "test_vision_dataset",
+    "display_name": DATASET_NAME,
     "image_classification_dataset_metadata": {"classification_type": "MULTILABEL"},
 }
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-vision/data.csv"
+IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
 
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_VISION_BUCKET]}}
+MODEL_NAME = "test_model"
+MODEL = {
+    "display_name": MODEL_NAME,
+    "image_classification_model_metadata": {"train_budget": 1},
+}
 
 extract_object_id = CloudAutoMLHook.extract_object_id
 
@@ -72,12 +75,29 @@ with models.DAG(
     user_defined_macros={"extract_object_id": extract_object_id},
     tags=["example", "automl"],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket",
+        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        storage_class="REGIONAL",
+        location=GCP_AUTOML_LOCATION,
+    )
+
+    move_dataset_file = GCSSynchronizeBucketsOperator(
+        task_id="move_data_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="automl-vision",
+        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        destination_object="automl-vision",
+        recursive=True,
+    )
+
     create_dataset_task = AutoMLCreateDatasetOperator(
-        task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
+        task_id="create_dataset_task",
+        dataset=DATASET,
+        location=GCP_AUTOML_LOCATION,
     )
 
     dataset_id = cast(str, XComArg(create_dataset_task, key="dataset_id"))
-
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
         dataset_id=dataset_id,
@@ -88,7 +108,6 @@ with models.DAG(
     MODEL["dataset_id"] = dataset_id
 
     create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
-
     model_id = cast(str, XComArg(create_model, key="model_id"))
 
     delete_model_task = AutoMLDeleteModelOperator(
@@ -107,15 +126,24 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket",
+        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     (
         # TEST SETUP
-        create_dataset_task
+        create_bucket
+        >> move_dataset_file
+        >> create_dataset_task
         >> import_dataset_task
         # TEST BODY
         >> create_model
         # TEST TEARDOWN
         >> delete_model_task
         >> delete_datasets_task
+        >> delete_bucket
     )
 
     from tests.system.utils.watcher import watcher

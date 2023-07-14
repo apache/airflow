@@ -113,7 +113,7 @@ class TestHttpSensor:
 
         task.execute(context={})
 
-        received_request = mock_session_send.call_args[0][0]
+        received_request = mock_session_send.call_args.args[0]
 
         prep_request = requests.Request("HEAD", "https://www.httpbin.org", {}).prepare()
 

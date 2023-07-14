@@ -363,6 +363,7 @@ class TestGoogleBaseHook:
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            credential_config_file=None,
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
@@ -399,6 +400,7 @@ class TestGoogleBaseHook:
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path="KEY_PATH.json",
             keyfile_dict=None,
+            credential_config_file=None,
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
@@ -428,6 +430,7 @@ class TestGoogleBaseHook:
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=service_account,
+            credential_config_file=None,
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
@@ -447,6 +450,7 @@ class TestGoogleBaseHook:
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            credential_config_file=None,
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
@@ -482,6 +486,7 @@ class TestGoogleBaseHook:
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            credential_config_file=None,
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
@@ -683,6 +688,7 @@ class TestGoogleBaseHook:
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            credential_config_file=None,
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,

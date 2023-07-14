@@ -189,13 +189,19 @@ The following features are supported in the Trigger UI Form:
       You can add the parameters ``minimum`` and ``maximum`` to restrict number range accepted.
     - ``boolean``: Generates a toggle button to be used as ``True`` or ``False``.
     - ``date``, ``datetime`` and ``time``: Generate date and/or time picker
-    - ``array``: Generates a HTML multi line text field, every line edited will be made into a string array as value
+    - ``array``: Generates a HTML multi line text field, every line edited will be made into a string array as value.
+      if you add the attribute ``example`` with a list, a multi-value select option will be generated.
     - ``object``: Generates a JSON entry field
     - Note: Per default if you specify a type, a field will be made required with input - because of JSON validation.
       If you want to have a field value being added optional only, you must allow JSON schema validation allowing null values via:
       ``type=["null", "string"]``
 
-- The Param attribute ``enum`` generates a drop-down select list. As of JSON validation, a value must be selected.
+- The Param attribute ``enum`` generates a drop-down select list for scalar values. As of JSON validation, a value must be selected or
+  the field must be marked as optional explicit.
+- If you want to present proposals for scalar values (not restricting the user to a fixed ``enum`` as above) you can make use of
+  ``examples`` which is a list of items.
+- For select drop-downs generated via ``enum`` or multi-value selects you can add the attribute ``values_display`` with a dict and
+  map data values to display labels.
 - If a form field is left empty, it is passed as ``None`` value to the params dict.
 - Form fields are rendered in the order of definition.
 - If you want to add sections to the Form, add the parameter ``section`` to each field. The text will be used as section label.

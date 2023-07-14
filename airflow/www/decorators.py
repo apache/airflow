@@ -29,6 +29,7 @@ import pendulum
 from flask import after_this_request, g, request
 from pendulum.parsing.exceptions import ParserError
 
+from airflow.configuration import auth_manager
 from airflow.models import Log
 from airflow.utils.log import secrets_masker
 from airflow.utils.session import create_session
@@ -60,7 +61,7 @@ def _mask_variable_fields(extra_fields):
 
 
 def _mask_connection_fields(extra_fields):
-    """Mask connection fields"""
+    """Mask connection fields."""
     result = []
     for k, v in extra_fields:
         if k == "extra":
@@ -76,7 +77,7 @@ def _mask_connection_fields(extra_fields):
 
 
 def action_logging(func: Callable | None = None, event: str | None = None) -> Callable[[T], T]:
-    """Decorator to log user actions"""
+    """Decorator to log user actions."""
 
     def log_action(f: T) -> T:
         @functools.wraps(f)
@@ -84,10 +85,10 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
             __tracebackhide__ = True  # Hide from pytest traceback.
 
             with create_session() as session:
-                if g.user.is_anonymous:
+                if not auth_manager.is_logged_in():
                     user = "anonymous"
                 else:
-                    user = g.user.username
+                    user = f"{g.user.username} ({g.user.get_full_name()})"
 
                 fields_skip_logging = {"csrf_token", "_csrf_token"}
                 extra_fields = [
@@ -132,7 +133,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
 
 
 def gzipped(f: T) -> T:
-    """Decorator to make a view compressed"""
+    """Decorator to make a view compressed."""
 
     @functools.wraps(f)
     def view_func(*args, **kwargs):

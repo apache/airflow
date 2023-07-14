@@ -40,7 +40,7 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.7}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.8}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -241,7 +241,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
                 fi
             fi
         done
-        if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" ]]; then
+        if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" && ${USE_AIRFLOW_VERSION} != "" ]]; then
             echo
             echo "${COLOR_BLUE}Also adding airflow in specified version ${USE_AIRFLOW_VERSION} to make sure it is not upgraded by >= limits${COLOR_RESET}"
             echo
@@ -461,7 +461,7 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
-    HELM_CHART_TESTS=("tests/charts")
+    HELM_CHART_TESTS=("helm_tests")
     INTEGRATION_TESTS=("tests/integration")
     SYSTEM_TESTS=("tests/system")
     ALL_TESTS=("tests")
@@ -498,7 +498,7 @@ else
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
-            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+            SELECTED_TESTS=("helm_tests/${HELM_TEST_PACKAGE}")
         else
             SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
         fi

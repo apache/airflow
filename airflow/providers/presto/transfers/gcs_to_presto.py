@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 class GCSToPrestoOperator(BaseOperator):
     """
     Loads a csv file from Google Cloud Storage into a Presto table.
+
     Assumptions:
     1. CSV file should not have headers
     2. Presto table with requisite columns is already created

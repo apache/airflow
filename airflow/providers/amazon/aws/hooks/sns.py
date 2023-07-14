@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains AWS SNS hook"""
+"""This module contains AWS SNS hook."""
 from __future__ import annotations
 
 import json
@@ -40,6 +40,7 @@ def _get_message_attribute(o):
 class SnsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Notification Service.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("sns") <SNS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and

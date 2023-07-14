@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 from airflow import models
 from airflow.decorators import task
@@ -31,9 +32,10 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "example_s3_to_gcs"
 
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 GCS_BUCKET_URL = f"gs://{BUCKET_NAME}/"
-UPLOAD_FILE = "/tmp/example-file.txt"
+FILE_NAME = "example_upload.txt"
+UPLOAD_FILE = str(Path(__file__).parent / "resources" / FILE_NAME)
 PREFIX = "TESTS"
 
 

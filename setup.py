@@ -58,6 +58,7 @@ PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 CROSS_PROVIDERS_DEPS = "cross-providers-deps"
 DEPS = "deps"
+CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
 #
@@ -66,8 +67,18 @@ DEPS = "deps"
 # corresponding provider.yaml file.
 #
 def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
+    # in case we are loading setup from pre-commits, we want to skip the check for python version
+    # because if someone uses a version of Python where providers are excluded, the setup will fail
+    # to see the extras for those providers
+    skip_python_version_check = os.environ.get("_SKIP_PYTHON_VERSION_CHECK")
     try:
-        return json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+        with AIRFLOW_SOURCES_ROOT.joinpath("generated", "provider_dependencies.json").open() as f:
+            dependencies = json.load(f)
+        return {
+            key: value
+            for key, value in dependencies.items()
+            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check
+        }
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
         # we can ignore loading dependencies when they are missing - they are only used to generate
@@ -80,7 +91,7 @@ PROVIDER_DEPENDENCIES = fill_provider_dependencies()
 
 
 def airflow_test_suite() -> unittest.TestSuite:
-    """Test suite for Airflow tests"""
+    """Test suite for Airflow tests."""
     test_loader = unittest.TestLoader()
     test_suite = test_loader.discover(str(AIRFLOW_SOURCES_ROOT / "tests"), pattern="test_*.py")
     return test_suite
@@ -103,7 +114,7 @@ class CleanCommand(Command):
 
     @staticmethod
     def rm_all_files(files: list[str]) -> None:
-        """Remove all files from the list"""
+        """Remove all files from the list."""
         for file in files:
             try:
                 os.remove(file)
@@ -255,15 +266,14 @@ deprecated_api = [
 doc = [
     "astroid>=2.12.3",
     "checksumdir",
-    "click>=8.0",
+    # Click 8.1.4 breaks our mypy checks. The upper limit can be lifted when the
+    # https://github.com/apache/airflow/issues/32412 issue is resolved
+    "click>=8.0,<8.1.4",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections
     "docutils<0.17.0",
     "eralchemy2",
-    # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
-    # even though Sphinx 4.4.0 has this but with python_version<3.10.
-    'importlib-metadata>=4.4; python_version < "3.8"',
     "sphinx-airflow-theme",
     "sphinx-argparse>=0.1.13",
     "sphinx-autoapi>=2.0.0",
@@ -281,7 +291,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.1",
+    "flask-appbuilder[oauth]==4.3.3",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -305,7 +315,7 @@ ldap = [
     "python-ldap",
 ]
 leveldb = ["plyvel"]
-otel = ["opentelemetry-api==1.15.0", "opentelemetry-exporter-otlp", "opentelemetry-exporter-prometheus"]
+otel = ["opentelemetry-exporter-prometheus"]
 pandas = ["pandas>=0.17.1", "pyarrow>=9.0.0"]
 password = [
     "bcrypt>=2.0.0",
@@ -361,7 +371,6 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
-    "asynctest~=0.13",
     "aws_xray_sdk",
     "beautifulsoup4>=4.7.1",
     "black",
@@ -490,6 +499,17 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "statsd": statsd,
     "virtualenv": virtualenv,
 }
+
+
+def filter_out_excluded_extras() -> Iterable[tuple[str, list[str]]]:
+    for key, value in CORE_EXTRAS_DEPENDENCIES.items():
+        if value:
+            yield key, value
+        else:
+            print(f"Removing extra {key} as it has been excluded")
+
+
+CORE_EXTRAS_DEPENDENCIES = dict(filter_out_excluded_extras())
 
 EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 
@@ -709,6 +729,9 @@ EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
 PREINSTALLED_PROVIDERS = [
+    # TODO: When we release 3.3.0 version of celery provider we should change it to "celery>=3.3.0" here
+    #       In order to make sure executors are available in the celery provider
+    "celery",
     "common.sql",
     "ftp",
     "http",
@@ -719,13 +742,22 @@ PREINSTALLED_PROVIDERS = [
 
 def get_provider_package_name_from_package_id(package_id: str) -> str:
     """
-    Builds the name of provider package out of the package id provided/
+    Builds the name of provider package out of the package id provided/.
 
     :param package_id: id of the package (like amazon or microsoft.azure)
     :return: full name of package in PyPI
     """
-    package_suffix = package_id.replace(".", "-")
-    return f"apache-airflow-providers-{package_suffix}"
+    version_spec = ""
+    if ">=" in package_id:
+        package, version = package_id.split(">=")
+        version_spec = f">={version}"
+        version_suffix = os.environ.get("VERSION_SUFFIX_FOR_PYPI")
+        if version_suffix:
+            version_spec += version_suffix
+    else:
+        package = package_id
+    package_suffix = package.replace(".", "-")
+    return f"apache-airflow-providers-{package_suffix}{version_spec}"
 
 
 def get_excluded_providers() -> list[str]:
@@ -734,7 +766,7 @@ def get_excluded_providers() -> list[str]:
 
 
 def get_all_provider_packages() -> str:
-    """Returns all provider packages configured in setup.py"""
+    """Returns all provider packages configured in setup.py."""
     excluded_providers = get_excluded_providers()
     return " ".join(
         get_provider_package_name_from_package_id(package)
@@ -744,7 +776,7 @@ def get_all_provider_packages() -> str:
 
 
 class AirflowDistribution(Distribution):
-    """The setuptools.Distribution subclass with Airflow specific behaviour"""
+    """The setuptools.Distribution subclass with Airflow specific behaviour."""
 
     def __init__(self, attrs=None):
         super().__init__(attrs)

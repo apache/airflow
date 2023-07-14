@@ -24,10 +24,13 @@ import pendulum
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.utils.setup_teardown import SetupTeardownContext
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from logging import Logger
 
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.utils.edgemodifier import EdgeModifier
@@ -69,6 +72,19 @@ class DependencyMixin:
         """Set a task or a task list to be directly downstream from the current task."""
         raise NotImplementedError()
 
+    def as_setup(self) -> DependencyMixin:
+        """Mark a task as setup task."""
+        raise NotImplementedError()
+
+    def as_teardown(
+        self,
+        *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        on_failure_fail_dagrun=NOTSET,
+    ) -> DependencyMixin:
+        """Mark a task as teardown and set its setups as direct relatives."""
+        raise NotImplementedError()
+
     def update_relative(
         self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
     ) -> None:
@@ -78,13 +94,15 @@ class DependencyMixin:
         """
 
     def __lshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Implements Task << Task"""
+        """Implements Task << Task."""
         self.set_upstream(other)
+        self.set_setup_teardown_ctx_dependencies(other)
         return other
 
     def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Implements Task >> Task"""
+        """Implements Task >> Task."""
         self.set_downstream(other)
+        self.set_setup_teardown_ctx_dependencies(other)
         return other
 
     def __rrshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
@@ -97,9 +115,31 @@ class DependencyMixin:
         self.__rshift__(other)
         return self
 
+    def set_setup_teardown_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
+        if not SetupTeardownContext.active:
+            return
+        from airflow.models.xcom_arg import PlainXComArg
+
+        op1 = self
+        if isinstance(self, PlainXComArg):
+            op1 = self.operator
+        SetupTeardownContext.update_context_map(op1)
+        if isinstance(other, Sequence):
+            for op in other:
+                if isinstance(op, PlainXComArg):
+                    op = op.operator
+                SetupTeardownContext.update_context_map(op)
+            return
+        if isinstance(other, PlainXComArg):
+            other = other.operator
+        SetupTeardownContext.update_context_map(other)
+
 
 class TaskMixin(DependencyMixin):
-    """:meta private:"""
+    """Mixin to provide task-related things.
+
+    :meta private:
+    """
 
     def __init_subclass__(cls) -> None:
         warnings.warn(
@@ -143,7 +183,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     @property
     def dag_id(self) -> str:
-        """Returns dag id if it has one or an adhoc/meaningless ID"""
+        """Returns dag id if it has one or an adhoc/meaningless ID."""
         if self.dag:
             return self.dag.dag_id
         return "_in_memory_dag_"
@@ -171,7 +211,6 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         """Sets relatives for the task or task list."""
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
-        from airflow.models.operator import Operator
 
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]
@@ -205,25 +244,18 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             # If this task does not yet have a dag, add it to the same dag as the other task.
             self.dag = dag
 
-        def add_only_new(obj, item_set: set[str], item: str) -> None:
-            """Adds only new items to item set"""
-            if item in item_set:
-                self.log.warning("Dependency %s, %s already registered for DAG: %s", obj, item, dag.dag_id)
-            else:
-                item_set.add(item)
-
         for task in task_list:
             if dag and not task.has_dag():
                 # If the other task does not yet have a dag, add it to the same dag as this task and
                 dag.add_task(task)
             if upstream:
-                add_only_new(task, task.downstream_task_ids, self.node_id)
-                add_only_new(self, self.upstream_task_ids, task.node_id)
+                task.downstream_task_ids.add(self.node_id)
+                self.upstream_task_ids.add(task.node_id)
                 if edge_modifier:
                     edge_modifier.add_edge_info(self.dag, task.node_id, self.node_id)
             else:
-                add_only_new(self, self.downstream_task_ids, task.node_id)
-                add_only_new(task, task.upstream_task_ids, self.node_id)
+                self.downstream_task_ids.add(task.node_id)
+                task.upstream_task_ids.add(self.node_id)
                 if edge_modifier:
                     edge_modifier.add_edge_info(self.dag, self.node_id, task.node_id)
 
@@ -245,14 +277,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     @property
     def downstream_list(self) -> Iterable[Operator]:
-        """List of nodes directly downstream"""
+        """List of nodes directly downstream."""
         if not self.dag:
             raise AirflowException(f"Operator {self} has not been assigned to a DAG yet")
         return [self.dag.get_task(tid) for tid in self.downstream_task_ids]
 
     @property
     def upstream_list(self) -> Iterable[Operator]:
-        """List of nodes directly upstream"""
+        """List of nodes directly upstream."""
         if not self.dag:
             raise AirflowException(f"Operator {self} has not been assigned to a DAG yet")
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]

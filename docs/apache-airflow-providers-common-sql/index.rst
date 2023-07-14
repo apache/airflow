@@ -18,10 +18,18 @@
 ``apache-airflow-providers-common-sql``
 =======================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -29,6 +37,7 @@ Content
     Operators <operators>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -36,11 +45,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/common/sql/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -52,6 +63,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -64,7 +76,7 @@ Package apache-airflow-providers-common-sql
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-Release: 1.5.0
+Release: 1.6.0
 
 Provider package
 ----------------
@@ -84,20 +96,37 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
 
-This provider package is preinstalled by default when Apache Airflow is installed. You do not need to
-install it separately. You can upgrade and downgrade it independently of Apache Airflow package though.
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.4.0``
+``sqlparse``        ``>=0.4.2``
+==================  ==================
 
-.. note::
+Cross provider package dependencies
+-----------------------------------
 
-    The minimum Apache Airflow version for this package is 2.4.0 and it will fail
-    import at runtime if the version of Airflow is lower even if there is no requirement specified in
-    the dependencies - this is because the provider is preinstalled and specifying minimum Apache
-    Airflow version would create a dependency cycle, which confuses dependency tools.
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider packages in order to use them.
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``sqlparse``   ``>=0.4.2``
-=============  ==================
+You can install such cross-provider dependencies when installing from PyPI. For example:
 
-.. include:: ../../airflow/providers/common/sql/CHANGELOG.rst
+.. code-block:: bash
+
+    pip install apache-airflow-providers-common-sql[openlineage]
+
+
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-common-sql 1.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-sql-1.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-sql-1.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-common-sql-1.6.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-sql 1.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.6.0-py3-none-any.whl.sha512>`__)

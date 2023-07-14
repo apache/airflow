@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from airflow.api_connexion import security
@@ -39,11 +39,10 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_dataset(uri: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset."""
-    dataset = (
-        session.query(DatasetModel)
-        .filter(DatasetModel.uri == uri)
+    dataset = session.scalar(
+        select(DatasetModel)
+        .where(DatasetModel.uri == uri)
         .options(joinedload(DatasetModel.consuming_dags), joinedload(DatasetModel.producing_tasks))
-        .one_or_none()
     )
     if not dataset:
         raise NotFound(
@@ -67,17 +66,16 @@ def get_datasets(
     """Get datasets."""
     allowed_attrs = ["id", "uri", "created_at", "updated_at"]
 
-    total_entries = session.query(func.count(DatasetModel.id)).scalar()
-    query = session.query(DatasetModel)
+    total_entries = session.scalars(select(func.count(DatasetModel.id))).one()
+    query = select(DatasetModel)
     if uri_pattern:
-        query = query.filter(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
+        query = query.where(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
-    datasets = (
+    datasets = session.scalars(
         query.options(subqueryload(DatasetModel.consuming_dags), subqueryload(DatasetModel.producing_tasks))
         .offset(offset)
         .limit(limit)
-        .all()
-    )
+    ).all()
     return dataset_collection_schema.dump(DatasetCollection(datasets=datasets, total_entries=total_entries))
 
 
@@ -99,24 +97,24 @@ def get_dataset_events(
     """Get dataset events."""
     allowed_attrs = ["source_dag_id", "source_task_id", "source_run_id", "source_map_index", "timestamp"]
 
-    query = session.query(DatasetEvent)
+    query = select(DatasetEvent)
 
     if dataset_id:
-        query = query.filter(DatasetEvent.dataset_id == dataset_id)
+        query = query.where(DatasetEvent.dataset_id == dataset_id)
     if source_dag_id:
-        query = query.filter(DatasetEvent.source_dag_id == source_dag_id)
+        query = query.where(DatasetEvent.source_dag_id == source_dag_id)
     if source_task_id:
-        query = query.filter(DatasetEvent.source_task_id == source_task_id)
+        query = query.where(DatasetEvent.source_task_id == source_task_id)
     if source_run_id:
-        query = query.filter(DatasetEvent.source_run_id == source_run_id)
+        query = query.where(DatasetEvent.source_run_id == source_run_id)
     if source_map_index:
-        query = query.filter(DatasetEvent.source_map_index == source_map_index)
+        query = query.where(DatasetEvent.source_map_index == source_map_index)
 
     query = query.options(subqueryload(DatasetEvent.created_dagruns))
 
-    total_entries = query.count()
+    total_entries = session.scalar(select(func.count()).select_from(query))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
-    events = query.offset(offset).limit(limit).all()
+    events = session.scalars(query.offset(offset).limit(limit)).all()
     return dataset_event_collection_schema.dump(
         DatasetEventCollection(dataset_events=events, total_entries=total_entries)
     )

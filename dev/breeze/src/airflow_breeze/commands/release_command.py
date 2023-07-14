@@ -20,6 +20,7 @@ import os
 
 import click
 
+from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.common_options import option_answer
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
@@ -51,19 +52,17 @@ def create_version_dir(version):
 
 def copy_artifacts_to_svn(rc, svn_dev_repo):
     if confirm_action(f"Copy artifacts to SVN for {rc}?"):
+        bash_command = f"""
+        for f in {svn_dev_repo}/{rc}/*; do
+            svn cp "$f" "$(basename "$f")/"
+        done
+        """
+
         run_command(
             [
-                "for",
-                "f",
-                "in",
-                f"{svn_dev_repo}/{rc}/*",
-                ";",
-                "do",
-                "svn",
-                "cp",
-                "$f",
-                "${$(basename $f)/}",
-                "done",
+                "bash",
+                "-c",
+                bash_command,
             ],
             dry_run_override=DRY_RUN,
             check=True,
@@ -201,12 +200,11 @@ def push_tag_for_final_version(version, release_candidate):
         run_command(["git", "push", "origin", "tag", f"{version}"], dry_run_override=DRY_RUN, check=True)
 
 
-@click.command(
+@release_management.command(
     name="start-release",
     short_help="Start Airflow release process",
     help="Start the process of releasing an Airflow version. "
     "This command will guide you through the release process. ",
-    hidden=True,
 )
 @click.option("--release-candidate", required=True)
 @click.option("--previous-release", required=True)

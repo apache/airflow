@@ -71,13 +71,20 @@
           "type": "string"
       }
     },
-      "notifications": {
+    "notifications": {
           "type": "array",
           "description": "Notification class names",
           "items": {
               "type": "string"
           }
-      },
+    },
+    "executors": {
+          "type": "array",
+          "description": "Executor class names",
+          "items": {
+              "type": "string"
+          }
+    },
     "task-decorators": {
         "type": "array",
         "description": "Apply custom decorators to the TaskFlow API. Can be accessed by users via '@task.<name>'",

@@ -94,7 +94,7 @@ class DateTimeWithTimezoneField(Field):
 
 
 class DateTimeForm(FlaskForm):
-    """Date filter form needed for task views"""
+    """Date filter form needed for task views."""
 
     execution_date = DateTimeWithTimezoneField("Logical date", widget=AirflowDateTimePickerWidget())
 
@@ -102,7 +102,7 @@ class DateTimeForm(FlaskForm):
 class DateTimeWithNumRunsForm(FlaskForm):
     """
     Date time and number of runs form for tree view, task duration
-    and landing times
+    and landing times.
     """
 
     base_date = DateTimeWithTimezoneField(
@@ -122,7 +122,7 @@ class DateTimeWithNumRunsForm(FlaskForm):
 
 
 class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
-    """Date time and number of runs and dag runs form for graph and gantt view"""
+    """Date time and number of runs and dag runs form for graph and gantt view."""
 
     execution_date = SelectField("DAG run")
 
@@ -154,7 +154,7 @@ class DagRunEditForm(DynamicForm):
 
 
 class TaskInstanceEditForm(DynamicForm):
-    """Form for editing TaskInstance"""
+    """Form for editing TaskInstance."""
 
     dag_id = StringField(lazy_gettext("Dag Id"), validators=[InputRequired()], widget=BS3TextFieldROWidget())
     task_id = StringField(
@@ -204,6 +204,12 @@ def create_connection_form_class() -> type[DynamicForm]:
                 yield (connection_type, provider_info.hook_name)
 
     class ConnectionForm(DynamicForm):
+        def process(self, formdata=None, obj=None, **kwargs):
+            super().process(formdata=formdata, obj=obj, **kwargs)
+            for field in self._fields.values():
+                if isinstance(getattr(field, "data", None), str):
+                    field.data = field.data.strip()
+
         conn_id = StringField(
             lazy_gettext("Connection Id"),
             validators=[InputRequired(), ValidKey()],

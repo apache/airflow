@@ -19,13 +19,12 @@ from __future__ import annotations
 
 import json
 import warnings
-from functools import wraps
+from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlsplit
 
 from slack_sdk import WebhookClient
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -56,10 +55,8 @@ def check_webhook_response(func: Callable) -> Callable:
 
 
 def _ensure_prefixes(conn_type):
-    """
-    Remove when provider min airflow version >= 2.5.0 since this is handled by
-    provider manager from that version.
-    """
+    # TODO: Remove when provider min airflow version >= 2.5.0 since
+    #       this is handled by provider manager from that version.
 
     def dec(func):
         @wraps(func)
@@ -86,6 +83,7 @@ def _ensure_prefixes(conn_type):
 class SlackWebhookHook(BaseHook):
     """
     This class provide a thin wrapper around the ``slack_sdk.WebhookClient``.
+
     This hook allows you to post messages to Slack by using Incoming Webhooks.
 
     .. seealso::

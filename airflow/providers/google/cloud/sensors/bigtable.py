@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValidationMixin):
     """
     Sensor that waits for Cloud Bigtable table to be fully replicated to its clusters.
+
     No exception will be raised if the instance or the table does not exist.
 
     For more details about cluster states for a table, have a look at the reference:

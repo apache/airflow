@@ -29,7 +29,7 @@ log = logging.getLogger(__name__)
 
 
 class HealthServer(BaseHTTPRequestHandler):
-    """Small webserver to serve scheduler health check"""
+    """Small webserver to serve scheduler health check."""
 
     def do_GET(self):
         if self.path == "/health":

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Publish message to SQS queue"""
+"""Publish message to SQS queue."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -75,7 +75,7 @@ class SqsPublishOperator(BaseOperator):
 
     def execute(self, context: Context) -> dict:
         """
-        Publish the message to the Amazon SQS queue
+        Publish the message to the Amazon SQS queue.
 
         :param context: the context object
         :return: dict with information about the message sent

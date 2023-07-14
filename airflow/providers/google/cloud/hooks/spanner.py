@@ -55,7 +55,7 @@ class SpannerHook(GoogleBaseHook):
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None
+        self._client: Client | None = None
 
     def _get_client(self, project_id: str) -> Client:
         """
@@ -75,7 +75,7 @@ class SpannerHook(GoogleBaseHook):
         self,
         instance_id: str,
         project_id: str,
-    ) -> Instance:
+    ) -> Instance | None:
         """
         Gets information about a particular instance.
 
@@ -215,8 +215,7 @@ class SpannerHook(GoogleBaseHook):
         project_id: str,
     ) -> Database | None:
         """
-        Retrieves a database in Cloud Spanner. If the database does not exist
-        in the specified instance, it returns None.
+        Retrieves a database in Cloud Spanner; return None if the database does not exist in the instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param database_id: The ID of the database in Cloud Spanner.

@@ -34,7 +34,7 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.executors.celery_executor import app as celery_app
+from airflow.providers.celery.executors.celery_executor import app as celery_app
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.serve_logs import serve_logs
@@ -102,7 +102,9 @@ def _serve_logs(skip_serve_logs: bool = False):
 
 @after_setup_logger.connect()
 def logger_setup_handler(logger, **kwargs):
-    """Reconfigure the logger:
+    """
+    Reconfigure the logger.
+
     * remove any previously configured handlers
     * logs of severity error, and above goes to stderr,
     * logs of severity lower than error goes to stdout.

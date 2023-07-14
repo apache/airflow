@@ -147,7 +147,7 @@ with DAG(
         task_id="select_query_job",
         configuration={
             "query": {
-                "query": "{% include 'example_bigquery_query.sql' %}",
+                "query": "{% include 'resources/example_bigquery_query.sql' %}",
                 "useLegacySql": False,
             }
         },

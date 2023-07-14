@@ -1573,6 +1573,8 @@ paths:
       operationId: get_xcom_entries
       tags: [XCom]
       parameters:
+        - $ref: '#/components/parameters/FilterMapIndex'
+        - $ref: '#/components/parameters/FilterXcomKey'
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
       responses:
@@ -1600,6 +1602,7 @@ paths:
       operationId: get_xcom_entry
       tags: [XCom]
       parameters:
+        - $ref: '#/components/parameters/FilterMapIndex'
         - in: query
           name: deserialize
           schema:
@@ -2050,8 +2053,8 @@ paths:
     get:
       summary: Get instance status
       description: |
-        Get the status of Airflow's metadatabase and scheduler. It includes info about
-        metadatabase and last heartbeat of scheduler.
+        Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+        metadatabase and last heartbeat of scheduler and triggerer.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
       tags: [Monitoring]
@@ -2889,7 +2892,6 @@ components:
           $ref: '#/components/schemas/DagState'
         external_trigger:
           type: boolean
-          default: true
           readOnly: true
         conf:
           type: object
@@ -3082,6 +3084,10 @@ components:
           $ref: '#/components/schemas/MetadatabaseStatus'
         scheduler:
           $ref: '#/components/schemas/SchedulerStatus'
+        triggerer:
+          $ref: '#/components/schemas/TriggererStatus'
+        dag_processor:
+          $ref: '#/components/schemas/DagProcessorStatus'
 
     MetadatabaseStatus:
       type: object
@@ -3097,7 +3103,39 @@ components:
         status:
           $ref: '#/components/schemas/HealthStatus'
         latest_scheduler_heartbeat:
-          description: The time the scheduler last do a heartbeat.
+          description: The time the scheduler last did a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+    TriggererStatus:
+      type: object
+      description: |
+        The status and the latest triggerer heartbeat.
+
+        *New in version 2.6.2*
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_triggerer_heartbeat:
+          description: The time the triggerer last did a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+    DagProcessorStatus:
+      type: object
+      description: |
+        The status and the latest dag processor heartbeat.
+
+        *New in version 2.6.3*
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_dag_processor_heartbeat:
+          description: The time the dag processor last did a heartbeat.
           type: string
           format: datetime
           readOnly: true
@@ -3453,6 +3491,8 @@ components:
         execution_date:
           type: string
           format: datetime
+        map_index:
+          type: integer
         task_id:
           type: string
         dag_id:
@@ -3492,7 +3532,7 @@ components:
         DAG details.
 
         For details see:
-        [airflow.models.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG)
+        [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -3603,7 +3643,7 @@ components:
       type: object
       description: |
         For details see:
-        [airflow.models.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator)
+        [airflow.models.baseoperator.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/baseoperator/index.html#airflow.models.baseoperator.BaseOperator)
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -4247,6 +4287,7 @@ components:
           enum:
             - success
             - failed
+            - skipped
 
     UpdateTaskInstance:
       type: object
@@ -4264,6 +4305,8 @@ components:
           enum:
             - success
             - failed
+            - skipped
+
     SetTaskInstanceNote:
       type: object
       required:
@@ -4658,6 +4701,7 @@ components:
     HealthStatus:
       description: Health status
       type: string
+      nullable: true
       enum:
         - healthy
         - unhealthy
@@ -5054,6 +5098,14 @@ components:
         Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
 
         *New in version 2.6.0*
+
+    FilterXcomKey:
+      in: query
+      name: xcom_key
+      schema:
+        type: string
+      required: false
+      description: Only filter the XCom records which have the provided key.
 
     # Other parameters
     FileToken:

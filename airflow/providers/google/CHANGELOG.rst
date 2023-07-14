@@ -20,8 +20,135 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+
+``apache-airflow-providers-google``
+
+
 Changelog
 ---------
+
+10.4.0
+......
+
+Features
+~~~~~~~~
+
+Implement deferrable mode for S3ToGCSOperator
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix GCSToGCSOperator when copy files to folder without wildcard (#32486)``
+* ``Fix 'cache_control' parameter of upload function in 'GCSHook'  (#32440)``
+* ``Fix BigQuery transfer operators to respect project_id arguments (#32232)``
+* ``Fix the gcp_gcs_delete_objects on empty list (#32383)``
+* ``Fix endless loop of defer in cloud_build (#32387)``
+* ``Fix GCSToGCSOperator copy without wildcard and exact_match=True (#32376)``
+
+Misc
+~~~~
+
+* ``Allow a destination folder to be provided (#31885)``
+* ``Moves 'AzureBlobStorageToGCSOperator' from Azure to Google provider (#32306)``
+* ``Give better link to job configuration docs in BigQueryInsertJobOperator (#31736)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Combine 8 into 1 (#29462)``
+   * ``D205 Support - Provider: Google (#32356)``
+   * ``Migrating Google AutoML example_dags to sys tests (#32368)``
+   * ``build(pre-commit): check deferrable default value (#32370)``
+
+10.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+* ``Add deferrable mode to CloudSQLExportInstanceOperator (#30852)``
+* ``Adding 'src_fmt_configs' to the list of template fields. (#32097)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[Issue-32069] Fix name format in the batch requests (#32070)``
+* ``Fix 'BigQueryInsertJobOperator'  error handling in deferrable mode (#32034)``
+* ``Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31953)``
+* ``Make the deferrable version of DataprocCreateBatchOperator handle a batch_id that already exists (#32216)``
+
+
+Misc
+~~~~
+
+* ``Switch Google Ads API version from v13 to v14 (#32028)``
+* ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
+* ``Refactor GKECreateClusterOperator's body validation (#31923)``
+* ``Optimize deferrable mode execution for 'BigQueryValueCheckOperator' (#31872)``
+* ``Add default_deferrable config (#31712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Google provider docstring improvements (#31731)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+
+10.2.0
+......
+
+.. note::
+  This release dropped support for Python 3.7
+
+Features
+~~~~~~~~
+
+* ``add a return when the event is yielded in a loop to stop the execution (#31985)``
+* ``Add deferrable mode to PubsubPullSensor (#31284)``
+* ``Add a new param to set parquet row group size in 'BaseSQLToGCSOperator' (#31831)``
+* ``Add 'cacheControl' field to google cloud storage (#31338)``
+* ``Add 'preserveAsciiControlCharacters' to 'src_fmt_configs' (#31643)``
+* ``Add support for credential configuation file auth to Google Secrets Manager secrets backend (#31597)``
+* ``Add credential configuration file support to Google Cloud Hook (#31548)``
+* ``Add deferrable mode to 'GCSUploadSessionCompleteSensor' (#31081)``
+* ``Add append_job_name parameter in DataflowStartFlexTemplateOperator (#31511)``
+* ``FIPS environments: Mark uses of md5 as "not-used-for-security" (#31171)``
+* ``Implement MetastoreHivePartitionSensor (#31016)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bigquery: fix links for already existing tables and datasets. (#31589)``
+* ``Provide missing project id and creds for TabularDataset (#31991)``
+
+Misc
+~~~~
+
+* ``Optimize deferrable mode execution for 'DataprocSubmitJobOperator' (#31317)``
+* ``Optimize deferrable mode execution for 'BigQueryInsertJobOperator' (#31249)``
+* ``Remove return statement after yield from triggers class (#31703)``
+* ``Replace unicodecsv with standard csv library (#31693)``
+* ``Optimize deferrable mode (#31758)``
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace spelling directive with spelling:word-list (#31752)``
+   * ``Add D400 pydocstyle check - Google provider only (#31422)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Revert "Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31457)" (#31935)``
+   * ``Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31457)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+
+10.1.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix accessing a GKE cluster through the private endpoint in 'GKEStartPodOperator' (#31391)``
+* ``Fix 'BigQueryGetDataOperator''s query job bugs in deferrable mode (#31433)``
 
 10.1.0
 ......
@@ -29,6 +156,14 @@ Changelog
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+.. note::
+  This release changed default Google ads to v13.
+  Since v12 is deprecated by Google and soon to be removed we are not consider this to be a breaking change in Airflow.
+
+.. note::
+  This version of the provider bumped many Google packages.
+  Please review packages change logs
 
 Features
 ~~~~~~~~
@@ -63,6 +198,9 @@ Misc
 * ``'CreateBatchPredictionJobOperator' Add batch_size param for Vertex AI BatchPredictionJob objects (#31118)``
 * ``GKEPodHook needs to have all methods KPO calls (#31266)``
 * ``Add CloudBuild build id log (#30516)``
+* ``Switch default Google ads to v13 (#31382)``
+* ``Switch to google ads v13 (#31369)``
+* ``Update SDKs for google provider package (#30067)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -72,6 +210,11 @@ Misc
    * ``Upgrade ruff to 0.0.262 (#30809)``
    * ``Add full automation for min Airflow version for providers (#30994)``
    * ``Add cli cmd to list the provider trigger info (#30822)``
+   * ``Docstring improvements (#31375)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Add get_namespace to GKEPodHook (#31397)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
 10.0.0
 ......
