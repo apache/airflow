@@ -90,6 +90,7 @@ DM = DagModel
 # (dag_id, run_id, task_group_id) -> concurrency limitation and set of running map indexes
 TaskGroupConcurrencyMap = Dict[Tuple[str, str, str], Tuple[int, Set[int]]]
 
+
 @dataclass
 class ConcurrencyMap:
     """
@@ -303,7 +304,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         TaskInstanceState.UP_FOR_RESCHEDULE,
                         TaskInstanceState.UP_FOR_RETRY,
                     )
-                )
+                ),
             )
             .order_by(TI.dag_id, TI.run_id, TI.map_index)
         )
