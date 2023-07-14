@@ -26,6 +26,7 @@ import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
+from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -1245,3 +1246,42 @@ class TestShortCircuitWithTeardown:
             actual_skipped = set(actual_kwargs["tasks"])
             assert actual_kwargs["execution_date"] == dagrun.logical_date
             assert actual_skipped == {op3}
+
+    @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
+    def test_short_circuit_with_teardowns_debug_level(self, dag_maker, level, clear_db):
+        """
+        When logging is debug we convert to a list to log the tasks skipped
+        before passing them to the skip method.
+        """
+        with dag_maker():
+            s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
+            s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
+            op1 = ShortCircuitOperator(
+                task_id="op1",
+                python_callable=lambda: False,
+            )
+            op1.log.setLevel(level)
+            op2 = PythonOperator(task_id="op2", python_callable=print)
+            op3 = PythonOperator(task_id="op3", python_callable=print)
+            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
+            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
+            s1 >> op1 >> op3 >> t1
+            s2 >> op2 >> t2
+
+            # this is the weird, maybe nonsensical part
+            # in this case we don't want to skip t2 since it should run
+            op1 >> t2
+            op1.skip = MagicMock()
+            dagrun = dag_maker.create_dagrun()
+            tis = dagrun.get_task_instances()
+            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti._run_raw_task()
+            # we can't use assert_called_with because it's a set and therefore not ordered
+            actual_kwargs = op1.skip.call_args.kwargs
+            actual_skipped = actual_kwargs["tasks"]
+            if level <= logging.DEBUG:
+                assert isinstance(actual_skipped, list)
+            else:
+                assert isinstance(actual_skipped, Generator)
+            assert set(actual_skipped) == {op3}
+            assert actual_kwargs["execution_date"] == dagrun.logical_date
