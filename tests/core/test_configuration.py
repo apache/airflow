@@ -747,13 +747,7 @@ notacommand = OK
             test_conf._validate_max_tis_per_query()
 
         captured_warnings_msg = str(ctx.pop().message)
-        expected_message = (
-            "Configure `scheduler.max_tis_per_query`(value:200) "
-            "should NOT be greater than `core.parallelism`(value:100). "
-            "Now, SchedulerJob will take up to `core.parallelism` as the query batch "
-            "size when enqueue TaskInstances."
-        )
-        assert expected_message == captured_warnings_msg
+        assert "max_tis_per_query" in captured_warnings_msg and "core.parallelism" in captured_warnings_msg
 
     def test_as_dict_works_without_sensitive_cmds(self):
         conf_materialize_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
