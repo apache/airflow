@@ -169,6 +169,12 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
+    "breeze release-management add-back-references": [
+        {
+            "name": "Add Back References to Docs",
+            "options": ["--airflow-site-directory", "--gen-type"],
+        },
+    ],
     "breeze release-management generate-issue-content-providers": [
         {
             "name": "Generate issue content flags",
