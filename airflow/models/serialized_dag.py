@@ -407,9 +407,11 @@ class SerializedDagModel(Base):
 
         try:
             model = session.get(SerializedDagModel, dag_id)
-            if model:
-                return model.dag.get_task(task_id)
-        except (exc.NoResultFound, TaskNotFound):
-            pass
+        except exc.NoResultFound:
+            return None
+        try:
+            return model.dag.get_task(task_id)
+        except TaskNotFound:
+            return None
 
         return None
