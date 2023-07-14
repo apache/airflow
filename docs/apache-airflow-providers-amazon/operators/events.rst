@@ -32,13 +32,19 @@ Prerequisite Tasks
 .. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
--------
+---------
 
 Send events to Amazon EventBridge
 ==========================================
 
 To send custom events to Amazon EventBridge, use
 :class:`~airflow.providers.amazon.aws.operators.eventbridge.EventBridgePutEventsOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eventbridge.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_eventbridge_put_events]
+    :end-before: [END howto_operator_eventbridge_put_events]
 
 
 Reference
