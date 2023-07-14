@@ -785,7 +785,7 @@ def alias_image(image_from: str, image_to: str):
 @option_dry_run
 def publish_docs(
     override_versioned: bool,
-    airflow_site_directory: bool,
+    airflow_site_directory: str,
     package_filter: tuple[str],
 ):
     """Publishes documentation to airflow-site."""
