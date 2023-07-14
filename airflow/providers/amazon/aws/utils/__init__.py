@@ -35,8 +35,12 @@ def trim_none_values(obj: dict):
     from airflow.version import version
 
     if Version(version) < Version("2.7"):
+        # before version 2.7, the behavior is not the same.
+        # Empty dict and lists are removed from the given dict.
         return {key: val for key, val in obj.items() if val is not None}
     else:
+        # once airflow 2.6 rolls out of compatibility support for provider packages,
+        # we can remove this method and replace all usages in aws code.
         warnings.warn(
             "use airflow.utils.helpers.prune_dict() instead", AirflowProviderDeprecationWarning, stacklevel=2
         )
