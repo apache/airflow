@@ -44,7 +44,7 @@ from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes import client
@@ -348,12 +348,12 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_scheduler
 
-        if state == State.RUNNING:
+        if state == TaskInstanceState.RUNNING:
             self.event_buffer[key] = state, None
             return
 
         if self.kube_config.delete_worker_pods:
-            if state != State.FAILED or self.kube_config.delete_worker_pods_on_failure:
+            if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
                 self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
         else:
