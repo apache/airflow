@@ -24,7 +24,7 @@ from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, Any, Callable, List, Tuple
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -37,6 +37,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
+from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
@@ -50,34 +51,6 @@ EsLogMsgType = List[Tuple[str, str]]
 # LogTemplate model to record the log ID template used. If this function does
 # not exist, the task handler should use the log_id_template attribute instead.
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
-
-
-class Log:
-    """wrapper class to mimic the attributes in Search class used in elasticsearch_dsl.Search."""
-
-    def __init__(self, offset):
-        self.offset = offset
-
-
-class ElasticSearchResponse:
-    """wrapper class to mimic the Search class used in elasticsearch_dsl.Search."""
-
-    def __init__(self, **kwargs):
-        # Store all provided keyword arguments as attributes of this object
-        for key, value in kwargs.items():
-            if key == "log":
-                setattr(self, key, Log(**value))
-            else:
-                setattr(self, key, value)
-
-    def to_dict(self):
-        result = {}
-        for key in self.__dict__.keys():
-            if key == "log":
-                result[key] = self.__dict__[key].__dict__
-            else:
-                result[key] = self.__dict__[key]
-        return result
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -150,6 +123,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
+        self._doc_type_map: dict[Any, Any] = {}
+        self._doc_type: list[Any] = []
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
@@ -299,7 +274,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Just a safe-guard to preserve backwards-compatibility
         return log_line.message
 
-    def es_read(self, log_id: str, offset: str, metadata: dict) -> list:
+    def es_read(self, log_id: str, offset: str, metadata: dict) -> list | ElasticSearchResponse:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
@@ -307,17 +282,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param offset: the offset start to read log from.
         :param metadata: log metadata, used for steaming log download.
         """
-        # Offset is the unique key for sorting logs given log_id.
-        query = {
+        query: dict[Any, Any] = {
             "query": {
                 "bool": {
-                    "must": [
-                        {"match_phrase": {"log_id": log_id}},
-                        {"range": {self.offset_field: {"gt": int(offset)}}},
-                    ]
+                    "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
+                    "must": [{"match_phrase": {"log_id": log_id}}],
                 }
-            },
-            "sort": [{self.offset_field: {"order": "asc"}}],
+            }
         }
 
         try:
@@ -329,21 +300,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             self.log.exception("Could not get current log size with log_id: %s", log_id)
             raise e
 
-        logs = []
+        logs: list[Any] | ElasticSearchResponse = []
         if max_log_line != 0:
             try:
+                query.update({"sort": [self.offset_field]})
                 res = self.client.search(
                     index=self.index_patterns,
                     body=query,
                     size=self.MAX_LINE_PER_PAGE,
                     from_=self.MAX_LINE_PER_PAGE * self.PAGE,
                 )
-                logs = [
-                    ElasticSearchResponse(
-                        **unwrap_response(response),
-                    )
-                    for response in res["hits"]["hits"]
-                ]
+                logs = ElasticSearchResponse(self, res)
             except elasticsearch.exceptions.ElasticsearchException:
                 self.log.exception("Could not read log with log_id: %s", log_id)
 
@@ -448,6 +415,99 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         """Whether we can support external links."""
         return bool(self.frontend)
 
+    def _resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:
+        """
+        Resolves nested hits from Elasticsearch by iteratively navigating the `_nested` field.
+        The result is used to fetch the appropriate document class to handle the hit.
+
+        This method can be used with nested Elasticsearch fields which are structured
+        as dictionaries with "field" and "_nested" keys.
+        """
+        doc_class = Hit
+
+        nested_path: list[str] = []
+        nesting = hit["_nested"]
+        while nesting and "field" in nesting:
+            nested_path.append(nesting["field"])
+            nesting = nesting.get("_nested")
+        nested_path_str = ".".join(nested_path)
+
+        if hasattr(parent_class, "_index"):
+            nested_field = parent_class._index.resolve_field(nested_path_str)
+
+        if nested_field is not None:
+            return nested_field._doc_class
+
+        return doc_class
+
+    def _get_result(self, hit: dict[Any, Any], parent_class=None) -> Hit:
+        """
+        This method processes a hit (i.e., a result) from an Elasticsearch response and transforms it into an
+        appropriate class instance.
+
+        The transformation depends on the contents of the hit. If the document in hit contains a nested field,
+        the '_resolve_nested' method is used to determine the appropriate class (based on the nested path).
+        If the hit has a document type that is present in the '_doc_type_map', the corresponding class is
+        used. If not, the method iterates over the '_doc_type' classes and uses the first one whose '_matches'
+        method returns True for the hit.
+
+        If the hit contains any 'inner_hits', these are also processed into 'ElasticSearchResponse' instances
+        using the determined class.
+
+        Finally, the transformed hit is returned. If the determined class has a 'from_es' method, this is
+        used to transform the hit
+
+        An example of the hit argument:
+
+        {'_id': 'jdeZT4kBjAZqZnexVUxk',
+         '_index': '.ds-filebeat-8.8.2-2023.07.09-000001',
+         '_score': 2.482621,
+         '_source': {'@timestamp': '2023-07-13T14:13:15.140Z',
+                     'asctime': '2023-07-09T07:47:43.907+0000',
+                     'container': {'id': 'airflow'},
+                     'dag_id': 'example_bash_operator',
+                     'ecs': {'version': '8.0.0'},
+                     'execution_date': '2023_07_09T07_47_32_000000',
+                     'filename': 'taskinstance.py',
+                     'input': {'type': 'log'},
+                     'levelname': 'INFO',
+                     'lineno': 1144,
+                     'log': {'file': {'path': "/opt/airflow/Documents/GitHub/airflow/logs/
+                     dag_id=example_bash_operator'/run_id=owen_run_run/
+                     task_id=run_after_loop/attempt=1.log"},
+                             'offset': 0},
+                     'log.offset': 1688888863907337472,
+                     'log_id': 'example_bash_operator-run_after_loop-owen_run_run--1-1',
+                     'message': 'Dependencies all met for dep_context=non-requeueable '
+                                'deps ti=<TaskInstance: '
+                                'example_bash_operator.run_after_loop owen_run_run '
+                                '[queued]>',
+                     'task_id': 'run_after_loop',
+                     'try_number': '1'},
+         '_type': '_doc'}
+        """
+        doc_class = Hit
+        dt = hit.get("_type")
+
+        if "_nested" in hit:
+            doc_class = self._resolve_nested(hit, parent_class)
+
+        elif dt in self._doc_type_map:
+            doc_class = self._doc_type_map[dt]
+
+        else:
+            for doc_type in self._doc_type:
+                if hasattr(doc_type, "_matches") and doc_type._matches(hit):
+                    doc_class = doc_type
+                    break
+
+        for t in hit.get("inner_hits", ()):
+            hit["inner_hits"][t] = ElasticSearchResponse(self, hit["inner_hits"][t], doc_class=doc_class)
+
+        # callback should get the Hit class if "from_es" is not defined
+        callback: type[Hit] | Callable[..., Any] = getattr(doc_class, "from_es", doc_class)
+        return callback(hit)
+
 
 def getattr_nested(obj, item, default):
     """
@@ -462,33 +522,3 @@ def getattr_nested(obj, item, default):
         return attrgetter(item)(obj)
     except AttributeError:
         return default
-
-
-def unwrap_response(res):
-    source = res["_source"]
-    transformed = {
-        "log_id": source.get("log_id"),
-        "message": source.get("message"),
-        "meta": {
-            "id": res.get("_id"),
-            "index": res.get("_index"),
-            "version": res.get("_version"),
-            "headers": res.get("_headers"),
-        },
-    }
-    if "offset" in source:
-        transformed["offset"] = source["offset"]
-    if "asctime" in source:
-        transformed["asctime"] = source["asctime"]
-    if "filename" in source:
-        transformed["filename"] = source["filename"]
-    if "host" in source:
-        transformed["host"] = source["host"]
-    if "levelname" in source:
-        transformed["levelname"] = source["levelname"]
-    if "lineno" in source:
-        transformed["lineno"] = source["lineno"]
-    if "log" in source:
-        transformed["log"] = source["log"]
-
-    return transformed
