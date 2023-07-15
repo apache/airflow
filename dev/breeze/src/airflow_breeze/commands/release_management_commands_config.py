@@ -44,6 +44,7 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
     "commands": [
         "publish-docs",
         "generate-constraints",
+        "add-back-references",
     ],
 }
 
