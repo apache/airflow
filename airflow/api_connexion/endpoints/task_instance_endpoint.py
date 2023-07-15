@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any, Iterable, TypeVar
 
 from marshmallow import ValidationError
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import ClauseElement, Select
@@ -27,7 +27,7 @@ from sqlalchemy.sql import ClauseElement, Select
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.parameters import format_datetime, format_parameters
+from airflow.api_connexion.parameters import format_datetime, format_parameters, get_query_count
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceCollection,
     TaskInstanceReferenceCollection,
@@ -196,7 +196,7 @@ def get_mapped_task_instances(
     )
 
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
-    unfiltered_total_count = session.execute(select(func.count("*")).select_from(base_query)).scalar()
+    unfiltered_total_count = get_query_count(base_query, session=session)
     if unfiltered_total_count == 0:
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
@@ -229,7 +229,7 @@ def get_mapped_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
 
     # Count elements before joining extra columns
-    total_entries = session.execute(select(func.count("*")).select_from(base_query)).scalar()
+    total_entries = get_query_count(base_query, session=session)
 
     # Add SLA miss
     entry_query = (
@@ -355,8 +355,7 @@ def get_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
 
     # Count elements before joining extra columns
-    count_query = select(func.count("*")).select_from(base_query)
-    total_entries = session.execute(count_query).scalar()
+    total_entries = get_query_count(base_query, session=session)
 
     # Add join
     entry_query = (
@@ -420,7 +419,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = _apply_array_filter(base_query, key=TI.queue, values=data["queue"])
 
     # Count elements before joining extra columns
-    total_entries = session.execute(select(func.count("*")).select_from(base_query)).scalar()
+    total_entries = get_query_count(base_query, session=session)
     # Add join
     base_query = base_query.join(
         SlaMiss,

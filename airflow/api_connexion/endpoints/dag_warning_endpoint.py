@@ -16,11 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters, get_query_count
 from airflow.api_connexion.schemas.dag_warning_schema import (
     DagWarningCollection,
     dag_warning_collection_schema,
@@ -54,7 +54,7 @@ def get_dag_warnings(
         query = query.where(DagWarningModel.dag_id == dag_id)
     if warning_type:
         query = query.where(DagWarningModel.warning_type == warning_type)
-    total_entries = session.scalar(select(func.count()).select_from(query))
+    total_entries = get_query_count(query, session=session)
     query = apply_sorting(query=query, order_by=order_by, allowed_attrs=allowed_filter_attrs)
     dag_warnings = session.scalars(query.offset(offset).limit(limit)).all()
     return dag_warning_collection_schema.dump(

@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters, get_query_count
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
     DatasetEventCollection,
@@ -112,7 +112,7 @@ def get_dataset_events(
 
     query = query.options(subqueryload(DatasetEvent.created_dagruns))
 
-    total_entries = session.scalar(select(func.count()).select_from(query))
+    total_entries = get_query_count(query, session=session)
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     events = session.scalars(query.offset(offset).limit(limit)).all()
     return dataset_event_collection_schema.dump(
