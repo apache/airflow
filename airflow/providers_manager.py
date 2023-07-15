@@ -130,12 +130,23 @@ class LazyDictWithCache(MutableMapping):
         return key in self._raw_dict
 
 
+def _read_schema_from_resources_or_local_file(filename: str) -> dict:
+    try:
+        with resource_files("airflow").joinpath(filename).open("rb") as f:
+            schema = json.load(f)
+    except FileNotFoundError:
+        import pathlib
+
+        with (pathlib.Path(__file__).parent / filename).open("rb") as f:
+            schema = json.load(f)
+    return schema
+
+
 def _create_provider_info_schema_validator():
     """Creates JSON schema validator from the provider_info.schema.json."""
     import jsonschema
 
-    with resource_files("airflow").joinpath("provider_info.schema.json").open("rb") as f:
-        schema = json.load(f)
+    schema = _read_schema_from_resources_or_local_file("provider_info.schema.json")
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -145,8 +156,7 @@ def _create_customized_form_field_behaviours_schema_validator():
     """Creates JSON schema validator from the customized_form_field_behaviours.schema.json."""
     import jsonschema
 
-    with resource_files("airflow").joinpath("customized_form_field_behaviours.schema.json").open("rb") as f:
-        schema = json.load(f)
+    schema = _read_schema_from_resources_or_local_file("customized_form_field_behaviours.schema.json")
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -390,6 +400,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._logging_class_name_set: set[str] = set()
         self._secrets_backend_class_name_set: set[str] = set()
         self._executor_class_name_set: set[str] = set()
+        self._provider_configs: dict[str, dict[str, Any]] = {}
         self._api_auth_backend_module_names: set[str] = set()
         self._trigger_info_set: set[TriggerInfo] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
@@ -461,6 +472,16 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers executors information."""
         self.initialize_providers_list()
         self._discover_executors()
+
+    @provider_info_cache("config")
+    def initialize_providers_configuration(self):
+        """Lazy initialization of providers configuration information."""
+        self.initialize_providers_list()
+        self._discover_config()
+        # Now update conf with the new provider configuration from providers
+        from airflow.configuration import conf
+
+        conf.load_provider_configuration()
 
     @provider_info_cache("auth_backends")
     def initialize_providers_auth_backends(self):
@@ -554,7 +575,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             with open(path) as provider_yaml_file:
                 provider_info = yaml.safe_load(provider_yaml_file)
             self._provider_schema_validator.validate(provider_info)
-
             version = provider_info["versions"][0]
             if package_name not in self._provider_dict:
                 self._provider_dict[package_name] = ProviderInfo(version, provider_info, "source")
@@ -965,6 +985,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     if _correctness_check(provider_package, executors_class_name, provider):
                         self._executor_class_name_set.add(executors_class_name)
 
+    def _discover_config(self) -> None:
+        """Retrieve all configs defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("config"):
+                self._provider_configs[provider_package] = provider.data.get("config")
+
     @provider_info_cache("triggers")
     def initialize_providers_triggers(self):
         """Initialization of providers triggers."""
@@ -1053,3 +1079,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def executor_class_names(self) -> list[str]:
         self.initialize_providers_executors()
         return sorted(self._executor_class_name_set)
+
+    @property
+    def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        self.initialize_providers_configuration()
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
+    @property
+    def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])
