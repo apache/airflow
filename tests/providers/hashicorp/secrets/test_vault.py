@@ -16,6 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import sys
+if sys.version_info < (3, 8):
+    from importlib_metadata import version
+else:
+    from importlib.metadata import version
+
 from unittest import mock
 
 import pytest
@@ -301,9 +307,15 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         assert test_client.get_conn_uri(conn_id="test_mysql") is None
-        mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="airflow", path="connections/test_mysql", version=None
-        )
+        hvac_version = version("hvac")
+        if hvac_version >= "1.1.0":
+            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+                mount_point="airflow", path="connections/test_mysql", version=None, raise_on_deleted_version=True
+            )
+        else:
+            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+                mount_point="airflow", path="connections/test_mysql", version=None
+            )
         assert test_client.get_connection(conn_id="test_mysql") is None
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -453,9 +465,15 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         assert test_client.get_variable("hello") is None
-        mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            mount_point="airflow", path="variables/hello", version=None
-        )
+        hvac_version = version("hvac")
+        if hvac_version >= "1.1.0":
+            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+                mount_point="airflow", path="variables/hello", version=None, raise_on_deleted_version=True
+            )
+        else:
+            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+                mount_point="airflow", path="variables/hello", version=None
+            )
         assert test_client.get_variable("hello") is None
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
