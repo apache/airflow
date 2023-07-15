@@ -257,7 +257,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         if not self.downstream_task_ids:
             self.log.info("No downstream tasks; nothing to do.")
-            return
+            return condition
 
         dag_run = context["dag_run"]
 
