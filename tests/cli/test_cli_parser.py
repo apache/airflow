@@ -22,6 +22,7 @@ import argparse
 import contextlib
 import io
 import re
+import timeit
 from collections import Counter
 from unittest.mock import patch
 
@@ -268,3 +269,13 @@ class TestCli:
             f"--export-format: invalid choice: '{export_format}' "
             "(choose from 'csv'), see help above.\n"
         )
+
+    def test_cli_run_time(self):
+        setup_code = "import subprocess"
+        timing_code = 'subprocess.run(["airflow", "--help"])'
+        # Limit the number of samples otherwise the test will take a very long time
+        num_samples = 3
+        threshold = 3.5
+        timing_result = timeit.timeit(stmt=timing_code, number=num_samples, setup=setup_code) / num_samples
+        # Average run time of Airflow CLI should at least be within 3.5s
+        assert timing_result < threshold
