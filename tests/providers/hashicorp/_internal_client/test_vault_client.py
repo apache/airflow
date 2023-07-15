@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import sys
+
 if sys.version_info < (3, 8):
     from importlib_metadata import version
 else:
@@ -636,7 +637,7 @@ class TestVaultClient:
         assert 2 == vault_client.kv_engine_version
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_get_non_existing_key_v2(self, mock_hvac):     
+    def test_get_non_existing_key_v2(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         # Response does not contain the requested key
@@ -655,7 +656,6 @@ class TestVaultClient:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="secret", path="missing", version=None
             )
-
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_non_existing_key_v2_different_auth(self, mock_hvac):
@@ -682,7 +682,6 @@ class TestVaultClient:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="secret", path="missing", version=None
             )
-
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_non_existing_key_v1(self, mock_hvac):
@@ -745,7 +744,6 @@ class TestVaultClient:
                 mount_point="secret", path="path/to/secret", version=None
             )
 
-
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_existing_key_v2_without_preconfigured_mount_point(self, mock_hvac):
         mock_client = mock.MagicMock()
@@ -790,7 +788,6 @@ class TestVaultClient:
                 mount_point="mount_point", path="path/to/secret", version=None
             )
 
-
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_existing_key_v2_version(self, mock_hvac):
         mock_client = mock.MagicMock()
@@ -833,7 +830,6 @@ class TestVaultClient:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="secret", path="missing", version=1
             )
-
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_existing_key_v1(self, mock_hvac):
@@ -1064,7 +1060,6 @@ class TestVaultClient:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="secret", path="missing", version=None
             )
-
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_secret_including_metadata_v1(self, mock_hvac):

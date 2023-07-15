@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import sys
+
 if sys.version_info < (3, 8):
     from importlib_metadata import version
 else:
@@ -1017,7 +1018,6 @@ class TestVaultHook:
                 mount_point="secret", path="missing", version=None
             )
 
-
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_existing_key_v2_version(self, mock_hvac, mock_get_connection):
@@ -1213,7 +1213,6 @@ class TestVaultHook:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="secret", path="missing", version=None
             )
-
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")

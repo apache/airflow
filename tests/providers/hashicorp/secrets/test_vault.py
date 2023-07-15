@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import sys
+
 if sys.version_info < (3, 8):
     from importlib_metadata import version
 else:
@@ -310,7 +311,10 @@ class TestVaultSecrets:
         hvac_version = version("hvac")
         if hvac_version >= "1.1.0":
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="airflow", path="connections/test_mysql", version=None, raise_on_deleted_version=True
+                mount_point="airflow",
+                path="connections/test_mysql",
+                version=None,
+                raise_on_deleted_version=True,
             )
         else:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(

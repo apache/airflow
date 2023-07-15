@@ -15,7 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+
 import sys
+
 if sys.version_info < (3, 8):
     from importlib_metadata import version
 else:
@@ -380,12 +382,15 @@ class _VaultClient(LoggingMixin):
             else:
                 if hvac_version >= "1.1.0":
                     response = self.client.secrets.kv.v2.read_secret_version(
-                        path=secret_path, mount_point=mount_point, version=secret_version, raise_on_deleted_version=True
+                        path=secret_path,
+                        mount_point=mount_point,
+                        version=secret_version,
+                        raise_on_deleted_version=True,
                     )
                 else:
                     response = self.client.secrets.kv.v2.read_secret_version(
                         path=secret_path, mount_point=mount_point, version=secret_version
-                    )                    
+                    )
         except InvalidPath:
             self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
             return None
@@ -435,7 +440,10 @@ class _VaultClient(LoggingMixin):
             mount_point, secret_path = self._parse_secret_path(secret_path)
             if hvac_version >= "1.1.0":
                 return self.client.secrets.kv.v2.read_secret_version(
-                    path=secret_path, mount_point=mount_point, version=secret_version, raise_on_deleted_version=True
+                    path=secret_path,
+                    mount_point=mount_point,
+                    version=secret_version,
+                    raise_on_deleted_version=True,
                 )
             else:
                 return self.client.secrets.kv.v2.read_secret_version(
