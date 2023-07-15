@@ -46,6 +46,18 @@ To send custom events to Amazon EventBridge, use
     :start-after: [START howto_operator_eventbridge_put_events]
     :end-before: [END howto_operator_eventbridge_put_events]
 
+Create or update a rule on Amazon EventBridge
+======================================================
+
+To create or update a rule on EventBridge, use
+:class:`~airflow.providers.amazon.aws.operators.eventbridge.EventBridgePutRuleOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eventbridge.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_eventbridge_put_rule]
+    :end-before: [END howto_operator_eventbridge_put_rule]
+
 
 Reference
 ---------
