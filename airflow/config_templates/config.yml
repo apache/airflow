@@ -2145,7 +2145,7 @@ celery:
       version_added: ~
       type: string
       example: ~
-      default: "airflow.config_templates.default_celery.DEFAULT_CELERY_CONFIG"
+      default: "airflow.providers.celery.executors.default_celery.DEFAULT_CELERY_CONFIG"
     ssl_active:
       description: ~
       version_added: ~
