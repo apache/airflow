@@ -656,15 +656,6 @@ class TestVaultClient:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="secret", path="missing", version=None
             )
-        hvac_version = version("hvac")
-        if hvac_version >= "1.1.0":
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=None, raise_on_deleted_version=True
-            )
-        else:
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=None
-            )
 
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -683,15 +674,6 @@ class TestVaultClient:
         secret = vault_client.get_secret(secret_path="missing")
         assert secret is None
         assert "secret" == vault_client.mount_point
-        hvac_version = version("hvac")
-        if hvac_version >= "1.1.0":
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=None, raise_on_deleted_version=True
-            )
-        else:
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=None
-            )
         hvac_version = version("hvac")
         if hvac_version >= "1.1.0":
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
@@ -763,15 +745,6 @@ class TestVaultClient:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="secret", path="path/to/secret", version=None
             )
-        hvac_version = version("hvac")
-        if hvac_version >= "1.1.0":
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="path/to/secret", version=None, raise_on_deleted_version=True
-            )
-        else:
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="path/to/secret", version=None
-            )
 
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -817,15 +790,6 @@ class TestVaultClient:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="mount_point", path="path/to/secret", version=None
             )
-        hvac_version = version("hvac")
-        if hvac_version >= "1.1.0":
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="mount_point", path="path/to/secret", version=None, raise_on_deleted_version=True
-            )
-        else:
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="mount_point", path="path/to/secret", version=None
-            )
 
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -861,15 +825,6 @@ class TestVaultClient:
         )
         secret = vault_client.get_secret(secret_path="missing", secret_version=1)
         assert {"secret_key": "secret_value"} == secret
-        hvac_version = version("hvac")
-        if hvac_version >= "1.1.0":
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=1, raise_on_deleted_version=True
-            )
-        else:
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=1
-            )
         hvac_version = version("hvac")
         if hvac_version >= "1.1.0":
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
@@ -1101,15 +1056,6 @@ class TestVaultClient:
             "warnings": None,
             "auth": None,
         } == metadata
-        hvac_version = version("hvac")
-        if hvac_version >= "1.1.0":
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=None, raise_on_deleted_version=True
-            )
-        else:
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=None
-            )
         hvac_version = version("hvac")
         if hvac_version >= "1.1.0":
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(

@@ -1017,16 +1017,6 @@ class TestVaultHook:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="secret", path="missing", version=None
             )
-        hvac_version = version("hvac")
-        if hvac_version >= "1.1.0":
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=None, raise_on_deleted_version=True
-            )
-        else:
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=None
-            )
-
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -1063,15 +1053,6 @@ class TestVaultHook:
         test_hook = VaultHook(**kwargs)
         secret = test_hook.get_secret(secret_path="missing", secret_version=1)
         assert {"secret_key": "secret_value"} == secret
-        hvac_version = version("hvac")
-        if hvac_version >= "1.1.0":
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=1, raise_on_deleted_version=True
-            )
-        else:
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=1
-            )
         hvac_version = version("hvac")
         if hvac_version >= "1.1.0":
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
@@ -1232,16 +1213,6 @@ class TestVaultHook:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="secret", path="missing", version=None
             )
-        hvac_version = version("hvac")
-        if hvac_version >= "1.1.0":
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=None, raise_on_deleted_version=True
-            )
-        else:
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="secret", path="missing", version=None
-            )
-
 
     @mock.patch("airflow.providers.hashicorp.hooks.vault.VaultHook.get_connection")
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")

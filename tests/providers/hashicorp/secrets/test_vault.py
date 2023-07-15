@@ -478,15 +478,6 @@ class TestVaultSecrets:
             mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
                 mount_point="airflow", path="variables/hello", version=None
             )
-        hvac_version = version("hvac")
-        if hvac_version >= "1.1.0":
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="airflow", path="variables/hello", version=None, raise_on_deleted_version=True
-            )
-        else:
-            mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-                mount_point="airflow", path="variables/hello", version=None
-            )
         assert test_client.get_variable("hello") is None
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")

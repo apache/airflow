@@ -23,7 +23,6 @@ if sys.version_info < (3, 8):
 else:
     from importlib.metadata import version
 
-
 from functools import cached_property
 
 import hvac
@@ -373,7 +372,6 @@ class _VaultClient(LoggingMixin):
         """
         mount_point = None
         hvac_version = version("hvac")
-        hvac_version = version("hvac")
         try:
             mount_point, secret_path = self._parse_secret_path(secret_path)
             if self.kv_engine_version == 1:
@@ -436,7 +434,6 @@ class _VaultClient(LoggingMixin):
         if self.kv_engine_version == 1:
             raise VaultError("Metadata might only be used with version 2 of the KV engine.")
         mount_point = None
-        hvac_version = version("hvac")
         hvac_version = version("hvac")
         try:
             mount_point, secret_path = self._parse_secret_path(secret_path)
