@@ -285,6 +285,8 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             map_index=context["ti"].map_index,
         )
         self.log.info("Done.")
+        # returns the result of the super execute method as it is instead of returning None
+        return condition
 
 
 class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
