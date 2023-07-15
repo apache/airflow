@@ -274,7 +274,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Just a safe-guard to preserve backwards-compatibility
         return log_line.message
 
-    def es_read(self, log_id: str, offset: str, metadata: dict) -> list | ElasticSearchResponse:
+    def es_read(self, log_id: str, offset: int | str, metadata: dict) -> list | ElasticSearchResponse:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
