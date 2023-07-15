@@ -19,7 +19,10 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.eventbridge import EventBridgePutEventsOperator
+from airflow.providers.amazon.aws.operators.eventbridge import (
+    EventBridgePutEventsOperator,
+    EventBridgePutRuleOperator,
+)
 
 DAG_ID = "example_eventbridge"
 ENTRIES = [
@@ -44,6 +47,17 @@ with DAG(
     put_events = EventBridgePutEventsOperator(task_id="put_events_task", entries=ENTRIES)
 
     # [END howto_operator_eventbridge_put_events]
+
+    # [START howto_operator_eventbridge_put_rule]
+
+    put_rule = EventBridgePutRuleOperator(
+        task_id="put_rule_task",
+        name="Example Rule",
+        event_pattern='{"source": ["example.myapp"]}',
+        description="This rule matches events from example.myapp.",
+    )
+
+    # [END howto_operator_eventbridge_put_rule]
 
 
 from tests.system.utils import get_test_run  # noqa: E402
