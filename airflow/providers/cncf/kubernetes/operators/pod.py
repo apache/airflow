@@ -229,7 +229,7 @@ class KubernetesPodOperator(BaseOperator):
         will consult the class variable BASE_CONTAINER_NAME (which defaults to "base") for the base
         container name to use.
     :param deferrable: Run operator in the deferrable mode.
-    :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
+    :param poll_interval: Polling period in seconds to check for the status.
     :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
@@ -542,7 +542,11 @@ class KubernetesPodOperator(BaseOperator):
 
     def await_pod_start(self, pod: k8s.V1Pod):
         try:
-            self.pod_manager.await_pod_start(pod=pod, startup_timeout=self.startup_timeout_seconds)
+            self.pod_manager.await_pod_start(
+                pod=pod,
+                startup_timeout=self.startup_timeout_seconds,
+                poll_interval=self.poll_interval,
+            )
         except PodLaunchFailedException:
             if self.log_events_on_failure:
                 for event in self.pod_manager.read_pod_events(pod).items:
