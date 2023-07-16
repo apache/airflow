@@ -257,7 +257,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         if not self.downstream_task_ids:
             self.log.info("No downstream tasks; nothing to do.")
-            return
+            return condition
 
         dag_run = context["dag_run"]
 
@@ -285,6 +285,8 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             map_index=context["ti"].map_index,
         )
         self.log.info("Done.")
+        # returns the result of the super execute method as it is instead of returning None
+        return condition
 
 
 class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):

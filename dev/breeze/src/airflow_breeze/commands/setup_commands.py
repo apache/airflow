@@ -282,6 +282,10 @@ def get_command_hash_export() -> str:
         options = rich_click.rich_click.OPTION_GROUPS
         for command in sorted(commands_dict.keys()):
             current_command_dict = commands_dict[command]
+            current_command_hash_dict = {
+                "command": current_command_dict,
+                "options": rich_click.rich_click.COMMAND_GROUPS.get(f"breeze {command}"),
+            }
             if "commands" in current_command_dict:
                 subcommands = current_command_dict["commands"]
                 for subcommand in sorted(subcommands.keys()):
@@ -303,9 +307,9 @@ def get_command_hash_export() -> str:
                         "rich_click_options": subcommand_rich_click_dict,
                     }
                     hashes.append(f"{command}:{subcommand}:{dict_hash(final_dict)}")
-                hashes.append(f"{command}:{dict_hash(current_command_dict)}")
+                hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
             else:
-                hashes.append(f"{command}:{dict_hash(current_command_dict)}")
+                hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
     return "\n".join(hashes) + "\n"
 
 

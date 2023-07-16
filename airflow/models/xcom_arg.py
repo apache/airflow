@@ -42,6 +42,7 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.utils.task_group import TaskGroup
 
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
@@ -206,6 +207,15 @@ class XComArg(ResolveMixin, DependencyMixin):
         :meta private:
         """
         raise NotImplementedError()
+
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """Add the task to the given task group.
+
+        :meta private:
+        """
+        for op, _ in self.iter_references():
+            if op.node_id not in task_group.children:
+                task_group.add(op)
 
     def __enter__(self):
         if not self.operator.is_setup and not self.operator.is_teardown:
