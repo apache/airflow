@@ -25,12 +25,14 @@ from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 
 class SnowflakeToSlackOperator(SqlToSlackOperator):
     """
-    Executes an SQL statement in Snowflake and sends the results to Slack. The results of the query are
-    rendered into the 'slack_message' parameter as a Pandas dataframe using a JINJA variable called '{{
-    results_df }}'. The 'results_df' variable name can be changed by specifying a different
-    'results_df_name' parameter. The Tabulate library is added to the JINJA environment as a filter to
-    allow the dataframe to be rendered nicely. For example, set 'slack_message' to {{ results_df |
-    tabulate(tablefmt="pretty", headers="keys") }} to send the results to Slack as an ascii rendered table.
+    Executes an SQL statement in Snowflake and sends the results to Slack.
+
+    The results of the query are rendered into the 'slack_message' parameter as a Pandas dataframe
+    using a Jinja variable called '{{ results_df }}'. The 'results_df' variable name can be changed
+    by specifying a different 'results_df_name' parameter. The Tabulate library is added to the
+    Jinja environment as a filter to allow the dataframe to be rendered nicely. For example, set
+    'slack_message' to {{ results_df | tabulate(tablefmt="pretty", headers="keys") }} to send the
+    results to Slack as an ASCII rendered table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

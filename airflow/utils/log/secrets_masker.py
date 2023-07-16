@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import collections.abc
 import logging
-import re
 import sys
 from functools import cached_property
 from typing import (
@@ -31,11 +30,14 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Pattern,
     TextIO,
     Tuple,
     TypeVar,
     Union,
 )
+
+import re2
 
 from airflow import settings
 from airflow.compat.functools import cache
@@ -144,7 +146,7 @@ def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
 class SecretsMasker(logging.Filter):
     """Redact secrets from logs."""
 
-    replacer: re.Pattern | None = None
+    replacer: Pattern | None = None
     patterns: set[str]
 
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
@@ -332,13 +334,13 @@ class SecretsMasker(logging.Filter):
             new_mask = False
             for s in self._adaptations(secret):
                 if s:
-                    pattern = re.escape(s)
+                    pattern = re2.escape(s)
                     if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
                         new_mask = True
 
             if new_mask:
-                self.replacer = re.compile("|".join(self.patterns))
+                self.replacer = re2.compile("|".join(self.patterns))
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:

@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
 from openlineage.client.facet import SchemaDatasetFacet, SchemaField, SqlJobFacet
 from openlineage.client.run import Dataset
 from openlineage.common.sql import DbTableMeta
@@ -155,19 +156,20 @@ class TestSQLParser:
             database_info=db_info,
         )
 
+    @pytest.mark.parametrize("parser_returns_schema", [True, False])
     @mock.patch("airflow.providers.openlineage.sqlparser.SQLParser.parse")
-    def test_generate_openlineage_metadata_from_sql(self, mock_parse):
-        parser = SQLParser()
+    def test_generate_openlineage_metadata_from_sql(self, mock_parse, parser_returns_schema):
+        parser = SQLParser(default_schema="ANOTHER_SCHEMA")
         db_info = DatabaseInfo(scheme="myscheme", authority="host:port")
 
         hook = MagicMock()
 
-        rows = lambda name: [
-            (DB_SCHEMA_NAME, name, "ID", 1, "int4"),
-            (DB_SCHEMA_NAME, name, "AMOUNT_OFF", 2, "int4"),
-            (DB_SCHEMA_NAME, name, "CUSTOMER_EMAIL", 3, "varchar"),
-            (DB_SCHEMA_NAME, name, "STARTS_ON", 4, "timestamp"),
-            (DB_SCHEMA_NAME, name, "ENDS_ON", 5, "timestamp"),
+        rows = lambda schema, table: [
+            (schema, table, "ID", 1, "int4"),
+            (schema, table, "AMOUNT_OFF", 2, "int4"),
+            (schema, table, "CUSTOMER_EMAIL", 3, "varchar"),
+            (schema, table, "STARTS_ON", 4, "timestamp"),
+            (schema, table, "ENDS_ON", 5, "timestamp"),
         ]
 
         sql = """CREATE TABLE table_out (
@@ -182,13 +184,17 @@ class TestSQLParser:
         """
 
         hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [
-            rows("TABLE_IN"),
-            rows("TABLE_OUT"),
+            rows(DB_SCHEMA_NAME if parser_returns_schema else None, "TABLE_IN"),
+            rows(DB_SCHEMA_NAME if parser_returns_schema else None, "TABLE_OUT"),
         ]
 
         mock_sql_meta = MagicMock()
-        mock_sql_meta.in_tables = [DbTableMeta("PUBLIC.TABLE_IN")]
-        mock_sql_meta.out_tables = [DbTableMeta("PUBLIC.TABLE_OUT")]
+        if parser_returns_schema:
+            mock_sql_meta.in_tables = [DbTableMeta("PUBLIC.TABLE_IN")]
+            mock_sql_meta.out_tables = [DbTableMeta("PUBLIC.TABLE_OUT")]
+        else:
+            mock_sql_meta.in_tables = [DbTableMeta("TABLE_IN")]
+            mock_sql_meta.out_tables = [DbTableMeta("TABLE_OUT")]
         mock_sql_meta.errors = []
 
         mock_parse.return_value = mock_sql_meta
@@ -201,15 +207,20 @@ class TestSQLParser:
             ENDS_ON timestamp
 
 )"""
+        expected_schema = "PUBLIC" if parser_returns_schema else "ANOTHER_SCHEMA"
         expected = OperatorLineage(
             inputs=[
                 Dataset(
-                    namespace="myscheme://host:port", name="PUBLIC.TABLE_IN", facets={"schema": SCHEMA_FACET}
+                    namespace="myscheme://host:port",
+                    name=f"{expected_schema}.TABLE_IN",
+                    facets={"schema": SCHEMA_FACET},
                 )
             ],
             outputs=[
                 Dataset(
-                    namespace="myscheme://host:port", name="PUBLIC.TABLE_OUT", facets={"schema": SCHEMA_FACET}
+                    namespace="myscheme://host:port",
+                    name=f"{expected_schema}.TABLE_OUT",
+                    facets={"schema": SCHEMA_FACET},
                 )
             ],
             job_facets={"sql": SqlJobFacet(query=formatted_sql)},

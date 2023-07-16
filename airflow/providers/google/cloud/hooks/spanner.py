@@ -215,8 +215,7 @@ class SpannerHook(GoogleBaseHook):
         project_id: str,
     ) -> Database | None:
         """
-        Retrieves a database in Cloud Spanner. If the database does not exist
-        in the specified instance, it returns None.
+        Retrieves a database in Cloud Spanner; return None if the database does not exist in the instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param database_id: The ID of the database in Cloud Spanner.

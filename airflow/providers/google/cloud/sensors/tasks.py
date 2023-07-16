@@ -29,8 +29,7 @@ if TYPE_CHECKING:
 
 class TaskQueueEmptySensor(BaseSensorOperator):
     """
-    Pulls tasks count from a cloud task queue.
-    Always waits for queue returning tasks count as 0.
+    Pulls tasks count from a cloud task queue; waits for queue to return task count as 0.
 
     :param project_id: the Google Cloud project ID for the subscription (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.

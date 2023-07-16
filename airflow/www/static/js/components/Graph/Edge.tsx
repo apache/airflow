@@ -35,6 +35,7 @@ interface EdgeProps {
       id: string;
       labels?: ElkLabel[];
       layoutOptions?: LayoutOptions;
+      isSetupTeardown?: boolean;
     };
   };
 }
@@ -63,6 +64,7 @@ const CustomEdge = ({ data }: EdgeProps) => {
           x={(d) => d.x || 0}
           y={(d) => d.y || 0}
           data={[s.startPoint, ...(s.bendPoints || []), s.endPoint]}
+          strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
         />
       ))}
     </>

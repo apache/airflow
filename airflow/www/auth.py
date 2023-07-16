@@ -21,7 +21,7 @@ from typing import Callable, Sequence, TypeVar, cast
 
 from flask import current_app, flash, g, redirect, render_template, request, url_for
 
-from airflow.configuration import conf
+from airflow.configuration import auth_manager, conf
 from airflow.utils.net import get_hostname
 
 T = TypeVar("T", bound=Callable)
@@ -46,7 +46,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
             )
             if appbuilder.sm.check_authorization(permissions, dag_id):
                 return func(*args, **kwargs)
-            elif not g.user.is_anonymous and not g.user.perms:
+            elif auth_manager.is_logged_in() and not g.user.perms:
                 return (
                     render_template(
                         "airflow/no_roles_permissions.html",

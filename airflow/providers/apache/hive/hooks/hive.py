@@ -152,6 +152,8 @@ class HiveCliHook(BaseHook):
                 proxy_user = self._get_proxy_user()
                 if ";" in template:
                     raise RuntimeError("The principal should not contain the ';' character")
+                if ";" in proxy_user:
+                    raise RuntimeError("The proxy_user should not contain the ';' character")
                 jdbc_url += f";principal={template};{proxy_user}"
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth

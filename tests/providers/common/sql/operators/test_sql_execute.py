@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from typing import Any, NamedTuple, Sequence
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -316,7 +317,7 @@ FORGOT TO COMMENT"""
         (DB_SCHEMA_NAME, "popular_orders_day_of_week", "orders_placed", 3, "int4"),
     ]
     dbapi_hook.get_connection.return_value = Connection(
-        conn_id="sql_default", conn_type="postgres", host="host", port=1234
+        conn_id="sql_default", conn_type="postgresql", host="host", port=1234
     )
     dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
 
@@ -354,3 +355,17 @@ FORGOT TO COMMENT"""
         )
         == lineage_on_complete
     )
+
+
+def test_with_no_openlineage_provider():
+    import importlib
+
+    def mock__import__(name, globals_=None, locals_=None, fromlist=(), level=0):
+        if level == 0 and name.startswith("airflow.providers.openlineage"):
+            raise ImportError("No provider 'apache-airflow-providers-openlineage'")
+        return importlib.__import__(name, globals=globals_, locals=locals_, fromlist=fromlist, level=level)
+
+    with mock.patch("builtins.__import__", side_effect=mock__import__):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1;")
+        assert op.get_openlineage_facets_on_start() is None
+        assert op.get_openlineage_facets_on_complete(None) is None

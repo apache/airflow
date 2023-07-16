@@ -75,6 +75,8 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     @staticmethod
     def _disable_auto_scheduling(config: dict | TransferConfig) -> TransferConfig:
         """
+        Create a transfer config with the automatic scheduling disabled.
+
         In the case of Airflow, the customer needs to create a transfer config
         with the automatic scheduling disabled (UI, CLI or an Airflow operator) and
         then trigger a transfer run using a specialized Airflow operator that will
@@ -195,10 +197,10 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> StartManualTransferRunsResponse:
         """
-        Start manual transfer runs to be executed now with schedule_time equal
-        to current time. The transfer runs can be created for a time range where
-        the run_time is between start_time (inclusive) and end_time
-        (exclusive), or for a specific run_time.
+        Start manual transfer runs to be executed now with schedule_time equal to current time.
+
+        The transfer runs can be created for a time range where the run_time is between
+        start_time (inclusive) and end_time (exclusive), or for a specific run_time.
 
         :param transfer_config_id: Id of transfer config to be used.
         :param requested_time_range: Time range for the transfer runs that should be started.

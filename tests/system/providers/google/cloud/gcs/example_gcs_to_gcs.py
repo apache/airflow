@@ -139,6 +139,7 @@ with models.DAG(
         source_object=OBJECT_1,
         destination_bucket=BUCKET_NAME_DST,  # If not supplied the source_bucket value will be used
         destination_object="backup_" + OBJECT_1,  # If not supplied the source_object value will be used
+        exact_match=True,
     )
     # [END howto_operator_gcs_to_gcs_single_file]
 
@@ -201,6 +202,7 @@ with models.DAG(
         source_object=OBJECT_1,
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup_" + OBJECT_1,
+        exact_match=True,
         move_object=True,
     )
     # [END howto_operator_gcs_to_gcs_single_file_move]

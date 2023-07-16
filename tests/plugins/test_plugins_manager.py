@@ -198,7 +198,7 @@ class TestPluginsManager:
         with mock.patch("airflow.plugins_manager.plugins", []):
             plugins_manager.load_plugins_from_plugin_directory()
 
-            assert 5 == len(plugins_manager.plugins)
+            assert 6 == len(plugins_manager.plugins)
             for plugin in plugins_manager.plugins:
                 if "AirflowTestOnLoadPlugin" not in str(plugin):
                     continue

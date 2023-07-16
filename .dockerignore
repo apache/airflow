@@ -42,6 +42,8 @@
 # Add tests and kubernetes_tests to context.
 !tests
 !kubernetes_tests
+!helm_tests
+!docker_tests
 
 !.coveragerc
 !.rat-excludes

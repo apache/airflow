@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
+from azure.storage.blob._models import BlobProperties
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -199,6 +200,42 @@ class TestWasbHook:
         assert isinstance(hook.get_conn(), BlobServiceClient)
         assert isinstance(hook.get_conn().credential, ClientSecretCredential)
 
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.DefaultAzureCredential")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook.get_connection")
+    def test_active_directory_ID_used_as_host(self, mock_get_conn, mock_credential, mock_blob_service_client):
+        hook = WasbHook(wasb_conn_id="testconn")
+        mock_get_conn.return_value = Connection(
+            conn_id="testconn",
+            conn_type=self.connection_type,
+            login="testaccountname",
+            host="testaccountID",
+        )
+        hook.get_conn()
+        assert mock_blob_service_client.call_args == mock.call(
+            account_url="https://testaccountname.blob.core.windows.net/",
+            credential=mock_credential.return_value,
+        )
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook.get_connection")
+    def test_sas_token_provided_and_active_directory_ID_used_as_host(
+        self, mock_get_conn, mock_blob_service_client
+    ):
+        hook = WasbHook(wasb_conn_id="testconn")
+        mock_get_conn.return_value = Connection(
+            conn_id="testconn",
+            conn_type=self.connection_type,
+            login="testaccountname",
+            host="testaccountID",
+            extra=json.dumps({"sas_token": "SAStoken"}),
+        )
+        hook.get_conn()
+        assert mock_blob_service_client.call_args == mock.call(
+            account_url="https://testaccountname.blob.core.windows.net/SAStoken",
+            sas_token="SAStoken",
+        )
+
     @pytest.mark.parametrize(
         argnames="conn_id_str",
         argvalues=[
@@ -298,6 +335,30 @@ class TestWasbHook:
         mock_service.return_value.get_container_client.return_value.walk_blobs.assert_called_once_with(
             name_starts_with="my", include=None, delimiter="/"
         )
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
+    def test_get_blobs_list_recursive(self, mock_service):
+        hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
+        hook.get_blobs_list_recursive(
+            container_name="mycontainer", prefix="test", include=None, endswith="file_extension"
+        )
+        mock_service.return_value.get_container_client.assert_called_once_with("mycontainer")
+        mock_service.return_value.get_container_client.return_value.list_blobs.assert_called_once_with(
+            name_starts_with="test", include=None
+        )
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
+    def test_get_blobs_list_recursive_endswith(self, mock_service):
+        hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
+        mock_service.return_value.get_container_client.return_value.list_blobs.return_value = [
+            BlobProperties(name="test/abc.py"),
+            BlobProperties(name="test/inside_test/abc.py"),
+            BlobProperties(name="test/abc.csv"),
+        ]
+        blob_list_output = hook.get_blobs_list_recursive(
+            container_name="mycontainer", prefix="test", include=None, endswith=".py"
+        )
+        assert blob_list_output == ["test/abc.py", "test/inside_test/abc.py"]
 
     @pytest.mark.parametrize(argnames="create_container", argvalues=[True, False])
     @mock.patch.object(WasbHook, "upload")
