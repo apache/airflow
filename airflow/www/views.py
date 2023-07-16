@@ -83,7 +83,6 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.api_connexion.parameters import get_query_count
 from airflow.configuration import AIRFLOW_CONFIG, auth_manager, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import (
@@ -118,6 +117,7 @@ from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.dates import infer_time_unit, scale_time_units
+from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import alchemy_to_dict, exactly_one
 from airflow.utils.log import secrets_masker

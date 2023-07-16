@@ -20,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters, get_query_count
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_warning_schema import (
     DagWarningCollection,
     dag_warning_collection_schema,
@@ -28,6 +28,7 @@ from airflow.api_connexion.schemas.dag_warning_schema import (
 from airflow.api_connexion.types import APIResponse
 from airflow.models.dagwarning import DagWarning as DagWarningModel
 from airflow.security import permissions
+from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
 

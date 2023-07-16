@@ -24,13 +24,14 @@ from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
-from airflow.api_connexion.parameters import check_limit, format_parameters, get_query_count
+from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.xcom_schema import XComCollection, xcom_collection_schema, xcom_schema
 from airflow.api_connexion.types import APIResponse
 from airflow.models import DagRun as DR, XCom
 from airflow.security import permissions
 from airflow.settings import conf
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
 

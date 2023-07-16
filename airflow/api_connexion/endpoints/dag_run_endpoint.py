@@ -40,7 +40,6 @@ from airflow.api_connexion.parameters import (
     check_limit,
     format_datetime,
     format_parameters,
-    get_query_count,
 )
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
@@ -63,6 +62,7 @@ from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.db import get_query_count
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState

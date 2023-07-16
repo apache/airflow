@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters, get_query_count
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
     DatasetEventCollection,
@@ -32,6 +32,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
 from airflow.api_connexion.types import APIResponse
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.security import permissions
+from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
 

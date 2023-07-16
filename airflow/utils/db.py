@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
     from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql.selectable import Select
 
     from airflow.models.base import Base
     from airflow.models.connection import Connection
@@ -1872,3 +1873,9 @@ def get_sqla_model_classes():
         return [mapper.class_ for mapper in Base.registry.mappers]
     except AttributeError:
         return Base._decl_class_registry.values()
+
+
+def get_query_count(query_stmt: Select, session: Session) -> int:
+    """Get count of query."""
+    count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
+    return session.scalar(count_stmt)

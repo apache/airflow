@@ -21,9 +21,8 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, Callable, Container, TypeVar, cast
 
-import sqlalchemy.orm
 from pendulum.parsing import ParserError
-from sqlalchemy import func, select, text
+from sqlalchemy import text
 from sqlalchemy.sql import Select
 
 from airflow.api_connexion.exceptions import BadRequest
@@ -126,9 +125,3 @@ def apply_sorting(
     else:
         order_by = f"{lstriped_orderby} asc"
     return query.order_by(text(order_by))
-
-
-def get_query_count(query_stmt: sqlalchemy.sql.selectable.Select, session: sqlalchemy.orm.Session) -> int:
-    """Get count of query."""
-    count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
-    return session.scalar(count_stmt)
