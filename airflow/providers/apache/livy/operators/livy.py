@@ -207,4 +207,5 @@ class LivyOperator(BaseOperator):
             self.task_id,
             event["response"],
         )
+        context["ti"].xcom_push(key="app_id", value=self.get_hook().get_batch(event["batch_id"])["appId"])
         return event["batch_id"]

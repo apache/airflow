@@ -334,3 +334,49 @@ class TestLivyOperator:
 
             mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
             mock_get_logs.assert_called_once_with(BATCH_ID, 0, 100)
+
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch", return_value={"appId": APP_ID})
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
+    def test_execute_complete_success(self, mock_post, mock_get):
+        task = LivyOperator(
+            livy_conn_id="livyunittest",
+            file="sparkapp",
+            dag=self.dag,
+            task_id="livy_example",
+            polling_interval=1,
+            deferrable=True,
+        )
+        result = task.execute_complete(
+            context=self.mock_context,
+            event={
+                "status": "success",
+                "log_lines": None,
+                "batch_id": BATCH_ID,
+                "response": "mock success",
+            },
+        )
+
+        assert result == BATCH_ID
+        self.mock_context["ti"].xcom_push.assert_called_once_with(key="app_id", value=APP_ID)
+
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
+    def test_execute_complete_error(self, mock_post):
+        task = LivyOperator(
+            livy_conn_id="livyunittest",
+            file="sparkapp",
+            dag=self.dag,
+            task_id="livy_example",
+            polling_interval=1,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(
+                context=self.mock_context,
+                event={
+                    "status": "error",
+                    "log_lines": ["mock log"],
+                    "batch_id": BATCH_ID,
+                    "response": "mock error",
+                },
+            )
+        self.mock_context["ti"].xcom_push.assert_not_called()

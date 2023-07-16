@@ -341,6 +341,11 @@ class TestProviderManager:
         auth_backend_module_names = list(provider_manager.auth_backend_module_names)
         assert len(auth_backend_module_names) > 0
 
+    def test_trigger(self):
+        provider_manager = ProvidersManager()
+        trigger_class_names = list(provider_manager.trigger)
+        assert len(trigger_class_names) > 10
+
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_no_warning(self, mock_importlib_import_string):
         with self._caplog.at_level(logging.WARNING):

@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+1.5.1
+.....
+
+Misc
+~~~~
+
+* ``Bring back min-airflow-version for preinstalled providers (#31469)``
+
 1.5.0
 .....
 

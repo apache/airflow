@@ -50,7 +50,11 @@ try:
         get_base_pod_from_template,
     )
     from airflow.kubernetes import pod_generator
-    from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key
+    from airflow.kubernetes.kubernetes_helper_functions import (
+        annotations_for_logging_task_metadata,
+        annotations_to_key,
+        get_logs_task_metadata,
+    )
     from airflow.kubernetes.pod_generator import PodGenerator
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
@@ -1161,6 +1165,39 @@ class TestKubernetesExecutor:
 
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
+
+    def test_annotations_for_logging_task_metadata(self):
+        annotations_test = {
+            "dag_id": "dag",
+            "run_id": "run_id",
+            "task_id": "task",
+            "try_number": "1",
+        }
+        get_logs_task_metadata.cache_clear()
+        with conf_vars({("kubernetes", "logs_task_metadata"): "True"}):
+            expected_annotations = {
+                "dag_id": "dag",
+                "run_id": "run_id",
+                "task_id": "task",
+                "try_number": "1",
+            }
+            annotations_actual = annotations_for_logging_task_metadata(annotations_test)
+            assert annotations_actual == expected_annotations
+        get_logs_task_metadata.cache_clear()
+
+    def test_annotations_for_logging_task_metadata_fallback(self):
+        annotations_test = {
+            "dag_id": "dag",
+            "run_id": "run_id",
+            "task_id": "task",
+            "try_number": "1",
+        }
+        get_logs_task_metadata.cache_clear()
+        with conf_vars({("kubernetes", "logs_task_metadata"): "False"}):
+            expected_annotations = "<omitted>"
+            annotations_actual = annotations_for_logging_task_metadata(annotations_test)
+            assert annotations_actual == expected_annotations
+        get_logs_task_metadata.cache_clear()
 
 
 class TestKubernetesJobWatcher:

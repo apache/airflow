@@ -201,7 +201,7 @@ class FileTaskHandler(logging.Handler):
         triggerer instances.
         """
         full_path = Path(full_path).as_posix()
-        full_path += f".{LogType.TRIGGER}"
+        full_path += f".{LogType.TRIGGER.value}"
         if job_id:
             full_path += f".{job_id}.log"
         return full_path

@@ -930,7 +930,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     def test_dbapi_get_uri(self):
         assert self.hook.get_uri().startswith("bigquery://")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.hashlib.md5")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.md5")
     @pytest.mark.parametrize(
         "test_dag_id, expected_job_id",
         [("test-dag-id-1.1", "airflow_test_dag_id_1_1_test_job_id_2020_01_23T00_00_00_hash")],

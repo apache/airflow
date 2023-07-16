@@ -22,11 +22,13 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 
 # Use dummy AWS credentials
+from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
+
 AWS_REGION = "eu-west-1"
 AWS_ACCESS_KEY_ID = "airflow_dummy_key"
 AWS_SECRET_ACCESS_KEY = "airflow_dummy_secret"
@@ -255,6 +257,21 @@ class TestBatchOperator:
                 overrides={"a": "b"},
                 container_overrides={"a": "b"},
             )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_defer_if_deferrable_param_set(self, mock_client):
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            do_xcom_push=False,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            batch.execute(context=None)
+        assert isinstance(exc.value.trigger, BatchOperatorTrigger), "Trigger is not a BatchOperatorTrigger"
 
 
 class TestBatchCreateComputeEnvironmentOperator:

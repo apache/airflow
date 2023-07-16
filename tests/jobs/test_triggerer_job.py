@@ -143,7 +143,11 @@ def test_trigger_logging_sensitive_info(session, capsys):
     finally:
         # We always have to stop the runner
         triggerer_job_runner.trigger_runner.stop = True
+    # Since we have now an in-memory process of forwarding the logs to stdout,
+    # give it more time for the trigger event to write the log.
+    time.sleep(0.5)
     stdout = capsys.readouterr().out
+
     assert "test_dag/test_run/sensitive_arg_task/-1/1 (ID 1) starting" in stdout
     assert "some_password" not in stdout
 

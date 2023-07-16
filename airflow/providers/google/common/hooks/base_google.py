@@ -198,6 +198,9 @@ class GoogleBaseHook(BaseHook):
             "project": StringField(lazy_gettext("Project Id"), widget=BS3TextFieldWidget()),
             "key_path": StringField(lazy_gettext("Keyfile Path"), widget=BS3TextFieldWidget()),
             "keyfile_dict": PasswordField(lazy_gettext("Keyfile JSON"), widget=BS3PasswordFieldWidget()),
+            "credential_config_file": StringField(
+                lazy_gettext("Credential Configuration File"), widget=BS3TextFieldWidget()
+            ),
             "scope": StringField(lazy_gettext("Scopes (comma separated)"), widget=BS3TextFieldWidget()),
             "key_secret_name": StringField(
                 lazy_gettext("Keyfile Secret Name (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
@@ -251,14 +254,18 @@ class GoogleBaseHook(BaseHook):
                     keyfile_dict_json = json.loads(keyfile_dict)
         except json.decoder.JSONDecodeError:
             raise AirflowException("Invalid key JSON.")
+
         key_secret_name: str | None = self._get_field("key_secret_name", None)
         key_secret_project_id: str | None = self._get_field("key_secret_project_id", None)
+
+        credential_config_file: str | None = self._get_field("credential_config_file", None)
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
             keyfile_dict=keyfile_dict_json,
+            credential_config_file=credential_config_file,
             key_secret_name=key_secret_name,
             key_secret_project_id=key_secret_project_id,
             scopes=self.scopes,

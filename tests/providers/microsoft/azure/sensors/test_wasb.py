@@ -128,9 +128,17 @@ class TestWasbBlobAsyncSensor:
         deferrable=True,
     )
 
-    def test_wasb_blob_sensor_async(self):
-        """Assert execute method defer for wasb blob sensor"""
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbBlobSensor.defer")
+    def test_wasb_blob_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+        mock_hook.return_value.check_for_blob.return_value = True
+        self.SENSOR.execute(mock.MagicMock())
+        assert not mock_defer.called
 
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook")
+    def test_wasb_blob_sensor_async(self, mock_hook):
+        """Assert execute method defer for wasb blob sensor"""
+        mock_hook.return_value.check_for_blob.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute(self.create_context(self.SENSOR))
         assert isinstance(exc.value.trigger, WasbBlobSensorTrigger), "Trigger is not a WasbBlobSensorTrigger"
@@ -244,9 +252,17 @@ class TestWasbPrefixAsyncSensor:
         deferrable=True,
     )
 
-    def test_wasb_prefix_sensor_async(self):
-        """Assert execute method defer for wasb prefix sensor"""
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbPrefixSensor.defer")
+    def test_wasb_prefix_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+        mock_hook.return_value.check_for_prefix.return_value = True
+        self.SENSOR.execute(mock.MagicMock())
+        assert not mock_defer.called
 
+    @mock.patch("airflow.providers.microsoft.azure.sensors.wasb.WasbHook")
+    def test_wasb_prefix_sensor_async(self, mock_hook):
+        """Assert execute method defer for wasb prefix sensor"""
+        mock_hook.return_value.check_for_prefix.return_value = False
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute(self.create_context(self.SENSOR))
         assert isinstance(

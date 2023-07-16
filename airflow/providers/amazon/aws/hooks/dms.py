@@ -207,7 +207,7 @@ class DmsHook(AwsBaseHook):
             raise TypeError("Status must be an instance of DmsTaskWaiterStatus")
 
         dms_client = self.get_conn()
-        waiter = dms_client.get_waiter(f"replication_task_{status}")
+        waiter = dms_client.get_waiter(f"replication_task_{status.value}")
         waiter.wait(
             Filters=[
                 {

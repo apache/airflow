@@ -59,10 +59,10 @@ Container Registry used as cache
 We are using GitHub Container Registry to store the results of the ``Build Images``
 workflow which is used in the ``Tests`` workflow.
 
-Currently in main version of Airflow we run tests in 4 different versions of Python (3.7, 3.8, 3.9, 3.10)
-which means that we have to build 8 images (4 CI ones and 4 PROD ones). Yet we run around 12 jobs
-with each of the CI images. That is a lot of time to just build the environment to run. Therefore
-we are utilising ``pull_request_target`` feature of GitHub Actions.
+Currently in main version of Airflow we run tests in all versions of Python supported,
+which means that we have to build multiple images (one CI and one PROD for each Python version).
+Yet we run many jobs (>15) - for each of the CI images. That is a lot of time to just build the
+environment to run. Therefore we are utilising ``pull_request_target`` feature of GitHub Actions.
 
 This feature allows to run a separate, independent workflow, when the main workflow is run -
 this separate workflow is different than the main one, because by default it runs using ``main`` version

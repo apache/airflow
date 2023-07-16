@@ -774,8 +774,8 @@ class CustomSQLAInterface(SQLAInterface):
                 continue
             proxy_instance = getattr(self.obj, obj_attr)
             if hasattr(proxy_instance.remote_attr.prop, "columns"):
-                self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
-                self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
+                self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
+                self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
