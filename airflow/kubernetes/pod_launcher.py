@@ -17,7 +17,6 @@
 # under the License.
 """
 This module is deprecated.
-
 Please use :mod:`kubernetes.client.models` for V1ResourceRequirements and Port.
 """
 from __future__ import annotations
