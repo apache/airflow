@@ -20,7 +20,6 @@ from enum import Enum
 
 
 class NeptuneDbType(Enum):
-    """Only available types for the Neptune"""
-
+    """Only available types for the AWS Neptune DB"""
     INSTANCE: str = "instance"
     CLUSTER: str = "cluster"

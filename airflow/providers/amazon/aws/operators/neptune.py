@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
@@ -53,19 +54,23 @@ class NeptuneStartDbOperator(BaseOperator):
         self,
         *,
         db_identifier: str,
+        region_name: str | None = None,
         db_type: NeptuneDbType | str = NeptuneDbType.CLUSTER,
         aws_conn_id: str = "aws_default",
-        region_name: str = "us-east-1",
         wait_for_completion: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.db_identifier = db_identifier
-        self.hook = NeptuneHook(aws_conn_id=aws_conn_id, region_name=region_name)
-        self.db_identifier = db_identifier
+        self.region_name = region_name
         self.db_type = db_type
         self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
+
+    @cached_property
+    def hook(self) -> NeptuneHook:
+        """Create and return a NeptuneHook."""
+        return NeptuneHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context) -> str:
         self.db_type = NeptuneDbType(self.db_type)
@@ -114,18 +119,23 @@ class NeptuneStopDbOperator(BaseOperator):
         self,
         *,
         db_identifier: str,
+        region_name: str | None = None,
         db_type: NeptuneDbType | str = NeptuneDbType.INSTANCE,
         aws_conn_id: str = "aws_default",
-        region_name: str = "us-east-1",
         wait_for_completion: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.hook = NeptuneHook(aws_conn_id=aws_conn_id, region_name=region_name)
         self.db_identifier = db_identifier
+        self.region_name = region_name
         self.db_type = db_type
         self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
+
+    @cached_property
+    def hook(self) -> NeptuneHook:
+        """Create and return a NeptuneHook."""
+        return NeptuneHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context) -> str:
         self.db_type = NeptuneDbType(self.db_type)
