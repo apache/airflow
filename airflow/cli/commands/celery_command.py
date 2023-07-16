@@ -25,6 +25,7 @@ from multiprocessing import Process
 
 import daemon
 import psutil
+import rich
 import sqlalchemy.exc
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
 from celery.app.defaults import DEFAULT_TASK_LOG_FMT
@@ -33,6 +34,7 @@ from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
+from airflow.cli.commands.celery_command_utils import check_celery_executor_compatibility
 from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
@@ -41,9 +43,23 @@ from airflow.utils.serve_logs import serve_logs
 WORKER_PROCESS_NAME = "worker"
 
 
+def exit_if_not_compatible(command: str):
+    """Raise exception if celery command is not compatible."""
+    celery_command_compatibility = check_celery_executor_compatibility()
+    if not celery_command_compatibility.is_compatible:
+        rich.print(
+            f"[red]The `celery {command}` command cannot be run.[/]\n"
+            f"\n{celery_command_compatibility.message}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 @cli_utils.action_cli
 def flower(args):
     """Starts Flower, Celery monitoring tool."""
+    exit_if_not_compatible("flower")
+
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
 
@@ -134,6 +150,7 @@ def logger_setup_handler(logger, **kwargs):
 @cli_utils.action_cli
 def worker(args):
     """Starts Airflow Celery worker."""
+    exit_if_not_compatible("worker")
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
 

@@ -30,6 +30,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.cli import cli_config, cli_parser
+from airflow.cli.commands.celery_command import flower, stop_worker, worker
 from tests.test_utils.config import conf_vars
 
 # Can not be `--snake_case` or contain uppercase letter
@@ -199,31 +200,52 @@ class TestCli:
             cli_config.positive_int(allow_zero=True)("-1")
 
     @pytest.mark.parametrize(
+        "command, method",
+        [
+            (["celery", "worker"], worker),
+            (["celery", "flower"], flower),
+        ],
+    )
+    def test_dag_parser_requires_celery_executor(self, command, method):
+        with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
+            io.StringIO()
+        ) as stderr:
+            parser = cli_parser.get_parser()
+            args = parser.parse_args(command)
+            with pytest.raises(SystemExit):
+                method(args)
+            stderr = stderr.getvalue()
+        assert f"The `{' '.join(command)}` command cannot be run." in stderr
+        assert "SequentialExecutor" in stderr
+
+    @pytest.mark.parametrize(
         "command",
         [
             ["celery"],
             ["celery", "--help"],
             ["celery", "worker", "--help"],
-            ["celery", "worker"],
             ["celery", "flower", "--help"],
-            ["celery", "flower"],
-            ["celery", "stop_worker", "--help"],
-            ["celery", "stop_worker"],
+            ["celery", "stop", "--help"],
         ],
     )
-    def test_dag_parser_require_celery_executor(self, command):
-        with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
+    def test_dag_parser_only_warns_celery_executor(self, command):
+        with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stdout(
             io.StringIO()
-        ) as stderr:
+        ) as stdout:
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
                 parser.parse_args(command)
-            stderr = stderr.getvalue()
-        assert (
-            "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
-            "works only with CeleryExecutor, CeleryKubernetesExecutor and executors derived from them, "
-            "your current executor: SequentialExecutor, subclassed from: BaseExecutor, see help above."
-        ) in stderr
+            stdout = stdout.getvalue()
+        assert "Usage:" in stdout
+
+    def test_stop_worker(self):
+        with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stdout(
+            io.StringIO()
+        ) as stdout:
+            parser = cli_parser.get_parser()
+            args = parser.parse_args(["celery", "stop"])
+            stop_worker(args)
+        assert "" == stdout.getvalue()
 
     @pytest.mark.parametrize(
         "executor",
