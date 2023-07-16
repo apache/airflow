@@ -198,13 +198,26 @@ class TestCli:
             cli_config.positive_int(allow_zero=False)("0")
             cli_config.positive_int(allow_zero=True)("-1")
 
-    def test_dag_parser_celery_command_require_celery_executor(self):
+    @pytest.mark.parametrize(
+        "command",
+        [
+            ["celery"],
+            ["celery", "--help"],
+            ["celery", "worker", "--help"],
+            ["celery", "worker"],
+            ["celery", "flower", "--help"],
+            ["celery", "flower"],
+            ["celery", "stop_worker", "--help"],
+            ["celery", "stop_worker"],
+        ],
+    )
+    def test_dag_parser_require_celery_executor(self, command):
         with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
             io.StringIO()
         ) as stderr:
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args(["celery"])
+                parser.parse_args(command)
             stderr = stderr.getvalue()
         assert (
             "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "

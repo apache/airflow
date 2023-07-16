@@ -911,8 +911,8 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     # If we have an empty table, and the default values exist, we will seed the
     # table with values from pre 2.3.0, so old logs will still be retrievable.
     if not stored:
-        is_default_log_id = elasticsearch_id == conf.airflow_defaults.get("elasticsearch", "log_id_template")
-        is_default_filename = filename == conf.airflow_defaults.get("logging", "log_filename_template")
+        is_default_log_id = elasticsearch_id == conf.get_default_value("elasticsearch", "log_id_template")
+        is_default_filename = filename == conf.get_default_value("logging", "log_filename_template")
         if is_default_log_id and is_default_filename:
             session.add(
                 LogTemplate(
