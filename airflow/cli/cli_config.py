@@ -311,6 +311,31 @@ ARG_NUM_EXECUTIONS = Arg(
 ARG_MARK_SUCCESS = Arg(
     ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
 )
+ARG_INCLUDE_DESCRIPTIONS = Arg(
+    ("-d", "--include-descriptions"),
+    help="Show descriptions for the configuration variables",
+    action="store_true",
+)
+ARG_INCLUDE_EXAMPLES = Arg(
+    ("-e", "--include-examples"), help="Show examples for the configuration variables", action="store_true"
+)
+ARG_INCLUDE_SOURCES = Arg(
+    ("-s", "--include-sources"), help="Show source of the configuration variable", action="store_true"
+)
+ARG_INCLUDE_ENV_VARS = Arg(
+    ("-V", "--include-env-vars"), help="Show environment variable for each option", action="store_true"
+)
+ARG_COMMENT_OUT_EVERYTHING = Arg(
+    ("-c", "--comment-out-everything"),
+    help="Comment out all configuration options. Useful as starting point for new installation",
+    action="store_true",
+)
+ARG_DEFAULTS = Arg(
+    ("-a", "--defaults"),
+    help="Show only defaults - do not include local configuration, sources,"
+    " includes descriptions, examples, variables. Comment out everything.",
+    action="store_true",
+)
 ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
 ARG_DONOT_PICKLE = Arg(
@@ -2002,7 +2027,17 @@ CONFIG_COMMANDS = (
         name="list",
         help="List options for the configuration",
         func=lazy_load_command("airflow.cli.commands.config_command.show_config"),
-        args=(ARG_OPTIONAL_SECTION, ARG_COLOR, ARG_VERBOSE),
+        args=(
+            ARG_OPTIONAL_SECTION,
+            ARG_COLOR,
+            ARG_INCLUDE_DESCRIPTIONS,
+            ARG_INCLUDE_EXAMPLES,
+            ARG_INCLUDE_SOURCES,
+            ARG_INCLUDE_ENV_VARS,
+            ARG_COMMENT_OUT_EVERYTHING,
+            ARG_DEFAULTS,
+            ARG_VERBOSE,
+        ),
     ),
 )
 
