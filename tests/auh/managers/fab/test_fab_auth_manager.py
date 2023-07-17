@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import Mock
 
 import pytest
 
@@ -46,3 +47,11 @@ class TestFabAuthManager:
         mock_current_user.return_value = user
 
         assert auth_manager.get_user_name() == expected
+
+    @mock.patch("flask_login.utils._get_user")
+    def test_is_logged_in(self, mock_current_user, auth_manager):
+        user = Mock()
+        user.is_anonymous.return_value = True
+        mock_current_user.return_value = user
+
+        assert auth_manager.is_logged_in() is False

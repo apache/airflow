@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.1
+.....
+
+Latest change: 2023-07-09
+
+=================================================================================================  ===========  ==========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================================
+`c6f151fa8f <https://github.com/apache/airflow/commit/c6f151fa8f569687f3d889bce04bc270f114d208>`_  2023-07-09   ``Fix an issue that crashes Airflow Webserver when passed invalid private key path to Snowflake (#32016)``
+`53d9421905 <https://github.com/apache/airflow/commit/53d9421905c3c268744c3e43601db63bc7b6fa87>`_  2023-07-07   ``build(pre-commit): check deferrable default value (#32370)``
+`21e8f878a3 <https://github.com/apache/airflow/commit/21e8f878a3c91250d0d198c6c3675b4b350fcb61>`_  2023-07-06   ``D205 Support - Providers: Snowflake to Zendesk (inclusive) (#32359)``
+=================================================================================================  ===========  ==========================================================================================================
+
 4.3.0
 .....
 
-Latest change: 2023-07-05
+Latest change: 2023-07-06
 
 =================================================================================================  ===========  ================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `891c2e4019 <https://github.com/apache/airflow/commit/891c2e401928ecafea78f7c6c3b453663ef03dce>`_  2023-07-04   ``Add Deferrable switch to SnowflakeSqlApiOperator (#31596)``

@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.3.1
+.....
+
+Latest change: 2023-07-12
+
+=================================================================================================  ===========  =================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================
+`50a68c6c4e <https://github.com/apache/airflow/commit/50a68c6c4ecb0a45272be7df7939ded6f28cf2f9>`_  2023-07-12   ``Append region info to S3ToRedshitOperator if present (#32328)``
+=================================================================================================  ===========  =================================================================
+
 8.3.0
 .....
 
-Latest change: 2023-07-08
+Latest change: 2023-07-09
 
 =================================================================================================  ===========  ============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================================
+`cd1ac927a7 <https://github.com/apache/airflow/commit/cd1ac927a7c8451fb27547ee9dc94950214df393>`_  2023-07-09   ``Prepare docs for July 2023 RC3 amazon provider (#32455)``
 `c99c03135c <https://github.com/apache/airflow/commit/c99c03135ca7e7c41e1c6d338de9e41422ea84f0>`_  2023-07-08   ``D205 Support - Providers: Stragglers and new additions (#32447)``
 `8c6751ff0f <https://github.com/apache/airflow/commit/8c6751ff0f2056af1cb08cec03db8a4d6c913ca7>`_  2023-07-07   ``quick fix on RDS operator to prevent parameter collision (#32436)``
 `869f3a93a8 <https://github.com/apache/airflow/commit/869f3a93a8873381a57382f8a0ab88879ca43f9a>`_  2023-07-07   ``Remove ability to specify arbitrary hook params in AWS RDS trigger (#32386)``

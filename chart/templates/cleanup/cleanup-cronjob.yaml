@@ -43,7 +43,7 @@ metadata:
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  schedule: "{{ .Values.cleanup.schedule }}"
+  schedule: "{{ tpl .Values.cleanup.schedule . }}"
   # The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
   concurrencyPolicy: Forbid
   {{- if .Values.cleanup.failedJobsHistoryLimit }}

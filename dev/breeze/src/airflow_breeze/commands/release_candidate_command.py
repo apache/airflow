@@ -20,6 +20,7 @@ import os
 
 import click
 
+from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.common_options import option_answer
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
@@ -294,11 +295,10 @@ def remove_old_releases(version, repo_root):
     os.chdir(repo_root)
 
 
-@click.command(
+@release_management.command(
     name="start-rc-process",
     short_help="Start RC process",
     help="Start the process for releasing a new RC.",
-    hidden=True,
 )
 @click.option("--version", required=True, help="The release candidate version e.g. 2.4.3rc1")
 @click.option("--previous-version", required=True, help="Previous version released e.g. 2.4.2")

@@ -210,13 +210,19 @@ class WasbHook(BaseHook):
             if sas_token.startswith("https"):
                 return BlobServiceClient(account_url=sas_token, **extra)
             else:
-                return BlobServiceClient(account_url=f"{account_url}/{sas_token}", **extra)
+                if not account_url.startswith("https://"):
+                    # TODO: require url in the host field in the next major version?
+                    account_url = f"https://{conn.login}.blob.core.windows.net"
+                return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
         if not credential:
             credential = DefaultAzureCredential()
             self.log.info("Using DefaultAzureCredential as credential")
+        if not account_url.startswith("https://"):
+            # TODO: require url in the host field in the next major version?
+            account_url = f"https://{conn.login}.blob.core.windows.net/"
         return BlobServiceClient(
             account_url=account_url,
             credential=credential,

@@ -167,3 +167,15 @@ def auth_backend_list(args):
             "api_auth_backand_module": x,
         },
     )
+
+
+@suppress_logs_and_warning
+def executors_list(args):
+    """Lists all executors at the command line."""
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().executor_class_names),
+        output=args.output,
+        mapper=lambda x: {
+            "executor_class_names": x,
+        },
+    )
