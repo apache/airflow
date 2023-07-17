@@ -24,7 +24,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
-from airflow.providers.amazon.aws.triggers.stepfunction import StepFunctionsStartExecutionTrigger
+from airflow.providers.amazon.aws.triggers.stepfunction import StepFunctionsExecutionCompleteTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -49,7 +49,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
     :param waiter_delay: Number of seconds between polling the state of the execution.
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
 
     template_fields: Sequence[str] = ("state_machine_arn", "name", "input")
@@ -90,7 +90,7 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         self.log.info("Started State Machine execution for %s: %s", self.state_machine_arn, execution_arn)
         if self.deferrable:
             self.defer(
-                trigger=StepFunctionsStartExecutionTrigger(
+                trigger=StepFunctionsExecutionCompleteTrigger(
                     execution_arn=execution_arn,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,

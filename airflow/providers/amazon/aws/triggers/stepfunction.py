@@ -21,7 +21,7 @@ from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
 
-class StepFunctionsStartExecutionTrigger(AwsBaseWaiterTrigger):
+class StepFunctionsExecutionCompleteTrigger(AwsBaseWaiterTrigger):
     """
     Trigger to poll for the completion of a Step Functions execution.
 
@@ -39,9 +39,7 @@ class StepFunctionsStartExecutionTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int = 30,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
-    ):
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
+    ) -> None:
 
         super().__init__(
             serialized_fields={"execution_arn": execution_arn, "region_name": region_name},
@@ -49,7 +47,7 @@ class StepFunctionsStartExecutionTrigger(AwsBaseWaiterTrigger):
             waiter_args={"executionArn": execution_arn},
             failure_message="Step function failed",
             status_message="Status of step function execution is",
-            status_queries=["status"],
+            status_queries=["status", "error", "cause"],
             return_key="execution_arn",
             return_value=execution_arn,
             waiter_delay=waiter_delay,
