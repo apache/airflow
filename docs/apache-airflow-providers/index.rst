@@ -28,7 +28,7 @@ multitude of external systems, but they can also extend Airflow core with new ca
 
 You can install those provider packages separately in order to interface with a given service. The providers
 for ``Apache Airflow`` are designed in the way that you can write your own providers easily. The
-``Apache Airflow Community`` develops and maintain more than 60 provider packages, but you are free to
+``Apache Airflow Community`` develops and maintain more than 80 provider packages, but you are free to
 develop your own providers - the providers you build have exactly the same capability as the providers
 written by the community, so you can release and share those providers with others.
 
@@ -137,7 +137,7 @@ Community maintained providers
 
 From the point of view of the community, Airflow is delivered in multiple, separate packages.
 The core of Airflow scheduling system is delivered as ``apache-airflow`` package and there are more than
-60 provider packages which can be installed separately as so called ``Airflow Provider packages``.
+80 provider packages which can be installed separately as so called ``Airflow Provider packages``.
 Those packages are available as ``apache-airflow-providers`` packages - for example there is an
 ``apache-airflow-providers-amazon`` or ``apache-airflow-providers-google`` package).
 
@@ -338,7 +338,7 @@ If you have done that, airflow does the following at runtime:
 
 **Should I name my provider specifically or should it be created in ``airflow.providers`` package?**
 
-We have quite a number (>60) of providers managed by the community and we are going to maintain them
+We have quite a number (>80) of providers managed by the community and we are going to maintain them
 together with Apache Airflow. All those providers have well-defined structured and follow the
 naming conventions we defined and they are all in ``airflow.providers`` package. If your intention is
 to contribute your provider, then you should follow those conventions and make a PR to Apache Airflow
