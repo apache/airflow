@@ -804,9 +804,7 @@ class Airflow(AirflowBaseView):
 
             is_paused_count = dict(
                 session.execute(
-                    select(DagModel.is_paused, func.count(DagModel.dag_id))
-                    .group_by(DagModel.is_paused)
-                    .select_from(all_dags)
+                    select(DagModel.is_paused, func.count(DagModel.dag_id)).group_by(DagModel.is_paused)
                 ).all()
             )
 
