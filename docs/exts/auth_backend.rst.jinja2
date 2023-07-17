@@ -20,7 +20,7 @@
 {{ provider_dict['name'] }}
 {{ header_separator * (provider_dict['name']|length) }}
 
-{% for backend in provider_dict['auth_backends'] -%}
+{% for backend in provider_dict['auth-backends'] -%}
 - :class:`~{{ backend }}`
 {% endfor -%}
 

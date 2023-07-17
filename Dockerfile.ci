@@ -1184,32 +1184,6 @@ COPY <<"EOF" /entrypoint_exec.sh
 exec /bin/bash "${@}"
 EOF
 
-# The content below is automatically copied from scripts/docker/patch_cassandra_type_code.py
-COPY <<"EOF" /patch_cassandra_type_code.py
-#!/usr/bin/env python
-
-from __future__ import annotations
-
-import cassandra.type_codes as cassandra_type_codes
-
-if __name__ == "__main__":
-    print()
-    path_to_patch = cassandra_type_codes.__file__
-    with open(path_to_patch, "r+") as f:
-        content = f.read()
-        if "PYTEST_DONT_REWRITE" in content:
-            print(f"The {path_to_patch} is already patched with PYTEST_DONT_REWRITE")
-            print()
-            exit(0)
-        f.seek(0)
-        content = content.replace('"""', '"""\nPYTEST_DONT_REWRITE', 1)
-        f.write(content)
-        f.truncate()
-        print(f"Patched {path_to_patch} with PYTEST_DONT_REWRITE")
-        print()
-        exit(0)
-EOF
-
 FROM ${PYTHON_BASE_IMAGE} as main
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
@@ -1423,15 +1397,6 @@ RUN bash /scripts/docker/install_pip_version.sh; \
     if [[ -n "${ADDITIONAL_PYTHON_DEPS}" ]]; then \
         bash /scripts/docker/install_additional_dependencies.sh; \
     fi
-
-COPY --from=scripts patch_cassandra_type_code.py /patch_cassandra_type_code.py
-
-# Patch cassandra type_code to avoide accidental type_code assert rewriting breaking pytest
-# test discovery and execution.
-# This one can be fixed once https://github.com/pytest-dev/pytest/issues/10844
-# is fixed and released or once the workaround is merged in cassandra-driver
-# https://github.com/datastax/python-driver/pull/1142
-RUN python /patch_cassandra_type_code.py
 
 # Install autocomplete for airflow
 RUN if command -v airflow; then \

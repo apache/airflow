@@ -18,7 +18,7 @@
  */
 
 import React from "react";
-import { Box, Text, Flex } from "@chakra-ui/react";
+import { Box, Text, Flex, useTheme } from "@chakra-ui/react";
 import { Handle, NodeProps, Position } from "reactflow";
 
 import { SimpleStatus } from "src/dag/StatusBox";
@@ -28,6 +28,10 @@ import { getGroupAndMapSummary, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
 import InstanceTooltip from "src/dag/InstanceTooltip";
 import { useContainerRef } from "src/context/containerRef";
+import {
+  MdOutlineArrowCircleUp,
+  MdOutlineArrowCircleDown,
+} from "react-icons/md";
 
 export interface CustomNodeProps {
   label: string;
@@ -42,6 +46,7 @@ export interface CustomNodeProps {
   onToggleCollapse: () => void;
   isOpen?: boolean;
   isActive?: boolean;
+  setupTeardownType?: "setup" | "teardown";
 }
 
 export const BaseNode = ({
@@ -58,8 +63,10 @@ export const BaseNode = ({
     onToggleCollapse,
     isOpen,
     isActive,
+    setupTeardownType,
   },
 }: NodeProps<CustomNodeProps>) => {
+  const { colors } = useTheme();
   const { onSelect } = useSelection();
   const containerRef = useContainerRef();
 
@@ -114,10 +121,22 @@ export const BaseNode = ({
           p={2}
           flexWrap="wrap"
         >
-          <Flex flexDirection="column">
-            <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
-              {taskName}
-            </Text>
+          <Flex flexDirection="column" width="100%">
+            <Flex
+              justifyContent="space-between"
+              alignItems="center"
+              width="100%"
+            >
+              <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
+                {taskName}
+              </Text>
+              {setupTeardownType === "setup" && (
+                <MdOutlineArrowCircleUp size={18} color={colors.gray[800]} />
+              )}
+              {setupTeardownType === "teardown" && (
+                <MdOutlineArrowCircleDown size={18} color={colors.gray[800]} />
+              )}
+            </Flex>
             {!!instance && instance.state && (
               <Flex alignItems="center">
                 <SimpleStatus state={instance.state} />

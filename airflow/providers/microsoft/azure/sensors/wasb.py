@@ -112,6 +112,11 @@ class WasbBlobAsyncSensor(WasbBlobSensor):
     """
     Polls asynchronously for the existence of a blob in a WASB container.
 
+    This class is deprecated and will be removed in a future release.
+
+    Please use :class:`airflow.providers.microsoft.azure.sensors.wasb.WasbBlobSensor`
+    and set *deferrable* attribute to *True* instead.
+
     :param container_name: name of the container in which the blob should be searched for
     :param blob_name: name of the blob to check existence for
     :param wasb_conn_id: the connection identifier for connecting to Azure WASB

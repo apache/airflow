@@ -34,7 +34,7 @@ from tests.system.providers.apache.beam.utils import (
 )
 
 with models.DAG(
-    "example_beam_native_python",
+    dag_id="dataflow_native_python_async",
     start_date=START_DATE,
     schedule=None,  # Override to match your needs
     catchup=False,
@@ -42,7 +42,7 @@ with models.DAG(
     tags=["example"],
 ) as dag:
 
-    # [START howto_operator_start_python_direct_runner_pipeline_local_file]
+    # [START howto_operator_start_python_direct_runner_pipeline_local_file_async]
     start_python_pipeline_local_direct_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_local_direct_runner",
         py_file="apache_beam.examples.wordcount",
@@ -50,10 +50,11 @@ with models.DAG(
         py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
+        deferrable=True,
     )
-    # [END howto_operator_start_python_direct_runner_pipeline_local_file]
+    # [END howto_operator_start_python_direct_runner_pipeline_local_file_async]
 
-    # [START howto_operator_start_python_direct_runner_pipeline_gcs_file]
+    # [START howto_operator_start_python_direct_runner_pipeline_gcs_file_async]
     start_python_pipeline_direct_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_direct_runner",
         py_file=GCS_PYTHON,
@@ -62,10 +63,11 @@ with models.DAG(
         py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
+        deferrable=True,
     )
-    # [END howto_operator_start_python_direct_runner_pipeline_gcs_file]
+    # [END howto_operator_start_python_direct_runner_pipeline_gcs_file_async]
 
-    # [START howto_operator_start_python_dataflow_runner_pipeline_gcs_file]
+    # [START howto_operator_start_python_dataflow_runner_pipeline_gcs_file_async]
     start_python_pipeline_dataflow_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_dataflow_runner",
         runner="DataflowRunner",
@@ -82,9 +84,11 @@ with models.DAG(
         dataflow_config=DataflowConfiguration(
             job_name="{{task.task_id}}", project_id=GCP_PROJECT_ID, location="us-central1"
         ),
+        deferrable=True,
     )
-    # [END howto_operator_start_python_dataflow_runner_pipeline_gcs_file]
+    # [END howto_operator_start_python_dataflow_runner_pipeline_gcs_file_async]
 
+    # [START howto_operator_start_python_pipeline_local_runner_spark_runner_async]
     start_python_pipeline_local_spark_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_local_spark_runner",
         py_file="apache_beam.examples.wordcount",
@@ -93,8 +97,11 @@ with models.DAG(
         py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
+        deferrable=True,
     )
+    # [END howto_operator_start_python_pipeline_local_runner_spark_runner_async]
 
+    # [START howto_operator_start_python_pipeline_local_runner_flink_runner_async]
     start_python_pipeline_local_flink_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_local_flink_runner",
         py_file="apache_beam.examples.wordcount",
@@ -106,7 +113,9 @@ with models.DAG(
         py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
+        deferrable=True,
     )
+    # [END howto_operator_start_python_pipeline_local_runner_flink_runner_async]
 
     (
         [
