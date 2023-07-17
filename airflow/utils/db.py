@@ -1877,5 +1877,7 @@ def get_sqla_model_classes():
 
 def get_query_count(query_stmt: Select, session: Session) -> int:
     """Get count of query."""
+    # Remove ORDER BY clause from the subquery statement since it's unnecessary for count
+    # in order to improve the query performance.
     count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
     return session.scalar(count_stmt)
