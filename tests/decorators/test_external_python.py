@@ -51,20 +51,20 @@ def venv_python():
 
 
 @pytest.fixture()
-def venv_python_with_dill():
+def venv_python_with_cloudpickle():
     with TemporaryDirectory() as d:
         venv.create(d, with_pip=True)
         python_path = Path(d) / "bin" / "python"
-        subprocess.call([python_path, "-m", "pip", "install", "dill"])
+        subprocess.call([python_path, "-m", "pip", "install", "cloudpickle"])
         yield python_path
 
 
 class TestExternalPythonDecorator:
-    def test_with_dill_works(self, dag_maker, venv_python_with_dill):
-        @task.external_python(python=venv_python_with_dill, use_cloudpickle=True)
+    def test_with_cloudpickle_works(self, dag_maker, venv_python_with_cloudpickle):
+        @task.external_python(python=venv_python_with_cloudpickle, use_cloudpickle=True)
         def f():
             """Import cloudpickle to double-check it is installed ."""
-            import cloudpickle # noqa: F401
+            import cloudpickle  # noqa: F401
 
         with dag_maker():
             ret = f()
