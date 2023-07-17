@@ -32,6 +32,20 @@ from airflow.providers.google.common.hooks.base_google import (
 
 
 class CloudBatchHook(GoogleBaseHook):
+    """
+    Hook for the Google Cloud Batch service.
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    """
+
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
@@ -171,7 +185,20 @@ class CloudBatchHook(GoogleBaseHook):
 
 
 class CloudBatchAsyncHook(GoogleBaseHook):
+    """
+    Async hook for the Google Cloud Batch service.
 
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    """
+    
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",

@@ -110,7 +110,8 @@ class TestCloudBatchJobFinishedTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
     async def test_trigger_on_deleted_yield_exception(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
         """
-        Tests the CloudBuildCreateBuildTrigger fires once the job execution reaches an state with an error message.
+        Tests the CloudBuildCreateBuildTrigger fires once the job execution
+        reaches an state with an error message.
         """
         mock_hook.return_value.get_build_job.side_effect = Exception(
             "Test Exception")
