@@ -527,6 +527,7 @@ class DagRun(Base, LoggingMixin):
     ) -> list[TI]:
         """
         Returns the task instances for this dag run.
+
         Redirect to DagRun.fetch_task_instances method.
         Keep this method because it is widely used across the code.
         """
