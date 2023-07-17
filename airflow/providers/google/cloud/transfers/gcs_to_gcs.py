@@ -106,11 +106,12 @@ class GCSToGCSOperator(BaseOperator):
             source_objects=['sales/sales-2017/january.avro'],
             destination_bucket='data_backup',
             destination_object='copied_sales/2017/january-backup.avro',
+            exact_match=True,
             gcp_conn_id=google_cloud_conn_id
         )
 
     The following Operator would copy all the Avro files from ``sales/sales-2017``
-    folder (i.e. with names starting with that prefix) in ``data`` bucket to the
+    folder (i.e. all files with names starting with that prefix) in ``data`` bucket to the
     ``copied_sales/2017`` folder in the ``data_backup`` bucket. ::
 
         copy_files = GCSToGCSOperator(
@@ -135,7 +136,7 @@ class GCSToGCSOperator(BaseOperator):
         )
 
     The following Operator would move all the Avro files from ``sales/sales-2017``
-    folder (i.e. with names starting with that prefix) in ``data`` bucket to the
+    folder (i.e. all files with names starting with that prefix) in ``data`` bucket to the
     same folder in the ``data_backup`` bucket, deleting the original files in the
     process. ::
 
@@ -314,9 +315,11 @@ class GCSToGCSOperator(BaseOperator):
         """
         List all files in source_objects, copy files to destination_object, and rename each source file.
 
-        For source_objects with no wildcard, this operator would first list all
-        files in source_objects, using provided delimiter if any. Then copy files
-        from source_objects to destination_object and rename each source file.
+        For source_objects with no wildcard, this operator would first list
+        all files in source_objects, using provided delimiter if any. Then copy
+        files from source_objects to destination_object and rename each source
+        file. Note that if the flag exact_match=False, then each item in the source_objects
+        (or source_object itself) will be considered as a prefix for the source objects search.
 
         Example 1:
 
@@ -366,6 +369,22 @@ class GCSToGCSOperator(BaseOperator):
                 destination_object='b/',
                 gcp_conn_id=google_cloud_conn_id
             )
+
+        Example 4:
+
+        The following Operator would copy files corresponding to the prefix 'a/foo.txt'
+        (a/foo.txt, a/foo.txt.abc, a/foo.txt/subfolder/file.txt) in ``data`` bucket to
+        the ``b/`` folder in the ``data_backup`` bucket
+        (b/foo.txt, b/foo.txt.abc, b/foo.txt/subfolder/file.txt) ::
+
+            copy_files = GCSToGCSOperator(
+                task_id='copy_files_without_wildcard',
+                source_bucket='data',
+                source_object='a/foo.txt',
+                destination_bucket='data_backup',
+                destination_object='b/',
+                gcp_conn_id=google_cloud_conn_id
+            )
         """
         objects = hook.list(
             self.source_bucket, prefix=prefix, delimiter=self.delimiter, match_glob=self.match_glob
@@ -390,11 +409,10 @@ class GCSToGCSOperator(BaseOperator):
                 msg = f"{prefix} does not exist in bucket {self.source_bucket}"
                 self.log.warning(msg)
                 raise AirflowException(msg)
-
         if len(objects) == 1 and objects[0][-1] != "/":
             self._copy_file(hook=hook, source_object=objects[0])
         elif len(objects):
-            self._copy_directory(hook=hook, source_objects=objects, prefix=prefix)
+            self._copy_multiple_objects(hook=hook, source_objects=objects, prefix=prefix)
 
     def _copy_file(self, hook, source_object):
         destination_object = self.destination_object or source_object
@@ -405,15 +423,25 @@ class GCSToGCSOperator(BaseOperator):
             hook=hook, source_object=source_object, destination_object=destination_object
         )
 
-    def _copy_directory(self, hook, source_objects, prefix):
-        _prefix = prefix.rstrip("/") + "/"
+    def _copy_multiple_objects(self, hook, source_objects, prefix):
+        # Check whether the prefix is a root directory for all the rest of objects.
+        _pref = prefix.rstrip("/")
+        is_directory = prefix.endswith("/") or all(
+            [obj.replace(_pref, "", 1).startswith("/") for obj in source_objects]
+        )
+
+        if is_directory:
+            base_path = prefix.rstrip("/") + "/"
+        else:
+            base_path = prefix[0 : prefix.rfind("/") + 1] if "/" in prefix else ""
+
         for source_obj in source_objects:
             if not self._check_exact_match(source_obj, prefix):
                 continue
             if self.destination_object is None:
                 destination_object = source_obj
             else:
-                file_name_postfix = source_obj.replace(_prefix, "", 1)
+                file_name_postfix = source_obj.replace(base_path, "", 1)
                 destination_object = self.destination_object.rstrip("/") + "/" + file_name_postfix
 
             self._copy_single_object(

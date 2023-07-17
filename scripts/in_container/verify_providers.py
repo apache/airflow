@@ -714,12 +714,17 @@ def run_provider_discovery():
     subprocess.run(["airflow", "providers", "secrets"], check=True)
     console.print("[bright_blue]List all auth backends[/]\n")
     subprocess.run(["airflow", "providers", "auth"], check=True)
-    if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.7.0.dev0"):
+    if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.6.0.dev0"):
         # CI also check if our providers are installable and discoverable in airflow older versions
         # But the triggers command is not available till airflow-2-6-0
         # TODO: Remove this block once airflow dependency in providers are > 2-6-0
         console.print("[bright_blue]List all triggers[/]\n")
         subprocess.run(["airflow", "providers", "triggers"], check=True)
+    if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.7.0.dev0"):
+        # CI also check if our providers are installable and discoverable in airflow older versions
+        # But the executors command is not available till airflow-2-7-0
+        console.print("[bright_blue]List all executors[/]\n")
+        subprocess.run(["airflow", "providers", "executors"], check=True)
 
 
 AIRFLOW_LOCAL_SETTINGS_PATH = Path("/opt/airflow") / "airflow_local_settings.py"

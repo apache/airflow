@@ -87,7 +87,9 @@ def get_instance_with_map(task_instance, session):
 
 
 def get_try_count(try_number: int, state: State):
-    return try_number + 1 if state in [State.DEFERRED, State.UP_FOR_RESCHEDULE] else try_number
+    if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
+        return try_number + 1
+    return try_number
 
 
 priority: list[None | TaskInstanceState] = [
@@ -764,7 +766,7 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     def __init__(self, datamodel):
         super().__init__(datamodel)
 
-        for (method, filters) in self.conversion_table:
+        for method, filters in self.conversion_table:
             if FilterIsNull not in filters:
                 filters.append(FilterIsNull)
             if FilterIsNotNull not in filters:
@@ -924,6 +926,6 @@ class UIAlert:
                 # Unable to obtain user role - default to not showing
                 return False
 
-            if not user_roles.intersection(set(self.roles)):
+            if user_roles.isdisjoint(self.roles):
                 return False
         return True

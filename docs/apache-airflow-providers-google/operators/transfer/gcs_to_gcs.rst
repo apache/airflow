@@ -23,8 +23,6 @@ Note that files are called objects in GCS terminology, so the use of the term "o
 interchangeable. There are several operators for whose purpose is to copy data as part of the Google Cloud Service.
 This page shows how to use these operators.
 
-Overview
---------
 
 Cloud Storage Transfer Service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -61,7 +59,7 @@ In the next section they will be described.
 Prerequisite Tasks
 ------------------
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 
 Operators
@@ -97,6 +95,9 @@ Copy single file
 ----------------
 
 The following example would copy a single file, ``OBJECT_1`` from the ``BUCKET_1_SRC`` GCS bucket to the ``BUCKET_1_DST`` bucket.
+Note that if the flag ``exact_match=False`` then the ``source_object`` will be considered as a prefix for search objects
+in the ``BUCKET_1_SRC`` GCS bucket. That's why if any will be found, they will be copied as well. To prevent this from
+happening, please use ``exact_match=False``.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python
@@ -165,6 +166,9 @@ Move single file
 ----------------
 
 Supplying ``True`` to the ``move`` argument causes the operator to delete ``source_object`` once the copy is complete.
+Note that if the flag ``exact_match=False`` then the ``source_object`` will be considered as a prefix for search objects
+in the ``BUCKET_1_SRC`` GCS bucket. That's why if any will be found, they will be copied as well. To prevent this from
+happening, please use ``exact_match=False``.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
     :language: python

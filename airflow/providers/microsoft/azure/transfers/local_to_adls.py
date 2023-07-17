@@ -103,7 +103,8 @@ class LocalToAzureDataLakeStorageOperator(LocalFilesystemToADLSOperator):
     """
     This class is deprecated.
 
-    Please use `airflow.providers.microsoft.azure.transfers.local_to_adls.LocalFilesystemToADLSOperator`.
+    Please use
+    :class:`airflow.providers.microsoft.azure.transfers.local_to_adls.LocalFilesystemToADLSOperator`.
     """
 
     def __init__(self, *args, **kwargs):

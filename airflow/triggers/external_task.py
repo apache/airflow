@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import DagRunState
 
 
 class TaskStateTrigger(BaseTrigger):
@@ -110,7 +111,7 @@ class DagStateTrigger(BaseTrigger):
     def __init__(
         self,
         dag_id: str,
-        states: list[str],
+        states: list[DagRunState],
         execution_dates: list[datetime.datetime],
         poll_interval: float = 5.0,
     ):

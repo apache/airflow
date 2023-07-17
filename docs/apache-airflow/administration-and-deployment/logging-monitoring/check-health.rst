@@ -147,12 +147,12 @@ To check if the worker running on the local host is working correctly, run:
 
 .. code-block:: bash
 
-    celery --app airflow.executors.celery_executor.app inspect ping -d celery@${HOSTNAME}
+    celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d celery@${HOSTNAME}
 
 To check if the all workers in the cluster running is working correctly, run:
 
 .. code-block:: bash
 
-    celery --app airflow.executors.celery_executor.app inspect ping
+    celery --app airflow.providers.celery.executors.celery_executor.app inspect ping
 
 For more information, see: `Management Command-line Utilities (inspect/control) <https://docs.celeryproject.org/en/stable/userguide/monitoring.html#monitoring-control>`__ and `Workers Guide <https://docs.celeryproject.org/en/stable/userguide/workers.html>`__ in the Celery documentation.

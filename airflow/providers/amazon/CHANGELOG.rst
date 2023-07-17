@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+8.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Append region info to S3ToRedshitOperator if present (#32328)``
+
 8.3.0
 .....
 

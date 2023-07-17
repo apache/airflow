@@ -31,14 +31,25 @@ Airflow specifically offers security features and is responsive to issues
 around its features. If you have any concern around Airflow Security or believe
 you have uncovered a vulnerability, we suggest that you get in touch via the
 e-mail address [security@airflow.apache.org](mailto:security@airflow.apache.org).
-In the message, try to provide a description of the issue and ideally a way of
-reproducing it. The security team will get back to you after assessing the report.
 
-Note that this security address should be used only for undisclosed
-vulnerabilities. Dealing with fixed issues or general questions on how to use
-the security features should be handled regularly via the user and the dev
-lists. Please report any security problems to the project security address
-before disclosing it publicly.
+**Only** use the security e-mail address to report undisclosed security vulnerabilities in Apache
+Airflow and to manage the process of fixing such vulnerabilities. We do not accept regular
+bug reports or other security-related queries at this address. We will ignore mail
+sent to this address that does not relate to an undisclosed security problem
+in the Apache Airflow project. Please follow regular communication channels described in
+the [Airflow Community](https://airflow.apache.org/community/index.html) page for
+inquiries, questions and other discussions related to the process or issues.
+
+Specifically, we will ignore results of security scans that contain a list of
+dependencies of Airflow with dependencies in Airflow Docker reference image - there
+is a page that describes how the
+[Airflow reference Image is fixed at release time](https://airflow.apache.org/docs/docker-stack/index.html#fixing-images-at-release-time)
+and providing helpful instructions explaining how you can build your
+own image and manage dependencies of Airflow in your own image.
+
+Please send one plain-text email for each vulnerability you are reporting including an explanation
+of how it affects Airflow security. We may ask that you resubmit your report if you send it as an image,
+movie, HTML, or PDF attachment when you could as easily describe it with plain text.
 
 Before reporting vulnerabilities, please make sure to read and understand the
 [security model](https://airflow.apache.org/docs/apache-airflow/stable/security/) of Airflow, because
@@ -49,7 +60,10 @@ in other products/circumstances. Therefore, some potential security vulnerabilit
 apply to Airflow, or have a different severity than some generic scoring systems (for example `CVSS`)
 calculation suggests.
 
-The [ASF Security team's page](https://www.apache.org/security/) describes
+The [Airflow Security Team](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#security-team) will get back to you after assessing the report.
+
+If you wish to know more about the ASF security process, the
+[ASF Security team's page](https://www.apache.org/security/) describes
 how vulnerability reports are handled in general by all ASF projects, and includes PGP keys if
 you wish to use them when you report the issues.
 

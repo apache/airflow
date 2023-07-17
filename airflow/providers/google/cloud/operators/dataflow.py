@@ -173,6 +173,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
     Start a Java Cloud Dataflow batch job; the parameters of the operation will be passed to the job.
 
     This class is deprecated.
+
     Please use :class:`providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
 
     Example usage:
@@ -1023,6 +1024,7 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
     for instances, project and zone information, which apply to all dataflow operators in the DAG.
 
     This class is deprecated.
+
     Please use :class:`providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
 
     .. seealso::

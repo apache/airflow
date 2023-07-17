@@ -29,6 +29,7 @@ from typing import Generator, Union, cast
 
 import pendulum
 from pendulum.parsing.exceptions import ParserError
+from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 
@@ -111,11 +112,9 @@ def _get_dag_run(
         with suppress(ParserError, TypeError):
             execution_date = timezone.parse(exec_date_or_run_id)
         try:
-            dag_run = (
-                session.query(DagRun)
-                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
-                .one()
-            )
+            dag_run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
+            ).one()
         except NoResultFound:
             if not create_if_necessary:
                 raise DagRunNotFound(
@@ -534,18 +533,14 @@ def _guess_debugger() -> _SupportedDebugger:
 @provide_session
 def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
-    dag_run = (
-        session.query(DagRun)
-        .filter(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
-        .one_or_none()
+    dag_run = session.scalar(
+        select(DagRun).where(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
     )
     if not dag_run:
         try:
             execution_date = timezone.parse(args.execution_date_or_run_id)
-            dag_run = (
-                session.query(DagRun)
-                .filter(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
-                .one_or_none()
+            dag_run = session.scalar(
+                select(DagRun).where(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
             )
         except (ParserError, TypeError) as err:
             raise AirflowException(f"Error parsing the supplied execution_date. Error: {str(err)}")
