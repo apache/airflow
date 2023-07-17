@@ -30,7 +30,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class RdsDbInstanceTrigger(BaseTrigger):
     """
-    Deprecated Trigger for Rds operations. Do not use.
+    Deprecated Trigger for RDS operations. Do not use.
 
     :param waiter_name: Name of the waiter to use, for instance 'db_instance_available'
         or 'db_instance_deleted'.
