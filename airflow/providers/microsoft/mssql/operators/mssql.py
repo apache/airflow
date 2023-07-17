@@ -37,6 +37,10 @@ class MsSqlOperator(SQLExecuteQueryOperator):
     If conn_type is ``'odbc'``, then :py:class:`~airflow.providers.odbc.hooks.odbc.OdbcHook`
     is used.  Otherwise, :py:class:`~airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook` is used.
 
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+
     :param sql: the sql code to be executed (templated)
     :param mssql_conn_id: reference to a specific mssql database
     :param parameters: (optional) the parameters to render the SQL query with.

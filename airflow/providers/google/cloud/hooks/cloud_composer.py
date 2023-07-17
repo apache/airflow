@@ -156,6 +156,7 @@ class CloudComposerHook(GoogleBaseHook):
     ) -> Environment:
         """
         Get an existing environment.
+
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
         :param environment_id: Required. The ID of the Google Cloud environment that the service belongs to.

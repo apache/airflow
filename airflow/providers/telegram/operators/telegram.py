@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 class TelegramOperator(BaseOperator):
     """
     This operator allows you to post messages to Telegram using Telegram Bot API.
+
     Takes both Telegram Bot API token directly or connection that has Telegram token in password field.
     If both supplied, token parameter will be given precedence.
 

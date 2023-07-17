@@ -52,7 +52,6 @@ from docs_build.third_party_inventories import THIRD_PARTY_INDEXES  # noqa: E402
 CONF_DIR = pathlib.Path(__file__).parent.absolute()
 INVENTORY_CACHE_DIR = CONF_DIR / "_inventory_cache"
 ROOT_DIR = CONF_DIR.parent
-FOR_PRODUCTION = os.environ.get("AIRFLOW_FOR_PRODUCTION", "false") == "true"
 
 # By default (e.g. on RTD), build docs for `airflow` package
 PACKAGE_NAME = os.environ.get("AIRFLOW_PACKAGE_NAME", "apache-airflow")
@@ -343,7 +342,7 @@ html_sidebars = {
         "searchbox.html",
         "globaltoc.html",
     ]
-    if FOR_PRODUCTION and PACKAGE_VERSION != "devel"
+    if PACKAGE_VERSION != "devel"
     else [
         "searchbox.html",
         "globaltoc.html",
@@ -358,16 +357,15 @@ html_show_copyright = False
 
 html_theme_options: dict[str, Any] = {"hide_website_buttons": True, "sidebar_includehidden": True}
 
-if FOR_PRODUCTION:
-    html_theme_options["navbar_links"] = [
-        {"href": "/community/", "text": "Community"},
-        {"href": "/meetups/", "text": "Meetups"},
-        {"href": "/docs/", "text": "Documentation"},
-        {"href": "/use-cases/", "text": "Use-cases"},
-        {"href": "/announcements/", "text": "Announcements"},
-        {"href": "/blog/", "text": "Blog"},
-        {"href": "/ecosystem/", "text": "Ecosystem"},
-    ]
+html_theme_options["navbar_links"] = [
+    {"href": "/community/", "text": "Community"},
+    {"href": "/meetups/", "text": "Meetups"},
+    {"href": "/docs/", "text": "Documentation"},
+    {"href": "/use-cases/", "text": "Use-cases"},
+    {"href": "/announcements/", "text": "Announcements"},
+    {"href": "/blog/", "text": "Blog"},
+    {"href": "/ecosystem/", "text": "Ecosystem"},
+]
 
 # A dictionary of values to pass into the template engine's context for all pages.
 html_context = {
@@ -447,10 +445,6 @@ if PACKAGE_NAME == "apache-airflow":
         "config_ctx": {"configs": configs, "deprecated_options": deprecated_options},
         "quick_start_ctx": {
             "doc_root_url": f"https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/"
-            if FOR_PRODUCTION
-            else (
-                "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/"
-            )
         },
         "official_download_page": {
             "base_url": f"https://downloads.apache.org/airflow/{PACKAGE_VERSION}",

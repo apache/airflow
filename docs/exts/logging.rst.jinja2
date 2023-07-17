@@ -22,7 +22,7 @@
 
 :doc:`{{ provider }}:logging/index`
 
-{% for handler in provider_dict['handlers'] -%}
+{% for handler in provider_dict['logging'] -%}
 - :class:`~{{ handler }}`
 {% endfor -%}
 

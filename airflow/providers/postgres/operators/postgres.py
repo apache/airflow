@@ -20,8 +20,6 @@ from __future__ import annotations
 import warnings
 from typing import Mapping, Sequence
 
-from psycopg2.sql import SQL, Identifier
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
@@ -29,6 +27,10 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 class PostgresOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Postgres database.
+
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
 
     :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file.
@@ -41,6 +43,7 @@ class PostgresOperator(SQLExecuteQueryOperator):
     :param database: name of database which overwrite defined one in connection
     :param runtime_parameters: a mapping of runtime params added to the final sql being executed.
         For example, you could set the schema via `{"search_path": "CUSTOM_SCHEMA"}`.
+        Deprecated - use `hook_params={'options': '-c <connection_options>'}` instead.
     """
 
     template_fields: Sequence[str] = ("sql",)
@@ -61,26 +64,15 @@ class PostgresOperator(SQLExecuteQueryOperator):
             kwargs["hook_params"] = {"schema": database, **hook_params}
 
         if runtime_parameters:
-            sql = kwargs.pop("sql")
-            parameters = kwargs.pop("parameters", {})
-
-            final_sql = []
-            sql_param = {}
-            for param in runtime_parameters:
-                set_param_sql = f"SET {{}} TO %({param})s;"
-                dynamic_sql = SQL(set_param_sql).format(Identifier(f"{param}"))
-                final_sql.append(dynamic_sql)
-            for param, val in runtime_parameters.items():
-                sql_param.update({f"{param}": f"{val}"})
-            if parameters:
-                sql_param.update(parameters)
-            if isinstance(sql, str):
-                final_sql.append(SQL(sql))
-            else:
-                final_sql.extend(list(map(SQL, sql)))
-
-            kwargs["sql"] = final_sql
-            kwargs["parameters"] = sql_param
+            warnings.warn(
+                """`runtime_parameters` is deprecated.
+                Please use `hook_params={'options': '-c <connection_options>}`.""",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            hook_params = kwargs.pop("hook_params", {})
+            options = " ".join(f"-c {param}={val}" for param, val in runtime_parameters.items())
+            kwargs["hook_params"] = {"options": options, **hook_params}
 
         super().__init__(conn_id=postgres_conn_id, **kwargs)
         warnings.warn(

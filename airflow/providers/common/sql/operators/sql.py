@@ -320,18 +320,22 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             return None
 
         operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
-            sql=self.sql, hook=hook, database_info=database_info, database=self.database
+            sql=self.sql,
+            hook=hook,
+            database_info=database_info,
+            database=self.database,
+            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
         )
 
         return operator_lineage
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
-        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
-
         try:
             from airflow.providers.openlineage.extractors import OperatorLineage
         except ImportError:
-            return operator_lineage
+            return None
+
+        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
 
         hook = self.get_db_hook()
         try:

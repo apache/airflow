@@ -28,6 +28,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.3.0
+.....
+
+Latest change: 2023-07-12
+
+=================================================================================================  ===========  ==========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================
+`b3ce116192 <https://github.com/apache/airflow/commit/b3ce1161926efb880c3f525ac0a031ab4812fb95>`_  2023-07-12   ``Fix async KPO by waiting pod termination in 'execute_complete' before cleanup (#32467)``
+`c99c03135c <https://github.com/apache/airflow/commit/c99c03135ca7e7c41e1c6d338de9e41422ea84f0>`_  2023-07-08   ``D205 Support - Providers: Stragglers and new additions (#32447)``
+`9a0f41ba53 <https://github.com/apache/airflow/commit/9a0f41ba53185031bc2aa56ead2928ae4b20de99>`_  2023-07-06   ``Logging from all containers in KubernetesOperatorPod (#31663)``
+=================================================================================================  ===========  ==========================================================================================
+
+7.2.0
+.....
+
+Latest change: 2023-07-06
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``
+`df4c8837d0 <https://github.com/apache/airflow/commit/df4c8837d022e66921bc0cf33f3249b235de6fdd>`_  2023-07-01   ``Fix KubernetesPodOperator validate xcom json and add retries (#32113)``
+`dd937e51fe <https://github.com/apache/airflow/commit/dd937e51fe1ae3cd36a6993bd42e425960644e1d>`_  2023-06-30   ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+`8f5de83ee6 <https://github.com/apache/airflow/commit/8f5de83ee68c28100efc085add40ae4702bc3de1>`_  2023-06-29   ``Fix 'KubernetesPodTrigger' waiting strategy (#31348)``
+`8c37b74a20 <https://github.com/apache/airflow/commit/8c37b74a208a808d905c1b86d081d69d7a1aa900>`_  2023-06-28   ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+`6693bdd72d <https://github.com/apache/airflow/commit/6693bdd72d70989f4400b5807e2945d814a83b85>`_  2023-06-27   ``fix spark-kubernetes-operator compatibality (#31798)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+=================================================================================================  ===========  =========================================================================
+
 7.1.0
 .....
 
@@ -36,6 +69,7 @@ Latest change: 2023-06-20
 =================================================================================================  ===========  =============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
 `8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `66299338eb <https://github.com/apache/airflow/commit/66299338eb24aa71eb2e27ebd8b76079b39fd305>`_  2023-06-18   ``add a return when the event is yielded in a loop to stop the execution (#31985)``
 `07ea574fed <https://github.com/apache/airflow/commit/07ea574fed5d56ca9405ee9e47828841289e3a3c>`_  2023-06-07   ``Add D400 pydocstyle check (#31742)``

@@ -104,8 +104,7 @@ CLOUD_FUNCTION_VALIDATION: list[dict[str, Any]] = [
 
 class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
     """
-    Creates a function in Google Cloud Functions.
-    If a function with this name already exists, it will be updated.
+    Create or update a function in Google Cloud Functions.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -312,10 +311,7 @@ class ZipPathPreprocessor:
         return self.upload_function
 
     def preprocess_body(self) -> None:
-        """
-        Modifies sourceUploadUrl body field in special way when zip_path
-        is not empty.
-        """
+        """Modifies sourceUploadUrl body field in special way when zip_path is not empty."""
         self._verify_archive_url_and_zip_path()
         self._verify_upload_url_and_zip_path()
         self._verify_upload_url_and_no_zip_path()
@@ -412,8 +408,7 @@ class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
 
 class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
     """
-    Invokes a deployed Cloud Function. To be used for testing
-    purposes as very limited traffic is allowed.
+    Invokes a deployed Cloud Function. To be used for testing purposes as very limited traffic is allowed.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
