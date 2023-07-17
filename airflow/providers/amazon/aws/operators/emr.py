@@ -1111,7 +1111,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
     :param waiter_delay: Number of seconds between polling the state of the job run.
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
 
     template_fields: Sequence[str] = (
