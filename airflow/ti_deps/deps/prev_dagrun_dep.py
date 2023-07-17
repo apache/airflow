@@ -112,8 +112,11 @@ class PrevDagrunDep(BaseTIDep):
             )
             return
 
-        successful_states = {TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS}
-        unsuccessful_previous_tis = [ti for ti in previous_tis if ti.state not in successful_states]
+        unsuccessful_previous_tis = [
+            ti
+            for ti in previous_tis
+            if ti.state not in {TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS}
+        ]
         if unsuccessful_previous_tis:
             ti_str = ",".join(str(ti) for ti in unsuccessful_previous_tis)
             reason = (
@@ -139,4 +142,5 @@ class PrevDagrunDep(BaseTIDep):
                     )
                 )
                 return
+
         self._push_past_deps_met_xcom_if_needed(ti, dep_context)
