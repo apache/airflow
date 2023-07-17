@@ -219,7 +219,7 @@ class RdsDbStoppedTrigger(AwsBaseWaiterTrigger):
         region_name: str | None,
         response: dict[str, Any],
         db_type: RdsDbType,
-    ):
+    ) -> None:
         super().__init__(
             serialized_fields={
                 "db_identifier": db_identifier,
