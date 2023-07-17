@@ -767,8 +767,8 @@ class RdsStartDbOperator(RdsBaseOperator):
             self._wait_until_db_available()
         return json.dumps(start_db_response, default=str)
 
-    def execute_complete(self, context, event=None) -> str:
-        if event["status"] != "success":
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        if event is None or event["status"] != "success":
             raise AirflowException(f"Failed to start DB: {event}")
         else:
             return json.dumps(event["response"], default=str)
@@ -864,8 +864,8 @@ class RdsStopDbOperator(RdsBaseOperator):
             self._wait_until_db_stopped()
         return json.dumps(stop_db_response, default=str)
 
-    def execute_complete(self, context, event=None) -> str:
-        if event["status"] != "success":
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        if event is None or event["status"] != "success":
             raise AirflowException(f"Failed to start DB: {event}")
         else:
             return json.dumps(event["response"], default=str)

@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
-from deprecated import deprecated
-
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
@@ -28,13 +28,9 @@ from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
-@deprecated(reason="Use the other specialized RDS triggers")
 class RdsDbInstanceTrigger(BaseTrigger):
     """
-    Trigger for RdsCreateDbInstanceOperator and RdsDeleteDbInstanceOperator.
-
-    The trigger will asynchronously poll the boto3 API and wait for the
-    DB instance to be in the state specified by the waiter.
+    Deprecated Trigger for Rds operations. Do not use.
 
     :param waiter_name: Name of the waiter to use, for instance 'db_instance_available'
         or 'db_instance_deleted'.
@@ -56,6 +52,12 @@ class RdsDbInstanceTrigger(BaseTrigger):
         region_name: str | None,
         response: dict[str, Any],
     ):
+        warnings.warn(
+            "This trigger is deprecated, please use the other RDS triggers "
+            "such as RdsDbDeletedTrigger, RdsDbStoppedTrigger or RdsDbAvailableTrigger",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         self.db_instance_identifier = db_instance_identifier
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
