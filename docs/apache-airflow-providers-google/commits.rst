@@ -35,14 +35,38 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.4.0
+......
+
+Latest change: 2023-07-11
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`2ad91a7808 <https://github.com/apache/airflow/commit/2ad91a7808e97a70386513e016bdc08dbb8b72d0>`_  2023-07-11   ``Bugfix GCSToGCSOperator when copy files to folder without wildcard (#32486)``
+`86c6cc9a9a <https://github.com/apache/airflow/commit/86c6cc9a9aea58dce5c7691717382d6c6911d1e1>`_  2023-07-11   ``Combine 8 into 1 (#29462)``
+`3a8da4b55b <https://github.com/apache/airflow/commit/3a8da4b55b363b5b74d78b7d481dc7544afd36cb>`_  2023-07-11   ``Allow a destination folder to be provided (#31885)``
+`0f73647bda <https://github.com/apache/airflow/commit/0f73647bdab79ac6c30961222924f6166f75b55a>`_  2023-07-08   ``D205 Support - Provider: Google (#32356)``
+`e70bee00cd <https://github.com/apache/airflow/commit/e70bee00cd12ecf1462485a747c0e3296ef7d48c>`_  2023-07-08   ``Fix 'cache_control' parameter of upload function in 'GCSHook'  (#32440)``
+`257136786c <https://github.com/apache/airflow/commit/257136786c9a3eebbae717738637ab24fd6ab563>`_  2023-07-08   ``Moves 'AzureBlobStorageToGCSOperator' from Azure to Google provider (#32306)``
+`723eb7d453 <https://github.com/apache/airflow/commit/723eb7d453e50fb82652a8cf1f6a538410be777f>`_  2023-07-07   ``Give better link to job configuration docs in BigQueryInsertJobOperator (#31736)``
+`6c854dcb16 <https://github.com/apache/airflow/commit/6c854dcb164caffea640b368eda94a2a9166fa97>`_  2023-07-07   ``Migrating Google AutoML example_dags to sys tests (#32368)``
+`53d9421905 <https://github.com/apache/airflow/commit/53d9421905c3c268744c3e43601db63bc7b6fa87>`_  2023-07-07   ``build(pre-commit): check deferrable default value (#32370)``
+`2d690de110 <https://github.com/apache/airflow/commit/2d690de110825ba09b9445967b47c44edd8f151c>`_  2023-07-07   ``Fix BigQuery transfer operators to respect project_id arguments (#32232)``
+`e7587b3369 <https://github.com/apache/airflow/commit/e7587b3369af30848c3cf1c7eff9e801b1440793>`_  2023-07-06   ``Fix the gcp_gcs_delete_objects on empty list (#32383)``
+`becfb3c64f <https://github.com/apache/airflow/commit/becfb3c64f42533d6b8c6806c290952d84bc76a0>`_  2023-07-06   ``Fix endless loop of defer in cloud_build (#32387)``
+`e4757d6dfa <https://github.com/apache/airflow/commit/e4757d6dfa6e7385eb90c38c60ab8fefa24e7a0e>`_  2023-07-06   ``Fix GCSToGCSOperator copy without wildcard and exact_match=True (#32376)``
+=================================================================================================  ===========  ====================================================================================
+
 10.3.0
 ......
 
-Latest change: 2023-07-05
+Latest change: 2023-07-06
 
 =================================================================================================  ===========  =============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``

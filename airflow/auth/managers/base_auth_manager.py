@@ -33,3 +33,8 @@ class BaseAuthManager(LoggingMixin):
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
         ...
+
+    @abstractmethod
+    def is_logged_in(self) -> bool:
+        """Return whether the user is logged in."""
+        ...

@@ -23,8 +23,6 @@ Note that files are called objects in GCS terminology, so the use of the term "o
 interchangeable. There are several operators for whose purpose is to copy data as part of the Google Cloud Service.
 This page shows how to use these operators.
 
-Overview
---------
 
 Cloud Storage Transfer Service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -61,7 +59,7 @@ In the next section they will be described.
 Prerequisite Tasks
 ------------------
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 
 Operators

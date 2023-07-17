@@ -47,8 +47,10 @@ else:
         PRODUCTION_IMAGE_TOOLS_PARAMETERS,
     )
     from airflow_breeze.commands.release_management_commands_config import (
-        RELEASE_MANAGEMENT_COMMANDS,
+        RELEASE_AIRFLOW_COMMANDS,
         RELEASE_MANAGEMENT_PARAMETERS,
+        RELEASE_OTHER_COMMANDS,
+        RELEASE_PROVIDERS_COMMANDS,
     )
     from airflow_breeze.commands.setup_commands_config import SETUP_COMMANDS, SETUP_PARAMETERS
     from airflow_breeze.commands.testing_commands_config import TESTING_COMMANDS, TESTING_PARAMETERS
@@ -102,7 +104,11 @@ else:
         "breeze ci-image": [CI_IMAGE_TOOLS_COMMANDS],
         "breeze prod-image": [PRODUCTION_IMAGE_TOOLS_COMMANDS],
         "breeze setup": [SETUP_COMMANDS],
-        "breeze release-management": [RELEASE_MANAGEMENT_COMMANDS],
+        "breeze release-management": [
+            RELEASE_AIRFLOW_COMMANDS,
+            RELEASE_PROVIDERS_COMMANDS,
+            RELEASE_OTHER_COMMANDS,
+        ],
         "breeze sbom": [SBOM_COMMANDS],
         "breeze ci": [CI_COMMANDS],
     }

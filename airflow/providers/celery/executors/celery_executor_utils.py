@@ -27,6 +27,7 @@ import math
 import os
 import subprocess
 import traceback
+import warnings
 from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Optional, Tuple
 
@@ -38,11 +39,11 @@ from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
 
 import airflow.settings as settings
-from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstanceKey
+from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -63,10 +64,21 @@ CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
 if conf.has_option("celery", "celery_config_options"):
     celery_configuration = conf.getimport("celery", "celery_config_options")
+
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
-app = Celery(conf.get("celery", "CELERY_APP_NAME"), config_source=celery_configuration)
+celery_app_name = conf.get("celery", "CELERY_APP_NAME")
+if celery_app_name == "airflow.executors.celery_executor":
+    warnings.warn(
+        "The celery.CELERY_APP_NAME configuration uses deprecated package name: "
+        "'airflow.executors.celery_executor'. "
+        "Change it to `airflow.providers.celery.executors.celery_executor`, and "
+        "update the `-app` flag in your Celery Health Checks "
+        "to use `airflow.providers.celery.executors.celery_executor.app`.",
+        RemovedInAirflow3Warning,
+    )
+app = Celery(celery_app_name, config_source=celery_configuration)
 
 
 @celery_import_modules.connect

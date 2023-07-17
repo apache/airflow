@@ -67,6 +67,13 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
   {{- end }}
+  {{- if and .Values.workers.keda.enabled .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer) }}
+  - name: KEDA_DB_CONN
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "airflow_metadata_secret" . }}
+        key: kedaConnection
+  {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
   - name: AIRFLOW__WEBSERVER__SECRET_KEY
     valueFrom:

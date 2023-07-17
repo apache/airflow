@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix an issue that crashes Airflow Webserver when passed invalid private key path to Snowflake (#32016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``build(pre-commit): check deferrable default value (#32370)``
+   * ``D205 Support - Providers: Snowflake to Zendesk (inclusive) (#32359)``
+
 4.3.0
 .....
 

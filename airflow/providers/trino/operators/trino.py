@@ -32,6 +32,10 @@ class TrinoOperator(SQLExecuteQueryOperator):
     """
     Executes sql code using a specific Trino query Engine.
 
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:TrinoOperator`

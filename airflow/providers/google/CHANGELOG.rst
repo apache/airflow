@@ -27,6 +27,39 @@
 Changelog
 ---------
 
+10.4.0
+......
+
+Features
+~~~~~~~~
+
+Implement deferrable mode for S3ToGCSOperator
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix GCSToGCSOperator when copy files to folder without wildcard (#32486)``
+* ``Fix 'cache_control' parameter of upload function in 'GCSHook'  (#32440)``
+* ``Fix BigQuery transfer operators to respect project_id arguments (#32232)``
+* ``Fix the gcp_gcs_delete_objects on empty list (#32383)``
+* ``Fix endless loop of defer in cloud_build (#32387)``
+* ``Fix GCSToGCSOperator copy without wildcard and exact_match=True (#32376)``
+
+Misc
+~~~~
+
+* ``Allow a destination folder to be provided (#31885)``
+* ``Moves 'AzureBlobStorageToGCSOperator' from Azure to Google provider (#32306)``
+* ``Give better link to job configuration docs in BigQueryInsertJobOperator (#31736)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Combine 8 into 1 (#29462)``
+   * ``D205 Support - Provider: Google (#32356)``
+   * ``Migrating Google AutoML example_dags to sys tests (#32368)``
+   * ``build(pre-commit): check deferrable default value (#32370)``
+
 10.3.0
 ......
 

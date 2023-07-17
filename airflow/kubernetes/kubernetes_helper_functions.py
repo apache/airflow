@@ -19,13 +19,16 @@ from __future__ import annotations
 import logging
 import secrets
 import string
+from typing import TYPE_CHECKING
 
 import pendulum
 from slugify import slugify
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.models.taskinstancekey import TaskInstanceKey
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 log = logging.getLogger(__name__)
 
@@ -91,12 +94,12 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
     annotation_run_id = annotations.get("run_id")
     map_index = int(annotations.get("map_index", -1))
 
-    if not annotation_run_id and "execution_date" in annotations:
-        # Compat: Look up the run_id from the TI table!
-        from airflow.models.dagrun import DagRun
-        from airflow.models.taskinstance import TaskInstance
-        from airflow.settings import Session
+    # Compat: Look up the run_id from the TI table!
+    from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.settings import Session
 
+    if not annotation_run_id and "execution_date" in annotations:
         execution_date = pendulum.parse(annotations["execution_date"])
         # Do _not_ use create-session, we don't want to expunge
         session = Session()

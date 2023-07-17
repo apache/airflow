@@ -15,3 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """Executors."""
+from __future__ import annotations
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "celery_executor": {
+        "app": "airflow.providers.celery.executors.celery_executor_utils.app",
+        "CeleryExecutor": "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+    },
+    "celery_kubernetes_executor": {
+        "CeleryKubernetesExecutor": "airflow.providers.celery.executors."
+        "celery_kubernetes_executor.CeleryKubernetesExecutor",
+    },
+}
+
+add_deprecated_classes(__deprecated_classes, __name__)
