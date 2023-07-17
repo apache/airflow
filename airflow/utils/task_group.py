@@ -358,7 +358,7 @@ class TaskGroup(DAGNode):
         return list(self.get_leaves())
 
     def get_roots(self) -> Generator[BaseOperator, None, None]:
-        """Return a generator of tasks  with no upstream dependencies within the TaskGroup."""
+        """Return a generator of tasks with no upstream dependencies within the TaskGroup."""
         tasks = list(self)
         ids = {x.task_id for x in tasks}
         for task in tasks:
