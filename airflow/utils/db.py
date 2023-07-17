@@ -1006,10 +1006,10 @@ def check_username_duplicates(session: Session) -> Iterable[str]:
 
 def reflect_tables(tables: list[Base | str] | None, session):
     """
-    When running checks prior to upgrades, we use reflection to determine current state of the
-    database.
-    This function gets the current state of each table in the set of models provided and returns
-    a SqlAlchemy metadata object containing them.
+    When running checks prior to upgrades, we use reflection to determine current state of the database.
+
+    This function gets the current state of each table in the set of models
+    provided and returns a SqlAlchemy metadata object containing them.
     """
     import sqlalchemy.schema
 
@@ -1180,6 +1180,7 @@ def _create_table_as(
 ):
     """
     Create a new table with rows from query.
+
     We have to handle CTAS differently for different dialects.
     """
     from sqlalchemy import column, select, table
@@ -1256,10 +1257,7 @@ def _move_dangling_data_to_new_table(
 
 
 def _dangling_against_dag_run(session, source_table, dag_run):
-    """
-    Given a source table, we generate a subquery that will return 1 for every row that
-    has a dagrun.
-    """
+    """Given a source table, we generate a subquery that will return 1 for every row that has a dagrun."""
     source_to_dag_run_join_cond = and_(
         source_table.c.dag_id == dag_run.c.dag_id,
         source_table.c.execution_date == dag_run.c.execution_date,
@@ -1274,8 +1272,7 @@ def _dangling_against_dag_run(session, source_table, dag_run):
 
 def _dangling_against_task_instance(session, source_table, dag_run, task_instance):
     """
-    Given a source table, we generate a subquery that will return 1 for every row that
-    has a valid task instance (and associated dagrun).
+    Given a source table, generate a subquery that will return 1 for every row that has a valid task instance.
 
     This is used to identify rows that need to be removed from tables prior to adding a TI fk.
 
@@ -1367,8 +1364,8 @@ def _move_duplicate_data_to_new_table(
 
 def check_bad_references(session: Session) -> Iterable[str]:
     """
-    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id`
-    in many tables.
+    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id` in many tables.
+
     Here we go through each table and look for records that can't be mapped to a dag run.
     When we find such "dangling" rows we back them up in a special table and delete them
     from the main table.
@@ -1383,6 +1380,8 @@ def check_bad_references(session: Session) -> Iterable[str]:
     @dataclass
     class BadReferenceConfig:
         """
+        Bad reference config class.
+
         :param bad_rows_func: function that returns subquery which determines whether bad rows exist
         :param join_tables: table objects referenced in subquery
         :param ref_table: information-only identifier for categorizing the missing ref
@@ -1552,6 +1551,7 @@ def upgradedb(
     session: Session = NEW_SESSION,
 ):
     """
+    Upgrades the DB.
 
     :param to_revision: Optional Alembic revision ID to upgrade *to*.
         If omitted, upgrades to latest revision.
