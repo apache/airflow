@@ -24,7 +24,7 @@ interface Props {
   data: Record<string, number | null>;
 }
 
-const ViewScheduleInterval = ({ data }: Props) => {
+const ViewTimeDelta = ({ data }: Props) => {
   const genericTimeDeltaUnits = [
     "days",
     "day",
@@ -58,4 +58,4 @@ const ViewScheduleInterval = ({ data }: Props) => {
   );
 };
 
-export default ViewScheduleInterval;
+export default ViewTimeDelta;

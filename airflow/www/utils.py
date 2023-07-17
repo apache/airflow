@@ -766,7 +766,7 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     def __init__(self, datamodel):
         super().__init__(datamodel)
 
-        for (method, filters) in self.conversion_table:
+        for method, filters in self.conversion_table:
             if FilterIsNull not in filters:
                 filters.append(FilterIsNull)
             if FilterIsNotNull not in filters:
@@ -926,6 +926,6 @@ class UIAlert:
                 # Unable to obtain user role - default to not showing
                 return False
 
-            if not user_roles.intersection(set(self.roles)):
+            if user_roles.isdisjoint(self.roles):
                 return False
         return True
