@@ -180,7 +180,7 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
 
 class RedirectStdHandler(StreamHandler):
     """
-    # TODO D205-ify this docstring
+    Custom StreamHandler that uses current sys.stderr/stdout as the stream for logging.
 
     This class is like a StreamHandler using sys.stderr/stdout, but uses
     whatever sys.stderr/stdout is currently set to rather than the value of
