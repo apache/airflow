@@ -292,24 +292,22 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             (dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query
         }
 
-        tg_concurrency_query: Iterator[tuple[str, str, str, int]] = session.execute(
+        unfinished_tis: Iterator[tuple[str, str, str, int]] = session.execute(
             select(TI.task_id, TI.run_id, TI.dag_id, TI.map_index)
             .where(
                 TI.map_index >= 0,
-                TI.state.in_(
-                    (
-                        TaskInstanceState.SCHEDULED,
-                        TaskInstanceState.QUEUED,
-                        TaskInstanceState.RUNNING,
-                        TaskInstanceState.UP_FOR_RESCHEDULE,
-                        TaskInstanceState.UP_FOR_RETRY,
-                    )
+                # Special NULL treatment is needed because 'state' can be NULL.
+                # The "IN" part would produce "NULL NOT IN ..." and eventually
+                # "NULl = NULL", which is a big no-no in SQL.
+                or_(
+                    TI.state.is_(None),
+                    TI.state.in_(s.value for s in State.unfinished if s is not None),
                 ),
             )
             .order_by(TI.dag_id, TI.run_id, TI.map_index)
         )
         tg_concurrency: TaskGroupConcurrencyMap = {}
-        for (task_id, run_id, dag_id, map_index) in tg_concurrency_query:
+        for (task_id, run_id, dag_id, map_index) in unfinished_tis:
             dag = self.dagbag.get_dag(dag_id, session)
             if not dag:
                 continue

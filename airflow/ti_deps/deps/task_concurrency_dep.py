@@ -17,13 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 
 class TaskConcurrencyDep(BaseTIDep):
@@ -61,26 +61,24 @@ class TaskConcurrencyDep(BaseTIDep):
             return
 
         if task_group is not None and (group_limit := task_group.max_active_groups_per_dagrun) is not None:
-            query = (
+            unfinished_indexes_query = session.scalars(
                 select(TaskInstance.map_index)
                 .where(
                     TaskInstance.dag_id == ti.dag_id,
                     TaskInstance.run_id == ti.run_id,
                     TaskInstance.task_id.in_(task_group.children),
-                    TaskInstance.state.in_(
-                        (
-                            TaskInstanceState.SCHEDULED,
-                            TaskInstanceState.QUEUED,
-                            TaskInstanceState.RUNNING,
-                            TaskInstanceState.UP_FOR_RETRY,
-                            TaskInstanceState.UP_FOR_RESCHEDULE,
-                        )
+                    # Special NULL treatment is needed because 'state' can be NULL.
+                    # The "IN" part would produce "NULL NOT IN ..." and eventually
+                    # "NULl = NULL", which is a big no-no in SQL.
+                    or_(
+                        TaskInstance.state.is_(None),
+                        TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
                     ),
                 )
                 .order_by(TaskInstance.map_index)
                 .limit(group_limit)
             )
-            valid_indexes = set(session.scalars(query))
+            valid_indexes = set(unfinished_indexes_query)
 
             if len(valid_indexes) >= group_limit and ti.map_index not in valid_indexes:
                 yield self._failing_status(reason="The max task group concurrency has been reached.")
