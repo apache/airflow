@@ -802,10 +802,11 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ```
 
 - Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
+- Either provide the ``--airflow-site-directory`` flag or set the env variable: ``AIRFLOW_SITE_DIRECTORY``
 
     ```shell script
     breeze release-management publish-docs --package-filter apache-airflow --package-filter docker-stack
-    breeze release-management add-back-references --airflow-site-directory --gen-type airflow
+    breeze release-management add-back-references --airflow-site-directory DIRECTORY --gen-type airflow
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
