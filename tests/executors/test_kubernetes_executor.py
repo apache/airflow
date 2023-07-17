@@ -1225,7 +1225,7 @@ class TestKubernetesJobWatcher:
                 annotations={"airflow-worker": "bar", **self.core_annotations},
                 namespace="airflow",
                 resource_version="456",
-                labels={},
+                labels={"airflow-worker": "123"},
             ),
             status=k8s.V1PodStatus(phase="Pending"),
         )
@@ -1325,6 +1325,26 @@ class TestKubernetesJobWatcher:
 
         self._run()
         self.watcher.watcher_queue.put.assert_not_called()
+
+    @mock.patch.object(KubernetesJobWatcher, "process_status")
+    def test_process_status_called_for_matching_scheduler_id(self, mock_process_status):
+        self.pod.status.phase = "Running"
+        self.pod.metadata.labels = {"airflow-worker": "123"}
+        self.events.append({"type": "DELETED", "object": self.pod})
+
+        self._run()
+        mock_process_status.assert_called()
+
+    @mock.patch.object(KubernetesJobWatcher, "process_status")
+    def test_process_status_never_called_for_not_matching_scheduler_id(self, mock_process_status):
+        self.pod.status.phase = "Running"
+        self.pod.metadata.labels = {"airflow-worker": "124"}
+        self.events.append({"type": "DELETED", "object": self.pod})
+
+        self._run()
+        mock_process_status.assert_not_called()
+
+        self.pod.metadata.labels = {"airflow-worker": "123"}
 
     @mock.patch.object(KubernetesJobWatcher, "process_error")
     def test_process_error_event_for_410(self, mock_process_error):

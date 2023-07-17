@@ -129,7 +129,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ) -> str | None:
         self.log.info("Event: and now my watch begins starting at resource_version: %s", resource_version)
 
-        kwargs = {"label_selector": f"airflow-worker={scheduler_job_id}"}
+        kwargs = {"label_selector": "airflow-worker"}
         if resource_version:
             kwargs["resource_version"] = resource_version
         if kube_config.kube_client_request_args:
@@ -143,6 +143,10 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.log.debug("Event: %s had an event of type %s", task.metadata.name, event["type"])
             if event["type"] == "ERROR":
                 return self.process_error(event)
+            labels = task.metadata.labels
+            if labels.get("airflow-worker", None) != scheduler_job_id:
+                last_resource_version = task.metadata.resource_version
+                continue
             annotations = task.metadata.annotations
             task_instance_related_annotations = {
                 "dag_id": annotations["dag_id"],
