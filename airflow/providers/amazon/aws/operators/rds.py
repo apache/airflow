@@ -75,7 +75,7 @@ class RdsBaseOperator(BaseOperator):
         self._await_interval = 60  # seconds
 
     @cachedproperty
-    def hook(self):
+    def hook(self) -> RdsHook:
         return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, **self.hook_params)
 
     def execute(self, context: Context) -> str:
