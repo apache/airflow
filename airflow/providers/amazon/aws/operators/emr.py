@@ -1102,8 +1102,11 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             )
         return application_id
 
-    def start_application_deferred(self, context, event=None):
-        if event["status"] != "success":
+    def start_application_deferred(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            self.log.error("Trigger error: event is None")
+            raise AirflowException("Trigger error: event is None")
+        elif event["status"] != "success":
             raise AirflowException(f"Application {event['application_id']} failed to create")
         self.log.info("Starting application %s", event["application_id"])
         self.hook.conn.start_application(applicationId=event["application_id"])
@@ -1118,12 +1121,15 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context, event=None):
-        if event["status"] == "success":
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            self.log.error("Trigger error: event is None")
+            raise AirflowException("Trigger error: event is None")
+        elif event["status"] != "success":
+            raise AirflowException(f"Application {event['application_id']} failed to start")
+        else:
             self.log.info("Application %s started", event["application_id"])
             return event["application_id"]
-        else:
-            raise AirflowException(f"Application {event['application_id']} failed to start")
 
 
 class EmrServerlessStartJobOperator(BaseOperator):
@@ -1480,8 +1486,11 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             )
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
 
-    def stop_application(self, context, event=None) -> None:
-        if event["status"] == "success":
+    def stop_application(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            self.log.error("Trigger error: event is None")
+            raise AirflowException("Trigger error: event is None")
+        elif event["status"] == "success":
             self.hook.conn.stop_application(applicationId=self.application_id)
             self.defer(
                 trigger=EmrServerlessStopApplicationTrigger(
@@ -1494,8 +1503,11 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context, event=None) -> None:
-        if event["status"] == "success":
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            self.log.error("Trigger error: event is None")
+            raise AirflowException("Trigger error: event is None")
+        elif event["status"] == "success":
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
 
 
@@ -1616,6 +1628,9 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
 
         self.log.info("EMR serverless application deleted")
 
-    def execute_complete(self, context, event=None) -> None:
-        if event["status"] == "success":
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            self.log.error("Trigger error: event is None")
+            raise AirflowException("Trigger error: event is None")
+        elif event["status"] == "success":
             self.log.info("EMR serverless application %s deleted successfully", self.application_id)

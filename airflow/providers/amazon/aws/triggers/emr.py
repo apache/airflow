@@ -301,7 +301,7 @@ class EmrServerlessCreateApplicationTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
         aws_conn_id: str = "aws_default",
-    ):
+    ) -> None:
         super().__init__(
             serialized_fields={"application_id": application_id},
             waiter_name="serverless_app_created",
@@ -336,7 +336,7 @@ class EmrServerlessStartApplicationTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
         aws_conn_id: str = "aws_default",
-    ):
+    ) -> None:
         super().__init__(
             serialized_fields={"application_id": application_id},
             waiter_name="serverless_app_started",
@@ -440,7 +440,7 @@ class EmrServerlessDeleteApplicationTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
         aws_conn_id: str = "aws_default",
-    ):
+    ) -> None:
         super().__init__(
             serialized_fields={"application_id": application_id},
             waiter_name="serverless_app_terminated",
@@ -475,7 +475,7 @@ class EmrServerlessCancelJobsTrigger(AwsBaseWaiterTrigger):
         aws_conn_id: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-    ):
+    ) -> None:
         self.hook_instance = EmrServerlessHook(aws_conn_id)
         states = list(self.hook_instance.JOB_INTERMEDIATE_STATES.union({"CANCELLING"}))
         super().__init__(

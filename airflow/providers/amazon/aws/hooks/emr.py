@@ -257,8 +257,8 @@ class EmrServerlessHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def cancel_running_jobs(
-        self, application_id: str, waiter_config: dict = {}, wait_for_completion: bool = True
-    ):
+        self, application_id: str, waiter_config: dict | None = None, wait_for_completion: bool = True
+    ) -> int:
         """
         Cancel jobs in an intermediate state, and return the number of cancelled jobs.
 
@@ -295,7 +295,7 @@ class EmrServerlessHook(AwsBaseHook):
                 self.get_waiter("no_job_running").wait(
                     applicationId=application_id,
                     states=list(self.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
-                    WaiterConfig=waiter_config,
+                    WaiterConfig=waiter_config or {},
                 )
 
         return count
