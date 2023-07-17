@@ -393,8 +393,6 @@ breeze release-management publish-docs \
     --override-versioned
 
 breeze release-management add-back-references --gen-type providers
-cd ..
-
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:
