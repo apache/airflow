@@ -994,7 +994,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
     :param waiter_delay: Number of seconds between polling the state of the application.
     :param deferrable: If True, the operator will wait asynchronously for application to be created.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
 
     def __init__(
@@ -1376,7 +1376,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         Default is 60 seconds.
     :param deferrable: If True, the operator will wait asynchronously for the application to stop.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
     """
 
     template_fields: Sequence[str] = ("application_id",)
@@ -1533,7 +1533,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         Defaults to 60 seconds.
     :param deferrable: If True, the operator will wait asynchronously for application to be deleted.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        Defaults to False
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
     :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
         Otherwise, trying to delete an app with running jobs will return an error.
         If you want to wait for the jobs to finish gracefully, use
