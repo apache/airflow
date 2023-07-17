@@ -18,11 +18,9 @@ from __future__ import annotations
 
 import logging
 import re
-import warnings
 from datetime import datetime
 from enum import Enum
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.utils.helpers import prune_dict
 from airflow.version import version
 
@@ -40,10 +38,10 @@ def trim_none_values(obj: dict):
         return {key: val for key, val in obj.items() if val is not None}
     else:
         # once airflow 2.6 rolls out of compatibility support for provider packages,
-        # we can remove this method and replace all usages in aws code.
-        warnings.warn(
-            "use airflow.utils.helpers.prune_dict() instead", AirflowProviderDeprecationWarning, stacklevel=2
-        )
+        # we can replace usages of this method with the core one in our code,
+        # and uncomment this warning for users who may use it.
+        # warnings.warn("use airflow.utils.helpers.prune_dict() instead",
+        #     AirflowProviderDeprecationWarning, stacklevel=2)
         return prune_dict(obj)
 
 
