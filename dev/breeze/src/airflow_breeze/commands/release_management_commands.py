@@ -821,6 +821,7 @@ def publish_docs(
     "--airflow-site-directory",
     envvar="AIRFLOW_SITE_DIRECTORY",
     help="Local directory path of cloned airflow-site repo.",
+    required=True,
 )
 @click.option(
     "-g",

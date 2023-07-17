@@ -35,7 +35,7 @@ prod-image:build:58ab53c2f5e799bbe05d6fac26d001bf
 prod-image:pull:76f1f27e6119928412abecf153fce4bb
 prod-image:verify:bd2b78738a7c388dbad6076c41a9f906
 prod-image:a434391e2b5201aaeb5c06601485f7bc
-release-management:add-back-references:51f64e83e28602b1cbfa7a2fb39fd66b
+release-management:add-back-references:8dab6a30076a55f2d31c6d22a94e0ccb
 release-management:create-minor-branch:a3834afc4aa5d1e98002c9e9e7a9931d
 release-management:generate-constraints:b8fcaf8f0acd35ed5dbd48659bdb6485
 release-management:generate-issue-content-providers:9cea234261547208ac812464d3e4a598
@@ -49,7 +49,7 @@ release-management:release-prod-images:4d85a23a2175bf8894de5aedbdd85614
 release-management:start-rc-process:b27bd524dd3c89f50a747b60a7e892c1
 release-management:start-release:419f48f6a4ff4457cb9de7ff496aebbe
 release-management:verify-provider-packages:96dce5644aad6b37080acf77b3d8de3a
-release-management:3b93ed037297cce71bce0fa1dcf90439
+release-management:e12492cf058a0c32fc6daecde65a1aef
 sbom:generate-provider-requirements:1e7609a0ebafb839d30ec90e4254a628
 sbom:update-sbom-information:0ce56884e5f842e3e80d6619df1ccc64
 sbom:2ac6b8fc1e84428d5588270eb0d84040
