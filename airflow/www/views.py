@@ -24,7 +24,6 @@ import itertools
 import json
 import logging
 import math
-import re
 import sys
 import traceback
 import warnings
@@ -39,6 +38,7 @@ import configupdater
 import flask.json
 import lazy_object_proxy
 import nvd3
+import re2
 import sqlalchemy as sqla
 from croniter import croniter
 from flask import (
@@ -83,7 +83,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.configuration import AIRFLOW_CONFIG, auth_manager, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import (
     AirflowConfigException,
@@ -383,6 +383,12 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             else:
                 instances = list(map(_get_summary, grouped_tis.get(item.task_id, [])))
 
+            setup_teardown_type = {}
+            if item.is_setup is True:
+                setup_teardown_type["setupTeardownType"] = "setup"
+            elif item.is_teardown is True:
+                setup_teardown_type["setupTeardownType"] = "teardown"
+
             return {
                 "id": item.task_id,
                 "instances": instances,
@@ -392,6 +398,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,
+                **setup_teardown_type,
             }
 
         # Task Group
@@ -617,13 +624,13 @@ def show_traceback(error):
     return (
         render_template(
             "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0] if g.user.is_authenticated else "redact",
-            airflow_version=version if g.user.is_authenticated else "redact",
+            python_version=sys.version.split(" ")[0] if auth_manager.is_logged_in() else "redact",
+            airflow_version=version if auth_manager.is_logged_in() else "redact",
             hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and g.user.is_authenticated
+            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and auth_manager.is_logged_in()
             else "redact",
             info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and g.user.is_authenticated
+            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and auth_manager.is_logged_in()
             else "Error! Please contact server admin.",
         ),
         500,
@@ -767,7 +774,7 @@ class Airflow(AirflowBaseView):
 
             # find DAGs which have a RUNNING DagRun
             running_dags = dags_query.join(DagRun, DagModel.dag_id == DagRun.dag_id).where(
-                DagRun.state == State.RUNNING
+                DagRun.state == DagRunState.RUNNING
             )
 
             # find DAGs for which the latest DagRun is FAILED
@@ -778,7 +785,7 @@ class Airflow(AirflowBaseView):
             )
             subq_failed = (
                 select(DagRun.dag_id, func.max(DagRun.start_date).label("start_date"))
-                .where(DagRun.state == State.FAILED)
+                .where(DagRun.state == DagRunState.FAILED)
                 .group_by(DagRun.dag_id)
                 .subquery()
             )
@@ -797,9 +804,7 @@ class Airflow(AirflowBaseView):
 
             is_paused_count = dict(
                 session.execute(
-                    select(DagModel.is_paused, func.count(DagModel.dag_id))
-                    .group_by(DagModel.is_paused)
-                    .select_from(all_dags)
+                    select(DagModel.is_paused, func.count(DagModel.dag_id)).group_by(DagModel.is_paused)
                 ).all()
             )
 
@@ -1127,7 +1132,7 @@ class Airflow(AirflowBaseView):
         running_dag_run_query_result = (
             select(DagRun.dag_id, DagRun.run_id)
             .join(DagModel, DagModel.dag_id == DagRun.dag_id)
-            .where(DagRun.state == State.RUNNING, DagModel.is_active)
+            .where(DagRun.state == DagRunState.RUNNING, DagModel.is_active)
         )
 
         running_dag_run_query_result = running_dag_run_query_result.where(DagRun.dag_id.in_(filter_dag_ids))
@@ -1151,7 +1156,7 @@ class Airflow(AirflowBaseView):
             last_dag_run = (
                 select(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label("execution_date"))
                 .join(DagModel, DagModel.dag_id == DagRun.dag_id)
-                .where(DagRun.state != State.RUNNING, DagModel.is_active)
+                .where(DagRun.state != DagRunState.RUNNING, DagModel.is_active)
                 .group_by(DagRun.dag_id)
             )
 
@@ -1856,7 +1861,7 @@ class Airflow(AirflowBaseView):
                 "Airflow administrator for assistance.".format(
                     "- This task instance already ran and had it's state changed manually "
                     "(e.g. cleared in the UI)<br>"
-                    if ti and ti.state == State.NONE
+                    if ti and ti.state is None
                     else ""
                 ),
             )
@@ -2105,8 +2110,8 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         regex = conf.get("scheduler", "allowed_run_id_pattern")
-        if run_id and not re.match(RUN_ID_REGEX, run_id):
-            if not regex.strip() or not re.match(regex.strip(), run_id):
+        if run_id and not re2.match(RUN_ID_REGEX, run_id):
+            if not regex.strip() or not re2.match(regex.strip(), run_id):
                 flash(
                     f"The provided run ID '{run_id}' is invalid. It does not match either "
                     f"the configured pattern: '{regex}' or the built-in pattern: '{RUN_ID_REGEX}'",
@@ -2159,17 +2164,24 @@ class Airflow(AirflowBaseView):
                     recent_confs=recent_confs,
                 )
 
-        if unpause and dag.get_is_paused():
-            dag_model = models.DagModel.get_dagmodel(dag_id)
-            if dag_model is not None:
-                dag_model.set_is_paused(is_paused=False)
+        if dag.get_is_paused():
+            if unpause or not ui_fields_defined:
+                flash(f"Unpaused DAG {dag_id}.")
+                dag_model = models.DagModel.get_dagmodel(dag_id)
+                if dag_model is not None:
+                    dag_model.set_is_paused(is_paused=False)
+            else:
+                flash(
+                    f"DAG {dag_id} is paused, unpause if you want to have the triggered run being executed.",
+                    "warning",
+                )
 
         try:
             dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 execution_date=execution_date,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
-                state=State.QUEUED,
+                state=DagRunState.QUEUED,
                 conf=run_conf,
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
@@ -2384,7 +2396,7 @@ class Airflow(AirflowBaseView):
     @expose("/blocked", methods=["POST"])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         ]
     )
@@ -4743,7 +4755,7 @@ class ConnectionModelView(AirflowModelView):
         """Duplicate Multiple connections."""
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
-            match = re.search(r"_copy(\d+)$", selected_conn.conn_id)
+            match = re2.search(r"_copy(\d+)$", selected_conn.conn_id)
 
             base_conn_id = selected_conn.conn_id
             if match:
@@ -5002,8 +5014,8 @@ class ProviderView(AirflowBaseView):
             return Markup(f'<a href="{url}">{text}</a>')
 
         cd = escape(description)
-        cd = re.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
-        cd = re.sub(r"\n", r"<br>", cd)
+        cd = re2.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
+        cd = re2.sub(r"\n", r"<br>", cd)
         return Markup(cd)
 
 
@@ -5426,23 +5438,28 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action_logging
     def action_set_queued(self, drs: list[DagRun]):
         """Set state to queued."""
-        return self._set_dag_runs_to_active_state(drs, State.QUEUED)
+        return self._set_dag_runs_to_active_state(drs, DagRunState.QUEUED)
 
     @action("set_running", "Set state to 'running'", "", single=False)
     @action_has_dag_edit_access
     @action_logging
     def action_set_running(self, drs: list[DagRun]):
         """Set state to running."""
-        return self._set_dag_runs_to_active_state(drs, State.RUNNING)
+        return self._set_dag_runs_to_active_state(drs, DagRunState.RUNNING)
 
     @provide_session
-    def _set_dag_runs_to_active_state(self, drs: list[DagRun], state: str, session: Session = NEW_SESSION):
+    def _set_dag_runs_to_active_state(
+        self,
+        drs: list[DagRun],
+        state: DagRunState,
+        session: Session = NEW_SESSION,
+    ):
         """This routine only supports Running and Queued state."""
         try:
             count = 0
             for dr in session.scalars(select(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs))):
                 count += 1
-                if state == State.RUNNING:
+                if state == DagRunState.RUNNING:
                     dr.start_date = timezone.utcnow()
                 dr.state = state
             session.commit()
@@ -5863,7 +5880,12 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         return redirect(self.get_redirect())
 
     @provide_session
-    def set_task_instance_state(self, tis, target_state, session: Session = NEW_SESSION):
+    def set_task_instance_state(
+        self,
+        tis: Collection[TaskInstance],
+        target_state: TaskInstanceState,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """Set task instance state."""
         try:
             count = len(tis)
@@ -5879,7 +5901,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     @action_logging
     def action_set_running(self, tis):
         """Set state to 'running'."""
-        self.set_task_instance_state(tis, State.RUNNING)
+        self.set_task_instance_state(tis, TaskInstanceState.RUNNING)
         self.update_redirect()
         return redirect(self.get_redirect())
 
@@ -5888,7 +5910,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     @action_logging
     def action_set_failed(self, tis):
         """Set state to 'failed'."""
-        self.set_task_instance_state(tis, State.FAILED)
+        self.set_task_instance_state(tis, TaskInstanceState.FAILED)
         self.update_redirect()
         return redirect(self.get_redirect())
 
@@ -5897,7 +5919,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     @action_logging
     def action_set_success(self, tis):
         """Set state to 'success'."""
-        self.set_task_instance_state(tis, State.SUCCESS)
+        self.set_task_instance_state(tis, TaskInstanceState.SUCCESS)
         self.update_redirect()
         return redirect(self.get_redirect())
 
@@ -5906,7 +5928,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     @action_logging
     def action_set_retry(self, tis):
         """Set state to 'up_for_retry'."""
-        self.set_task_instance_state(tis, State.UP_FOR_RETRY)
+        self.set_task_instance_state(tis, TaskInstanceState.UP_FOR_RETRY)
         self.update_redirect()
         return redirect(self.get_redirect())
 

@@ -24,6 +24,7 @@ from flask import g
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from airflow.configuration import auth_manager
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
@@ -338,7 +339,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if not user_actions:
             user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
 
-        if user.is_anonymous:
+        if not auth_manager.is_logged_in():
             roles = user.roles
         else:
             if (permissions.ACTION_CAN_EDIT in user_actions and self.can_edit_all_dags(user)) or (

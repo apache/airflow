@@ -24,9 +24,10 @@ from __future__ import annotations
 import copy
 import functools
 import operator
-import re
 import weakref
 from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
+
+import re2
 
 from airflow.compat.functools import cache
 from airflow.exceptions import (
@@ -166,11 +167,11 @@ class TaskGroup(DAGNode):
         if self._group_id in self.used_group_ids:
             if not add_suffix_on_collision:
                 raise DuplicateTaskIdFound(f"group_id '{self._group_id}' has already been added to the DAG")
-            base = re.split(r"__\d+$", self._group_id)[0]
+            base = re2.split(r"__\d+$", self._group_id)[0]
             suffixes = sorted(
-                int(re.split(r"^.+__", used_group_id)[1])
+                int(re2.split(r"^.+__", used_group_id)[1])
                 for used_group_id in self.used_group_ids
-                if used_group_id is not None and re.match(rf"^{base}__\d+$", used_group_id)
+                if used_group_id is not None and re2.match(rf"^{base}__\d+$", used_group_id)
             )
             if not suffixes:
                 self._group_id += "__1"
@@ -206,13 +207,17 @@ class TaskGroup(DAGNode):
             else:
                 yield child
 
-    def add(self, task: DAGNode) -> None:
+    def add(self, task: DAGNode) -> DAGNode:
         """Add a task to this TaskGroup.
 
         :meta private:
         """
         from airflow.models.abstractoperator import AbstractOperator
 
+        if TaskGroupContext.active:
+            if task.task_group and task.task_group != self:
+                task.task_group.children.pop(task.node_id, None)
+                task.task_group = self
         existing_tg = task.task_group
         if isinstance(task, AbstractOperator) and existing_tg is not None and existing_tg != self:
             raise TaskAlreadyInTaskGroup(task.node_id, existing_tg.node_id, self.node_id)
@@ -236,6 +241,7 @@ class TaskGroup(DAGNode):
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
+        return task
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
@@ -356,8 +362,10 @@ class TaskGroup(DAGNode):
         Returns a generator of tasks that are root tasks, i.e. those with no upstream
         dependencies within the TaskGroup.
         """
-        for task in self:
-            if not any(self.has_task(parent) for parent in task.get_direct_relatives(upstream=True)):
+        tasks = list(self)
+        ids = {x.task_id for x in tasks}
+        for task in tasks:
+            if task.upstream_task_ids.isdisjoint(ids):
                 yield task
 
     def get_leaves(self) -> Generator[BaseOperator, None, None]:
@@ -365,22 +373,24 @@ class TaskGroup(DAGNode):
         Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
         dependencies within the TaskGroup.
         """
+        tasks = list(self)
+        ids = {x.task_id for x in tasks}
 
-        def recurse_for_first_non_setup_teardown(group, task):
+        def recurse_for_first_non_setup_teardown(task):
             for upstream_task in task.upstream_list:
-                if not group.has_task(upstream_task):
+                if upstream_task.task_id not in ids:
                     continue
                 if upstream_task.is_setup or upstream_task.is_teardown:
-                    yield from recurse_for_first_non_setup_teardown(group, upstream_task)
+                    yield from recurse_for_first_non_setup_teardown(upstream_task)
                 else:
                     yield upstream_task
 
-        for task in self:
-            if not any(self.has_task(x) for x in task.get_direct_relatives(upstream=False)):
+        for task in tasks:
+            if task.downstream_task_ids.isdisjoint(ids):
                 if not (task.is_teardown or task.is_setup):
                     yield task
                 else:
-                    yield from recurse_for_first_non_setup_teardown(self, task)
+                    yield from recurse_for_first_non_setup_teardown(task)
 
     def child_id(self, label):
         """
@@ -542,6 +552,26 @@ class TaskGroup(DAGNode):
                         f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
                     )
 
+    def add_task(self, task: AbstractOperator) -> None:
+        """Add a task to the task group.
+
+        :param task: the task to add
+        """
+        if not TaskGroupContext.active:
+            raise AirflowException(
+                "Using this method on a task group that's not a context manager is not supported."
+            )
+        task.add_to_taskgroup(self)
+
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """No-op, since we're not a task.
+
+        We only add tasks to TaskGroups and not TaskGroup, but we need
+        this to satisfy the interface.
+
+        :meta private:
+        """
+
 
 class MappedTaskGroup(TaskGroup):
     """A mapped task group.
@@ -612,6 +642,7 @@ class MappedTaskGroup(TaskGroup):
 class TaskGroupContext:
     """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
 
+    active: bool = False
     _context_managed_task_group: TaskGroup | None = None
     _previous_context_managed_task_groups: list[TaskGroup] = []
 
@@ -621,6 +652,7 @@ class TaskGroupContext:
         if cls._context_managed_task_group:
             cls._previous_context_managed_task_groups.append(cls._context_managed_task_group)
         cls._context_managed_task_group = task_group
+        cls.active = True
 
     @classmethod
     def pop_context_managed_task_group(cls) -> TaskGroup | None:
@@ -630,6 +662,7 @@ class TaskGroupContext:
             cls._context_managed_task_group = cls._previous_context_managed_task_groups.pop()
         else:
             cls._context_managed_task_group = None
+        cls.active = False
         return old_task_group
 
     @classmethod

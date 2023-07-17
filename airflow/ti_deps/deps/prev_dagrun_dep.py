@@ -112,10 +112,10 @@ class PrevDagrunDep(BaseTIDep):
             )
             return
 
-        finished_states = {TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS}
-        unfinished_previous_tis = [ti for ti in previous_tis if ti.state not in finished_states]
-        if unfinished_previous_tis:
-            ti_str = ",".join(str(ti) for ti in unfinished_previous_tis)
+        successful_states = {TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS}
+        unsuccessful_previous_tis = [ti for ti in previous_tis if ti.state not in successful_states]
+        if unsuccessful_previous_tis:
+            ti_str = ",".join(str(ti) for ti in unsuccessful_previous_tis)
             reason = (
                 f"depends_on_past is true for this task, but the previous task instance(s) "
                 f"{ti_str} are not in a successful state."

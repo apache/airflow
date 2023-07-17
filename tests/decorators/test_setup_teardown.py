@@ -25,6 +25,36 @@ from airflow.exceptions import AirflowException
 from airflow.operators.bash import BashOperator
 
 
+def make_task(name, type_, setup_=False, teardown_=False):
+    if type_ == "classic" and setup_:
+        return BashOperator(task_id=name, bash_command="echo 1").as_setup()
+    elif type_ == "classic" and teardown_:
+        return BashOperator(task_id=name, bash_command="echo 1").as_teardown()
+    elif type_ == "classic":
+        return BashOperator(task_id=name, bash_command="echo 1")
+    elif setup_:
+
+        @setup
+        def setuptask():
+            pass
+
+        return setuptask.override(task_id=name)()
+    elif teardown_:
+
+        @teardown
+        def teardowntask():
+            pass
+
+        return teardowntask.override(task_id=name)()
+    else:
+
+        @task
+        def my_task():
+            pass
+
+        return my_task.override(task_id=name)()
+
+
 class TestSetupTearDownTask:
     def test_marking_functions_as_setup_task(self, dag_maker):
         @setup
@@ -1099,82 +1129,6 @@ class TestSetupTearDownTask:
             "setuptask",
             "mytask",
         }
-
-    def test_work_task_inbetween_setup_n_teardown_tasks(self, dag_maker):
-        @task
-        def mytask():
-            print("mytask")
-
-        @setup
-        def setuptask():
-            print("setuptask")
-
-        @teardown
-        def teardowntask():
-            print("teardowntask")
-
-        with pytest.raises(
-            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
-        ):
-            with dag_maker():
-                with setuptask() >> mytask() >> teardowntask():
-                    ...
-
-    def test_errors_when_work_task_is_upstream_of_setup_task(self, dag_maker):
-        @task
-        def mytask():
-            print("mytask")
-
-        @setup
-        def setuptask():
-            print("setuptask")
-
-        with pytest.raises(
-            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
-        ):
-            with dag_maker():
-                with mytask() >> setuptask():
-                    ...
-
-    def test_errors_when_work_task_is_upstream_of_context_wrapper_with_teardown(self, dag_maker):
-        @task
-        def mytask():
-            print("mytask")
-
-        @teardown
-        def teardowntask():
-            print("teardowntask")
-
-        @teardown
-        def teardowntask2():
-            print("teardowntask")
-
-        with pytest.raises(
-            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
-        ):
-            with dag_maker():
-                with mytask() >> context_wrapper([teardowntask(), teardowntask2()]):
-                    ...
-
-    def test_errors_when_work_task_is_upstream_of_context_wrapper_with_setup(self, dag_maker):
-        @task
-        def mytask():
-            print("mytask")
-
-        @setup
-        def setuptask():
-            print("setuptask")
-
-        @setup
-        def setuptask2():
-            print("setuptask")
-
-        with pytest.raises(
-            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
-        ):
-            with dag_maker():
-                with mytask() >> context_wrapper([setuptask(), setuptask2()]):
-                    ...
 
     def test_tasks_decorators_called_outside_context_manager_can_link_up(self, dag_maker):
         @setup

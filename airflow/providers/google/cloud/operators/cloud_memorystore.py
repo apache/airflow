@@ -325,8 +325,9 @@ class CloudMemorystoreExportInstanceOperator(GoogleCloudBaseOperator):
 
 class CloudMemorystoreFailoverInstanceOperator(GoogleCloudBaseOperator):
     """
-    Initiates a failover of the primary node to current replica node for a specific STANDARD tier Cloud
-    Memorystore for Redis instance.
+    Initiate a failover of the primary node for a specific STANDARD tier Cloud Memorystore for Redis instance.
+
+    Uses the current replica node.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -886,8 +887,7 @@ class CloudMemorystoreScaleInstanceOperator(GoogleCloudBaseOperator):
 
 class CloudMemorystoreCreateInstanceAndImportOperator(GoogleCloudBaseOperator):
     """
-    Creates a Redis instance based on the specified tier and memory size and import a Redis RDB snapshot file
-    from Cloud Storage into a this instance.
+    Create a Redis instance and import a Redis RDB snapshot file from Cloud Storage into this instance.
 
     By default, the instance is accessible from the project's `default network
     <https://cloud.google.com/compute/docs/networks-and-firewalls#networks>`__.
@@ -1007,8 +1007,9 @@ class CloudMemorystoreCreateInstanceAndImportOperator(GoogleCloudBaseOperator):
 
 class CloudMemorystoreExportAndDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
-    Export Redis instance data into a Redis RDB format file in Cloud Storage. In next step, deletes a this
-    instance.
+    Export Redis instance data into a Redis RDB format file in Cloud Storage.
+
+    In next step, deletes this instance.
 
     Redis will continue serving during this operation.
 
@@ -1429,8 +1430,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(GoogleCloudBaseOperator):
 
 class CloudMemorystoreMemcachedListInstancesOperator(GoogleCloudBaseOperator):
     """
-    Lists all Memcached instances owned by a project in either the specified location (region) or all
-        locations.
+    List all Memcached instances owned by a project in either the specified location/region or all locations.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1617,9 +1617,10 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(GoogleCloudBaseOperator):
 
 class CloudMemorystoreMemcachedUpdateParametersOperator(GoogleCloudBaseOperator):
     """
-    Updates the defined Memcached Parameters for an existing Instance. This method only stages the
-        parameters, it must be followed by apply_parameters to apply the parameters to nodes of
-        the Memcached Instance.
+    Updates the defined Memcached Parameters for an existing Instance.
+
+    This method only stages the parameters, it must be followed by apply_parameters
+    to apply the parameters to nodes of the Memcached Instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

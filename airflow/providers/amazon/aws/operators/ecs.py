@@ -33,7 +33,11 @@ from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFai
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.providers.amazon.aws.triggers.ecs import ClusterWaiterTrigger, TaskDoneTrigger
+from airflow.providers.amazon.aws.triggers.ecs import (
+    ClusterActiveTrigger,
+    ClusterInactiveTrigger,
+    TaskDoneTrigger,
+)
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import provide_session
@@ -139,13 +143,12 @@ class EcsCreateClusterOperator(EcsBaseOperator):
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
         elif self.deferrable:
             self.defer(
-                trigger=ClusterWaiterTrigger(
-                    waiter_name="cluster_active",
+                trigger=ClusterActiveTrigger(
                     cluster_arn=cluster_details["clusterArn"],
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region=self.region,
+                    region_name=self.region,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -217,13 +220,12 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
         elif self.deferrable:
             self.defer(
-                trigger=ClusterWaiterTrigger(
-                    waiter_name="cluster_inactive",
+                trigger=ClusterInactiveTrigger(
                     cluster_arn=cluster_details["clusterArn"],
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region=self.region,
+                    region_name=self.region,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart

@@ -29,7 +29,7 @@ from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvir
 # Use dummy AWS credentials
 from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
-    BatchOperatorTrigger,
+    BatchJobTrigger,
 )
 
 AWS_REGION = "eu-west-1"
@@ -276,7 +276,7 @@ class TestBatchOperator:
 
         with pytest.raises(TaskDeferred) as exc:
             batch.execute(context=None)
-        assert isinstance(exc.value.trigger, BatchOperatorTrigger), "Trigger is not a BatchOperatorTrigger"
+        assert isinstance(exc.value.trigger, BatchJobTrigger)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")
@@ -349,6 +349,5 @@ class TestBatchCreateComputeEnvironmentOperator:
             operator.execute(None)
 
         assert isinstance(deferred.value.trigger, BatchCreateComputeEnvironmentTrigger)
-        assert deferred.value.trigger.compute_env_arn == "my_arn"
-        assert deferred.value.trigger.poll_interval == 456789
-        assert deferred.value.trigger.max_retries == 123456
+        assert deferred.value.trigger.waiter_delay == 456789
+        assert deferred.value.trigger.attempts == 123456

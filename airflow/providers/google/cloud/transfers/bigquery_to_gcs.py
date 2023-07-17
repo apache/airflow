@@ -146,7 +146,7 @@ class BigQueryToGCSOperator(BaseOperator):
     def _prepare_configuration(self):
         source_project, source_dataset, source_table = self.hook.split_tablename(
             table_input=self.source_project_dataset_table,
-            default_project_id=self.project_id or self.hook.project_id,
+            default_project_id=self.hook.project_id,
             var_name="source_project_dataset_table",
         )
 
@@ -184,7 +184,7 @@ class BigQueryToGCSOperator(BaseOperator):
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=configuration["extract"]["sourceTable"]["projectId"],
+            project_id=self.project_id or hook.project_id,
             location=self.location,
             job_id=job_id,
             timeout=self.result_timeout,
@@ -255,7 +255,7 @@ class BigQueryToGCSOperator(BaseOperator):
                 trigger=BigQueryInsertJobTrigger(
                     conn_id=self.gcp_conn_id,
                     job_id=job_id,
-                    project_id=self.hook.project_id,
+                    project_id=self.project_id or self.hook.project_id,
                 ),
                 method_name="execute_complete",
             )
@@ -265,8 +265,8 @@ class BigQueryToGCSOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])

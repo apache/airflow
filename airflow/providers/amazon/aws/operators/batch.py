@@ -41,7 +41,7 @@ from airflow.providers.amazon.aws.links.batch import (
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
 from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
-    BatchOperatorTrigger,
+    BatchJobTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
@@ -221,12 +221,12 @@ class BatchOperator(BaseOperator):
         if self.deferrable:
             self.defer(
                 timeout=self.execution_timeout,
-                trigger=BatchOperatorTrigger(
+                trigger=BatchJobTrigger(
                     job_id=self.job_id,
-                    max_retries=self.max_retries or 10,
+                    waiter_max_attempts=self.max_retries or 10,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
-                    poll_interval=self.poll_interval,
+                    waiter_delay=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )

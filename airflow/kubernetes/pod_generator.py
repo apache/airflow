@@ -28,10 +28,10 @@ import copy
 import datetime
 import logging
 import os
-import re
 import warnings
 from functools import reduce
 
+import re2
 from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
@@ -65,7 +65,7 @@ def make_safe_label_value(string: str) -> str:
     way from the original value sent to this function, then we need to truncate to
     53 chars, and append it with a unique hash.
     """
-    safe_label = re.sub(r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$", "", string)
+    safe_label = re2.sub(r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$", "", string)
 
     if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
         safe_hash = md5(string.encode()).hexdigest()[:9]

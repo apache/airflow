@@ -761,6 +761,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         run_id=None,
         run_type=None,
         data_interval=None,
+        map_index=-1,
         **kwargs,
     ) -> TaskInstance:
         if execution_date is None:
@@ -780,6 +781,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         (ti,) = dagrun.task_instances
         ti.task = task
         ti.state = state
+        ti.map_index = map_index
 
         dag_maker.session.flush()
         return ti
@@ -903,3 +905,14 @@ def clear_lru_cache():
 
     ExecutorLoader.validate_database_executor_compatibility.cache_clear()
     _get_grouped_entry_points.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def refuse_to_run_test_from_wrongly_named_files(request):
+    filename: str = request.node.fspath.basename
+    if not request.node.fspath.basename.startswith("test_"):
+        raise Exception(
+            f"All test method files in tests/ must start with 'test_'. Seems that {filename} "
+            f"contains {request.function} that looks like a test case. Please rename the file to "
+            f"follow the test_* pattern if you want to run the tests in it."
+        )
