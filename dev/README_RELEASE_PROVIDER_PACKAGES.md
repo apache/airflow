@@ -381,7 +381,6 @@ If you have providers as list of provider ids because you just released them, yo
 ```
 
 - Copy the documentation to the ``airflow-site`` repository
-- Either provide the ``--airflow-site-directory`` flag or set the env variable: ``AIRFLOW_SITE_DIRECTORY``
 
 All providers (including overriding documentation for doc-only changes):
 
@@ -393,7 +392,7 @@ breeze release-management publish-docs \
     --package-filter 'apache-airflow-providers-*' \
     --override-versioned
 
-breeze release-management add-back-references --airflow-site-directory DIRECTORY --gen-type providers
+breeze release-management add-back-references --gen-type providers
 cd ..
 
 ```

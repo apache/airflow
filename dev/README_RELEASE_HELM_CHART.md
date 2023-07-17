@@ -631,10 +631,9 @@ between the two repositories to be able to build the documentation.
 - Update `index.yaml`
 
   Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add https://airflow.apache.org`.
-  Note: Either provide the ``--airflow-site-directory`` flag or set the env variable: ``AIRFLOW_SITE_DIRECTORY``
 
     ```shell
-    breeze release-management add-back-references --airflow-site-directory DIRECTORY --gen-type helm
+    breeze release-management add-back-references --gen-type helm
     cd ..
     curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC/index.yaml -o index.yaml
     cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
