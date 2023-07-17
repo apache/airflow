@@ -1256,8 +1256,11 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
         return self.job_id
 
-    def start_job_run_after_defer(self, context: Context, event: dict[str, Any] = {}) -> None:
-        if event["status"] != "success":
+    def start_job_run_after_defer(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            self.log.error("Trigger error: event is None")
+            raise AirflowException("Trigger error: event is None")
+        elif event["status"] != "success":
             self.log.info("Application %s failed to start", self.application_id)
         response = self.hook.conn.start_job_run(
             clientToken=self.client_request_token,
@@ -1284,8 +1287,11 @@ class EmrServerlessStartJobOperator(BaseOperator):
             timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
         )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] = {}) -> None:
-        if event["status"] == "success":
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            self.log.error("Trigger error: event is None")
+            raise AirflowException("Trigger error: event is None")
+        elif event["status"] == "success":
             self.log.info("Serverless job completed")
             return event["job_id"]
 

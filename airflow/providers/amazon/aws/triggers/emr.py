@@ -338,7 +338,7 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
         aws_conn_id: str = "aws_default",
-    ):
+    ) -> None:
         super().__init__(
             serialized_fields={"application_id": application_id, "job_id": job_id},
             waiter_name="serverless_job_completed",
