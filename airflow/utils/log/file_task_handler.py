@@ -18,10 +18,12 @@
 """File logging handler for tasks."""
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import warnings
 from contextlib import suppress
+from copy import copy
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
@@ -41,7 +43,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models import TaskInstance
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +173,7 @@ class FileTaskHandler(logging.Handler):
         Some handlers emit "end of log" markers, and may not wish to do so when task defers.
         """
 
-    def set_context(self, ti: TaskInstance) -> None | SetContextPropagate:
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None | SetContextPropagate:
         """
         Provide task_instance context to airflow task handler.
 
@@ -182,13 +184,37 @@ class FileTaskHandler(logging.Handler):
         functionality is only used in unit testing.
 
         :param ti: task instance object
+        :param identifier: if set, adds suffix to log file. For use when shipping exceptional messages
+            to task logs from context other than task or trigger run
         """
-        local_loc = self._init_file(ti)
+        local_loc = self._init_file(ti, identifier=identifier)
         self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
+
+    @cached_property
+    def _supports_arbitrary_ship(self):
+        return "identifier" in inspect.signature(self.set_context).parameters
+
+    def ship_arbitrary_message(
+        self, *, ti: TaskInstanceKey | TaskInstance, identifier: str, message: str, level: int
+    ):
+        """For sending exception messages to task logs visible in UI."""
+        if not self._supports_arbitrary_ship:
+            return
+        h = copy(self)
+        try:
+            if hasattr(h, "mark_end_on_close"):
+                h.mark_end_on_close = False
+            h.set_context(ti, identifier=identifier)
+            filename, lineno, func, stackinfo = logger.findCaller()
+            record = logging.LogRecord("", level, filename, lineno, message, None, None, func=func)
+            h.emit(record)
+            logger.warning("EMITTED!!!")
+        finally:
+            h.close()
 
     @staticmethod
     def add_triggerer_suffix(full_path, job_id=None):
@@ -218,9 +244,12 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
+    def _render_filename(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
         """Returns the worker log filename."""
+        from airflow.models.taskinstance import TaskInstance
+
         with create_session() as session:
+            ti = TaskInstance.from_ti(ti, session=session)
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
             str_tpl, jinja_tpl = parse_template_string(template)
@@ -459,7 +488,7 @@ class FileTaskHandler(logging.Handler):
                 print(f"Failed to change {directory} permission to {new_folder_permissions}: {e}")
                 pass
 
-    def _init_file(self, ti):
+    def _init_file(self, ti, *, identifier: str | None = None):
         """
         Create log directory and give it permissions that are configured.
 
@@ -473,7 +502,9 @@ class FileTaskHandler(logging.Handler):
         )
         local_relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, local_relative_path)
-        if ti.is_trigger_log_context is True:
+        if identifier:
+            full_path += f".{identifier}.log"
+        elif ti.is_trigger_log_context is True:
             # if this is true, we're invoked via set_context in the context of
             # setting up individual trigger logging. return trigger log path.
             full_path = self.add_triggerer_suffix(full_path=full_path, job_id=ti.triggerer_job.id)

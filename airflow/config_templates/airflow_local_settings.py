@@ -171,6 +171,9 @@ DEFAULT_DAG_PARSING_LOGGING_CONFIG: dict[str, dict[str, dict[str, Any]]] = {
     },
 }
 
+# Arbitrary log shipping from Airflow components like scheduler, executor, etc.
+ARBITRARY_LOG_SHIPPING_ENABLED = conf.getboolean("logging", "enable_arbitrary_log_shipping")
+
 # Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
 # This is to avoid exceptions when initializing RotatingFileHandler multiple times
 # in multiple processes.

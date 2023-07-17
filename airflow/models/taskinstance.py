@@ -877,6 +877,19 @@ class TaskInstance(Base, LoggingMixin):
         else:
             self.state = None
 
+    @classmethod
+    def from_ti(cls, ti_key: TaskInstanceKey, session: Session):
+        return (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.task_id == ti_key.task_id,
+                TaskInstance.dag_id == ti_key.dag_id,
+                TaskInstance.run_id == ti_key.run_id,
+                TaskInstance.map_index == ti_key.map_index,
+            )
+            .one_or_none()
+        )
+
     def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
         """
         Copy common attributes from the given task.
