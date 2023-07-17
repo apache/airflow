@@ -2580,35 +2580,6 @@ class TaskInstance(Base, LoggingMixin):
             )
         return num_running_task_instances_query.scalar()
 
-    @provide_session
-    def get_valid_map_index(self, session: Session, limit: int) -> (set[int]):
-        """Return running map index of task group from the DB."""
-        task_ids_in_group = self.task.task_group.children.keys() if self.task.task_group else None
-        if not task_ids_in_group:
-            raise AirflowFailException(f"Task {self.task_id} is not a task group member!")
-        else:
-            query = (
-                session.query(TaskInstance.map_index, TaskInstance.state)
-                .filter(
-                    TaskInstance.dag_id == self.dag_id,
-                    TaskInstance.run_id == self.run_id,
-                    TaskInstance.task_id.in_(task_ids_in_group),
-                    TaskInstance.state.in_(
-                        [
-                            State.SCHEDULED,
-                            State.QUEUED,
-                            State.RUNNING,
-                            State.UP_FOR_RETRY,
-                            State.UP_FOR_RESCHEDULE,
-                        ]
-                    ),
-                )
-                .order_by(TaskInstance.map_index.asc())
-                .limit(limit)
-            )
-            ret = query.scalar()
-            return set(ret)
-
     def init_run_context(self, raw: bool = False) -> None:
         """Sets the log context."""
         self.raw = raw

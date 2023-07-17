@@ -17,8 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from airflow.models.taskinstance import TaskInstance
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
 
 
 class TaskConcurrencyDep(BaseTIDep):
@@ -29,39 +34,55 @@ class TaskConcurrencyDep(BaseTIDep):
     IS_TASK_DEP = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    def _get_dep_statuses(self, ti: TaskInstance, session: Session, dep_context):
+        task = ti.task
+        task_group = task.task_group
+
         if (
-            ti.task.max_active_tis_per_dag is None
-            and ti.task.max_active_tis_per_dagrun is None
-            and ti.task.task_group.max_active_groups_per_dagrun is None
+            task.max_active_tis_per_dag is None
+            and task.max_active_tis_per_dagrun is None
+            and (task_group is None or task_group.max_active_groups_per_dagrun is None)
         ):
             yield self._passing_status(reason="Task concurrency is not set.")
             return
 
-        # active task limit per dag
         if (
-            ti.task.max_active_tis_per_dag is not None
-            and ti.get_num_running_task_instances(session) >= ti.task.max_active_tis_per_dag
+            task.max_active_tis_per_dag is not None
+            and ti.get_num_running_task_instances(session) >= task.max_active_tis_per_dag
         ):
-            yield self._failing_status(reason="The max task concurrency has been reached.")
+            yield self._failing_status(reason="The max task concurrency per DAG has been reached.")
             return
 
-        # active task limit per dag run
         if (
-            ti.task.max_active_tis_per_dagrun is not None
-            and ti.get_num_running_task_instances(session, same_dagrun=True)
-            >= ti.task.max_active_tis_per_dagrun
+            task.max_active_tis_per_dagrun is not None
+            and ti.get_num_running_task_instances(session, same_dagrun=True) >= task.max_active_tis_per_dagrun
         ):
             yield self._failing_status(reason="The max task concurrency per run has been reached.")
             return
 
-        # active task group limit per dag run
-        group_limit = ti.task.task_group.max_active_groups_per_dagrun
-        if group_limit is not None:
-            valid_idx = ti.get_valid_map_index(session, group_limit)
-            accept = (ti.map_index in valid_idx) or (len(valid_idx) < group_limit)
+        if task_group is not None and (group_limit := task_group.max_active_groups_per_dagrun) is not None:
+            query = (
+                select(TaskInstance.map_index)
+                .where(
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.task_id.in_(task_group.children),
+                    TaskInstance.state.in_(
+                        (
+                            TaskInstanceState.SCHEDULED,
+                            TaskInstanceState.QUEUED,
+                            TaskInstanceState.RUNNING,
+                            TaskInstanceState.UP_FOR_RETRY,
+                            TaskInstanceState.UP_FOR_RESCHEDULE,
+                        )
+                    ),
+                )
+                .order_by(TaskInstance.map_index)
+                .limit(group_limit)
+            )
+            valid_indexes = set(session.scalars(query))
 
-            if not accept:
+            if len(valid_indexes) >= group_limit and ti.map_index not in valid_indexes:
                 yield self._failing_status(reason="The max task group concurrency has been reached.")
                 return
 
