@@ -30,7 +30,10 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
+from airflow.providers.amazon.aws.triggers.sagemaker import (
+    SageMakerPipelineExecutionCompletedTrigger,
+    SageMakerTrigger,
+)
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
@@ -998,8 +1001,10 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         All parameters supplied need to already be present in the pipeline definition.
     :param wait_for_completion: If true, this operator will only complete once the pipeline is complete.
     :param check_interval: How long to wait between checks for pipeline status when waiting for completion.
+    :param waiter_max_attempts: How many times to check the status before failing.
     :param verbose: Whether to print steps details when waiting for completion.
         Defaults to true, consider turning off for pipelines that have thousands of steps.
+    :param deferrable: Run operator in the deferrable mode.
 
     :return str: Returns The ARN of the pipeline execution created in Amazon SageMaker.
     """
@@ -1015,7 +1020,9 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         pipeline_params: dict | None = None,
         wait_for_completion: bool = False,
         check_interval: int = CHECK_INTERVAL_SECOND,
+        waiter_max_attempts: int = 9999,
         verbose: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(config={}, aws_conn_id=aws_conn_id, **kwargs)
@@ -1024,21 +1031,46 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         self.pipeline_params = pipeline_params
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
+        self.waiter_max_attempts = waiter_max_attempts
         self.verbose = verbose
+        self.deferrable = deferrable
 
     def execute(self, context: Context) -> str:
         arn = self.hook.start_pipeline(
             pipeline_name=self.pipeline_name,
             display_name=self.display_name,
             pipeline_params=self.pipeline_params,
-            wait_for_completion=self.wait_for_completion,
-            check_interval=self.check_interval,
-            verbose=self.verbose,
+            wait_for_completion=False,  # managed here
         )
         self.log.info(
             "Starting a new execution for pipeline %s, running with ARN %s", self.pipeline_name, arn
         )
+        if self.deferrable:
+            self.defer(
+                trigger=SageMakerPipelineExecutionCompletedTrigger(
+                    pipeline_execution_arn=arn,
+                    waiter_delay=self.check_interval,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        elif self.wait_for_completion:
+            self.hook.check_status(
+                arn,
+                "PipelineExecutionStatus",
+                lambda p: self.hook.describe_pipeline_exec(p, self.verbose),
+                self.check_interval,
+                non_terminal_states=self.hook.pipeline_non_terminal_states,
+                max_ingestion_time=self.waiter_max_attempts * self.check_interval,
+            )
         return arn
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        if event is None or event["status"] != "success":
+            raise AirflowException(f"Failure during pipeline execution: {event}")
+        else:
+            return event["value"]
 
 
 class SageMakerStopPipelineOperator(SageMakerBaseOperator):

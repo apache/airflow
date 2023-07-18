@@ -20,7 +20,9 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any
 
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -115,3 +117,30 @@ class SageMakerTrigger(BaseTrigger):
                 status_args=[self._get_response_status_key(self.job_type)],
             )
             yield TriggerEvent({"status": "success", "message": "Job completed."})
+
+
+class SageMakerPipelineExecutionCompletedTrigger(AwsBaseWaiterTrigger):
+    """Trigger to wait for a sagemaker pipeline execution to finish."""
+
+    def __init__(
+        self,
+        pipeline_execution_arn: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+        aws_conn_id: str,
+    ):
+        super().__init__(
+            serialized_fields={"pipeline_execution_arn": pipeline_execution_arn},
+            waiter_name="PipelineExecutionComplete",
+            waiter_args={"PipelineExecutionArn": pipeline_execution_arn},
+            failure_message="Error while waiting for pipeline execution to complete",
+            status_message="Pipeline execution status",
+            status_queries=["PipelineExecutionStatus", "FailureReason"],
+            return_value=pipeline_execution_arn,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
