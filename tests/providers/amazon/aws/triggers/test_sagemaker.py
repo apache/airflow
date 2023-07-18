@@ -21,9 +21,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from airflow.providers.amazon.aws.triggers.sagemaker import (
-    SageMakerTrigger,
-)
+from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 from airflow.triggers.base import TriggerEvent
 
 JOB_NAME = "job_name"
