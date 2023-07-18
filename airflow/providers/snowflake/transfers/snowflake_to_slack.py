@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Iterable, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
@@ -68,7 +68,7 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
         snowflake_conn_id: str = "snowflake_default",
         slack_conn_id: str = "slack_default",
         results_df_name: str = "results_df",
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         warehouse: str | None = None,
         database: str | None = None,
         schema: str | None = None,
