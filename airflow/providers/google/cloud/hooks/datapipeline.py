@@ -79,7 +79,8 @@ class DataPipelineHook(GoogleBaseHook):
             https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
         :param project_id: The ID of the GCP project that owns the job.
         :param location: The location to direct the Data Pipeline instance to (example_dags uses uscentral-1).
-
+        
+        Returns the created Pipeline instance in JSON representation.
         """
         
         parent = self.build_parent_name(project_id, location)
@@ -112,6 +113,8 @@ class DataPipelineHook(GoogleBaseHook):
             projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
         :param project_id: The ID of the GCP project that owns the job.
         :param location: The location of the Data Pipeline instance to (example_dags uses uscentral-1).
+        
+        Returns the created Job in JSON representation.
         """
         parent = self.build_parent_name(project_id, location)
         service = self.get_conn()
