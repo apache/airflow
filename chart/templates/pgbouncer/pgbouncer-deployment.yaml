@@ -26,8 +26,9 @@
 {{- $tolerations := or .Values.pgbouncer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.pgbouncer.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.pgbouncer.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.pgbouncer) }}
-{{- $containerSecurityContextMetricsExporter := include "containerSecurityContext" (list . .Values.pgbouncer.metricsExporterSidecar) }}
+{{- $securityContext := include "localPodSecurityContext" .Values.pgbouncer }}
+{{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.pgbouncer }}
+{{- $containerSecurityContextMetricsExporter := include "externalContainerSecurityContext" .Values.pgbouncer.metricsExporterSidecar }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -82,8 +83,7 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "pgbouncer.serviceAccountName" . }}
-      securityContext:
-        runAsUser: {{ .Values.pgbouncer.uid }}
+      securityContext: {{ $securityContext | nindent 8 }}
       restartPolicy: Always
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
