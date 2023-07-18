@@ -24,7 +24,13 @@ import os
 from datetime import datetime
 
 from airflow import models
+from airflow.providers.google.cloud.operators.bigquery import (
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryDeleteDatasetOperator,
+)
 from airflow.providers.google.cloud.operators.dataflow import DataflowStartSqlJobOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 DAG_ID = "example_gcp_dataflow_sql"
 
@@ -36,7 +42,6 @@ BQ_SQL_TABLE_OUTPUT = os.environ.get("GCP_DATAFLOW_BQ_SQL_TABLE_OUTPUT", "beam_o
 DATAFLOW_SQL_JOB_NAME = os.environ.get("GCP_DATAFLOW_SQL_JOB_NAME", "dataflow-sql")
 DATAFLOW_SQL_LOCATION = os.environ.get("GCP_DATAFLOW_SQL_LOCATION", "us-west1")
 
-
 with models.DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
@@ -44,17 +49,30 @@ with models.DAG(
     tags=["example"],
 ) as dag:
     # [START howto_operator_start_sql_job]
+    create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset_with_location", dataset_id=BQ_SQL_DATASET, location=DATAFLOW_SQL_LOCATION
+    )
+
+    create_table_with_location = BigQueryCreateEmptyTableOperator(
+        task_id="create_table_with_location",
+        dataset_id=BQ_SQL_DATASET,
+        table_id="test_table",
+        schema_fields=[
+            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+        ],
+    )
+
     start_sql = DataflowStartSqlJobOperator(
         task_id="start_sql_query",
         job_name=DATAFLOW_SQL_JOB_NAME,
         query=f"""
             SELECT
-                sales_region as sales_region,
-                count(state_id) as count_state
+                name as name,
+                count(name) as count_state
             FROM
                 bigquery.table.`{GCP_PROJECT_ID}`.`{BQ_SQL_DATASET}`.`{BQ_SQL_TABLE_INPUT}`
-            WHERE state_id >= @state_id_min
-            GROUP BY sales_region;
+            GROUP BY type;
         """,
         options={
             "bigquery-project": GCP_PROJECT_ID,
@@ -66,9 +84,25 @@ with models.DAG(
         location=DATAFLOW_SQL_LOCATION,
         do_xcom_push=True,
     )
+
     # [END howto_operator_start_sql_job]
 
-    start_sql
+    delete_dataset_with_location = BigQueryDeleteDatasetOperator(
+        task_id="delete_dataset_with_location",
+        dataset_id=BQ_SQL_DATASET,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    (
+        # TEST SETUP
+        create_dataset_with_location
+        >> create_table_with_location
+        # TEST EXECUTION
+        >> start_sql
+        # TEST TEARDOWN
+        >> delete_dataset_with_location
+    )
 
 from tests.system.utils import get_test_run  # noqa: E402
 
