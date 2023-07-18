@@ -20,7 +20,7 @@
 {{ provider_dict['name'] }}
 {{ header_separator * (provider_dict['name']|length) }}
 
-{% for extra_link in provider_dict['extra_links'] -%}
+{% for extra_link in provider_dict['extra-links'] -%}
     - :class:`~{{ extra_link }}`
 {% endfor -%}
 

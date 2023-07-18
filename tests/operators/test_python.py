@@ -619,7 +619,7 @@ class TestShortCircuitOperator(BasePythonTest):
 
         tis = dr.get_task_instances()
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="return_value") == "signature"
-        assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is None
+        assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is False
 
     def test_xcom_push_skipped_tasks(self):
         with self.dag:

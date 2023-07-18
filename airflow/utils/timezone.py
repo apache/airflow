@@ -241,6 +241,7 @@ def coerce_datetime(v: dt.datetime | None, tz: dt.tzinfo | None = None) -> DateT
 def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
     """
     Format a timedelta object or float/int into a readable string for time duration.
+
     For example timedelta(seconds=3752) would become `1h:2M:32s`.
     If the time is less than a second, the return will be `<1s`.
     """
