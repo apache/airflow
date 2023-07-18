@@ -77,7 +77,7 @@ with models.DAG(
         options={
             "bigquery-project": GCP_PROJECT_ID,
             "bigquery-dataset": DATASET_NAME,
-            "bigquery-table": BQ_SQL_TABLE_OUTPUT,
+            "bigquery-table": "test_table",
         },
         location=DATAFLOW_SQL_LOCATION,
         do_xcom_push=True,
