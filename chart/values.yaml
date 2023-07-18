@@ -562,6 +562,10 @@ workers:
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- end }}
 
+    # Weather to use PGBouncer to connect to the database or not when it is enabled
+    # This configuration will be ignored if PGBouncer is not enabled
+    usePgbouncer: true
+
   persistence:
     # Enable persistent volumes
     enabled: true
