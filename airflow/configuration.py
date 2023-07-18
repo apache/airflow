@@ -391,9 +391,9 @@ class AirflowConfigParser(ConfigParser):
 
         if max_tis_per_query > parallelism:
             warnings.warn(
-                f"Config value `scheduler.max_tis_per_query`(value:{max_tis_per_query}) "
-                f"should NOT be greater than `core.parallelism`(value:{parallelism}). "
-                "Will now use `core.parallelism` as the max task instances per query "
+                f"Config scheduler.max_tis_per_query (value: {max_tis_per_query}) "
+                f"should NOT be greater than core.parallelism (value: {parallelism}). "
+                "Will now use core.parallelism as the max task instances per query "
                 "instead of specified value.",
                 UserWarning,
             )
