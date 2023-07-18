@@ -70,10 +70,10 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         self.datapipeline_hook : DataPipelineHook | None = None
         self.body["pipelineSources"] = {"airflow":"airflow"}
 
-    if self.body is None:
-            raise AirflowException(
-                "Request Body not given; cannot create a DataPipeline without the Request Body."
-            )
+        if self.body is None:
+                raise AirflowException(
+                    "Request Body not given; cannot create a DataPipeline without the Request Body."
+                )
             
     def execute(self, context: Context):
         self.datapipeline_hook = DataPipelineHook(
