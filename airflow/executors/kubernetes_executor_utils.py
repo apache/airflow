@@ -129,6 +129,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ) -> str | None:
         self.log.info("Event: and now my watch begins starting at resource_version: %s", resource_version)
 
+        # Schedulers are issuing abrupt pod deletes when there is a delay in schedulers' heartbeat
+        # https://github.com/apache/airflow/issues/31198
+        # Removed scheduler scheduler_job_id filter to receive events from all airflow worker pods
         kwargs = {"label_selector": "airflow-worker"}
         if resource_version:
             kwargs["resource_version"] = resource_version
@@ -143,6 +146,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.log.debug("Event: %s had an event of type %s", task.metadata.name, event["type"])
             if event["type"] == "ERROR":
                 return self.process_error(event)
+            # Schedulers are issuing abrupt pod deletes when there is a delay in schedulers' heartbeat
+            # https://github.com/apache/airflow/issues/31198
+            # Added below scheduler_job_id condition to skip the events of pods created by other schedulers
             labels = task.metadata.labels
             if labels.get("airflow-worker", None) != scheduler_job_id:
                 last_resource_version = task.metadata.resource_version
