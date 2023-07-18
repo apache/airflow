@@ -119,7 +119,7 @@ class SageMakerTrigger(BaseTrigger):
             yield TriggerEvent({"status": "success", "message": "Job completed."})
 
 
-class SageMakerPipelineExecutionCompletedTrigger(AwsBaseWaiterTrigger):
+class SageMakerPipelineExecutionCompleteTrigger(AwsBaseWaiterTrigger):
     """Trigger to wait for a sagemaker pipeline execution to finish."""
 
     def __init__(
@@ -137,6 +137,33 @@ class SageMakerPipelineExecutionCompletedTrigger(AwsBaseWaiterTrigger):
             status_message="Pipeline execution status",
             status_queries=["PipelineExecutionStatus", "FailureReason"],
             return_value=pipeline_execution_arn,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
+
+
+class SageMakerPipelineExecutionStoppedTrigger(AwsBaseWaiterTrigger):
+    """Trigger to wait for a sagemaker pipeline execution to finish."""
+
+    def __init__(
+        self,
+        pipeline_execution_arn: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+        aws_conn_id: str,
+    ):
+        super().__init__(
+            serialized_fields={"pipeline_execution_arn": pipeline_execution_arn},
+            waiter_name="PipelineExecutionStopped",
+            waiter_args={"PipelineExecutionArn": pipeline_execution_arn},
+            failure_message="Error while waiting for pipeline execution to stop",
+            status_message="Pipeline execution status",
+            status_queries=["PipelineExecutionStatus", "FailureReason"],
+            return_value=None,
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,

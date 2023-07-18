@@ -130,6 +130,26 @@
                     "state": "failure"
                 }
             ]
+        },
+        "PipelineExecutionStopped": {
+            "delay": 10,
+            "operation": "DescribePipelineExecution",
+            "maxAttempts": 120,
+            "description": "Wait until pipeline execution is Stopped",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "PipelineExecutionStatus",
+                    "expected": "Stopped",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PipelineExecutionStatus",
+                    "expected": "Failed",
+                    "state": "failure"
+                }
+            ]
         }
     }
 }
