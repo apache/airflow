@@ -69,8 +69,21 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.datapipeline_hook : DataPipelineHook | None = None
         self.body["pipelineSources"] = {"airflow":"airflow"}
-
+            
     def execute(self, context: Context):
+        if self.body is None:
+                raise AirflowException(
+                    "Request Body not given; cannot create a DataPipeline without the Request Body."
+                )
+        if self.project_id is None:
+                raise AirflowException(
+                    "Project ID not given; cannot create a DataPipeline without the Project ID."
+                )
+        if self.location is None:
+                raise AirflowException(
+                    "location not given; cannot create a DataPipeline without the location."
+                )
+        
         self.datapipeline_hook = DataPipelineHook(
             gcp_conn_id=self.gcp_conn_id
         )
@@ -81,7 +94,12 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
             location = self.location,
         )
         self.log.info("Response Body: ", self.data_pipeline)
-
+        
+        if "error" in self.data_pipeline:
+            raise AirflowException(
+                  self.data_pipeline.get("error").get("message")
+            )
+        
         # returns the full response body
         return self.data_pipeline
 

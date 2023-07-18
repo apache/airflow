@@ -85,7 +85,7 @@ class DataPipelineHook(GoogleBaseHook):
         
         parent = self.build_parent_name(project_id, location)
         service = self.get_conn()
-        print(dir(service.projects().locations()))
+        self.log.info(dir(service.projects().locations()))
         request = (
             service.projects().locations().pipelines().create(
                 parent = parent,
@@ -118,7 +118,7 @@ class DataPipelineHook(GoogleBaseHook):
         """
         parent = self.build_parent_name(project_id, location)
         service = self.get_conn()
-        print(dir(service.projects().locations()))
+        self.log.info(dir(service.projects().locations()))
         request = (
             service.projects().locations().pipelines().run(
                 name = f"{parent}/pipelines/{data_pipeline_name}",
