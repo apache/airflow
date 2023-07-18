@@ -157,7 +157,7 @@ integrations:
   - integration-name: Amazon EventBridge
     external-doc-url: https://docs.aws.amazon.com/eventbridge/latest/APIReference/Welcome.html
     how-to-guide:
-      - /docs/apache-airflow-providers-amazon/operators/events.rst
+      - /docs/apache-airflow-providers-amazon/operators/eventbridge.rst
     logo: /integration-logos/aws/Amazon-EventBridge_64.png
     tags: [aws]
   - integration-name: Amazon Glacier
