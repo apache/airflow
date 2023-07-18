@@ -244,20 +244,20 @@ class TestSecurityContext:
                 "templates/redis/redis-statefulset.yaml",
             ],
         )
-        for index in range(len(docs) - 3):
+        for doc in docs[:-3]:
             assert ctx_value_container == jmespath.search(
-                "spec.template.spec.containers[0].securityContext", docs[index]
+                "spec.template.spec.containers[0].securityContext", doc
             )
-            assert ctx_value_pod == jmespath.search("spec.template.spec.securityContext", docs[index])
+            assert ctx_value_pod == jmespath.search("spec.template.spec.securityContext", doc)
 
         # Global security context is not propagated to pgbouncer, redis and statsd, so we test default value
         default_ctx_value_container = {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}
         default_ctx_value_pod_pgbouncer = {"runAsUser": 65534}
         default_ctx_value_pod_statsd = {"runAsUser": 65534}
         default_ctx_value_pod_redis = {"runAsUser": 0}
-        for index in range(len(docs) - 3, len(docs)):
+        for doc in docs[-3:]:
             assert default_ctx_value_container == jmespath.search(
-                "spec.template.spec.containers[0].securityContext", docs[index]
+                "spec.template.spec.containers[0].securityContext", doc
             )
         # Test pgbouncer metrics-exporter container
         assert default_ctx_value_container == jmespath.search(
