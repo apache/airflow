@@ -858,9 +858,8 @@ If no value is passed for securityContexts.container or <node>.securityContexts.
     | <node>.securityContexts.container |  ->  | securityContexts.containers |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
     +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
 
-
 The template can be called like so:
-   include "containerSecurityContext" (list . .Values.statsd)
+   include "containerSecurityContext" (list . .Values.webserver)
 
 Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
 */}}
@@ -880,18 +879,17 @@ capabilities:
   {{- end -}}
 {{- end -}}
 
-  {{/*
-     Set the default value for external container securityContext(redis and statsd).
-     If no value is passed for <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
+{{/*
+Set the default value for external container securityContext(redis and statsd).
+If no value is passed for <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
 
-     +-----------------------------------+      +-----------------------------------------------------------+
-     | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
-     +-----------------------------------+      +-----------------------------------------------------------+
+    +-----------------------------------+      +-----------------------------------------------------------+
+    | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
+    +-----------------------------------+      +-----------------------------------------------------------+
 
-
-    The template can be called like so:
-      include "externalContainerSecurityContext" .Values.statsd
-    */}}
+The template can be called like so:
+  include "externalContainerSecurityContext" .Values.statsd
+*/}}
 {{- define "externalContainerSecurityContext" -}}
   {{- if .securityContexts.container -}}
     {{ toYaml .securityContexts.container | print }}
