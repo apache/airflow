@@ -854,10 +854,7 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
         self.session.execute(
             delete(TaskInstance).where(
                 tuple_in_condition(
-                    (
-                        TI.dag_id,
-                        TI.run_id,
-                    ),
+                    (TI.dag_id, TI.run_id),
                     ((x.dag_id, x.run_id) for x in items),
                 )
             )
