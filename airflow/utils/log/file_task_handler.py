@@ -23,7 +23,6 @@ import logging
 import os
 import warnings
 from contextlib import suppress
-from copy import copy
 from enum import Enum
 from functools import cached_property
 from pathlib import Path
@@ -43,7 +42,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
 
 logger = logging.getLogger(__name__)
 
@@ -195,26 +194,8 @@ class FileTaskHandler(logging.Handler):
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
 
     @cached_property
-    def _supports_arbitrary_ship(self):
+    def supports_task_log_ship(self):
         return "identifier" in inspect.signature(self.set_context).parameters
-
-    def ship_arbitrary_message(
-        self, *, ti: TaskInstanceKey | TaskInstance, identifier: str, message: str, level: int
-    ):
-        """For sending exception messages to task logs visible in UI."""
-        if not self._supports_arbitrary_ship:
-            return
-        h = copy(self)
-        try:
-            if hasattr(h, "mark_end_on_close"):
-                h.mark_end_on_close = False
-            h.set_context(ti, identifier=identifier)
-            filename, lineno, func, stackinfo = logger.findCaller()
-            record = logging.LogRecord("", level, filename, lineno, message, None, None, func=func)
-            h.emit(record)
-            logger.warning("EMITTED!!!")
-        finally:
-            h.close()
 
     @staticmethod
     def add_triggerer_suffix(full_path, job_id=None):
@@ -244,12 +225,9 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+    def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
         """Returns the worker log filename."""
-        from airflow.models.taskinstance import TaskInstance
-
         with create_session() as session:
-            ti = TaskInstance.from_ti(ti, session=session)
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
             str_tpl, jinja_tpl = parse_template_string(template)

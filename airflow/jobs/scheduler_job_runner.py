@@ -63,8 +63,8 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
-from airflow.utils.log.arbitrary_log_shipper import ArbitraryLogShipper, get_arbitrary_log_shipper
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.task_log_shipper import TaskLogShipper
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
@@ -229,7 +229,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
         self._paused_dag_without_running_dagruns: set = set()
-        self._arbitrary_log_shipper: ArbitraryLogShipper = get_arbitrary_log_shipper(self.job_type)
+        self._task_log_shipper: TaskLogShipper = TaskLogShipper(self.job_type)
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -750,7 +750,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 f"task finished with ti.state={ti.state} state={state} info={info} try={ti.try_number} "
                 f"_try={ti._try_number}"
             )
-            self._arbitrary_log_shipper.ship_task_message(ti, arbitrary_log_message, logging.INFO)
+            self._task_log_shipper.ship_task_message(ti, arbitrary_log_message, logging.INFO)
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
@@ -778,7 +778,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     "task says it's %s. (Info: %s) Was the task killed externally?"
                 )
                 self.log.error(msg, ti, state, ti.state, info)
-                self._arbitrary_log_shipper.ship_task_message(
+                self._task_log_shipper.ship_task_message(
                     ti, msg % (ti, state, ti.state, info), level=logging.ERROR
                 )
 
@@ -788,7 +788,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     task = dag.get_task(ti.task_id)
                 except Exception:
                     self.log.exception("Marking task instance %s as %s", ti, state)
-                    self._arbitrary_log_shipper.ship_task_message(
+                    self._task_log_shipper.ship_task_message(
                         ti, msg % (ti, state, ti.state, info), level=logging.ERROR
                     )
                     ti.set_state(state)
