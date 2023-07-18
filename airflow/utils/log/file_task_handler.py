@@ -232,14 +232,10 @@ class FileTaskHandler(logging.Handler):
         with create_session() as session:
             if isinstance(ti_or_ti_key, TaskInstanceKey):
                 ti = TaskInstance.from_ti_key(ti_or_ti_key, session)
-            elif isinstance(ti_or_ti_key, TaskInstance):
-                ti = ti_or_ti_key
+                if not ti:
+                    raise ValueError("TaskInstance not found")
             else:
-                raise TypeError(
-                    f"Expected TaskInstance or TaskInstanceKey, got {type(ti_or_ti_key).__name__}"
-                )
-            if not ti:
-                raise ValueError("TaskInstance not found")
+                ti = ti_or_ti_key
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
             str_tpl, jinja_tpl = parse_template_string(template)
