@@ -26,7 +26,6 @@ Key features of setup and teardown tasks:
   * By default, teardown tasks are ignored for the purpose of evaluating dag run state.
   * A teardown task will run if its setup was successful, even if its work tasks failed.
   * Teardown tasks are ignored when setting dependencies against task groups.
-  * A setup task must always have a teardown and vice versa. You may use EmptyOperator as a setup or teardown.
 
 How setup and teardown works
 """"""""""""""""""""""""""""
@@ -92,6 +91,29 @@ In the above example, ``w1`` and ``w2`` are "between" ``s1`` and ``t1`` and ther
 
 You can have multiple setup tasks wired to a single teardown.  The teardown will run if at least one of the setups completed successfully.
 
+You can have a setup without a teardown:
+
+.. code-block:: python
+
+    create_cluster >> run_query >> other_task
+
+In this case, everything downstream of create_cluster is assumed to require it.  So if you clear query_two, it will also clear create_cluster.  Suppose that we add a teardown for create_cluster after run_query:
+
+.. code-block:: python
+
+    create_cluster >> run_query >> other_task
+    run_query >> delete_cluster.as_teardown(setups=create_cluster)
+
+Now, Airflow can infer that other_task does not require create_cluster, so if we clear other_task, create_cluster will not also be cleared.
+
+In that example, we (in our pretend docs land) actually wanted to delete the cluster.  But supposing we didn't, and we just wanted to say "other_task does not require create_cluster", then we could use an EmptyOperator to limit the setup's scope:
+
+.. code-block:: python
+
+    create_cluster >> run_query >> other_task
+    run_query >> EmptyOperator(task_id="cluster_teardown").as_teardown(setups=create_cluster)
+
+
 Controlling dag run state
 """""""""""""""""""""""""
 
@@ -156,7 +178,7 @@ You can run setup tasks in parallel:
         >> [delete_cluster.as_teardown(setups=create_cluster), delete_bucket.as_teardown(setups=create_bucket)]
     )
 
-When a setup fails or is skipped
-""""""""""""""""""""""""""""""""
+Trigger rule behavior for teardowns
+"""""""""""""""""""""""""""""""""""
 
-If a setup fails, its downstreams are failed, though with a non-teardown downstream tasks, you can override this behavior with trigger rules.  When a setup is skipped, its downstreams are skipped.
+Teardowns use a (non-configurable) trigger rule called ALL_DONE_SETUP_SUCCESS.  With this rule, as long as all upstreams are done and at least one directly connected setup is successful, the teardown will run.  If all of a teardown's setups were skipped or failed, those states will propagate to the teardown.
