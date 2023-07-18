@@ -113,6 +113,19 @@ class RunDataPipelineOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         self.data_pipeline_hook = DataPipelineHook(gcp_conn_id=self.gcp_conn_id)
 
+        if self.data_pipeline_name is None:
+            raise AirflowException(
+                "Data Pipeline name not given; cannot run unspecified pipeline."
+            )
+        if self.project_id is None:
+            raise AirflowException(
+                "Project ID not given; cannot run pipeline."
+            )
+        if self.location is None:
+            raise AirflowException(
+                "Pipeline location not given; cannot run pipeline."
+            )
+
         self.response = self.data_pipeline_hook.run_data_pipeline(
             data_pipeline_name = self.data_pipeline_name,
             project_id = self.project_id,
