@@ -87,9 +87,14 @@ class DagRunPydantic(BaseModelPydantic):
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
-        from airflow.models.dagrun import _get_task_instance
+        from airflow.models.dagrun import DagRun
 
-        return _get_task_instance(self, task_id, session, map_index)
+        return DagRun.fetch_task_instance(
+            dag_run=self,
+            task_id=task_id,
+            session=session,
+            map_index=map_index,
+        )
 
 
 DagRunPydantic.update_forward_refs()

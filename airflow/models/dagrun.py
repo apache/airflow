@@ -102,29 +102,6 @@ def _creator_note(val):
         return DagRunNote(*val)
 
 
-def _get_task_instance(
-    dag_run: DagRun | DagRunPydantic,
-    task_id: str,
-    session: Session,
-    map_index: int = -1,
-) -> TI | None:
-    """
-    Returns the task instance specified by task_id for a given dag run.
-
-    :param dag_run: the DAG run
-    :param task_id: the task id
-    :param session: Sqlalchemy ORM Session
-
-    :meta private:
-    """
-    return DagRun.fetch_task_instance(
-        dag_run=dag_run,
-        task_id=task_id,
-        session=session,
-        map_index=map_index,
-    )
-
-
 class DagRun(Base, LoggingMixin):
     """Invocation instance of a DAG.
 
@@ -549,7 +526,12 @@ class DagRun(Base, LoggingMixin):
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
-        return _get_task_instance(self, task_id, session, map_index)
+        return DagRun.fetch_task_instance(
+            dag_run=self,
+            task_id=task_id,
+            session=session,
+            map_index=map_index,
+        )
 
     @staticmethod
     @internal_api_call
