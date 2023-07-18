@@ -379,7 +379,7 @@ spec:
         {{- end }}
       spec:
         {{- if .Values.workers.persistence.storageClassName }}
-        storageClassName: {{ .Values.workers.persistence.storageClassName }}
+        storageClassName: {{ tpl .Values.workers.persistence.storageClassName . }}
         {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:

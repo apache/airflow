@@ -109,7 +109,7 @@ spec:
         {{- end }}
       spec:
         {{- if .Values.redis.persistence.storageClassName }}
-        storageClassName: {{ .Values.redis.persistence.storageClassName }}
+        storageClassName: {{ tpl .Values.redis.persistence.storageClassName . }}
         {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:
