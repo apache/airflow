@@ -31,13 +31,13 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.sagemaker import (
-    SageMakerPipelineExecutionCompleteTrigger,
-    SageMakerPipelineExecutionStoppedTrigger,
+    SageMakerPipelineTrigger,
     SageMakerTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
@@ -1047,7 +1047,8 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
         )
         if self.deferrable:
             self.defer(
-                trigger=SageMakerPipelineExecutionCompleteTrigger(
+                trigger=SageMakerPipelineTrigger(
+                    waiter_type=SageMakerPipelineTrigger.Type.COMPLETE,
                     pipeline_execution_arn=arn,
                     waiter_delay=self.check_interval,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -1056,6 +1057,16 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
                 method_name="execute_complete",
             )
         elif self.wait_for_completion:
+            waiter = self.hook.get_waiter("PipelineExecutionComplete")
+            wait(
+                waiter=waiter,
+                waiter_delay=self.check_interval,
+                waiter_max_attempts=self.waiter_max_attempts,
+                args={"PipelineExecutionArn": arn},
+                failure_message="Error while waiting for pipeline execution to complete",
+                status_message="Pipeline execution status",
+                status_args=["PipelineExecutionStatus", "FailureReason"],
+            )
             self.hook.check_status(
                 arn,
                 "PipelineExecutionStatus",
@@ -1139,7 +1150,8 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
         # else, eventually wait for completion
         if self.deferrable:
             self.defer(
-                trigger=SageMakerPipelineExecutionStoppedTrigger(
+                trigger=SageMakerPipelineTrigger(
+                    waiter_type=SageMakerPipelineTrigger.Type.STOPPED,
                     pipeline_execution_arn=self.pipeline_exec_arn,
                     waiter_delay=self.check_interval,
                     waiter_max_attempts=self.waiter_max_attempts,
