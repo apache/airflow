@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
-from google.cloud.run_v2 import Job, JobsClient, CreateJobRequest
+from google.cloud.run_v2 import Job, JobsClient, CreateJobRequest, ListJobsRequest
 
 from airflow.providers.google.cloud.operators.cloud_base import \
     GoogleCloudBaseOperator
@@ -63,3 +63,28 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
 
         print(response)
 
+
+class CloudRunListJobsOperator(GoogleCloudBaseOperator):
+    def __init__(self,
+                 project_id: str,
+                 region: str,
+                 gcp_conn_id: str = 'google_cloud_default',
+                 impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+                 **kwargs,
+                 ):
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.region = region
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        client = JobsClient()
+
+        request = ListJobsRequest(
+            parent=f"projects/{self.project_id}/locations/{self.region}"
+        )
+
+        pager = client.list_jobs(request=request)
+
+        print(pager)
