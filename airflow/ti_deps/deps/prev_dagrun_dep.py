@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
@@ -42,8 +44,17 @@ class PrevDagrunDep(BaseTIDep):
         if dep_context.wait_for_past_depends_before_skipping:
             ti.xcom_push(key=PAST_DEPENDS_MET, value=True)
 
+    @staticmethod
+    def _get_task_instances(dagrun: DagRun, task_id: str, *, session: Session) -> list[TI]:
+        """Get task instances from given DAG run with matching task ID.
+
+        This function exists for easy mocking in tests.
+        """
+        stmt = select(TI).where(TI.dag_id == dagrun.dag_id, TI.task_id == task_id, TI.run_id == dagrun.run_id)
+        return session.scalars(stmt).all()
+
     @provide_session
-    def _get_dep_statuses(self, ti: TI, session, dep_context):
+    def _get_dep_statuses(self, ti: TI, session: Session, dep_context):
         if dep_context.ignore_depends_on_past:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             reason = "The context specified that the state of past DAGs could be ignored."
@@ -80,11 +91,7 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
-        previous_tis: list[TI] = session.scalars(
-            select(TI).where(
-                TI.dag_id == ti.dag_id, TI.task_id == ti.task_id, TI.run_id == last_dagrun.run_id
-            )
-        ).all()
+        previous_tis = self._get_task_instances(last_dagrun, ti.task_id, session=session)
 
         if not previous_tis:
             if ti.task.ignore_first_depends_on_past:
