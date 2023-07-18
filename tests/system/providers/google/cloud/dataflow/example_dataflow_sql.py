@@ -42,20 +42,23 @@ BQ_SQL_TABLE_OUTPUT = os.environ.get("GCP_DATAFLOW_BQ_SQL_TABLE_OUTPUT", "beam_o
 DATAFLOW_SQL_JOB_NAME = os.environ.get("GCP_DATAFLOW_SQL_JOB_NAME", "dataflow-sql")
 DATAFLOW_SQL_LOCATION = os.environ.get("GCP_DATAFLOW_SQL_LOCATION", "us-west1")
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+BQ_LOCATION = "europe-north1"
+
 with models.DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
 ) as dag:
-    # [START howto_operator_start_sql_job]
     create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(
-        task_id="create_dataset_with_location", dataset_id=BQ_SQL_DATASET, location=DATAFLOW_SQL_LOCATION
+        task_id="create_dataset_with_location", dataset_id=DATASET_NAME, location=BQ_LOCATION
     )
 
     create_table_with_location = BigQueryCreateEmptyTableOperator(
         task_id="create_table_with_location",
-        dataset_id=BQ_SQL_DATASET,
+        dataset_id=DATASET_NAME,
         table_id="test_table",
         schema_fields=[
             {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
@@ -63,23 +66,17 @@ with models.DAG(
         ],
     )
 
+    # [START howto_operator_start_sql_job]
+
     start_sql = DataflowStartSqlJobOperator(
         task_id="start_sql_query",
         job_name=DATAFLOW_SQL_JOB_NAME,
         query=f"""
-            SELECT
-                name as name,
-                count(name) as count_state
-            FROM
-                bigquery.table.`{GCP_PROJECT_ID}`.`{BQ_SQL_DATASET}`.`{BQ_SQL_TABLE_INPUT}`
-            GROUP BY type;
+            SELECT * FROM {DATASET_NAME}.test_table;
         """,
         options={
             "bigquery-project": GCP_PROJECT_ID,
-            "bigquery-dataset": BQ_SQL_DATASET,
-            "bigquery-table": BQ_SQL_TABLE_OUTPUT,
-            "bigquery-write-disposition": "write-truncate",
-            "parameter": "state_id_min:INT64:2",
+            "bigquery-dataset": DATASET_NAME,
         },
         location=DATAFLOW_SQL_LOCATION,
         do_xcom_push=True,
@@ -89,7 +86,7 @@ with models.DAG(
 
     delete_dataset_with_location = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset_with_location",
-        dataset_id=BQ_SQL_DATASET,
+        dataset_id=DATASET_NAME,
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
