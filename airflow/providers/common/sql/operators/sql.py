@@ -762,7 +762,7 @@ class SQLCheckOperator(BaseSQLOperator):
         sql: str,
         conn_id: str | None = None,
         database: str | None = None,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -1129,7 +1129,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         follow_task_ids_if_false: list[str],
         conn_id: str = "default_conn_id",
         database: str | None = None,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)

@@ -241,7 +241,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def get_pandas_df(
         self,
         sql: str,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         dialect: str | None = None,
         **kwargs,
     ) -> DataFrame:
