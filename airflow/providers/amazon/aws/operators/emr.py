@@ -1266,7 +1266,11 @@ class EmrServerlessStartJobOperator(BaseOperator):
             return event["job_id"]
 
     def on_kill(self) -> None:
-        """Cancel the submitted job run."""
+        """
+        Cancel the submitted job run.
+
+        Note: this method will not run in deferrable mode.
+        """
         if self.job_id:
             self.log.info("Stopping job run with jobId - %s", self.job_id)
             response = self.hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
