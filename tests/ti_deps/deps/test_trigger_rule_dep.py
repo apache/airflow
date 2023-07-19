@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import datetime
 from typing import Iterator
 from unittest import mock
@@ -1215,3 +1216,57 @@ def test_mapped_task_check_before_expand(dag_maker, session):
     results = list(result_iterator)
     assert len(results) == 1
     assert results[0].passed is False
+
+
+def test_upstream_in_mapped_group_with_one_failed_rule_task(dag_maker, session):
+    from airflow.decorators import task, task_group
+
+    with dag_maker(session=session):
+
+        @task(trigger_rule=TriggerRule.ONE_FAILED)
+        def watcher(_):
+            ...
+
+        @task
+        def t(_):
+            ...
+
+        @task
+        def s():
+            return [1, 2]
+
+        @task
+        def f(_):
+            raise Exception("Failed")
+
+        @task_group
+        def tg(x):
+            [t(x), f(x)] >> watcher(x)
+
+        tg.expand(x=s())
+
+    dr: DagRun = dag_maker.create_dagrun()
+
+    def _one_scheduling_decision_iteration() -> dict[tuple[str, int], TaskInstance]:
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        return {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+
+    tis = _one_scheduling_decision_iteration()
+    tis["s", -1].run()
+
+    tis = _one_scheduling_decision_iteration()
+    tis["tg.t", 0].run()
+    tis["tg.t", 1].run()
+    with suppress(Exception):
+        tis["tg.f", 0].run()
+    with suppress(Exception):
+        tis["tg.f", 1].run()
+
+    tis = _one_scheduling_decision_iteration()
+    tis["tg.watcher", 0].run()
+    tis["tg.watcher", 1].run()
+
+    watcher1 = dr.get_task_instance("tg.watcher", session=session, map_index=0)
+    watcher2 = dr.get_task_instance("tg.watcher", session=session, map_index=1)
+    assert watcher1.state == TaskInstanceState.SUCCESS
+    assert watcher2.state == TaskInstanceState.SUCCESS

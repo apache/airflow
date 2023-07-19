@@ -159,9 +159,9 @@ class TriggerRuleDep(BaseTIDep):
             # Not actually an upstream task.
             if upstream.task_id not in task.upstream_task_ids:
                 return False
-            # The current task is not in a mapped task group. All tis from an
+            # The current task is not in a mapped task group or if it isn't expanded yet. All tis from an
             # upstream task are relevant.
-            if task.get_closest_mapped_task_group() is None:
+            if task.get_closest_mapped_task_group() is None or ti.map_index < 0:
                 return True
             # The upstream ti is not expanded. The upstream may be mapped or
             # not, but the ti is relevant either way.
@@ -195,9 +195,9 @@ class TriggerRuleDep(BaseTIDep):
         skipped_setup = upstream_states.skipped_setup
 
         def _iter_upstream_conditions() -> Iterator[ColumnOperators]:
-            # Optimization: If the current task is not in a mapped task group,
+            # Optimization: If the current task is not in a mapped task group or if it isn't expanded yet,
             # it depends on all upstream task instances.
-            if task.get_closest_mapped_task_group() is None:
+            if task.get_closest_mapped_task_group() is None or ti.map_index < 0:
                 yield TaskInstance.task_id.in_(upstream_tasks)
                 return
             # Otherwise we need to figure out which map indexes are depended on
