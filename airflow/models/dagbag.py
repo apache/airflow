@@ -404,6 +404,7 @@ class DagBag(LoggingMixin):
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
         from airflow.models.dag import DAG  # Avoid circular import
+        from airflowinfra.multi_cluster_utils import _dag_in_migrated_flyte_repo
 
         top_level_dags = ((o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG))
 
