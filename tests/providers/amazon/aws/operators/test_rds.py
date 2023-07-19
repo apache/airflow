@@ -18,11 +18,13 @@
 from __future__ import annotations
 
 import logging
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
 from moto import mock_rds
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
@@ -40,6 +42,7 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsStartExportTaskOperator,
     RdsStopDbOperator,
 )
+from airflow.providers.amazon.aws.triggers.rds import RdsDbAvailableTrigger, RdsDbStoppedTrigger
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
@@ -832,6 +835,19 @@ class TestRdsStopDbOperator:
         assert status == "stopped"
         mock_await_status.assert_not_called()
 
+    @mock.patch.object(RdsHook, "conn")
+    def test_deferred(self, conn_mock):
+        op = RdsStopDbOperator(
+            task_id="test_stop_db_instance_no_wait",
+            db_identifier=DB_INSTANCE_NAME,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as defer:
+            op.execute({})
+
+        assert isinstance(defer.value.trigger, RdsDbStoppedTrigger)
+
     @mock_rds
     def test_stop_db_instance_create_snapshot(self):
         _create_db_instance(self.hook)
@@ -932,3 +948,16 @@ class TestRdsStartDbOperator:
         result_after = self.hook.conn.describe_db_clusters(DBClusterIdentifier=DB_CLUSTER_NAME)
         status_after = result_after["DBClusters"][0]["Status"]
         assert status_after == "available"
+
+    @mock.patch.object(RdsHook, "conn")
+    def test_deferred(self, conn_mock):
+        op = RdsStartDbOperator(
+            task_id="test_stop_db_instance_no_wait",
+            db_identifier=DB_INSTANCE_NAME,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as defer:
+            op.execute({})
+
+        assert isinstance(defer.value.trigger, RdsDbAvailableTrigger)
