@@ -266,7 +266,7 @@ deprecated_api = [
 doc = [
     "astroid>=2.12.3",
     "checksumdir",
-    # click 8.1.4 and 8.1.5 generate mypy error due to typing issue in the upstream package:
+    # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
     # https://github.com/pallets/click/issues/2558
     "click>=8.0,!=8.1.4,!=8.1.5",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
