@@ -1313,3 +1313,26 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["mytask2"].upstream_task_ids == {"setuptask2"}
         assert dag.task_group.children["mytask2"].downstream_task_ids == {"teardowntask2"}
         assert dag.task_group.children["teardowntask2"].upstream_task_ids == {"mytask2", "setuptask2"}
+
+    def test_check_for_circular_dependency(self, dag_maker):
+
+        with dag_maker() as dag:
+            s1 = make_task("s1", type_="classic", setup_=True)
+            s2 = make_task("s2", type_="classic", setup_=True)
+            t1 = make_task("t1", type_="classic", teardown_=True)
+            t2 = make_task("t2", type_="classic", teardown_=True)
+
+            s1 >> s2
+            s1 >> t1
+            s2 >> t1
+            s1 >> t2
+            s2 >> t2
+            with t1, t2:
+                make_task("work_task", type_="classic")
+
+        dag.validate()
+
+        assert dag.task_group.children.keys() == {"s1", "s2", "t1", "t2", "work_task"}
+        assert dag.task_group.children["s1"].downstream_task_ids == {"s2", "work_task", "t1", "t2"}
+        assert dag.task_group.children["s2"].downstream_task_ids == {"work_task", "t1", "t2"}
+        assert dag.task_group.children["t2"].downstream_task_ids == {"t1"}
