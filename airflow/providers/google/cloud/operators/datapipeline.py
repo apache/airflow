@@ -154,4 +154,9 @@ class RunDataPipelineOperator(GoogleCloudBaseOperator):
             location = self.location,
         )
 
+        if "error" in self.response:
+            raise AirflowException(
+                  self.response.get("error").get("message")
+            )
+
         return self.response
