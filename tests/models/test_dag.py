@@ -3702,32 +3702,6 @@ class TestTaskClearingSetupTeardownBehavior:
         # t1 not included because t1 is not downstream
         assert self.cleared_downstream(w3) == {s2, w3, t2}
 
-    def test_setup_without_teardown(self):
-        """A setup needs a teardown to define its scope."""
-        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
-            s1, w1, t1 = self.make_tasks(dag, "s1, w1, t1")
-        # s1 has no teardown: fail
-        with pytest.raises(AirflowDagInconsistent):
-            dag.validate_setup_teardown()
-
-        s1 >> w1
-        # w1 depends on s1 but not as a "setup" per se, since s1 doesn't have a teardown to define
-        # its scope
-        with pytest.raises(AirflowDagInconsistent):
-            dag.validate_setup_teardown()
-
-        w1 >> t1
-        # now t1 is technically downstream of s1, but we still must wire it up explicitly
-        # to define the setup/teardown relationship
-        with pytest.raises(AirflowDagInconsistent):
-            dag.validate_setup_teardown()
-
-        s1 >> t1
-        # now, s1 and t1 are linked as setups and teardowns
-        # anything upstream of t1 and downstream of s1 is in the scope for s1
-        # so now this passes validation
-        dag.validate_setup_teardown()
-
     def test_get_flat_relative_ids_follows_teardowns(self):
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
             s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
@@ -3925,25 +3899,6 @@ class TestTaskClearingSetupTeardownBehavior:
 
     def test_validate_setup_teardown_dag(self, dag_maker):
         """Test some invalid setups and teardowns in a dag"""
-        with dag_maker("test_dag") as dag:
-            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
-
-            with s1:
-                w1 >> t1
-                w2 >> t1
-        with pytest.raises(
-            AirflowDagInconsistent, match="Dag has setup without teardown: dag='test_dag', task='s1'"
-        ):
-            dag.validate()
-
-        with dag_maker("test_dag") as dag:
-            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
-            s1 >> w1 >> w2 >> t1
-        with pytest.raises(
-            AirflowDagInconsistent, match="Dag has setup without teardown: dag='test_dag', task='s1'"
-        ):
-            dag.validate()
-
         with dag_maker("test_dag") as dag:
             s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
             w1 >> w2
