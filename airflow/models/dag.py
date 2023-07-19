@@ -2764,9 +2764,7 @@ class DAG(LoggingMixin):
                         "Task failed. DAG will continue to run until finished and be marked as failed.",
                         exc_info=True,
                     )
-            for ti in dr.get_task_instances(session=session):
-                if ti.state != TaskInstanceState.SCHEDULED:
-                    continue
+            for ti in dr.get_task_instances(session=session, state=[TaskInstanceState.SCHEDULED]):
                 if not ti.next_method:
                     continue
                 # Special case: TI resumes from deferred state.
