@@ -714,10 +714,6 @@ class DAG(LoggingMixin):
         :meta private:
         """
         for task in self.tasks:
-            if task.is_setup and not any(x.is_teardown for x in task.downstream_list):
-                raise AirflowDagInconsistent(
-                    f"Dag has setup without teardown: dag='{self.dag_id}', task='{task.task_id}'"
-                )
             if task.is_teardown and all(x.is_setup for x in task.upstream_list):
                 raise AirflowDagInconsistent(
                     f"Dag has teardown task without an upstream work task: dag='{self.dag_id}',"
