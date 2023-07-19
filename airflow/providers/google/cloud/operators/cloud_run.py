@@ -24,6 +24,8 @@ from google.cloud.run_v2 import Job, JobsClient, CreateJobRequest, ListJobsReque
 from airflow.providers.google.cloud.operators.cloud_base import \
     GoogleCloudBaseOperator
 
+from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -47,22 +49,13 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        client = JobsClient()
-        job = Job()
-        job.template.template.max_retries = 1187
 
-        request = CreateJobRequest(
-            parent=f"projects/{self.project_id}/locations/{self.region}",
-            job=self.job,
-            job_id=self.job_name
-        )
-
-        operation = client.create_job(request=request)
-
-        response = operation.result()
-
-        print(response)
-
+        hook: CloudRunHook = CloudRunHook(gcp_conn_id=self.gcp_conn_id,
+                                          impersonation_chain=self.impersonation_chain)
+        hook.create_job(job_name=self.job_name,
+                        job=self.job,
+                        region=self.region,
+                        project_id=self.project_id)
 
 class CloudRunListJobsOperator(GoogleCloudBaseOperator):
     def __init__(self,
@@ -79,12 +72,11 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
-        client = JobsClient()
-
-        request = ListJobsRequest(
-            parent=f"projects/{self.project_id}/locations/{self.region}"
-        )
-
-        pager = client.list_jobs(request=request)
-
-        print(pager)
+        hook: CloudRunHook = CloudRunHook(gcp_conn_id=self.gcp_conn_id,
+                                          impersonation_chain=self.impersonation_chain)
+        jobs = hook.list_jobs(region=self.region,
+                       project_id=self.project_id,
+                       show_deleted=False,
+                       limit=None)
+        
+        return [Job.to_dict(job) for job in jobs]
