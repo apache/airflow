@@ -450,8 +450,8 @@ ARG_DAG_REGEX = Arg(
 
 # show_dag
 ARG_SAVE = Arg(("-s", "--save"), help="Saves the result to the indicated file.")
-
 ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", action="store_true")
+ARG_GRAPH_EASY = Arg(("--graph-easy",), help="Displays graph using the graph-easy tool.", action="store_true")
 
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
@@ -1256,6 +1256,7 @@ DAGS_COMMANDS = (
             ARG_SUBDIR,
             ARG_SAVE,
             ARG_IMGCAT,
+            ARG_GRAPH_EASY,
             ARG_VERBOSE,
         ),
     ),

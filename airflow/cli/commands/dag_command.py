@@ -45,6 +45,7 @@ from airflow.timetables.base import DataInterval
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
+from airflow.utils.helpers import exactly_one
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 
@@ -236,16 +237,16 @@ def dag_show(args) -> None:
     dot = render_dag(dag)
     filename = args.save
     imgcat = args.imgcat
+    graph_easy = args.graph_easy
 
-    if filename and imgcat:
-        raise SystemExit(
-            "Option --save and --imgcat are mutually exclusive. "
-            "Please remove one option to execute the command.",
-        )
+    if not exactly_one(filename, imgcat, graph_easy):
+        raise SystemExit("Options --save, --imgcat, and --graph-easy are mutually exclusive.")
     elif filename:
         _save_dot_to_file(dot, filename)
     elif imgcat:
         _display_dot_via_imgcat(dot)
+    elif graph_easy:
+        _display_dot_via_graph_easy(dot)
     else:
         print(dot.source)
 
@@ -262,6 +263,26 @@ def _display_dot_via_imgcat(dot: Dot) -> None:
     except OSError as e:
         if e.errno == errno.ENOENT:
             raise SystemExit("Failed to execute. Make sure the imgcat executables are on your systems 'PATH'")
+        else:
+            raise
+
+
+def _display_dot_via_graph_easy(dot: Dot) -> None:
+    data = dot.source.encode("utf-8")
+    try:
+        with subprocess.Popen("graph-easy", stdout=subprocess.PIPE, stdin=subprocess.PIPE) as proc:
+            out, err = proc.communicate(data)
+            if out:
+                print(out.decode("utf-8"))
+            if err:
+                print(err.decode("utf-8"))
+    except OSError as e:
+        if e.errno == errno.ENOENT:
+            raise SystemExit(
+                "Failed to execute. "
+                "Make sure the graph-easy executable is on your systems 'PATH'. "
+                "See https://stackoverflow.com/a/55403011."
+            )
         else:
             raise
 
