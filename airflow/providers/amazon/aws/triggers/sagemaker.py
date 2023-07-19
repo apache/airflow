@@ -176,6 +176,7 @@ class SageMakerPipelineTrigger(BaseTrigger):
                     )
                     # we reach this point only if the waiter met a success criteria
                     yield TriggerEvent({"status": "success", "value": self.pipeline_execution_arn})
+                    return
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         raise
@@ -196,5 +197,4 @@ class SageMakerPipelineTrigger(BaseTrigger):
 
                     await asyncio.sleep(int(self.waiter_delay))
 
-            if attempts >= self.waiter_max_attempts:
-                raise AirflowException("Waiter error: max attempts reached")
+            raise AirflowException("Waiter error: max attempts reached")
