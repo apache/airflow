@@ -404,6 +404,7 @@ class DagBag(LoggingMixin):
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
         from airflow.models.dag import DAG  # Avoid circular import
+        from airflowinfra.multi_cluster_utils import _dag_in_migrated_flyte_repo
 
         top_level_dags = ((o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG))
 
@@ -687,16 +688,3 @@ class DagBag(LoggingMixin):
 
             security_manager = ApplessAirflowSecurityManager(session=session)
             security_manager.sync_perm_for_dag(root_dag_id, dag.access_control)
-
-    def _dag_in_migrated_flyte_repo(dag):
-
-        from airflowinfra.migrated_flyte_repos import MIGRATED_FLYTE_REPOS
-
-        migrated_flyte_dagdir_list = [
-            f'/etc/airflow/dags/{repo_name}' for repo_name in MIGRATED_FLYTE_REPOS
-        ]
-
-        for dagdir in migrated_flyte_dagdir_list:
-            if dag.fileloc.startswith(dagdir):
-                return True
-        return False
