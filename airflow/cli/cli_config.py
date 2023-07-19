@@ -1820,7 +1820,14 @@ PROVIDERS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.provider_command.executors_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
+    ActionCommand(
+        name="status",
+        help="Get information about provider initialization status",
+        func=lazy_load_command("airflow.cli.commands.provider_command.status"),
+        args=(ARG_VERBOSE,),
+    ),
 )
+
 
 USERS_COMMANDS = (
     ActionCommand(
