@@ -1080,8 +1080,7 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         if event is None or event["status"] != "success":
             raise AirflowException(f"Failure during pipeline execution: {event}")
-        else:
-            return event["value"]
+        return event["value"]
 
 
 class SageMakerStopPipelineOperator(SageMakerBaseOperator):
