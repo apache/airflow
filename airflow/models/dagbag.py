@@ -40,6 +40,7 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowDagInconsistent,
+    AirflowFailException,
     AirflowTimetableInvalid,
     ParamValidationError,
 )
@@ -101,6 +102,7 @@ class DagBag(LoggingMixin):
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
+        from airflowinfra.multi_cluster_utils import fetch_dags_in_cluster
 
         super().__init__()
 
@@ -114,6 +116,13 @@ class DagBag(LoggingMixin):
             read_dags_from_db = store_serialized_dags
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
+        
+        self.service_instance = os.environ.get('SERVICE_INSTANCE', '').lower()
+        
+        # if this fetch fails, then so will this DagBag init process
+        if self.service_instance == 'production':
+            self.cluster_dags = fetch_dags_in_cluster()
+        
         self.dag_folder = dag_folder
         self.dags: Dict[str, DAG] = {}
         # the file's last modified timestamp when we last read it
@@ -402,6 +411,21 @@ class DagBag(LoggingMixin):
 
         for (dag, mod) in top_level_dags:
             dag.fileloc = mod.__file__
+            
+            # When in production, restrict the DagBag 
+            # to the appropriate set of DAGs.
+            if self.service_instance == 'production':
+
+                if not self.cluster_dags:
+                    raise AirflowFailException
+                # Do not load DAGs that are missing from the DAG mapping table 
+                # and are not included in the Flyte repo allow list
+                # (since we are automatically loading Flyte workflows to Airflow 2).
+                if (
+                    dag.dag_id not in self.cluster_dags 
+                    and not _dag_in_migrated_flyte_repo(dag) 
+                ):  
+                    continue
             try:
                 dag.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
@@ -663,3 +687,16 @@ class DagBag(LoggingMixin):
 
             security_manager = ApplessAirflowSecurityManager(session=session)
             security_manager.sync_perm_for_dag(root_dag_id, dag.access_control)
+
+    def _dag_in_migrated_flyte_repo(dag):
+
+        from airflowinfra.migrated_flyte_repos import MIGRATED_FLYTE_REPOS
+
+        migrated_flyte_dagdir_list = [
+            f'/etc/airflow/dags/{repo_name}' for repo_name in MIGRATED_FLYTE_REPOS
+        ]
+
+        for dagdir in migrated_flyte_dagdir_list:
+            if dag.fileloc.startswith(dagdir):
+                return True
+        return False

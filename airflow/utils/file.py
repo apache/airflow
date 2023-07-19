@@ -212,17 +212,7 @@ def _find_path_from_directory(
     """
     # A Dict of patterns, keyed using resolved, absolute paths
 
-    service_instance = os.environ.get('SERVICE_INSTANCE', '').lower()
-    if service_instance == 'production':
-        from airflowinfra.migrated_dag_files import MIGRATED_DAG_FILES
-        from airflowinfra.migrated_flyte_repos import MIGRATED_FLYTE_REPOS
-
     patterns_by_dir: Dict[Path, List[_IgnoreRule]] = {}
-
-    # set this rather than import from lyft_etl to avoid any circular import errors
-    is_tars = "tars" in os.environ.get("SERVICE", "")
-    is_kyte = "kyte" in os.environ.get("SERVICE", "")
-    is_loadtest_env = "loadtest" in os.environ.get("SERVICE_FACET", "").lower()
 
     for root, dirs, files in os.walk(base_dir_path, followlinks=True):
         patterns: List[_IgnoreRule] = patterns_by_dir.get(Path(root).resolve(), [])
@@ -267,17 +257,6 @@ def _find_path_from_directory(
             abs_file_path = Path(root) / file
             if ignore_rule_type.match(abs_file_path, patterns):
                 continue
-
-            # only load dag files that are already migrated
-            # work around for poor negative look back regex performance
-            if service_instance == 'production':
-                # temp patch to load new Flyte workflows into Airflow 2 to unblock initial migration users
-                # this will be replaced soon with look-up tables for mult-cluster Airflow
-                dag_repo = str(abs_file_path).split("/")[4]
-                if not (is_kyte or is_tars or is_loadtest_env) and \
-                   dag_repo not in MIGRATED_FLYTE_REPOS and \
-                   str(abs_file_path) not in MIGRATED_DAG_FILES:
-                    continue
 
             yield str(abs_file_path)
 
