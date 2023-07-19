@@ -148,7 +148,7 @@ class SageMakerPipelineTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger",
+            self.__class__.__module__ + "." + self.__class__.__qualname__,
             {
                 "waiter_type": self.waiter_type.value,  # saving the int value here
                 "pipeline_execution_arn": self.pipeline_execution_arn,
@@ -167,15 +167,15 @@ class SageMakerPipelineTrigger(BaseTrigger):
         attempts = 0
         hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         async with hook.async_conn as conn:
-            waiter = hook.get_waiter(self._waiter_name[self.waiter_type])
+            waiter = hook.get_waiter(self._waiter_name[self.waiter_type], deferrable=True, client=conn)
             while attempts < self.waiter_max_attempts:
                 attempts = attempts + 1
                 try:
                     await waiter.wait(
                         PipelineExecutionArn=self.pipeline_execution_arn, WaiterConfig={"MaxAttempts": 1}
                     )
+                    # we reach this point only if the waiter met a success criteria
                     yield TriggerEvent({"status": "success", "value": self.pipeline_execution_arn})
-                    break  # we reach this point only if the waiter met a success criteria
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         raise
@@ -196,4 +196,5 @@ class SageMakerPipelineTrigger(BaseTrigger):
 
                     await asyncio.sleep(int(self.waiter_delay))
 
-            raise AirflowException("Waiter error: max attempts reached")
+            if attempts >= self.waiter_max_attempts:
+                raise AirflowException("Waiter error: max attempts reached")
