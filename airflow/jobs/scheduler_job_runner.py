@@ -1754,7 +1754,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 simple_task_instance=SimpleTaskInstance.from_ti(ti),
                 msg=str(zombie_message_details),
             )
-            self.log.error("Detected zombie job: %s", request)
+            # Refer: https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/tasks.html#zombie-undead-tasks
+            log_message = f"Detected zombie job: {request}"
+            self.log.error(log_message)
+            self._task_context_logger.error(ti, self.log, log_message)
             self.job.executor.send_callback(request)
             Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
