@@ -555,7 +555,7 @@ triggers:
       - airflow.providers.amazon.aws.triggers.rds
   - integration-name: AWS Step Functions
     python-modules:
-      - airflow.providers.amazon.aws.triggers.stepfunction
+      - airflow.providers.amazon.aws.triggers.step_function
 
 transfers:
   - source-integration-name: Amazon DynamoDB

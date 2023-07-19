@@ -24,7 +24,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
-from airflow.providers.amazon.aws.triggers.stepfunction import StepFunctionsExecutionCompleteTrigger
+from airflow.providers.amazon.aws.triggers.step_function import StepFunctionsExecutionCompleteTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -103,9 +103,11 @@ class StepFunctionStartExecutionOperator(BaseOperator):
         return execution_arn
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event and event["status"] == "success":
-            self.log.info("State Machine execution completed successfully")
-            return event["execution_arn"]
+        if event is None or event["status"] != "success":
+            raise AirflowException(f"Trigger error: event is {event}")
+
+        self.log.info("State Machine execution completed successfully")
+        return event["execution_arn"]
 
 
 class StepFunctionGetExecutionOutputOperator(BaseOperator):
