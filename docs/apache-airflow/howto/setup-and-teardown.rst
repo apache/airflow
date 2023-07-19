@@ -78,7 +78,7 @@ Note that if you are attempting to add an already-instantiated task to a setup c
 Setup "scope"
 """""""""""""
 
-Tasks between a setup and its teardown are in the "scope" of the setup / teardown pair.  We require that a setup always have a teardown in order to have a well-defined scope. If you wish to only add a teardown task or only a setup task, you may use EmptyOperator as your "empty setup" or "empty teardown".
+Tasks between a setup and its teardown are in the "scope" of the setup / teardown pair.
 
 Let's look at an example:
 
