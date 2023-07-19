@@ -40,14 +40,22 @@ from airflow.utils.trigger_rule import TriggerRule
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-DAG_ID = "cloud_compute_ssh"
+DAG_ID = "cloud_compute_ssh_os_login"
 LOCATION = "europe-west1-b"
 REGION = "europe-west1"
-GCE_INSTANCE_NAME = "instance-ssh-test"
+GCE_INSTANCE_NAME = "instance-ssh-test-oslogin"
 SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
 GCE_INSTANCE_BODY = {
     "name": GCE_INSTANCE_NAME,
     "machine_type": f"zones/{LOCATION}/machineTypes/{SHORT_MACHINE_TYPE_NAME}",
+    "metadata": {
+        "items": [
+            {
+                "key": "enable-oslogin",
+                "value": "TRUE",
+            }
+        ]
+    },
     "disks": [
         {
             "boot": True,
@@ -74,7 +82,7 @@ with models.DAG(
     schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "compute-ssh"],
+    tags=["example", "compute-ssh", "os-login"],
 ) as dag:
     # [START howto_operator_gce_insert]
     gce_instance_insert = ComputeEngineInsertInstanceOperator(
@@ -86,33 +94,33 @@ with models.DAG(
     # [END howto_operator_gce_insert]
 
     # [START howto_execute_command_on_remote_1]
-    metadata_without_iap_tunnel1 = SSHOperator(
-        task_id="metadata_without_iap_tunnel1",
+    os_login_task1 = SSHOperator(
+        task_id="os_login_task1",
         ssh_hook=ComputeEngineSSHHook(
             user="username",
             instance_name=GCE_INSTANCE_NAME,
             zone=LOCATION,
             project_id=PROJECT_ID,
-            use_oslogin=False,
+            use_oslogin=True,
             use_iap_tunnel=False,
             cmd_timeout=1,
         ),
-        command="echo metadata_without_iap_tunnel1",
+        command="echo os_login1",
     )
     # [END howto_execute_command_on_remote_1]
 
     # [START howto_execute_command_on_remote_2]
-    metadata_without_iap_tunnel2 = SSHOperator(
-        task_id="metadata_without_iap_tunnel2",
+    os_login_task2 = SSHOperator(
+        task_id="os_login_task2",
         ssh_hook=ComputeEngineSSHHook(
             user="username",
             instance_name=GCE_INSTANCE_NAME,
             zone=LOCATION,
-            use_oslogin=False,
+            use_oslogin=True,
             use_iap_tunnel=False,
-            cmd_timeout=100,
+            cmd_timeout=1,
         ),
-        command="echo metadata_without_iap_tunnel2",
+        command="echo os_login2",
     )
     # [END howto_execute_command_on_remote_2]
 
@@ -127,8 +135,8 @@ with models.DAG(
 
     chain(
         gce_instance_insert,
-        metadata_without_iap_tunnel1,
-        metadata_without_iap_tunnel2,
+        os_login_task1,
+        os_login_task2,
         gce_instance_delete,
     )
 
