@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.amazon.aws.triggers.stepfunction import StepFunctionsStartExecutionTrigger
+from airflow.providers.amazon.aws.triggers.stepfunction import StepFunctionsExecutionCompleteTrigger
 
 TEST_EXECUTION_ARN = "test-execution-arn"
 TEST_WAITER_DELAY = 10
@@ -31,7 +31,7 @@ class TestStepFunctionsTriggers:
     @pytest.mark.parametrize(
         "trigger",
         [
-            StepFunctionsStartExecutionTrigger(
+            StepFunctionsExecutionCompleteTrigger(
                 execution_arn=TEST_EXECUTION_ARN,
                 aws_conn_id=TEST_AWS_CONN_ID,
                 waiter_delay=TEST_WAITER_DELAY,
