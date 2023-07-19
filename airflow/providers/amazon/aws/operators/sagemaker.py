@@ -37,7 +37,6 @@ from airflow.providers.amazon.aws.triggers.sagemaker import (
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
-from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
@@ -1057,16 +1056,6 @@ class SageMakerStartPipelineOperator(SageMakerBaseOperator):
                 method_name="execute_complete",
             )
         elif self.wait_for_completion:
-            waiter = self.hook.get_waiter("PipelineExecutionComplete")
-            wait(
-                waiter=waiter,
-                waiter_delay=self.check_interval,
-                waiter_max_attempts=self.waiter_max_attempts,
-                args={"PipelineExecutionArn": arn},
-                failure_message="Error while waiting for pipeline execution to complete",
-                status_message="Pipeline execution status",
-                status_args=["PipelineExecutionStatus", "FailureReason"],
-            )
             self.hook.check_status(
                 arn,
                 "PipelineExecutionStatus",

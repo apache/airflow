@@ -28,10 +28,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerStartPipelineOperator,
     SageMakerStopPipelineOperator,
 )
-from airflow.providers.amazon.aws.triggers.sagemaker import (
-    SageMakerPipelineExecutionCompleteTrigger,
-    SageMakerPipelineExecutionStoppedTrigger,
-)
+from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerPipelineTrigger
 
 
 class TestSageMakerStartPipelineOperator:
@@ -68,7 +65,8 @@ class TestSageMakerStartPipelineOperator:
         with pytest.raises(TaskDeferred) as defer:
             op.execute({})
 
-        assert isinstance(defer.value.trigger, SageMakerPipelineExecutionCompleteTrigger)
+        assert isinstance(defer.value.trigger, SageMakerPipelineTrigger)
+        assert defer.value.trigger.waiter_type == SageMakerPipelineTrigger.Type.COMPLETE
 
 
 class TestSageMakerStopPipelineOperator:
@@ -97,4 +95,5 @@ class TestSageMakerStopPipelineOperator:
         with pytest.raises(TaskDeferred) as defer:
             op.execute({})
 
-        assert isinstance(defer.value.trigger, SageMakerPipelineExecutionStoppedTrigger)
+        assert isinstance(defer.value.trigger, SageMakerPipelineTrigger)
+        assert defer.value.trigger.waiter_type == SageMakerPipelineTrigger.Type.STOPPED
