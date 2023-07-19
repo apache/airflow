@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-19T07:35:13Z
+# This constraints file was automatically generated on 2023-07-19T21:18:12Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -47,7 +47,7 @@ Werkzeug==2.2.3
 adal==1.2.7
 aiobotocore==2.5.2
 aiofiles==23.1.0
-aiohttp==3.8.4
+aiohttp==3.8.5
 aioitertools==0.11.0
 aioresponses==0.7.4
 aiosignal==1.3.1
@@ -201,17 +201,17 @@ google-api-python-client==2.94.0
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==1.0.0
 google-auth==2.22.0
-google-cloud-aiplatform==1.28.0
+google-cloud-aiplatform==1.28.1
 google-cloud-appengine-logging==1.3.1
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.2
 google-cloud-bigquery-datatransfer==3.11.2
 google-cloud-bigquery-storage==2.22.0
 google-cloud-bigquery==3.11.3
-google-cloud-bigtable==2.19.0
-google-cloud-build==3.18.0
+google-cloud-bigtable==2.20.0
+google-cloud-build==3.19.0
 google-cloud-compute==1.13.0
-google-cloud-container==2.26.0
+google-cloud-container==2.27.0
 google-cloud-core==2.3.3
 google-cloud-datacatalog==3.14.0
 google-cloud-dataflow-client==0.8.4
@@ -250,10 +250,10 @@ graphviz==0.20.1
 greenlet==2.0.2
 grpc-google-iam-v1==0.12.6
 grpcio-gcp==0.2.2
-grpcio-status==1.56.0
-grpcio==1.56.0
+grpcio-status==1.56.2
+grpcio==1.56.2
 gssapi==1.8.2
-gunicorn==21.1.0
+gunicorn==21.2.0
 h11==0.14.0
 hdfs==2.7.0
 hmsclient==0.1.1
@@ -262,7 +262,7 @@ httplib2==0.22.0
 httpx==0.24.1
 humanize==4.7.0
 hvac==1.1.1
-identify==2.5.24
+identify==2.5.25
 idna==3.4
 ijson==3.2.2
 imagesize==1.4.1
@@ -375,7 +375,7 @@ partd==1.4.0
 pathable==0.4.3
 pathspec==0.9.0
 pbr==5.11.1
-pdpyras==5.1.0
+pdpyras==5.1.1
 pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
