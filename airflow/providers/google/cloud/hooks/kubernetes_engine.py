@@ -391,10 +391,7 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
         return client.ApiClient(configuration)
 
     def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
-        creds = self.get_credentials()
-        if not GKEPodHook._is_credentials_valid(creds):
-            GKEPodHook._refresh_token(creds)
-            configuration.api_key = {"authorization": creds.token}
+        configuration.api_key = {"authorization": self._get_token(self.get_credentials())}
 
     def _get_config(self) -> client.configuration.Configuration:
         configuration = client.Configuration(
@@ -412,19 +409,10 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
 
     @staticmethod
     def _get_token(creds: google.auth.credentials.Credentials) -> str:
-        if not GKEPodHook._is_credentials_valid(creds):
-            GKEPodHook._refresh_token(creds)
+        if creds.token is None or creds.expired:
+            auth_req = google_requests.Request()
+            creds.refresh(auth_req)
         return creds.token
-
-    @staticmethod
-    def _refresh_token(creds: google.auth.credentials.Credentials):
-        auth_req = google_requests.Request()
-        creds.refresh(auth_req)
-
-    @staticmethod
-    def _is_credentials_valid(creds:
-                              google.auth.credentials.Credentials) -> bool:
-        return creds.token is not None and not creds.expired
 
     def get_pod(self, name: str, namespace: str) -> V1Pod:
         """Get a pod object.
