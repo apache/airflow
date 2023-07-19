@@ -220,6 +220,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     """
     Returns the last dag run for a dag, None if there was none.
+
     Last dag run can be any type of run e.g. scheduled or backfilled.
     Overridden DagRuns are ignored.
     """
@@ -235,6 +236,8 @@ def get_dataset_triggered_next_run_info(
     dag_ids: list[str], *, session: Session
 ) -> dict[str, dict[str, int | str]]:
     """
+    Get next run info for a list of dag_ids.
+
     Given a list of dag_ids, get string representing how close any that are dataset triggered are
     their next run, e.g. "1 of 2 datasets updated".
     """
@@ -273,12 +276,12 @@ def get_dataset_triggered_next_run_info(
 @functools.total_ordering
 class DAG(LoggingMixin):
     """
-    A dag (directed acyclic graph) is a collection of tasks with directional
-    dependencies. A dag also has a schedule, a start date and an end date
-    (optional). For each schedule, (say daily or hourly), the DAG needs to run
-    each individual tasks as their dependencies are met. Certain tasks have
-    the property of depending on their own past, meaning that they can't run
-    until their previous schedule (and upstream tasks) are completed.
+    A dag (directed acyclic graph) is a collection of tasks with directional dependencies.
+
+    A dag also has a schedule, a start date and an end date (optional).  For each schedule,
+    (say daily or hourly), the DAG needs to run each individual tasks as their dependencies
+    are met. Certain tasks have the property of depending on their own past, meaning that
+    they can't run until their previous schedule (and upstream tasks) are completed.
 
     DAGs essentially act as namespaces for tasks. A task_id can only be
     added once to a DAG.
@@ -764,9 +767,11 @@ class DAG(LoggingMixin):
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):
         """
-        Looks for outdated dag level actions (can_dag_read and can_dag_edit) in DAG
-        access_controls (for example, {'role1': {'can_dag_read'}, 'role2': {'can_dag_read', 'can_dag_edit'}})
-        and replaces them with updated actions (can_read and can_edit).
+        Look for outdated dag level actions in DAG access_controls and replace them with updated actions.
+
+        For example, in DAG access_control {'role1': {'can_dag_read'}} 'can_dag_read'
+        will be replaced with 'can_read', in {'role2': {'can_dag_read', 'can_dag_edit'}}
+        'can_dag_edit' will be replaced with 'can_edit', etc.
         """
         if not access_control:
             return None
@@ -1102,8 +1107,9 @@ class DAG(LoggingMixin):
 
     def get_run_dates(self, start_date, end_date=None) -> list:
         """
-        Returns a list of dates between the interval received as parameter using this
-        dag's schedule interval. Returned dates can be used for execution dates.
+        Returns a list of dates between the interval received as parameter using this dag's schedule interval.
+
+        Returned dates can be used for execution dates.
 
         :param start_date: The start date of the interval.
         :param end_date: The end date of the interval. Defaults to ``timezone.utcnow()``.
@@ -1316,10 +1322,7 @@ class DAG(LoggingMixin):
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
-        """
-        Returns a boolean indicating whether the max_active_tasks limit for this DAG
-        has been reached.
-        """
+        """Returns a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
         TI = TaskInstance
         total_tasks = session.scalar(
             select(func.count(TI.task_id)).where(
@@ -1377,10 +1380,11 @@ class DAG(LoggingMixin):
     @provide_session
     def handle_callback(self, dagrun, success=True, reason=None, session=NEW_SESSION):
         """
-        Triggers the appropriate callback depending on the value of success, namely the
-        on_failure_callback or on_success_callback. This method gets the context of a
-        single TaskInstance part of this DagRun and passes that to the callable along
-        with a 'reason', primarily to differentiate DagRun failures.
+        Triggers on_failure_callback or on_success_callback as appropriate.
+
+        This method gets the context of a single TaskInstance part of this DagRun
+        and passes that to the callable along with a 'reason', primarily to
+        differentiate DagRun failures.
 
         .. note: The logs end up in
             ``$AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log``
@@ -1450,8 +1454,7 @@ class DAG(LoggingMixin):
         session: Session = NEW_SESSION,
     ):
         """
-        Returns the dag run for a given execution date or run_id if it exists, otherwise
-        none.
+        Returns the dag run for a given execution date or run_id if it exists, otherwise none.
 
         :param execution_date: The execution date of the DagRun to find.
         :param run_id: The run_id of the DagRun to find.
@@ -1557,10 +1560,7 @@ class DAG(LoggingMixin):
         return env
 
     def set_dependency(self, upstream_task_id, downstream_task_id):
-        """
-        Simple utility method to set dependency between two tasks that
-        already have been added to the DAG using add_task().
-        """
+        """Set dependency between two tasks that already have been added to the DAG using add_task()."""
         self.get_task(upstream_task_id).set_downstream(self.get_task(downstream_task_id))
 
     @provide_session
@@ -1902,8 +1902,7 @@ class DAG(LoggingMixin):
         session=NEW_SESSION,
     ) -> list[TaskInstance]:
         """
-        Set the state of a TaskInstance to the given state, and clear its downstream tasks that are
-        in failed or upstream_failed state.
+        Set the state of a TaskInstance and clear downstream tasks in failed or upstream_failed state.
 
         :param task_id: Task ID of the TaskInstance
         :param map_indexes: Only set TaskInstance if its map_index matches.
@@ -1996,8 +1995,7 @@ class DAG(LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> list[TaskInstance]:
         """
-        Set the state of the TaskGroup to the given state, and clear its downstream tasks that are
-        in failed or upstream_failed state.
+        Set TaskGroup to the given state and clear downstream tasks in failed or upstream_failed state.
 
         :param group_id: The group_id of the TaskGroup
         :param execution_date: Execution date of the TaskInstance
@@ -2095,8 +2093,7 @@ class DAG(LoggingMixin):
 
     def topological_sort(self, include_subdag_tasks: bool = False):
         """
-        Sorts tasks in topographical order, such that a task comes after any of its
-        upstream dependencies.
+        Sorts tasks in topographical order, such that a task comes after any of its upstream dependencies.
 
         Deprecated in place of ``task_group.topological_sort``
         """
@@ -2154,8 +2151,7 @@ class DAG(LoggingMixin):
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
     ) -> int | Iterable[TaskInstance]:
         """
-        Clears a set of task instances associated with the current dag for
-        a specified date range.
+        Clears a set of task instances associated with the current dag for a specified date range.
 
         :param task_ids: List of task ids or (``task_id``, ``map_index``) tuples to clear
         :param start_date: The minimum execution_date to clear
@@ -2338,6 +2334,8 @@ class DAG(LoggingMixin):
         include_direct_upstream=False,
     ):
         """
+        Return a subset of the current dag based on regex matching one or more tasks.
+
         Returns a subset of the current dag as a deep copy of the current dag
         based on a regex that should match one or many tasks, and includes
         upstream and downstream neighbours based on the flag passed.
@@ -2771,6 +2769,7 @@ class DAG(LoggingMixin):
     ):
         """
         Creates a dag run from this dag including the tasks associated with this dag.
+
         Returns the dag run.
 
         :param run_id: defines the run id for this dag run
@@ -2892,8 +2891,7 @@ class DAG(LoggingMixin):
         session=NEW_SESSION,
     ):
         """
-        Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB, including
-        calculated fields.
+        Ensure the DagModel rows for the given dags are up-to-date in the dag table in the DB.
 
         Note that this method can be called for both DAGs and SubDAGs. A SubDag is actually a SubDagOperator.
 
@@ -3122,9 +3120,9 @@ class DAG(LoggingMixin):
     @provide_session
     def sync_to_db(self, processor_subdir: str | None = None, session=NEW_SESSION):
         """
-        Save attributes about this DAG to the DB. Note that this method
-        can be called for both DAGs and SubDAGs. A SubDag is actually a
-        SubDagOperator.
+        Save attributes about this DAG to the DB.
+
+        Note that this method can be called for both DAGs and SubDAGs. A SubDag is actually a SubDagOperator.
 
         :return: None
         """
@@ -3141,8 +3139,7 @@ class DAG(LoggingMixin):
     @provide_session
     def deactivate_unknown_dags(active_dag_ids, session=NEW_SESSION):
         """
-        Given a list of known DAGs, deactivate any other DAGs that are
-        marked as active in the ORM.
+        Given a list of known DAGs, deactivate any other DAGs that are marked as active in the ORM.
 
         :param active_dag_ids: list of DAG IDs that are active
         :return: None
@@ -3158,11 +3155,11 @@ class DAG(LoggingMixin):
     @provide_session
     def deactivate_stale_dags(expiration_date, session=NEW_SESSION):
         """
-        Deactivate any DAGs that were last touched by the scheduler before
-        the expiration date. These DAGs were likely deleted.
+        Deactivate any DAGs that were last touched by the scheduler before the expiration date.
 
-        :param expiration_date: set inactive DAGs that were touched before this
-            time
+        These DAGs were likely deleted.
+
+        :param expiration_date: set inactive DAGs that were touched before this time
         :return: None
         """
         for dag in session.scalars(
@@ -3249,10 +3246,7 @@ class DAG(LoggingMixin):
         return cls.__serialized_fields
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
-        """
-        Returns edge information for the given pair of tasks if present, and
-        an empty edge if there is no information.
-        """
+        """Return edge information for the given pair of tasks or an empty edge if there is no information."""
         # Note - older serialized DAGs may not have edge_info being a dict at all
         empty = cast(EdgeInfoType, {})
         if self.edge_info:
@@ -3262,14 +3256,17 @@ class DAG(LoggingMixin):
 
     def set_edge_info(self, upstream_task_id: str, downstream_task_id: str, info: EdgeInfoType):
         """
-        Sets the given edge information on the DAG. Note that this will overwrite,
-        rather than merge with, existing info.
+        Sets the given edge information on the DAG.
+
+        Note that this will overwrite, rather than merge with, existing info.
         """
         self.edge_info.setdefault(upstream_task_id, {})[downstream_task_id] = info
 
     def validate_schedule_and_params(self):
         """
-        Validates & raise exception if there are any Params in the DAG which neither have a default value nor
+        Validates Param values when the schedule_interval is not None.
+
+        Raise exception if there are any Params in the DAG which neither have a default value nor
         have the null in schema['type'] list, but the DAG have a schedule_interval which is not None.
         """
         if not self.timetable.can_be_scheduled:
@@ -3283,7 +3280,9 @@ class DAG(LoggingMixin):
                 )
 
     def iter_invalid_owner_links(self) -> Iterator[tuple[str, str]]:
-        """Parses a given link, and verifies if it's a valid URL, or a 'mailto' link.
+        """
+        Parses a given link, and verifies if it's a valid URL, or a 'mailto' link.
+
         Returns an iterator of invalid (owner, link) pairs.
         """
         for owner, link in self.owner_links.items():
@@ -3312,10 +3311,10 @@ class DagTag(Base):
 
 
 class DagOwnerAttributes(Base):
-    """Table defining different owner attributes.
+    """
+    Table defining different owner attributes.
 
-    For example, a link for an owner that will be passed as a hyperlink to the
-    "DAGs" view.
+    For example, a link for an owner that will be passed as a hyperlink to the "DAGs" view.
     """
 
     __tablename__ = "dag_owner_attributes"
@@ -3515,10 +3514,7 @@ class DagModel(Base):
         return paused_dag_ids
 
     def get_default_view(self) -> str:
-        """
-        Get the Default DAG View, returns the default config value if DagModel does not
-        have a value.
-        """
+        """Get the Default DAG View, returns the default config value if DagModel does not have a value."""
         # This is for backwards-compatibility with old dags that don't have None as default_view
         return self.default_view or airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower()
 
@@ -3730,7 +3726,8 @@ def dag(
     fail_stop: bool = False,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
-    Python dag decorator. Wraps a function into an Airflow DAG.
+    Python dag decorator which wraps a function into an Airflow DAG.
+
     Accepts kwargs for operator kwarg. Can be used to parameterize DAGs.
 
     :param dag_args: Arguments for DAG object
@@ -3869,9 +3866,10 @@ class DagContext:
 
 def _run_task(ti: TaskInstance, session):
     """
-    Run a single task instance, and push result to Xcom for downstream tasks. Bypasses a lot of
-    extra steps used in `task.run` to keep our local running as fast as possible
-    This function is only meant for the `dag.test` function as a helper function.
+    Run a single task instance, and push result to Xcom for downstream tasks.
+
+    Bypasses a lot of extra steps used in `task.run` to keep our local running as fast as
+    possible.  This function is only meant for the `dag.test` function as a helper function.
 
     Args:
         ti: TaskInstance to run
