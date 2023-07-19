@@ -1187,11 +1187,12 @@ class EmrServerlessStartJobOperator(BaseOperator):
         """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
-    def execute(self, context: Context) -> str | None:
-        self.log.info("Starting job on Application: %s", self.application_id)
+    def execute(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
 
         app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
+            self.log.info("Application state is %s", app_state)
+            self.log.info("Starting application %s", self.application_id)
             self.hook.conn.start_application(applicationId=self.application_id)
             waiter = self.hook.get_waiter("serverless_app_started")
             if self.deferrable:
@@ -1202,7 +1203,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
                     ),
-                    method_name="start_job_run_after_defer",
+                    method_name="execute",
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 )
             wait(
@@ -1214,7 +1215,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 status_message="Serverless Application status is",
                 status_args=["application.state", "application.stateDetails"],
             )
-
+        self.log.info("Starting job on Application: %s", self.application_id)
         response = self.hook.conn.start_job_run(
             clientToken=self.client_request_token,
             applicationId=self.application_id,
@@ -1255,37 +1256,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
             )
 
         return self.job_id
-
-    def start_job_run_after_defer(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None:
-            self.log.error("Trigger error: event is None")
-            raise AirflowException("Trigger error: event is None")
-        elif event["status"] != "success":
-            self.log.info("Application %s failed to start", self.application_id)
-        response = self.hook.conn.start_job_run(
-            clientToken=self.client_request_token,
-            applicationId=self.application_id,
-            executionRoleArn=self.execution_role_arn,
-            jobDriver=self.job_driver,
-            configurationOverrides=self.configuration_overrides,
-            name=self.name,
-            **self.config,
-        )
-
-        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
-            raise AirflowException(f"EMR serverless job failed to start: {response}")
-
-        self.defer(
-            trigger=EmrServerlessStartJobTrigger(
-                application_id=self.application_id,
-                job_id=response["jobRunId"],
-                waiter_delay=self.waiter_delay,
-                waiter_max_attempts=self.waiter_max_attempts,
-                aws_conn_id=self.aws_conn_id,
-            ),
-            method_name="execute_complete",
-            timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-        )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event is None:
