@@ -70,18 +70,6 @@ class TestCreateDataPipelineOperator:
             location = TEST_LOCATION,
             gcp_conn_id = TEST_GCP_CONN_ID
         )
-    @pytest.fixture
-    def create_operator_fail(self):
-        """ 
-        Creates a mock create datapipeline operator to be used in testing.
-        """
-        return CreateDataPipelineOperator(
-            task_id = "test_create_datapipeline",
-            body = TEST_BODY,
-            project_id = None,
-            location = TEST_LOCATION,
-            gcp_conn_id = TEST_GCP_CONN_ID
-        )
     
     @mock.patch("airflow.providers.google.cloud.operators.datapipeline.DataPipelineHook")
     def test_execute(self, mock_datapipeline, create_operator):
@@ -99,7 +87,21 @@ class TestCreateDataPipelineOperator:
             location = TEST_LOCATION
         )
 
-    def test_params_valid(self):
+    def test_body_valid(self):
+        """
+        Test that if the operator is not passed a Request Body, an AirflowException is raised
+        """
+        init_kwargs = {
+            "task_id": "test_create_datapipeline",
+            "body": {},
+            "project_id": TEST_PROJECTID,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            CreateDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_projectid_valid(self):
         """
         Test that if the operator is not passed a Project ID, an AirflowException is raised
         """
@@ -108,6 +110,20 @@ class TestCreateDataPipelineOperator:
             "body": TEST_BODY,
             "project_id": None,
             "location": TEST_LOCATION,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            CreateDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_location_valid(self):
+        """
+        Test that if the operator is not passed a location, an AirflowException is raised
+        """
+        init_kwargs = {
+            "task_id": "test_create_datapipeline",
+            "body": TEST_BODY,
+            "project_id": TEST_PROJECTID,
+            "location": None,
             "gcp_conn_id": TEST_GCP_CONN_ID,
         }
         with pytest.raises(AirflowException):
