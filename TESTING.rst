@@ -55,8 +55,37 @@ Follow the guidelines when writing unit tests:
   tests, so we run Pytest with ``--disable-warnings`` but instead we have ``pytest-capture-warnings`` plugin that
   overrides ``recwarn`` fixture behaviour.
 
-**NOTE:** We plan to convert all unit tests to standard "asserts" semi-automatically, but this will be done later
-in Airflow 2.0 development phase. That will include setUp/tearDown/context managers and decorators.
+
+.. note::
+
+  We are in the process of converting all unit tests to standard "asserts" and pytest fixtures
+  so if you find some tests that are still using classic setUp/tearDown approach or unittest asserts, feel
+  free to convert them to pytest.
+
+Airflow configuration for unit tests
+------------------------------------
+
+Some of the unit tests require special configuration set as the ``default``. This is done automatically by
+adding ``AIRFLOW__CORE__UNIT_TEST_MODE=True`` to the environment variables in Pytest auto-used
+fixture. This in turn makes Airflow load test configuration from the file
+``airflow/config_templates/unit_tests.cfg``. Test configuration from there replaces the original
+defaults from ``airflow/config_templates/config.yml``. If you want to add some test-only configuration,
+as default for all tests you should add the value to this file.
+
+You can also of course override the values in individual test by patching environment variables following
+the usual ``AIRFLOW__SECTION__KEY`` pattern or ``conf_vars`` context manager.
+
+.. note::
+
+  The test configuration for Airflow before July 2023 was automatically generated in a file named
+  ``AIRFLOW_HOME/unittest.cfg``. The template for it was stored in "config_templates" next to the yaml file.
+  However writing the file was only done for the first time you run airflow and you had to manually
+  maintain the file. It was pretty arcane knowledge, and this generated file in {AIRFLOW_HOME}
+  has been overwritten in the Breeze environment with another CI-specific file. Using ``unit_tests.cfg``
+  as a single source of the configuration for tests - coming from Airflow sources
+  rather than from {AIRFLOW_HOME} is much more convenient and it is automatically used by pytest.
+
+  The unittest.cfg file generated in {AIRFLOW_HOME} will no longer be used and can be removed.
 
 Airflow test types
 ------------------

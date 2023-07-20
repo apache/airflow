@@ -22,6 +22,7 @@ import subprocess
 import sys
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -32,9 +33,10 @@ import time_machine
 from itsdangerous import URLSafeSerializer
 
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
-tests_directory = os.path.dirname(os.path.realpath(__file__))
+AIRFLOW_TESTS_DIR = Path(os.path.dirname(os.path.realpath(__file__))).resolve()
+AIRFLOW_SOURCES_ROOT_DIR = AIRFLOW_TESTS_DIR.parent.parent
 
-os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
+os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
@@ -882,6 +884,15 @@ def _clear_db(request):
     """Clear DB before each test module run."""
     if not request.config.option.db_cleanup:
         return
+    from airflow.configuration import conf
+
+    sql_alchemy_conn = conf.get("database", "sql_alchemy_conn")
+    if sql_alchemy_conn.startswith("sqlite"):
+        sql_alchemy_file = sql_alchemy_conn.replace("sqlite:///", "")
+        if not os.path.exists(sql_alchemy_file):
+            print(f"The sqlite file `{sql_alchemy_file}` does not exist. Attempt to initialize it.")
+            initial_db_init()
+
     dist_option = getattr(request.config.option, "dist", "no")
     if dist_option != "no" or hasattr(request.config, "workerinput"):
         # Skip if pytest-xdist detected (controller or worker)

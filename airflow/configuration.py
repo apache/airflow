@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import functools
+import io
 import json
 import logging
 import multiprocessing
@@ -30,15 +31,15 @@ import sys
 import warnings
 from base64 import b64encode
 from collections import OrderedDict
-
-# Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
-from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
-from contextlib import contextmanager, suppress
+from configparser import ConfigParser, NoOptionError, NoSectionError
+from contextlib import contextmanager
 from json.decoder import JSONDecodeError
+from threading import Lock
 from typing import IO, Any, Dict, Iterable, Pattern, Set, Tuple, Union
 from urllib.parse import urlsplit
 
 import re2
+from packaging.version import parse as parse_version
 from typing_extensions import overload
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
@@ -63,6 +64,8 @@ ConfigSectionSourcesType = Dict[str, Union[str, Tuple[str, str]]]
 ConfigSourcesType = Dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
+
+EMPTY_SET: Set[tuple[str, str]] = set()  # noqa: UP006
 
 
 def _parse_sqlite_version(s: str) -> tuple[int, ...]:
@@ -131,35 +134,155 @@ def _get_config_value_from_secret_backend(config_key: str) -> str | None:
         )
 
 
+def _is_template(configuration_description: dict[str, dict[str, Any]], section: str, key: str) -> bool:
+    """
+    Check if the config is a template.
+
+    :param configuration_description: description of configuration
+    :param section: section
+    :param key: key
+    :return: True if the config is a template
+    """
+    return configuration_description.get(section, {}).get(key, {}).get("is_template", False)
+
+
 def _default_config_file_path(file_name: str) -> str:
     templates_dir = os.path.join(os.path.dirname(__file__), "config_templates")
     return os.path.join(templates_dir, file_name)
 
 
-def default_config_yaml() -> dict[str, Any]:
+def retrieve_configuration_description() -> dict[str, dict[str, Any]]:
     """
-    Read Airflow configs from YAML file.
+    Read Airflow configuration description from YAML file.
 
     :return: Python dictionary containing configs & their info
     """
+    base_configuration_description: dict[str, dict[str, Any]] = {}
     with open(_default_config_file_path("config.yml")) as config_file:
-        return yaml.safe_load(config_file)
+        base_configuration_description.update(yaml.safe_load(config_file))
+    return base_configuration_description
 
 
 class AirflowConfigParser(ConfigParser):
-    """Custom Airflow Configparser supporting defaults and deprecated options."""
+    """
+    Custom Airflow Configparser supporting defaults and deprecated options.
+
+    This is a subclass of ConfigParser that supports defaults and deprecated options.
+
+    The defaults are stored in the ``_default_values ConfigParser. The configuration description keeps
+    description of all the options available in Airflow (description follow config.yaml.schema).
+
+    :param default_config: default configuration (in the form of ini file).
+    :param configuration_description: description of configuration to use
+    """
+
+    def __init__(
+        self,
+        default_config: str | None = None,
+        *args,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self.configuration_description = retrieve_configuration_description()
+        self.upgraded_values = {}
+        # For those who would like to use a different data structure to keep defaults:
+        # We have to keep the default values in a ConfigParser rather than in any other
+        # data structure, because the values we have might contain %% which are ConfigParser
+        # interpolation placeholders. The _default_values config parser will interpolate them
+        # properly when we call get() on it.
+        self._default_values = create_default_config_parser(self.configuration_description)
+        if default_config is not None:
+            self._update_defaults_from_string(default_config)
+        self._update_logging_deprecated_template_to_one_from_defaults()
+        self.is_validated = False
+        self._suppress_future_warnings = False
+        self._interpolation_lock = Lock()
+
+    def _update_logging_deprecated_template_to_one_from_defaults(self):
+        default = self.get_default_value("logging", "log_filename_template")
+        if default:
+            # Tuple does not support item assignment, so we have to create a new tuple and replace it
+            original_replacement = self.deprecated_values["logging"]["log_filename_template"]
+            self.deprecated_values["logging"]["log_filename_template"] = (
+                original_replacement[0],
+                default,
+                original_replacement[2],
+            )
+
+    def is_template(self, section: str, key) -> bool:
+        """
+        Return whether the value is templated.
+
+        :param section: section of the config
+        :param key: key in the section
+        :return: True if the value is templated
+        """
+        if self.configuration_description is None:
+            return False
+        return _is_template(self.configuration_description, section, key)
+
+    def _update_defaults_from_string(self, config_string: str):
+        """
+        The defaults in _default_values are updated based on values in config_string ("ini" format).
+        Note that those values are not validated and cannot contain variables because we are using
+        regular config parser to load them. This method is used to test the config parser in unit tests.
+
+        :param config_string:  ini-formatted config string
+        """
+        parser = ConfigParser()
+        parser.read_string(config_string)
+        for section in parser.sections():
+            if section not in self._default_values.sections():
+                self._default_values.add_section(section)
+            errors = False
+            for key, value in parser.items(section):
+                if not self.is_template(section, key) and "{" in value:
+                    errors = True
+                    log.error(
+                        f"The {section}.{key} value {value} read from string contains "
+                        "variable. This is not supported"
+                    )
+                self._default_values.set(section, key, value)
+            if errors:
+                raise Exception(
+                    f"The string config passed as default contains variables. "
+                    f"This is not supported. String config: {config_string}"
+                )
+
+    def get_default_value(self, section: str, key: str, fallback: Any = None, raw=False, **kwargs) -> Any:
+        """
+        Retrieves default value from default config parser.
+
+        This will retrieve the default value from the default config parser. Optionally a raw, stored
+        value can be retrieved by setting skip_interpolation to True. This is useful for example when
+        we want to write the default value to a file, and we don't want the interpolation to happen
+        as it is going to be done later when the config is read.
+
+        :param section: section of the config
+        :param key: key to use
+        :param fallback: fallback value to use
+        :param raw: if raw, then interpolation will be reversed
+        :param kwargs: other args
+        :return:
+        """
+        value = self._default_values.get(section, key, fallback=fallback, **kwargs)
+        if raw and value is not None:
+            return value.replace("%", "%%")
+        return value
 
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}_cmd" pattern, the idea behind this
     # is to not store password on boxes in text files.
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
-
     @functools.cached_property
     def sensitive_config_values(self) -> Set[tuple[str, str]]:  # noqa: UP006
-        default_config = default_config_yaml()
+        if self.configuration_description is None:
+            return EMPTY_SET.copy()  # we can't use set() here because set is defined below # ¯\_(ツ)_/¯
         flattened = {
-            (s, k): item for s, s_c in default_config.items() for k, item in s_c.get("options").items()
+            (s, k): item
+            for s, s_c in self.configuration_description.items()
+            for k, item in s_c.get("options").items()  # type: ignore[union-attr]
         }
         sensitive = {(section, key) for (section, key), v in flattened.items() if v.get("sensitive") is True}
         depr_option = {self.deprecated_options[x][:-1] for x in sensitive if x in self.deprecated_options}
@@ -285,6 +408,7 @@ class AirflowConfigParser(ConfigParser):
         "logging": {
             "log_filename_template": (
                 re2.compile(re2.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
+                # The actual replacement value will be updated after defaults are loaded from config.yml
                 "XX-set-after-default-config-loaded-XX",
                 "3.0",
             ),
@@ -321,38 +445,151 @@ class AirflowConfigParser(ConfigParser):
     upgraded_values: dict[tuple[str, str], str]
     """Mapping of (section,option) to the old value that was upgraded"""
 
-    # This method transforms option names on every read, get, or set operation.
-    # This changes from the default behaviour of ConfigParser from lower-casing
-    # to instead be case-preserving
+    def get_sections_including_defaults(self) -> list[str]:
+        """
+        Retrieves all sections from the configuration parser, including sections defined by built-in defaults.
+
+        :return: list of section names
+        """
+        my_own_sections = self.sections()
+        all_sections_from_defaults = list(self.configuration_description.keys())
+        for section in my_own_sections:
+            if section not in all_sections_from_defaults:
+                all_sections_from_defaults.append(section)
+        return all_sections_from_defaults
+
+    def get_options_including_defaults(self, section: str) -> list[str]:
+        """
+        Retrieves all possible option from the configuration parser for the section given,
+        including options defined by built-in defaults.
+
+        :return: list of option names for the section given
+        """
+        my_own_options = self.options(section) if self.has_section(section) else []
+        all_options_from_defaults = list(
+            self.configuration_description.get(section, {}).get("options", {}).keys()
+        )
+        for option in my_own_options:
+            if option not in all_options_from_defaults:
+                all_options_from_defaults.append(option)
+        return all_options_from_defaults
+
     def optionxform(self, optionstr: str) -> str:
+        """
+        This method transforms option names on every read, get, or set operation.
+        This changes from the default behaviour of ConfigParser from lower-casing
+        to instead be case-preserving.
+
+        :param optionstr:
+        :return:
+        """
         return optionstr
 
-    def __init__(self, default_config: str | None = None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.upgraded_values = {}
+    def write(  # type: ignore[override]
+        self,
+        file: IO[str],
+        section: str | None = None,
+        include_examples: bool = True,
+        include_descriptions: bool = True,
+        include_sources: bool = True,
+        include_env_vars: bool = True,
+        comment_out_everything: bool = False,
+        hide_sensitive_values: bool = False,
+        extra_spacing: bool = True,
+        only_defaults: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Writes configuration with comments and examples to a file.
 
-        self.airflow_defaults = ConfigParser(*args, **kwargs)
-        if default_config is not None:
-            self.airflow_defaults.read_string(default_config)
-            # Set the upgrade value based on the current loaded default
-            default = self.airflow_defaults.get("logging", "log_filename_template", fallback=None)
-            if default:
-                replacement = self.deprecated_values["logging"]["log_filename_template"]
-                self.deprecated_values["logging"]["log_filename_template"] = (
-                    replacement[0],
-                    default,
-                    replacement[2],
-                )
-            else:
-                # In case of tests it might not exist
-                with suppress(KeyError):
-                    del self.deprecated_values["logging"]["log_filename_template"]
-        else:
-            with suppress(KeyError):
-                del self.deprecated_values["logging"]["log_filename_template"]
+        :param file: file to write to
+        :param section: section of the config to write, defaults to all sections
+        :param include_examples: Include examples in the output
+        :param include_descriptions: Include descriptions in the output
+        :param include_sources: Include the source of each config option
+        :param include_env_vars: Include environment variables corresponding to each config option
+        :param hide_sensitive_values: Include sensitive values in the output
+        :param extra_spacing: Add extra spacing before examples and after variables
+        :param only_defaults: Only include default values when writing the config, not the actual values
+        """
+        from airflow import __version__ as airflow_version
 
-        self.is_validated = False
-        self._suppress_future_warnings = False
+        sources_dict = {}
+        if include_sources:
+            sources_dict = self.as_dict(display_source=True)
+        if self._default_values is None:
+            raise RuntimeError("Cannot write default config, no default config set")
+        if self.configuration_description is None:
+            raise RuntimeError("Cannot write default config, no default configuration description set")
+        for section_to_write in self.get_sections_including_defaults():
+            section_config_description = self.configuration_description.get(section_to_write, {})
+            if section_to_write != section and section is not None:
+                continue
+            if self._default_values.has_section(section_to_write) or self.has_section(section_to_write):
+                needs_separation = False
+                file.write(f"[{section_to_write}]\n")
+                section_description = section_config_description.get("description")
+                if section_description and include_descriptions:
+                    for line in section_description.splitlines():
+                        file.write(f"# {line}\n")
+                    file.write("\n")
+                for key in self.get_options_including_defaults(section_to_write):
+                    option_config_description = (
+                        section_config_description.get("options", {}).get(key, {})
+                        if section_config_description
+                        else {}
+                    )
+                    version_added = option_config_description.get("version_added")
+                    if version_added is not None and parse_version(version_added) > parse_version(
+                        parse_version(airflow_version).base_version
+                    ):
+                        # skip if option is going to be added in the future version
+                        continue
+                    description = option_config_description.get("description")
+                    needs_separation = False
+                    if description and include_descriptions:
+                        for line in description.splitlines():
+                            file.write(f"# {line}\n")
+                        needs_separation = True
+                    example = option_config_description.get("example")
+                    if example is not None and include_examples:
+                        if extra_spacing:
+                            file.write("#\n")
+                        file.write(f"# Example: {key} = {example}\n")
+                        needs_separation = True
+                    if include_sources and sources_dict:
+                        sources_section = sources_dict.get(section_to_write)
+                        value_with_source = sources_section.get(key) if sources_section else None
+                        if value_with_source is None:
+                            file.write("#\n# Source: not defined\n")
+                        else:
+                            file.write(f"#\n# Source: {value_with_source[1]}\n")
+                        needs_separation = True
+                    if include_env_vars:
+                        file.write(f"#\n# Variable: AIRFLOW__{section_to_write.upper()}__{key.upper()}\n")
+                        if extra_spacing:
+                            file.write("#\n")
+                        needs_separation = True
+                    if self._default_values is None:
+                        default_value = None
+                    else:
+                        default_value = self.get_default_value(section_to_write, key, raw=True)
+                    if only_defaults:
+                        value = default_value
+                    else:
+                        value = self.get(section_to_write, key, fallback=default_value, raw=True)
+                    if value is None:
+                        file.write(f"# {key} = \n")
+                    else:
+                        if comment_out_everything:
+                            file.write(f"# {key} = {value}\n")
+                        else:
+                            file.write(f"{key} = {value}\n")
+                    if needs_separation:
+                        file.write("\n")
+                if include_descriptions and not needs_separation:
+                    # extra separation between sections in case last option did not need it
+                    file.write("\n")
 
     def validate(self):
         self._validate_sqlite3_version()
@@ -437,8 +674,8 @@ class AirflowConfigParser(ConfigParser):
         """Validate that enum type config has an accepted value."""
         for (section_key, option_key), enum_options in self.enums_options.items():
             if self.has_option(section_key, option_key):
-                value = self.get(section_key, option_key)
-                if value not in enum_options:
+                value = self.get(section_key, option_key, fallback=None)
+                if value and value not in enum_options:
                     raise AirflowConfigException(
                         f"`[{section_key}] {option_key}` should not be "
                         f"{value!r}. Possible values: {', '.join(enum_options)}."
@@ -561,17 +798,18 @@ class AirflowConfigParser(ConfigParser):
         return value
 
     @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:  # type: ignore[override]
+    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:
         ...
 
     @overload  # type: ignore[override]
-    def get(self, section: str, key: str, **kwargs) -> str | None:  # type: ignore[override]
+    def get(self, section: str, key: str, **kwargs) -> str | None:
         ...
 
-    def get(  # type: ignore[override, misc]
+    def get(  # type: ignore[override,misc]
         self,
         section: str,
         key: str,
+        suppress_warnings: bool = False,
         _extra_stacklevel: int = 0,
         **kwargs,
     ) -> str | None:
@@ -667,10 +905,10 @@ class AirflowConfigParser(ConfigParser):
             return option
 
         # ...then the default config
-        if self.airflow_defaults.has_option(section, key) or "fallback" in kwargs:
-            return expand_env_var(self.airflow_defaults.get(section, key, **kwargs))
-
-        log.warning("section/key [%s/%s] not found in config", section, key)
+        if self.get_default_value(section, key) is not None or "fallback" in kwargs:
+            return expand_env_var(self.get_default_value(section, key, **kwargs))
+        if not suppress_warnings:
+            log.warning("section/key [%s/%s] not found in config", section, key)
 
         raise AirflowConfigException(f"section/key [{section}/{key}] not found in config")
 
@@ -825,27 +1063,20 @@ class AirflowConfigParser(ConfigParser):
             )
 
     def getjson(
-        self, section: str, key: str, fallback=_UNSET, **kwargs
+        self, section: str, key: str, fallback=None, **kwargs
     ) -> dict | list | str | int | float | None:
         """
         Return a config value parsed from a JSON string.
 
         ``fallback`` is *not* JSON parsed but used verbatim when no config value is given.
         """
-        # get always returns the fallback value as a string, so for this if
-        # someone gives us an object we want to keep that
-        default = _UNSET
-        if fallback is not _UNSET:
-            default = fallback
-            fallback = _UNSET
-
         try:
-            data = self.get(section=section, key=key, fallback=fallback, _extra_stacklevel=1, **kwargs)
+            data = self.get(section=section, key=key, fallback=None, _extra_stacklevel=1, **kwargs)
         except (NoSectionError, NoOptionError):
-            return default
+            data = None
 
-        if not data:
-            return default if default is not _UNSET else None
+        if data is None or data == "":
+            return fallback
 
         try:
             return json.loads(data)
@@ -896,19 +1127,33 @@ class AirflowConfigParser(ConfigParser):
     ):
         super().read(filenames=filenames, encoding=encoding)
 
-    # The RawConfigParser defines "Mapping" from abc.collections is not subscriptable - so we have
-    # to use Dict here.
     def read_dict(  # type: ignore[override]
         self, dictionary: dict[str, dict[str, Any]], source: str = "<dict>"
     ):
+        """
+        We define a different signature here to add better type hints and checking.
+
+        :param dictionary: dictionary to read from
+        :param source: source to be used to store the configuration
+        :return:
+        """
         super().read_dict(dictionary=dictionary, source=source)
 
     def has_option(self, section: str, option: str) -> bool:
+        """
+        Check if option is defined.
+
+        Uses self.get() to avoid reimplementing the priority order of config variables
+        (env, config, cmd, defaults).
+
+        :param section: section to get option from
+        :param option: option to get
+        :return:
+        """
         try:
-            # Using self.get() to avoid reimplementing the priority order
-            # of config variables (env, config, cmd, defaults)
-            # UNSET to avoid logging a warning about missing values
-            self.get(section, option, fallback=_UNSET, _extra_stacklevel=1)
+            value = self.get(section, option, fallback=None, _extra_stacklevel=1, suppress_warnings=True)
+            if value is None:
+                return False
             return True
         except (NoOptionError, NoSectionError):
             return False
@@ -923,8 +1168,8 @@ class AirflowConfigParser(ConfigParser):
         if super().has_option(section, option):
             super().remove_option(section, option)
 
-        if self.airflow_defaults.has_option(section, option) and remove_default:
-            self.airflow_defaults.remove_option(section, option)
+        if self.get_default_value(section, option) is not None and remove_default:
+            self._default_values.remove_option(section, option)
 
     def getsection(self, section: str) -> ConfigOptionsDictType | None:
         """
@@ -934,10 +1179,10 @@ class AirflowConfigParser(ConfigParser):
 
         :param section: section from the config
         """
-        if not self.has_section(section) and not self.airflow_defaults.has_section(section):
+        if not self.has_section(section) and not self._default_values.has_section(section):
             return None
-        if self.airflow_defaults.has_section(section):
-            _section: ConfigOptionsDictType = OrderedDict(self.airflow_defaults.items(section))
+        if self._default_values.has_section(section):
+            _section: ConfigOptionsDictType = OrderedDict(self._default_values.items(section))
         else:
             _section = OrderedDict()
 
@@ -970,29 +1215,6 @@ class AirflowConfigParser(ConfigParser):
                     elif isinstance(val, str) and val.lower() in ("f", "false"):
                         _section[key] = False
         return _section
-
-    def write(  # type: ignore[override]
-        self, fp: IO, space_around_delimiters: bool = True, section: str | None = None
-    ) -> None:
-        # This is based on the configparser.RawConfigParser.write method code to add support for
-        # reading options from environment variables.
-        # Various type ignores below deal with less-than-perfect RawConfigParser superclass typing
-        if space_around_delimiters:
-            delimiter = f" {self._delimiters[0]} "  # type: ignore[attr-defined]
-        else:
-            delimiter = self._delimiters[0]  # type: ignore[attr-defined]
-        if self._defaults:  # type: ignore
-            self._write_section(  # type: ignore[attr-defined]
-                fp, self.default_section, self._defaults.items(), delimiter  # type: ignore[attr-defined]
-            )
-        sections = (
-            {section: dict(self.getsection(section))}  # type: ignore[arg-type]
-            if section
-            else self._sections  # type: ignore[attr-defined]
-        )
-        for sect in sections:
-            item_section: ConfigOptionsDictType = self.getsection(sect)  # type: ignore[assignment]
-            self._write_section(fp, sect, item_section.items(), delimiter)  # type: ignore[attr-defined]
 
     def as_dict(
         self,
@@ -1044,14 +1266,15 @@ class AirflowConfigParser(ConfigParser):
                 )
 
         config_sources: ConfigSourcesType = {}
-        configs = [
-            ("default", self.airflow_defaults),
+        configs: Iterable[tuple[str, ConfigParser]] = [
+            ("default", self._default_values),
             ("airflow.cfg", self),
         ]
 
         self._replace_config_with_display_sources(
             config_sources,
             configs,
+            self.configuration_description if self.configuration_description else {},
             display_source,
             raw,
             self.deprecated_options,
@@ -1212,7 +1435,7 @@ class AirflowConfigParser(ConfigParser):
             if not getter_opt:
                 continue
             # Check to see that there is a default value
-            if not self.airflow_defaults.has_option(section, key):
+            if self.get_default_value(section, key) is None:
                 continue
             # Check to see if bare setting is the same as defaults
             if display_source:
@@ -1220,13 +1443,14 @@ class AirflowConfigParser(ConfigParser):
                 opt, source = config_sources[section][key]  # type: ignore
             else:
                 opt = config_sources[section][key]
-            if opt == self.airflow_defaults.get(section, key):
+            if opt == self.get_default_value(section, key):
                 del config_sources[section][key]
 
     @staticmethod
     def _replace_config_with_display_sources(
         config_sources: ConfigSourcesType,
         configs: Iterable[tuple[str, ConfigParser]],
+        configuration_description: dict[str, dict[str, Any]],
         display_source: bool,
         raw: bool,
         deprecated_options: dict[tuple[str, str], tuple[str, str, str]],
@@ -1235,10 +1459,12 @@ class AirflowConfigParser(ConfigParser):
         include_secret: bool,
     ):
         for source_name, config in configs:
-            for section in config.sections():
+            sections = config.sections()
+            for section in sections:
                 AirflowConfigParser._replace_section_config_with_display_sources(
                     config,
                     config_sources,
+                    configuration_description,
                     display_source,
                     raw,
                     section,
@@ -1277,7 +1503,9 @@ class AirflowConfigParser(ConfigParser):
 
     @staticmethod
     def _deprecated_command_is_set_in_config(
-        deprecated_section: str, deprecated_key: str, configs: Iterable[tuple[str, ConfigParser]]
+        deprecated_section: str,
+        deprecated_key: str,
+        configs: Iterable[tuple[str, ConfigParser]],
     ) -> bool:
         return AirflowConfigParser._deprecated_value_is_set_in_config(
             deprecated_section=deprecated_section, deprecated_key=deprecated_key + "_cmd", configs=configs
@@ -1292,7 +1520,9 @@ class AirflowConfigParser(ConfigParser):
 
     @staticmethod
     def _deprecated_secret_is_set_in_config(
-        deprecated_section: str, deprecated_key: str, configs: Iterable[tuple[str, ConfigParser]]
+        deprecated_section: str,
+        deprecated_key: str,
+        configs: Iterable[tuple[str, ConfigParser]],
     ) -> bool:
         return AirflowConfigParser._deprecated_value_is_set_in_config(
             deprecated_section=deprecated_section, deprecated_key=deprecated_key + "_secret", configs=configs
@@ -1316,6 +1546,7 @@ class AirflowConfigParser(ConfigParser):
     def _replace_section_config_with_display_sources(
         config: ConfigParser,
         config_sources: ConfigSourcesType,
+        configuration_description: dict[str, dict[str, Any]],
         display_source: bool,
         raw: bool,
         section: str,
@@ -1329,7 +1560,7 @@ class AirflowConfigParser(ConfigParser):
         sect = config_sources.setdefault(section, OrderedDict())
         if isinstance(config, AirflowConfigParser):
             with config.suppress_future_warnings():
-                items = config.items(section=section, raw=raw)
+                items: Iterable[tuple[str, Any]] = config.items(section=section, raw=raw)
         else:
             items = config.items(section=section, raw=raw)
         for k, val in items:
@@ -1372,22 +1603,46 @@ class AirflowConfigParser(ConfigParser):
 
     def load_test_config(self):
         """
-        Load the unit test configuration.
+        Uses test configuration rather than the configuration coming from airflow defaults.
 
-        Note: this is not reversible.
+        When running tests we use special the unit_test configuration to avoid accidental modifications and
+        different behaviours when running the tests. Values for those test configuration are stored in
+        the "unit_tests.cfg" configuration file in the ``airflow/config_templates`` folder
+        and you need to change values there if you want to make some specific configuration to be used
         """
-        # remove all sections, falling back to defaults
+        # We need those globals before we run "get_all_expansion_variables" because this is where
+        # the variables are expanded from in the configuration
+        global FERNET_KEY, AIRFLOW_HOME
+        from cryptography.fernet import Fernet
+
+        unit_test_config_file = pathlib.Path(__file__).parent / "config_templates" / "unit_tests.cfg"
+        unit_test_config = unit_test_config_file.read_text()
+        self.remove_all_read_configurations()
+        with io.StringIO(unit_test_config) as test_config_file:
+            self.read_file(test_config_file)
+        # set fernet key to a random value
+        global FERNET_KEY
+        FERNET_KEY = Fernet.generate_key().decode()
+        self.expand_all_configuration_values()
+        log.info("Unit test configuration loaded from 'config_unit_tests.cfg'")
+
+    def expand_all_configuration_values(self):
+        """Expands all configuration values using global and local variables defined in this module."""
+        all_vars = get_all_expansion_variables()
+        for section in self.sections():
+            for key, value in self.items(section):
+                if value is not None:
+                    if self.has_option(section, key):
+                        self.remove_option(section, key)
+                    if self.is_template(section, key) or not isinstance(value, str):
+                        self.set(section, key, value)
+                    else:
+                        self.set(section, key, value.format(**all_vars))
+
+    def remove_all_read_configurations(self):
+        """Removes all read configurations, leaving only default values in the config."""
         for section in self.sections():
             self.remove_section(section)
-
-        # then read test config
-
-        path = _default_config_file_path("default_test.cfg")
-        log.info("Reading default test configuration from %s", path)
-        self.read_string(_parameterized_config_from_template("default_test.cfg"))
-        # then read any "custom" test settings
-        log.info("Reading test configuration from %s", TEST_CONFIG_FILE)
-        self.read(TEST_CONFIG_FILE)
 
     @staticmethod
     def _warn_deprecate(
@@ -1414,7 +1669,9 @@ class AirflowConfigParser(ConfigParser):
             for name in [
                 "_sections",
                 "is_validated",
-                "airflow_defaults",
+                "configuration_description",
+                "upgraded_values",
+                "_default_values",
             ]
         }
 
@@ -1430,7 +1687,7 @@ def get_airflow_home() -> str:
     return expand_env_var(os.environ.get("AIRFLOW_HOME", "~/airflow"))
 
 
-def get_airflow_config(airflow_home) -> str:
+def get_airflow_config(airflow_home: str) -> str:
     """Get Path to airflow.cfg path."""
     airflow_config_var = os.environ.get("AIRFLOW_CONFIG")
     if airflow_config_var is None:
@@ -1438,34 +1695,8 @@ def get_airflow_config(airflow_home) -> str:
     return expand_env_var(airflow_config_var)
 
 
-def _parameterized_config_from_template(filename) -> str:
-    TEMPLATE_START = "# ----------------------- TEMPLATE BEGINS HERE -----------------------\n"
-
-    path = _default_config_file_path(filename)
-    with open(path) as fh:
-        for line in fh:
-            if line != TEMPLATE_START:
-                continue
-            return parameterized_config(fh.read().strip())
-    raise RuntimeError(f"Template marker not found in {path!r}")
-
-
-def parameterized_config(template) -> str:
-    """
-    Generates configuration from provided template & variables defined in current scope.
-
-    :param template: a config content templated with {{variables}}
-    """
-    all_vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
-    return template.format(**all_vars)
-
-
-def get_airflow_test_config(airflow_home) -> str:
-    """Get path to unittests.cfg."""
-    if "AIRFLOW_TEST_CONFIG" not in os.environ:
-        return os.path.join(airflow_home, "unittests.cfg")
-    # It will never return None
-    return expand_env_var(os.environ["AIRFLOW_TEST_CONFIG"])  # type: ignore[return-value]
+def get_all_expansion_variables() -> dict[str, Any]:
+    return {k: v for d in [globals(), locals()] for k, v in d.items()}
 
 
 def _generate_fernet_key() -> str:
@@ -1474,84 +1705,109 @@ def _generate_fernet_key() -> str:
     return Fernet.generate_key().decode()
 
 
+def create_default_config_parser(configuration_description: dict[str, dict[str, Any]]) -> ConfigParser:
+    """
+    Creates default config parser based on configuration description.
+
+    It creates ConfigParser with all default values retrieved from the configuration description and
+    expands all the variables from the global and local variables defined in this module.
+
+    :param configuration_description: configuration description - retrieved from config.yaml files
+        following the schema defined in "config.yml.schema.json" in the config_templates folder.
+    :return: Default Config Parser that can be used to read configuration values from.
+    """
+    parser = ConfigParser()
+    all_vars = get_all_expansion_variables()
+    for section, section_desc in configuration_description.items():
+        parser.add_section(section)
+        options = section_desc["options"]
+        for key in options:
+            default_value = options[key]["default"]
+            is_template = options[key].get("is_template", False)
+            if default_value is not None:
+                if is_template or not isinstance(default_value, str):
+                    parser.set(section, key, default_value)
+                else:
+                    parser.set(section, key, default_value.format(**all_vars))
+    return parser
+
+
+def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigParser):
+    """
+    Loads standard airflow configuration.
+
+    In case it finds that the configuration file is missing, it will create it and write the default
+    configuration values there, based on defaults passed, and will add the comments and examples
+    from the default configuration.
+
+    :param airflow_config_parser: parser to which the configuration will be loaded
+
+    """
+    global FERNET_KEY, AIRFLOW_HOME
+    if not os.path.isfile(AIRFLOW_CONFIG):
+        from cryptography.fernet import Fernet
+
+        log.info("Creating new Airflow config file in: %s", AIRFLOW_CONFIG)
+        pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
+        FERNET_KEY = Fernet.generate_key().decode()
+        if airflow_config_parser._default_values and airflow_config_parser.configuration_description:
+            with open(AIRFLOW_CONFIG, "w") as file:
+                airflow_config_parser.write(
+                    file,
+                    include_sources=False,
+                    include_env_vars=True,
+                    extra_spacing=True,
+                    only_defaults=True,
+                )
+        make_group_other_inaccessible(AIRFLOW_CONFIG)
+    log.info("Reading the config from %s", AIRFLOW_CONFIG)
+    airflow_config_parser.read(AIRFLOW_CONFIG)
+    if airflow_config_parser.has_option("core", "AIRFLOW_HOME"):
+        msg = (
+            "Specifying both AIRFLOW_HOME environment variable and airflow_home "
+            "in the config file is deprecated. Please use only the AIRFLOW_HOME "
+            "environment variable and remove the config file entry."
+        )
+        if "AIRFLOW_HOME" in os.environ:
+            warnings.warn(msg, category=DeprecationWarning)
+        elif airflow_config_parser.get("core", "airflow_home") == AIRFLOW_HOME:
+            warnings.warn(
+                "Specifying airflow_home in the config file is deprecated. As you "
+                "have left it at the default value you should remove the setting "
+                "from your airflow.cfg and suffer no change in behaviour.",
+                category=DeprecationWarning,
+            )
+        else:
+            # there
+            AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")  # type: ignore[assignment]
+            warnings.warn(msg, category=DeprecationWarning)
+
+
 def initialize_config() -> AirflowConfigParser:
     """
     Load the Airflow config files.
 
     Called for you automatically as part of the Airflow boot process.
     """
-    global FERNET_KEY, AIRFLOW_HOME, WEBSERVER_CONFIG
-
-    default_config = _parameterized_config_from_template("default_airflow.cfg")
-
-    local_conf = AirflowConfigParser(default_config=default_config)
-
-    if local_conf.getboolean("core", "unit_test_mode"):
-        # Load test config only
-        if not os.path.isfile(TEST_CONFIG_FILE):
-            from cryptography.fernet import Fernet
-
-            log.info("Creating new Airflow config file for unit tests in: %s", TEST_CONFIG_FILE)
-            pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
-
-            FERNET_KEY = Fernet.generate_key().decode()
-
-            with open(TEST_CONFIG_FILE, "w") as file:
-                cfg = _parameterized_config_from_template("default_test.cfg")
-                file.write(cfg)
-            make_group_other_inaccessible(TEST_CONFIG_FILE)
-
-        local_conf.load_test_config()
+    global WEBSERVER_CONFIG
+    airflow_config_parser = AirflowConfigParser()
+    if airflow_config_parser.getboolean("core", "unit_test_mode"):
+        airflow_config_parser.load_test_config()
     else:
-        # Load normal config
-        if not os.path.isfile(AIRFLOW_CONFIG):
-            from cryptography.fernet import Fernet
+        load_standard_airflow_configuration(airflow_config_parser)
+        # If the user set unit_test_mode in the airflow.cfg, we still
+        # want to respect that and then load the default unit test configuration
+        # file on top of it.
+        if airflow_config_parser.getboolean("core", "unit_test_mode"):
+            airflow_config_parser.load_test_config()
 
-            log.info("Creating new Airflow config file in: %s", AIRFLOW_CONFIG)
-            pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
-
-            FERNET_KEY = Fernet.generate_key().decode()
-
-            with open(AIRFLOW_CONFIG, "w") as file:
-                file.write(default_config)
-            make_group_other_inaccessible(AIRFLOW_CONFIG)
-
-        log.info("Reading the config from %s", AIRFLOW_CONFIG)
-
-        local_conf.read(AIRFLOW_CONFIG)
-
-        if local_conf.has_option("core", "AIRFLOW_HOME"):
-            msg = (
-                "Specifying both AIRFLOW_HOME environment variable and airflow_home "
-                "in the config file is deprecated. Please use only the AIRFLOW_HOME "
-                "environment variable and remove the config file entry."
-            )
-            if "AIRFLOW_HOME" in os.environ:
-                warnings.warn(msg, category=DeprecationWarning)
-            elif local_conf.get("core", "airflow_home") == AIRFLOW_HOME:
-                warnings.warn(
-                    "Specifying airflow_home in the config file is deprecated. As you "
-                    "have left it at the default value you should remove the setting "
-                    "from your airflow.cfg and suffer no change in behaviour.",
-                    category=DeprecationWarning,
-                )
-            else:
-                # there
-                AIRFLOW_HOME = local_conf.get("core", "airflow_home")  # type: ignore[assignment]
-                warnings.warn(msg, category=DeprecationWarning)
-
-        # They _might_ have set unit_test_mode in the airflow.cfg, we still
-        # want to respect that and then load the unittests.cfg
-        if local_conf.getboolean("core", "unit_test_mode"):
-            local_conf.load_test_config()
-
-    WEBSERVER_CONFIG = local_conf.get("webserver", "config_file")
+    WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
     if not os.path.isfile(WEBSERVER_CONFIG):
         import shutil
 
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
-    return local_conf
+    return airflow_config_parser
 
 
 def make_group_other_inaccessible(file_path: str):
@@ -1761,39 +2017,6 @@ def initialize_auth_manager() -> BaseAuthManager:
     return auth_manager_cls()
 
 
-@functools.lru_cache(maxsize=None)
-def _DEFAULT_CONFIG() -> str:
-    path = _default_config_file_path("default_airflow.cfg")
-    with open(path) as fh:
-        return fh.read()
-
-
-@functools.lru_cache(maxsize=None)
-def _TEST_CONFIG() -> str:
-    path = _default_config_file_path("default_test.cfg")
-    with open(path) as fh:
-        return fh.read()
-
-
-_deprecated = {
-    "DEFAULT_CONFIG": _DEFAULT_CONFIG,
-    "TEST_CONFIG": _TEST_CONFIG,
-    "TEST_CONFIG_FILE_PATH": functools.partial(_default_config_file_path, "default_test.cfg"),
-    "DEFAULT_CONFIG_FILE_PATH": functools.partial(_default_config_file_path, "default_airflow.cfg"),
-}
-
-
-def __getattr__(name):
-    if name in _deprecated:
-        warnings.warn(
-            f"{__name__}.{name} is deprecated and will be removed in future",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return _deprecated[name]()
-    raise AttributeError(f"module {__name__} has no attribute {name}")
-
-
 # Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
 # "~/airflow" and "$AIRFLOW_HOME/airflow.cfg" respectively as defaults.
 AIRFLOW_HOME = get_airflow_home()
@@ -1817,8 +2040,6 @@ if os.path.exists(_TEST_PLUGINS_FOLDER):
     TEST_PLUGINS_FOLDER = _TEST_PLUGINS_FOLDER
 else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
-
-TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 
 SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 FERNET_KEY = ""  # Set only if needed when generating a new file
