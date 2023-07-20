@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
 import typing
+from datetime import datetime
 
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
@@ -27,7 +27,8 @@ from sqlalchemy.orm import Session
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.timezone import utcnow
 
 
 class TaskStateTrigger(BaseTrigger):
@@ -36,20 +37,26 @@ class TaskStateTrigger(BaseTrigger):
 
     :param dag_id: The dag_id that contains the task you want to wait for
     :param task_id: The task_id that contains the task you want to
-        wait for. If ``None`` (default value) the sensor waits for the DAG
+        wait for.
     :param states: allowed states, default is ``['success']``
-    :param execution_dates:
+    :param execution_dates: task execution time interval
     :param poll_interval: The time interval in seconds to check the state.
         The default value is 5 sec.
+    :param trigger_start_time: time in Datetime format when the trigger was started. Is used
+        to control the execution of trigger to prevent infinite loop in case if specified name
+        of the dag does not exist in database. It will wait period of time equals _timeout_sec parameter
+        from the time, when the trigger was started and if the execution lasts more time than expected,
+        the trigger will terminate with 'timeout' status.
     """
 
     def __init__(
         self,
         dag_id: str,
-        task_id: str,
-        states: list[str],
-        execution_dates: list[datetime.datetime],
-        poll_interval: float = 5.0,
+        execution_dates: list[datetime],
+        trigger_start_time: datetime,
+        states: list[str] | None = None,
+        task_id: str | None = None,
+        poll_interval: float = 2.0,
     ):
         super().__init__()
         self.dag_id = dag_id
@@ -57,6 +64,9 @@ class TaskStateTrigger(BaseTrigger):
         self.states = states
         self.execution_dates = execution_dates
         self.poll_interval = poll_interval
+        self.trigger_start_time = trigger_start_time
+        self.states = states if states else [TaskInstanceState.SUCCESS.value]
+        self._timeout_sec = 60
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serializes TaskStateTrigger arguments and classpath."""
@@ -68,17 +78,52 @@ class TaskStateTrigger(BaseTrigger):
                 "states": self.states,
                 "execution_dates": self.execution_dates,
                 "poll_interval": self.poll_interval,
+                "trigger_start_time": self.trigger_start_time,
             },
         )
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
-        """Checks periodically in the database to see if the task exists and has hit one of the states."""
+        """
+        Checks periodically in the database to see if the dag exists and is in the running state. If found,
+        wait until the task specified will reach one of the expected states. If dag with specified name was
+        not in the running state after _timeout_sec seconds after starting execution process of the trigger,
+        terminate with status 'timeout'.
+        """
         while True:
-            # mypy confuses typing here
-            num_tasks = await self.count_tasks()  # type: ignore[call-arg]
-            if num_tasks == len(self.execution_dates):
-                yield TriggerEvent(True)
-            await asyncio.sleep(self.poll_interval)
+            try:
+                delta = utcnow() - self.trigger_start_time
+                if delta.total_seconds() < self._timeout_sec:
+                    # mypy confuses typing here
+                    if await self.count_running_dags() == 0:  # type: ignore[call-arg]
+                        self.log.info("Waiting for DAG to start execution...")
+                        await asyncio.sleep(self.poll_interval)
+                else:
+                    yield TriggerEvent({"status": "timeout"})
+                    return
+                # mypy confuses typing here
+                if await self.count_tasks() == len(self.execution_dates):  # type: ignore[call-arg]
+                    yield TriggerEvent({"status": "success"})
+                    return
+                self.log.info("Task is still running, sleeping for %s seconds...", self.poll_interval)
+                await asyncio.sleep(self.poll_interval)
+            except Exception:
+                yield TriggerEvent({"status": "failed"})
+                return
+
+    @sync_to_async
+    @provide_session
+    def count_running_dags(self, session: Session):
+        """Count how many dag instances in running state in the database."""
+        dags = (
+            session.query(func.count("*"))
+            .filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.execution_date.in_(self.execution_dates),
+                TaskInstance.state.in_(["running", "success"]),
+            )
+            .scalar()
+        )
+        return dags
 
     @sync_to_async
     @provide_session
@@ -112,7 +157,7 @@ class DagStateTrigger(BaseTrigger):
         self,
         dag_id: str,
         states: list[DagRunState],
-        execution_dates: list[datetime.datetime],
+        execution_dates: list[datetime],
         poll_interval: float = 5.0,
     ):
         super().__init__()
@@ -134,7 +179,10 @@ class DagStateTrigger(BaseTrigger):
         )
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
-        """Checks periodically in the database to see if the dag run exists and has hit one of the states."""
+        """
+        Checks periodically in the database to see if the dag run exists, and has
+        hit one of the states yet, or not.
+        """
         while True:
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]

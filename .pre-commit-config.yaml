@@ -618,14 +618,6 @@ repos:
         pass_filenames: true
         additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
-      - id: check-airflow-config-yaml-consistent
-        name: Check consistency between config.yml and default_config.cfg
-        language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_yaml_to_cfg.py
-        files: config\.yml$|default_airflow\.cfg$|default\.cfg$
-        pass_filenames: false
-        require_serial: true
-        additional_dependencies: ['pyyaml', 'packaging']
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python

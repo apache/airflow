@@ -90,6 +90,7 @@ class DependencyMixin:
     ) -> None:
         """
         Update relationship information about another TaskMixin. Default is no-op.
+
         Override if necessary.
         """
 
@@ -169,8 +170,9 @@ class TaskMixin(DependencyMixin):
 
 class DAGNode(DependencyMixin, metaclass=ABCMeta):
     """
-    A base class for a node in the graph of a workflow -- an Operator or a Task Group, either mapped or
-    unmapped.
+    A base class for a node in the graph of a workflow.
+
+    A node may be an Operator or a Task Group, either mapped or unmapped.
     """
 
     dag: DAG | None = None
@@ -307,20 +309,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
-        """
-        Get set of the direct relative ids to the current task, upstream or
-        downstream.
-        """
+        """Get set of the direct relative ids to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_task_ids
         else:
             return self.downstream_task_ids
 
     def get_direct_relatives(self, upstream: bool = False) -> Iterable[DAGNode]:
-        """
-        Get list of the direct relatives to the current task, upstream or
-        downstream.
-        """
+        """Get list of the direct relatives to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_list
         else:

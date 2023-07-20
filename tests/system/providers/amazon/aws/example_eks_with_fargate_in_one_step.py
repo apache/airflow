@@ -81,9 +81,6 @@ with DAG(
         # Opting to use the same ARN for the cluster and the pod here,
         # but a different ARN could be configured and passed if desired.
         fargate_pod_execution_role_arn=fargate_pod_role_arn,
-        deferrable=True,
-        waiter_delay=30,
-        wait_for_completion=399,
     )
     # [END howto_operator_eks_create_cluster_with_fargate_profile]
 

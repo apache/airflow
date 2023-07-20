@@ -47,7 +47,6 @@ configuring an Airflow environment.
     variable
     run-behind-proxy
     run-with-systemd
-    use-test-config
     define-extra-link
     email-config
     dynamic-dag-generation

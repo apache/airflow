@@ -50,6 +50,7 @@ from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import WebEncoder
+from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
@@ -59,6 +60,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.operators import ColumnOperators
 
     from airflow.www.fab_security.sqla.manager import SecurityManager
+
+TI = TaskInstance
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
@@ -844,12 +847,17 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
     """
 
     def delete(self, item: Model, raise_exception: bool = False) -> bool:
-        self.session.execute(delete(TaskInstance).where(TaskInstance.run_id == item.run_id))
+        self.session.execute(delete(TI).where(TI.dag_id == item.dag_id, TI.run_id == item.run_id))
         return super().delete(item, raise_exception=raise_exception)
 
     def delete_all(self, items: list[Model]) -> bool:
         self.session.execute(
-            delete(TaskInstance).where(TaskInstance.run_id.in_(item.run_id for item in items))
+            delete(TI).where(
+                tuple_in_condition(
+                    (TI.dag_id, TI.run_id),
+                    ((x.dag_id, x.run_id) for x in items),
+                )
+            )
         )
         return super().delete_all(items)
 

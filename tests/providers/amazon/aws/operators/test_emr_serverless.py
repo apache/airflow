@@ -23,7 +23,7 @@ from uuid import UUID
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
@@ -729,6 +729,45 @@ class TestEmrServerlessStartJobOperator:
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == expected[0]
         assert operator.waiter_max_attempts == expected[1]
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_start_job_deferrable(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred):
+            operator.execute(None)
+
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_start_job_deferrable_app_not_started(self, mock_conn, mock_get_waiter):
+        mock_get_waiter.return_value = True
+        mock_conn.get_application.return_value = {"application": {"state": "CREATING"}}
+        mock_conn.start_application.return_value = {
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred):
+            operator.execute(None)
 
 
 class TestEmrServerlessDeleteOperator:

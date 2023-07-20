@@ -1833,6 +1833,7 @@ pgbouncer:
 
   # Detailed default security context for pgbouncer for container level
   securityContexts:
+    pod: {}
     container: {}
 
   metricsExporterSidecar:
