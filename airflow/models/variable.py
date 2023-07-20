@@ -179,7 +179,7 @@ class Variable(Base, LoggingMixin):
         # invalidate key in cache for faster propagation
         # we cannot save the value set because it's possible that it's shadowed by a custom backend
         # (see call to check_for_write_conflict above)
-        SecretCache.invalidate_key(key)
+        SecretCache.invalidate_variable(key)
 
     @staticmethod
     @provide_session
@@ -216,7 +216,7 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Keys
         """
         rows = session.execute(delete(Variable).where(Variable.key == key)).rowcount
-        SecretCache.invalidate_key(key)
+        SecretCache.invalidate_variable(key)
         return rows
 
     def rotate_fernet_key(self):
@@ -284,5 +284,5 @@ class Variable(Base, LoggingMixin):
                     type(secrets_backend).__name__,
                 )
 
-        SecretCache.save_variable(key, var_val)
+        SecretCache.save_variable(key, var_val)  # we save None as well
         return var_val

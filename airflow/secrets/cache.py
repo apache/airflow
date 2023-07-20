@@ -24,14 +24,14 @@ from airflow.configuration import conf
 
 
 class SecretCache:
-    """A static class to manage the global secret cache"""
+    """A static class to manage the global secret cache."""
 
     __manager: multiprocessing.managers.SyncManager | None = None
     _cache: dict[str, _CacheValue] | None = None
     _ttl: datetime.timedelta
 
     class NotPresent(Exception):
-        """Raised when a key is not present in the cache"""
+        """Raised when a key is not present in the cache."""
 
         ...
 
@@ -42,6 +42,9 @@ class SecretCache:
 
         def is_expired(self, ttl: datetime.timedelta) -> bool:
             return datetime.datetime.utcnow() - self.date > ttl
+
+    _VARIABLE_PREFIX = "__v_"
+    _CONNECTION_PREFIX = "__c_"
 
     @classmethod
     def init(cls):
@@ -61,34 +64,64 @@ class SecretCache:
 
     @classmethod
     def reset(cls):
-        """For test purposes only"""
+        """For test purposes only."""
         cls._cache = None
 
     @classmethod
     def get_variable(cls, key: str) -> str | None:
         """
-        Tries to get the value associated with the key from the cache
+        Tries to get the value associated with the key from the cache.
 
         :return: The saved value (which can be None) if present in cache and not expired,
             a NotPresent exception otherwise.
         """
+        return cls._get(key, cls._VARIABLE_PREFIX)
+
+    @classmethod
+    def get_connection_uri(cls, conn_id: str) -> str:
+        """
+        Tries to get the uri associated with the conn_id from the cache.
+
+        :return: The saved uri if present in cache and not expired,
+            a NotPresent exception otherwise.
+        """
+        val = cls._get(conn_id, cls._CONNECTION_PREFIX)
+        if val:  # there shouldn't be any empty entries in the connections cache, but we enforce it here.
+            return val
+        raise cls.NotPresent
+
+    @classmethod
+    def _get(cls, key: str, prefix: str) -> str | None:
         if cls._cache is None:
             # using an exception for misses allow to meaningfully cache None values
             raise cls.NotPresent
 
-        val = cls._cache.get(key)
+        val = cls._cache.get(f"{prefix}{key}")
         if val and not val.is_expired(cls._ttl):
             return val.value
         raise cls.NotPresent
 
     @classmethod
     def save_variable(cls, key: str, value: str | None):
-        """Saves the value for that key in the cache, if initialized"""
-        if cls._cache is not None:
-            cls._cache[key] = cls._CacheValue(value)
+        """Saves the value for that key in the cache, if initialized."""
+        cls._save(key, value, cls._VARIABLE_PREFIX)
 
     @classmethod
-    def invalidate_key(cls, key: str):
-        """Invalidates (actually removes) the value stored in the cache for that key."""
+    def save_connection_uri(cls, conn_id: str, uri: str):
+        """Saves the uri representation for that connection in the cache, if initialized."""
+        if uri is None:
+            # connections raise exceptions if not present, so we shouldn't have any None value to save.
+            return
+        cls._save(conn_id, uri, cls._CONNECTION_PREFIX)
+
+    @classmethod
+    def _save(cls, key: str, value: str | None, prefix: str):
         if cls._cache is not None:
-            cls._cache.pop(key, None)  # second arg ensures no exception if key is absent
+            cls._cache[f"{prefix}{key}"] = cls._CacheValue(value)
+
+    @classmethod
+    def invalidate_variable(cls, key: str):
+        """Invalidates (actually removes) the value stored in the cache for that Variable."""
+        if cls._cache is not None:
+            # second arg ensures no exception if key is absent
+            cls._cache.pop(f"{cls._VARIABLE_PREFIX}{key}", None)

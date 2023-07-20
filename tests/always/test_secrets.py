@@ -27,6 +27,9 @@ from tests.test_utils.db import clear_db_variables
 
 
 class TestConnectionsFromSecrets:
+    def setup_method(self) -> None:
+        SecretCache.reset()
+
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
     def test_get_connection_second_try(self, mock_env_get, mock_meta_get):

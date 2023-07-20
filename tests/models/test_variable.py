@@ -111,7 +111,7 @@ class TestVariable:
             # value set above is not returned because the env variable value takes priority
             assert "env-value" == Variable.get("key")
         # invalidate the cache to re-evaluate value
-        SecretCache.invalidate_key("key")
+        SecretCache.invalidate_variable("key")
         # now that env var is not here anymore, we see the value we set before.
         assert "new-db-value" == Variable.get("key")
 
@@ -279,10 +279,8 @@ class TestVariable:
         first = Variable.get(key)
         second = Variable.get(key)
 
-        mock_backend.get_variable.assert_called_once()
+        mock_backend.get_variable.assert_called_once()  # second call was not made because of cache
         assert first == second
-        assert SecretCache._cache is not None  # doing this for mypy, otherwise it complains on the next line.
-        assert key in SecretCache._cache
 
     def test_cache_invalidation_on_set(self):
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="from_env"):

@@ -86,14 +86,14 @@ class TestSecretCache:
 
         assert SecretCache.get_variable("key") == "some_value"
 
-        SecretCache.invalidate_key("key")
+        SecretCache.invalidate_variable("key")
 
         # cannot get the value for that key anymore because we invalidated it
         with pytest.raises(SecretCache.NotPresent):
             SecretCache.get_variable("key")
 
     def test_invalidate_key_not_present(self):
-        SecretCache.invalidate_key("not present")  # simply shouldn't raise any exception.
+        SecretCache.invalidate_variable("not present")  # simply shouldn't raise any exception.
 
     def test_expiration(self):
         SecretCache.save_variable("key", "some_value")
@@ -117,3 +117,26 @@ class TestSecretCache:
         # cache is disabled, gets will always "fail"
         with pytest.raises(SecretCache.NotPresent):
             SecretCache.get_variable("key")
+
+    def test_independence_variable_connection(self):
+        SecretCache.save_variable("same_key", "some_value")
+        SecretCache.save_connection_uri("same_key", "some_other_value")
+
+        assert SecretCache.get_variable("same_key") == "some_value"
+        assert SecretCache.get_connection_uri("same_key") == "some_other_value"
+
+        SecretCache.save_variable("var", "some_value")
+        SecretCache.save_connection_uri("conn", "some_other_value")
+
+        # getting the wrong type of thing with a key that exists in the other will not work
+        with pytest.raises(SecretCache.NotPresent):
+            SecretCache.get_connection_uri("var")
+        with pytest.raises(SecretCache.NotPresent):
+            SecretCache.get_variable("conn")
+
+    def test_connections_do_not_save_none(self):
+        # noinspection PyTypeChecker
+        SecretCache.save_connection_uri("key", None)
+
+        with pytest.raises(SecretCache.NotPresent):
+            SecretCache.get_connection_uri("key")
