@@ -49,7 +49,7 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -88,7 +88,7 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
