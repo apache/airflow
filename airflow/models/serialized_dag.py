@@ -25,7 +25,6 @@ from typing import Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_, select
-from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
@@ -156,8 +155,8 @@ class SerializedDagModel(Base):
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag, processor_subdir)
         serialized_dag_db = session.execute(
-            select(cls.dag_hash, cls.processor_subdir).where(cls.dag_id == dag.dag_id)
-        ).first()
+            select(cls.dag_hash, cls.processor_subdir).where(cls.dag_id == dag.dag_id).limit(1)
+        )
 
         if (
             serialized_dag_db is not None
@@ -272,7 +271,7 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to check
         :param session: ORM Session
         """
-        return session.scalars(select(literal(True)).where(cls.dag_id == dag_id)).first() is not None
+        return session.scalars(select(literal(True)).where(cls.dag_id == dag_id).limit(1)) is not None
 
     @classmethod
     @provide_session
@@ -347,7 +346,7 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
-        return session.scalar(func.max(cls.last_updated))
+        return session.scalar(select(func.max(cls.last_updated)))
 
     @classmethod
     @provide_session
@@ -376,10 +375,9 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
         """
-        try:
-            return session.execute(select(cls.dag_hash, cls.last_updated).where(cls.dag_id == dag_id)).one()
-        except NoResultFound:
-            return None
+        return session.execute(
+            select(cls.dag_hash, cls.last_updated).where(cls.dag_id == dag_id)
+        ).one_or_none()
 
     @classmethod
     @provide_session
