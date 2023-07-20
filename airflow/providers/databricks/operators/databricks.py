@@ -20,10 +20,11 @@ from __future__ import annotations
 
 import time
 import warnings
+from functools import cached_property
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.compat.functools import cached_property
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
@@ -42,7 +43,7 @@ XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     """
-    Handles the Airflow + Databricks lifecycle logic for a Databricks operator
+    Handles the Airflow + Databricks lifecycle logic for a Databricks operator.
 
     :param operator: Databricks operator being handled
     :param context: Airflow context
@@ -100,7 +101,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
 
 def _handle_deferrable_databricks_operator_execution(operator, hook, log, context) -> None:
     """
-    Handles the Airflow + Databricks lifecycle logic for deferrable Databricks operators
+    Handles the Airflow + Databricks lifecycle logic for deferrable Databricks operators.
 
     :param operator: Databricks async operator being handled
     :param context: Airflow context
@@ -162,10 +163,9 @@ class DatabricksJobRunLink(BaseOperatorLink):
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
-    Submits a Spark job run to Databricks using the
-    `api/2.1/jobs/runs/submit
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_
-    API endpoint.
+    Submits a Spark job run to Databricks using the api/2.1/jobs/runs/submit API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
 
     There are three ways to instantiate this operator.
 
@@ -303,7 +303,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         dbt_task: dict[str, str | list[str]] | None = None,
         new_cluster: dict[str, object] | None = None,
         existing_cluster_id: str | None = None,
-        libraries: list[dict[str, str]] | None = None,
+        libraries: list[dict[str, Any]] | None = None,
         run_name: str | None = None,
         timeout_seconds: int | None = None,
         databricks_conn_id: str = "databricks_default",
@@ -316,7 +316,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -404,7 +404,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
 
 class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
-    """Deferrable version of ``DatabricksSubmitRunOperator``"""
+    """Deferrable version of ``DatabricksSubmitRunOperator``."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
@@ -428,10 +428,9 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
 
 class DatabricksRunNowOperator(BaseOperator):
     """
-    Runs an existing Spark job run to Databricks using the
-    `api/2.1/jobs/run-now
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>`_
-    API endpoint.
+    Runs an existing Spark job run to Databricks using the api/2.1/jobs/run-now API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
 
     There are two ways to instantiate this operator.
 
@@ -607,7 +606,7 @@ class DatabricksRunNowOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksRunNowOperator``."""
@@ -683,7 +682,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
 
 class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
-    """Deferrable version of ``DatabricksRunNowOperator``"""
+    """Deferrable version of ``DatabricksRunNowOperator``."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(

@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
@@ -30,10 +30,10 @@ if TYPE_CHECKING:
 
 
 class S3ToSqlOperator(BaseOperator):
-    """
-        Loads Data from S3 into a SQL Database.
-        You need to provide a parser function that takes a filename as an input
-        and returns an iterable of rows
+    """Load Data from S3 into a SQL Database.
+
+    You need to provide a parser function that takes a filename as an input
+    and returns an iterable of rows
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -52,12 +52,13 @@ class S3ToSqlOperator(BaseOperator):
         e.g. to use a CSV parser that yields rows line-by-line, pass the following
         function:
 
-        def parse_csv(filepath):
-            import csv
+        .. code-block:: python
 
-            with open(filepath, newline="") as file:
-                yield from csv.reader(file)
+            def parse_csv(filepath):
+                import csv
 
+                with open(filepath, newline="") as file:
+                    yield from csv.reader(file)
     """
 
     template_fields: Sequence[str] = (
@@ -97,7 +98,6 @@ class S3ToSqlOperator(BaseOperator):
         self.parser = parser
 
     def execute(self, context: Context) -> None:
-
         self.log.info("Loading %s to SQL table %s...", self.s3_key, self.table)
 
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)

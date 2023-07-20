@@ -89,6 +89,6 @@ class TestClient:
     @conf_vars({("kubernetes", "api_client_retry_configuration"): '{"total": 3, "backoff_factor": 0.5}'})
     def test_api_client_retry_configuration_correct_values(self, mock_in_cluster_loader):
         get_kube_client(in_cluster=True)
-        client_configuration = mock_in_cluster_loader().load_and_set.call_args[0][0]
+        client_configuration = mock_in_cluster_loader().load_and_set.call_args.args[0]
         assert client_configuration.retries.total == 3
         assert client_configuration.retries.backoff_factor == 0.5

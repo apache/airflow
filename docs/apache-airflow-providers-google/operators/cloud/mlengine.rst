@@ -29,7 +29,7 @@ be used to deploy a trained model, make predictions, and manage various model ve
 Prerequisite tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: ../_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:MLEngineStartTrainingJobOperator:
 

@@ -22,6 +22,7 @@ from abc import ABC, abstractmethod
 from attrs import Factory, define
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import TaskInstanceState
 from openlineage.client.facet import BaseFacet
 from openlineage.client.run import Dataset
 
@@ -37,8 +38,7 @@ class OperatorLineage:
 
 
 class BaseExtractor(ABC, LoggingMixin):
-    """
-    Abstract base extractor class.
+    """Abstract base extractor class.
 
     This is used mostly to maintain support for custom extractors.
     """
@@ -52,9 +52,10 @@ class BaseExtractor(ABC, LoggingMixin):
     @classmethod
     @abstractmethod
     def get_operator_classnames(cls) -> list[str]:
-        """
-        Implement this method returning list of operators that extractor works for.
-        There are operators which work very similarly and one extractor can cover both.
+        """Get a list of operators that extractor works for.
+
+        This is an abstract method that subclasses should implement. There are
+        operators that work very similarly and one extractor can cover.
         """
         raise NotImplementedError()
 
@@ -74,9 +75,10 @@ class DefaultExtractor(BaseExtractor):
 
     @classmethod
     def get_operator_classnames(cls) -> list[str]:
-        """
+        """Assign this extractor to *no* operators.
+
         Default extractor is chosen not on the classname basis, but
-        by existence of get_openlineage_facets method on operator
+        by existence of get_openlineage_facets method on operator.
         """
         return []
 
@@ -87,16 +89,30 @@ class DefaultExtractor(BaseExtractor):
             return None
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
+        if task_instance.state == TaskInstanceState.FAILED:
+            on_failed = getattr(self.operator, "get_openlineage_facets_on_failure", None)
+            if on_failed and callable(on_failed):
+                return self._get_openlineage_facets(on_failed, task_instance)
         on_complete = getattr(self.operator, "get_openlineage_facets_on_complete", None)
         if on_complete and callable(on_complete):
             return self._get_openlineage_facets(on_complete, task_instance)
         return self.extract()
 
     def _get_openlineage_facets(self, get_facets_method, *args) -> OperatorLineage | None:
-        facets: OperatorLineage = get_facets_method(*args)
-        return OperatorLineage(
-            inputs=facets.inputs,
-            outputs=facets.outputs,
-            run_facets=facets.run_facets,
-            job_facets=facets.job_facets,
-        )
+        try:
+            facets = get_facets_method(*args)
+        except ImportError:
+            self.log.exception(
+                "OpenLineage provider method failed to import OpenLineage integration. "
+                "This should not happen."
+            )
+        except Exception:
+            self.log.exception("OpenLineage provider method failed to extract data from provider. ")
+        else:
+            return OperatorLineage(
+                inputs=facets.inputs,
+                outputs=facets.outputs,
+                run_facets=facets.run_facets,
+                job_facets=facets.job_facets,
+            )
+        return None

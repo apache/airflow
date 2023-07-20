@@ -18,10 +18,18 @@
 ``apache-airflow-providers-apache-kafka``
 ==========================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -34,6 +42,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -41,12 +50,14 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/apache/kafka/index>
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -58,6 +69,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -70,7 +82,7 @@ Package apache-airflow-providers-apache-kafka
 `Apache Kafka  <https://kafka.apache.org/>`__
 
 
-Release: 1.1.0
+Release: 1.1.2
 
 Provider package
 ----------------
@@ -97,5 +109,3 @@ PIP package          Version required
 ``asgiref``
 ``confluent-kafka``  ``>=1.8.2``
 ===================  ==================
-
-.. include:: ../../airflow/providers/apache/kafka/CHANGELOG.rst

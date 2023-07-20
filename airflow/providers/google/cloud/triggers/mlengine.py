@@ -25,7 +25,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class MLEngineStartTrainingJobTrigger(BaseTrigger):
     """
-    MLEngineStartTrainingJobTrigger run on the trigger worker to perform starting training job operation
+    MLEngineStartTrainingJobTrigger run on the trigger worker to perform starting training job operation.
 
     :param conn_id: Reference to google cloud connection id
     :param job_id:  The ID of the job. It will be suffixed with hash of job configuration
@@ -89,7 +89,7 @@ class MLEngineStartTrainingJobTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent"""
+        """Gets current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         while True:
             try:

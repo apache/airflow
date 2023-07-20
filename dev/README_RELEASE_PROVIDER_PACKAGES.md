@@ -347,7 +347,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --for-production --package-filter apache-airflow-providers \
+breeze build-docs --clean-build --package-filter apache-airflow-providers \
    --package-filter 'apache-airflow-providers-*'
 ```
 
@@ -359,7 +359,7 @@ If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --for-production \
+breeze build-docs --clean-build \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
@@ -380,40 +380,19 @@ If you have providers as list of provider ids because you just released them, yo
 ./docs/start_doc_server.sh
 ```
 
-You should navigate the providers and make sure the docs render properly.
-Note: if you used ``--for-production`` then default of url paths goes to ``latest``
-thus viewing the pages will result in 404 file not found error.
-You will need to change it manually to see the docs
-
 - Copy the documentation to the ``airflow-site`` repository
-
-**NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
-apache-airflow with doc extra:
-
-* `pip install 'apache-airflow[doc_gen]'`
-
-If you don't have virtual env set you can do:
-
-```shell script
-cd <path_you_want_to_save_your_virtual_env>
-virtualenv providers
-
-source venv/providers/bin/activate
-
-pip install 'apache-airflow[doc_gen]'
-```
 
 All providers (including overriding documentation for doc-only changes):
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-./docs/publish_docs.py \
+breeze release-management publish-docs \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
     --override-versioned
 
-cd "${AIRFLOW_SITE_DIRECTORY}"
+breeze release-management add-back-references --gen-type providers
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:
@@ -451,6 +430,7 @@ execution of the script below. You will use link to that issue in the next step.
 set as your environment variable.
 
 You can also pass the token as `--github-token` option in the script.
+You can also pass list of PR to be excluded from the issue with `--excluded-pr-list`.
 
 ```shell script
 breeze release-management generate-issue-content-providers --only-available-in-dist
@@ -487,7 +467,8 @@ cat <<EOF
 Hey all,
 
 I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
-which will last for 72 hours - which means that it will end on $(date -d '+3 days').
+which will last for 72 hours - which means that it will end on $(date -d '+3 days') and until 3 binding +1 votes have been received.
+
 
 Consider this my (binding) +1.
 
@@ -721,7 +702,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-breeze start-airflow --use-airflow-version 2.2.4 --python 3.7 --backend postgres \
+breeze start-airflow --use-airflow-version 2.2.4 --python 3.8 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 
@@ -852,7 +833,7 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need Python 3.7+ and dev/requirements.txt installed)
+# Check which old packages will be removed (you need Python 3.8+ and dev/requirements.txt installed)
 python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory .
 
 # Remove those packages
@@ -1012,7 +993,9 @@ Announcement is done from official Apache-Airflow accounts.
 
 * Twitter: https://twitter.com/ApacheAirflow
 * Linkedin: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
 
+Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------

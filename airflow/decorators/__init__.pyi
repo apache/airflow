@@ -453,7 +453,7 @@ class TaskDecoratorCollection:
         :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
         """
     @overload
-    def sensor(self, python_callable: FParams | FReturn | None = None) -> Task[FParams, FReturn]: ...
+    def sensor(self, python_callable: Callable[FParams, FReturn] | None = None) -> Task[FParams, FReturn]: ...
 
 task: TaskDecoratorCollection
 setup: Callable

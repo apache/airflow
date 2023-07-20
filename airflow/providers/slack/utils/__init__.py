@@ -84,6 +84,7 @@ def parse_filename(
 ) -> tuple[str, str | None]:
     """
     Parse filetype and compression from given filename.
+
     :param filename: filename to parse.
     :param supported_file_formats: list of supported file extensions.
     :param fallback: fallback to given file format.

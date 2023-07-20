@@ -22,10 +22,10 @@ import getpass
 import json
 import os
 import random
-import re
 import string
 from typing import Any
 
+import re2
 from marshmallow import Schema, fields, validate
 from marshmallow.exceptions import ValidationError
 
@@ -112,6 +112,9 @@ def users_delete(args):
     """Deletes user from DB."""
     user = _find_user(args)
 
+    # Clear the associated user roles first.
+    user.roles.clear()
+
     from airflow.utils.cli_app_builder import get_application_builder
 
     with get_application_builder() as appbuilder:
@@ -161,7 +164,7 @@ def users_export(args):
         # In the User model the first and last name fields have underscores,
         # but the corresponding parameters in the CLI don't
         def remove_underscores(s):
-            return re.sub("_", "", s)
+            return re2.sub("_", "", s)
 
         users = [
             {

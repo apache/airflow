@@ -143,6 +143,7 @@ export interface paths {
   "/dags/{dag_id}/dagRuns": {
     /** This endpoint allows specifying `~` as the dag_id to retrieve DAG runs for all DAGs. */
     get: operations["get_dag_runs"];
+    /** This will initiate a dagrun. If DAG is paused then dagrun state will remain queued, and the task won't run. */
     post: operations["post_dag_run"];
     parameters: {
       path: {
@@ -646,8 +647,8 @@ export interface paths {
   };
   "/health": {
     /**
-     * Get the status of Airflow's metadatabase and scheduler. It includes info about
-     * metadatabase and last heartbeat of scheduler.
+     * Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+     * metadatabase and last heartbeat of scheduler and triggerer.
      */
     get: operations["get_health"];
   };
@@ -1076,7 +1077,6 @@ export interface components {
       /** @enum {string} */
       run_type?: "backfill" | "manual" | "scheduled" | "dataset_triggered";
       state?: components["schemas"]["DagState"];
-      /** @default true */
       external_trigger?: boolean;
       /**
        * @description JSON object describing additional configuration parameters.
@@ -1191,6 +1191,8 @@ export interface components {
     HealthInfo: {
       metadatabase?: components["schemas"]["MetadatabaseStatus"];
       scheduler?: components["schemas"]["SchedulerStatus"];
+      triggerer?: components["schemas"]["TriggererStatus"];
+      dag_processor?: components["schemas"]["DagProcessorStatus"];
     };
     /** @description The status of the metadatabase. */
     MetadatabaseStatus: {
@@ -1201,9 +1203,35 @@ export interface components {
       status?: components["schemas"]["HealthStatus"];
       /**
        * Format: datetime
-       * @description The time the scheduler last do a heartbeat.
+       * @description The time the scheduler last did a heartbeat.
        */
       latest_scheduler_heartbeat?: string | null;
+    };
+    /**
+     * @description The status and the latest triggerer heartbeat.
+     *
+     * *New in version 2.6.2*
+     */
+    TriggererStatus: {
+      status?: components["schemas"]["HealthStatus"];
+      /**
+       * Format: datetime
+       * @description The time the triggerer last did a heartbeat.
+       */
+      latest_triggerer_heartbeat?: string | null;
+    };
+    /**
+     * @description The status and the latest dag processor heartbeat.
+     *
+     * *New in version 2.6.3*
+     */
+    DagProcessorStatus: {
+      status?: components["schemas"]["HealthStatus"];
+      /**
+       * Format: datetime
+       * @description The time the dag processor last did a heartbeat.
+       */
+      latest_dag_processor_heartbeat?: string | null;
     };
     /** @description The pool */
     Pool: {
@@ -1397,6 +1425,7 @@ export interface components {
       timestamp?: string;
       /** Format: datetime */
       execution_date?: string;
+      map_index?: number;
       task_id?: string;
       dag_id?: string;
     };
@@ -1417,7 +1446,7 @@ export interface components {
      * @description DAG details.
      *
      * For details see:
-     * [airflow.models.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG)
+     * [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
      */
     DAGDetail: components["schemas"]["DAG"] & {
       timezone?: components["schemas"]["Timezone"];
@@ -1485,7 +1514,7 @@ export interface components {
     };
     /**
      * @description For details see:
-     * [airflow.models.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator)
+     * [airflow.models.baseoperator.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/baseoperator/index.html#airflow.models.baseoperator.BaseOperator)
      */
     Task: {
       class_ref?: components["schemas"]["ClassReference"];
@@ -1860,7 +1889,7 @@ export interface components {
        * @description Expected new state.
        * @enum {string}
        */
-      new_state?: "success" | "failed";
+      new_state?: "success" | "failed" | "skipped";
     };
     UpdateTaskInstance: {
       /**
@@ -1874,7 +1903,7 @@ export interface components {
        * @description Expected new state.
        * @enum {string}
        */
-      new_state?: "success" | "failed";
+      new_state?: "success" | "failed" | "skipped";
     };
     SetTaskInstanceNote: {
       /** @description The custom note to set for this Task Instance. */
@@ -2154,9 +2183,9 @@ export interface components {
     WeightRule: "downstream" | "upstream" | "absolute";
     /**
      * @description Health status
-     * @enum {string}
+     * @enum {string|null}
      */
-    HealthStatus: "healthy" | "unhealthy";
+    HealthStatus: ("healthy" | "unhealthy") | null;
   };
   responses: {
     /** Client specified an invalid argument. */
@@ -2362,6 +2391,8 @@ export interface components {
      * *New in version 2.6.0*
      */
     Paused: boolean;
+    /** @description Only filter the XCom records which have the provided key. */
+    FilterXcomKey: string;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -2901,6 +2932,7 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
     };
   };
+  /** This will initiate a dagrun. If DAG is paused then dagrun state will remain queued, and the task won't run. */
   post_dag_run: {
     parameters: {
       path: {
@@ -3811,6 +3843,10 @@ export interface operations {
         task_id: components["parameters"]["TaskID"];
       };
       query: {
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
+        /** Only filter the XCom records which have the provided key. */
+        xcom_key?: components["parameters"]["FilterXcomKey"];
         /** The numbers of items to return. */
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
@@ -3841,6 +3877,8 @@ export interface operations {
         xcom_key: components["parameters"]["XComKey"];
       };
       query: {
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
         /**
          * Whether to deserialize an XCom value when using a custom XCom backend.
          *
@@ -4221,8 +4259,8 @@ export interface operations {
     };
   };
   /**
-   * Get the status of Airflow's metadatabase and scheduler. It includes info about
-   * metadatabase and last heartbeat of scheduler.
+   * Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+   * metadatabase and last heartbeat of scheduler and triggerer.
    */
   get_health: {
     responses: {
@@ -4649,6 +4687,12 @@ export type MetadatabaseStatus = CamelCasedPropertiesDeep<
 >;
 export type SchedulerStatus = CamelCasedPropertiesDeep<
   components["schemas"]["SchedulerStatus"]
+>;
+export type TriggererStatus = CamelCasedPropertiesDeep<
+  components["schemas"]["TriggererStatus"]
+>;
+export type DagProcessorStatus = CamelCasedPropertiesDeep<
+  components["schemas"]["DagProcessorStatus"]
 >;
 export type Pool = CamelCasedPropertiesDeep<components["schemas"]["Pool"]>;
 export type PoolCollection = CamelCasedPropertiesDeep<

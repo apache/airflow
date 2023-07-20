@@ -64,7 +64,7 @@ def get_task_instance(monkeypatch, session, dag_maker):
             for task_id in normal_tasks or []:
                 EmptyOperator(task_id=task_id) >> task
             for task_id in setup_tasks or []:
-                EmptyOperator.as_setup(task_id=task_id) >> task
+                EmptyOperator(task_id=task_id).as_setup() >> task
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
         ti.task = task

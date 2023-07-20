@@ -40,17 +40,21 @@ from airflow.utils.state import State, TaskInstanceState
 from tests.test_utils.config import conf_vars
 
 try:
-    from airflow.executors.kubernetes_executor import (
-        POD_EXECUTOR_DONE_KEY,
+    from airflow.executors.kubernetes_executor import KubernetesExecutor
+    from airflow.executors.kubernetes_executor_types import POD_EXECUTOR_DONE_KEY
+    from airflow.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
-        KubernetesExecutor,
         KubernetesJobWatcher,
         ResourceVersion,
         create_pod_id,
         get_base_pod_from_template,
     )
     from airflow.kubernetes import pod_generator
-    from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key
+    from airflow.kubernetes.kubernetes_helper_functions import (
+        annotations_for_logging_task_metadata,
+        annotations_to_key,
+        get_logs_task_metadata,
+    )
     from airflow.kubernetes.pod_generator import PodGenerator
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
@@ -156,9 +160,9 @@ class TestAirflowKubernetesScheduler:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.client")
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     def test_delete_pod_successfully(self, mock_watcher, mock_client, mock_kube_client):
         pod_name = "my-pod-1"
         namespace = "my-namespace-1"
@@ -178,9 +182,9 @@ class TestAirflowKubernetesScheduler:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.client")
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     def test_delete_pod_raises_404(self, mock_watcher, mock_client, mock_kube_client):
         pod_name = "my-pod-1"
         namespace = "my-namespace-2"
@@ -201,9 +205,9 @@ class TestAirflowKubernetesScheduler:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.client")
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     def test_delete_pod_404_not_raised(self, mock_watcher, mock_client, mock_kube_client):
         pod_name = "my-pod-1"
         namespace = "my-namespace-3"
@@ -245,8 +249,8 @@ class TestKubernetesExecutor:
             pytest.param(400, False, id="400 BadRequest"),
         ],
     )
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_run_next_exception_requeue(
         self, mock_get_kube_client, mock_kubernetes_job_watcher, status, should_requeue
     ):
@@ -315,7 +319,7 @@ class TestKubernetesExecutor:
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
     @mock.patch("airflow.settings.pod_mutation_hook")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_run_next_pmh_error(self, mock_get_kube_client, mock_pmh):
         """
         Exception during Pod Mutation Hook execution should be handled gracefully.
@@ -353,8 +357,8 @@ class TestKubernetesExecutor:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_run_next_pod_reconciliation_error(self, mock_get_kube_client, mock_kubernetes_job_watcher):
         """
         When construct_pod raises PodReconciliationError, we should fail the task.
@@ -413,8 +417,8 @@ class TestKubernetesExecutor:
         ]
         mock_stats_gauge.assert_has_calls(calls)
 
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_invalid_executor_config(self, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = self.kubernetes_executor
         executor.start()
@@ -439,8 +443,8 @@ class TestKubernetesExecutor:
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.run_pod_async")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.run_pod_async")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_pod_template_file_override_in_executor_config(self, mock_get_kube_client, mock_run_pod_async):
         current_folder = pathlib.Path(__file__).parent.resolve()
         template_file = str(
@@ -524,8 +528,8 @@ class TestKubernetesExecutor:
             finally:
                 executor.end()
 
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_change_state_running(self, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = self.kubernetes_executor
         executor.start()
@@ -538,9 +542,9 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod")
     def test_change_state_success(self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher):
         executor = self.kubernetes_executor
         executor.start()
@@ -554,9 +558,9 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.AirflowKubernetesScheduler")
     def test_change_state_failed_no_deletion(
         self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
@@ -580,9 +584,9 @@ class TestKubernetesExecutor:
     @pytest.mark.parametrize(
         "ti_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.DEFERRED]
     )
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod")
     def test_change_state_none(
         self,
         mock_delete_pod,
@@ -612,7 +616,7 @@ class TestKubernetesExecutor:
             pytest.param(None, ["ALL_NAMESPACES"]),
         ],
     )
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_watchers_under_multi_namespace_mode(
         self, mock_get_kube_client, multi_namespace_mode_namespace_list, watchers_keys
     ):
@@ -628,9 +632,9 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.AirflowKubernetesScheduler")
     def test_change_state_skip_pod_deletion(
         self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
@@ -652,9 +656,9 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesJobWatcher")
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.AirflowKubernetesScheduler")
     def test_change_state_failed_pod_deletion(
         self, mock_kubescheduler, mock_get_kube_client, mock_kubernetes_job_watcher
     ):
@@ -774,7 +778,7 @@ class TestKubernetesExecutor:
         mock_adopt_launched_task.assert_not_called()
         mock_adopt_completed_pods.assert_called_once()
 
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_adopt_launched_task(self, mock_kube_client):
         executor = self.kubernetes_executor
         executor.scheduler_job_id = "modified"
@@ -799,7 +803,7 @@ class TestKubernetesExecutor:
         assert tis_to_flush_by_key == {}
         assert executor.running == {ti_key}
 
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_adopt_launched_task_api_exception(self, mock_kube_client):
         """We shouldn't think we are running the task if aren't able to patch the pod"""
         executor = self.kubernetes_executor
@@ -824,7 +828,7 @@ class TestKubernetesExecutor:
         assert tis_to_flush_by_key == {ti_key: {}}
         assert executor.running == set()
 
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_adopt_completed_pods(self, mock_kube_client):
         """We should adopt all completed pods from other schedulers"""
         executor = self.kubernetes_executor
@@ -874,7 +878,7 @@ class TestKubernetesExecutor:
         )
         assert executor.running == expected_running_ti_keys
 
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
     def test_not_adopt_unassigned_task(self, mock_kube_client):
         """
         We should not adopt any tasks that were not assigned by the scheduler.
@@ -900,8 +904,8 @@ class TestKubernetesExecutor:
         assert not mock_kube_client.patch_namespaced_pod.called
         assert tis_to_flush_by_key == {"foobar": {}}
 
-    @mock.patch("airflow.executors.kubernetes_executor.get_kube_client")
-    @mock.patch("airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.delete_pod")
+    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+    @mock.patch("airflow.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod")
     def test_cleanup_stuck_queued_tasks(self, mock_delete_pod, mock_kube_client, dag_maker, session):
         """Delete any pods associated with a task stuck in queued."""
         executor = KubernetesExecutor()
@@ -1162,6 +1166,39 @@ class TestKubernetesExecutor:
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
 
+    def test_annotations_for_logging_task_metadata(self):
+        annotations_test = {
+            "dag_id": "dag",
+            "run_id": "run_id",
+            "task_id": "task",
+            "try_number": "1",
+        }
+        get_logs_task_metadata.cache_clear()
+        with conf_vars({("kubernetes", "logs_task_metadata"): "True"}):
+            expected_annotations = {
+                "dag_id": "dag",
+                "run_id": "run_id",
+                "task_id": "task",
+                "try_number": "1",
+            }
+            annotations_actual = annotations_for_logging_task_metadata(annotations_test)
+            assert annotations_actual == expected_annotations
+        get_logs_task_metadata.cache_clear()
+
+    def test_annotations_for_logging_task_metadata_fallback(self):
+        annotations_test = {
+            "dag_id": "dag",
+            "run_id": "run_id",
+            "task_id": "task",
+            "try_number": "1",
+        }
+        get_logs_task_metadata.cache_clear()
+        with conf_vars({("kubernetes", "logs_task_metadata"): "False"}):
+            expected_annotations = "<omitted>"
+            annotations_actual = annotations_for_logging_task_metadata(annotations_test)
+            assert annotations_actual == expected_annotations
+        get_logs_task_metadata.cache_clear()
+
 
 class TestKubernetesJobWatcher:
     test_namespace = "airflow"
@@ -1195,7 +1232,7 @@ class TestKubernetesJobWatcher:
         self.events = []
 
     def _run(self):
-        with mock.patch("airflow.executors.kubernetes_executor.watch") as mock_watch:
+        with mock.patch("airflow.executors.kubernetes_executor_utils.watch") as mock_watch:
             mock_watch.Watch.return_value.stream.return_value = self.events
             latest_resource_version = self.watcher._run(
                 self.kube_client,
@@ -1224,6 +1261,7 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_pending_deleted(self):
         self.events.append({"type": "DELETED", "object": self.pod})
+        self.pod.metadata.deletion_timestamp = datetime.utcnow()
 
         self._run()
         self.assert_watcher_queue_called_once_with_state(State.FAILED)
@@ -1268,6 +1306,7 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_running_deleted(self):
         self.pod.status.phase = "Running"
+        self.pod.metadata.deletion_timestamp = datetime.utcnow()
         self.events.append({"type": "DELETED", "object": self.pod})
 
         self._run()
@@ -1323,7 +1362,7 @@ class TestKubernetesJobWatcher:
 
         self.watcher._run = mock_underscore_run
 
-        with mock.patch("airflow.executors.kubernetes_executor.get_kube_client"):
+        with mock.patch("airflow.executors.kubernetes_executor_utils.get_kube_client"):
             try:
                 # self.watcher._run() is mocked and return "500" as last resource_version
                 self.watcher.run()

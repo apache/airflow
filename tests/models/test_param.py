@@ -122,19 +122,30 @@ class TestParam:
         with pytest.raises(ParamValidationError, match=error_pattern):
             Param("24:00:00", type="string", format="time").resolve()
 
-    def test_string_date_format(self):
+    @pytest.mark.parametrize(
+        "date_string",
+        [
+            "2021-01-01",
+        ],
+    )
+    def test_string_date_format(self, date_string):
         """Test string date format."""
-        assert Param("2021-01-01", type="string", format="date").resolve() == "2021-01-01"
+        assert Param(date_string, type="string", format="date").resolve() == date_string
 
-        error_pattern = "is not a 'date'"
-        with pytest.raises(ParamValidationError, match=error_pattern):
-            Param("01/01/2021", type="string", format="date").resolve()
-
-        with pytest.raises(ParamValidationError, match=error_pattern):
-            Param("20120503", type="string", format="date").resolve()
-
-        with pytest.raises(ParamValidationError, match=error_pattern):
-            Param("21 May 1975", type="string", format="date").resolve()
+    # Note that 20120503 behaved differently in 3.11.3 Official python image. It was validated as a date
+    # there but it started to fail again in 3.11.4 released on 2023-07-05.
+    @pytest.mark.parametrize(
+        "date_string",
+        [
+            "01/01/2021",
+            "21 May 1975",
+            "20120503",
+        ],
+    )
+    def test_string_date_format_error(self, date_string):
+        """Test string date format failures."""
+        with pytest.raises(ParamValidationError, match="is not a 'date'"):
+            Param(date_string, type="string", format="date").resolve()
 
     def test_int_param(self):
         p = Param(5)
@@ -150,8 +161,8 @@ class TestParam:
         p = Param(42, type="number")
         assert p.resolve() == 42
 
-        p = Param(1.0, type="number")
-        assert p.resolve() == 1.0
+        p = Param(1.2, type="number")
+        assert p.resolve() == 1.2
 
         with pytest.raises(ParamValidationError):
             p = Param("42", type="number")

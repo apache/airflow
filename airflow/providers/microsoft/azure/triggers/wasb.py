@@ -25,8 +25,9 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class WasbBlobSensorTrigger(BaseTrigger):
     """
-    WasbBlobSensorTrigger is fired as deferred class with params to run the task in
-    trigger worker to check for existence of the given blob in the provided container.
+    Checks for existence of the given blob in the provided container.
+
+    WasbBlobSensorTrigger is fired as deferred class with params to run the task in trigger worker.
 
     :param container_name: name of the container in which the blob should be searched for
     :param blob_name: name of the blob to check existence for
@@ -90,8 +91,9 @@ class WasbBlobSensorTrigger(BaseTrigger):
 
 class WasbPrefixSensorTrigger(BaseTrigger):
     """
+    Checks for the existence of a blob with the given prefix in the provided container.
+
     WasbPrefixSensorTrigger is fired as a deferred class with params to run the task in trigger.
-    It checks for the existence of a blob with the given prefix in the provided container.
 
     :param container_name: name of the container in which the blob should be searched for
     :param prefix: prefix of the blob to check existence for
@@ -143,7 +145,7 @@ class WasbPrefixSensorTrigger(BaseTrigger):
         prefix_exists = False
         hook = WasbAsyncHook(wasb_conn_id=self.wasb_conn_id, public_read=self.public_read)
         try:
-            async with hook.blob_service_client:
+            async with await hook.get_async_conn():
                 while not prefix_exists:
                     prefix_exists = await hook.check_for_prefix_async(
                         container_name=self.container_name,

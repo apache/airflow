@@ -92,6 +92,19 @@ with models.DAG(
     )
     # [END howto_sensor_gcs_upload_session_complete_task]
 
+    # [START howto_sensor_gcs_upload_session_async_task]
+    gcs_upload_session_async_complete = GCSUploadSessionCompleteSensor(
+        bucket=BUCKET_NAME,
+        prefix=FILE_NAME,
+        inactivity_period=15,
+        min_objects=1,
+        allow_delete=True,
+        previous_objects=set(),
+        task_id="gcs_upload_session_async_complete",
+        deferrable=True,
+    )
+    # [END howto_sensor_gcs_upload_session_async_task]
+
     # [START howto_sensor_object_update_exists_task]
     gcs_update_object_exists = GCSObjectUpdateSensor(
         bucket=BUCKET_NAME,

@@ -20,10 +20,12 @@ from __future__ import annotations
 
 import fnmatch
 import functools
+import inspect
 import json
 import logging
 import os
 import sys
+import traceback
 import warnings
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -39,6 +41,7 @@ from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
+from airflow.utils.singleton import Singleton
 
 log = logging.getLogger(__name__)
 
@@ -109,8 +112,7 @@ class LazyDictWithCache(MutableMapping):
             # callable itself
             value = value()
             self._resolved.add(key)
-            if value:
-                self._raw_dict.__setitem__(key, value)
+            self._raw_dict.__setitem__(key, value)
         return value
 
     def __delitem__(self, key):
@@ -130,12 +132,23 @@ class LazyDictWithCache(MutableMapping):
         return key in self._raw_dict
 
 
+def _read_schema_from_resources_or_local_file(filename: str) -> dict:
+    try:
+        with resource_files("airflow").joinpath(filename).open("rb") as f:
+            schema = json.load(f)
+    except FileNotFoundError:
+        import pathlib
+
+        with (pathlib.Path(__file__).parent / filename).open("rb") as f:
+            schema = json.load(f)
+    return schema
+
+
 def _create_provider_info_schema_validator():
     """Creates JSON schema validator from the provider_info.schema.json."""
     import jsonschema
 
-    with resource_files("airflow").joinpath("provider_info.schema.json").open("rb") as f:
-        schema = json.load(f)
+    schema = _read_schema_from_resources_or_local_file("provider_info.schema.json")
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -145,8 +158,7 @@ def _create_customized_form_field_behaviours_schema_validator():
     """Creates JSON schema validator from the customized_form_field_behaviours.schema.json."""
     import jsonschema
 
-    with resource_files("airflow").joinpath("customized_form_field_behaviours.schema.json").open("rb") as f:
-        schema = json.load(f)
+    schema = _read_schema_from_resources_or_local_file("customized_form_field_behaviours.schema.json")
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -223,6 +235,7 @@ class ConnectionFormWidgetInfo(NamedTuple):
     package_name: str
     field: Any
     field_name: str
+    is_sensitive: bool
 
 
 T = TypeVar("T", bound=Callable)
@@ -272,7 +285,7 @@ def log_import_warning(class_name, e, provider_package):
 KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "No module named 'paramiko'")]
 
 
-def _sanity_check(
+def _correctness_check(
     provider_package: str, class_name: str, provider_info: ProviderInfo
 ) -> type[BaseHook] | None:
     """
@@ -356,7 +369,7 @@ def provider_info_cache(cache_name: str) -> Callable[[T], T]:
     return provider_info_cache_decorator
 
 
-class ProvidersManager(LoggingMixin):
+class ProvidersManager(LoggingMixin, metaclass=Singleton):
     """
     Manages all provider packages.
 
@@ -365,17 +378,23 @@ class ProvidersManager(LoggingMixin):
     local source folders (if airflow is run from sources).
     """
 
-    _instance = None
     resource_version = "0"
+    _initialized: bool = False
+    _initialization_stack_trace = None
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+    @staticmethod
+    def initialized() -> bool:
+        return ProvidersManager._initialized
+
+    @staticmethod
+    def initialization_stack_trace() -> str:
+        return ProvidersManager._initialization_stack_trace
 
     def __init__(self):
         """Initializes the manager."""
         super().__init__()
+        ProvidersManager._initialized = True
+        ProvidersManager._initialization_stack_trace = "".join(traceback.format_stack(inspect.currentframe()))
         self._initialized_cache: dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
         self._provider_dict: dict[str, ProviderInfo] = {}
@@ -394,6 +413,8 @@ class ProvidersManager(LoggingMixin):
         self._extra_link_class_name_set: set[str] = set()
         self._logging_class_name_set: set[str] = set()
         self._secrets_backend_class_name_set: set[str] = set()
+        self._executor_class_name_set: set[str] = set()
+        self._provider_configs: dict[str, dict[str, Any]] = {}
         self._api_auth_backend_module_names: set[str] = set()
         self._trigger_info_set: set[TriggerInfo] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
@@ -459,6 +480,22 @@ class ProvidersManager(LoggingMixin):
         """Lazy initialization of providers secrets_backends information."""
         self.initialize_providers_list()
         self._discover_secrets_backends()
+
+    @provider_info_cache("executors")
+    def initialize_providers_executors(self):
+        """Lazy initialization of providers executors information."""
+        self.initialize_providers_list()
+        self._discover_executors()
+
+    @provider_info_cache("config")
+    def initialize_providers_configuration(self):
+        """Lazy initialization of providers configuration information."""
+        self.initialize_providers_list()
+        self._discover_config()
+        # Now update conf with the new provider configuration from providers
+        from airflow.configuration import conf
+
+        conf.load_provider_configuration()
 
     @provider_info_cache("auth_backends")
     def initialize_providers_auth_backends(self):
@@ -552,7 +589,6 @@ class ProvidersManager(LoggingMixin):
             with open(path) as provider_yaml_file:
                 provider_info = yaml.safe_load(provider_yaml_file)
             self._provider_schema_validator.validate(provider_info)
-
             version = provider_info["versions"][0]
             if package_name not in self._provider_dict:
                 self._provider_dict[package_name] = ProviderInfo(version, provider_info, "source")
@@ -802,7 +838,7 @@ class ProvidersManager(LoggingMixin):
                     f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
         allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
-        hook_class = _sanity_check(package_name, hook_class_name, provider_info)
+        hook_class = _correctness_check(package_name, hook_class_name, provider_info)
         if hook_class is None:
             return None
         try:
@@ -888,7 +924,12 @@ class ProvidersManager(LoggingMixin):
                 # In case of inherited hooks this might be happening several times
                 continue
             self._connection_form_widgets[prefixed_field_name] = ConnectionFormWidgetInfo(
-                hook_class.__name__, package_name, field, field_identifier
+                hook_class.__name__,
+                package_name,
+                field,
+                field_identifier,
+                hasattr(field.field_class.widget, "input_type")
+                and field.field_class.widget.input_type == "password",
             )
 
     def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: dict):
@@ -923,7 +964,7 @@ class ProvidersManager(LoggingMixin):
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("extra-links"):
                 for extra_link_class_name in provider.data["extra-links"]:
-                    if _sanity_check(provider_package, extra_link_class_name, provider):
+                    if _correctness_check(provider_package, extra_link_class_name, provider):
                         self._extra_link_class_name_set.add(extra_link_class_name)
 
     def _discover_logging(self) -> None:
@@ -931,7 +972,7 @@ class ProvidersManager(LoggingMixin):
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("logging"):
                 for logging_class_name in provider.data["logging"]:
-                    if _sanity_check(provider_package, logging_class_name, provider):
+                    if _correctness_check(provider_package, logging_class_name, provider):
                         self._logging_class_name_set.add(logging_class_name)
 
     def _discover_secrets_backends(self) -> None:
@@ -939,7 +980,7 @@ class ProvidersManager(LoggingMixin):
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("secrets-backends"):
                 for secrets_backends_class_name in provider.data["secrets-backends"]:
-                    if _sanity_check(provider_package, secrets_backends_class_name, provider):
+                    if _correctness_check(provider_package, secrets_backends_class_name, provider):
                         self._secrets_backend_class_name_set.add(secrets_backends_class_name)
 
     def _discover_auth_backends(self) -> None:
@@ -947,8 +988,22 @@ class ProvidersManager(LoggingMixin):
         for provider_package, provider in self._provider_dict.items():
             if provider.data.get("auth-backends"):
                 for auth_backend_module_name in provider.data["auth-backends"]:
-                    if _sanity_check(provider_package, auth_backend_module_name + ".init_app", provider):
+                    if _correctness_check(provider_package, auth_backend_module_name + ".init_app", provider):
                         self._api_auth_backend_module_names.add(auth_backend_module_name)
+
+    def _discover_executors(self) -> None:
+        """Retrieve all executors defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("executors"):
+                for executors_class_name in provider.data["executors"]:
+                    if _correctness_check(provider_package, executors_class_name, provider):
+                        self._executor_class_name_set.add(executors_class_name)
+
+    def _discover_config(self) -> None:
+        """Retrieve all configs defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("config"):
+                self._provider_configs[provider_package] = provider.data.get("config")
 
     @provider_info_cache("triggers")
     def initialize_providers_triggers(self):
@@ -956,7 +1011,7 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_list()
         for provider_package, provider in self._provider_dict.items():
             for trigger in provider.data.get("triggers", []):
-                for trigger_class_name in trigger.get("class-names"):
+                for trigger_class_name in trigger.get("python-modules"):
                     self._trigger_info_set.add(
                         TriggerInfo(
                             package_name=provider_package,
@@ -1033,3 +1088,17 @@ class ProvidersManager(LoggingMixin):
         """Returns set of API auth backend class names."""
         self.initialize_providers_auth_backends()
         return sorted(self._api_auth_backend_module_names)
+
+    @property
+    def executor_class_names(self) -> list[str]:
+        self.initialize_providers_executors()
+        return sorted(self._executor_class_name_set)
+
+    @property
+    def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        self.initialize_providers_configuration()
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
+    @property
+    def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])

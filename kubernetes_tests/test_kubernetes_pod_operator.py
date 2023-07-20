@@ -500,7 +500,7 @@ class TestKubernetesPodOperatorSystem:
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call("retrieved from mount")
+            mock_logger.info.assert_any_call("[%s] %s", "base", "retrieved from mount")
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             self.expected_pod["spec"]["containers"][0]["args"] = args
             self.expected_pod["spec"]["containers"][0]["volumeMounts"] = [
@@ -896,8 +896,6 @@ class TestKubernetesPodOperatorSystem:
         # todo: This isn't really a system test
         await_xcom_sidecar_container_start_mock.return_value = None
         hook_mock.return_value.is_in_cluster = False
-        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
-        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
         hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
         extract_xcom_mock.return_value = "{}"
         path = sys.path[0] + "/tests/kubernetes/pod.yaml"

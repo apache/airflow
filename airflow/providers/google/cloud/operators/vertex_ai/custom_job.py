@@ -150,7 +150,7 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
 
 
 class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Container Training job
+    """Create Custom Container Training job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -489,16 +489,13 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         return result
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_job()
 
 
 class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Python Package Training job
+    """Create Custom Python Package Training job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -839,16 +836,13 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         return result
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_job()
 
 
 class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Training job
+    """Create Custom Training job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1191,16 +1185,14 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         return result
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_job()
 
 
 class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
-    """Deletes a CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob.
+    """
+    Deletes a CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob.
 
     :param training_pipeline_id: Required. The name of the TrainingPipeline resource to be deleted.
     :param custom_job_id: Required. The name of the CustomJob to delete.

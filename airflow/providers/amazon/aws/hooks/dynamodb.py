@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains the Amazon DynamoDB Hook"""
+"""This module contains the Amazon DynamoDB Hook."""
 from __future__ import annotations
 
 from typing import Iterable
@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class DynamoDBHook(AwsBaseHook):
     """
     Interact with Amazon DynamoDB.
+
     Provide thick wrapper around
     :external+boto3:py:class:`boto3.resource("dynamodb") <DynamoDB.ServiceResource>`.
 

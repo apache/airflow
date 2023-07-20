@@ -207,8 +207,8 @@ class TestWebHDFSHook:
         self.webhdfs_hook.get_conn()
         connection = mock_get_connection.return_value
 
-        assert f"https://{connection.host}:{connection.port}" == mock_kerberos_client.call_args[0][0]
-        assert "/ssl/cert/path" == mock_kerberos_client.call_args[1]["session"].verify
+        assert f"https://{connection.host}:{connection.port}" == mock_kerberos_client.call_args.args[0]
+        assert "/ssl/cert/path" == mock_kerberos_client.call_args.kwargs["session"].verify
 
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
     @patch(
@@ -225,9 +225,9 @@ class TestWebHDFSHook:
 
         assert (
             f"https://{connection.host}:{connection.port}/{connection.schema}"
-            == mock_insecure_client.call_args[0][0]
+            == mock_insecure_client.call_args.args[0]
         )
-        assert not mock_insecure_client.call_args[1]["session"].verify
+        assert not mock_insecure_client.call_args.kwargs["session"].verify
 
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
     @patch(
@@ -240,8 +240,8 @@ class TestWebHDFSHook:
         self.webhdfs_hook.get_conn()
         connection = mock_get_connection.return_value
 
-        assert f"https://{connection.host}/{connection.schema}" == mock_insecure_client.call_args[0][0]
-        assert not mock_insecure_client.call_args[1]["session"].verify
+        assert f"https://{connection.host}/{connection.schema}" == mock_insecure_client.call_args.args[0]
+        assert not mock_insecure_client.call_args.kwargs["session"].verify
 
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
     @patch(
@@ -254,5 +254,5 @@ class TestWebHDFSHook:
         self.webhdfs_hook.get_conn()
         connection = mock_get_connection.return_value
 
-        assert f"https://{connection.host}:{connection.port}" == mock_insecure_client.call_args[0][0]
-        assert not mock_insecure_client.call_args[1]["session"].verify
+        assert f"https://{connection.host}:{connection.port}" == mock_insecure_client.call_args.args[0]
+        assert not mock_insecure_client.call_args.kwargs["session"].verify

@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google Vertex AI operators.
 
-.. spelling::
+.. spelling:word-list::
 
     irreproducible
     codepoints
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 
 class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     """
-    Create Hyperparameter Tuning job
+    Create Hyperparameter Tuning job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -264,17 +264,14 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         return hyperparameter_tuning_job
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_hyperparameter_tuning_job()
 
 
 class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     """
-    Gets a HyperparameterTuningJob
+    Gets a HyperparameterTuningJob.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.

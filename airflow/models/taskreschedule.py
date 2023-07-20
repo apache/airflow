@@ -135,8 +135,7 @@ class TaskReschedule(Base):
         try_number: int | None = None,
     ) -> list[TaskReschedule]:
         """
-        Returns all task reschedules for the task instance and try number,
-        in ascending order.
+        Returns all task reschedules for the task instance and try number, in ascending order.
 
         :param session: the database session object
         :param task_instance: the task instance to find task reschedules for

@@ -63,7 +63,7 @@ class ShortCircuitExecutorMixin:
         Change the state of scheduler by waiting till the tasks is complete
         and then shut down the scheduler after the task is complete
         """
-        from airflow.utils.state import State
+        from airflow.utils.state import TaskInstanceState
 
         super().change_state(key, state, info=info)
 
@@ -83,7 +83,7 @@ class ShortCircuitExecutorMixin:
             run = list(airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date))[0]
             self.dags_to_watch[dag_id].runs[execution_date] = run
 
-        if run and all(t.state == State.SUCCESS for t in run.get_task_instances()):
+        if run and all(t.state == TaskInstanceState.SUCCESS for t in run.get_task_instances()):
             self.dags_to_watch[dag_id].runs.pop(execution_date)
             self.dags_to_watch[dag_id].waiting_for -= 1
 
@@ -156,7 +156,7 @@ def create_dag_runs(dag, num_runs, session):
     Create  `num_runs` of dag runs for sub-sequent schedules
     """
     from airflow.utils import timezone
-    from airflow.utils.state import State
+    from airflow.utils.state import DagRunState
 
     try:
         from airflow.utils.types import DagRunType
@@ -175,7 +175,7 @@ def create_dag_runs(dag, num_runs, session):
             run_id=f"{id_prefix}{logical_date.isoformat()}",
             execution_date=logical_date,
             start_date=timezone.utcnow(),
-            state=State.RUNNING,
+            state=DagRunState.RUNNING,
             external_trigger=False,
             session=session,
         )

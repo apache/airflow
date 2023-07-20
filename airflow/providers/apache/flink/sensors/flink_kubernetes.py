@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class FlinkKubernetesSensor(BaseSensorOperator):
     """
-    Checks flinkDeployment object in kubernetes cluster:
+    Checks flinkDeployment object in kubernetes cluster.
 
     .. seealso::
         For more detail about Flink Deployment Object have a look at the reference:

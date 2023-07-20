@@ -28,56 +28,58 @@ from airflow.utils.weekday import WeekDay
 
 
 class BranchDayOfWeekOperator(BaseBranchOperator):
-    """
-    Branches into one of two lists of tasks depending on the current day.
-    For more information on how to use this operator, take a look at the guide.
+    """Branches into one of two lists of tasks depending on the current day.
 
+    For more information on how to use this operator, take a look at the guide:
     :ref:`howto/operator:BranchDayOfWeekOperator`
 
-    **Example** (with single day): ::
+    **Example** (with single day):
+
+    .. code-block:: python
 
         from airflow.operators.empty import EmptyOperator
 
-        monday = EmptyOperator(task_id='monday')
-        other_day = EmptyOperator(task_id='other_day')
+        monday = EmptyOperator(task_id="monday")
+        other_day = EmptyOperator(task_id="other_day")
 
         monday_check = DayOfWeekSensor(
-            task_id='monday_check',
-            week_day='Monday',
+            task_id="monday_check",
+            week_day="Monday",
             use_task_logical_date=True,
-            follow_task_ids_if_true='monday',
-            follow_task_ids_if_false='other_day',
-            dag=dag)
+            follow_task_ids_if_true="monday",
+            follow_task_ids_if_false="other_day",
+        )
         monday_check >> [monday, other_day]
 
-    **Example** (with :class:`~airflow.utils.weekday.WeekDay` enum): ::
+    **Example** (with :class:`~airflow.utils.weekday.WeekDay` enum):
+
+    .. code-block:: python
 
         # import WeekDay Enum
         from airflow.utils.weekday import WeekDay
         from airflow.operators.empty import EmptyOperator
 
-        workday = EmptyOperator(task_id='workday')
-        weekend = EmptyOperator(task_id='weekend')
+        workday = EmptyOperator(task_id="workday")
+        weekend = EmptyOperator(task_id="weekend")
         weekend_check = BranchDayOfWeekOperator(
-            task_id='weekend_check',
+            task_id="weekend_check",
             week_day={WeekDay.SATURDAY, WeekDay.SUNDAY},
             use_task_logical_date=True,
-            follow_task_ids_if_true='weekend',
-            follow_task_ids_if_false='workday',
-            dag=dag)
+            follow_task_ids_if_true="weekend",
+            follow_task_ids_if_false="workday",
+        )
         # add downstream dependencies as you would do with any branch operator
         weekend_check >> [workday, weekend]
 
     :param follow_task_ids_if_true: task id or task ids to follow if criteria met
     :param follow_task_ids_if_false: task id or task ids to follow if criteria does not met
     :param week_day: Day of the week to check (full name). Optionally, a set
-        of days can also be provided using a set.
-        Example values:
+        of days can also be provided using a set. Example values:
 
-            * ``"MONDAY"``,
-            * ``{"Saturday", "Sunday"}``
-            * ``{WeekDay.TUESDAY}``
-            * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
+        * ``"MONDAY"``,
+        * ``{"Saturday", "Sunday"}``
+        * ``{WeekDay.TUESDAY}``
+        * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
         To use `WeekDay` enum, import it from `airflow.utils.weekday`
 

@@ -102,7 +102,8 @@ Currently, **officially** using Airflow:
 1. [Braintree](https://www.braintreepayments.com) [[@coopergillan](https://github.com/coopergillan), [@curiousjazz77](https://github.com/curiousjazz77), [@raymondberg](https://github.com/raymondberg)]
 1. [Branch](https://branch.io) [[@sdebarshi](https://github.com/sdebarshi), [@dmitrig01](https://github.com/dmitrig01)]
 1. [Breezeline (formerly Atlantic Broadband)](https://www.breezeline.com/) [[@IanDoarn](https://github.com/IanDoarn), [@willsims14](https://github.com/willsims14)]
-1. [Bwtech](https://www.bwtech.com/) [[@wolvery](https://github.com/wolvery)
+1. [BWGI](https://www.bwgi.com.br/) [[@jgmarcel](https://github.com/jgmarcel)]
+1. [Bwtech](https://www.bwtech.com/) [[@wolvery](https://github.com/wolvery)]
 1. [C2FO](https://www.c2fo.com/)
 1. [Caesars Entertainment](https://www.caesars.com)
 1. [Cafe Bazaar](https://cafebazaar.ir/about?l=en) [[@cafebazaar](https://github.com/cafebazaar)]
@@ -220,6 +221,7 @@ Currently, **officially** using Airflow:
 1. [Grab](https://www.grab.com/sg/) [[@calvintran](https://github.com/canhtran)]
 1. [Gradeup](https://gradeup.co) [[@gradeup](https://github.com/gradeup)]
 1. [Grand Rounds](https://www.grandrounds.com/) [[@richddr](https://github.com/richddr), [@timz1290](https://github.com/timz1290), [@wenever](https://github.com/@wenever), & [@runongirlrunon](https://github.com/runongirlrunon)]
+1. [Greenbids](https://www.greenbids.ai/) [[@greenbids](https://github.com/greenbids), [@AlexisBRENON](https://github.com/AlexisBRENON)]
 1. [Greytip](https://www.greytip.com) [[@greytip](https://github.com/greytip)]
 1. [Groupalia](http://es.groupalia.com) [[@jesusfcr](https://github.com/jesusfcr)]
 1. [Groupon](https://groupon.com) [[@stevencasey](https://github.com/stevencasey)]
@@ -459,6 +461,7 @@ Currently, **officially** using Airflow:
 1. [Travix](https://www.travix.com/)
 1. [Trocafone](https://www.trocafone.com/) [[@idontdomath](https://github.com/idontdomath) & [@gseva](https://github.com/gseva) & [@ordonezf](https://github.com/ordonezf) & [@PalmaLeandro](https://github.com/PalmaLeandro)]
 1. [TruFactor](https://trufactor.io/) [[@gholmes](https://github.com/gholmes) & [@angadsingh](https://github.com/angadsingh/)]
+1. [Twilio](https://www.twilio.com/) [[@twilio](https://github.com/twilio)]
 1. [Twine Labs](https://www.twinelabs.com/) [[@ivorpeles](https://github.com/ivorpeles)]
 1. [Twitter](https://www.twitter.com/) [[@aoen](https://github.com/aoen)]
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]

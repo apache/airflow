@@ -48,10 +48,7 @@ class Neo4jHook(BaseHook):
         self.client: Driver | None = None
 
     def get_conn(self) -> Driver:
-        """
-        Function that initiates a new Neo4j connection
-        with username, password and database schema.
-        """
+        """Function that initiates a new Neo4j connection with username, password and database schema."""
         if self.client is not None:
             return self.client
 
@@ -69,6 +66,7 @@ class Neo4jHook(BaseHook):
     def get_client(self, conn: Connection, encrypted: bool, uri: str) -> Driver:
         """
         Function to determine that relevant driver based on extras.
+
         :param conn: Connection object.
         :param encrypted: boolean if encrypted connection or not.
         :param uri: uri string for connection.
@@ -82,7 +80,8 @@ class Neo4jHook(BaseHook):
 
     def get_uri(self, conn: Connection) -> str:
         """
-        Build the uri based on extras
+        Build the uri based on extras.
+
         - Default - uses bolt scheme(bolt://)
         - neo4j_scheme - neo4j://
         - certs_self_signed - neo4j+ssc://
@@ -110,8 +109,7 @@ class Neo4jHook(BaseHook):
 
     def run(self, query) -> list[Any]:
         """
-        Function to create a neo4j session
-        and execute the query in the session.
+        Function to create a neo4j session and execute the query in the session.
 
         :param query: Neo4j query
         :return: Result

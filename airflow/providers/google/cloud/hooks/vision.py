@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from functools import cached_property
 from typing import Any, Callable, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -35,7 +36,6 @@ from google.cloud.vision_v1 import (
 from google.protobuf import field_mask_pb2
 from google.protobuf.json_format import MessageToDict
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
@@ -64,19 +64,15 @@ class NameDeterminer:
         self, entity: Any, entity_id: str | None, location: str | None, project_id: str
     ) -> Any:
         """
-        Check if entity has the `name` attribute set:
-        * If so, no action is taken.
+        Check if entity has the `name` attribute set.
 
+        * If so, no action is taken.
         * If not, and the name can be constructed from other parameters provided, it is created and filled in
             the entity.
-
         * If both the entity's 'name' attribute is set and the name can be constructed from other parameters
             provided:
-
             * If they are the same - no action is taken
-
             * if they are different - an exception is thrown.
-
 
         :param entity: Entity
         :param entity_id: Entity id
@@ -178,8 +174,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> str:
         """
+        Create product set.
+
         For the documentation see:
-        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductSetOperator`.
         """
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
@@ -213,8 +211,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> dict:
         """
+        Get product set.
+
         For the documentation see:
-        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionGetProductSetOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionGetProductSetOperator`.
         """
         client = self.get_conn()
         name = ProductSearchClient.product_set_path(project_id, location, product_set_id)
@@ -237,8 +237,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> dict:
         """
+        Update product set.
+
         For the documentation see:
-        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductSetOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductSetOperator`.
         """
         client = self.get_conn()
 
@@ -270,8 +272,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
+        Delete product set.
+
         For the documentation see:
-        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductSetOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductSetOperator`.
         """
         client = self.get_conn()
         name = ProductSearchClient.product_set_path(project_id, location, product_set_id)
@@ -291,8 +295,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
+        Create product.
+
         For the documentation see:
-        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateProductOperator`.
         """
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
@@ -329,8 +335,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
+        Get product.
+
         For the documentation see:
-        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionGetProductOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionGetProductOperator`.
         """
         client = self.get_conn()
         name = ProductSearchClient.product_path(project_id, location, product_id)
@@ -353,8 +361,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ):
         """
+        Update product.
+
         For the documentation see:
-        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductOperator`.
         """
         client = self.get_conn()
 
@@ -384,8 +394,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
+        Delete product.
+
         For the documentation see:
-        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductOperator`
+        :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteProductOperator`.
         """
         client = self.get_conn()
         name = ProductSearchClient.product_path(project_id, location, product_id)
@@ -406,8 +418,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> str:
         """
+        Create reference image.
+
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionCreateReferenceImageOperator`.
         """
         client = self.get_conn()
         self.log.info("Creating ReferenceImage")
@@ -448,8 +462,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
+        Delete reference image.
+
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDeleteReferenceImageOperator`.
         """
         client = self.get_conn()
         self.log.info("Deleting ReferenceImage")
@@ -478,8 +494,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
+        Add product to product set.
+
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionAddProductToProductSetOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionAddProductToProductSetOperator`.
         """
         client = self.get_conn()
 
@@ -506,8 +524,10 @@ class CloudVisionHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
+        Remove product from product set.
+
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionRemoveProductFromProductSetOperator`.
         """
         client = self.get_conn()
 
@@ -529,8 +549,10 @@ class CloudVisionHook(GoogleBaseHook):
         timeout: float | None = None,
     ) -> dict:
         """
+        Annotate image.
+
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`.
         """
         client = self.annotator_client
 
@@ -550,8 +572,10 @@ class CloudVisionHook(GoogleBaseHook):
         timeout: float | None = None,
     ) -> dict:
         """
+        Batch annotate images.
+
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionImageAnnotateOperator`.
         """
         client = self.annotator_client
 
@@ -574,8 +598,10 @@ class CloudVisionHook(GoogleBaseHook):
         additional_properties: dict | None = None,
     ) -> dict:
         """
+        Text detection.
+
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectTextOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectTextOperator`.
         """
         client = self.annotator_client
 
@@ -604,8 +630,10 @@ class CloudVisionHook(GoogleBaseHook):
         additional_properties: dict | None = None,
     ) -> dict:
         """
+        Document text detection.
+
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionTextDetectOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionTextDetectOperator`.
         """
         client = self.annotator_client
 
@@ -634,8 +662,10 @@ class CloudVisionHook(GoogleBaseHook):
         additional_properties: dict | None = None,
     ) -> dict:
         """
+        Label detection.
+
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageLabelsOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageLabelsOperator`.
         """
         client = self.annotator_client
 
@@ -664,8 +694,10 @@ class CloudVisionHook(GoogleBaseHook):
         additional_properties: dict | None = None,
     ) -> dict:
         """
+        Safe search detection.
+
         For the documentation see:
-        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageSafeSearchOperator`
+        :py:class:`~airflow.providers.google.cloud.operators.vision.CloudVisionDetectImageSafeSearchOperator`.
         """
         client = self.annotator_client
 

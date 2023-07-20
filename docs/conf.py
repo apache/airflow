@@ -43,7 +43,7 @@ import yaml
 from packaging.version import parse as parse_version
 
 import airflow
-from airflow.configuration import AirflowConfigParser, default_config_yaml
+from airflow.configuration import AirflowConfigParser, retrieve_configuration_description
 
 sys.path.append(str(Path(__file__).parent / "exts"))
 
@@ -52,7 +52,6 @@ from docs_build.third_party_inventories import THIRD_PARTY_INDEXES  # noqa: E402
 CONF_DIR = pathlib.Path(__file__).parent.absolute()
 INVENTORY_CACHE_DIR = CONF_DIR / "_inventory_cache"
 ROOT_DIR = CONF_DIR.parent
-FOR_PRODUCTION = os.environ.get("AIRFLOW_FOR_PRODUCTION", "false") == "true"
 
 # By default (e.g. on RTD), build docs for `airflow` package
 PACKAGE_NAME = os.environ.get("AIRFLOW_PACKAGE_NAME", "apache-airflow")
@@ -343,7 +342,7 @@ html_sidebars = {
         "searchbox.html",
         "globaltoc.html",
     ]
-    if FOR_PRODUCTION and PACKAGE_VERSION != "devel"
+    if PACKAGE_VERSION != "devel"
     else [
         "searchbox.html",
         "globaltoc.html",
@@ -356,23 +355,17 @@ html_use_index = True
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
 html_show_copyright = False
 
-# Theme configuration
-if PACKAGE_NAME.startswith("apache-airflow-providers-"):
-    # Only hide hidden items for providers. For Chart and Airflow we are using the approach where
-    # TOC is hidden but sidebar still shows the content (but we are not doing it for providers).
-    html_theme_options: dict[str, Any] = {"hide_website_buttons": True, "sidebar_includehidden": False}
-else:
-    html_theme_options = {"hide_website_buttons": True, "sidebar_includehidden": True}
-if FOR_PRODUCTION:
-    html_theme_options["navbar_links"] = [
-        {"href": "/community/", "text": "Community"},
-        {"href": "/meetups/", "text": "Meetups"},
-        {"href": "/docs/", "text": "Documentation"},
-        {"href": "/use-cases/", "text": "Use-cases"},
-        {"href": "/announcements/", "text": "Announcements"},
-        {"href": "/blog/", "text": "Blog"},
-        {"href": "/ecosystem/", "text": "Ecosystem"},
-    ]
+html_theme_options: dict[str, Any] = {"hide_website_buttons": True, "sidebar_includehidden": True}
+
+html_theme_options["navbar_links"] = [
+    {"href": "/community/", "text": "Community"},
+    {"href": "/meetups/", "text": "Meetups"},
+    {"href": "/docs/", "text": "Documentation"},
+    {"href": "/use-cases/", "text": "Use-cases"},
+    {"href": "/announcements/", "text": "Announcements"},
+    {"href": "/blog/", "text": "Blog"},
+    {"href": "/ecosystem/", "text": "Ecosystem"},
+]
 
 # A dictionary of values to pass into the template engine's context for all pages.
 html_context = {
@@ -426,7 +419,7 @@ if PACKAGE_NAME == "apache-airflow":
         for deprecated_section, deprecated_key, since_version in deprecated:
             deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
-    configs = default_config_yaml()
+    configs = retrieve_configuration_description()
 
     # We want the default/example we show in the docs to reflect the value _after_
     # the config has been templated, not before
@@ -452,10 +445,6 @@ if PACKAGE_NAME == "apache-airflow":
         "config_ctx": {"configs": configs, "deprecated_options": deprecated_options},
         "quick_start_ctx": {
             "doc_root_url": f"https://airflow.apache.org/docs/apache-airflow/{PACKAGE_VERSION}/"
-            if FOR_PRODUCTION
-            else (
-                "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/"
-            )
         },
         "official_download_page": {
             "base_url": f"https://downloads.apache.org/airflow/{PACKAGE_VERSION}",
@@ -588,6 +577,8 @@ elif PACKAGE_NAME == "helm-chart":
 autodoc_mock_imports = [
     "MySQLdb",
     "adal",
+    "alibabacloud_adb20211201",
+    "alibabacloud_tea_openapi",
     "analytics",
     "azure",
     "azure.cosmos",

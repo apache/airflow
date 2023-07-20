@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, CodeMirror, window */
+/* global document, CodeMirror, window, $ */
 
 let jsonForm;
 const objectFields = new Map();
@@ -46,7 +46,19 @@ function updateJSONconf() {
             values[values.length] = lines[j].trim();
           }
         }
-        params[keyName] = values.length === 0 ? params[keyName] : values;
+        params[keyName] = values.length === 0 ? null : values;
+      } else if (
+        elements[i].attributes.valuetype &&
+        elements[i].attributes.valuetype.value === "multiselect"
+      ) {
+        const { options } = elements[i];
+        const values = [];
+        for (let j = 0; j < options.length; j += 1) {
+          if (options[j].selected) {
+            values[values.length] = options[j].value;
+          }
+        }
+        params[keyName] = values.length === 0 ? null : values;
       } else if (elements[i].value.length === 0) {
         params[keyName] = null;
       } else if (
@@ -104,7 +116,7 @@ function initForm() {
   jsonForm.setSize(null, height);
 
   if (formHasFields) {
-    // Apply JSON formatting and linting to all object fields in the form
+    // Initialize jQuery and Chakra fields
     const elements = document.getElementById("trigger_form");
     for (let i = 0; i < elements.length; i += 1) {
       if (elements[i].name && elements[i].name.startsWith("element_")) {
@@ -112,6 +124,7 @@ function initForm() {
           elements[i].attributes.valuetype &&
           elements[i].attributes.valuetype.value === "object"
         ) {
+          // Apply JSON formatting and linting to all object fields in the form
           const field = CodeMirror.fromTextArea(elements[i], {
             lineNumbers: true,
             mode: { name: "javascript", json: true },
@@ -120,6 +133,14 @@ function initForm() {
           });
           field.on("blur", updateJSONconf);
           objectFields.set(elements[i].name, field);
+        } else if (elements[i].nodeName === "SELECT") {
+          // Activate select2 multi select boxes
+          const elementId = `#${elements[i].name}`;
+          $(elementId).select2({
+            placeholder: "Select Values",
+            allowClear: true,
+          });
+          elements[i].addEventListener("blur", updateJSONconf);
         } else if (elements[i].type === "checkbox") {
           elements[i].addEventListener("change", updateJSONconf);
         } else {
@@ -174,7 +195,9 @@ function initForm() {
     setTimeout(updateJSONconf, 100);
   }
 }
-initForm();
+$(document).ready(() => {
+  initForm();
+});
 
 window.updateJSONconf = updateJSONconf;
 
@@ -212,6 +235,8 @@ function setRecentConfig(e) {
         objectFields
           .get(`element_${keys[i]}`)
           .setValue(JSON.stringify(newValue, null, 4));
+      } else if (element.nodeName === "SELECT") {
+        $(`#${element.name}`).select2("val", [newValue]);
       } else {
         element.value = newValue;
       }

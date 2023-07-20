@@ -21,8 +21,102 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-microsoft-azure``
+
+
 Changelog
 ---------
+
+6.2.1
+.....
+
+.. note::
+  Note: this version contains a fix to ``get_blobs_list_async`` method in ``WasbHook`` where it returned
+  a list of blob names, but advertised (via type hints) that it returns a list of ``BlobProperties`` objects.
+  This was a bug in the implementation and it was fixed in this release. However, if you were relying on the
+  previous behaviour, you might need to retrieve ``name`` property from the array elements returned by
+  this method.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix breaking change when Active Directory ID is used as host in WASB (#32560)``
+* ``Fix get_blobs_list_async method to return BlobProperties (#32545)``
+
+Misc
+~~~~
+
+* ``Moves 'AzureBlobStorageToGCSOperator' from Azure to Google provider (#32306)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``D205 Support - Providers: Stragglers and new additions (#32447)``
+
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adds connection test for ADLS Gen2  (#32126)``
+* ``Add option to pass extra configs to ClientSecretCredential  (#31783)``
+* ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cancel pipeline if unexpected exception caught (#32238)``
+* ``Fix where account url is build if not provided using login (account name) (#32082)``
+* ``refresh connection if an exception is caught in "AzureDataFactory" (#32323)``
+
+Misc
+~~~~
+
+* ``Doc changes: Added Transfers section in Azure provider docs (#32241)``
+* ``Adds Sensor section in the Azure providers docs  (#32299)``
+* ``Add default_deferrable config (#31712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``invalid args fix (#32326)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``
+
+6.1.2
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Replace unicodecsv with standard csv library (#31693)``
+* ``Removed unused variables in AzureBlobStorageToGCSOperator (#31765)``
+* ``Remove Python 3.7 support (#30963)``
+* ``Add docstring and signature for _read_remote_logs (#31623)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace spelling directive with spelling:word-list (#31752)``
+   * ``Add D400 pydocstyle check - Microsoft provider only (#31425)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+   * ``Microsoft provider docstring improvements (#31708)``
+
+6.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode execution in WasbPrefixSensor (#31411)``
+
+Misc
+~~~~
+
+* ``Optimize deferred mode execution for wasb sensors (#31009)``
 
 6.1.0
 .....
@@ -48,6 +142,9 @@ Misc
    * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
    * ``Upgrade ruff to 0.0.262 (#30809)``
    * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
 6.0.0
 ......

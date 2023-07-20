@@ -48,6 +48,7 @@ const generateRuns = (length: number): DagRun[] =>
     note: "someRandomValue",
   }));
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 describe("Test DagRuns", () => {
   test("Durations and manual run arrow render correctly, but without any date ticks", () => {
     const dagRuns: DagRun[] = [

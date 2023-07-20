@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import inspect
-import re
 import warnings
+from functools import cached_property
 from itertools import chain
 from textwrap import dedent
 from typing import (
@@ -37,11 +37,11 @@ from typing import (
 )
 
 import attr
+import re2
 import typing_extensions
 from sqlalchemy.orm import Session
 
 from airflow import Dataset
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
@@ -144,15 +144,15 @@ def get_unique_task_id(
         return task_id
 
     def _find_id_suffixes(dag: DAG) -> Iterator[int]:
-        prefix = re.split(r"__\d+$", tg_task_id)[0]
+        prefix = re2.split(r"__\d+$", tg_task_id)[0]
         for task_id in dag.task_ids:
-            match = re.match(rf"^{prefix}__(\d+)$", task_id)
+            match = re2.match(rf"^{prefix}__(\d+)$", task_id)
             if match is None:
                 continue
             yield int(match.group(1))
         yield 0  # Default if there's no matching task ID.
 
-    core = re.split(r"__\d+$", task_id)[0]
+    core = re2.split(r"__\d+$", task_id)[0]
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 
@@ -237,7 +237,7 @@ class DecoratedOperator(BaseOperator):
             for item in return_value:
                 if isinstance(item, Dataset):
                     self.outlets.append(item)
-        if not self.multiple_outputs:
+        if not self.multiple_outputs or return_value is None:
             return return_value
         if isinstance(return_value, dict):
             for key in return_value.keys():
@@ -342,6 +342,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             if "trigger_rule" in self.kwargs:
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
+        on_failure_fail_dagrun = self.kwargs.pop("on_failure_fail_dagrun", self.on_failure_fail_dagrun)
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
@@ -351,7 +352,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         )
         op.is_setup = self.is_setup
         op.is_teardown = self.is_teardown
-        op.on_failure_fail_dagrun = self.on_failure_fail_dagrun
+        op.on_failure_fail_dagrun = on_failure_fail_dagrun
         op_doc_attrs = [op.doc, op.doc_json, op.doc_md, op.doc_rst, op.doc_yaml]
         # Set the task's doc_md to the function's docstring if it exists and no other doc* args are set.
         if self.function.__doc__ and not any(op_doc_attrs):

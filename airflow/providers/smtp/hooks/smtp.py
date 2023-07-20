@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module provides everything to be able to search in mails for a specific attachment
-and also to download it.
+Search in emails for a specific attachment and also to download it.
+
 It uses the smtplib library that is already integrated in python 3.
 """
 from __future__ import annotations
@@ -113,7 +113,7 @@ class SmtpHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
@@ -138,7 +138,7 @@ class SmtpHook(BaseHook):
         }
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test SMTP connectivity from UI"""
+        """Test SMTP connectivity from UI."""
         try:
             smtp_client = self.get_conn().smtp_client
             if smtp_client:
@@ -302,8 +302,9 @@ class SmtpHook(BaseHook):
 
     def _get_email_list_from_str(self, addresses: str) -> list[str]:
         """
-        Extract a list of email addresses from a string. The string
-        can contain multiple email addresses separated by
+        Extract a list of email addresses from a string.
+
+        The string can contain multiple email addresses separated by
         any of the following delimiters: ',' or ';'.
 
         :param addresses: A string containing one or more email addresses.
@@ -356,7 +357,7 @@ class SmtpHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "extra"],
             "relabeling": {},

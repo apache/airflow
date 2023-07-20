@@ -137,7 +137,7 @@ repos:
       - id: insert-license
         name: Add license for all Markdown files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/
+        exclude: PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/
         args:
           - --comment-style
           - "<!--|| -->"
@@ -187,8 +187,8 @@ repos:
         pass_filenames: true
         # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
         # host CPU to it's fullest
-        entry: ruff --fix --no-update-check --force-exclude
-        additional_dependencies: ['ruff==0.0.265']
+        entry: ruff --fix --force-exclude
+        additional_dependencies: ['ruff==0.0.272']
         files: \.pyi?$
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
   - repo: https://github.com/asottile/blacken-docs
@@ -212,7 +212,7 @@ repos:
       - id: debug-statements
         name: Detect accidentally committed debug statements
       - id: check-builtin-literals
-        name: Require literal syntax when initializing Python builtin types
+        name: Require literal syntax when initializing builtin types
         exclude: ^.*/.*_vendor/
       - id: detect-private-key
         name: Detect if private key is added to the repository
@@ -317,7 +317,7 @@ repos:
         name: Lint OpenAPI using openapi-spec-validator
         entry: openapi-spec-validator --schema 3.0.0
         language: python
-        additional_dependencies: ['openapi-spec-validator']
+        additional_dependencies: ['openapi-spec-validator>=0.6.0']
         files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint Dockerfile
@@ -402,7 +402,7 @@ repos:
         pass_filenames: true
         files: \.py$
       - id: check-links-to-example-dags-do-not-use-hardcoded-versions
-        name: Check that example dags do not use hard-coded version numbers
+        name: Verify example dags do not use hard-coded version numbers
         description: The links to example dags should use |version| as version specification
         language: pygrep
         entry: >
@@ -495,7 +495,7 @@ repos:
           ^airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
-          ^docs/apache-airflow/administration-and-deployment/security/webserver.rst$|
+          ^docs/apache-airflow/security/webserver.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^airflow/providers/microsoft/winrm/operators/winrm.py$|
           ^airflow/providers/opsgenie/hooks/opsgenie.py$|
@@ -569,7 +569,7 @@ repos:
         files: ^airflow/.*\.py$
       - id: check-core-deprecation-classes
         language: pygrep
-        name: Verify using of dedicated Airflow deprecation classes in core
+        name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
         exclude: ^airflow/configuration\.py$|^airflow/providers|^scripts/in_container/verify_providers\.py$
@@ -599,7 +599,7 @@ repos:
         pass_filenames: true
       - id: check-start-date-not-used-in-defaults
         language: pygrep
-        name: "'start_date' not to be defined in default_args in example_dags"
+        name: start_date not to be defined in default_args in example_dags
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*\.py$
         exclude: ^.*/.*_vendor/
@@ -618,14 +618,6 @@ repos:
         pass_filenames: true
         additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
-      - id: check-airflow-config-yaml-consistent
-        name: Checks for consistency between config.yml and default_config.cfg
-        language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_yaml_to_cfg.py
-        files: config\.yml$|default_airflow\.cfg$|default\.cfg$
-        pass_filenames: false
-        require_serial: true
-        additional_dependencies: ['pyyaml', 'packaging']
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python
@@ -707,10 +699,10 @@ repos:
         language: python
         require_serial: true
       - id: check-pre-commit-information-consistent
-        name: Update information re pre-commit hooks and verify ids and names
+        name: Validate hook IDs & names and sync with docs
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commit_hooks.py
         args:
-          - --max-length=64
+          - --max-length=60
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
         additional_dependencies: ['pyyaml', 'jinja2', 'black==22.12.0', 'tabulate', 'rich>=12.4.4']
@@ -817,7 +809,7 @@ repos:
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: lint-json-schema
-        name: Lint airflow/config_templates/config.yml file with JSON Schema
+        name: Lint config_templates/config.yml file with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
         args:
           - --spec-file
@@ -916,7 +908,7 @@ repos:
         pass_filenames: false
         files: ^tests/.*\.py$
       - id: ts-compile-format-lint-www
-        name: TS types generation and ESLint/Prettier against current UI files
+        name: TS types generation / ESLint / Prettier against UI files
         language: node
         'types_or': [javascript, ts, tsx, yaml, css, json]
         files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1\.yaml$
@@ -929,6 +921,20 @@ repos:
         language: python
         pass_filenames: true
         files: ^tests/.*\.py$
+      - id: check-usage-of-re2-over-re
+        language: pygrep
+        name: Use re2 module instead of re
+        description: Use re2 module instead of re
+        entry: "^\\s*from re\\s|^\\s*import re\\s"
+        pass_filenames: true
+        files: \.py$
+        exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^\w+_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$
+      - id: check-deferrable-default-value
+        name: Check default value of deferrable attribute
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_check_deferrable_default.py
+        pass_filenames: false
+        files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev

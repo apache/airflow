@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import runpy
 import sys
 from datetime import timedelta
@@ -86,15 +87,26 @@ class TestApp:
         assert b"success" == response.get_data()
         assert response.status_code == 200
 
-    @conf_vars(
-        {
-            ("webserver", "base_url"): "http://localhost:8080/internal-client",
-        }
+    @pytest.mark.parametrize(
+        "base_url, expected_exception",
+        [
+            ("http://localhost:8080/internal-client", None),
+            (
+                "http://localhost:8080/internal-client/",
+                AirflowConfigException("webserver.base_url conf cannot have a trailing slash."),
+            ),
+        ],
     )
     @dont_initialize_flask_app_submodules
-    def test_should_respect_base_url_ignore_proxy_headers(self):
-        app = application.cached_app(testing=True)
-        app.url_map.add(Rule("/debug", endpoint="debug"))
+    def test_should_respect_base_url_ignore_proxy_headers(self, base_url, expected_exception):
+        with conf_vars({("webserver", "base_url"): base_url}):
+            if expected_exception:
+                with pytest.raises(expected_exception.__class__, match=re.escape(str(expected_exception))):
+                    app = application.cached_app(testing=True)
+                    app.url_map.add(Rule("/debug", endpoint="debug"))
+                return
+            app = application.cached_app(testing=True)
+            app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -126,9 +138,18 @@ class TestApp:
         assert b"success" == response.get_data()
         assert response.status_code == 200
 
+    @pytest.mark.parametrize(
+        "base_url, expected_exception",
+        [
+            ("http://localhost:8080/internal-client", None),
+            (
+                "http://localhost:8080/internal-client/",
+                AirflowConfigException("webserver.base_url conf cannot have a trailing slash."),
+            ),
+        ],
+    )
     @conf_vars(
         {
-            ("webserver", "base_url"): "http://localhost:8080/internal-client",
             ("webserver", "enable_proxy_fix"): "True",
             ("webserver", "proxy_fix_x_for"): "1",
             ("webserver", "proxy_fix_x_proto"): "1",
@@ -138,9 +159,17 @@ class TestApp:
         }
     )
     @dont_initialize_flask_app_submodules
-    def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(self):
-        app = application.cached_app(testing=True)
-        app.url_map.add(Rule("/debug", endpoint="debug"))
+    def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(
+        self, base_url, expected_exception
+    ):
+        with conf_vars({("webserver", "base_url"): base_url}):
+            if expected_exception:
+                with pytest.raises(expected_exception.__class__, match=re.escape(str(expected_exception))):
+                    app = application.cached_app(testing=True)
+                    app.url_map.add(Rule("/debug", endpoint="debug"))
+                return
+            app = application.cached_app(testing=True)
+            app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request

@@ -70,7 +70,7 @@ class GithubHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "login", "extra"],
             "relabeling": {"host": "GitHub Enterprise URL (Optional)", "password": "GitHub Access Token"},

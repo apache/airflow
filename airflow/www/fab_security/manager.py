@@ -22,10 +22,11 @@ import base64
 import datetime
 import json
 import logging
-import re
+from functools import cached_property
 from typing import Any
 from uuid import uuid4
 
+import re2
 from flask import Flask, current_app, g, session, url_for
 from flask_appbuilder import AppBuilder
 from flask_appbuilder.const import (
@@ -72,8 +73,7 @@ from flask_limiter.util import get_remote_address
 from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.compat.functools import cached_property
-from airflow.configuration import conf
+from airflow.configuration import auth_manager, conf
 from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
@@ -146,6 +146,7 @@ class BaseSecurityManager:
     @staticmethod
     def oauth_tokengetter(token=None):
         """Authentication (OAuth) token getter function.
+
         Override to implement your own token getter method.
         """
         return _oauth_tokengetter(token)
@@ -539,7 +540,7 @@ class BaseSecurityManager:
     @property
     def current_user(self):
         """Current user object."""
-        if current_user.is_authenticated:
+        if auth_manager.is_logged_in():
             return g.user
         elif current_user_jwt:
             return current_user_jwt
@@ -585,9 +586,10 @@ class BaseSecurityManager:
                 return _provider.get("token_key", "oauth_token")
 
     def get_oauth_token_secret_name(self, provider):
-        """
-        Returns the token_secret name for the oauth provider if none is configured defaults to oauth_secret.
-        This is configured using OAUTH_PROVIDERS and token_secret.
+        """Gety the ``token_secret`` name for the oauth provider.
+
+        If none is configured, defaults to ``oauth_secret``. This is configured
+        using ``OAUTH_PROVIDERS`` and ``token_secret``.
         """
         for _provider in self.oauth_providers:
             if _provider["name"] == provider:
@@ -606,9 +608,9 @@ class BaseSecurityManager:
         session["oauth_provider"] = provider
 
     def get_oauth_user_info(self, provider, resp):
-        """
-        Since there are different OAuth API's with different ways to
-        retrieve user info.
+        """Get the OAuth user information from different OAuth APIs.
+
+        All providers have different ways to retrieve user info.
         """
         # for GITHUB
         if provider == "github" or provider == "githublocal":
@@ -701,7 +703,7 @@ class BaseSecurityManager:
 
     def _azure_parse_jwt(self, id_token):
         jwt_token_parts = r"^([^\.\s]*)\.([^\.\s]+)\.([^\.\s]*)$"
-        matches = re.search(jwt_token_parts, id_token)
+        matches = re2.search(jwt_token_parts, id_token)
         if not matches or len(matches.groups()) < 3:
             log.error("Unable to parse token.")
             return {}
@@ -866,9 +868,10 @@ class BaseSecurityManager:
         self.update_user(user)
 
     def update_user_auth_stat(self, user, success=True):
-        """
-        Update user authentication stats upon successful/unsuccessful
-        authentication attempts.
+        """Update user authentication stats.
+
+        This is done upon successful/unsuccessful authentication attempts.
+
         :param user:
             The identified (but possibly not successfully authenticated) user
             model
@@ -890,9 +893,10 @@ class BaseSecurityManager:
         self.update_user(user)
 
     def _rotate_session_id(self):
-        """
-        Upon successful authentication when using the database session backend,
-        we need to rotate the session id.
+        """Rotate the session ID.
+
+        We need to do this upon successful authentication when using the
+        database session backend.
         """
         if conf.get("webserver", "SESSION_BACKEND") == "database":
             session.sid = str(uuid4())
@@ -1371,18 +1375,18 @@ class BaseSecurityManager:
     def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
         """Checks permission on builtin role."""
         perms = self.builtin_roles.get(role.name, [])
-        for (_resource_name, _action_name) in perms:
-            if re.match(_resource_name, resource_name) and re.match(_action_name, action_name):
+        for _resource_name, _action_name in perms:
+            if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
                 return True
         return False
 
     def _get_user_permission_resources(
         self, user: User | None, action_name: str, resource_names: list[str] | None = None
     ) -> set[str]:
-        """
-        Return a set of resource names with a certain action name that a user has access to.
-        Mainly used to fetch all menu permissions on a single db call, will also check public permissions
-        and builtin roles.
+        """Get resource names with a certain action name that a user has access to.
+
+        Mainly used to fetch all menu permissions on a single db call, will also
+        check public permissions and builtin roles
         """
         if not resource_names:
             resource_names = []
@@ -1411,7 +1415,7 @@ class BaseSecurityManager:
         return result
 
     def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
-        if current_user.is_authenticated:
+        if auth_manager.is_logged_in():
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
             return self._get_user_permission_resources(

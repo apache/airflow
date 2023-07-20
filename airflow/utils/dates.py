@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import warnings
 from datetime import datetime, timedelta
+from typing import Collection
 
 from croniter import croniter
 from dateutil.relativedelta import relativedelta  # for doctest
 
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 
 cron_presets: dict[str, str] = {
@@ -42,10 +44,7 @@ def date_range(
     num: int | None = None,
     delta: str | timedelta | relativedelta | None = None,
 ) -> list[datetime]:
-    """
-    Get a set of dates as a list based on a start, end and delta, delta
-    can be something that can be added to `datetime.datetime`
-    or a cron expression as a `str`.
+    """Get a list of dates in the specified range, separated by delta.
 
     .. code-block:: pycon
         >>> from airflow.utils.dates import date_range
@@ -136,11 +135,12 @@ def date_range(
     return sorted(dates)
 
 
-def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
-    """
-    Returns the datetime of the form start_date + i * delta
-    which is closest to dt for any non-negative integer i.
-    Note that delta may be a datetime.timedelta or a dateutil.relativedelta.
+def round_time(
+    dt: datetime,
+    delta: str | timedelta | relativedelta,
+    start_date: datetime = timezone.make_aware(datetime.min),
+):
+    """Returns ``start_date + i * delta`` for given ``i`` where the result is closest to ``dt``.
 
     .. code-block:: pycon
 
@@ -219,11 +219,13 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     # and this function returns start_date.
 
 
-def infer_time_unit(time_seconds_arr):
-    """
-    Determine the most appropriate time unit for an array of time durations
-    specified in seconds.
-    e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'.
+TimeUnit = Literal["days", "hours", "minutes", "seconds"]
+
+
+def infer_time_unit(time_seconds_arr: Collection[float]) -> TimeUnit:
+    """Determine the most appropriate time unit for given durations (in seconds).
+
+    e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
     """
     if len(time_seconds_arr) == 0:
         return "hours"
@@ -238,7 +240,7 @@ def infer_time_unit(time_seconds_arr):
         return "days"
 
 
-def scale_time_units(time_seconds_arr, unit):
+def scale_time_units(time_seconds_arr: Collection[float], unit: TimeUnit) -> Collection[float]:
     """Convert an array of time durations in seconds to the specified time unit."""
     if unit == "minutes":
         return list(map(lambda x: x / 60, time_seconds_arr))
@@ -250,9 +252,9 @@ def scale_time_units(time_seconds_arr, unit):
 
 
 def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
-    """
-    Get a datetime object representing `n` days ago. By default the time is
-    set to midnight.
+    """Get a datetime object representing *n* days ago.
+
+    By default the time is set to midnight.
     """
     warnings.warn(
         "Function `days_ago` is deprecated and will be removed in Airflow 3.0. "

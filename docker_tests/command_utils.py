@@ -29,8 +29,8 @@ def run_command(
             return subprocess.check_output(cmd, **kwargs).decode()
         else:
             try:
-                subprocess.run(cmd, check=check, **kwargs)
-                return True
+                result = subprocess.run(cmd, check=check, **kwargs)
+                return result.returncode == 0
             except FileNotFoundError:
                 if check:
                     raise

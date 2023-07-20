@@ -19,14 +19,13 @@ from __future__ import annotations
 
 import json
 import warnings
-from functools import wraps
+from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
@@ -39,10 +38,8 @@ if TYPE_CHECKING:
 
 
 def _ensure_prefixes(conn_type):
-    """
-    Remove when provider min airflow version >= 2.5.0 since this is handled by
-    provider manager from that version.
-    """
+    # TODO: Remove when provider min airflow version >= 2.5.0 since
+    #       this is handled by provider manager from that version.
 
     def dec(func):
         @wraps(func)

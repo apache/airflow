@@ -408,7 +408,9 @@ class AirflowAppBuilder:
             then this link will be a part of the menu. Otherwise, it
             will not be included in the menu items. Defaults to
             :code:`None`, meaning the item will always be present.
+
         Examples::
+
             appbuilder = AppBuilder(app, db)
             # Register a view, rendering a top menu without icon.
             appbuilder.add_view(MyModelView(), "My View")
@@ -478,8 +480,8 @@ class AirflowAppBuilder:
         baseview=None,
         cond=None,
     ):
-        """
-        Add your own links to menu using this method
+        """Add your own links to menu using this method.
+
         :param name:
             The string name that identifies the menu.
         :param href:
@@ -524,8 +526,8 @@ class AirflowAppBuilder:
                 self._add_permissions_menu(category)
 
     def add_separator(self, category, cond=None):
-        """
-        Add a separator to the menu, you will sequentially create the menu
+        """Add a separator to the menu, you will sequentially create the menu.
+
         :param category:
             The menu category where the separator will be included.
         :param cond:
@@ -558,28 +560,29 @@ class AirflowAppBuilder:
         return baseview
 
     def security_cleanup(self):
-        """
-        This method is useful if you have changed
-        the name of your menus or classes,
-        changing them will leave behind permissions
-        that are not associated with anything.
-        You can use it always or just sometimes to
-        perform a security cleanup. Warning this will delete any permission
-        that is no longer part of any registered view or menu.
-        Remember invoke ONLY AFTER YOU HAVE REGISTERED ALL VIEWS.
+        """Clean up security.
+
+        This method is useful if you have changed the name of your menus or
+        classes. Changing them leaves behind permissions that are not associated
+        with anything. You can use it always or just sometimes to perform a
+        security cleanup.
+
+        .. warning::
+
+            This deletes any permission that is no longer part of any registered
+            view or menu. Only invoke AFTER YOU HAVE REGISTERED ALL VIEWS.
         """
         self.sm.security_cleanup(self.baseviews, self.menu)
 
     def security_converge(self, dry=False) -> dict:
-        """
-        Migrates all permissions to the new names on all the Roles.
+        """Migrates all permissions to the new names on all the Roles.
 
         This method is useful when you use:
 
-        - `class_permission_name`
-        - `previous_class_permission_name`
-        - `method_permission_name`
-        - `previous_method_permission_name`
+        - ``class_permission_name``
+        - ``previous_class_permission_name``
+        - ``method_permission_name``
+        - ``previous_method_permission_name``
 
         :param dry: If True will not change DB
         :return: Dict with all computed necessary operations

@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import re
 import shlex
+import shutil
 import sys
 import textwrap
 import time
@@ -33,9 +34,7 @@ from rich.progress import Progress
 from rich.syntax import Syntax
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
-from airflow_breeze.commands.minor_release_command import create_minor_version_branch
-from airflow_breeze.commands.release_candidate_command import publish_release_candidate
-from airflow_breeze.commands.release_command import airflow_release
+from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -44,10 +43,14 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
     MOUNT_SELECTED,
     MULTI_PLATFORM,
+    get_available_documentation_packages,
 )
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.add_back_references import (
+    GenerationType,
+    start_generating_back_references,
+)
 from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     argument_packages,
     option_airflow_constraints_mode_ci,
@@ -57,6 +60,7 @@ from airflow_breeze.utils.common_options import (
     option_debug_resources,
     option_dry_run,
     option_github_repository,
+    option_historical_python_version,
     option_image_tag_for_running,
     option_include_success_outputs,
     option_install_selected_providers,
@@ -75,21 +79,37 @@ from airflow_breeze.utils.common_options import (
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
 )
+from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
     SummarizeAfter,
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DIST_DIR, cleanup_python_generated_files
-from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_SOURCES_ROOT,
+    CONSTRAINTS_CACHE_DIR,
+    DIST_DIR,
+    PROVIDER_METADATA_JSON_FILE_PATH,
+    cleanup_python_generated_files,
+)
+from airflow_breeze.utils.provider_dependencies import (
+    DEPENDENCIES,
+    generate_providers_metadata_for_package,
+    get_related_providers,
+)
+from airflow_breeze.utils.publish_docs_builder import PublishDocsBuilder
+from airflow_breeze.utils.publish_docs_helpers import (
+    get_available_packages,
+    process_package_filters,
+)
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -162,15 +182,6 @@ echo -e '\\e[34mRun this command to debug:
         )
 
 
-@click.group(
-    cls=BreezeGroup,
-    name="release-management",
-    help="Tools that release managers can use to prepare and manage Airflow releases",
-)
-def release_management():
-    pass
-
-
 @release_management.command(
     name="prepare-airflow-package",
     help="Prepare sdist/whl package of Airflow.",
@@ -228,6 +239,12 @@ def prepare_airflow_packages(
     is_flag=True,
     help="Only update minimum version in __init__.py files and regenerate corresponding documentation",
 )
+@click.option(
+    "--regenerate-missing-docs",
+    is_flag=True,
+    help="Only regenerate missing documentation, do not bump version. Useful if templates were added"
+    " and you need to regenerate documentation.",
+)
 @option_verbose
 @option_dry_run
 @option_answer
@@ -237,6 +254,7 @@ def prepare_provider_documentation(
     debug: bool,
     packages: list[str],
     only_min_version_update: bool,
+    regenerate_missing_docs: bool,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -247,6 +265,7 @@ def prepare_provider_documentation(
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         base_branch=base_branch,
         only_min_version_update=only_min_version_update,
+        regenerate_missing_docs=regenerate_missing_docs,
         skip_environment_initialization=True,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
@@ -749,6 +768,93 @@ def alias_image(image_from: str, image_to: str):
 
 
 @release_management.command(
+    name="publish-docs",
+    help="Command to publish generated documentation to airflow-site",
+)
+@click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
+@click.option(
+    "-a",
+    "--airflow-site-directory",
+    envvar="AIRFLOW_SITE_DIRECTORY",
+    help="Local directory path of cloned airflow-site repo.",
+    required=True,
+)
+@click.option(
+    "--package-filter",
+    help="List of packages to consider.",
+    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
+    multiple=True,
+)
+@option_verbose
+@option_dry_run
+def publish_docs(
+    override_versioned: bool,
+    airflow_site_directory: str,
+    package_filter: tuple[str],
+):
+    """Publishes documentation to airflow-site."""
+    if not os.path.isdir(airflow_site_directory):
+        get_console().print(
+            "\n[error]location pointed by airflow_site_dir is not valid. "
+            "Provide the path of cloned airflow-site repo\n"
+        )
+
+    available_packages = get_available_packages()
+    package_filters = package_filter
+
+    current_packages = process_package_filters(available_packages, package_filters)
+    print(f"Publishing docs for {len(current_packages)} package(s)")
+    for pkg in current_packages:
+        print(f" - {pkg}")
+    print()
+    for package_name in current_packages:
+        builder = PublishDocsBuilder(package_name=package_name)
+        builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
+
+
+@release_management.command(
+    name="add-back-references",
+    help="Command to add back references for documentation to make it backward compatible",
+)
+@click.option(
+    "-a",
+    "--airflow-site-directory",
+    envvar="AIRFLOW_SITE_DIRECTORY",
+    help="Local directory path of cloned airflow-site repo.",
+    required=True,
+)
+@click.option(
+    "-g",
+    "--gen-type",
+    help="Type of back references to generate, supports: [airflow | providers | helm]",
+    type=str,
+    required=True,
+)
+@option_verbose
+@option_dry_run
+def add_back_references(
+    airflow_site_directory: bool,
+    gen_type: str,
+):
+    """Adds back references for documentation generated by build-docs and publish-docs"""
+    if not os.path.isdir(airflow_site_directory):
+        get_console().print(
+            "\n[error]location pointed by airflow_site_dir is not valid. "
+            "Provide the path of cloned airflow-site repo\n"
+        )
+        sys.exit(1)
+
+    gen = GenerationType[gen_type]
+    if gen not in GenerationType:
+        get_console().print(
+            "\n[error]invalid type of doc generation required. Pass one of [airflow | providers | helm]\n"
+        )
+        sys.exit(1)
+
+    start_generating_back_references(gen, airflow_site_directory)
+
+
+@release_management.command(
     name="release-prod-images", help="Release production images to DockerHub (needs DockerHub permissions)."
 )
 @click.option("--airflow-version", required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
@@ -920,8 +1026,8 @@ def release_prod_images(
 def is_package_in_dist(dist_files: list[str], package: str) -> bool:
     """Check if package has been prepared in dist folder."""
     for file in dist_files:
-        if file.startswith(f'apache_airflow_providers_{package.replace(".","_")}') or file.startswith(
-            f'apache-airflow-providers-{package.replace(".","-")}'
+        if file.startswith(f'apache_airflow_providers_{package.replace(".", "_")}') or file.startswith(
+            f'apache-airflow-providers-{package.replace(".", "-")}'
         ):
             return True
     return False
@@ -1089,7 +1195,7 @@ def generate_issue_content_providers(
         get_console().print()
         get_console().print(
             "Issue title: [yellow]Status of testing Providers that were "
-            f"prepared on { datetime.now().strftime('%B %d, %Y') }[/]"
+            f"prepared on {datetime.now().strftime('%B %d, %Y')}[/]"
         )
         get_console().print()
         syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
@@ -1103,7 +1209,62 @@ def generate_issue_content_providers(
         get_console().print(" ".join(users))
 
 
-# AIRFLOW RELEASE COMMANDS
-release_management.add_command(publish_release_candidate)
-release_management.add_command(airflow_release)
-release_management.add_command(create_minor_version_branch)
+def get_all_constraint_files(refresh_constraints: bool, python_version: str) -> None:
+    if refresh_constraints:
+        shutil.rmtree(CONSTRAINTS_CACHE_DIR, ignore_errors=True)
+    if not CONSTRAINTS_CACHE_DIR.exists():
+        with ci_group(f"Downloading constraints for all Airflow versions for Python {python_version}"):
+            CONSTRAINTS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            all_airflow_versions = get_active_airflow_versions(confirm=False)
+            for airflow_version in all_airflow_versions:
+                if not download_constraints_file(
+                    airflow_version=airflow_version,
+                    python_version=python_version,
+                    include_provider_dependencies=True,
+                    output_file=CONSTRAINTS_CACHE_DIR
+                    / f"constraints-{airflow_version}-python-{python_version}.txt",
+                ):
+                    get_console().print(
+                        "[warning]Could not download constraints for "
+                        f"Airflow {airflow_version} and Python {python_version}[/]"
+                    )
+
+
+MATCH_CONSTRAINTS_FILE_REGEX = re.compile(r"constraints-(.*)-python-(.*).txt")
+
+
+def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
+    constraints: dict[str, dict[str, str]] = {}
+    for filename in CONSTRAINTS_CACHE_DIR.glob(f"constraints-*-python-{python_version}.txt"):
+        filename_match = MATCH_CONSTRAINTS_FILE_REGEX.match(filename.name)
+        if filename_match:
+            airflow_version = filename_match.group(1)
+            constraints[airflow_version] = {}
+            for line in filename.read_text().splitlines():
+                if line and not line.startswith("#"):
+                    package, version = line.split("==")
+                    constraints[airflow_version][package] = version
+    return constraints
+
+
+@release_management.command(name="generate-providers-metadata", help="Generates metadata for providers.")
+@click.option(
+    "--refresh-constraints",
+    is_flag=True,
+    help="Refresh constraints before generating metadata",
+)
+@option_historical_python_version
+def generate_providers_metadata(refresh_constraints: bool, python: str | None):
+    metadata_dict: dict[str, dict[str, dict[str, str]]] = {}
+    if python is None:
+        python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+    get_all_constraint_files(refresh_constraints=refresh_constraints, python_version=python)
+    constraints = load_constraints(python_version=python)
+    for package_id in DEPENDENCIES.keys():
+        with ci_group(f"Generating metadata for {package_id}"):
+            metadata = generate_providers_metadata_for_package(package_id, constraints)
+            if metadata:
+                metadata_dict[package_id] = metadata
+    import json
+
+    PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4, sort_keys=True))

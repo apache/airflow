@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import inspect
 import io
+import os
 import re
 from contextlib import redirect_stdout
 from unittest import mock
@@ -36,10 +37,14 @@ from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
+    _get_alembic_config,
     check_migrations,
     compare_server_default,
     compare_type,
     create_default_connections,
+    # The create_session is not used. It is imported here to
+    # guard against removing it from utils.db accidentally
+    create_session,  # noqa: F401
     downgrade,
     resetdb,
     upgradedb,
@@ -167,7 +172,7 @@ class TestDb:
             dialect.name = "postgresql"  # offline migration not supported with postgres
             mock_gcr.return_value = "90d1635d7b86"
             upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
-            actual = mock_om.call_args[0][2]
+            actual = mock_om.call_args.args[2]
             assert re.match(r"90d1635d7b86:[a-z0-9]+", actual) is not None
 
     def test_offline_upgrade_fails_for_migration_less_than_2_0_0_head(self):
@@ -190,13 +195,13 @@ class TestDb:
     @mock.patch("airflow.utils.db._offline_migration")
     def test_downgrade_sql_no_from(self, mock_om):
         downgrade(to_revision="abc", show_sql_only=True, from_revision=None)
-        actual = mock_om.call_args[1]["revision"]
+        actual = mock_om.call_args.kwargs["revision"]
         assert re.match(r"[a-z0-9]+:abc", actual) is not None
 
     @mock.patch("airflow.utils.db._offline_migration")
     def test_downgrade_sql_with_from(self, mock_om):
         downgrade(to_revision="abc", show_sql_only=True, from_revision="123")
-        actual = mock_om.call_args[1]["revision"]
+        actual = mock_om.call_args.kwargs["revision"]
         assert actual == "123:abc"
 
     @mock.patch("alembic.command.downgrade")
@@ -208,7 +213,7 @@ class TestDb:
     @mock.patch("alembic.command.downgrade")
     def test_downgrade_with_from(self, mock_om):
         downgrade(to_revision="abc")
-        actual = mock_om.call_args[1]["revision"]
+        actual = mock_om.call_args.kwargs["revision"]
         assert actual == "abc"
 
     @pytest.mark.parametrize("skip_init", [False, True])
@@ -228,8 +233,21 @@ class TestDb:
         session_mock = MagicMock()
         resetdb(session_mock, skip_init=skip_init)
         mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
-        mock_drop_moved.assert_called_once_with(session_mock)
+        mock_drop_moved.assert_called_once_with(mock_connect.return_value)
         if skip_init:
             mock_init.assert_not_called()
         else:
             mock_init.assert_called_once_with(session=session_mock)
+
+    def test_alembic_configuration(self):
+        with mock.patch.dict(
+            os.environ, {"AIRFLOW__DATABASE__ALEMBIC_INI_FILE_PATH": "/tmp/alembic.ini"}, clear=True
+        ):
+            config = _get_alembic_config()
+            assert config.config_file_name == "/tmp/alembic.ini"
+
+        # default behaviour
+        config = _get_alembic_config()
+        import airflow
+
+        assert config.config_file_name == os.path.join(os.path.dirname(airflow.__file__), "alembic.ini")

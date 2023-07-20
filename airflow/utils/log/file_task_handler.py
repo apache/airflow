@@ -23,13 +23,13 @@ import os
 import warnings
 from contextlib import suppress
 from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 from urllib.parse import urljoin
 
 import pendulum
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
@@ -134,10 +134,10 @@ def _interleave_logs(*logs):
 
 class FileTaskHandler(logging.Handler):
     """
-    FileTaskHandler is a python log handler that handles and reads
-    task instance logs. It creates and delegates log handling
-    to `logging.FileHandler` after receiving task instance context.
-    It reads logs from task instance's host machine.
+    FileTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It creates and delegates log handling to `logging.FileHandler` after receiving task
+    instance context.  It reads logs from task instance's host machine.
 
     :param base_log_folder: Base log folder to place logs.
     :param filename_template: template filename string
@@ -201,7 +201,7 @@ class FileTaskHandler(logging.Handler):
         triggerer instances.
         """
         full_path = Path(full_path).as_posix()
-        full_path += f".{LogType.TRIGGER}"
+        full_path += f".{LogType.TRIGGER.value}"
         if job_id:
             full_path += f".{job_id}.log"
         return full_path
@@ -278,8 +278,7 @@ class FileTaskHandler(logging.Handler):
         metadata: dict[str, Any] | None = None,
     ):
         """
-        Template method that contains custom logic of reading
-        logs given the try_number.
+        Template method that contains custom logic of reading logs given the try_number.
 
         :param ti: task instance record
         :param try_number: current try_number to read log from
@@ -341,7 +340,10 @@ class FileTaskHandler(logging.Handler):
         )
         log_pos = len(logs)
         messages = "".join([f"*** {x}\n" for x in messages_list])
-        end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]
+        end_of_log = ti.try_number != try_number or ti.state not in (
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        )
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
@@ -459,8 +461,9 @@ class FileTaskHandler(logging.Handler):
 
     def _init_file(self, ti):
         """
-        Create log directory and give it permissions that are configured. See above _prepare_log_folder
-        method for more detailed explanation.
+        Create log directory and give it permissions that are configured.
+
+        See above _prepare_log_folder method for more detailed explanation.
 
         :param ti: task instance object
         :return: relative log path of the given task instance
@@ -522,6 +525,14 @@ class FileTaskHandler(logging.Handler):
             logger.exception("Could not read served logs")
         return messages, logs
 
-    def _read_remote_logs(self, ti, try_number, metadata=None):
-        """Implement in subclasses to read from the remote service."""
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+        """
+        Implement in subclasses to read from the remote service.
+
+        This method should return two lists, messages and logs.
+
+        * Each element in the messages list should be a single message,
+          such as, "reading from x file".
+        * Each element in the logs list should be the content of one file.
+        """
         raise NotImplementedError
