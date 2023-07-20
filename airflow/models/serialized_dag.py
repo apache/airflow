@@ -271,7 +271,7 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to check
         :param session: ORM Session
         """
-        return session.scalars(select(literal(True)).where(cls.dag_id == dag_id).limit(1)) is not None
+        return session.scalar(select(literal(True)).where(cls.dag_id == dag_id).limit(1)) is not None
 
     @classmethod
     @provide_session
