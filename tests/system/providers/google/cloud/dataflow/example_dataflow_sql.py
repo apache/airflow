@@ -34,7 +34,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 DAG_ID = "example_gcp_dataflow_sql"
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
 
 BQ_SQL_DATASET = os.environ.get("GCP_DATAFLOW_BQ_SQL_DATASET", "airflow_dataflow_samples")
 BQ_SQL_TABLE_INPUT = os.environ.get("GCP_DATAFLOW_BQ_SQL_TABLE_INPUT", "beam_input")
