@@ -24,6 +24,11 @@ streaming data-parallel processing pipelines. Using one of the open source Beam 
 that defines the pipeline. The pipeline is then executed by one of Beam's supported distributed processing
 back-ends, which include Apache Flink, Apache Spark, and Google Cloud Dataflow.
 
+.. note::
+    This operator requires ``gcloud`` command (Google Cloud SDK) to be installed on the Airflow worker
+    <https://cloud.google.com/sdk/docs/install> when the Apache Beam pipeline runs on the
+    [Dataflow service](https://cloud.google.com/dataflow/docs).
+
 
 .. _howto/operator:BeamRunPythonPipelineOperator:
 

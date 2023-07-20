@@ -20,10 +20,12 @@ from __future__ import annotations
 
 import fnmatch
 import functools
+import inspect
 import json
 import logging
 import os
 import sys
+import traceback
 import warnings
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -377,10 +379,22 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     """
 
     resource_version = "0"
+    _initialized: bool = False
+    _initialization_stack_trace = None
+
+    @staticmethod
+    def initialized() -> bool:
+        return ProvidersManager._initialized
+
+    @staticmethod
+    def initialization_stack_trace() -> str:
+        return ProvidersManager._initialization_stack_trace
 
     def __init__(self):
         """Initializes the manager."""
         super().__init__()
+        ProvidersManager._initialized = True
+        ProvidersManager._initialization_stack_trace = "".join(traceback.format_stack(inspect.currentframe()))
         self._initialized_cache: dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
         self._provider_dict: dict[str, ProviderInfo] = {}
