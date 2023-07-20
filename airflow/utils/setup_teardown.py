@@ -181,9 +181,8 @@ class BaseSetupTeardownContext:
 
     @classmethod
     def _update_teardown_downstream(cls, operator: AbstractOperator | list[AbstractOperator]):
-        """This recursively go through the tasks downstream of the setup in the context manager,
+        """This recursively goes through the tasks downstream of the setup in the context manager,
         if found, updates the _teardown_downstream_of_setup accordingly.
-
         """
         operator = operator[0] if isinstance(operator, list) else operator
 
@@ -210,9 +209,8 @@ class BaseSetupTeardownContext:
 
     @classmethod
     def _update_setup_upstream(cls, operator: AbstractOperator | list[AbstractOperator]):
-        """This recursively go through the tasks upstream of the teardown task in the context manager,
+        """This recursively goes through the tasks upstream of the teardown task in the context manager,
         if found, updates the _setup_upstream_of_teardown accordingly.
-
         """
         operator = operator[0] if isinstance(operator, list) else operator
 
