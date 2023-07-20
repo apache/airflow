@@ -128,3 +128,17 @@ class TestCreateDataPipelineOperator:
         }
         with pytest.raises(AirflowException):
             CreateDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_response_valid(self):
+        """
+        Test that if the Response Body contains an error message, an AirflowException is raised
+        """
+        init_kwargs = {
+            "task_id": "test_create_datapipeline",
+            "body": {"error": "Testing that AirflowException is raised"},
+            "project_id": TEST_PROJECTID,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            CreateDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
