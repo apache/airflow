@@ -120,7 +120,7 @@ class ExecutorLoader:
 
     @classmethod
     def import_executor_cls(
-        cls, executor_name: str, validate=True
+        cls, executor_name: str, validate: bool = True
     ) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
         Imports the executor class.
@@ -157,7 +157,7 @@ class ExecutorLoader:
         return _import_and_validate(executor_name), ConnectorSource.CUSTOM_PATH
 
     @classmethod
-    def import_default_executor_cls(cls, validate=True) -> tuple[type[BaseExecutor], ConnectorSource]:
+    def import_default_executor_cls(cls, validate: bool = True) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
         Imports the default executor class.
 
@@ -194,31 +194,6 @@ class ExecutorLoader:
         # SQLite only works with single threaded executors
         if engine.dialect.name == "sqlite":
             raise AirflowConfigException(f"error: cannot use SQLite with the {executor.__name__}")
-
-    @classmethod
-    def import_all_executor_classes(cls, validate=True) -> list[type[BaseExecutor]]:
-        """
-        Imports all executor classes including all core executors that ship
-        with Airflow and any executor provided by the user via configuring a
-        plugin or custom source path.
-
-        :param validate: Whether or not to validate the executor before returning
-
-        :return: list of executor classes and executor import sources
-        """
-        executor_classes = []
-        # First check if the default is a plugin provided by the user, if _not_
-        # (meaning it is one of the core executors) we can drop it and it will
-        # be included in the loop below.
-        default_executor, default_executor_source = cls.import_default_executor_cls(validate=validate)
-        if default_executor_source != ConnectorSource.CORE:
-            executor_classes.append(default_executor)
-
-        for executor in cls.executors:
-            executor_cls, _ = cls.import_executor_cls(executor, validate=validate)
-            executor_classes.append(executor_cls)
-
-        return executor_classes
 
     @classmethod
     def __load_celery_kubernetes_executor(cls) -> BaseExecutor:

@@ -43,8 +43,6 @@ from airflow.cli.cli_config import (
     ARG_STDERR,
     ARG_STDOUT,
     ARG_VERBOSE,
-    ARG_WITHOUT_GOSSIP,
-    ARG_WITHOUT_MINGLE,
     ActionCommand,
     Arg,
     GroupCommand,
@@ -101,13 +99,15 @@ ARG_FLOWER_HOSTNAME = Arg(
 )
 ARG_FLOWER_PORT = Arg(
     ("-p", "--port"),
-    default=conf.get("celery", "FLOWER_PORT"),
+    default=conf.getint("celery", "FLOWER_PORT"),
     type=int,
     help="The port on which to run the server",
 )
 ARG_FLOWER_CONF = Arg(("-c", "--flower-conf"), help="Configuration file for flower")
 ARG_FLOWER_URL_PREFIX = Arg(
-    ("-u", "--url-prefix"), default=conf.get("celery", "FLOWER_URL_PREFIX"), help="URL prefix for Flower"
+    ("-u", "--url-prefix"),
+    default=conf.get("celery", "FLOWER_URL_PREFIX"),
+    help="URL prefix for Flower",
 )
 ARG_FLOWER_BASIC_AUTH = Arg(
     ("-A", "--basic-auth"),
@@ -129,7 +129,7 @@ ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
     type=int,
     help="The number of worker processes",
-    default=conf.get("celery", "worker_concurrency"),
+    default=conf.getint("celery", "worker_concurrency"),
 )
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
@@ -138,6 +138,19 @@ ARG_CELERY_HOSTNAME = Arg(
 ARG_UMASK = Arg(
     ("-u", "--umask"),
     help="Set the umask of celery worker in daemon mode",
+)
+
+ARG_WITHOUT_MINGLE = Arg(
+    ("--without-mingle",),
+    default=False,
+    help="Don't synchronize with other workers at start-up",
+    action="store_true",
+)
+ARG_WITHOUT_GOSSIP = Arg(
+    ("--without-gossip",),
+    default=False,
+    help="Don't subscribe to other workers events",
+    action="store_true",
 )
 
 CELERY_COMMANDS = (

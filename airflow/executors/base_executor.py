@@ -482,7 +482,7 @@ class BaseExecutor(LoggingMixin):
 
     @staticmethod
     def get_cli_commands() -> list:
-        """Vends CLI commands to be included in Airflow CLI
+        """Vends CLI commands to be included in Airflow CLI.
 
         Override this method to expose commands via Airflow CLI to manage this executor. This can
         be commands to setup/teardown the executor, inspect state, etc.

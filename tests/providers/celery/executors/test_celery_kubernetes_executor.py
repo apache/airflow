@@ -50,7 +50,7 @@ class TestCeleryKubernetesExecutor:
         assert not CeleryKubernetesExecutor.is_single_threaded
 
     def test_no_cli_commands_vended(self):
-        assert not CeleryKubernetesExecutor.get_cli_commands()
+        assert CeleryKubernetesExecutor.get_cli_commands()
 
     def test_queued_tasks(self):
         celery_executor_mock = mock.MagicMock()

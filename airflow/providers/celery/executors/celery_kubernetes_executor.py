@@ -260,4 +260,4 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     @staticmethod
     def get_cli_commands() -> list:
-        return []
+        return CeleryExecutor.get_cli_commands() + KubernetesExecutor.get_cli_commands()

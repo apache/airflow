@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 from sqlalchemy.orm import Session
 
 from airflow import AirflowException
-from airflow.configuration import conf
 from airflow.cli.cli_config import (
     ARG_DAG_ID,
     ARG_EXECUTION_DATE,
@@ -49,6 +48,7 @@ from airflow.cli.cli_config import (
     lazy_load_command,
     positive_int,
 )
+from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import POD_EXECUTOR_DONE_KEY
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig

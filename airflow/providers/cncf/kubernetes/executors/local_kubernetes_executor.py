@@ -243,4 +243,4 @@ class LocalKubernetesExecutor(LoggingMixin):
 
     @staticmethod
     def get_cli_commands() -> list:
-        return []
+        return KubernetesExecutor.get_cli_commands()

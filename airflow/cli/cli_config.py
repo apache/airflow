@@ -24,7 +24,6 @@ import argparse
 import json
 import os
 import textwrap
-from argparse import ArgumentError
 from typing import Callable, Iterable, NamedTuple, Union
 
 import lazy_object_proxy
@@ -32,8 +31,6 @@ import lazy_object_proxy
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
-from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.cli import ColorMode
 from airflow.utils.module_loading import import_string
@@ -61,46 +58,6 @@ class DefaultHelpParser(argparse.ArgumentParser):
 
     def _check_value(self, action, value):
         """Override _check_value and check conditionally added command."""
-        if action.dest == "subcommand" and value == "celery":
-            executor = conf.get("core", "EXECUTOR")
-            if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
-                executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
-                classes = ()
-                try:
-                    from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-
-                    classes += (CeleryExecutor,)
-                except ImportError:
-                    message = (
-                        "The celery subcommand requires that you pip install the celery module. "
-                        "To do it, run: pip install 'apache-airflow[celery]'"
-                    )
-                    raise ArgumentError(action, message)
-                try:
-                    from airflow.providers.celery.executors.celery_kubernetes_executor import (
-                        CeleryKubernetesExecutor,
-                    )
-
-                    classes += (CeleryKubernetesExecutor,)
-                except ImportError:
-                    pass
-                if not issubclass(executor_cls, classes):
-                    message = (
-                        f"celery subcommand works only with CeleryExecutor, CeleryKubernetesExecutor and "
-                        f"executors derived from them, your current executor: {executor}, subclassed from: "
-                        f'{", ".join([base_cls.__qualname__ for base_cls in executor_cls.__bases__])}'
-                    )
-                    raise ArgumentError(action, message)
-        if action.dest == "subcommand" and value == "kubernetes":
-            try:
-                import kubernetes.client  # noqa: F401
-            except ImportError:
-                message = (
-                    "The kubernetes subcommand requires that you pip install the kubernetes python client. "
-                    "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
-                )
-                raise ArgumentError(action, message)
-
         if action.choices is not None and value not in action.choices:
             check_legacy_command(action, value)
 
