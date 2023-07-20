@@ -70,11 +70,23 @@ class TestCreateDataPipelineOperator:
             location = TEST_LOCATION,
             gcp_conn_id = TEST_GCP_CONN_ID
         )
+    @pytest.fixture
+    def create_operator_fail(self):
+        """ 
+        Creates a mock create datapipeline operator to be used in testing.
+        """
+        return CreateDataPipelineOperator(
+            task_id = "test_create_datapipeline",
+            body = TEST_BODY,
+            project_id = None,
+            location = TEST_LOCATION,
+            gcp_conn_id = TEST_GCP_CONN_ID
+        )
     
     @mock.patch("airflow.providers.google.cloud.operators.datapipeline.DataPipelineHook")
     def test_execute(self, mock_datapipeline, create_operator):
         """ 
-        Test if the execute function creates and calls the DataPipeline hook with the correct parameters
+        Test that the execute function creates and calls the DataPipeline hook with the correct parameters
         """
         create_operator.execute(mock.MagicMock())
         mock_datapipeline.assert_called_once_with(
@@ -86,3 +98,17 @@ class TestCreateDataPipelineOperator:
             body = TEST_BODY,
             location = TEST_LOCATION
         )
+
+    def test_params_valid(self):
+        """
+        Test that if the operator is not passed a Project ID, an AirflowException is raised
+        """
+        init_kwargs = {
+            "task_id": "test_create_datapipeline",
+            "body": TEST_BODY,
+            "project_id": None,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            CreateDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
