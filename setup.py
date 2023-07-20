@@ -191,7 +191,7 @@ def git_version() -> str:
 
         try:
             repo = git.Repo(str(AIRFLOW_SOURCES_ROOT / ".git"))
-        except (git.NoSuchPathError):
+        except git.NoSuchPathError:
             logger.warning(".git directory not found: Cannot compute the git version")
             return ""
         except git.InvalidGitRepositoryError:
@@ -266,9 +266,9 @@ deprecated_api = [
 doc = [
     "astroid>=2.12.3",
     "checksumdir",
-    # Click 8.1.4 breaks our mypy checks. The upper limit can be lifted when the
-    # https://github.com/apache/airflow/issues/32412 issue is resolved
-    "click>=8.0,<8.1.4",
+    # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
+    # https://github.com/pallets/click/issues/2558
+    "click>=8.0,!=8.1.4,!=8.1.5",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections
@@ -515,12 +515,12 @@ EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 
 
 def add_extras_for_all_providers() -> None:
-    for (provider_name, provider_dict) in PROVIDER_DEPENDENCIES.items():
+    for provider_name, provider_dict in PROVIDER_DEPENDENCIES.items():
         EXTRAS_DEPENDENCIES[provider_name] = provider_dict[DEPS]
 
 
 def add_additional_extras() -> None:
-    for (extra_name, extra_dependencies) in ADDITIONAL_EXTRAS_DEPENDENCIES.items():
+    for extra_name, extra_dependencies in ADDITIONAL_EXTRAS_DEPENDENCIES.items():
         EXTRAS_DEPENDENCIES[extra_name] = extra_dependencies
 
 
