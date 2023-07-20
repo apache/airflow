@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-19T21:18:12Z
+# This constraints file was automatically generated on 2023-07-20T05:21:37Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -138,7 +138,7 @@ click-default-group==1.2.2
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.3.0
-click==8.1.3
+click==8.1.6
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
@@ -203,7 +203,7 @@ google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.2
 google-cloud-bigquery-datatransfer==3.11.2
 google-cloud-bigquery-storage==2.22.0
-google-cloud-bigquery==3.11.3
+google-cloud-bigquery==3.11.4
 google-cloud-bigtable==2.20.0
 google-cloud-build==3.19.0
 google-cloud-compute==1.13.0
@@ -564,7 +564,7 @@ urllib3==1.26.16
 userpath==1.9.0
 vertica-python==1.3.2
 vine==5.0.0
-virtualenv==20.24.0
+virtualenv==20.24.1
 volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.6
