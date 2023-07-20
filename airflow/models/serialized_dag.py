@@ -155,8 +155,8 @@ class SerializedDagModel(Base):
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag, processor_subdir)
         serialized_dag_db = session.execute(
-            select(cls.dag_hash, cls.processor_subdir).where(cls.dag_id == dag.dag_id).limit(1)
-        )
+            select(cls.dag_hash, cls.processor_subdir).where(cls.dag_id == dag.dag_id)
+        ).first()
 
         if (
             serialized_dag_db is not None
