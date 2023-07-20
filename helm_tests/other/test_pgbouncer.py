@@ -567,3 +567,56 @@ class TestPgbouncerExporter:
             "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@127.0.0.1:1111"
             "/pgbouncer?sslmode=require" == connection
         )
+
+    def test_no_existing_secret(self):
+        docs = render_chart(
+            "test-pgbouncer-stats",
+            values={
+                "pgbouncer": {"enabled": True},
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-pgbouncer-stats-pgbouncer-stats",
+            "key": "connection",
+        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+
+    def test_existing_secret(self):
+        docs = render_chart(
+            "test-pgbouncer-stats",
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {
+                        "statsSecretName": "existing-stats-secret",
+                    },
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "name": "existing-stats-secret",
+            "key": "connection",
+        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+
+    def test_existing_secret_existing_key(self):
+        docs = render_chart(
+            "test-pgbouncer-stats",
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {
+                        "statsSecretName": "existing-stats-secret",
+                        "statsSecretKey": "exisiting-stats-secret-key",
+                    },
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "name": "existing-stats-secret",
+            "key": "exisiting-stats-secret-key",
+        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])

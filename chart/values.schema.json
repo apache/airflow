@@ -5341,6 +5341,22 @@
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         },
+                        "statsSecretName": {
+                            "description": "The PgBouncer Metrics Secret name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "statsSecretKey": {
+                            "description": "The PgBouncer Metrics Secret key.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "sslmode": {
                             "description": "SSL mode for ``metricsExporterSidecar``",
                             "type": "string",
