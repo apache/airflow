@@ -170,6 +170,7 @@ class TaskReturnCode(Enum):
 def set_current_context(context: Context) -> Generator[Context, None, None]:
     """
     Sets the current execution context to the provided context object.
+
     This method should be called once per Task execution, before calling operator.execute.
     """
     _CURRENT_CONTEXT.append(context)
@@ -208,9 +209,10 @@ def clear_task_instances(
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
 ) -> None:
     """
-    Clears a set of task instances, but makes sure the running ones
-    get killed. Also sets Dagrun's `state` to QUEUED and `start_date`
-    to the time of execution. But only for finished DRs (SUCCESS and FAILED).
+    Clears a set of task instances, but makes sure the running ones get killed.
+
+    Also sets Dagrun's `state` to QUEUED and `start_date` to the time of execution.
+    But only for finished DRs (SUCCESS and FAILED).
     Doesn't clear DR's `state` and `start_date`for running
     DRs (QUEUED and RUNNING) because clearing the state for already
     running DR is redundant and clearing `start_date` affects DR's duration.
@@ -358,9 +360,10 @@ def _creator_note(val):
 
 class TaskInstance(Base, LoggingMixin):
     """
-    Task instances store the state of a task instance. This table is the
-    authority and single source of truth around what tasks have run and the
-    state they are in.
+    Task instances store the state of a task instance.
+
+    This table is the authority and single source of truth around what tasks
+    have run and the state they are in.
 
     The SqlAlchemy model doesn't have a SqlAlchemy foreign key to the task or
     dag model deliberately to have more control over transactions.
@@ -586,8 +589,7 @@ class TaskInstance(Base, LoggingMixin):
     @hybrid_property
     def try_number(self):
         """
-        Return the try number that this task number will be when it is actually
-        run.
+        Return the try number that this task number will be when it is actually run.
 
         If the TaskInstance is currently running, this will match the column in the
         database, in all other cases this will be incremented.
@@ -604,15 +606,13 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def prev_attempted_tries(self) -> int:
         """
-        Based on this instance's try_number, this will calculate
-        the number of previously attempted tries, defaulting to 0.
-        """
-        # Expose this for the Task Tries and Gantt graph views.
-        # Using `try_number` throws off the counts for non-running tasks.
-        # Also useful in error logging contexts to get
-        # the try number for the last try that was attempted.
-        # https://issues.apache.org/jira/browse/AIRFLOW-2143
+        Calculate the number of previously attempted tries, defaulting to 0.
 
+        Expose this for the Task Tries and Gantt graph views.
+        Using `try_number` throws off the counts for non-running tasks.
+        Also useful in error logging contexts to get the try number for the last try that was attempted.
+        https://issues.apache.org/jira/browse/AIRFLOW-2143
+        """
         return self._try_number
 
     @property
@@ -640,9 +640,9 @@ class TaskInstance(Base, LoggingMixin):
         cfg_path=None,
     ) -> list[str]:
         """
-        Returns a command that can be executed anywhere where airflow is
-        installed. This command is part of the message sent to executors by
-        the orchestrator.
+        Returns a command that can be executed anywhere where airflow is installed.
+
+        This command is part of the message sent to executors by the orchestrator.
         """
         dag: DAG | DagModel
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
@@ -791,9 +791,10 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def current_state(self, session: Session = NEW_SESSION) -> str:
         """
-        Get the very latest state from the database, if a session is passed,
-        we use and looking up the state becomes part of the session, otherwise
-        a new session is used.
+        Get the very latest state from the database.
+
+        If a session is passed, we use and looking up the state becomes part of the session,
+        otherwise a new session is used.
 
         sqlalchemy.inspect is used here to get the primary keys ensuring that if they change
         it will not regress
@@ -948,10 +949,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @property
     def is_premature(self) -> bool:
-        """
-        Returns whether a task is in UP_FOR_RETRY state and its retry interval
-        has elapsed.
-        """
+        """Returns whether a task is in UP_FOR_RETRY state and its retry interval has elapsed."""
         # is the task still in the retry waiting period?
         return self.state == TaskInstanceState.UP_FOR_RETRY and not self.ready_for_retry()
 
@@ -959,6 +957,7 @@ class TaskInstance(Base, LoggingMixin):
     def are_dependents_done(self, session: Session = NEW_SESSION) -> bool:
         """
         Checks whether the immediate dependents of this task instance have succeeded or have been skipped.
+
         This is meant to be used by wait_for_downstream.
 
         This is useful when you do not want to start processing the next
@@ -1035,7 +1034,8 @@ class TaskInstance(Base, LoggingMixin):
     def previous_ti(self) -> TaskInstance | None:
         """
         This attribute is deprecated.
-        Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
+
+        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_ti`.
         """
         warnings.warn(
             """
@@ -1051,7 +1051,8 @@ class TaskInstance(Base, LoggingMixin):
     def previous_ti_success(self) -> TaskInstance | None:
         """
         This attribute is deprecated.
-        Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
+
+        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_ti`.
         """
         warnings.warn(
             """
@@ -1098,7 +1099,8 @@ class TaskInstance(Base, LoggingMixin):
     def previous_start_date_success(self) -> pendulum.DateTime | None:
         """
         This attribute is deprecated.
-        Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
+
+        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_start_date`.
         """
         warnings.warn(
             """
@@ -1115,15 +1117,13 @@ class TaskInstance(Base, LoggingMixin):
         self, dep_context: DepContext | None = None, session: Session = NEW_SESSION, verbose: bool = False
     ) -> bool:
         """
-        Returns whether or not all the conditions are met for this task instance to be run
-        given the context for the dependencies (e.g. a task instance being force run from
-        the UI will ignore some dependencies).
+        Are all conditions met for this task instance to be run given the context for the dependencies.
 
-        :param dep_context: The execution context that determines the dependencies that
-            should be evaluated.
+        (e.g. a task instance being force run from the UI will ignore some dependencies).
+
+        :param dep_context: The execution context that determines the dependencies that should be evaluated.
         :param session: database session
-        :param verbose: whether log details on failed dependencies on
-            info or debug log level
+        :param verbose: whether log details on failed dependencies on info or debug log level
         """
         dep_context = dep_context or DepContext()
         failed = False
@@ -1169,8 +1169,9 @@ class TaskInstance(Base, LoggingMixin):
 
     def next_retry_datetime(self):
         """
-        Get datetime of the next retry if the task instance fails. For exponential
-        backoff, retry_delay is used as base and will be converted to seconds.
+        Get datetime of the next retry if the task instance fails.
+
+        For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
         from airflow.models.abstractoperator import MAX_RETRY_DELAY
 
@@ -1209,10 +1210,7 @@ class TaskInstance(Base, LoggingMixin):
         return self.end_date + delay
 
     def ready_for_retry(self) -> bool:
-        """
-        Checks on whether the task instance is in the right state and timeframe
-        to be retried.
-        """
+        """Checks on whether the task instance is in the right state and timeframe to be retried."""
         return self.state == TaskInstanceState.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
     @provide_session
@@ -1256,8 +1254,9 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> bool:
         """
-        Checks dependencies and then sets state to RUNNING if they are met. Returns
-        True if and only if state is set to RUNNING, which implies that task should be
+        Checks dependencies and then sets state to RUNNING if they are met.
+
+        Returns True if and only if state is set to RUNNING, which implies that task should be
         executed, in preparation for _run_raw_task.
 
         :param verbose: whether to turn on more verbose logging
@@ -1394,6 +1393,7 @@ class TaskInstance(Base, LoggingMixin):
     def emit_state_change_metric(self, new_state: TaskInstanceState) -> None:
         """
         Sends a time metric representing how much time a given state transition took.
+
         The previous state and metric name is deduced from the state the task was put in.
 
         :param new_state: The state that has just been set for this task.
@@ -1456,6 +1456,8 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> TaskReturnCode | None:
         """
+        Run a task, update the state upon completion, and run any appropriate callbacks.
+
         Immediately runs the task (without checking or changing db state
         before execution) and then sets the appropriate final state after
         completion and runs any post-execute callbacks. Meant to be called
@@ -1739,10 +1741,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def _defer_task(self, session: Session, defer: TaskDeferred) -> None:
-        """
-        Marks the task as deferred and sets up the trigger that is needed
-        to resume it.
-        """
+        """Marks the task as deferred and sets up the trigger that is needed to resume it."""
         from airflow.models.trigger import Trigger
 
         # First, make the trigger entry
@@ -2222,6 +2221,7 @@ class TaskInstance(Base, LoggingMixin):
     def get_rendered_template_fields(self, session: Session = NEW_SESSION) -> None:
         """
         Update task with rendered template fields for presentation in UI.
+
         If task has already run, will fetch from DB; otherwise will render.
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
@@ -2677,8 +2677,7 @@ class TaskInstance(Base, LoggingMixin):
     @classmethod
     def ti_selector_condition(cls, vals: Collection[str | tuple[str, int]]) -> ColumnOperators:
         """
-        Build an SQLAlchemy filter for a list where each element can contain
-        whether a task_id, or a tuple of (task_id,map_index).
+        Build an SQLAlchemy filter for a list of task_ids or tuples of (task_id,map_index).
 
         :meta private:
         """

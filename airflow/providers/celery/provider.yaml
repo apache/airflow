@@ -56,3 +56,7 @@ sensors:
   - integration-name: Celery
     python-modules:
       - airflow.providers.celery.sensors.celery_queue
+
+executors:
+  - airflow.providers.celery.executors.celery_executor.CeleryExecutor
+  - airflow.providers.celery.executors.celery_kubernetes_executor.CeleryKubernetesExecutor

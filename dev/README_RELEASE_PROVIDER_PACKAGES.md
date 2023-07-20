@@ -347,7 +347,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --for-production --package-filter apache-airflow-providers \
+breeze build-docs --clean-build --package-filter apache-airflow-providers \
    --package-filter 'apache-airflow-providers-*'
 ```
 
@@ -359,7 +359,7 @@ If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --for-production \
+breeze build-docs --clean-build \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
@@ -380,11 +380,6 @@ If you have providers as list of provider ids because you just released them, yo
 ./docs/start_doc_server.sh
 ```
 
-You should navigate the providers and make sure the docs render properly.
-Note: if you used ``--for-production`` then default of url paths goes to ``latest``
-thus viewing the pages will result in 404 file not found error.
-You will need to change it manually to see the docs
-
 - Copy the documentation to the ``airflow-site`` repository
 
 All providers (including overriding documentation for doc-only changes):
@@ -397,11 +392,7 @@ breeze release-management publish-docs \
     --package-filter 'apache-airflow-providers-*' \
     --override-versioned
 
-cd "${AIRFLOW_SITE_DIRECTORY}"
-cd post-docs
-python add-back-references.py providers
-cd ..
-
+breeze release-management add-back-references --gen-type providers
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:

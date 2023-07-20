@@ -99,6 +99,7 @@ interface Task {
   operator?: string;
   hasOutletDatasets?: boolean;
   triggerRule?: API.TriggerRule;
+  setupTeardownType?: "setup" | "teardown";
 }
 
 type RunOrdering = (
@@ -137,6 +138,7 @@ export interface WebserverEdge {
   label?: string;
   sourceId: string;
   targetId: string;
+  isSetupTeardown?: boolean;
 }
 
 interface DatasetListItem extends API.Dataset {

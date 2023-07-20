@@ -15,7 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module took inspiration from the community maintenance dag
+This module took inspiration from the community maintenance dag.
+
+See:
 (https://github.com/teamclairvoyant/airflow-maintenance-dags/blob/4e5c7682a808082561d60cbc9cafaa477b0d8c65/db-cleanup/airflow-db-cleanup.py).
 """
 from __future__ import annotations
@@ -341,6 +343,7 @@ def _print_config(*, configs: dict[str, _TableConfig]):
 def _suppress_with_logging(table, session):
     """
     Suppresses errors but logs them.
+
     Also stores the exception instance so it can be referred to after exiting context.
     """
     try:
