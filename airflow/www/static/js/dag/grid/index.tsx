@@ -78,6 +78,14 @@ const Grid = ({
     }
   };
 
+  const checkScrollPosition = () => {
+    const gridScrollTop = gridScrollRef?.current?.scrollTop;
+    const ganttScrollTop = ganttScrollRef?.current?.scrollTop;
+    if (ganttScrollTop !== gridScrollTop && ganttScrollRef?.current) {
+      ganttScrollRef.current.scrollTo(0, gridScrollTop || 0);
+    }
+  };
+
   // Sync grid and gantt scroll
   useEffect(() => {
     const gantt = ganttScrollRef?.current;
@@ -177,6 +185,7 @@ const Grid = ({
               onToggleGroups,
               hoveredTaskState,
               isGridCollapsed,
+              checkScrollPosition,
             })}
           </Tbody>
         </Table>

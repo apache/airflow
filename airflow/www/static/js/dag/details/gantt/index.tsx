@@ -95,6 +95,14 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
     return () => {};
   }, [ganttRef, calculateGanttDimensions]);
 
+  const checkScrollPosition = () => {
+    const gridScrollTop = gridScrollRef.current?.scrollTop;
+    const ganttScrollTop = ganttScrollRef.current?.scrollTop;
+    if (ganttScrollTop !== gridScrollTop && gridScrollRef.current) {
+      gridScrollRef.current.scrollTo(0, ganttScrollTop || 0);
+    }
+  };
+
   const dagRun = dagRuns.find((dr) => dr.runId === runId);
 
   const startDate = dagRun?.startDate;
@@ -154,6 +162,7 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
             openGroupIds={openGroupIds}
             dagRun={dagRun}
             tasks={groups.children}
+            checkScrollPosition={checkScrollPosition}
           />
         )}
       </Box>

@@ -32,9 +32,16 @@ interface Props {
   openGroupIds: string[];
   dagRun: DagRun;
   tasks: Task[];
+  checkScrollPosition: () => void;
 }
 
-const Chart = ({ ganttWidth = 500, openGroupIds, tasks, dagRun }: Props) => {
+const Chart = ({
+  ganttWidth = 500,
+  openGroupIds,
+  tasks,
+  dagRun,
+  checkScrollPosition,
+}: Props) => {
   const {
     selected: { runId, taskId },
     onSelect,
@@ -132,12 +139,13 @@ const Chart = ({ ganttWidth = 500, openGroupIds, tasks, dagRun }: Props) => {
                     cursor="pointer"
                     pointerEvents="auto"
                     marginLeft={`${offsetMargin}px`}
-                    onClick={() =>
+                    onClick={() => {
                       onSelect({
                         runId: instance.runId,
                         taskId: instance.taskId,
-                      })
-                    }
+                      });
+                      checkScrollPosition();
+                    }}
                   >
                     {instance.state !== "queued" && hasQueuedDttm && (
                       <SimpleStatus
@@ -169,6 +177,7 @@ const Chart = ({ ganttWidth = 500, openGroupIds, tasks, dagRun }: Props) => {
                 openGroupIds={openGroupIds}
                 dagRun={dagRun}
                 tasks={task.children}
+                checkScrollPosition={checkScrollPosition}
               />
             )}
           </div>

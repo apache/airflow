@@ -40,6 +40,7 @@ interface RowProps {
   hoveredTaskState?: string | null;
   isParentMapped?: boolean;
   isGridCollapsed?: boolean;
+  checkScrollPosition?: () => void;
 }
 
 const renderTaskRows = ({ task, level = 0, ...rest }: RowProps) => (
@@ -58,6 +59,7 @@ interface TaskInstancesProps {
   onSelect: (selection: SelectionProps) => void;
   hoveredTaskState?: string | null;
   isGridCollapsed?: boolean;
+  checkScrollPosition?: () => void;
 }
 
 const TaskInstances = ({
@@ -65,6 +67,7 @@ const TaskInstances = ({
   dagRunIds,
   selectedRunId,
   onSelect,
+  checkScrollPosition,
   hoveredTaskState,
   isGridCollapsed,
 }: TaskInstancesProps) => (
@@ -87,7 +90,10 @@ const TaskInstances = ({
             <StatusBox
               instance={instance}
               group={task}
-              onSelect={onSelect}
+              onSelect={(selection) => {
+                onSelect(selection);
+                if (checkScrollPosition) checkScrollPosition();
+              }}
               isActive={
                 hoveredTaskState === undefined ||
                 hoveredTaskState === instance.state
@@ -114,6 +120,7 @@ const Row = (props: RowProps) => {
     hoveredTaskState,
     isParentMapped,
     isGridCollapsed,
+    checkScrollPosition,
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
@@ -186,6 +193,7 @@ const Row = (props: RowProps) => {
             onSelect={onSelect}
             hoveredTaskState={hoveredTaskState}
             isGridCollapsed={isGridCollapsed}
+            checkScrollPosition={checkScrollPosition}
           />
         </Td>
       </Tr>
