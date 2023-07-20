@@ -65,9 +65,10 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
     calculateGanttDimensions();
   }, [runId, taskId, openGroupIds, calculateGanttDimensions]);
 
-  const onGridScroll = () => {
-    if (gridScrollRef.current?.scrollTop && ganttScrollRef?.current) {
-      ganttScrollRef.current.scrollTop = gridScrollRef.current?.scrollTop;
+  const onGridScroll = (e: Event) => {
+    const { scrollTop } = e.currentTarget as HTMLDivElement;
+    if (scrollTop && ganttScrollRef?.current) {
+      ganttScrollRef.current.scrollTo(0, scrollTop);
     }
   };
 

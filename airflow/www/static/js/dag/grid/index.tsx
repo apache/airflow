@@ -39,8 +39,8 @@ interface Props {
   onToggleGroups: (groupIds: string[]) => void;
   isGridCollapsed?: boolean;
   setIsGridCollapsed?: (collapsed: boolean) => void;
-  gridScrollRef?: any;
-  ganttScrollRef?: any;
+  gridScrollRef?: React.RefObject<HTMLDivElement>;
+  ganttScrollRef?: React.RefObject<HTMLDivElement>;
 }
 
 const Grid = ({
@@ -71,16 +71,16 @@ const Grid = ({
       return true;
     });
 
-  const onGanttScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = e?.currentTarget?.scrollTop;
-    if (scrollTop && ganttScrollRef?.current) {
-      gridScrollRef.current.scrollTop = scrollTop;
+  const onGanttScroll = (e: Event) => {
+    const { scrollTop } = e.currentTarget as HTMLDivElement;
+    if (scrollTop && gridScrollRef?.current) {
+      gridScrollRef.current.scrollTo(0, scrollTop);
     }
   };
 
   // Sync grid and gantt scroll
   useEffect(() => {
-    const gantt = ganttScrollRef.current;
+    const gantt = ganttScrollRef?.current;
     gantt?.addEventListener("scroll", onGanttScroll);
     return () => {
       gantt?.removeEventListener("scroll", onGanttScroll);

@@ -376,6 +376,13 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     record["start_date"] = min(
                         filter(None, [record["start_date"], ti_summary.start_date]), default=None
                     )
+                    # Sometimes the start date of a group might be before the queued date of the group
+                    if (
+                        record["queued_dttm"]
+                        and record["start_date"]
+                        and record["queued_dttm"] > record["start_date"]
+                    ):
+                        record["queued_dttm"] = None
                     record["end_date"] = max(
                         filter(None, [record["end_date"], ti_summary.end_date]), default=None
                     )
@@ -434,6 +441,9 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             group_queued_dttm = min(filter(None, children_queued_dttms), default=None)
             group_start_date = min(filter(None, children_start_dates), default=None)
             group_end_date = max(filter(None, children_end_dates), default=None)
+            # Sometimes the start date of a group might be before the queued date of the group
+            if group_queued_dttm and group_start_date and group_queued_dttm > group_start_date:
+                group_queued_dttm = None
 
             return {
                 "task_id": task_group.group_id,
