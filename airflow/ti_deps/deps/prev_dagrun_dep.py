@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, literal, select
+from sqlalchemy import func, literal, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
@@ -100,7 +100,7 @@ class PrevDagrunDep(BaseTIDep):
                 TI.dag_id == dagrun.dag_id,
                 TI.task_id == task_id,
                 TI.run_id == dagrun.run_id,
-                TI.state.not_in(_SUCCESSFUL_STATES),
+                or_(TI.state.is_(None), TI.state.not_in(_SUCCESSFUL_STATES)),
             )
         )
 
@@ -123,7 +123,7 @@ class PrevDagrunDep(BaseTIDep):
                     TI.dag_id == dagrun.dag_id,
                     TI.task_id.in_(task.downstream_task_ids),
                     TI.run_id == dagrun.run_id,
-                    TI.state.not_in(_SUCCESSFUL_STATES),
+                    or_(TI.state.is_(None), TI.state.not_in(_SUCCESSFUL_STATES)),
                 )
                 .limit(1)
             )
