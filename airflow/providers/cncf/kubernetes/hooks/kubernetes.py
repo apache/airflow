@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import contextlib
 import tempfile
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generator
 
 from asgiref.sync import sync_to_async
@@ -151,7 +150,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             else:
                 raise
 
-    @cached_property
+    @property
     def conn_extras(self):
         if self.conn_id:
             connection = self.get_connection(self.conn_id)
@@ -263,16 +262,16 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             assert self._is_in_cluster is not None
         return self._is_in_cluster
 
-    @cached_property
+    @property
     def api_client(self) -> client.ApiClient:
         """Cached Kubernetes API client."""
         return self.get_conn()
 
-    @cached_property
+    @property
     def core_v1_client(self) -> client.CoreV1Api:
         return client.CoreV1Api(api_client=self.api_client)
 
-    @cached_property
+    @property
     def custom_object_client(self) -> client.CustomObjectsApi:
         return client.CustomObjectsApi(api_client=self.api_client)
 

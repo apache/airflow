@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Generator, cast
 
 import pendulum
 import tenacity
-from kubernetes import client, watch
+from kubernetes import client, config, watch
 from kubernetes.client.models.v1_container_status import V1ContainerStatus
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
@@ -257,16 +257,14 @@ class PodLoggingStatus:
 class PodManager(LoggingMixin):
     """Create, monitor, and otherwise interact with Kubernetes pods for use with the KubernetesPodOperator."""
 
-    def __init__(
-        self,
-        kube_client: client.CoreV1Api,
-    ):
+    def __init__(self, kube_client: client.CoreV1Api, cluster_context: str):
         """
         Creates the launcher.
 
         :param kube_client: kubernetes client
         """
         super().__init__()
+        self.my_cluster_context = cluster_context
         self._client = kube_client
         self._watch = watch.Watch()
 
@@ -616,6 +614,8 @@ class PodManager(LoggingMixin):
     def read_pod(self, pod: V1Pod) -> V1Pod:
         """Read POD information."""
         try:
+            config.load_kube_config(context=self.my_cluster_context)
+            self._client = get_kube_client(in_cluster=False, cluster_context=self.my_cluster_context)
             return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except BaseHTTPError as e:
             raise AirflowException(f"There was an error reading the kubernetes API: {e}")

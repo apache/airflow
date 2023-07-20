@@ -29,6 +29,7 @@ from contextlib import AbstractContextManager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
+from kubernetes import config
 from kubernetes.client import CoreV1Api, models as k8s
 from slugify import slugify
 from urllib3.exceptions import HTTPError
@@ -353,7 +354,7 @@ class KubernetesPodOperator(BaseOperator):
         self.volumes = [convert_volume(volume) for volume in volumes] if volumes else []
         self.secrets = secrets or []
         self.in_cluster = in_cluster
-        self.cluster_context = cluster_context
+        self.cluster_context = cluster_context or ""
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
         self.container_logs = container_logs
@@ -492,11 +493,11 @@ class KubernetesPodOperator(BaseOperator):
             labels[label_id] = safe_label
         return labels
 
-    @cached_property
+    @property
     def pod_manager(self) -> PodManager:
-        return PodManager(kube_client=self.client)
+        return PodManager(kube_client=self.client, cluster_context=self.cluster_context)
 
-    @cached_property
+    @property
     def hook(self) -> PodOperatorHookProtocol:
         hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
@@ -506,8 +507,9 @@ class KubernetesPodOperator(BaseOperator):
         )
         return hook
 
-    @cached_property
+    @property
     def client(self) -> CoreV1Api:
+        config.load_kube_config(context=self.cluster_context)
         return self.hook.core_v1_client
 
     def find_pod(self, namespace: str, context: Context, *, exclude_checked: bool = True) -> k8s.V1Pod | None:
