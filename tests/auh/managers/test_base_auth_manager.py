@@ -31,5 +31,5 @@ def auth_manager():
 
 
 class TestBaseAuthManager:
-    def test_get_security_manager_override_class_return_class(self, auth_manager):
-        assert type(auth_manager.get_security_manager_override_class()) is type
+    def test_get_security_manager_override_class_return_empty_class(self, auth_manager):
+        assert auth_manager.get_security_manager_override_class() is object
