@@ -126,17 +126,12 @@ class Trigger(Base):
                 )
 
         # Get all triggers that have no task instances depending on them...
-        ids = [
-            trigger_id
-            for trigger_id in (
-                session.scalars(
-                    select(cls.id)
-                    .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
-                    .group_by(cls.id)
-                    .having(func.count(TaskInstance.trigger_id) == 0)
-                )
-            )
-        ]
+        ids = session.scalars(
+            select(cls.id)
+            .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
+            .group_by(cls.id)
+            .having(func.count(TaskInstance.trigger_id) == 0)
+        ).all()
         # ...and delete them (we can't do this in one query due to MySQL)
         session.execute(
             delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
