@@ -47,7 +47,11 @@ with DAG(
         blob_name=AZURE_BLOB_NAME,
     )
     # [END howto_operator_local_to_wasb]
-    delete = WasbDeleteBlobOperator(task_id="delete_file")
+    delete = WasbDeleteBlobOperator(
+        task_id="delete_file",
+        container_name=AZURE_CONTAINER_NAME,
+        blob_name=AZURE_BLOB_NAME,
+    )
 
     upload >> delete
 
