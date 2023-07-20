@@ -56,6 +56,7 @@ TEST_BODY = {
 TEST_LOCATION = "test-location"
 TEST_PROJECTID = "test-project-id"
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
+TEST_DATA_PIPELINE_NAME = "test_data_pipeline_name"
 
 class TestCreateDataPipelineOperator:
     @pytest.fixture
@@ -70,3 +71,31 @@ class TestCreateDataPipelineOperator:
     # TODO: Test the execute function 
     # TODO: Test Hook
     # TODO: Test all parameters are given
+
+class TestRunDataPipelineOperator:
+    @pytest.fixture
+    def run_operator(self):
+        """Create a RunDataPipelineOperator instance"""
+        return RunDataPipelineOperator(
+            task_id=TASK_ID,
+            data_pipeline_name=TEST_DATA_PIPELINE_NAME,
+            project_id=TEST_PROJECTID,
+            location=TEST_LOCATION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.datapipeline.DataPipelineHook")
+    def test_execute(self, data_pipeline_hook_mock, run_operator):
+        """Test Run Operator execute with correct parameters"""
+        run_operator.execute(mock.MagicMock())
+        data_pipeline_hook_mock.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
+        
+        data_pipeline_hook_mock.return_value.run_data_pipeline.assert_called_once_with(
+            data_pipeline_name=TEST_DATA_PIPELINE_NAME,
+            project_id=TEST_PROJECTID,
+            location=TEST_LOCATION,
+        )
+
+    # TODO test execute errors
