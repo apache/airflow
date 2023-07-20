@@ -1204,6 +1204,10 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     """Start a Hive query Job on a Cloud DataProc cluster.
 
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
+
     :param query: The query or reference to the query file (q extension).
     :param query_uri: The HCFS URI of the script that contains the Hive queries.
     :param variables: Map of named parameters for the query.
