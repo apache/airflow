@@ -51,6 +51,85 @@ class PrevDagrunDep(BaseTIDep):
         if dep_context.wait_for_past_depends_before_skipping:
             ti.xcom_push(key=PAST_DEPENDS_MET, value=True)
 
+    @staticmethod
+    def _has_tis(dagrun: DagRun, task_id: str, *, session: Session) -> bool:
+        """Check if a task has presence in the specified DAG run.
+
+        This function exists for easy mocking in tests.
+        """
+        return (
+            session.scalar(
+                select(literal(True))
+                .where(TI.dag_id == dagrun.dag_id, TI.task_id == task_id, TI.run_id == dagrun.run_id)
+                .limit(1)
+            )
+            is not None
+        )
+
+    @staticmethod
+    def _has_any_prior_tis(ti: TI, *, session: Session) -> bool:
+        """Check if a task has ever been run before.
+
+        This function exists for easy mocking in tests.
+        """
+        return (
+            session.scalar(
+                select(literal(True))
+                .where(
+                    TI.dag_id == ti.dag_id,
+                    TI.task_id == ti.task_id,
+                    TI.execution_date < ti.execution_date,
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
+    @staticmethod
+    def _count_unsuccessful_tis(dagrun: DagRun, task_id: str, *, session: Session) -> int:
+        """Get a count of unsuccessful task instances in a given run.
+
+        Due to historical design considerations, "unsuccessful" here means the
+        task instance is not in either SUCCESS or SKIPPED state. This means that
+        unfinished states such as RUNNING are considered unsuccessful.
+
+        This function exists for easy mocking in tests.
+        """
+        return session.scalar(
+            select(func.count()).where(
+                TI.dag_id == dagrun.dag_id,
+                TI.task_id == task_id,
+                TI.run_id == dagrun.run_id,
+                TI.state.not_in(_SUCCESSFUL_STATES),
+            )
+        )
+
+    @staticmethod
+    def _has_unsuccessful_dependants(dagrun: DagRun, task: Operator, *, session: Session) -> bool:
+        """Check if any of the task's dependants are unsuccessful in a given run.
+
+        Due to historical design considerations, "unsuccessful" here means the
+        task instance is not in either SUCCESS or SKIPPED state. This means that
+        unfinished states such as RUNNING are considered unsuccessful.
+
+        This function exists for easy mocking in tests.
+        """
+        if not task.downstream_task_ids:
+            return False
+        return (
+            session.scalar(
+                select(literal(True))
+                .where(
+                    TI.dag_id == dagrun.dag_id,
+                    TI.task_id.in_(task.downstream_task_ids),
+                    TI.run_id == dagrun.run_id,
+                    TI.state.not_in(_SUCCESSFUL_STATES),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
     @provide_session
     def _get_dep_statuses(self, ti: TI, session: Session, dep_context):
         if dep_context.ignore_depends_on_past:
@@ -89,23 +168,9 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
-        has_tis = session.scalar(
-            select(literal(True))
-            .where(TI.dag_id == last_dagrun.dag_id, TI.task_id == ti.task_id, TI.run_id == last_dagrun.run_id)
-            .limit(1)
-        )
-        if has_tis is None:
+        if not self._has_tis(last_dagrun, ti.task_id, session=session):
             if ti.task.ignore_first_depends_on_past:
-                has_any_historical_ti = session.scalar(
-                    select(literal(True))
-                    .where(
-                        TI.dag_id == ti.dag_id,
-                        TI.task_id == ti.task_id,
-                        TI.execution_date < ti.execution_date,
-                    )
-                    .limit(1)
-                )
-                if has_any_historical_ti is not None:
+                if not self._has_any_prior_tis(ti, session=session):
                     self._push_past_deps_met_xcom_if_needed(ti, dep_context)
                     yield self._passing_status(
                         reason="ignore_first_depends_on_past is true for this task "
@@ -119,14 +184,7 @@ class PrevDagrunDep(BaseTIDep):
             )
             return
 
-        unsuccessful_tis_count = session.scalar(
-            select(func.count()).where(
-                TI.dag_id == last_dagrun.dag_id,
-                TI.task_id == ti.task_id,
-                TI.run_id == last_dagrun.run_id,
-                TI.state.not_in(_SUCCESSFUL_STATES),
-            )
-        )
+        unsuccessful_tis_count = self._count_unsuccessful_tis(last_dagrun, ti.task_id, session=session)
         if unsuccessful_tis_count > 0:
             reason = (
                 f"depends_on_past is true for this task, but {unsuccessful_tis_count} "
@@ -135,22 +193,9 @@ class PrevDagrunDep(BaseTIDep):
             yield self._failing_status(reason=reason)
             return
 
-        def _has_unsuccessful_dependants(dagrun: DagRun, task: Operator) -> bool:
-            if not task.downstream_task_ids:
-                return False
-            has_unsuccessful_tis_stmt = (
-                select(literal(True))
-                .where(
-                    TI.dag_id == dagrun.dag_id,
-                    TI.task_id == task.task_id,
-                    TI.run_id == dagrun.run_id,
-                    TI.state.not_in(_SUCCESSFUL_STATES),
-                )
-                .limit(1)
-            )
-            return session.scalar(has_unsuccessful_tis_stmt) is not None
-
-        if ti.task.wait_for_downstream and _has_unsuccessful_dependants(last_dagrun, ti.task):
+        if ti.task.wait_for_downstream and self._has_unsuccessful_dependants(
+            last_dagrun, ti.task, session=session
+        ):
             yield self._failing_status(
                 reason=(
                     "The tasks downstream of the previous task instance(s) "

@@ -75,11 +75,12 @@ class TestPrevDagrunDep:
         ti = dr.get_task_instance(new_task.task_id)
         ti.task = new_task
 
-        # this is important, we need to assert there is no previous_ti of this ti
-        assert ti.get_previous_ti() is None
-
         dep_context = DepContext(ignore_depends_on_past=False)
-        assert PrevDagrunDep().is_met(ti=ti, dep_context=dep_context)
+        dep = PrevDagrunDep()
+
+        with patch.object(dep, "_has_any_prior_tis", Mock(return_value=False)) as mock_has_any_prior_tis:
+            assert dep.is_met(ti=ti, dep_context=dep_context)
+            mock_has_any_prior_tis.assert_called_once_with(ti, session=ANY)
 
 
 @pytest.mark.parametrize(
@@ -89,7 +90,7 @@ class TestPrevDagrunDep:
         "wait_for_downstream",
         "prev_tis",
         "context_ignore_depends_on_past",
-        "dep_met",
+        "expected_dep_met",
         "past_depends_met_xcom_sent",
     ),
     [
@@ -207,7 +208,7 @@ def test_dagrun_dep(
     wait_for_downstream,
     prev_tis,
     context_ignore_depends_on_past,
-    dep_met,
+    expected_dep_met,
     past_depends_met_xcom_sent,
 ):
     task = BaseOperator(
@@ -238,15 +239,38 @@ def test_dagrun_dep(
         wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
     )
 
-    dep = PrevDagrunDep()
-    with patch.object(dep, "_get_task_instances", Mock(return_value=prev_tis)) as mock_get_task_instances:
-        result = dep.is_met(ti=ti, dep_context=dep_context)
-        if depends_on_past and not context_ignore_depends_on_past and prev_tis:
-            mock_get_task_instances.assert_called_once_with(prev_dagrun, "test_task", session=ANY)
-        else:
-            mock_get_task_instances.assert_not_called()
+    unsuccessful_tis_count = sum(
+        int(ti.state not in {TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED}) for ti in prev_tis
+    )
 
-    assert result == dep_met
+    mock_has_tis = Mock(return_value=bool(prev_tis))
+    mock_has_any_prior_tis = Mock(return_value=bool(prev_tis))
+    mock_count_unsuccessful_tis = Mock(return_value=unsuccessful_tis_count)
+    mock_has_unsuccessful_dependants = Mock(return_value=any(not ti.are_dependents_done() for ti in prev_tis))
+
+    dep = PrevDagrunDep()
+    with patch.multiple(
+        dep,
+        _has_tis=mock_has_tis,
+        _has_any_prior_tis=mock_has_any_prior_tis,
+        _count_unsuccessful_tis=mock_count_unsuccessful_tis,
+        _has_unsuccessful_dependants=mock_has_unsuccessful_dependants,
+    ):
+        actual_dep_met = dep.is_met(ti=ti, dep_context=dep_context)
+
+        mock_has_any_prior_tis.assert_not_called()
+        if depends_on_past and not context_ignore_depends_on_past and prev_tis:
+            mock_has_tis.assert_called_once_with(prev_dagrun, "test_task", session=ANY)
+            mock_count_unsuccessful_tis.assert_called_once_with(prev_dagrun, "test_task", session=ANY)
+        else:
+            mock_has_tis.assert_not_called()
+            mock_count_unsuccessful_tis.assert_not_called()
+        if depends_on_past and not context_ignore_depends_on_past and prev_tis and not unsuccessful_tis_count:
+            mock_has_unsuccessful_dependants.assert_called_once_with(prev_dagrun, task, session=ANY)
+        else:
+            mock_has_unsuccessful_dependants.assert_not_called()
+
+    assert actual_dep_met == expected_dep_met
     if past_depends_met_xcom_sent:
         ti.xcom_push.assert_called_with(key="past_depends_met", value=True)
     else:
