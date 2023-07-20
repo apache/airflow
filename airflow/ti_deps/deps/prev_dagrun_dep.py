@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import case, func, select
+from sqlalchemy import func, literal, select
 from sqlalchemy.orm import Session
 
 from airflow.models.dagrun import DagRun
@@ -85,24 +85,23 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
-        total_count, unsuccessful_count = session.execute(
-            select(func.count(), func.sum(case((TI.state.not_in(_SUCCESSFUL_STATES), 1), else_=0))).where(
-                TI.dag_id == last_dagrun.dag_id,
-                TI.task_id == ti.task_id,
-                TI.run_id == last_dagrun.run_id,
-            )
-        ).one()
-
-        if total_count < 1:
+        has_tis = session.scalar(
+            select(literal(True))
+            .where(TI.dag_id == last_dagrun.dag_id, TI.task_id == ti.task_id, TI.run_id == last_dagrun.run_id)
+            .limit(1)
+        )
+        if has_tis is None:
             if ti.task.ignore_first_depends_on_past:
-                historical_ti_count = session.scalars(
-                    select(func.count()).where(
+                has_any_historical_ti = session.scalar(
+                    select(literal(True))
+                    .where(
                         TI.dag_id == ti.dag_id,
                         TI.task_id == ti.task_id,
                         TI.execution_date < ti.execution_date,
                     )
-                ).one()
-                if historical_ti_count > 0:
+                    .limit(1)
+                )
+                if has_any_historical_ti is not None:
                     self._push_past_deps_met_xcom_if_needed(ti, dep_context)
                     yield self._passing_status(
                         reason="ignore_first_depends_on_past is true for this task "
@@ -116,9 +115,17 @@ class PrevDagrunDep(BaseTIDep):
             )
             return
 
-        if unsuccessful_count > 0:
+        unsuccessful_tis_count = session.scalar(
+            select(func.count()).where(
+                TI.dag_id == last_dagrun.dag_id,
+                TI.task_id == ti.task_id,
+                TI.run_id == last_dagrun.run_id,
+                TI.state.not_in(_SUCCESSFUL_STATES),
+            )
+        )
+        if unsuccessful_tis_count > 0:
             reason = (
-                f"depends_on_past is true for this task, but {unsuccessful_count} "
+                f"depends_on_past is true for this task, but {unsuccessful_tis_count} "
                 f"previous task instance(s) are not in a successful state."
             )
             yield self._failing_status(reason=reason)
@@ -127,13 +134,17 @@ class PrevDagrunDep(BaseTIDep):
         def _has_unsuccessful_dependants(dagrun: DagRun, task: Operator) -> bool:
             if not task.downstream_task_ids:
                 return False
-            unsuccessful_ti_count_stmt = select(func.count()).where(
-                TI.dag_id == dagrun.dag_id,
-                TI.task_id == task.task_id,
-                TI.run_id == dagrun.run_id,
-                TI.state.not_in(_SUCCESSFUL_STATES),
+            has_unsuccessful_tis_stmt = (
+                select(literal(True))
+                .where(
+                    TI.dag_id == dagrun.dag_id,
+                    TI.task_id == task.task_id,
+                    TI.run_id == dagrun.run_id,
+                    TI.state.not_in(_SUCCESSFUL_STATES),
+                )
+                .limit(1)
             )
-            return session.scalars(unsuccessful_ti_count_stmt).one() > 0
+            return session.scalar(has_unsuccessful_tis_stmt) is not None
 
         if ti.task.wait_for_downstream and _has_unsuccessful_dependants(last_dagrun, ti.task):
             yield self._failing_status(
