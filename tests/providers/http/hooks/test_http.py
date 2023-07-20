@@ -526,11 +526,11 @@ class TestHttpAsyncHook:
             reason="OK",
         )
 
-        with mock.patch(
-            "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection
-        ):
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
             hook = HttpAsyncHook()
             with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
                 await hook.run("v1/test")
                 headers = mocked_function.call_args.kwargs.get("headers")
-                assert all(key in headers and headers[key] == value for key, value in connection_extra.items())
+                assert all(
+                    key in headers and headers[key] == value for key, value in connection_extra.items()
+                )
