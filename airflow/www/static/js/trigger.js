@@ -64,7 +64,7 @@ function updateJSONconf() {
       } else if (
         elements[i].attributes.valuetype &&
         (elements[i].attributes.valuetype.value === "object" ||
-          elements[i].attributes.valuetype.value === "customarray")
+          elements[i].attributes.valuetype.value === "advancedarray")
       ) {
         try {
           const textValue = objectFields.get(elements[i].name).getValue();
@@ -125,7 +125,7 @@ function initForm() {
         if (
           elements[i].attributes.valuetype &&
           (elements[i].attributes.valuetype.value === "object" ||
-            elements[i].attributes.valuetype.value === "customarray")
+            elements[i].attributes.valuetype.value === "advancedarray")
         ) {
           // Apply JSON formatting and linting to all object fields in the form
           const field = CodeMirror.fromTextArea(elements[i], {
@@ -235,7 +235,7 @@ function setRecentConfig(e) {
       } else if (
         element.attributes.valuetype &&
         (element.attributes.valuetype.value === "object" ||
-          element.attributes.valuetype.value === "customarray")
+          element.attributes.valuetype.value === "advancedarray")
       ) {
         objectFields
           .get(`element_${keys[i]}`)
