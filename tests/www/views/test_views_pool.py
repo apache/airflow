@@ -29,6 +29,7 @@ POOL = {
     "pool": "test-pool",
     "slots": 777,
     "description": "test-pool-description",
+    "include_deferred": False,
 }
 
 
