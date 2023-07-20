@@ -54,6 +54,8 @@ Start an EMR Serverless Job
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStartJobOperator` to
 start an EMR Serverless Job.
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
+the aiobotocore module to be installed.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
    :language: python
