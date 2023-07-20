@@ -57,10 +57,9 @@ const Chart = ({ ganttWidth = 500, openGroupIds, tasks, dagRun }: Props) => {
           instance?.startDate,
           instance?.endDate
         );
-        const queuedDuration = getDuration(
-          instance?.queuedDttm,
-          instance?.startDate
-        );
+        const queuedDuration = hasQueuedDttm
+          ? getDuration(instance?.queuedDttm, instance?.startDate)
+          : 0;
         const taskStartOffset = getDuration(
           dagRun.startDate,
           instance?.queuedDttm || instance?.startDate
@@ -79,13 +78,12 @@ const Chart = ({ ganttWidth = 500, openGroupIds, tasks, dagRun }: Props) => {
           ? ganttWidth * queuedDurationPercent
           : 0;
         if (hasQueuedDttm && queuedWidth < 5) queuedWidth = 5;
-        const offsetWidth = taskStartOffsetPercent * ganttWidth;
+        const offsetMargin = taskStartOffsetPercent * ganttWidth;
 
         return (
           <div key={`gantt-${task.id}`}>
             <Box
               py="4px"
-              px={1}
               borderBottomWidth={1}
               borderBottomColor={isGroup && isOpen ? "gray.400" : "gray.200"}
               bg={isSelected ? "blue.100" : "inherit"}
@@ -98,9 +96,11 @@ const Chart = ({ ganttWidth = 500, openGroupIds, tasks, dagRun }: Props) => {
                         Task{isGroup ? " Group" : ""}: {task.label}
                       </Text>
                       <br />
-                      <Text>
-                        Queued Duration: {formatDuration(queuedDuration)}
-                      </Text>
+                      {hasQueuedDttm && (
+                        <Text>
+                          Queued Duration: {formatDuration(queuedDuration)}
+                        </Text>
+                      )}
                       <Text>Run Duration: {formatDuration(taskDuration)}</Text>
                       <br />
                       {hasQueuedDttm && (
@@ -131,7 +131,7 @@ const Chart = ({ ganttWidth = 500, openGroupIds, tasks, dagRun }: Props) => {
                     width={`${width + queuedWidth}px`}
                     cursor="pointer"
                     pointerEvents="auto"
-                    marginLeft={`${offsetWidth}px`}
+                    marginLeft={`${offsetMargin}px`}
                     onClick={() =>
                       onSelect({
                         runId: instance.runId,
