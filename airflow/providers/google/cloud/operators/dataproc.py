@@ -1424,6 +1424,10 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
 class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     """Start a Hadoop Job on a Cloud DataProc cluster.
 
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
+
     :param main_jar: The HCFS URI of the jar file containing the main class
         (use this or the main_class, not both together).
     :param main_class: Name of the job class. (use this or the main_jar, not both
@@ -1931,7 +1935,9 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param job: Required. The job resource.
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.dataproc_v1.types.Job`
+        :class:`~google.cloud.dataproc_v1.types.Job`.
+        For the complete list of supported job types please take a look here
+        https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.jobs
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``SubmitJobRequest`` requests with the same id, then the second request will be ignored and the first
         ``Job`` created and stored in the backend is returned.
