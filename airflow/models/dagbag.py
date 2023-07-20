@@ -102,7 +102,6 @@ class DagBag(LoggingMixin):
     ):
         # Avoid circular import
         from airflow.models.dag import DAG
-        from airflowinfra.multi_cluster_utils import fetch_dags_in_cluster
 
         super().__init__()
 
@@ -121,6 +120,8 @@ class DagBag(LoggingMixin):
         
         # if this fetch fails, then so will this DagBag init process
         if self.service_instance == 'production':
+
+            from airflowinfra.multi_cluster_utils import fetch_dags_in_cluster
             self.cluster_dags = fetch_dags_in_cluster()
         
         self.dag_folder = dag_folder
@@ -404,7 +405,6 @@ class DagBag(LoggingMixin):
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
         from airflow.models.dag import DAG  # Avoid circular import
-        from airflowinfra.multi_cluster_utils import _dag_in_migrated_flyte_repo
 
         top_level_dags = ((o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG))
 
@@ -417,6 +417,8 @@ class DagBag(LoggingMixin):
             # to the appropriate set of DAGs.
             if self.service_instance == 'production':
 
+                from airflowinfra.multi_cluster_utils import _dag_in_migrated_flyte_repo
+                
                 if not self.cluster_dags:
                     raise AirflowFailException
                 # Do not load DAGs that are missing from the DAG mapping table 
