@@ -71,11 +71,58 @@ class TestPool:
         ):
             op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
             op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
+            op3 = EmptyOperator(task_id="dummy3", pool="test_pool")
+        dag_maker.create_dagrun()
+        ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
+        ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
+        ti3 = TI(task=op3, execution_date=DEFAULT_DATE)
+        ti1.state = State.RUNNING
+        ti2.state = State.QUEUED
+        ti3.state = State.DEFERRED
+
+        session = settings.Session()
+        session.add(pool)
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(ti3)
+        session.commit()
+        session.close()
+
+        assert 3 == pool.open_slots()
+        assert 1 == pool.running_slots()
+        assert 1 == pool.queued_slots()
+        assert 2 == pool.occupied_slots()
+        assert 1 == pool.deferred_slots()
+        assert {
+            "default_pool": {
+                "open": 128,
+                "queued": 0,
+                "total": 128,
+                "running": 0,
+                "deferred": 0,
+            },
+            "test_pool": {
+                "open": 3,
+                "queued": 1,
+                "running": 1,
+                "deferred": 1,
+                "total": 5,
+            },
+        } == pool.slots_stats()
+
+    def test_open_slots_including_deferred(self, dag_maker):
+        pool = Pool(pool="test_pool", slots=5, include_deferred=True)
+        with dag_maker(
+            dag_id="test_open_slots_including_deferred",
+            start_date=DEFAULT_DATE,
+        ):
+            op1 = EmptyOperator(task_id="dummy1", pool="test_pool")
+            op2 = EmptyOperator(task_id="dummy2", pool="test_pool")
         dag_maker.create_dagrun()
         ti1 = TI(task=op1, execution_date=DEFAULT_DATE)
         ti2 = TI(task=op2, execution_date=DEFAULT_DATE)
         ti1.state = State.RUNNING
-        ti2.state = State.QUEUED
+        ti2.state = State.DEFERRED
 
         session = settings.Session()
         session.add(pool)
@@ -86,7 +133,8 @@ class TestPool:
 
         assert 3 == pool.open_slots()
         assert 1 == pool.running_slots()
-        assert 1 == pool.queued_slots()
+        assert 0 == pool.queued_slots()
+        assert 1 == pool.deferred_slots()
         assert 2 == pool.occupied_slots()
         assert {
             "default_pool": {
@@ -94,11 +142,13 @@ class TestPool:
                 "queued": 0,
                 "total": 128,
                 "running": 0,
+                "deferred": 0,
             },
             "test_pool": {
                 "open": 3,
-                "queued": 1,
+                "queued": 0,
                 "running": 1,
+                "deferred": 1,
                 "total": 5,
             },
         } == pool.slots_stats()
@@ -133,12 +183,14 @@ class TestPool:
                 "queued": 0,
                 "total": 128,
                 "running": 0,
+                "deferred": 0,
             },
             "test_pool": {
                 "open": float("inf"),
                 "queued": 1,
                 "running": 1,
                 "total": float("inf"),
+                "deferred": 0,
             },
         } == pool.slots_stats()
 
@@ -170,6 +222,7 @@ class TestPool:
                 "queued": 2,
                 "total": 5,
                 "running": 1,
+                "deferred": 0,
             }
         } == Pool.slots_stats()
 

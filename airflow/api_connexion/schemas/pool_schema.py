@@ -62,6 +62,11 @@ class PoolSchema(SQLAlchemySchema):
         return obj.scheduled_slots()
 
     @staticmethod
+    def get_deferred_slots(obj: Pool) -> int:
+        """Returns the deferred slots of the pool."""
+        return obj.deferred_slots()
+
+    @staticmethod
     def get_open_slots(obj: Pool) -> float:
         """Returns the open slots of the pool."""
         return obj.open_slots()

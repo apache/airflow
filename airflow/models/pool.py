@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import Column, Integer, String, Text, func, select
+from sqlalchemy import Boolean, Column, Integer, String, Text, func, select
 from sqlalchemy.orm.session import Session
 
 from airflow.exceptions import AirflowException, PoolNotFound
@@ -37,6 +37,7 @@ class PoolStats(TypedDict):
 
     total: int
     running: int
+    deferred: int
     queued: int
     open: int
 
@@ -51,6 +52,7 @@ class Pool(Base):
     # -1 for infinite
     slots = Column(Integer, default=0)
     description = Column(Text)
+    include_deferred = Column(Boolean, nullable=False)
 
     DEFAULT_POOL_NAME = "default_pool"
 
@@ -161,21 +163,26 @@ class Pool(Base):
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
         pools: dict[str, PoolStats] = {}
+        pool_includes_deferred: dict[str, bool] = {}
 
-        query = select(Pool.pool, Pool.slots)
+        query = select(Pool.pool, Pool.slots, Pool.include_deferred)
 
         if lock_rows:
             query = with_row_locks(query, session=session, **nowait(session))
 
         pool_rows = session.execute(query)
-        for (pool_name, total_slots) in pool_rows:
+        for (pool_name, total_slots, include_deferred) in pool_rows:
             if total_slots == -1:
                 total_slots = float("inf")  # type: ignore
-            pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0)
+            pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0, deferred=0)
+            pool_includes_deferred[pool_name] = include_deferred
 
+        allowed_execution_states = EXECUTION_STATES | {
+            TaskInstanceState.DEFERRED,
+        }
         state_count_by_pool = session.execute(
             select(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
-            .filter(TaskInstance.state.in_(EXECUTION_STATES))
+            .filter(TaskInstance.state.in_(allowed_execution_states))
             .group_by(TaskInstance.pool, TaskInstance.state)
         )
 
@@ -192,12 +199,16 @@ class Pool(Base):
                 stats_dict["running"] = count
             elif state == TaskInstanceState.QUEUED:
                 stats_dict["queued"] = count
+            elif state == TaskInstanceState.DEFERRED:
+                stats_dict["deferred"] = count
             else:
-                raise AirflowException(f"Unexpected state. Expected values: {EXECUTION_STATES}.")
+                raise AirflowException(f"Unexpected state. Expected values: {allowed_execution_states}.")
 
         # calculate open metric
         for pool_name, stats_dict in pools.items():
             stats_dict["open"] = stats_dict["total"] - stats_dict["running"] - stats_dict["queued"]
+            if pool_includes_deferred[pool_name]:
+                stats_dict["open"] -= stats_dict["deferred"]
 
         return pools
 
@@ -212,6 +223,7 @@ class Pool(Base):
             "pool": self.pool,
             "slots": self.slots,
             "description": self.description,
+            "include_deferred": self.include_deferred,
         }
 
     @provide_session
@@ -224,14 +236,23 @@ class Pool(Base):
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
 
+        occupied_states = self.get_occupied_states()
+
         return int(
             session.scalar(
                 select(func.sum(TaskInstance.pool_slots))
                 .filter(TaskInstance.pool == self.pool)
-                .filter(TaskInstance.state.in_(EXECUTION_STATES))
+                .filter(TaskInstance.state.in_(occupied_states))
             )
             or 0
         )
+
+    def get_occupied_states(self):
+        if self.include_deferred:
+            return EXECUTION_STATES | {
+                TaskInstanceState.DEFERRED,
+            }
+        return EXECUTION_STATES
 
     @provide_session
     def running_slots(self, session: Session = NEW_SESSION) -> int:
@@ -286,6 +307,25 @@ class Pool(Base):
                 select(func.sum(TaskInstance.pool_slots))
                 .filter(TaskInstance.pool == self.pool)
                 .filter(TaskInstance.state == TaskInstanceState.SCHEDULED)
+            )
+            or 0
+        )
+
+    @provide_session
+    def deferred_slots(self, session: Session = NEW_SESSION) -> int:
+        """
+        Get the number of slots deferred at the moment.
+
+        :param session: SQLAlchemy ORM Session
+        :return: the number of deferred slots
+        """
+        from airflow.models.taskinstance import TaskInstance  # Avoid circular import
+
+        return int(
+            session.scalar(
+                select(func.sum(TaskInstance.pool_slots))
+                .filter(TaskInstance.pool == self.pool)
+                .filter(TaskInstance.state == TaskInstanceState.DEFERRED)
             )
             or 0
         )
