@@ -446,13 +446,11 @@ class TestHttpAsyncHook:
         hook = HttpAsyncHook(method="GET")
         aioresponse.get("http://httpbin.org/non_existent_endpoint", status=400)
 
-        with pytest.raises(AirflowException) as exc, mock.patch.dict(
+        with pytest.raises(AirflowException, match="400:Bad Request"), mock.patch.dict(
             "os.environ",
             AIRFLOW_CONN_HTTP_DEFAULT="http://httpbin.org/",
         ):
             await hook.run(endpoint="non_existent_endpoint")
-
-        assert str(exc.value) == "400:Bad Request"
 
     @pytest.mark.asyncio
     async def test_do_api_call_async_retryable_error(self, caplog, aioresponse):
@@ -461,13 +459,12 @@ class TestHttpAsyncHook:
         hook = HttpAsyncHook(method="GET")
         aioresponse.get("http://httpbin.org/non_existent_endpoint", status=500, repeat=True)
 
-        with pytest.raises(AirflowException) as exc, mock.patch.dict(
+        with pytest.raises(AirflowException, match="500:Internal Server Error"), mock.patch.dict(
             "os.environ",
             AIRFLOW_CONN_HTTP_DEFAULT="http://httpbin.org/",
         ):
             await hook.run(endpoint="non_existent_endpoint")
 
-        assert str(exc.value) == "500:Internal Server Error"
         assert "[Try 3 of 3] Request to http://httpbin.org/non_existent_endpoint failed" in caplog.text
 
     @pytest.mark.asyncio
@@ -476,10 +473,8 @@ class TestHttpAsyncHook:
         hook = HttpAsyncHook(method="NOPE")
         json = {"existing_cluster_id": "xxxx-xxxxxx-xxxxxx"}
 
-        with pytest.raises(AirflowException) as exc:
+        with pytest.raises(AirflowException, match="Unexpected HTTP Method: NOPE"):
             await hook.run(endpoint="non_existent_endpoint", data=json)
-
-        assert str(exc.value) == "Unexpected HTTP Method: NOPE"
 
     @pytest.mark.asyncio
     async def test_async_post_request(self, aioresponse):
