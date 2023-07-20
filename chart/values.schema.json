@@ -5080,10 +5080,24 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the PgBouncer. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the PgBouncer.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the PgBouncer.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 65534,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
                         "container": {
                             "description": "Container security context definition for the PgBouncer.",
                             "type": "object",

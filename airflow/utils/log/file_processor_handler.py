@@ -30,9 +30,10 @@ from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 
 class FileProcessorHandler(logging.Handler):
     """
-    FileProcessorHandler is a python log handler that handles
-    dag processor logs. It creates and delegates log handling
-    to `logging.FileHandler` after receiving dag processor context.
+    FileProcessorHandler is a python log handler that handles dag processor logs.
+
+    It creates and delegates log handling to `logging.FileHandler`
+    after receiving dag processor context.
 
     :param base_log_folder: Base log folder to place logs.
     :param filename_template: template filename string
@@ -108,8 +109,9 @@ class FileProcessorHandler(logging.Handler):
 
     def _symlink_latest_log_directory(self):
         """
-        Create symbolic link to the current day's log directory to
-        allow easy access to the latest scheduler log files.
+        Create symbolic link to the current day's log directory.
+
+        Allows easy access to the latest scheduler log files.
 
         :return: None
         """

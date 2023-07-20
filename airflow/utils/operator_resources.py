@@ -70,10 +70,7 @@ class Resource:
 
     @property
     def qty(self):
-        """
-        The number of units of the specified resource that are required for
-        execution of the operator.
-        """
+        """The number of units of the specified resource that are required for execution of the operator."""
         return self._qty
 
     def to_dict(self):
@@ -114,8 +111,9 @@ class GpuResource(Resource):
 
 class Resources:
     """
-    The resources required by an operator. Resources that are not specified will use the
-    default values from the airflow config.
+    The resources required by an operator.
+
+    Resources that are not specified will use the default values from the airflow config.
 
     :param cpus: The number of cpu cores that are required
     :param ram: The amount of RAM required

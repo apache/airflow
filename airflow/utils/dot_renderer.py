@@ -38,6 +38,7 @@ from airflow.utils.task_group import TaskGroup
 def _refine_color(color: str):
     """
     Converts color in #RGB (12 bits) format to #RRGGBB (32 bits), if it possible.
+
     Otherwise, it returns the original value. Graphviz does not support colors in #RGB format.
 
     :param color: Text representation of color

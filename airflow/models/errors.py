@@ -24,10 +24,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class ImportError(Base):
-    """
-    A table to store all Import Errors. The ImportErrors are recorded when parsing DAGs.
-    This errors are displayed on the Webserver.
-    """
+    """Stores all Import Errors which are recorded when parsing DAGs and displayed on the Webserver."""
 
     __tablename__ = "import_error"
     id = Column(Integer, primary_key=True)
