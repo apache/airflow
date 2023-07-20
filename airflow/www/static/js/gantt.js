@@ -74,7 +74,7 @@ const replacements = {
   "%": "%",
 };
 
-moment.fn.strftime = function (format) {
+moment.fn.strftime = function formatTime(format) {
   // Break up format string based on strftime tokens
   const tokens = format.split(/(%-?.)/);
   const momentFormat = tokens
@@ -173,12 +173,15 @@ d3.gantt = () => {
 
       tasks.forEach((a) => {
         if (!(a.start_date instanceof moment)) {
+          // eslint-disable-next-line no-param-reassign
           a.start_date = moment(a.start_date);
         }
         if (!(a.end_date instanceof moment)) {
+          // eslint-disable-next-line no-param-reassign
           a.end_date = moment(a.end_date);
         }
         if (a.queued_dttm && !(a.queued_dttm instanceof moment)) {
+          // eslint-disable-next-line no-param-reassign
           a.queued_dttm = moment(a.queued_dttm);
         }
       });
@@ -349,12 +352,14 @@ d3.gantt = () => {
     return gantt;
   };
 
+  // eslint-disable-next-line func-names
   gantt.margin = function (value) {
     if (!arguments.length) return margin;
     margin = value;
     return gantt;
   };
 
+  // eslint-disable-next-line func-names
   gantt.timeDomain = function (value) {
     if (!arguments.length) return [timeDomainStart, timeDomainEnd];
     timeDomainStart = +value[0];
@@ -367,36 +372,42 @@ d3.gantt = () => {
    *                vale The value can be "fit" - the domain fits the data or
    *                "fixed" - fixed domain.
    */
+  // eslint-disable-next-line func-names
   gantt.timeDomainMode = function (value) {
     if (!arguments.length) return timeDomainMode;
     timeDomainMode = value;
     return gantt;
   };
 
+  // eslint-disable-next-line func-names
   gantt.taskTypes = function (value) {
     if (!arguments.length) return taskTypes;
     taskTypes = value;
     return gantt;
   };
 
+  // eslint-disable-next-line func-names
   gantt.width = function (value) {
     if (!arguments.length) return width;
     width = +value;
     return gantt;
   };
 
+  // eslint-disable-next-line func-names
   gantt.height = function (value) {
     if (!arguments.length) return height;
     height = +value;
     return gantt;
   };
 
+  // eslint-disable-next-line func-names
   gantt.tickFormat = function (value) {
     if (!arguments.length) return tickFormat;
     tickFormat = value;
     return gantt;
   };
 
+  // eslint-disable-next-line func-names
   gantt.selector = function (value) {
     if (!arguments.length) return selector;
     selector = value;

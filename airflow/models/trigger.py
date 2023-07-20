@@ -36,6 +36,8 @@ from airflow.utils.state import TaskInstanceState
 
 class Trigger(Base):
     """
+    Base Trigger class.
+
     Triggers are a workload that run in an asynchronous event loop shared with
     other Triggers, and fire off events that will unpause deferred Tasks,
     start linked DAGs, etc.
@@ -82,10 +84,7 @@ class Trigger(Base):
     @classmethod
     @internal_api_call
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
-        """
-        Alternative constructor that creates a trigger row based directly
-        off of a Trigger object.
-        """
+        """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
         return cls(classpath=classpath, kwargs=kwargs)
 
@@ -93,10 +92,7 @@ class Trigger(Base):
     @internal_api_call
     @provide_session
     def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
-        """
-        Fetches all the Triggers by ID and returns a dict mapping
-        ID -> Trigger instance.
-        """
+        """Fetches all the Triggers by ID and returns a dict mapping ID -> Trigger instance."""
         query = (
             session.query(cls)
             .filter(cls.id.in_(ids))
@@ -143,10 +139,7 @@ class Trigger(Base):
     @internal_api_call
     @provide_session
     def submit_event(cls, trigger_id, event, session: Session = NEW_SESSION) -> None:
-        """
-        Takes an event from an instance of itself, and triggers all dependent
-        tasks to resume.
-        """
+        """Takes an event from an instance of itself, and triggers all dependent tasks to resume."""
         for task_instance in session.query(TaskInstance).filter(
             TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
         ):
@@ -164,11 +157,11 @@ class Trigger(Base):
     @provide_session
     def submit_failure(cls, trigger_id, exc=None, session: Session = NEW_SESSION) -> None:
         """
-        Called when a trigger has failed unexpectedly, and we need to mark
-        everything that depended on it as failed. Notably, we have to actually
-        run the failure code from a worker as it may have linked callbacks, so
-        hilariously we have to re-schedule the task instances to a worker just
-        so they can then fail.
+        When a trigger has failed unexpectedly, mark everything that depended on it as failed.
+
+        Notably, we have to actually run the failure code from a worker as it may
+        have linked callbacks, so hilariously we have to re-schedule the task
+        instances to a worker just so they can then fail.
 
         We use a special __fail__ value for next_method to achieve this that
         the runtime code understands as immediate-fail, and pack the error into
@@ -202,6 +195,8 @@ class Trigger(Base):
     @provide_session
     def assign_unassigned(cls, triggerer_id, capacity, heartrate, session: Session = NEW_SESSION) -> None:
         """
+        Assign unassigned triggers based on a number of conditions.
+
         Takes a triggerer_id, the capacity for that triggerer and the Triggerer job heartrate,
         and assigns unassigned triggers until that capacity is reached, or there are no more
         unassigned triggers.

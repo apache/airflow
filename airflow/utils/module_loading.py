@@ -25,8 +25,9 @@ from typing import Callable
 
 def import_string(dotted_path: str):
     """
-    Import a dotted module path and return the attribute/class designated by the
-    last name in the path. Raise ImportError if the import failed.
+    Import a dotted module path and return the attribute/class designated by the last name in the path.
+
+    Raise ImportError if the import failed.
     """
     try:
         module_path, class_name = dotted_path.rsplit(".", 1)

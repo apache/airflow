@@ -59,6 +59,9 @@ class PostgresHook(DbApiHook):
 
     :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
         reference to a specific postgres database.
+    :param options: Optional. Specifies command-line options to send to the server
+        at connection start. For example, setting this to ``-c search_path=myschema``
+        sets the session's value of the ``search_path`` to ``myschema``.
     """
 
     conn_name_attr = "postgres_conn_id"
@@ -67,7 +70,7 @@ class PostgresHook(DbApiHook):
     hook_name = "Postgres"
     supports_autocommit = True
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, options: str | None = None, **kwargs) -> None:
         if "schema" in kwargs:
             warnings.warn(
                 'The "schema" arg has been renamed to "database" as it contained the database name.'
@@ -80,6 +83,7 @@ class PostgresHook(DbApiHook):
         self.connection: Connection | None = kwargs.pop("connection", None)
         self.conn: connection = None
         self.database: str | None = kwargs.pop("database", None)
+        self.options = options
 
     @property
     def schema(self):
@@ -130,6 +134,9 @@ class PostgresHook(DbApiHook):
         raw_cursor = conn.extra_dejson.get("cursor", False)
         if raw_cursor:
             conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
+
+        if self.options:
+            conn_args["options"] = self.options
 
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name not in [

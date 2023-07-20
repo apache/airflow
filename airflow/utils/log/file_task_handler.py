@@ -134,10 +134,10 @@ def _interleave_logs(*logs):
 
 class FileTaskHandler(logging.Handler):
     """
-    FileTaskHandler is a python log handler that handles and reads
-    task instance logs. It creates and delegates log handling
-    to `logging.FileHandler` after receiving task instance context.
-    It reads logs from task instance's host machine.
+    FileTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It creates and delegates log handling to `logging.FileHandler` after receiving task
+    instance context.  It reads logs from task instance's host machine.
 
     :param base_log_folder: Base log folder to place logs.
     :param filename_template: template filename string
@@ -278,8 +278,7 @@ class FileTaskHandler(logging.Handler):
         metadata: dict[str, Any] | None = None,
     ):
         """
-        Template method that contains custom logic of reading
-        logs given the try_number.
+        Template method that contains custom logic of reading logs given the try_number.
 
         :param ti: task instance record
         :param try_number: current try_number to read log from
@@ -341,7 +340,10 @@ class FileTaskHandler(logging.Handler):
         )
         log_pos = len(logs)
         messages = "".join([f"*** {x}\n" for x in messages_list])
-        end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]
+        end_of_log = ti.try_number != try_number or ti.state not in (
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        )
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
@@ -459,8 +461,9 @@ class FileTaskHandler(logging.Handler):
 
     def _init_file(self, ti):
         """
-        Create log directory and give it permissions that are configured. See above _prepare_log_folder
-        method for more detailed explanation.
+        Create log directory and give it permissions that are configured.
+
+        See above _prepare_log_folder method for more detailed explanation.
 
         :param ti: task instance object
         :return: relative log path of the given task instance

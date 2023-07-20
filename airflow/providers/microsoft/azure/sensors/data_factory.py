@@ -20,6 +20,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
@@ -60,7 +61,7 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         azure_data_factory_conn_id: str = AzureDataFactoryHook.default_conn_name,
         resource_group_name: str | None = None,
         factory_name: str | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -112,8 +113,8 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
             if event["status"] == "error":
@@ -125,6 +126,12 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
 class AzureDataFactoryPipelineRunStatusAsyncSensor(AzureDataFactoryPipelineRunStatusSensor):
     """
     Checks the status of a pipeline run asynchronously.
+
+    This class is deprecated and will be removed in a future release.
+
+    Please use
+    :class:`airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor`
+    and set *deferrable* attribute to *True* instead.
 
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
     :param run_id: The pipeline run identifier.

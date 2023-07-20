@@ -23,8 +23,7 @@ import type { ElkExtendedEdge } from "elkjs";
 
 import type { SelectionProps } from "src/dag/useSelection";
 import { getTask } from "src/utils";
-import type { Task, TaskInstance } from "src/types";
-import type { NodeType } from "src/datasets/Graph/Node";
+import type { Task, TaskInstance, NodeType } from "src/types";
 
 import type { CustomNodeProps } from "./Node";
 
@@ -132,7 +131,7 @@ export const nodeColor = ({
 
 export const nodeStrokeColor = (
   { data: { isSelected } }: ReactFlowNode<CustomNodeProps>,
-  colors: any
+  colors: Record<string, string>
 ) => (isSelected ? colors.blue[500] : "");
 
 interface BuildEdgesProps {

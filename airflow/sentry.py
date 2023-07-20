@@ -25,10 +25,12 @@ from typing import TYPE_CHECKING
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.session import find_session_idx, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.models.taskinstance import TaskInstance
 
 log = logging.getLogger(__name__)
 
@@ -36,16 +38,13 @@ log = logging.getLogger(__name__)
 class DummySentry:
     """Blank class for Sentry."""
 
-    @classmethod
-    def add_tagging(cls, task_instance):
+    def add_tagging(self, task_instance):
         """Blank function for tagging."""
 
-    @classmethod
-    def add_breadcrumbs(cls, task_instance, session: Session | None = None):
+    def add_breadcrumbs(self, task_instance, session: Session | None = None):
         """Blank function for breadcrumbs."""
 
-    @classmethod
-    def enrich_errors(cls, run):
+    def enrich_errors(self, run):
         """Blank function for formatting a TaskInstance._run_raw_task."""
         return run
 
@@ -137,13 +136,17 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
                 scope.set_tag("operator", task.__class__.__name__)
 
         @provide_session
-        def add_breadcrumbs(self, task_instance, session=None):
+        def add_breadcrumbs(
+            self,
+            task_instance: TaskInstance,
+            session: Session | None = None,
+        ) -> None:
             """Function to add breadcrumbs inside of a task_instance."""
             if session is None:
                 return
             dr = task_instance.get_dagrun(session)
             task_instances = dr.get_task_instances(
-                state={State.SUCCESS, State.FAILED},
+                state={TaskInstanceState.SUCCESS, TaskInstanceState.FAILED},
                 session=session,
             )
 

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated, please use :mod:`airflow.utils.task_group`.
+This module is deprecated. Please use :mod:`airflow.utils.task_group`.
 
 The module which provides a way to nest your DAGs and so your levels of complexity.
 """
@@ -37,7 +37,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 
@@ -50,7 +50,7 @@ class SkippedStatePropagationOptions(Enum):
 
 class SubDagOperator(BaseSensorOperator):
     """
-    This class is deprecated, please use `airflow.utils.task_group.TaskGroup`.
+    This class is deprecated, please use :class:`airflow.utils.task_group.TaskGroup`.
 
     This runs a sub dag. By convention, a sub dag's dag_id
     should be prefixed by its parent and a dot. As in `parent.child`.
@@ -137,17 +137,17 @@ class SubDagOperator(BaseSensorOperator):
         :param execution_date: Execution date to select task instances.
         """
         with create_session() as session:
-            dag_run.state = State.RUNNING
+            dag_run.state = DagRunState.RUNNING
             session.merge(dag_run)
             failed_task_instances = (
                 session.query(TaskInstance)
                 .filter(TaskInstance.dag_id == self.subdag.dag_id)
                 .filter(TaskInstance.execution_date == execution_date)
-                .filter(TaskInstance.state.in_([State.FAILED, State.UPSTREAM_FAILED]))
+                .filter(TaskInstance.state.in_((TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED)))
             )
 
             for task_instance in failed_task_instances:
-                task_instance.state = State.NONE
+                task_instance.state = None
                 session.merge(task_instance)
             session.commit()
 
@@ -164,7 +164,7 @@ class SubDagOperator(BaseSensorOperator):
             dag_run = self.subdag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 execution_date=execution_date,
-                state=State.RUNNING,
+                state=DagRunState.RUNNING,
                 conf=self.conf,
                 external_trigger=True,
                 data_interval=data_interval,
@@ -172,13 +172,13 @@ class SubDagOperator(BaseSensorOperator):
             self.log.info("Created DagRun: %s", dag_run.run_id)
         else:
             self.log.info("Found existing DagRun: %s", dag_run.run_id)
-            if dag_run.state == State.FAILED:
+            if dag_run.state == DagRunState.FAILED:
                 self._reset_dag_run_and_task_instances(dag_run, execution_date)
 
     def poke(self, context: Context):
         execution_date = context["execution_date"]
         dag_run = self._get_dagrun(execution_date=execution_date)
-        return dag_run.state != State.RUNNING
+        return dag_run.state != DagRunState.RUNNING
 
     def post_execute(self, context, result=None):
         super().post_execute(context)
@@ -186,7 +186,7 @@ class SubDagOperator(BaseSensorOperator):
         dag_run = self._get_dagrun(execution_date=execution_date)
         self.log.info("Execution finished. State is %s", dag_run.state)
 
-        if dag_run.state != State.SUCCESS:
+        if dag_run.state != DagRunState.SUCCESS:
             raise AirflowException(f"Expected state: SUCCESS. Actual state: {dag_run.state}")
 
         if self.propagate_skipped_state and self._check_skipped_states(context):
@@ -196,9 +196,9 @@ class SubDagOperator(BaseSensorOperator):
         leaves_tis = self._get_leaves_tis(context["execution_date"])
 
         if self.propagate_skipped_state == SkippedStatePropagationOptions.ANY_LEAF:
-            return any(ti.state == State.SKIPPED for ti in leaves_tis)
+            return any(ti.state == TaskInstanceState.SKIPPED for ti in leaves_tis)
         if self.propagate_skipped_state == SkippedStatePropagationOptions.ALL_LEAVES:
-            return all(ti.state == State.SKIPPED for ti in leaves_tis)
+            return all(ti.state == TaskInstanceState.SKIPPED for ti in leaves_tis)
         raise AirflowException(
             f"Unimplemented SkippedStatePropagationOptions {self.propagate_skipped_state} used."
         )

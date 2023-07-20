@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.task_group import TaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
@@ -301,7 +302,8 @@ class AbstractOperator(Templater, DAGNode):
         This method is meant to be used when we are clearing the task (non-upstream) and we need
         to add in the *relevant* setups and their teardowns.
 
-        Relevant in this case means, the setup has a teardown that is downstream of ``self``.
+        Relevant in this case means, the setup has a teardown that is downstream of ``self``,
+        or the setup has no teardowns.
         """
         downstream_teardown_ids = {
             x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
@@ -309,7 +311,9 @@ class AbstractOperator(Templater, DAGNode):
         for task in self.get_flat_relatives(upstream=True):
             if not task.is_setup:
                 continue
-            if not task.downstream_task_ids.isdisjoint(downstream_teardown_ids):
+            has_no_teardowns = not any(True for x in task.downstream_list if x.is_teardown)
+            # if task has no teardowns or has teardowns downstream of self
+            if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
                 yield task
                 for t in task.downstream_list:
                     if t.is_teardown and not t == self:
@@ -381,6 +385,14 @@ class AbstractOperator(Templater, DAGNode):
             if isinstance(parent, MappedTaskGroup):
                 yield parent
             parent = parent.task_group
+
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """Add the task to the given task group.
+
+        :meta private:
+        """
+        if self.node_id not in task_group.children:
+            task_group.add(self)
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """Get the mapped task group "closest" to this task in the DAG.

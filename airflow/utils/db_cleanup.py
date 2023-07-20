@@ -15,7 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module took inspiration from the community maintenance dag
+This module took inspiration from the community maintenance dag.
+
+See:
 (https://github.com/teamclairvoyant/airflow-maintenance-dags/blob/4e5c7682a808082561d60cbc9cafaa477b0d8c65/db-cleanup/airflow-db-cleanup.py).
 """
 from __future__ import annotations
@@ -141,13 +143,14 @@ def _dump_table_to_file(*, target_table, file_path, export_format, session):
 
 
 def _do_delete(*, query, orm_model, skip_archive, session):
-    import re
     from datetime import datetime
+
+    import re2
 
     print("Performing Delete...")
     # using bulk delete
     # create a new table and copy the rows there
-    timestamp_str = re.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
+    timestamp_str = re2.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
     target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
     print(f"Moving data to table {target_table_name}")
     bind = session.get_bind()
@@ -340,6 +343,7 @@ def _print_config(*, configs: dict[str, _TableConfig]):
 def _suppress_with_logging(table, session):
     """
     Suppresses errors but logs them.
+
     Also stores the exception instance so it can be referred to after exiting context.
     """
     try:

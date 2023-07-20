@@ -30,7 +30,16 @@ from airflow.utils.code_utils import get_terminal_formatter
 def show_config(args):
     """Show current application configuration."""
     with io.StringIO() as output:
-        conf.write(output, section=args.section)
+        conf.write(
+            output,
+            section=args.section,
+            include_examples=args.include_examples or args.defaults,
+            include_descriptions=args.include_descriptions or args.defaults,
+            include_sources=args.include_sources and not args.defaults,
+            include_env_vars=args.include_env_vars or args.defaults,
+            comment_out_everything=args.comment_out_everything or args.defaults,
+            only_defaults=args.defaults,
+        )
         code = output.getvalue()
         if should_use_colors(args):
             code = pygments.highlight(code=code, formatter=get_terminal_formatter(), lexer=IniLexer())

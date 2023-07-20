@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 8.3.1
+  - 8.3.0
   - 8.2.0
   - 8.1.0
   - 8.0.0
@@ -151,6 +153,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/emr/emr_serverless.rst
     logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon EventBridge
+    external-doc-url: https://docs.aws.amazon.com/eventbridge/latest/APIReference/Welcome.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/eventbridge.rst
+    logo: /integration-logos/aws/Amazon-EventBridge_64.png
     tags: [aws]
   - integration-name: Amazon Glacier
     external-doc-url: https://aws.amazon.com/glacier/
@@ -305,6 +313,9 @@ operators:
   - integration-name: Amazon EMR on EKS
     python-modules:
       - airflow.providers.amazon.aws.operators.emr
+  - integration-name: Amazon EventBridge
+    python-modules:
+      - airflow.providers.amazon.aws.operators.eventbridge
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.operators.glacier
@@ -455,6 +466,9 @@ hooks:
   - integration-name: Amazon EMR on EKS
     python-modules:
       - airflow.providers.amazon.aws.hooks.emr
+  - integration-name: Amazon EventBridge
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.eventbridge
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.hooks.glacier
@@ -515,6 +529,9 @@ hooks:
       - airflow.providers.amazon.aws.hooks.appflow
 
 triggers:
+  - integration-name: Amazon Web Services
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.base
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.triggers.athena
@@ -625,6 +642,10 @@ transfers:
   - source-integration-name: Amazon Web Services
     target-integration-name: Amazon Web Services
     python-module: airflow.providers.amazon.aws.transfers.base
+  - source-integration-name: Microsoft Azure Blob Storage
+    target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/transfer/azure_blob_to_s3.rst
+    python-module: airflow.providers.amazon.aws.transfers.azure_blob_to_s3
 
 extra-links:
   - airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink

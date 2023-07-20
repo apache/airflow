@@ -125,6 +125,14 @@ class TestGCSDeleteObjectsOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_delete_empty_list_of_objects(self, mock_hook):
+        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=[])
+
+        operator.execute(None)
+        mock_hook.return_value.list.assert_not_called()
+        mock_hook.return_value.delete.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_prefix(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES[1:4]
         operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=PREFIX)

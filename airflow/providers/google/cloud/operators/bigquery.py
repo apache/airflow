@@ -29,6 +29,7 @@ from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 from google.cloud.bigquery.table import RowIterator
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
@@ -200,7 +201,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -320,7 +321,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -401,8 +402,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
 
 class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperator):
     """
-    Checks that the values of metrics given as SQL expressions are within
-    a certain tolerance of the ones from days_back before.
+    Check that the values of metrics given as SQL expressions are within a tolerance of the older ones.
 
     This method constructs a query like so ::
 
@@ -460,7 +460,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -544,9 +544,9 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
 
 class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
     """
-    BigQueryColumnCheckOperator subclasses the SQLColumnCheckOperator
-    in order to provide a job id for OpenLineage to parse. See base class
-    docstring for usage.
+    Subclasses the SQLColumnCheckOperator in order to provide a job id for OpenLineage to parse.
+
+    See base class docstring for usage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -667,9 +667,9 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
 
 class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
     """
-    BigQueryTableCheckOperator subclasses the SQLTableCheckOperator
-    in order to provide a job id for OpenLineage to parse. See base class
-    for usage.
+    Subclasses the SQLTableCheckOperator in order to provide a job id for OpenLineage to parse.
+
+    See base class for usage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -769,8 +769,9 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
 
 class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     """
-    Fetches the data from a BigQuery table (alternatively fetch data for selected columns) and returns data
-    in either of the following two formats, based on "as_dict" value:
+    Fetches the data from a BigQuery table (alternatively fetch data for selected columns) and returns data.
+
+    Data is returned in either of the following two formats, based on "as_dict" value:
     1. False (Default) - A Python list of lists, with the number of nested lists equal to the number of rows
     fetched. Each nested list represents a row, where the elements within it correspond to the column values
     for that particular row.
@@ -854,7 +855,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         as_dict: bool = False,
         use_legacy_sql: bool = True,
@@ -1876,7 +1877,6 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         exists_ok: bool | None = None,
         **kwargs,
     ) -> None:
-
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.location = location
@@ -2568,7 +2568,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
 
     :param configuration: The configuration parameter maps directly to BigQuery's
         configuration field in the job object. For more details see
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfiguration
     :param job_id: The ID of the job. It will be suffixed with hash of job configuration
         unless ``force_rerun`` is True.
         The ID must contain only letters (a-z, A-Z), numbers (0-9), underscores (_), or
@@ -2623,7 +2623,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         cancel_on_kill: bool = True,
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:

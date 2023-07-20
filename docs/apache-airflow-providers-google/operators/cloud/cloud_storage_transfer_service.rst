@@ -15,6 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
+.. spelling::
+
+    ListTransferJobsAsyncPager
+    StorageTransferServiceAsyncClient
 
 
 Google Cloud Transfer Service Operators
@@ -23,7 +27,7 @@ Google Cloud Transfer Service Operators
 Prerequisite Tasks
 ------------------
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:CloudDataTransferServiceCreateJobOperator:
 

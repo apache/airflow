@@ -32,8 +32,10 @@ axios.defaults.adapter = require("axios/lib/adapters/http");
 axios.interceptors.response.use((res) => res.data || res);
 
 setLogger({
+  /* eslint-disable no-console */
   log: console.log,
   warn: console.warn,
+  /* eslint-enable no-console */
   // ✅ no more errors on the console
   error: () => {},
 });

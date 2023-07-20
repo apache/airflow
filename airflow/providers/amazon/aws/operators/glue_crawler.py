@@ -21,6 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 
 if TYPE_CHECKING:
@@ -61,7 +62,7 @@ class GlueCrawlerOperator(BaseOperator):
         region_name: str | None = None,
         poll_interval: int = 5,
         wait_for_completion: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -95,7 +96,7 @@ class GlueCrawlerOperator(BaseOperator):
             self.defer(
                 trigger=GlueCrawlerCompleteTrigger(
                     crawler_name=crawler_name,
-                    poll_interval=self.poll_interval,
+                    waiter_delay=self.poll_interval,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
