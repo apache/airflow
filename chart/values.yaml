@@ -1857,7 +1857,7 @@ pgbouncer:
     #     connection: postgresql://<stats user>:<password>@127.0.0.1:6543/pgbouncer?<connection params>
     #  type: Opaque
     #
-    #  configSecretName: pgbouncer-config-secret
+    #  statsSecretName: pgbouncer-stats-secret
     #
     statsSecretName: ~
 
