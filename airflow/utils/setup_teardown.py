@@ -135,7 +135,7 @@ class BaseSetupTeardownContext:
             return
         ctx = cls.context_map
 
-        def _get_or_set_item(item):
+        def _append_or_set_item(item):
             if ctx.get(item) is None:
                 ctx[item] = [task_]
             else:
@@ -143,14 +143,14 @@ class BaseSetupTeardownContext:
 
         if setup_task := cls._context_managed_setup_task:
             if isinstance(setup_task, list):
-                _get_or_set_item(tuple(setup_task))
+                _append_or_set_item(tuple(setup_task))
             else:
-                _get_or_set_item(setup_task)
+                _append_or_set_item(setup_task)
         if teardown_task := cls._context_managed_teardown_task:
             if isinstance(teardown_task, list):
-                _get_or_set_item(tuple(teardown_task))
+                _append_or_set_item(tuple(teardown_task))
             else:
-                _get_or_set_item(teardown_task)
+                _append_or_set_item(teardown_task)
 
     @classmethod
     def push_setup_teardown_task(cls, operator: AbstractOperator | list[AbstractOperator]):
@@ -263,10 +263,12 @@ class BaseSetupTeardownContext:
             if tasks_in_context:
                 roots = [task for task in tasks_in_context if not task.upstream_list]
                 if not roots:
-                    setup_task >> list(tasks_in_context)[0]
+                    setup_task >> tasks_in_context[0]
                 else:
                     cls.set_dependency(roots, setup_task, upstream=False)
                 leaves = [task for task in tasks_in_context if not task.downstream_list]
+                if not leaves:
+                    leaves = tasks_in_context[-1]
                 cls.set_teardown_task_as_leaves(leaves)
 
         if teardown_task := cls._context_managed_teardown_task:
@@ -278,10 +280,12 @@ class BaseSetupTeardownContext:
             if tasks_in_context:
                 leaves = [task for task in tasks_in_context if not task.downstream_list]
                 if not leaves:
-                    teardown_task << list(tasks_in_context).pop()
+                    teardown_task << tasks_in_context[-1]
                 else:
                     cls.set_dependency(leaves, teardown_task)
                 roots = [task for task in tasks_in_context if not task.upstream_list]
+                if not roots:
+                    roots = tasks_in_context[0]
                 cls.set_setup_task_as_roots(roots)
         cls.set_setup_teardown_relationships()
         cls.active = False
