@@ -126,6 +126,7 @@ dependencies:
   - proto-plus>=1.19.6
   - PyOpenSSL
   - sqlalchemy-bigquery>=1.2.1
+  - sqlalchemy-spanner>=1.6.2
 
 integrations:
   - integration-name: Google Analytics360
