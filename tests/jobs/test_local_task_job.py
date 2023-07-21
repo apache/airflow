@@ -96,7 +96,7 @@ class TestLocalTaskJob:
 
     def validate_ti_states(self, dag_run, ti_state_mapping, error_message):
         for task_id, expected_state in ti_state_mapping.items():
-            task_instance = DagRun.get_task_instance(dag_run=dag_run, task_id=task_id)
+            task_instance = dag_run.get_task_instance(task_id=task_id)
             task_instance.refresh_from_db()
             assert task_instance.state == expected_state, error_message
 
@@ -111,7 +111,7 @@ class TestLocalTaskJob:
 
         dr = dag_maker.create_dagrun()
 
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=op1.task_id)
+        ti = dr.get_task_instance(task_id=op1.task_id)
 
         job1 = Job(dag_id=ti.dag_id, executor=SequentialExecutor())
 
@@ -130,7 +130,7 @@ class TestLocalTaskJob:
             op1 = EmptyOperator(task_id="op1")
 
         dr = dag_maker.create_dagrun()
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=op1.task_id, session=session)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti.state = State.RUNNING
         ti.hostname = "blablabla"
         session.commit()
@@ -177,7 +177,7 @@ class TestLocalTaskJob:
         with dag_maker("test_localtaskjob_heartbeat"):
             op1 = EmptyOperator(task_id="op1", run_as_user="myuser")
         dr = dag_maker.create_dagrun()
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=op1.task_id, session=session)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti.state = State.RUNNING
         ti.pid = 2
         ti.hostname = get_hostname()
@@ -232,7 +232,7 @@ class TestLocalTaskJob:
         with dag_maker("test_localtaskjob_heartbeat"):
             op1 = EmptyOperator(task_id="op1")
         dr = dag_maker.create_dagrun()
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=op1.task_id, session=session)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
         ti.state = State.RUNNING
         ti.pid = 2
         ti.hostname = get_hostname()
@@ -336,7 +336,7 @@ class TestLocalTaskJob:
         )
         task = dag.get_task(task_id="test_mark_success_no_kill")
 
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=task.task_id)
+        ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
         job1 = Job(dag_id=ti.dag_id)
@@ -366,7 +366,7 @@ class TestLocalTaskJob:
             session=session,
         )
 
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=task.task_id, session=session)
+        ti = dr.get_task_instance(task_id=task.task_id, session=session)
         ti.state = State.RUNNING
         ti.hostname = get_hostname()
         ti.pid = 1
@@ -381,7 +381,7 @@ class TestLocalTaskJob:
             run_job(job=job1, execute_callable=job_runner._execute)
             mock_method.assert_not_called()
 
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=task.task_id, session=session)
+        ti = dr.get_task_instance(task_id=task.task_id, session=session)
         assert ti.pid == 1
         assert ti.state == State.RUNNING
 
@@ -465,7 +465,7 @@ class TestLocalTaskJob:
                 session=session,
             )
         task = dag.get_task(task_id="test_mark_failure_externally")
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=task.task_id)
+        ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
         job1 = Job(dag_id=ti.dag_id, executor=SequentialExecutor())
@@ -497,7 +497,7 @@ class TestLocalTaskJob:
                 session=session,
             )
         task = dag.get_task(task_id="test_mark_skipped_externally")
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=task.task_id)
+        ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
         job1 = Job(dag_id=ti.dag_id, executor=SequentialExecutor())
@@ -559,7 +559,7 @@ class TestLocalTaskJob:
             )
         task = dag.get_task(task_id="test_mark_success_no_kill")
 
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=task.task_id)
+        ti = dr.get_task_instance(task.task_id)
         ti.refresh_from_task(task)
 
         job = Job(executor=SequentialExecutor(), dag_id=ti.dag_id)

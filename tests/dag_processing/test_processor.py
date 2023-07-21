@@ -30,7 +30,7 @@ from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.dag_processing.processor import DagFileProcessor, DagFileProcessorProcess
-from airflow.models import DagBag, DagModel, DagRun, SlaMiss, TaskInstance, errors
+from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -576,7 +576,7 @@ class TestDagFileProcessor:
                 run_type=DagRunType.SCHEDULED,
                 session=session,
             )
-            ti = DagRun.get_task_instance(dag_run=dagrun, task_id=task.task_id)
+            ti = dagrun.get_task_instance(task.task_id)
             ti.refresh_from_task(task)
 
             requests = [

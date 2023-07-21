@@ -1452,9 +1452,7 @@ class Airflow(AirflowBaseView):
             ti = TaskInstance(raw_task, map_index=map_index)
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
         else:
-            ti = DagRun.get_task_instance(
-                dag_run=dag_run, task_id=task_id, map_index=map_index, session=session
-            )
+            ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index, session=session)
             if ti:
                 ti.refresh_from_task(raw_task)
             else:
@@ -1557,9 +1555,7 @@ class Airflow(AirflowBaseView):
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
         dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=dttm, session=session)
-        ti = DagRun.get_task_instance(
-            dag_run=dag_run, task_id=task.task_id, map_index=map_index, session=session
-        )
+        ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
 
         if not ti:
             raise AirflowException(f"Task instance {task.task_id} not found.")

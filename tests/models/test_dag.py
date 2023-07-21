@@ -1851,9 +1851,9 @@ class TestDag:
         )
         expand_mapped_task(mapped, dagrun_1.run_id, "make_arg_lists", length=2, session=session)
 
-        upstream_ti = DagRun.get_task_instance(dag_run=dagrun_1, task_id="make_arg_lists", session=session)
-        ti = DagRun.get_task_instance(dag_run=dagrun_1, task_id=task_id, map_index=0, session=session)
-        ti2 = DagRun.get_task_instance(dag_run=dagrun_1, task_id=task_id, map_index=1, session=session)
+        upstream_ti = dagrun_1.get_task_instance("make_arg_lists", session=session)
+        ti = dagrun_1.get_task_instance(task_id, map_index=0, session=session)
+        ti2 = dagrun_1.get_task_instance(task_id, map_index=1, session=session)
         upstream_ti.state = State.SUCCESS
         ti.state = State.SUCCESS
         ti2.state = State.SUCCESS

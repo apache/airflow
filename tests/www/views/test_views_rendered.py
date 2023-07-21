@@ -137,15 +137,15 @@ def create_dag_run(dag, task1, task2, task3, task4, task_secret):
             run_type=DagRunType.SCHEDULED,
             session=session,
         )
-        ti1 = DagRun.get_task_instance(dag_run=dag_run, task_id=task1.task_id, session=session)
+        ti1 = dag_run.get_task_instance(task1.task_id, session=session)
         ti1.state = TaskInstanceState.SUCCESS
-        ti2 = DagRun.get_task_instance(dag_run=dag_run, task_id=task2.task_id, session=session)
+        ti2 = dag_run.get_task_instance(task2.task_id, session=session)
         ti2.state = TaskInstanceState.SCHEDULED
-        ti3 = DagRun.get_task_instance(dag_run=dag_run, task_id=task_secret.task_id, session=session)
+        ti3 = dag_run.get_task_instance(task_secret.task_id, session=session)
         ti3.state = TaskInstanceState.QUEUED
-        ti4 = DagRun.get_task_instance(dag_run=dag_run, task_id=task3.task_id, session=session)
+        ti4 = dag_run.get_task_instance(task3.task_id, session=session)
         ti4.state = TaskInstanceState.SUCCESS
-        ti5 = DagRun.get_task_instance(dag_run=dag_run, task_id=task4.task_id, session=session)
+        ti5 = dag_run.get_task_instance(task4.task_id, session=session)
         ti5.state = TaskInstanceState.SUCCESS
         session.flush()
         return dag_run
@@ -169,7 +169,7 @@ def test_rendered_template_view(admin_client, create_dag_run, task1):
 
     with create_session() as session:
         dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
-        ti = DagRun.get_task_instance(dag_run=dag_run, task_id=task1.task_id, session=session)
+        ti = dag_run.get_task_instance(task1.task_id, session=session)
         assert ti is not None, "task instance not found"
         ti.refresh_from_task(task1)
         session.add(RenderedTaskInstanceFields(ti))
@@ -233,7 +233,7 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
 
     with create_session() as session:
         dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
-        ti = DagRun.get_task_instance(dag_run=dag_run, task_id=task_secret.task_id, session=session)
+        ti = dag_run.get_task_instance(task_secret.task_id, session=session)
         assert ti is not None, "task instance not found"
         ti.refresh_from_task(task_secret)
         assert ti.state == TaskInstanceState.QUEUED

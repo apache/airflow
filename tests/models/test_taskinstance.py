@@ -1314,11 +1314,7 @@ class TestTaskInstance:
             assert task.start_date is not None
             run_date = task.start_date + datetime.timedelta(days=5)
 
-        ti = DagRun.get_task_instance(
-            dag_run=dag_maker.create_dagrun(execution_date=run_date), task_id=downstream.task_id
-        )
-        if not ti:
-            raise RuntimeError("`ti` not found")
+        ti = dag_maker.create_dagrun(execution_date=run_date).get_task_instance(downstream.task_id)
         ti.task = downstream
 
         dep_results = TriggerRuleDep()._evaluate_trigger_rule(
@@ -1428,9 +1424,7 @@ class TestTaskInstance:
         dr = dag_maker.create_dagrun()
 
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
-        ti = DagRun.get_task_instance(dag_run=dr, task_id="do_something_else", session=session)
-        if not ti:
-            raise RuntimeError("`ti` not found")
+        ti = dr.get_task_instance("do_something_else", session=session)
         ti.map_index = 0
         for map_index in range(1, 5):
             ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
@@ -1438,9 +1432,7 @@ class TestTaskInstance:
             session.add(ti)
         session.flush()
         downstream = ti.task
-        ti = DagRun.get_task_instance(dag_run=dr, task_id="do_something_else", map_index=3, session=session)
-        if not ti:
-            raise RuntimeError("`ti` not found")
+        ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
         ti.task = downstream
         dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
@@ -1497,7 +1489,7 @@ class TestTaskInstance:
             task_2 = EmptyOperator(task_id="test_xcom_2")
 
         dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
-        ti1 = DagRun.get_task_instance(dag_run=dagrun, task_id=task_1.task_id)
+        ti1 = dagrun.get_task_instance(task_1.task_id)
 
         # Push a value
         ti1.xcom_push(key="foo", value="bar")
@@ -1536,7 +1528,7 @@ class TestTaskInstance:
 
         dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
 
-        ti_1_0 = DagRun.get_task_instance(dag_run=dagrun, task_id="task_1", session=session)
+        ti_1_0 = dagrun.get_task_instance("task_1", session=session)
         ti_1_0.map_index = 0
         ti_1_1 = session.merge(TI(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
         session.flush()
@@ -1544,7 +1536,7 @@ class TestTaskInstance:
         ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
         ti_1_1.xcom_push(key=XCOM_RETURN_KEY, value="b", session=session)
 
-        ti_2 = DagRun.get_task_instance(dag_run=dagrun, task_id="task_2", session=session)
+        ti_2 = dagrun.get_task_instance("task_2", session=session)
 
         assert set(ti_2.xcom_pull(["task_1"], session=session)) == {"a", "b"}  # Ordering not guaranteed.
         assert ti_2.xcom_pull(["task_1"], map_indexes=0, session=session) == ["a"]
@@ -1975,7 +1967,7 @@ class TestTaskInstance:
 
         dr: DagRun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
 
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=task_id, map_index=0, session=session)
+        ti = dr.get_task_instance(task_id, map_index=0, session=session)
         assert ti is not None
 
         # The task will fail and trigger email reporting.
@@ -2193,7 +2185,7 @@ class TestTaskInstance:
 
             test_task2()
 
-        ti = DagRun.get_task_instance(dag_run=dr1, task_id="test_task1")
+        ti = dr1.get_task_instance(task_id="test_task1")
         ti.run()
         # Change the dataset.
         with dag_maker(dag_id="testdag", schedule=[Dataset("test2/1")], serialized=True):
@@ -2323,8 +2315,8 @@ class TestTaskInstance:
             run_type=DagRunType.MANUAL,
         )
 
-        ti_1 = DagRun.get_task_instance(dag_run=dagrun_1, task_id=task.task_id)
-        ti_2 = DagRun.get_task_instance(dag_run=dagrun_2, task_id=task.task_id)
+        ti_1 = dagrun_1.get_task_instance(task.task_id)
+        ti_2 = dagrun_2.get_task_instance(task.task_id)
         ti_1.task = task
         ti_2.task = task
 
@@ -2370,7 +2362,7 @@ class TestTaskInstance:
         dr.consumed_dataset_events.append(ds2_event_2)
         session.commit()
 
-        ti = DagRun.get_task_instance(dag_run=dr, task_id=task1.task_id, session=session)
+        ti = dr.get_task_instance(task1.task_id, session=session)
         ti.refresh_from_task(task1)
 
         # Check we run this in the same context as the actual task at runtime!
@@ -2646,7 +2638,7 @@ class TestTaskInstance:
             session=session,
         )
 
-        ti1 = DagRun.get_task_instance(dag_run=dr, task_id=task1.task_id, session=session)
+        ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
         ti1.state = State.FAILED
         ti1.handle_failure("test failure handling")
@@ -2781,7 +2773,7 @@ class TestTaskInstance:
             session=session,
         )
 
-        ti1 = DagRun.get_task_instance(dag_run=dr, task_id=task1.task_id, session=session)
+        ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
         ti1.state = State.SUCCESS
 
@@ -3742,7 +3734,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
             add_two.expand(x=task1)
 
         dr = dag_maker.create_dagrun()
-        ti = DagRun.get_task_instance(dag_run=dr, task_id="add_one")
+        ti = dr.get_task_instance(task_id="add_one")
         ti.run()
         assert ti.state == TaskInstanceState.SUCCESS
         dag._remove_task("add_one")
@@ -3752,7 +3744,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
 
         dr.dag = serialized_dag
         dr.verify_integrity(session=session)
-        ti = DagRun.get_task_instance(dag_run=dr, task_id="add_one")
+        ti = dr.get_task_instance(task_id="add_one")
         assert ti.state == TaskInstanceState.REMOVED
         dag.clear()
         ti.refresh_from_task(task1)
@@ -3817,7 +3809,7 @@ class TestMappedTaskInstanceReceiveValue:
             show.expand(value=emit())
 
         dag_run = dag_maker.create_dagrun()
-        emit_ti = DagRun.get_task_instance(dag_run=dag_run, task_id="emit", session=session)
+        emit_ti = dag_run.get_task_instance("emit", session=session)
         emit_ti.refresh_from_task(dag.get_task("emit"))
         emit_ti.run()
 
@@ -3851,7 +3843,7 @@ class TestMappedTaskInstanceReceiveValue:
 
         dag_run = dag_maker.create_dagrun()
         for task_id in ["emit_numbers", "emit_letters"]:
-            ti = DagRun.get_task_instance(dag_run=dag_run, task_id=task_id, session=session)
+            ti = dag_run.get_task_instance(task_id, session=session)
             ti.refresh_from_task(dag.get_task(task_id))
             ti.run()
 
@@ -3889,7 +3881,7 @@ class TestMappedTaskInstanceReceiveValue:
             show.expand(a=emit_task, b=emit_task)
 
         dag_run = dag_maker.create_dagrun()
-        ti = DagRun.get_task_instance(dag_run=dag_run, task_id="emit_numbers", session=session)
+        ti = dag_run.get_task_instance("emit_numbers", session=session)
         ti.refresh_from_task(dag.get_task("emit_numbers"))
         ti.run()
 
@@ -4056,7 +4048,7 @@ def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_v
 
     dagrun = dag_maker.create_dagrun()
 
-    ti_1_0 = DagRun.get_task_instance(dag_run=dagrun, task_id="task_1", session=session)
+    ti_1_0 = dagrun.get_task_instance("task_1", session=session)
     ti_1_0.map_index = 0
     ti_1_1 = session.merge(TaskInstance(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
     session.flush()
@@ -4064,7 +4056,7 @@ def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_v
     ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
     ti_1_1.xcom_push(key=XCOM_RETURN_KEY, value="b", session=session)
 
-    ti_2 = DagRun.get_task_instance(dag_run=dagrun, task_id="task_2", session=session)
+    ti_2 = dagrun.get_task_instance("task_2", session=session)
 
     # Simply pulling the joined XCom value should not deserialize.
     joined = ti_2.xcom_pull("task_1", session=session)
@@ -4093,7 +4085,7 @@ def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
 
     dagrun = dag_maker.create_dagrun()
     for map_index in range(3):
-        ti = DagRun.get_task_instance(dag_run=dagrun, task_id="add_one", map_index=map_index, session=session)
+        ti = dagrun.get_task_instance("add_one", map_index=map_index, session=session)
         ti.refresh_from_task(dag.get_task("add_one"))
         ti.run()
 
@@ -4191,15 +4183,15 @@ def test_mapped_task_does_not_error_in_mini_scheduler_if_upstreams_are_not_done(
         [first_task(), middle] >> last_task()
 
     dag_run = dag_maker.create_dagrun()
-    first_ti = DagRun.get_task_instance(dag_run=dag_run, task_id="first_task")
-    second_ti = DagRun.get_task_instance(dag_run=dag_run, task_id="second_task")
+    first_ti = dag_run.get_task_instance(task_id="first_task")
+    second_ti = dag_run.get_task_instance(task_id="second_task")
     first_ti.state = State.SUCCESS
     second_ti.state = State.RUNNING
     session.merge(first_ti)
     session.merge(second_ti)
     session.commit()
     first_ti.schedule_downstream_tasks(session=session)
-    middle_ti = DagRun.get_task_instance(dag_run=dag_run, task_id="middle_task")
+    middle_ti = dag_run.get_task_instance(task_id="middle_task")
     assert middle_ti.state != State.UPSTREAM_FAILED
     assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
 
@@ -4225,10 +4217,10 @@ def test_empty_operator_is_not_considered_in_mini_scheduler(dag_maker, caplog, s
 
         first_task() >> [second_task(), third_task, forth_task]
         dag_run = dag_maker.create_dagrun()
-        first_ti = DagRun.get_task_instance(dag_run=dag_run, task_id="first_task")
-        second_ti = DagRun.get_task_instance(dag_run=dag_run, task_id="second_task")
-        third_ti = DagRun.get_task_instance(dag_run=dag_run, task_id="third_task")
-        forth_ti = DagRun.get_task_instance(dag_run=dag_run, task_id="forth_task")
+        first_ti = dag_run.get_task_instance(task_id="first_task")
+        second_ti = dag_run.get_task_instance(task_id="second_task")
+        third_ti = dag_run.get_task_instance(task_id="third_task")
+        forth_ti = dag_run.get_task_instance(task_id="forth_task")
         first_ti.state = State.SUCCESS
         second_ti.state = State.NONE
         third_ti.state = State.NONE
@@ -4239,9 +4231,9 @@ def test_empty_operator_is_not_considered_in_mini_scheduler(dag_maker, caplog, s
         session.merge(forth_ti)
         session.commit()
         first_ti.schedule_downstream_tasks(session=session)
-        second_task = DagRun.get_task_instance(dag_run=dag_run, task_id="second_task")
-        third_task = DagRun.get_task_instance(dag_run=dag_run, task_id="third_task")
-        forth_task = DagRun.get_task_instance(dag_run=dag_run, task_id="forth_task")
+        second_task = dag_run.get_task_instance(task_id="second_task")
+        third_task = dag_run.get_task_instance(task_id="third_task")
+        forth_task = dag_run.get_task_instance(task_id="forth_task")
         assert second_task.state == State.SCHEDULED
         assert third_task.state == State.NONE
         assert forth_task.state == State.SCHEDULED
@@ -4274,17 +4266,17 @@ def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, 
 
     dr = dag_maker.create_dagrun()
 
-    first_ti = DagRun.get_task_instance(dag_run=dr, task_id="first_task")
+    first_ti = dr.get_task_instance(task_id="first_task")
     first_ti.state = State.SUCCESS
     session.merge(first_ti)
     session.commit()
     second_task = dag.get_task("second_task")
-    second_ti = DagRun.get_task_instance(dag_run=dr, task_id="second_task")
+    second_ti = dr.get_task_instance(task_id="second_task")
     second_ti.refresh_from_task(second_task)
     second_ti.run()
     second_ti.schedule_downstream_tasks(session=session)
     for i in range(3):
-        middle_ti = DagRun.get_task_instance(dag_run=dr, task_id="middle_task", map_index=i)
+        middle_ti = dr.get_task_instance(task_id="middle_task", map_index=i)
         assert middle_ti.state == State.SCHEDULED
     assert "3 downstream tasks scheduled from follow-on schedule" in caplog.text
 

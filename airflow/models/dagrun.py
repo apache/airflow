@@ -496,10 +496,31 @@ class DagRun(Base, LoggingMixin):
             tis = tis.where(TI.task_id.in_(dag.task_ids))
         return session.scalars(tis).all()
 
+    @provide_session
+    def get_task_instance(
+        self,
+        task_id: str,
+        session: Session = NEW_SESSION,
+        *,
+        map_index: int = -1,
+    ) -> TI | None:
+        """
+        Returns the task instance specified by task_id for this dag run.
+
+        :param task_id: the task id
+        :param session: Sqlalchemy ORM Session
+        """
+        return DagRun.fetch_task_instance(
+            dag_run=self,
+            task_id=task_id,
+            session=session,
+            map_index=map_index,
+        )
+
     @staticmethod
     @internal_api_call
     @provide_session
-    def get_task_instance(
+    def fetch_task_instance(
         dag_run: DagRun | DagRunPydantic,
         task_id: str,
         session: Session = NEW_SESSION,

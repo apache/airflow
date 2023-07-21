@@ -1891,7 +1891,7 @@ class TestBackfillJob:
         dr = dag_maker.create_dagrun()
 
         # Create the existing mapped TIs -- this the crucial part of this test
-        ti = DagRun.get_task_instance(dag_run=dr, task_id="consumer", session=session)
+        ti = dr.get_task_instance("consumer", session=session)
         ti.map_index = 0
         for map_index in range(1, 3):
             ti = TI(consumer_op, run_id=dr.run_id, map_index=map_index)
@@ -2081,7 +2081,7 @@ class TestBackfillJob:
         )
         with pytest.raises(exception):
             run_job(job=job, execute_callable=job_runner._execute)
-        ti = DagRun.get_task_instance(dag_run=dag_run, task_id=task1.task_id)
+        ti = dag_run.get_task_instance(task_id=task1.task_id)
 
         assert ti._try_number == try_number
 
