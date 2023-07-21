@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google DataPipelines operators."""
+"""This module contains Google Data Pipelines operators."""
 from __future__ import annotations
 
 import copy
