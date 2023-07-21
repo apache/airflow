@@ -3687,7 +3687,7 @@ class TestSchedulerJob:
         # Verify a DagRun is created with the correct dates
         # when Scheduler._do_scheduling is run in the Scheduler Loop
         self.job_runner._do_scheduling(session)
-        dr1 = dag.get_dagrun(DEFAULT_DATE, session=session)
+        dr1 = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=DEFAULT_DATE, session=session)
         assert dr1 is not None
         assert dr1.state == State.RUNNING
         assert dr1.execution_date == DEFAULT_DATE

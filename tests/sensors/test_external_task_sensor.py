@@ -1161,7 +1161,7 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
     # Assert that dagruns of all the affected dags are set to SUCCESS before tasks are cleared.
     for dag in dag_bag.dags.values():
         for execution_date in [day_1, day_2]:
-            dagrun = dag.get_dagrun(execution_date=execution_date, session=session)
+            dagrun = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=execution_date, session=session)
             dagrun.set_state(State.SUCCESS)
     session.flush()
 
@@ -1171,10 +1171,18 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
 
     # Assert that dagruns of all the affected dags are set to QUEUED after tasks are cleared.
     # Unaffected dagruns should be left as SUCCESS.
-    dagrun_0_1 = dag_bag.get_dag("parent_dag_0").get_dagrun(execution_date=day_1, session=session)
-    dagrun_0_2 = dag_bag.get_dag("parent_dag_0").get_dagrun(execution_date=day_2, session=session)
-    dagrun_1_1 = dag_bag.get_dag("child_dag_1").get_dagrun(execution_date=day_1, session=session)
-    dagrun_1_2 = dag_bag.get_dag("child_dag_1").get_dagrun(execution_date=day_2, session=session)
+    dagrun_0_1 = DAG.get_dagrun(
+        dag_id=dag_bag.get_dag("parent_dag_0").dag_id, execution_date=day_1, session=session
+    )
+    dagrun_0_2 = DAG.get_dagrun(
+        dag_id=dag_bag.get_dag("parent_dag_0").dag_id, execution_date=day_2, session=session
+    )
+    dagrun_1_1 = DAG.get_dagrun(
+        dag_id=dag_bag.get_dag("child_dag_1").dag_id, execution_date=day_1, session=session
+    )
+    dagrun_1_2 = DAG.get_dagrun(
+        dag_id=dag_bag.get_dag("child_dag_1").dag_id, execution_date=day_2, session=session
+    )
 
     assert dagrun_0_1.state == State.QUEUED
     assert dagrun_0_2.state == State.QUEUED

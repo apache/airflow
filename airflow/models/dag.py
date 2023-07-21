@@ -1491,7 +1491,7 @@ class DAG(LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def fetch_dagrun(
+    def get_dagrun(
         dag_id: str,
         execution_date: datetime | None = None,
         run_id: str | None = None,
@@ -1514,17 +1514,6 @@ class DAG(LoggingMixin):
         if run_id:
             query = query.where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
         return session.scalar(query)
-
-    @provide_session
-    def get_dagrun(
-        self,
-        execution_date: datetime | None = None,
-        run_id: str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> DagRun | DagRunPydantic:
-        return DAG.fetch_dagrun(
-            dag_id=self.dag_id, execution_date=execution_date, run_id=run_id, session=session
-        )
 
     @provide_session
     def get_dagruns_between(self, start_date, end_date, session=NEW_SESSION):

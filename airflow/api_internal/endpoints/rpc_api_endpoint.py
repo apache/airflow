@@ -57,7 +57,7 @@ def _initialize_map() -> dict[str, Callable]:
         Variable.update,
         Variable.delete,
         DAG.fetch_callback,
-        DAG.fetch_dagrun,
+        DAG.get_dagrun,
         DagRun.fetch_task_instances,
         DagRun.get_previous_dagrun,
         DagRun.get_previous_scheduled_dagrun,
