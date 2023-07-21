@@ -28,7 +28,6 @@ from airflow.providers.google.cloud.operators.datapipeline import (
     CreateDataPipelineOperator,
     RunDataPipelineOperator,
 )
-from airflow.providers.google.cloud.hooks.datapipeline import DataPipelineHook
 from airflow.version import version
 
 TASK_ID = "test-datapipeline-operators"
