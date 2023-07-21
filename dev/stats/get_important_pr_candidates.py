@@ -388,23 +388,13 @@ def main(
         console.print(f"Finding best candidate PRs between {date_start} and {date_end}.")
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
-        pulls = repo.get_pulls(state="closed", sort="created", direction="desc")
+        commits = repo.get_commits(since=date_start, until=date_end)
+        pulls = []
+        for commit in commits:
+            for pull in commit.get_pulls():
+                pulls.append(pull)
         issue_num = 0
         for pr in pulls:
-            if not pr.merged:
-                continue
-
-            if not (date_start < pr.merged_at < date_end):
-                console.print(
-                    f"[bright_blue]Skipping {pr.number} {pr.title} as it was not "
-                    f"merged between {date_start} and {date_end}]"
-                )
-                continue
-
-            if pr.merged_at < date_start:
-                console.print("[bright_blue]Completed selecting candidates")
-                break
-
             issue_num += 1
             pr_stat = PrStat(pull_request=pr, g=g)  # type: ignore
             console.print(
