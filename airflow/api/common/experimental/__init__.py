@@ -43,7 +43,7 @@ def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DagModel:
     return dag
 
 
-def check_and_get_dagrun(dag: DagModel, execution_date: datetime) -> DagRun | DagRunPydantic:
+def check_and_get_dagrun(dag: DagModel, execution_date: datetime):
     """Get DagRun object and check that it exists."""
     dagrun = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=execution_date)
     if not dagrun:
