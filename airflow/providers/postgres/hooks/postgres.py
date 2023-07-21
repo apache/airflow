@@ -322,18 +322,43 @@ class PostgresHook(DbApiHook):
         return sql
 
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
-        """Returns Postgres specific information for OpenLineage."""
+        """Returns Postgres/Redshift specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
+        is_redshift = connection.extra_dejson.get("redshift", False)
+
+        if is_redshift:
+            authority = self._get_openlineage_redshift_authority_part(connection)
+        else:
+            authority = DbApiHook.get_openlineage_authority_part(connection, default_port=5432)
+
         return DatabaseInfo(
-            scheme="postgres",
-            authority=DbApiHook.get_openlineage_authority_part(connection),
+            scheme="postgres" if not is_redshift else "redshift",
+            authority=authority,
             database=self.database or connection.schema,
         )
 
-    def get_openlineage_database_dialect(self, _) -> str:
-        """Returns postgres dialect."""
-        return "postgres"
+    def _get_openlineage_redshift_authority_part(self, connection) -> str:
+        try:
+            from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+        except ImportError:
+            from airflow.exceptions import AirflowException
+
+            raise AirflowException(
+                "apache-airflow-providers-amazon not installed, run: "
+                "pip install 'apache-airflow-providers-postgres[amazon]'."
+            )
+        aws_conn_id = connection.extra_dejson.get("aws_conn_id", "aws_default")
+
+        port = connection.port or 5439
+        cluster_identifier = connection.extra_dejson.get("cluster-identifier", connection.host.split(".")[0])
+        region_name = AwsBaseHook(aws_conn_id=aws_conn_id).region_name
+
+        return f"{cluster_identifier}.{region_name}:{port}"
+
+    def get_openlineage_database_dialect(self, connection) -> str:
+        """Returns postgres/redshift dialect."""
+        return "redshift" if connection.extra_dejson.get("redshift", False) else "postgres"
 
     def get_openlineage_default_schema(self) -> str | None:
         """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""

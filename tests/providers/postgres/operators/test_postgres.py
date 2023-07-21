@@ -161,7 +161,7 @@ class TestPostgresOpenLineage:
         lineage_on_complete = op.get_openlineage_facets_on_start()
         assert len(lineage_on_complete.inputs) == 0
         assert len(lineage_on_complete.outputs) == 1
-        assert lineage_on_complete.outputs[0].namespace == "postgres://postgres:None"
+        assert lineage_on_complete.outputs[0].namespace == "postgres://postgres:5432"
         assert lineage_on_complete.outputs[0].name == "airflow.another_schema.test_airflow"
         assert "schema" in lineage_on_complete.outputs[0].facets
 
@@ -187,6 +187,6 @@ class TestPostgresOpenLineage:
         lineage_on_complete = op.get_openlineage_facets_on_start()
         assert len(lineage_on_complete.inputs) == 0
         assert len(lineage_on_complete.outputs) == 1
-        assert lineage_on_complete.outputs[0].namespace == "postgres://postgres:None"
+        assert lineage_on_complete.outputs[0].namespace == "postgres://postgres:5432"
         assert lineage_on_complete.outputs[0].name == "airflow.public.test_airflow"
         assert "schema" in lineage_on_complete.outputs[0].facets
