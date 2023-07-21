@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google DataPipeline operators."""
+"""This module contains Google DataPipelines operators."""
 from __future__ import annotations
 
 import copy
@@ -41,7 +41,7 @@ from airflow.version import version
 
 class CreateDataPipelineOperator(GoogleCloudBaseOperator):
     """ 
-    Creates a new Data Pipeline instance from the Data Pipeline API.
+    Creates a new Data Pipelines instance from the Data Pipelines API.
 
     :param body: The request body (contains instance of Pipeline). See:
         https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
@@ -50,7 +50,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
     :param gcp_conn_id: The connection ID to connect to the Google Cloud
         Platform.
 
-    Returns the created Pipeline instance in JSON representation.
+    Returns the created Data Pipelines instance in JSON representation.
     """
     def __init__(
         self,
@@ -106,7 +106,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
 
 class RunDataPipelineOperator(GoogleCloudBaseOperator):
     """ 
-    Runs a Data Pipeline Instance using the Data Pipeline API 
+    Runs a Data Pipelines Instance using the Data Pipelines API 
 
     :param data_pipeline_name:  The display name of the pipeline. In example 
         projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
