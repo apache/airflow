@@ -41,15 +41,15 @@ with DAG(
     neptune_db_identifier = f"{test_context[ENV_ID_KEY]}-neptune-database"
 
     # [START howto_operator_neptune_start_db]
-    stop_db_instance = NeptuneStartDbOperator(
-        task_id="stop_db_instance",
+    start_db_instance= NeptuneStartDbOperator(
+        task_id="start_db_instance",
         db_identifier=neptune_db_identifier,
     )
     # [END howto_operator_neptune_start_db]
 
     # [START howto_operator_neptune_stop_db]
-    start_db_instance = NeptuneStopDbOperator(
-        task_id="start_db_instance",
+    stop_db_instance = NeptuneStopDbOperator(
+        task_id="stop_db_instance",
         db_identifier=neptune_db_identifier,
     )
     # [END howto_operator_neptune_stop_db]
