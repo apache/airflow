@@ -334,7 +334,8 @@ class TestSessionFactory:
             # It shouldn't be 'explicit' which refers in this case to initial credentials.
             credentials = await session.get_credentials()
 
-            assert inspect.iscoroutinefunction(credentials._refresh)
+            assert inspect.iscoroutinefunction(credentials.get_frozen_credentials)
+
             assert credentials.method == "sts-assume-role"
 
 
