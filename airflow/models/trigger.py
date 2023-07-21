@@ -20,7 +20,7 @@ import datetime
 from traceback import format_exception
 from typing import Any, Iterable
 
-from sqlalchemy import Column, Integer, String, delete, func, or_
+from sqlalchemy import Column, Integer, String, delete, func, or_, select, update
 from sqlalchemy.orm import Session, joinedload, relationship
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -93,9 +93,9 @@ class Trigger(Base):
     @provide_session
     def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
         """Fetches all the Triggers by ID and returns a dict mapping ID -> Trigger instance."""
-        query = (
-            session.query(cls)
-            .filter(cls.id.in_(ids))
+        query = session.scalars(
+            select(cls)
+            .where(cls.id.in_(ids))
             .options(
                 joinedload("task_instance"),
                 joinedload("task_instance.trigger"),
@@ -117,19 +117,21 @@ class Trigger(Base):
         # Update all task instances with trigger IDs that are not DEFERRED to remove them
         for attempt in run_with_db_retries():
             with attempt:
-                session.query(TaskInstance).filter(
-                    TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.isnot(None)
-                ).update({TaskInstance.trigger_id: None})
+                session.execute(
+                    update(TaskInstance)
+                    .where(
+                        TaskInstance.state != TaskInstanceState.DEFERRED, TaskInstance.trigger_id.is_not(None)
+                    )
+                    .values(trigger_id=None)
+                )
+
         # Get all triggers that have no task instances depending on them...
-        ids = [
-            trigger_id
-            for (trigger_id,) in (
-                session.query(cls.id)
-                .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
-                .group_by(cls.id)
-                .having(func.count(TaskInstance.trigger_id) == 0)
-            )
-        ]
+        ids = session.scalars(
+            select(cls.id)
+            .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
+            .group_by(cls.id)
+            .having(func.count(TaskInstance.trigger_id) == 0)
+        ).all()
         # ...and delete them (we can't do this in one query due to MySQL)
         session.execute(
             delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
@@ -140,8 +142,10 @@ class Trigger(Base):
     @provide_session
     def submit_event(cls, trigger_id, event, session: Session = NEW_SESSION) -> None:
         """Takes an event from an instance of itself, and triggers all dependent tasks to resume."""
-        for task_instance in session.query(TaskInstance).filter(
-            TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+        for task_instance in session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+            )
         ):
             # Add the event's payload into the kwargs for the task
             next_kwargs = task_instance.next_kwargs or {}
@@ -171,8 +175,10 @@ class Trigger(Base):
         workers as first-class concepts, we can run the failure code here
         in-process, but we can't do that right now.
         """
-        for task_instance in session.query(TaskInstance).filter(
-            TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+        for task_instance in session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
+            )
         ):
             # Add the error and set the next_method to the fail state
             traceback = format_exception(type(exc), exc, exc.__traceback__) if exc else None
@@ -188,7 +194,7 @@ class Trigger(Base):
     @provide_session
     def ids_for_triggerer(cls, triggerer_id, session: Session = NEW_SESSION) -> list[int]:
         """Retrieves a list of triggerer_ids."""
-        return [row[0] for row in session.query(cls.id).filter(cls.triggerer_id == triggerer_id)]
+        return session.scalars(select(cls.id).where(cls.triggerer_id == triggerer_id)).all()
 
     @classmethod
     @internal_api_call
@@ -203,7 +209,7 @@ class Trigger(Base):
         """
         from airflow.jobs.job import Job  # To avoid circular import
 
-        count = session.query(func.count(cls.id)).filter(cls.triggerer_id == triggerer_id).scalar()
+        count = session.scalar(select(func.count(cls.id)).filter(cls.triggerer_id == triggerer_id))
         capacity -= count
 
         if capacity <= 0:
@@ -211,14 +217,13 @@ class Trigger(Base):
         # we multiply heartrate by a grace_multiplier to give the triggerer
         # a chance to heartbeat before we consider it dead
         health_check_threshold = heartrate * 2.1
-        alive_triggerer_ids = [
-            row[0]
-            for row in session.query(Job.id).filter(
+        alive_triggerer_ids = session.scalars(
+            select(Job.id).where(
                 Job.end_date.is_(None),
                 Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=health_check_threshold),
                 Job.job_type == "TriggererJob",
             )
-        ]
+        ).all()
 
         # Find triggers who do NOT have an alive triggerer_id, and then assign
         # up to `capacity` of those to us.
@@ -226,19 +231,23 @@ class Trigger(Base):
             capacity=capacity, alive_triggerer_ids=alive_triggerer_ids, session=session
         )
         if trigger_ids_query:
-            session.query(cls).filter(cls.id.in_([i.id for i in trigger_ids_query])).update(
-                {cls.triggerer_id: triggerer_id},
-                synchronize_session=False,
+            session.execute(
+                update(cls)
+                .where(cls.id.in_([i.id for i in trigger_ids_query]))
+                .values(triggerer_id=triggerer_id)
+                .execution_options(synchronize_session=False)
             )
+
         session.commit()
 
     @classmethod
     def get_sorted_triggers(cls, capacity, alive_triggerer_ids, session):
-        return with_row_locks(
-            session.query(cls.id)
-            .filter(or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
+        query = with_row_locks(
+            select(cls.id)
+            .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
             .order_by(cls.created_date)
             .limit(capacity),
             session,
             skip_locked=True,
-        ).all()
+        )
+        return session.execute(query).all()
