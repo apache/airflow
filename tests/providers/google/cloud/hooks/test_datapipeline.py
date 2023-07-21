@@ -106,7 +106,7 @@ class TestDataPipelineHook:
     def test_create_data_pipeline(self, datapipeline, mock_connection):
         """
         Test that request are called with the correct params
-        Test that request actually requests the api
+        Test that request returns the correct value
         """
         mock_locations = mock_connection.return_value.projects.return_value.locations
         mock_request = mock_locations.return_value.pipelines.return_value.create
@@ -117,12 +117,12 @@ class TestDataPipelineHook:
             location = TEST_LOCATION,
             project_id = TEST_PROJECTID,
         )
+        mock_request.execute(mock.MagicMock())
         
         # assert that the api is requested 
         mock_request.assert_called_once_with(
+            parent = TEST_PARENT,
             body = TEST_BODY,
-            location = TEST_LOCATION,
-            project_id = TEST_PROJECTID,
         )
 
         assert datapipeline.return_value == result
