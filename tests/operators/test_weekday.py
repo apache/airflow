@@ -80,7 +80,7 @@ class TestBranchDayOfWeekOperator:
 
     def _assert_task_ids_match_states(self, dr, task_ids_to_states):
         """Helper that asserts task instances with a given id are in a given state"""
-        tis = dr.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
         for ti in tis:
             try:
                 expected_state = task_ids_to_states[ti.task_id]
@@ -269,7 +269,7 @@ class TestBranchDayOfWeekOperator:
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.xcom_pull(task_ids="make_choice") == "branch_1"

@@ -41,7 +41,7 @@ class TestDockerDecorator:
 
         dr = dag_maker.create_dagrun()
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         assert len(ti.xcom_pull()) == 100
 
     def test_basic_docker_operator_with_param(self, dag_maker):
@@ -56,7 +56,7 @@ class TestDockerDecorator:
 
         dr = dag_maker.create_dagrun()
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         result = ti.xcom_pull()
         assert isinstance(result, list)
         assert len(result) == 50
@@ -86,7 +86,7 @@ class TestDockerDecorator:
         dr = dag_maker.create_dagrun()
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
 
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         assert ti.xcom_pull(key="number") == test_number + 1
         assert ti.xcom_pull(key="43") == 43
         assert ti.xcom_pull() == {"number": test_number + 1, "43": 43}
@@ -101,7 +101,7 @@ class TestDockerDecorator:
 
         dr = dag_maker.create_dagrun()
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         assert ti.xcom_pull() is None
 
     def test_call_decorated_multiple_times(self):
@@ -142,7 +142,7 @@ class TestDockerDecorator:
                 ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
         else:
             ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
-            ti = dr.get_task_instances()[0]
+            ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
             assert ti.state == expected_state
 
     def test_setup_decorator_with_decorated_docker_task(self, dag_maker):

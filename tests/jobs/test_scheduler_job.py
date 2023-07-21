@@ -850,7 +850,7 @@ class TestSchedulerJob:
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
         assert 0 == len(res)
-        tis = dr.get_task_instances(session=session)
+        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, session=session)
         assert len(tis) == 2
         assert all(ti.state == State.FAILED for ti in tis)
 
@@ -2376,7 +2376,12 @@ class TestSchedulerJob:
         run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
         first_run = DagRun.find(dag_id=dag_id, execution_date=DEFAULT_DATE)[0]
-        ti_ids = [(ti.task_id, ti.state) for ti in first_run.get_task_instances()]
+        ti_ids = [
+            (ti.task_id, ti.state)
+            for ti in DagRun.get_task_instances(
+                dag_id=first_run.dag_id, run_id=first_run.run_id, dag=first_run.dag
+            )
+        ]
 
         assert ti_ids == [("current", State.SUCCESS)]
         assert first_run.state in [State.SUCCESS, State.RUNNING]
@@ -3157,7 +3162,7 @@ class TestSchedulerJob:
         session = settings.Session()
 
         dr1 = dag_maker.create_dagrun(external_trigger=True)
-        ti = dr1.get_task_instances(session=session)[0]
+        ti = DagRun.get_task_instances(dag_id=dr1.dag_id, run_id=dr1.run_id, dag=dr1.dag, session=session)[0]
         ti.state = State.QUEUED
         session.merge(ti)
         session.merge(dr1)
@@ -3180,7 +3185,7 @@ class TestSchedulerJob:
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
 
-        ti = dr1.get_task_instances(session=session)[0]
+        ti = DagRun.get_task_instances(dag_id=dr1.dag_id, run_id=dr1.run_id, dag=dr1.dag, session=session)[0]
         ti.state = State.SCHEDULED
         session.merge(ti)
         session.merge(dr1)
@@ -3203,7 +3208,7 @@ class TestSchedulerJob:
         session.flush()
 
         dr1 = dag_maker.create_dagrun()
-        tis = dr1.get_task_instances(session=session)
+        tis = DagRun.get_task_instances(dag_id=dr1.dag_id, run_id=dr1.run_id, dag=dr1.dag, session=session)
         tis[0].state = State.RUNNING
         tis[0].queued_by_job_id = scheduler_job.id
         session.merge(dr1)
@@ -3228,7 +3233,7 @@ class TestSchedulerJob:
         session.flush()
 
         dr1 = dag_maker.create_dagrun()
-        tis = dr1.get_task_instances(session=session)
+        tis = DagRun.get_task_instances(dag_id=dr1.dag_id, run_id=dr1.run_id, dag=dr1.dag, session=session)
         assert 1 == len(tis)
         tis[0].state = State.SCHEDULED
         tis[0].queued_by_job_id = scheduler_job.id
@@ -3265,7 +3270,9 @@ class TestSchedulerJob:
             start_date=timezone.utcnow(),
         )
 
-        ti1, ti2 = dr1.get_task_instances(session=session)
+        ti1, ti2 = DagRun.get_task_instances(
+            dag_id=dr1.dag_id, run_id=dr1.run_id, dag=dr1.dag, session=session
+        )
         dr1.state = State.RUNNING
         ti1.state = State.QUEUED
         ti1.queued_by_job_id = old_job.id
@@ -4204,7 +4211,7 @@ class TestSchedulerJob:
         assert dr is not None
 
         with create_session() as session:
-            ti = dr.get_task_instances(session=session)[0]
+            ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, session=session)[0]
             ti.state = state
             ti.start_date = start_date
             ti.end_date = end_date
@@ -4252,7 +4259,7 @@ class TestSchedulerJob:
         assert dr is not None
 
         with create_session() as session:
-            ti = dr.get_task_instances(session=session)[0]
+            ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, session=session)[0]
             ti.state = state
             ti.start_date = start_date
             ti.end_date = end_date
@@ -4300,7 +4307,7 @@ class TestSchedulerJob:
         assert dr is not None
 
         with create_session() as session:
-            ti = dr.get_task_instances(session=session)[0]
+            ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, session=session)[0]
             ti.state = state
             ti.start_date = start_date
             ti.end_date = end_date
@@ -4353,7 +4360,7 @@ class TestSchedulerJob:
         assert dr is not None
 
         with create_session() as session:
-            tis = dr.get_task_instances(session=session)
+            tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, session=session)
             for ti in tis:
                 ti.state = state
                 ti.start_date = start_date
@@ -4396,7 +4403,7 @@ class TestSchedulerJob:
         assert len(drs) == 1
         dr = drs[0]
 
-        tis = dr.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
         assert len(tis) == 1
 
         BashOperator(task_id="dummy2", dag=dag, bash_command="echo test")
@@ -4410,7 +4417,7 @@ class TestSchedulerJob:
         assert len(drs) == 1
         dr = drs[0]
 
-        tis = dr.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
         assert len(tis) == 2
 
     def test_runs_respected_after_clear(self, dag_maker):
@@ -4948,7 +4955,9 @@ class TestSchedulerJob:
             run_type=DagRunType.SCHEDULED,
         )
         scheduled_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
-        ti = scheduled_run.get_task_instances()[0]
+        ti = DagRun.get_task_instances(
+            dag_id=scheduled_run.dag_id, run_id=scheduled_run.run_id, dag=scheduled_run.dag
+        )[0]
         ti.set_state(TaskInstanceState.RUNNING)
         dm = DagModel.get_dagmodel(dag.dag_id)
         dm.is_paused = True
@@ -4992,7 +5001,9 @@ class TestSchedulerJob:
         # Backfill run
         backfill_run = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
         backfill_run.last_scheduling_decision = datetime.datetime.now(timezone.utc) - timedelta(minutes=1)
-        ti = backfill_run.get_task_instances()[0]
+        ti = DagRun.get_task_instances(
+            dag_id=backfill_run.dag_id, run_id=backfill_run.run_id, dag=backfill_run.dag
+        )[0]
         ti.set_state(TaskInstanceState.SUCCESS)
         dm = DagModel.get_dagmodel(dag.dag_id)
         dm.is_paused = True
@@ -5072,7 +5083,10 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
     dr = dag_maker.create_dagrun(state=State.RUNNING)
     assert dr is not None
 
-    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    tis = {
+        ti.task_id: ti
+        for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, session=session)
+    }
     # Set dummy1 to skipped and dummy2 to success. dummy3 remains as none.
     tis[dummy1.task_id].state = State.SKIPPED
     tis[dummy2.task_id].state = State.SUCCESS
@@ -5085,7 +5099,10 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
     job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
     job_runner._schedule_dag_run(dr, session)
     session.flush()
-    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    tis = {
+        ti.task_id: ti
+        for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, session=session)
+    }
     assert tis[dummy1.task_id].state == State.SKIPPED
     assert tis[dummy2.task_id].state == State.SUCCESS
     # dummy3 should be skipped because dummy1 is skipped.
@@ -5165,7 +5182,7 @@ class TestSchedulerJobQueriesCount:
                     dag_hash=dagbag.dags_hash[dag.dag_id],
                 )
                 dagruns.append(dr)
-                for ti in dr.get_task_instances():
+                for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag):
                     ti.set_state(state=State.SCHEDULED)
 
             mock_agent = mock.MagicMock()

@@ -112,7 +112,7 @@ def get_mapped_task_dagrun(session, dag_maker):
             ti.dag_run = dr
             session.add(ti)
         session.flush()
-        tis = dr.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
         for ti in tis:
             if ti.task_id == "do_something":
                 if ti.map_index > 2:

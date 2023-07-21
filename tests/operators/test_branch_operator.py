@@ -130,7 +130,7 @@ class TestBranchOperator:
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dagrun.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
@@ -156,7 +156,7 @@ class TestBranchOperator:
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dagrun.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
@@ -183,7 +183,7 @@ class TestBranchOperator:
 
         self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.xcom_pull(task_ids="make_choice") == "branch_1"

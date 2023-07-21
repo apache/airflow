@@ -48,7 +48,7 @@ class TestSFTPDecoratorSensor:
 
         dr = dag_maker.create_dagrun()
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         assert ti.xcom_pull() == expected_xcom_return
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -69,7 +69,7 @@ class TestSFTPDecoratorSensor:
 
         dr = dag_maker.create_dagrun()
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         assert ti.xcom_pull() == expected_xcom_return
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -95,7 +95,7 @@ class TestSFTPDecoratorSensor:
 
         dr = dag_maker.create_dagrun()
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         assert ti.xcom_pull() == expected_xcom_return
 
     @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
@@ -123,5 +123,5 @@ class TestSFTPDecoratorSensor:
 
         dr = dag_maker.create_dagrun()
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         assert ti.xcom_pull() == expected_xcom_return

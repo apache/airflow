@@ -461,7 +461,7 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def fetch_task_instances(
+    def get_task_instances(
         dag_id: str | None = None,
         run_id: str | None = None,
         dag: DAG | None = None,
@@ -495,22 +495,6 @@ class DagRun(Base, LoggingMixin):
         if dag and dag.partial:
             tis = tis.where(TI.task_id.in_(dag.task_ids))
         return session.scalars(tis).all()
-
-    @provide_session
-    def get_task_instances(
-        self,
-        state: Iterable[TaskInstanceState | None] | None = None,
-        session: Session = NEW_SESSION,
-    ) -> list[TI]:
-        """
-        Returns the task instances for this dag run.
-
-        Redirect to DagRun.fetch_task_instances method.
-        Keep this method because it is widely used across the code.
-        """
-        return DagRun.fetch_task_instances(
-            dag_id=self.dag_id, run_id=self.run_id, dag=self.dag, state=state, session=session
-        )
 
     @provide_session
     def get_task_instance(

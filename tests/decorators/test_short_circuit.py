@@ -69,7 +69,7 @@ def test_short_circuit_decorator(dag_maker):
         "task_5": State.SUCCESS,
     }
 
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     for ti in tis:
         assert ti.state == task_state_mapping[ti.task_id]
 
@@ -84,7 +84,7 @@ def test_short_circuit_with_multiple_outputs(dag_maker):
 
     dr = dag_maker.create_dagrun()
     ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-    ti = dr.get_task_instances()[0]
+    ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
     assert ti.xcom_pull() == {"x": 1, "y": 2}
 
 
@@ -98,5 +98,5 @@ def test_short_circuit_with_multiple_outputs_and_empty_dict(dag_maker):
 
     dr = dag_maker.create_dagrun()
     ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-    ti = dr.get_task_instances()[0]
+    ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
     assert ti.xcom_pull() == {}

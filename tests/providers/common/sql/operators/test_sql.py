@@ -1032,7 +1032,7 @@ class TestSqlBranch:
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
@@ -1073,7 +1073,7 @@ class TestSqlBranch:
 
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-            tis = dr.get_task_instances()
+            tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
             for ti in tis:
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
@@ -1113,7 +1113,7 @@ class TestSqlBranch:
             mock_get_records.return_value = false_value
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-            tis = dr.get_task_instances()
+            tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
             for ti in tis:
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
@@ -1154,7 +1154,7 @@ class TestSqlBranch:
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        tis = dr.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
@@ -1227,7 +1227,7 @@ class TestSqlBranch:
 
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-            tis = dr.get_task_instances()
+            tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
             for ti in tis:
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
@@ -1268,7 +1268,7 @@ class TestSqlBranch:
 
             branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-            tis = dr.get_task_instances()
+            tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
             for ti in tis:
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS

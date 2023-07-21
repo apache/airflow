@@ -672,7 +672,7 @@ class TestDagRun:
         dag.add_task(EmptyOperator(task_id="flaky_task", owner="test"))
 
         dagrun = self.create_dag_run(dag, session=session)
-        flaky_ti = dagrun.get_task_instances()[0]
+        flaky_ti = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)[0]
         assert "flaky_task" == flaky_ti.task_id
         assert flaky_ti.state is None
 
@@ -693,7 +693,7 @@ class TestDagRun:
         dag.add_task(EmptyOperator(task_id="first_task", owner="test"))
 
         dagrun = self.create_dag_run(dag, session=session)
-        first_ti = dagrun.get_task_instances()[0]
+        first_ti = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)[0]
         assert "first_task" == first_ti.task_id
         assert first_ti.state is None
 
@@ -722,14 +722,14 @@ class TestDagRun:
         dag.add_task(EmptyOperator(task_id="task_to_mutate", owner="test", queue="queue1"))
 
         dagrun = self.create_dag_run(dag, session=session)
-        task = dagrun.get_task_instances()[0]
+        task = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)[0]
         task.state = state
         session.merge(task)
         session.commit()
         assert task.queue == "queue2"
 
         dagrun.verify_integrity()
-        task = dagrun.get_task_instances()[0]
+        task = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)[0]
         assert task.queue == "queue1"
 
     @pytest.mark.parametrize(
@@ -1127,7 +1127,7 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
         task_2.expand(arg2=[1, 2, 3, 4])
 
     dr = dag_maker.create_dagrun()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1150,7 +1150,7 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     # Every mapped task is revised at task_instance_scheduling_decision
     dr.task_instance_scheduling_decisions()
 
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1173,7 +1173,7 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
         task_2.expand(arg2=[1, 2, 3, 4])
 
     dr = dag_maker.create_dagrun()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1197,7 +1197,7 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     # change which will have the scheduler verify the dr integrity
     dr.verify_integrity()
 
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1229,7 +1229,7 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
     ti = dr.get_task_instance(task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1258,7 +1258,7 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
 
     # this would be called by the localtask job
     dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
 
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
@@ -1294,7 +1294,7 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     ti = dr.get_task_instance(task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1323,7 +1323,7 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
 
     # this would be called by the localtask job
     dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
 
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
@@ -1391,7 +1391,7 @@ def test_mapped_literal_length_with_no_change_at_runtime_doesnt_call_verify_inte
     ti = dr.get_task_instance(task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1449,7 +1449,7 @@ def test_calls_to_verify_integrity_with_mapped_task_increase_at_runtime(dag_make
     ti = dr.get_task_instance(task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1475,7 +1475,7 @@ def test_calls_to_verify_integrity_with_mapped_task_increase_at_runtime(dag_make
     ti.refresh_from_task(task1)
     ti.run()
     task2 = dag.get_task("task_2")
-    for ti in dr.get_task_instances():
+    for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag):
         if ti.map_index < 0:
             ti.task = task1
         else:
@@ -1486,7 +1486,7 @@ def test_calls_to_verify_integrity_with_mapped_task_increase_at_runtime(dag_make
     dr.task_instance_scheduling_decisions()
     # Run verify_integrity as a whole and assert new tasks were added
     dr.verify_integrity()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1502,7 +1502,7 @@ def test_calls_to_verify_integrity_with_mapped_task_increase_at_runtime(dag_make
     session.flush()
     # assert repeated calls did not change the instances
     dr.verify_integrity()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1537,7 +1537,7 @@ def test_calls_to_verify_integrity_with_mapped_task_reduction_at_runtime(dag_mak
     ti = dr.get_task_instance(task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1563,7 +1563,7 @@ def test_calls_to_verify_integrity_with_mapped_task_reduction_at_runtime(dag_mak
     ti.refresh_from_task(task1)
     ti.run()
     task2 = dag.get_task("task_2")
-    for ti in dr.get_task_instances():
+    for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag):
         if ti.map_index < 0:
             ti.task = task1
         else:
@@ -1574,7 +1574,7 @@ def test_calls_to_verify_integrity_with_mapped_task_reduction_at_runtime(dag_mak
 
     # Run verify_integrity as a whole and assert some tasks were removed
     dr.verify_integrity()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, TaskInstanceState.SUCCESS),
@@ -1584,7 +1584,7 @@ def test_calls_to_verify_integrity_with_mapped_task_reduction_at_runtime(dag_mak
 
     # assert repeated calls did not change the instances
     dr.verify_integrity()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, TaskInstanceState.SUCCESS),
@@ -1617,7 +1617,7 @@ def test_calls_to_verify_integrity_with_mapped_task_with_no_changes_at_runtime(d
     ti = dr.get_task_instance(task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1643,7 +1643,7 @@ def test_calls_to_verify_integrity_with_mapped_task_with_no_changes_at_runtime(d
     ti.refresh_from_task(task1)
     ti.run()
     task2 = dag.get_task("task_2")
-    for ti in dr.get_task_instances():
+    for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag):
         if ti.map_index < 0:
             ti.task = task1
         else:
@@ -1654,7 +1654,7 @@ def test_calls_to_verify_integrity_with_mapped_task_with_no_changes_at_runtime(d
 
     # Run verify_integrity as a whole and assert no changes
     dr.verify_integrity()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, TaskInstanceState.SUCCESS),
@@ -1664,7 +1664,7 @@ def test_calls_to_verify_integrity_with_mapped_task_with_no_changes_at_runtime(d
 
     # assert repeated calls did not change the instances
     dr.verify_integrity()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, TaskInstanceState.SUCCESS),
@@ -1699,7 +1699,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
     ti = dr.get_task_instance(task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
     assert sorted(indices) == [
         (0, State.NONE),
@@ -1726,7 +1726,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
     ti.refresh_from_task(task1)
     ti.run()
     task2 = dag.get_task("task_2")
-    for ti in dr.get_task_instances():
+    for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag):
         if ti.map_index < 0:
             ti.task = task1
         else:
@@ -1736,7 +1736,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
     with caplog.at_level(logging.DEBUG):
         # Run verify_integrity as a whole and assert the tasks were removed
         dr.verify_integrity()
-        tis = dr.get_task_instances()
+        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
         indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
         assert sorted(indices) == [
             (0, TaskInstanceState.REMOVED),
@@ -2101,7 +2101,7 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
         ti.dag_run = dr
         session.add(ti)
     session.flush()
-    tis = dr.get_task_instances()
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
     for ti in tis:
         if ti.task_id == "do_something":
             if ti.map_index > 2:
@@ -2252,7 +2252,10 @@ def test_mapping_against_empty_list(dag_maker, session):
 
     dr: DagRun = dag_maker.create_dagrun()
 
-    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    tis = {
+        ti.task_id: ti
+        for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, session=session)
+    }
     say_hi_ti = tis["say_hi"]
     say_bye_ti = tis["say_bye"]
     say_hi_ti.state = TaskInstanceState.SUCCESS
@@ -2265,7 +2268,10 @@ def test_mapping_against_empty_list(dag_maker, session):
     dr.update_state(session=session)  # marks first empty mapped task as skipped
     dr.update_state(session=session)  # marks second empty mapped task as skipped
     dr.update_state(session=session)  # marks the third empty mapped task as skipped and dagrun as success
-    tis = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+    tis = {
+        ti.task_id: ti.state
+        for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, session=session)
+    }
     assert tis["say_hi"] == TaskInstanceState.SUCCESS
     assert tis["say_bye"] == TaskInstanceState.SUCCESS
     assert tis["add_one"] == TaskInstanceState.SKIPPED
@@ -2328,7 +2334,7 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
         printx.expand(x=[1])
 
     dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-    ti = dr1.get_task_instances()[0]
+    ti = DagRun.get_task_instances(dag_id=dr1.dag_id, run_id=dr1.run_id, dag=dr1.dag)[0]
     filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
     ti = session.query(TaskInstance).filter_by(**filter_kwargs).one()
 

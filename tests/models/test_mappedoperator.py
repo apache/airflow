@@ -606,7 +606,7 @@ def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
         ConsumeXcomOperator(task_id="op2", arg1=op1.output)
 
     dr = dag_maker.create_dagrun()
-    tis = dr.get_task_instances(session=session)
+    tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, session=session)
     for ti in tis:
         ti.run()
 

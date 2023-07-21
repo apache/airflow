@@ -180,7 +180,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         dr = self.create_dag_run()
         res.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
 
         assert res.operator.multiple_outputs is False
         assert ti.xcom_pull() == (8, 4)
@@ -198,7 +198,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         dr = self.create_dag_run()
         ident.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
 
         assert not ident.operator.multiple_outputs
         assert ti.xcom_pull() == (35, 36)
@@ -264,7 +264,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         dr = self.create_dag_run()
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         assert ti.xcom_pull() == {}
 
     def test_multiple_outputs_return_none(self):
@@ -277,7 +277,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         dr = self.create_dag_run()
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         assert ti.xcom_pull() is None
 
     def test_python_callable_arguments_are_templatized(self):
@@ -402,7 +402,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        ti = dr.get_task_instances()[0]
+        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
         assert ti.xcom_pull(key="number") == test_number + 1
         assert ti.xcom_pull(key="43") == 43
         assert ti.xcom_pull() == {"number": test_number + 1, "43": 43}
@@ -462,7 +462,11 @@ class TestAirflowTaskDecorator(BasePythonTest):
         bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == "add_num"][0]
+        ti_add_num = [
+            ti
+            for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+            if ti.task_id == "add_num"
+        ][0]
         assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2
 
     def test_dag_task(self):

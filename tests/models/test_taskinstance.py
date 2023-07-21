@@ -3952,7 +3952,12 @@ class TestMappedTaskInstanceReceiveValue:
                 )
 
         dag_run: DagRun = dag_maker.create_dagrun()
-        original_tis = {ti.task_id: ti for ti in dag_run.get_task_instances(session=session)}
+        original_tis = {
+            ti.task_id: ti
+            for ti in DagRun.get_task_instances(
+                dag_id=dag_run.dag_id, run_id=dag_run.run_id, dag=dag_run.dag, session=session
+            )
+        }
 
         for task_id in ["dynamic.envs", "dynamic.cmds"]:
             ti = original_tis[task_id]
@@ -4308,13 +4313,17 @@ def test_mini_scheduler_not_skip_mapped_downstream_until_all_upstreams_finish(da
     static_ti.run(session=session)
     static_ti.schedule_downstream_tasks(session=session)
     # No tasks should be skipped yet!
-    assert not dr.get_task_instances([TaskInstanceState.SKIPPED], session=session)
+    assert not DagRun.get_task_instances(
+        dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, state=[TaskInstanceState.SKIPPED], session=session
+    )
 
     generate_ti = tis[("generate", -1)]
     generate_ti.run(session=session)
     generate_ti.schedule_downstream_tasks(session=session)
     # Now downstreams can be skipped.
-    assert dr.get_task_instances([TaskInstanceState.SKIPPED], session=session)
+    assert DagRun.get_task_instances(
+        dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag, state=[TaskInstanceState.SKIPPED], session=session
+    )
 
 
 def test_taskinstance_with_note(create_task_instance, session):

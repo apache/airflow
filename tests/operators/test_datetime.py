@@ -84,7 +84,7 @@ class TestBranchDateTimeOperator:
 
     def _assert_task_ids_match_states(self, task_ids_to_states):
         """Helper that asserts task instances with a given id are in a given state"""
-        tis = self.dr.get_task_instances()
+        tis = self.DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
         for ti in tis:
             try:
                 expected_state = task_ids_to_states[ti.task_id]
