@@ -29,6 +29,8 @@ change your ``airflow.cfg`` to point the executor parameter to
 For more information about setting up a Celery broker, refer to the
 exhaustive `Celery documentation on the topic <https://docs.celeryq.dev/en/latest/getting-started/>`_.
 
+The configuration parameters of the Celery Executor can be found in :doc:`apache-airflow-providers-celery:configurations-ref`.
+
 Here are a few imperative requirements for your workers:
 
 - ``airflow`` needs to be installed, and the CLI needs to be in the path

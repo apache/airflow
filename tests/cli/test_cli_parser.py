@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,20 +15,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import argparse
 import contextlib
 import io
+import os
 import re
 import subprocess
+import sys
 import timeit
 from collections import Counter
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from airflow.cli import cli_config, cli_parser
+from airflow.configuration import AIRFLOW_HOME
 from tests.test_utils.config import conf_vars
 
 # Can not be `--snake_case` or contain uppercase letter
@@ -284,9 +288,25 @@ class TestCli:
             "(choose from 'csv'), see help above.\n"
         )
 
+
+# We need to run it from sources with PYTHONPATH, not command line tool,
+# because we need to make sure that we have providers configured from source provider.yaml files
+
+CONFIG_FILE = Path(AIRFLOW_HOME) / "airflow.cfg"
+
+
+class TestCliSubprocess:
+    """
+    We need to run it from sources using "__main__" and setting the PYTHONPATH, not command line tool,
+    because we need to make sure that we have providers loaded from source provider.yaml files rather
+    than from provider packages which might not be installed in the test environment.
+    """
+
     def test_cli_run_time(self):
         setup_code = "import subprocess"
-        timing_code = 'subprocess.run(["airflow", "--help"])'
+        command = [sys.executable, "-m", "airflow", "--help"]
+        env = {"PYTHONPATH": os.pathsep.join(sys.path)}
+        timing_code = f"subprocess.run({command},env={env})"
         # Limit the number of samples otherwise the test will take a very long time
         num_samples = 3
         threshold = 3.5
@@ -301,4 +321,59 @@ class TestCli:
         separate subprocess, to make sure we do not have providers manager initialized in the main
         process from other tests.
         """
-        subprocess.check_call(["airflow", "providers", "status"])
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_FILE.touch(exist_ok=True)
+        result = subprocess.run(
+            [sys.executable, "-m", "airflow", "providers", "status"],
+            env={"PYTHONPATH": os.pathsep.join(sys.path)},
+            check=False,
+            text=True,
+        )
+        assert result.returncode == 0
+
+    def test_airflow_config_contains_providers(self):
+        """Test that airflow config has providers included by default.
+
+        This test is run as a separate subprocess, to make sure we do not have providers manager
+        initialized in the main process from other tests.
+        """
+        CONFIG_FILE.unlink(missing_ok=True)
+        result = subprocess.run(
+            [sys.executable, "-m", "airflow", "version"],
+            env={"PYTHONPATH": os.pathsep.join(sys.path)},
+            check=False,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert CONFIG_FILE.exists()
+        assert "celery_config_options" in CONFIG_FILE.read_text()
+
+    def test_airflow_config_output_contains_providers_by_default(self):
+        """Test that airflow config has providers excluded in config list when asked for it."""
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_FILE.touch(exist_ok=True)
+
+        result = subprocess.run(
+            [sys.executable, "-m", "airflow", "config", "list"],
+            env={"PYTHONPATH": os.pathsep.join(sys.path)},
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        assert result.returncode == 0
+        assert "celery_config_options" in result.stdout
+
+    def test_airflow_config_output_does_not_contain_providers_when_excluded(self):
+        """Test that airflow config has providers excluded in config list when asked for it."""
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_FILE.unlink(missing_ok=True)
+        CONFIG_FILE.touch(exist_ok=True)
+        result = subprocess.run(
+            [sys.executable, "-m", "airflow", "config", "list", "--exclude-providers"],
+            env={"PYTHONPATH": os.pathsep.join(sys.path)},
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        assert result.returncode == 0
+        assert "celery_config_options" not in result.stdout
