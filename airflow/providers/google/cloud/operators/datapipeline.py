@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google DataPipeline operators."""
+"""This module contains Google Data Pipelines operators."""
 from __future__ import annotations
 
 import copy
@@ -41,16 +41,16 @@ from airflow.version import version
 
 class CreateDataPipelineOperator(GoogleCloudBaseOperator):
     """ 
-    Creates a new Data Pipeline instance from the Data Pipeline API.
+    Creates a new Data Pipelines instance from the Data Pipelines API.
 
     :param body: The request body (contains instance of Pipeline). See:
         https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
     :param project_id: The ID of the GCP project that owns the job.
-    :param location: The location to direct the Data Pipeline instance to (example_dags uses uscentral-1).
+    :param location: The location to direct the Data Pipelines instance to (example_dags uses uscentral-1).
     :param gcp_conn_id: The connection ID to connect to the Google Cloud
         Platform.
 
-    Returns the created Pipeline instance in JSON representation.
+    Returns the created Data Pipelines instance in JSON representation.
     """
     def __init__(
         self,
@@ -73,15 +73,15 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         if self.body is None:
                 raise AirflowException(
-                    "Request Body not given; cannot create a DataPipeline without the Request Body."
+                    "Request Body not given; cannot create a Data Pipeline without the Request Body."
                 )
         if self.project_id is None:
                 raise AirflowException(
-                    "Project ID not given; cannot create a DataPipeline without the Project ID."
+                    "Project ID not given; cannot create a Data Pipeline without the Project ID."
                 )
         if self.location is None:
                 raise AirflowException(
-                    "location not given; cannot create a DataPipeline without the location."
+                    "location not given; cannot create a Data Pipeline without the location."
                 )
         
         self.datapipeline_hook = DataPipelineHook(
@@ -99,19 +99,18 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
             raise AirflowException(
                   self.data_pipeline.get("error").get("message")
             )
-        
-        # returns the full response body
+
         return self.data_pipeline
 
 
 class RunDataPipelineOperator(GoogleCloudBaseOperator):
     """ 
-    Runs a Data Pipeline Instance using the Data Pipeline API 
+    Runs a Data Pipelines Instance using the Data Pipelines API 
 
     :param data_pipeline_name:  The display name of the pipeline. In example 
         projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
     :param project_id: The ID of the GCP project that owns the job.
-    :param location: The location of the Data Pipeline instance to (example_dags uses uscentral-1).
+    :param location: The location of the Data Pipelines instance to (example_dags uses uscentral-1).
     :param gcp_conn_id: The connection ID to connect to the Google Cloud
         Platform.
 
@@ -141,11 +140,11 @@ class RunDataPipelineOperator(GoogleCloudBaseOperator):
             )
         if self.project_id is None:
             raise AirflowException(
-                "Project ID not given; cannot run pipeline."
+                "Data Pipeline Project ID not given; cannot run pipeline."
             )
         if self.location is None:
             raise AirflowException(
-                "Pipeline location not given; cannot run pipeline."
+                "Data Pipeline location not given; cannot run pipeline."
             )
 
         self.response = self.data_pipeline_hook.run_data_pipeline(
