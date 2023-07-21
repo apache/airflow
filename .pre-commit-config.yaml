@@ -333,6 +333,22 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-airflow-k8s-not-used
+        name: Check airflow.kubernetes imports are not used
+        language: python
+        files: ^airflow/.*\.py$
+        require_serial: true
+        exclude: ^airflow/kubernetes/
+        entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_k8s_not_used.py
+        additional_dependencies: ['rich>=12.4.4']
+      - id: check-cncf-k8s-only-for-executors
+        name: Check cncf.kubernetes imports used for executors only
+        language: python
+        files: ^airflow/.*\.py$
+        require_serial: true
+        exclude: ^airflow/kubernetes/|^airflow/providers/
+        entry: ./scripts/ci/pre_commit/pre_commit_check_cncf_k8s_used_for_k8s_executor_only.py
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-extra-packages-references
         name: Checks setup extra packages
         description: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file

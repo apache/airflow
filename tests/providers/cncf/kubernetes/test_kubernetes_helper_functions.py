@@ -22,7 +22,7 @@ import re
 import pytest
 from pytest import param
 
-from airflow.kubernetes.kubernetes_helper_functions import create_pod_id
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_pod_id
 from airflow.providers.cncf.kubernetes.operators.pod import _create_pod_id
 
 pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"

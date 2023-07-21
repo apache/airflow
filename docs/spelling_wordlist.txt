@@ -35,6 +35,7 @@ alibaba
 allAuthenticatedUsers
 allowinsert
 allUsers
+alphanumerics
 Alphasort
 amazonaws
 amqp
@@ -296,6 +297,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+CoreV
 coroutine
 coverals
 cp
@@ -678,6 +680,7 @@ Harenslak
 Hashable
 Hashicorp
 hashicorp
+hashlib
 hasn
 HCatalog
 hcatalog
@@ -1105,7 +1108,9 @@ pluggable
 pluggy
 plyvel
 png
+PodManager
 podName
+PodSpec
 podSpec
 podspec
 poller

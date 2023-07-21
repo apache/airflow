@@ -22,25 +22,29 @@ from unittest import mock
 from kubernetes.client import Configuration
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
-from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive, get_kube_client
+from airflow.providers.cncf.kubernetes.kube_client import (
+    _disable_verify_ssl,
+    _enable_tcp_keepalive,
+    get_kube_client,
+)
 from tests.test_utils.config import conf_vars
 
 
 class TestClient:
-    @mock.patch("airflow.kubernetes.kube_client.config")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config")
     def test_load_cluster_config(self, config):
         get_kube_client(in_cluster=True)
         assert config.load_incluster_config.called
         assert config.load_kube_config.not_called
 
-    @mock.patch("airflow.kubernetes.kube_client.config")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config")
     def test_load_file_config(self, config):
         get_kube_client(in_cluster=False)
         assert config.load_incluster_config.not_called
         assert config.load_kube_config.called
 
-    @mock.patch("airflow.kubernetes.kube_client.config")
-    @mock.patch("airflow.kubernetes.kube_client.conf")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.conf")
     def test_load_config_disable_ssl(self, conf, config):
         conf.getboolean.return_value = False
         conf.getjson.return_value = {"total": 3, "backoff_factor": 0.5}
@@ -48,8 +52,8 @@ class TestClient:
         conf.getboolean.assert_called_with("kubernetes_executor", "verify_ssl")
         assert not client.api_client.configuration.verify_ssl
 
-    @mock.patch("airflow.kubernetes.kube_client.config")
-    @mock.patch("airflow.kubernetes.kube_client.conf")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.conf")
     def test_load_config_ssl_ca_cert(self, conf, config):
         conf.get.return_value = "/path/to/ca.crt"
         conf.getjson.return_value = {"total": 3, "backoff_factor": 0.5}

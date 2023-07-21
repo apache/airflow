@@ -35,12 +35,12 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from sqlalchemy.orm import Session
 
+from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.executors.base_executor import BaseExecutor
-from airflow.executors.kubernetes_executor_types import POD_EXECUTOR_DONE_KEY
-from airflow.kubernetes.kube_config import KubeConfig
-from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import POD_EXECUTOR_DONE_KEY
+from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -51,13 +51,23 @@ if TYPE_CHECKING:
     from kubernetes.client import models as k8s
 
     from airflow.executors.base_executor import CommandType
-    from airflow.executors.kubernetes_executor_types import (
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
         KubernetesJobType,
         KubernetesResultsType,
     )
-    from airflow.executors.kubernetes_executor_utils import AirflowKubernetesScheduler
-    from airflow.models.taskinstance import TaskInstance
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
+        AirflowKubernetesScheduler,
+    )
+
+
+class PodMutationHookException(AirflowException):
+    """Raised when exception happens during Pod Mutation Hook execution."""
+
+
+class PodReconciliationError(AirflowException):
+    """Raised when an error is encountered while trying to merge pod configs."""
 
 
 class KubernetesExecutor(BaseExecutor):
@@ -98,11 +108,11 @@ class KubernetesExecutor(BaseExecutor):
     def _make_safe_label_value(self, input_value: str | datetime) -> str:
         """
         Normalize a provided label to be of valid length and characters.
-        See airflow.kubernetes.pod_generator.make_safe_label_value for more details.
+        See airflow.providers.cncf.kubernetes.pod_generator.make_safe_label_value for more details.
         """
-        # airflow.kubernetes is an expensive import, locally import it here to
+        # airflow.providers.cncf.kubernetes is an expensive import, locally import it here to
         # speed up load times of the kubernetes_executor module.
-        from airflow.kubernetes import pod_generator
+        from airflow.providers.cncf.kubernetes import pod_generator
 
         if isinstance(input_value, datetime):
             return pod_generator.datetime_to_label_safe_datestring(input_value)
@@ -188,8 +198,10 @@ class KubernetesExecutor(BaseExecutor):
         self.log.info("Start Kubernetes executor")
         self.scheduler_job_id = str(self.job_id)
         self.log.debug("Start with scheduler_job_id: %s", self.scheduler_job_id)
-        from airflow.executors.kubernetes_executor_utils import AirflowKubernetesScheduler
-        from airflow.kubernetes.kube_client import get_kube_client
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
+            AirflowKubernetesScheduler,
+        )
+        from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
@@ -224,7 +236,7 @@ class KubernetesExecutor(BaseExecutor):
         else:
             self.log.info("Add task %s with command %s", key, command)
 
-        from airflow.kubernetes.pod_generator import PodGenerator
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
         try:
             kube_executor_config = PodGenerator.from_obj(executor_config)
@@ -282,7 +294,7 @@ class KubernetesExecutor(BaseExecutor):
             except Empty:
                 break
 
-        from airflow.executors.kubernetes_executor_utils import ResourceVersion
+        from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
         resource_instance = ResourceVersion()
         for ns in resource_instance.resource_version.keys():
@@ -386,8 +398,8 @@ class KubernetesExecutor(BaseExecutor):
         log = []
         try:
 
-            from airflow.kubernetes.kube_client import get_kube_client
-            from airflow.kubernetes.pod_generator import PodGenerator
+            from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
+            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
             client = get_kube_client()
 
@@ -463,7 +475,7 @@ class KubernetesExecutor(BaseExecutor):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
-        from airflow.kubernetes.pod_generator import PodGenerator
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
         if TYPE_CHECKING:
             assert self.kube_client

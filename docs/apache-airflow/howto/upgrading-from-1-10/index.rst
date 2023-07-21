@@ -171,7 +171,7 @@ by using the ``| default`` Jinja filter as shown below.
 Much like the ``KubernetesExecutor``, the ``KubernetesPodOperator`` will no longer take Airflow custom classes and will
 instead expect either a pod_template yaml file, or ``kubernetes.client.models`` objects.
 
-The one notable exception is that we will continue to support the ``airflow.kubernetes.secret.Secret`` class.
+The one notable exception is that we will continue to support the ``airflow.providers.cncf.kubernetes.secret.Secret`` class.
 
 Whereas previously a user would import each individual class to build the pod as so:
 
@@ -218,7 +218,7 @@ Now the user can use the ``kubernetes.client.models`` class as a single point of
 .. code-block:: python
 
     from kubernetes.client import models as k8s
-    from airflow.kubernetes.secret import Secret
+    from airflow.providers.cncf.kubernetes.secret import Secret
 
 
     configmaps = ["test-configmap-1", "test-configmap-2"]

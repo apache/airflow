@@ -1541,6 +1541,10 @@ class Airflow(AirflowBaseView):
         """Get rendered k8s yaml."""
         if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
             abort(404)
+        # This part is only used for k8s executor so providers.cncf.kubernetes must be installed
+        # with the get_rendered_k8s_spec method
+        from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec
+
         dag_id = request.args.get("dag_id")
         task_id = request.args.get("task_id")
         if task_id is None:
@@ -1560,7 +1564,7 @@ class Airflow(AirflowBaseView):
 
         pod_spec = None
         try:
-            pod_spec = ti.get_rendered_k8s_spec(session=session)
+            pod_spec = get_rendered_k8s_spec(ti, session=session)
         except AirflowException as e:
             if not e.__cause__:
                 flash(f"Error rendering Kubernetes POD Spec: {e}", "error")
