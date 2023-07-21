@@ -602,6 +602,7 @@
     "cross-providers-deps": [
       "amazon",
       "common.sql",
+      "openlineage",
       "presto",
       "trino",
       "vertica"
@@ -813,6 +814,7 @@
     ],
     "cross-providers-deps": [
       "common.sql",
+      "openlineage",
       "slack"
     ],
     "excluded-python-versions": []
