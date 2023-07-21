@@ -602,6 +602,7 @@
     "cross-providers-deps": [
       "amazon",
       "common.sql",
+      "openlineage",
       "presto",
       "trino",
       "vertica"
