@@ -1059,6 +1059,16 @@ metrics:
       type: string
       example: ~
       default: "False"
+    otel_ssl_active:
+      description: |
+        If True, SSL will be enabled.  Defaults to False.
+        To establish an HTTPS connection to the OpenTelemetry collector,
+        you need to configure the SSL certificate and key within the OpenTelemetry collector's
+        config.yml file.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:
