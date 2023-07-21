@@ -388,28 +388,23 @@ class TestWorker:
 
         assert jmespath.search("spec.template.spec.runtimeClassName", docs[0]) == "nvidia"
 
-    def test_livenessprobe_default_command(self):
-        # Post 2.7.0 CeleryExecutor is decoupled from Airflow
-        post_docs = render_chart(
-            values={"airflowVersion": "2.7.0"},
+    @pytest.mark.parametrize(
+        "airflow_version, default_cmd",
+        [
+            ("2.7.0", "airflow.providers.celery.executors.celery_executor.app"),
+            ("2.6.3", "airflow.executors.celery_executor.app"),
+        ],
+    )
+    def test_livenessprobe_default_command(self, airflow_version, default_cmd):
+        docs = render_chart(
+            values={"airflowVersion": airflow_version},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         livenessprobe_cmd = jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.exec.command", post_docs[0]
+            "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
         )
-        assert "airflow.providers.celery.executors.celery_executor.app" in livenessprobe_cmd[-1]
-
-        # Pre 2.7.0 CeleryExecutor is coupled with Airflow
-        pre_docs = render_chart(
-            values={"airflowVersion": "2.6.3"},
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        livenessprobe_cmd = jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.exec.command", pre_docs[0]
-        )
-        assert "airflow.executors.celery_executor.app" in livenessprobe_cmd[-1]
+        assert default_cmd in livenessprobe_cmd[-1]
 
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
