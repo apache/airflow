@@ -197,7 +197,6 @@ class BaseSessionFactory(LoggingMixin):
     def _create_session_with_assume_role(
         self, session_kwargs: dict[str, Any], deferrable: bool = False
     ) -> boto3.session.Session:
-
         if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
@@ -206,10 +205,10 @@ class BaseSessionFactory(LoggingMixin):
                 from aiobotocore.credentials import AioDeferredRefreshableCredentials
 
                 credentials = AioDeferredRefreshableCredentials(
-                method="assume-role-with-web-identity",
-                refresh_using=credential_fetcher.fetch_credentials,
-                time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
-            )
+                    method="assume-role-with-web-identity",
+                    refresh_using=credential_fetcher.fetch_credentials,
+                    time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
+                )
             else:
                 credentials = botocore.credentials.DeferredRefreshableCredentials(
                     method="assume-role-with-web-identity",
