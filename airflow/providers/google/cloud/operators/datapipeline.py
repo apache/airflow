@@ -99,8 +99,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
             raise AirflowException(
                   self.data_pipeline.get("error").get("message")
             )
-        
-        # returns the full response body
+
         return self.data_pipeline
 
 
