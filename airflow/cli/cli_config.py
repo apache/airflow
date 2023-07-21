@@ -330,6 +330,11 @@ ARG_COMMENT_OUT_EVERYTHING = Arg(
     help="Comment out all configuration options. Useful as starting point for new installation",
     action="store_true",
 )
+ARG_EXCLUDE_PROVIDERS = Arg(
+    ("-p", "--exclude-providers"),
+    help="Exclude provider configuration (they are included by default)",
+    action="store_true",
+)
 ARG_DEFAULTS = Arg(
     ("-a", "--defaults"),
     help="Show only defaults - do not include local configuration, sources,"
@@ -818,6 +823,16 @@ ARG_DO_PICKLE = Arg(
     action="store_true",
 )
 
+# IMPORTANT NOTE! ONLY FOR CELERY ARGUMENTS
+#
+# Celery configs below have explicit fallback values because celery provider defaults are not yet loaded
+# via provider at the time we parse the command line, so in case it is not set, we need to have manual
+# fallback. After ProvidersManager.initialize_providers_configuration() is called, the fallbacks are
+# not needed anymore and everywhere where you access configuration in provider-specific code and when
+# you are sure that providers configuration has been initialized, you can use conf.get() without fallbacks.
+#
+# DO NOT REMOVE THE FALLBACKS in args parsing even if you are tempted to.
+# TODO: possibly move the commands to providers but that could be big performance hit on the CLI
 # worker
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
@@ -828,7 +843,7 @@ ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
     type=int,
     help="The number of worker processes",
-    default=conf.get("celery", "worker_concurrency"),
+    default=conf.getint("celery", "worker_concurrency", fallback=16),
 )
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
@@ -855,22 +870,24 @@ ARG_WITHOUT_GOSSIP = Arg(
 ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
 ARG_FLOWER_HOSTNAME = Arg(
     ("-H", "--hostname"),
-    default=conf.get("celery", "FLOWER_HOST"),
+    default=conf.get("celery", "FLOWER_HOST", fallback="0.0.0.0"),
     help="Set the hostname on which to run the server",
 )
 ARG_FLOWER_PORT = Arg(
     ("-p", "--port"),
-    default=conf.get("celery", "FLOWER_PORT"),
+    default=conf.getint("celery", "FLOWER_PORT", fallback=5555),
     type=int,
     help="The port on which to run the server",
 )
 ARG_FLOWER_CONF = Arg(("-c", "--flower-conf"), help="Configuration file for flower")
 ARG_FLOWER_URL_PREFIX = Arg(
-    ("-u", "--url-prefix"), default=conf.get("celery", "FLOWER_URL_PREFIX"), help="URL prefix for Flower"
+    ("-u", "--url-prefix"),
+    default=conf.get("celery", "FLOWER_URL_PREFIX", fallback=""),
+    help="URL prefix for Flower",
 )
 ARG_FLOWER_BASIC_AUTH = Arg(
     ("-A", "--basic-auth"),
-    default=conf.get("celery", "FLOWER_BASIC_AUTH"),
+    default=conf.get("celery", "FLOWER_BASIC_AUTH", fallback=""),
     help=(
         "Securing Flower with Basic Authentication. "
         "Accepts user:password pairs separated by a comma. "
@@ -1849,6 +1866,12 @@ PROVIDERS_COMMANDS = (
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
+        name="configs",
+        help="Get information about provider configuration",
+        func=lazy_load_command("airflow.cli.commands.provider_command.config_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
         name="status",
         help="Get information about provider initialization status",
         func=lazy_load_command("airflow.cli.commands.provider_command.status"),
@@ -2038,6 +2061,7 @@ CONFIG_COMMANDS = (
             ARG_INCLUDE_SOURCES,
             ARG_INCLUDE_ENV_VARS,
             ARG_COMMENT_OUT_EVERYTHING,
+            ARG_EXCLUDE_PROVIDERS,
             ARG_DEFAULTS,
             ARG_VERBOSE,
         ),

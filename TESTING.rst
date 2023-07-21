@@ -75,7 +75,7 @@ as default for all tests you should add the value to this file.
 You can also of course override the values in individual test by patching environment variables following
 the usual ``AIRFLOW__SECTION__KEY`` pattern or ``conf_vars`` context manager.
 
-.. note::
+.. note:: Previous way of setting the test configuration
 
   The test configuration for Airflow before July 2023 was automatically generated in a file named
   ``AIRFLOW_HOME/unittest.cfg``. The template for it was stored in "config_templates" next to the yaml file.
@@ -86,6 +86,7 @@ the usual ``AIRFLOW__SECTION__KEY`` pattern or ``conf_vars`` context manager.
   rather than from {AIRFLOW_HOME} is much more convenient and it is automatically used by pytest.
 
   The unittest.cfg file generated in {AIRFLOW_HOME} will no longer be used and can be removed.
+
 
 Airflow test types
 ------------------

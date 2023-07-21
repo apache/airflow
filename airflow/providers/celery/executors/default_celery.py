@@ -25,6 +25,7 @@ import re2
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.providers_manager import ProvidersManager
 
 
 def _broker_supports_visibility_timeout(url):
@@ -33,6 +34,7 @@ def _broker_supports_visibility_timeout(url):
 
 log = logging.getLogger(__name__)
 
+ProvidersManager().initialize_providers_configuration()
 broker_url = conf.get("celery", "BROKER_URL")
 
 broker_transport_options = conf.getsection("celery_broker_transport_options") or {}
