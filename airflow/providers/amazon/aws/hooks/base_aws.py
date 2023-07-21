@@ -201,18 +201,38 @@ class BaseSessionFactory(LoggingMixin):
         if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
-            credentials = botocore.credentials.DeferredRefreshableCredentials(
+
+            if deferrable:
+                from aiobotocore.credentials import AioDeferredRefreshableCredentials
+
+                credentials = AioDeferredRefreshableCredentials(
                 method="assume-role-with-web-identity",
                 refresh_using=credential_fetcher.fetch_credentials,
                 time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
             )
+            else:
+                credentials = botocore.credentials.DeferredRefreshableCredentials(
+                    method="assume-role-with-web-identity",
+                    refresh_using=credential_fetcher.fetch_credentials,
+                    time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
+                )
         else:
             # Refreshable credentials do have initial credentials
-            credentials = botocore.credentials.RefreshableCredentials.create_from_metadata(
-                metadata=self._refresh_credentials(),
-                refresh_using=self._refresh_credentials,
-                method="sts-assume-role",
-            )
+
+            if deferrable:
+                from aiobotocore.credentials import AioRefreshableCredentials
+
+                credentials = AioRefreshableCredentials.create_from_metadata(
+                    metadata=self._refresh_credentials(),
+                    refresh_using=self._refresh_credentials,
+                    method="sts-assume-role",
+                )
+            else:
+                credentials = botocore.credentials.RefreshableCredentials.create_from_metadata(
+                    metadata=self._refresh_credentials(),
+                    refresh_using=self._refresh_credentials,
+                    method="sts-assume-role",
+                )
 
         if deferrable:
             from aiobotocore.session import get_session as async_get_session
