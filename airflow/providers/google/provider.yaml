@@ -927,6 +927,7 @@ transfers:
     python-module: airflow.providers.google.cloud.transfers.gcs_to_sftp
   - source-integration-name: PostgreSQL
     target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/postgres_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.postgres_to_gcs
   - source-integration-name: Google BigQuery
     target-integration-name: Common SQL
