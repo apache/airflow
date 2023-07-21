@@ -628,7 +628,7 @@ notacommand = OK
             # sensitive_config_values and therefore should return 'OK' from the environment variable's
             # echo command, and must not return 'NOT OK' from the configuration
             assert test_cmdenv_conf.get("testcmdenv", "itsacommand") == "OK"
-            # AIRFLOW__TESTCMDENV__xNOTACOMMAND_CMD maps to no entry in sensitive_config_values and therefore
+            # AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD maps to no entry in sensitive_config_values and therefore
             # the option should return 'OK' from the configuration, and must not return 'NOT OK' from
             # the environment variable's echo command
             assert test_cmdenv_conf.get("testcmdenv", "notacommand") == "OK"
