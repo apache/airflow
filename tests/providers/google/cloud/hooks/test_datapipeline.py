@@ -27,7 +27,6 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, run_beam_command
@@ -36,7 +35,6 @@ from airflow.providers.google.cloud.hooks.datapipeline import (
     DEFAULT_DATAPIPELINE_LOCATION
 )
 
-DATAPIPELINE = "airflow.providers.google.cloud.hooks.dataflow.{}"
 TASK_ID = "test-datapipeline-operators"
 TEST_NAME = "projects/test-datapipeline-operators/locations/test-location"
 TEST_BODY = {
