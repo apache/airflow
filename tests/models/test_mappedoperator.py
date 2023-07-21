@@ -173,7 +173,7 @@ def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):
         task3 = PushExtraXComOperator.partial(task_id="task_3").expand(return_value=task2.output)
 
     dr = dag_maker.create_dagrun()
-    ti_1 = dr.get_task_instance("task_1", session)
+    ti_1 = DagRun.get_task_instance(dag_run=dr, task_id="task_1", session=session)
     ti_1.run()
 
     ti_2s, _ = task2.expand_mapped_task(dr.run_id, session=session)
@@ -408,7 +408,7 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
         mapped = MyOperator.partial(task_id="a", arg2="{{ ti.task_id }}").expand(value=output1, arg1=output1)
 
     dr = dag_maker.create_dagrun()
-    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+    ti: TaskInstance = DagRun.get_task_instance(dag_run=dr, task_id=task1.task_id, session=session)
 
     ti.xcom_push(key=XCOM_RETURN_KEY, value=["{{ ds }}"], session=session)
 
@@ -424,7 +424,7 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
     )
     session.flush()
 
-    mapped_ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
+    mapped_ti: TaskInstance = DagRun.get_task_instance(dag_run=dr, task_id=mapped.task_id, session=session)
     mapped_ti.map_index = 0
 
     assert isinstance(mapped_ti.task, MappedOperator)
@@ -540,7 +540,7 @@ def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, ses
         mapped = MockOperator.partial(task_id="a", arg2="{{ ti.task_id }}").expand_kwargs(task1.output)
 
     dr = dag_maker.create_dagrun()
-    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+    ti: TaskInstance = DagRun.get_task_instance(dag_run=dr, task_id=task1.task_id, session=session)
 
     ti.xcom_push(key=XCOM_RETURN_KEY, value=[{"arg1": "{{ ds }}"}, {"arg1": 2}], session=session)
 
@@ -556,7 +556,7 @@ def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, ses
     )
     session.flush()
 
-    ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
+    ti: TaskInstance = DagRun.get_task_instance(dag_run=dr, task_id=mapped.task_id, session=session)
     ti.refresh_from_task(mapped)
     ti.map_index = map_index
     assert isinstance(ti.task, MappedOperator)

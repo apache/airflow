@@ -32,6 +32,7 @@ from urllib3 import HTTPResponse
 
 from airflow import AirflowException
 from airflow.exceptions import PodReconciliationError
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -914,7 +915,7 @@ class TestKubernetesExecutor:
         with dag_maker(dag_id="test_cleanup_stuck_queued_tasks"):
             op = BashOperator(task_id="bash", bash_command=["echo 0", "echo 1"])
         dag_run = dag_maker.create_dagrun()
-        ti = dag_run.get_task_instance(op.task_id, session)
+        ti = DagRun.get_task_instance(dag_run=dag_run, task_id=op.task_id, session=session)
         ti.retries = 1
         ti.state = State.QUEUED
         ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
@@ -1031,11 +1032,11 @@ class TestKubernetesExecutor:
             op = BashOperator.partial(task_id="bash").expand(bash_command=["echo 0", "echo 1"])
 
         dag_run = dag_maker.create_dagrun()
-        ti0 = dag_run.get_task_instance(op.task_id, session, map_index=0)
+        ti0 = DagRun.get_task_instance(dag_run=dag_run, task_id=op.task_id, session=session, map_index=0)
         ti0.state = State.QUEUED
         ti0.queued_by_job_id = 1
 
-        ti1 = dag_run.get_task_instance(op.task_id, session, map_index=1)
+        ti1 = DagRun.get_task_instance(dag_run=dag_run, task_id=op.task_id, session=session, map_index=1)
         ti1.state = State.QUEUED
         ti1.queued_by_job_id = 1
 

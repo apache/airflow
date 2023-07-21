@@ -797,6 +797,6 @@ class TestMarkDAGRun:
         date = self.execution_dates[0]
         dr = self._create_test_dag_run(State.SUCCESS, date)
         for task in self.dag1.tasks:
-            dr.get_task_instance(task.task_id).set_state(State.SUCCESS)
+            DagRun.get_task_instance(dag_run=dr, task_id=task.task_id).set_state(State.SUCCESS)
 
         set_dag_run_state_to_failed(dag=self.dag1, run_id=dr.run_id)

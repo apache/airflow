@@ -73,28 +73,5 @@ class DagRunPydantic(BaseModelPydantic):
         """
         raise NotImplementedError()
 
-    @provide_session
-    def get_task_instance(
-        self,
-        task_id: str,
-        session: Session = NEW_SESSION,
-        *,
-        map_index: int = -1,
-    ) -> TI | None:
-        """
-        Returns the task instance specified by task_id for this dag run.
-
-        :param task_id: the task id
-        :param session: Sqlalchemy ORM Session
-        """
-        from airflow.models.dagrun import DagRun
-
-        return DagRun.fetch_task_instance(
-            dag_run=self,
-            task_id=task_id,
-            session=session,
-            map_index=map_index,
-        )
-
 
 DagRunPydantic.update_forward_refs()

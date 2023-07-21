@@ -1153,7 +1153,7 @@ def _get_previous_ti(
     dagrun = task_instance.get_previous_dagrun(state, session=session)
     if dagrun is None:
         return None
-    return dagrun.get_task_instance(task_instance.task_id, session=session)
+    return DagRun.get_task_instance(dag_run=dagrun, task_id=task_instance.task_id, session=session)
 
 
 class TaskInstance(Base, LoggingMixin):

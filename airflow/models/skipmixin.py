@@ -231,7 +231,11 @@ class SkipMixin(LoggingMixin):
             skip_tasks = [
                 (t.task_id, downstream_ti.map_index)
                 for t in downstream_tasks
-                if (downstream_ti := dag_run.get_task_instance(t.task_id, map_index=ti.map_index))
+                if (
+                    downstream_ti := DagRun.get_task_instance(
+                        dag_run=dag_run, task_id=t.task_id, map_index=ti.map_index
+                    )
+                )
                 and t.task_id not in branch_task_id_set
             ]
 

@@ -23,6 +23,7 @@ import pytest
 
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dagrun import DagRun
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import State
@@ -72,7 +73,7 @@ class TestPrevDagrunDep:
             run_type=DagRunType.SCHEDULED,
         )
 
-        ti = dr.get_task_instance(new_task.task_id)
+        ti = DagRun.get_task_instance(dag_run=dr, task_id=new_task.task_id)
         ti.task = new_task
 
         # this is important, we need to assert there is no previous_ti of this ti

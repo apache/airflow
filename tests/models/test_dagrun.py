@@ -111,8 +111,9 @@ class TestDagRun:
 
         if task_states is not None:
             for task_id, task_state in task_states.items():
-                ti = dag_run.get_task_instance(task_id)
-                ti.set_state(task_state, session)
+                ti = DagRun.get_task_instance(dag_run=dag_run, task_id=task_id)
+                if ti:
+                    ti.state = task_state
             session.flush()
 
         return dag_run
@@ -285,12 +286,12 @@ class TestDagRun:
         )
 
         # op1 = root
-        ti_op1 = dr.get_task_instance(task_id=op1.task_id)
+        ti_op1 = DagRun.get_task_instance(dag_run=dr, task_id=op1.task_id)
         ti_op1.set_state(state=TaskInstanceState.SUCCESS, session=session)
 
-        ti_op2 = dr.get_task_instance(task_id=op2.task_id)
-        ti_op3 = dr.get_task_instance(task_id=op3.task_id)
-        ti_op4 = dr.get_task_instance(task_id=op4.task_id)
+        ti_op2 = DagRun.get_task_instance(dag_run=dr, task_id=op2.task_id)
+        ti_op3 = DagRun.get_task_instance(dag_run=dr, task_id=op3.task_id)
+        ti_op4 = DagRun.get_task_instance(dag_run=dr, task_id=op4.task_id)
 
         # root is successful, but unfinished tasks
         dr.update_state()
@@ -323,8 +324,8 @@ class TestDagRun:
             session=session,
         )
 
-        ti_op1: TI = dr.get_task_instance(task_id=op1.task_id, session=session)
-        ti_op2: TI = dr.get_task_instance(task_id=op2.task_id, session=session)
+        ti_op1: TI = DagRun.get_task_instance(dag_run=dr, task_id=op1.task_id, session=session)
+        ti_op2: TI = DagRun.get_task_instance(dag_run=dr, task_id=op2.task_id, session=session)
         ti_op1.set_state(state=TaskInstanceState.SUCCESS, session=session)
         ti_op2.set_state(state=None, session=session)
 
@@ -350,7 +351,7 @@ class TestDagRun:
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             start_date=DEFAULT_DATE,
         )
-        upstream_ti = dr.get_task_instance(task_id="upstream_task")
+        upstream_ti = DagRun.get_task_instance(dag_run=dr, task_id="upstream_task")
         upstream_ti.set_state(TaskInstanceState.SHUTDOWN, session=session)
 
         dr.update_state()
@@ -378,10 +379,10 @@ class TestDagRun:
             data_interval=dag.timetable.infer_manual_data_interval(run_after=next_date),
             start_date=next_date,
         )
-        ti1_op1 = dr.get_task_instance(task_id="dop")
-        dr2.get_task_instance(task_id="dop")
-        ti2_op1 = dr.get_task_instance(task_id="tc")
-        dr.get_task_instance(task_id="tc")
+        ti1_op1 = DagRun.get_task_instance(dag_run=dr, task_id="dop")
+        DagRun.get_task_instance(dag_run=dr2, task_id="dop")
+        ti2_op1 = DagRun.get_task_instance(dag_run=dr, task_id="tc")
+        DagRun.get_task_instance(dag_run=dr, task_id="tc")
         ti1_op1.set_state(state=TaskInstanceState.RUNNING, session=session)
         dr.update_state()
         dr2.update_state()
@@ -598,9 +599,9 @@ class TestDagRun:
         session.commit()
         assert dr.end_date is None
 
-        ti_op1 = dr.get_task_instance(task_id=op1.task_id)
+        ti_op1 = DagRun.get_task_instance(dag_run=dr, task_id=op1.task_id)
         ti_op1.set_state(state=TaskInstanceState.SUCCESS, session=session)
-        ti_op2 = dr.get_task_instance(task_id=op2.task_id)
+        ti_op2 = DagRun.get_task_instance(dag_run=dr, task_id=op2.task_id)
         ti_op2.set_state(state=TaskInstanceState.SUCCESS, session=session)
 
         dr.update_state()
@@ -651,7 +652,7 @@ class TestDagRun:
         session.add(dag_run)
         session.commit()
 
-        ti = dag_run.get_task_instance("test_short_circuit_false")
+        ti = DagRun.get_task_instance(dag_run=dag_run, task_id="test_short_circuit_false")
         assert ti is None
 
     def test_get_latest_runs(self, session):
@@ -904,7 +905,7 @@ class TestDagRun:
                 start_date=dag.start_date,
                 session=session,
             )
-            ti = dag_run.get_task_instance(dag_task.task_id, session)
+            ti = DagRun.get_task_instance(dag_run=dag_run, task_id=dag_task.task_id, session=session)
             ti.set_state(TaskInstanceState.SUCCESS, session)
             session.flush()
 
@@ -948,8 +949,8 @@ class TestDagRun:
             dag_task_failed.task_id: TaskInstanceState.FAILED,
         }
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
-        ti_success = dag_run.get_task_instance(dag_task_success.task_id)
-        ti_failed = dag_run.get_task_instance(dag_task_failed.task_id)
+        ti_success = DagRun.get_task_instance(dag_run=dag_run, task_id=dag_task_success.task_id)
+        ti_failed = DagRun.get_task_instance(dag_run=dag_run, task_id=dag_task_failed.task_id)
         assert ti_success.state in State.success_states
         assert ti_failed.state in State.failed_states
 
@@ -1226,7 +1227,7 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
         task_2.expand(arg2=task_1())
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
     tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
@@ -1251,7 +1252,7 @@ def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, sessio
     dr.dag = serialized_dag
 
     # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     task1 = dag.get_task("task_1")
     ti.refresh_from_task(task1)
     ti.run()
@@ -1291,7 +1292,7 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
         task_2.expand(arg2=task_1())
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
     tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
@@ -1316,7 +1317,7 @@ def test_mapped_literal_length_reduction_at_runtime_adds_removed_state(dag_maker
     dr.dag = serialized_dag
 
     # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     task1 = dag.get_task("task_1")
     ti.refresh_from_task(task1)
     ti.run()
@@ -1353,7 +1354,7 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
         task_2.expand(arg2=task_1())
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     ti.run()
     decision = dr.task_instance_scheduling_decisions()
     assert len(decision.schedulable_tis) == 2
@@ -1388,7 +1389,7 @@ def test_mapped_literal_length_with_no_change_at_runtime_doesnt_call_verify_inte
         task_2.expand(arg2=task_1())
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
     tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
@@ -1413,7 +1414,7 @@ def test_mapped_literal_length_with_no_change_at_runtime_doesnt_call_verify_inte
     dr.dag = serialized_dag
 
     # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     task1 = dag.get_task("task_1")
     ti.refresh_from_task(task1)
     ti.run()
@@ -1446,7 +1447,7 @@ def test_calls_to_verify_integrity_with_mapped_task_increase_at_runtime(dag_make
         task_2.expand(arg2=task_1())
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
     tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
@@ -1470,7 +1471,7 @@ def test_calls_to_verify_integrity_with_mapped_task_increase_at_runtime(dag_make
     dr.dag = serialized_dag
 
     # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     task1 = dag.get_task("task_1")
     ti.refresh_from_task(task1)
     ti.run()
@@ -1495,7 +1496,7 @@ def test_calls_to_verify_integrity_with_mapped_task_increase_at_runtime(dag_make
         (3, State.NONE),
         (4, State.NONE),
     ]
-    ti3 = dr.get_task_instance(task_id="task_2", map_index=3)
+    ti3 = DagRun.get_task_instance(dag_run=dr, task_id="task_2", map_index=3)
     ti3.task = task2
     ti3.state = TaskInstanceState.FAILED
     session.merge(ti3)
@@ -1534,7 +1535,7 @@ def test_calls_to_verify_integrity_with_mapped_task_reduction_at_runtime(dag_mak
         task_2.expand(arg2=task_1())
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
     tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
@@ -1558,7 +1559,7 @@ def test_calls_to_verify_integrity_with_mapped_task_reduction_at_runtime(dag_mak
     dr.dag = serialized_dag
 
     # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     task1 = dag.get_task("task_1")
     ti.refresh_from_task(task1)
     ti.run()
@@ -1614,7 +1615,7 @@ def test_calls_to_verify_integrity_with_mapped_task_with_no_changes_at_runtime(d
         task_2.expand(arg2=task_1())
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
     tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
@@ -1638,7 +1639,7 @@ def test_calls_to_verify_integrity_with_mapped_task_with_no_changes_at_runtime(d
     dr.dag = serialized_dag
 
     # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     task1 = dag.get_task("task_1")
     ti.refresh_from_task(task1)
     ti.run()
@@ -1696,7 +1697,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
         task_2.expand(arg2=task_1())
 
     dr = dag_maker.create_dagrun()
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     ti.run()
     dr.task_instance_scheduling_decisions()
     tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
@@ -1721,7 +1722,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
     dr.dag = serialized_dag
 
     # Run the first task again to get the new lengths
-    ti = dr.get_task_instance(task_id="task_1")
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="task_1")
     task1 = dag.get_task("task_1")
     ti.refresh_from_task(task1)
     ti.run()
@@ -1840,20 +1841,20 @@ def test_mapped_task_group_empty_operator(dag_maker, session):
     dr = dag_maker.create_dagrun()
 
     t2_task = dag.get_task("tg.t2")
-    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0)
+    t2_0 = DagRun.get_task_instance(dag_run=dr, task_id="tg.t2", map_index=0)
     t2_0.refresh_from_task(t2_task)
     assert t2_0.state is None
 
-    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1)
+    t2_1 = DagRun.get_task_instance(dag_run=dr, task_id="tg.t2", map_index=1)
     t2_1.refresh_from_task(t2_task)
     assert t2_1.state is None
 
     dr.schedule_tis([t2_0])
 
-    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0)
+    t2_0 = DagRun.get_task_instance(dag_run=dr, task_id="tg.t2", map_index=0)
     assert t2_0.state == TaskInstanceState.SUCCESS
 
-    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1)
+    t2_1 = DagRun.get_task_instance(dag_run=dr, task_id="tg.t2", map_index=1)
     assert t2_1.state is None
 
 
@@ -2093,7 +2094,7 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
 
     dr = dag_maker.create_dagrun()
 
-    ti = dr.get_task_instance("do_something_else", session=session)
+    ti = DagRun.get_task_instance(dag_run=dr, task_id="do_something_else", session=session)
     ti.map_index = 0
     task = ti.task
     for map_index in range(1, 5):
@@ -2408,8 +2409,8 @@ def test_teardown_failure_behaviour_on_dagrun(dag_maker, session, dag_run_state,
         mytask() >> teardowntask()
 
     dr = dag_maker.create_dagrun()
-    ti1 = dr.get_task_instance(task_id="mytask")
-    td1 = dr.get_task_instance(task_id="teardowntask")
+    ti1 = DagRun.get_task_instance(dag_run=dr, task_id="mytask")
+    td1 = DagRun.get_task_instance(dag_run=dr, task_id="teardowntask")
     ti1.state = State.SUCCESS
     td1.state = State.FAILED
     session.merge(ti1)
@@ -2444,9 +2445,9 @@ def test_teardown_failure_on_non_leaf_behaviour_on_dagrun(
         mytask() >> teardowntask() >> teardowntask2()
 
     dr = dag_maker.create_dagrun()
-    ti1 = dr.get_task_instance(task_id="mytask")
-    td1 = dr.get_task_instance(task_id="teardowntask")
-    td2 = dr.get_task_instance(task_id="teardowntask2")
+    ti1 = DagRun.get_task_instance(dag_run=dr, task_id="mytask")
+    td1 = DagRun.get_task_instance(dag_run=dr, task_id="teardowntask")
+    td2 = DagRun.get_task_instance(dag_run=dr, task_id="teardowntask2")
     ti1.state = State.SUCCESS
     td1.state = State.FAILED
     td2.state = State.FAILED
@@ -2479,9 +2480,9 @@ def test_work_task_failure_when_setup_teardown_are_successful(dag_maker, session
             mytask()
 
     dr = dag_maker.create_dagrun()
-    s1 = dr.get_task_instance(task_id="setuptask")
-    td1 = dr.get_task_instance(task_id="teardown_task")
-    t1 = dr.get_task_instance(task_id="mytask")
+    s1 = DagRun.get_task_instance(dag_run=dr, task_id="setuptask")
+    td1 = DagRun.get_task_instance(dag_run=dr, task_id="teardown_task")
+    t1 = DagRun.get_task_instance(dag_run=dr, task_id="mytask")
     s1.state = TaskInstanceState.SUCCESS
     td1.state = TaskInstanceState.SUCCESS
     t1.state = TaskInstanceState.FAILED
@@ -2515,9 +2516,9 @@ def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session)
         mytask()
 
     dr = dag_maker.create_dagrun()
-    s1 = dr.get_task_instance(task_id="setuptask")
-    td1 = dr.get_task_instance(task_id="teardown_task")
-    t1 = dr.get_task_instance(task_id="mytask")
+    s1 = DagRun.get_task_instance(dag_run=dr, task_id="setuptask")
+    td1 = DagRun.get_task_instance(dag_run=dr, task_id="teardown_task")
+    t1 = DagRun.get_task_instance(dag_run=dr, task_id="mytask")
     s1.state = TaskInstanceState.SUCCESS
     td1.state = TaskInstanceState.SUCCESS
     t1.state = TaskInstanceState.FAILED

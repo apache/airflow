@@ -629,7 +629,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
             start_date=DATA_INTERVAL_END,
             run_type=DagRunType.MANUAL,
         )
-        ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
+        ti = DagRun.get_task_instance(dag_run=dagrun, task_id=TEST_TASK_ID)
         ti.task = dag.get_task(task_id=TEST_TASK_ID)
         ti.run(ignore_ti_state=True)
         assert ti.state == TaskInstanceState.SUCCESS

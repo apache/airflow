@@ -81,7 +81,9 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
-        previous_ti = last_dagrun.get_task_instance(ti.task_id, map_index=ti.map_index, session=session)
+        previous_ti = DagRun.get_task_instance(
+            dag_run=last_dagrun, task_id=ti.task_id, map_index=ti.map_index, session=session
+        )
         if not previous_ti:
             if ti.task.ignore_first_depends_on_past:
                 has_historical_ti = (

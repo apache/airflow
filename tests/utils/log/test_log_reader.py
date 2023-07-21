@@ -293,8 +293,8 @@ class TestLogView:
             data_interval=DataInterval(start, end),
         )
 
-        scheduled_ti = scheduled_dagrun.get_task_instance(task_id)
-        manual_ti = manual_dagrun.get_task_instance(task_id)
+        scheduled_ti = DagRun.get_task_instance(dag_run=scheduled_dagrun, task_id=task_id)
+        manual_ti = DagRun.get_task_instance(dag_run=manual_dagrun, task_id=task_id)
         assert scheduled_ti is not None
         assert manual_ti is not None
 

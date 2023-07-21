@@ -233,7 +233,7 @@ class TestSchedulerJob:
         session = settings.Session()
         with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
             task1 = EmptyOperator(task_id=task_id_1)
-        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+        ti1 = DagRun.get_task_instance(dag_run=dag_maker.create_dagrun(), task_id=task1.task_id)
 
         mock_stats_incr.reset_mock()
 
@@ -295,9 +295,8 @@ class TestSchedulerJob:
         session = settings.Session()
         with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
             task1 = EmptyOperator(task_id=task_id, retries=1)
-        ti1 = dag_maker.create_dagrun(
-            run_id=run_id, execution_date=DEFAULT_DATE + timedelta(hours=1)
-        ).get_task_instance(task1.task_id)
+        dagrun = dag_maker.create_dagrun(run_id=run_id, execution_date=DEFAULT_DATE + timedelta(hours=1))
+        ti1 = DagRun.get_task_instance(dag_run=dagrun, task_id=task1.task_id)
 
         mock_stats_incr.reset_mock()
 
@@ -348,7 +347,7 @@ class TestSchedulerJob:
 
         with dag_maker(dag_id=dag_id, fileloc="/test_path1/") as dag:
             task1 = EmptyOperator(task_id=task_id_1, on_failure_callback=lambda x: print("hi"))
-        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+        ti1 = DagRun.get_task_instance(dag_run=dag_maker.create_dagrun(), task_id=task1.task_id)
 
         mock_stats_incr.reset_mock()
 
@@ -398,7 +397,7 @@ class TestSchedulerJob:
 
         with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
             task1 = EmptyOperator(task_id=task_id_1, on_failure_callback=lambda x: print("hi"))
-        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+        ti1 = DagRun.get_task_instance(dag_run=dag_maker.create_dagrun(), task_id=task1.task_id)
 
         mock_stats_incr.reset_mock()
 
@@ -430,7 +429,7 @@ class TestSchedulerJob:
         session = settings.Session()
         with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
             task1 = EmptyOperator(task_id=task_id_1)
-        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+        ti1 = DagRun.get_task_instance(dag_run=dag_maker.create_dagrun(), task_id=task1.task_id)
 
         mock_stats_incr.reset_mock()
 
@@ -563,8 +562,8 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.BACKFILL_JOB, state=State.RUNNING)
 
-        ti_backfill = dr2.get_task_instance(task1.task_id)
-        ti_with_dagrun = dr1.get_task_instance(task1.task_id)
+        ti_backfill = DagRun.get_task_instance(dag_run=dr2, task_id=task1.task_id)
+        ti_with_dagrun = DagRun.get_task_instance(dag_run=dr1, task_id=task1.task_id)
         # ti_with_paused
         ti_backfill.state = State.SCHEDULED
         ti_with_dagrun.state = State.SCHEDULED
@@ -596,10 +595,10 @@ class TestSchedulerJob:
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
 
         tis = [
-            dr1.get_task_instance(task_id_1, session=session),
-            dr1.get_task_instance(task_id_2, session=session),
-            dr2.get_task_instance(task_id_1, session=session),
-            dr2.get_task_instance(task_id_2, session=session),
+            DagRun.get_task_instance(dag_run=dr1, task_id=task_id_1, session=session),
+            DagRun.get_task_instance(dag_run=dr1, task_id=task_id_2, session=session),
+            DagRun.get_task_instance(dag_run=dr2, task_id=task_id_1, session=session),
+            DagRun.get_task_instance(dag_run=dr2, task_id=task_id_2, session=session),
         ]
         tis = sorted(tis, key=lambda ti: ti.key)
         for ti in tis:
@@ -742,9 +741,9 @@ class TestSchedulerJob:
 
         dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        ti1 = dag_run.get_task_instance(op1.task_id, session)
-        ti2 = dag_run.get_task_instance(op2.task_id, session)
-        ti3 = dag_run.get_task_instance(op3.task_id, session)
+        ti1 = DagRun.get_task_instance(dag_run=dag_run, task_id=op1.task_id, session=session)
+        ti2 = DagRun.get_task_instance(dag_run=dag_run, task_id=op2.task_id, session=session)
+        ti3 = DagRun.get_task_instance(dag_run=dag_run, task_id=op3.task_id, session=session)
 
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
@@ -803,8 +802,8 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED, state=State.RUNNING)
 
-        ti1 = dr1.get_task_instance(op1.task_id, session)
-        ti2 = dr2.get_task_instance(op2.task_id, session)
+        ti1 = DagRun.get_task_instance(dag_run=dr1, task_id=op1.task_id, session=session)
+        ti2 = DagRun.get_task_instance(dag_run=dr2, task_id=op2.task_id, session=session)
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
 
@@ -1037,9 +1036,9 @@ class TestSchedulerJob:
 
         dag_run = dag_maker.create_dagrun()
 
-        ti1 = dag_run.get_task_instance(task1.task_id)
-        ti2 = dag_run.get_task_instance(task2.task_id)
-        ti3 = dag_run.get_task_instance(task3.task_id)
+        ti1 = DagRun.get_task_instance(dag_run=dag_run, task_id=task1.task_id)
+        ti2 = DagRun.get_task_instance(dag_run=dag_run, task_id=task2.task_id)
+        ti3 = DagRun.get_task_instance(dag_run=dag_run, task_id=task3.task_id)
         ti1.state = State.RUNNING
         ti2.state = State.QUEUED
         ti3.state = State.SCHEDULED
@@ -1075,8 +1074,8 @@ class TestSchedulerJob:
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
         dr3 = dag_maker.create_dagrun_after(dr2, run_type=DagRunType.SCHEDULED)
 
-        ti1_1 = dr1.get_task_instance(task1.task_id)
-        ti2 = dr1.get_task_instance(task2.task_id)
+        ti1_1 = DagRun.get_task_instance(dag_run=dr1, task_id=task1.task_id)
+        ti2 = DagRun.get_task_instance(dag_run=dr1, task_id=task2.task_id)
 
         ti1_1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
@@ -1090,7 +1089,7 @@ class TestSchedulerJob:
 
         ti1_1.state = State.RUNNING
         ti2.state = State.RUNNING
-        ti1_2 = dr2.get_task_instance(task1.task_id)
+        ti1_2 = DagRun.get_task_instance(dag_run=dr2, task_id=task1.task_id)
         ti1_2.state = State.SCHEDULED
         session.merge(ti1_1)
         session.merge(ti2)
@@ -1102,7 +1101,7 @@ class TestSchedulerJob:
         assert 1 == len(res)
 
         ti1_2.state = State.RUNNING
-        ti1_3 = dr3.get_task_instance(task1.task_id)
+        ti1_3 = DagRun.get_task_instance(dag_run=dr3, task_id=task1.task_id)
         ti1_3.state = State.SCHEDULED
         session.merge(ti1_2)
         session.merge(ti1_3)
@@ -1151,9 +1150,9 @@ class TestSchedulerJob:
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
         dr3 = dag_maker.create_dagrun_after(dr2, run_type=DagRunType.SCHEDULED)
 
-        ti1 = dr1.get_task_instance(task1.task_id)
-        ti2 = dr2.get_task_instance(task1.task_id)
-        ti3 = dr3.get_task_instance(task1.task_id)
+        ti1 = DagRun.get_task_instance(dag_run=dr1, task_id=task1.task_id)
+        ti2 = DagRun.get_task_instance(dag_run=dr2, task_id=task1.task_id)
+        ti3 = DagRun.get_task_instance(dag_run=dr3, task_id=task1.task_id)
         ti1.state = State.RUNNING
         ti2.state = State.RUNNING
         ti3.state = State.RUNNING
@@ -1182,8 +1181,8 @@ class TestSchedulerJob:
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        ti1 = dr1.get_task_instance(op1.task_id, session)
-        ti2 = dr1.get_task_instance(op2.task_id, session)
+        ti1 = DagRun.get_task_instance(dag_run=dr1, task_id=op1.task_id, session=session)
+        ti2 = DagRun.get_task_instance(dag_run=dr1, task_id=op2.task_id, session=session)
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
         session.flush()
@@ -1217,9 +1216,9 @@ class TestSchedulerJob:
             op2 = EmptyOperator(task_id="dummy2", priority_weight=1)
         dr2 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        ti1a = dr1.get_task_instance(op1a.task_id, session)
-        ti1b = dr1.get_task_instance(op1b.task_id, session)
-        ti2 = dr2.get_task_instance(op2.task_id, session)
+        ti1a = DagRun.get_task_instance(dag_run=dr1, task_id=op1a.task_id, session=session)
+        ti1b = DagRun.get_task_instance(dag_run=dr1, task_id=op1b.task_id, session=session)
+        ti2 = DagRun.get_task_instance(dag_run=dr2, task_id=op2.task_id, session=session)
         ti1a.state = State.RUNNING
         ti1b.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
@@ -1246,9 +1245,9 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
 
-        ti1a = dr1.get_task_instance(op1a.task_id, session)
-        ti1b = dr1.get_task_instance(op1b.task_id, session)
-        ti2a = dr2.get_task_instance(op1a.task_id, session)
+        ti1a = DagRun.get_task_instance(dag_run=dr1, task_id=op1a.task_id, session=session)
+        ti1b = DagRun.get_task_instance(dag_run=dr1, task_id=op1b.task_id, session=session)
+        ti2a = DagRun.get_task_instance(dag_run=dr2, task_id=op1a.task_id, session=session)
         ti1a.state = State.RUNNING
         ti1b.state = State.SCHEDULED
         ti2a.state = State.SCHEDULED
@@ -1275,9 +1274,9 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
 
-        ti1a = dr1.get_task_instance(op1a.task_id, session)
-        ti1b = dr1.get_task_instance(op1b.task_id, session)
-        ti2a = dr2.get_task_instance(op1a.task_id, session)
+        ti1a = DagRun.get_task_instance(dag_run=dr1, task_id=op1a.task_id, session=session)
+        ti1b = DagRun.get_task_instance(dag_run=dr1, task_id=op1b.task_id, session=session)
+        ti2a = DagRun.get_task_instance(dag_run=dr2, task_id=op1a.task_id, session=session)
         ti1a.state = State.RUNNING
         ti1b.state = State.SCHEDULED
         ti2a.state = State.SCHEDULED
@@ -1308,9 +1307,9 @@ class TestSchedulerJob:
             op1b = EmptyOperator(task_id="dummy1-b", priority_weight=1)
         dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        ti1a0 = dr.get_task_instance(op1a.task_id, session, map_index=0)
-        ti1a1 = dr.get_task_instance(op1a.task_id, session, map_index=1)
-        ti1b = dr.get_task_instance(op1b.task_id, session)
+        ti1a0 = DagRun.get_task_instance(dag_run=dr, task_id=op1a.task_id, session=session, map_index=0)
+        ti1a1 = DagRun.get_task_instance(dag_run=dr, task_id=op1a.task_id, session=session, map_index=1)
+        ti1b = DagRun.get_task_instance(dag_run=dr, task_id=op1b.task_id, session=session)
         ti1a0.state = State.RUNNING
         ti1a1.state = State.SCHEDULED
         ti1b.state = State.SCHEDULED
@@ -1349,8 +1348,8 @@ class TestSchedulerJob:
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        ti1 = dr1.get_task_instance(op1.task_id, session)
-        ti2 = dr1.get_task_instance(op2.task_id, session)
+        ti1 = DagRun.get_task_instance(dag_run=dr1, task_id=op1.task_id, session=session)
+        ti2 = DagRun.get_task_instance(dag_run=dr1, task_id=op2.task_id, session=session)
         ti1.state = State.SCHEDULED
         ti2.state = State.RUNNING
         session.flush()
@@ -1373,7 +1372,7 @@ class TestSchedulerJob:
 
         dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        ti = dr.get_task_instance(op.task_id, session)
+        ti = DagRun.get_task_instance(dag_run=dr, task_id=op.task_id, session=session)
         ti.state = State.SCHEDULED
 
         set_default_pool_slots(1)
@@ -1421,7 +1420,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
         dr1 = dag_maker.create_dagrun()
-        ti1 = dr1.get_task_instance(task1.task_id, session)
+        ti1 = DagRun.get_task_instance(dag_run=dr1, task_id=task1.task_id, session=session)
 
         with patch.object(BaseExecutor, "queue_command") as mock_queue_command:
             self.job_runner._enqueue_task_instances_with_queued_state([ti1], session=session)
@@ -1442,7 +1441,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
         dr1 = dag_maker.create_dagrun(state=state)
-        ti = dr1.get_task_instance(task1.task_id, session)
+        ti = DagRun.get_task_instance(dag_run=dr1, task_id=task1.task_id, session=session)
         ti.state = State.SCHEDULED
         session.merge(ti)
         session.commit()
@@ -1474,8 +1473,8 @@ class TestSchedulerJob:
 
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
 
-        ti1 = dr1.get_task_instance(task1.task_id, session)
-        ti2 = dr1.get_task_instance(task2.task_id, session)
+        ti1 = DagRun.get_task_instance(dag_run=dr1, task_id=task1.task_id, session=session)
+        ti2 = DagRun.get_task_instance(dag_run=dr1, task_id=task2.task_id, session=session)
         ti1.state = State.RUNNING
         ti2.state = State.RUNNING
         session.flush()
@@ -1487,8 +1486,8 @@ class TestSchedulerJob:
 
         # create second dag run
         dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
-        ti3 = dr2.get_task_instance(task1.task_id, session)
-        ti4 = dr2.get_task_instance(task2.task_id, session)
+        ti3 = DagRun.get_task_instance(dag_run=dr2, task_id=task1.task_id, session=session)
+        ti4 = DagRun.get_task_instance(dag_run=dr2, task_id=task2.task_id, session=session)
         # manually set to scheduled so we can pick them up
         ti3.state = State.SCHEDULED
         ti4.state = State.SCHEDULED
@@ -1540,8 +1539,8 @@ class TestSchedulerJob:
 
         tis = []
         for dr in _create_dagruns():
-            ti1 = dr.get_task_instance(task1.task_id, session)
-            ti2 = dr.get_task_instance(task2.task_id, session)
+            ti1 = DagRun.get_task_instance(dag_run=dr, task_id=task1.task_id, session=session)
+            ti2 = DagRun.get_task_instance(dag_run=dr, task_id=task2.task_id, session=session)
             ti1.state = State.SCHEDULED
             ti2.state = State.SCHEDULED
             session.flush()
@@ -1591,8 +1590,8 @@ class TestSchedulerJob:
                 yield dagrun
 
         for dr in _create_dagruns():
-            ti1 = dr.get_task_instance(task1.task_id, session)
-            ti2 = dr.get_task_instance(task2.task_id, session)
+            ti1 = DagRun.get_task_instance(dag_run=dr, task_id=task1.task_id, session=session)
+            ti2 = DagRun.get_task_instance(dag_run=dr, task_id=task2.task_id, session=session)
             ti1.state = State.SCHEDULED
             ti2.state = State.SCHEDULED
             session.flush()
@@ -1617,9 +1616,9 @@ class TestSchedulerJob:
             start_date=DEFAULT_DATE,
             session=session,
         )
-        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti = DagRun.get_task_instance(dag_run=dr, task_id=op1.task_id, session=session)
         ti.state = State.QUEUED
-        ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
+        ti2 = DagRun.get_task_instance(dag_run=dr2, task_id=op1.task_id, session=session)
         ti2.state = State.QUEUED
         session.commit()
 
@@ -1630,10 +1629,10 @@ class TestSchedulerJob:
         self.job_runner.processor_agent = processor
         self.job_runner.adopt_or_reset_orphaned_tasks()
 
-        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti = DagRun.get_task_instance(dag_run=dr, task_id=op1.task_id, session=session)
         assert ti.state == State.NONE
 
-        ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
+        ti2 = DagRun.get_task_instance(dag_run=dr2, task_id=op1.task_id, session=session)
         assert ti2.state == State.QUEUED, "Tasks run by Backfill Jobs should not be reset"
 
     def test_fail_stuck_queued_tasks(self, dag_maker, session):
@@ -1763,7 +1762,7 @@ class TestSchedulerJob:
         # Add dag_run back in to the session (_do_scheduling does an expunge_all)
         dag_run = session.merge(dag_run)
         session.refresh(dag_run)
-        dag_run.get_task_instance(task_id="task", session=session).state = State.SUCCESS
+        DagRun.get_task_instance(dag_run=dag_run, task_id="task", session=session).state = State.SUCCESS
 
         # create new run
         for _ in range(3):
