@@ -354,13 +354,15 @@ class EmrServerlessStartApplicationTrigger(AwsBaseWaiterTrigger):
     def hook(self) -> AwsGenericHook:
         return EmrServerlessHook(self.aws_conn_id)
 
+
 class EmrServerlessStopApplicationTrigger(AwsBaseWaiterTrigger):
     """
     Poll an Emr Serverless application and wait for it to be stopped.
+
     :param application_id: The ID of the application being polled.
     :waiter_delay: polling period in seconds to check for the status
     :param waiter_max_attempts: The maximum number of attempts to be made
-    :param aws_conn_id: Reference to AWS connection id
+    :param aws_conn_id: Reference to AWS connection id.
     """
 
     def __init__(
@@ -386,6 +388,7 @@ class EmrServerlessStopApplicationTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return EmrServerlessHook(self.aws_conn_id)
+
 
 class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
     """
