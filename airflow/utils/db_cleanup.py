@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pendulum import DateTime
-from sqlalchemy import and_, column, false, func, inspect, table, text
+from sqlalchemy import and_, column, false, func, inspect, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Query, Session, aliased
@@ -179,7 +179,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
         pk_cols = source_table.primary_key.columns
         delete = source_table.delete().where(
             tuple_(*pk_cols).in_(
-                session.query(*[target_table.c[x.name] for x in source_table.primary_key.columns]).subquery()
+                select(*[target_table.c[x.name] for x in source_table.primary_key.columns]).subquery()
             )
         )
     else:
@@ -196,7 +196,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
 
 
 def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, max_date_colname, session):
-    subquery = session.query(*group_by_columns, func.max(recency_column).label(max_date_colname))
+    subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
 
     if keep_last_filters is not None:
         for entry in keep_last_filters:
