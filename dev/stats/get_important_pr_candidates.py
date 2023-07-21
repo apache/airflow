@@ -389,10 +389,11 @@ def main(
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         commits = repo.get_commits(since=date_start, until=date_end)
-        pulls = []
-        for commit in commits:
-            for pull in commit.get_pulls():
-                pulls.append(pull)
+        pulls = [
+            pull 
+            for commit in commits
+            for pull in commit.get_pulls()
+        ]
         issue_num = 0
         for pr in pulls:
             issue_num += 1
