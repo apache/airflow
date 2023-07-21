@@ -31,6 +31,8 @@ _mock_conn.dialect.name = "postgresql"
 def test_add_index_on_ab_user_username_postgres():
     table = Table('test_table', MetaData(), Column("username", String))
 
+    assert len(table.indexes) == 0
+
     add_index_on_ab_user_username_postgres(table, _mock_conn)
 
     # Assert that the index was added to the table
@@ -44,6 +46,8 @@ def test_add_index_on_ab_user_username_postgres():
 
 def test_add_index_on_ab_register_user_username_postgres():
     table = Table('test_table', MetaData(), Column("username", String))
+
+    assert len(table.indexes) == 0
 
     add_index_on_ab_register_user_username_postgres(table, _mock_conn)
 
