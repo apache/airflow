@@ -1096,6 +1096,10 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     """Start a Pig query Job on a Cloud DataProc cluster.
 
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
+
     The parameters of the operation will be passed to the cluster.
 
     It's a good practice to define dataproc_* parameters in the default_args of the dag
