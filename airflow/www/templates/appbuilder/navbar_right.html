@@ -73,7 +73,7 @@
        <b class="caret"></b>
     </a>
     <ul class="dropdown-menu">
-      <li><a href="{{appbuilder.get_url_for_userinfo}}"><span class="material-icons">account_circle</span>{{_("Your Profile")}}</a></li>
+      <li><a href="{{auth_manager.get_url_user_profile()}}"><span class="material-icons">account_circle</span>{{_("Your Profile")}}</a></li>
       <li role="separator" class="divider"></li>
       <li><a href="{{appbuilder.get_url_for_logout}}"><span class="material-icons">exit_to_app</span>{{_("Log Out")}}</a></li>
     </ul>
