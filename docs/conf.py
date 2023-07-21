@@ -43,7 +43,7 @@ import yaml
 from packaging.version import parse as parse_version
 
 import airflow
-from airflow.configuration import AirflowConfigParser, default_config_yaml
+from airflow.configuration import AirflowConfigParser, retrieve_configuration_description
 
 sys.path.append(str(Path(__file__).parent / "exts"))
 
@@ -419,7 +419,7 @@ if PACKAGE_NAME == "apache-airflow":
         for deprecated_section, deprecated_key, since_version in deprecated:
             deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
-    configs = default_config_yaml()
+    configs = retrieve_configuration_description()
 
     # We want the default/example we show in the docs to reflect the value _after_
     # the config has been templated, not before

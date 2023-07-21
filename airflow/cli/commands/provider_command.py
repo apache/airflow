@@ -17,6 +17,8 @@
 """Providers sub-commands."""
 from __future__ import annotations
 
+import sys
+
 import re2
 
 from airflow.cli.simple_table import AirflowConsole
@@ -179,3 +181,28 @@ def executors_list(args):
             "executor_class_names": x,
         },
     )
+
+
+@suppress_logs_and_warning
+def status(args):
+    """Informs if providers manager has been initialized.
+
+    If provider is initialized, shows the stack trace and exit with error code 1.
+    """
+    import rich
+
+    if ProvidersManager.initialized():
+        rich.print(
+            "\n[red]ProvidersManager was initialized during CLI parsing. This should not happen.\n",
+            file=sys.stderr,
+        )
+        rich.print(
+            "\n[yellow]Please make sure no Providers Manager initialization happens during CLI parsing.\n",
+            file=sys.stderr,
+        )
+        rich.print("Stack trace where it has been initialized:\n", file=sys.stderr)
+        rich.print(ProvidersManager.initialization_stack_trace(), file=sys.stderr)
+        sys.exit(1)
+    else:
+        rich.print("[green]All ok. Providers Manager was not initialized during the CLI parsing.")
+        sys.exit(0)

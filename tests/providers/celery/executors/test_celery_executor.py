@@ -258,8 +258,7 @@ class TestCeleryExecutor:
     def test_result_backend_sqlalchemy_engine_options(self, mock_celery):
         import importlib
 
-        from airflow.config_templates import default_celery
-        from airflow.providers.celery.executors import celery_executor_utils
+        from airflow.providers.celery.executors import celery_executor_utils, default_celery
 
         # reload celery conf to apply the new config
         importlib.reload(default_celery)

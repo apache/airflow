@@ -88,7 +88,7 @@ class TestCeleryStopCommand:
                 mock_process.return_value.terminate.assert_called_once_with()
 
     @mock.patch("airflow.cli.commands.celery_command.read_pid_from_pidfile")
-    @mock.patch("airflow.cli.commands.celery_command.celery_app")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_same_pid_file_is_used_in_start_and_stop(
@@ -113,7 +113,7 @@ class TestCeleryStopCommand:
 
     @mock.patch("airflow.cli.commands.celery_command.remove_existing_pidfile")
     @mock.patch("airflow.cli.commands.celery_command.read_pid_from_pidfile")
-    @mock.patch("airflow.cli.commands.celery_command.celery_app")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @mock.patch("airflow.cli.commands.celery_command.psutil.Process")
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
@@ -151,7 +151,7 @@ class TestWorkerStart:
 
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch("airflow.cli.commands.celery_command.Process")
-    @mock.patch("airflow.cli.commands.celery_command.celery_app")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_worker_started_with_required_arguments(self, mock_celery_app, mock_popen, mock_locations):
         pid_file = "pid_file"
@@ -211,7 +211,7 @@ class TestWorkerFailure:
         cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.celery_command.Process")
-    @mock.patch("airflow.cli.commands.celery_command.celery_app")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_worker_failure_gracefull_shutdown(self, mock_celery_app, mock_popen):
         args = self.parser.parse_args(["celery", "worker"])
@@ -228,7 +228,7 @@ class TestFlowerCommand:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @mock.patch("airflow.cli.commands.celery_command.celery_app")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command(self, mock_celery_app):
         args = self.parser.parse_args(
@@ -267,7 +267,7 @@ class TestFlowerCommand:
     @mock.patch("airflow.cli.commands.celery_command.TimeoutPIDLockFile")
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch("airflow.cli.commands.celery_command.daemon")
-    @mock.patch("airflow.cli.commands.celery_command.celery_app")
+    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command_daemon(self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file):
         mock_setup_locations.return_value = (

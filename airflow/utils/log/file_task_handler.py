@@ -134,10 +134,10 @@ def _interleave_logs(*logs):
 
 class FileTaskHandler(logging.Handler):
     """
-    FileTaskHandler is a python log handler that handles and reads
-    task instance logs. It creates and delegates log handling
-    to `logging.FileHandler` after receiving task instance context.
-    It reads logs from task instance's host machine.
+    FileTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It creates and delegates log handling to `logging.FileHandler` after receiving task
+    instance context.  It reads logs from task instance's host machine.
 
     :param base_log_folder: Base log folder to place logs.
     :param filename_template: template filename string
@@ -278,8 +278,7 @@ class FileTaskHandler(logging.Handler):
         metadata: dict[str, Any] | None = None,
     ):
         """
-        Template method that contains custom logic of reading
-        logs given the try_number.
+        Template method that contains custom logic of reading logs given the try_number.
 
         :param ti: task instance record
         :param try_number: current try_number to read log from
@@ -462,8 +461,9 @@ class FileTaskHandler(logging.Handler):
 
     def _init_file(self, ti):
         """
-        Create log directory and give it permissions that are configured. See above _prepare_log_folder
-        method for more detailed explanation.
+        Create log directory and give it permissions that are configured.
+
+        See above _prepare_log_folder method for more detailed explanation.
 
         :param ti: task instance object
         :return: relative log path of the given task instance

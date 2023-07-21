@@ -42,6 +42,10 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
     """
     Executes SQL code in a Snowflake database.
 
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SnowflakeOperator`
@@ -197,7 +201,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         *,
         sql: str,
         snowflake_conn_id: str = "snowflake_default",
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
         warehouse: str | None = None,
@@ -262,7 +266,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         pass_value: Any,
         tolerance: Any = None,
         snowflake_conn_id: str = "snowflake_default",
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
         warehouse: str | None = None,
@@ -337,7 +341,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         date_filter_column: str = "ds",
         days_back: SupportsAbs[int] = -7,
         snowflake_conn_id: str = "snowflake_default",
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
         warehouse: str | None = None,

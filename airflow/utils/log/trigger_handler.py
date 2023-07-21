@@ -67,8 +67,7 @@ class DropTriggerLogsFilter(logging.Filter):
 
 class TriggererHandlerWrapper(logging.Handler):
     """
-    Wrap inheritors of FileTaskHandler and direct log messages
-    to them based on trigger_id.
+    Wrap inheritors of FileTaskHandler and direct log messages to them based on trigger_id.
 
     :meta private:
     """

@@ -237,7 +237,7 @@ class DecoratedOperator(BaseOperator):
             for item in return_value:
                 if isinstance(item, Dataset):
                     self.outlets.append(item)
-        if not self.multiple_outputs:
+        if not self.multiple_outputs or return_value is None:
             return return_value
         if isinstance(return_value, dict):
             for key in return_value.keys():

@@ -127,8 +127,7 @@ class RenderedTaskInstanceFields(Base):
     @provide_session
     def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
-        Get templated field for a TaskInstance from the RenderedTaskInstanceFields
-        table.
+        Get templated field for a TaskInstance from the RenderedTaskInstanceFields table.
 
         :param ti: Task Instance
         :param session: SqlAlchemy Session
@@ -153,8 +152,7 @@ class RenderedTaskInstanceFields(Base):
     @provide_session
     def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
-        Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields
-        table.
+        Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields table.
 
         :param ti: Task Instance
         :param session: SqlAlchemy Session
