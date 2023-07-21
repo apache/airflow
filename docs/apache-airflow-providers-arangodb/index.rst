@@ -19,10 +19,18 @@
 ``apache-airflow-providers-arangodb``
 =====================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -30,18 +38,21 @@ Content
     Operators <operators/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/arangodb/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
     Example DAGs <https://github.com/apache/airflow/tree/providers-arangodb/|version|/airflow/providers/arangodb/example_dags>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -52,6 +63,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -64,7 +76,7 @@ Package apache-airflow-providers-arangodb
 `ArangoDB <https://www.arangodb.com/>`__
 
 
-Release: 2.2.0
+Release: 2.2.1
 
 Provider package
 ----------------
@@ -90,5 +102,3 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.4.0``
 ``python-arango``   ``>=7.3.2``
 ==================  ==================
-
-.. include:: ../../airflow/providers/arangodb/CHANGELOG.rst

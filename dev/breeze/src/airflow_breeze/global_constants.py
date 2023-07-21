@@ -26,10 +26,11 @@ from functools import lru_cache
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
 
 RUNS_ON_PUBLIC_RUNNER = "ubuntu-22.04"
 RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
+SELF_HOSTED_RUNNERS_CPU_COUNT = 8
 
 ANSWER = ""
 
@@ -65,11 +66,16 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.23.17", "v1.24.13", "v1.25.9", "v1.26.4", "v1.27.1"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.23.17", "v1.24.15", "v1.25.11", "v1.26.6", "v1.27.3"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
+START_AIRFLOW_ALLOWED_EXECUTORS = ["CeleryExecutor", "LocalExecutor"]
+START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS = START_AIRFLOW_ALLOWED_EXECUTORS[1]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
 ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
+
+ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
+DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]
 
 MOUNT_SELECTED = "selected"
 MOUNT_ALL = "all"
@@ -114,8 +120,8 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "tests" / "charts").iterdir()
-            if candidate.is_dir()
+            for candidate in (AIRFLOW_SOURCES_ROOT / "helm_tests").iterdir()
+            if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )
 
@@ -132,11 +138,15 @@ ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
 SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
+
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
 
+ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
+
+
 def get_available_documentation_packages(short_version=False) -> list[str]:
-    provider_names: list[str] = list(json.loads(DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
+    provider_names: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
     doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
     available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
     available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
@@ -215,6 +225,7 @@ COMMITTERS = [
     "ephraimbuddy",
     "feluelle",
     "feng-tao",
+    "ferruzzi",
     "houqp",
     "hussein-awala",
     "jedcunningham",
@@ -229,8 +240,11 @@ COMMITTERS = [
     "mik-laj",
     "milton0825",
     "mistercrunch",
+    "mobuchowski",
     "msumit",
     "o-nikolas",
+    "pankajastro",
+    "phanikumv",
     "pierrejeambrun",
     "pingzh",
     "potiuk",
@@ -242,6 +256,7 @@ COMMITTERS = [
     "turbaszek",
     "uranusjr",
     "vikramkoka",
+    "vincbeck",
     "xinbinhuang",
     "yuqian90",
     "zhongjiajie",
@@ -276,6 +291,10 @@ AVAILABLE_INTEGRATIONS = [
     "trino",
 ]
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
+
+with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
+    PROVIDER_DEPENDENCIES = json.load(f)
+
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     "setup.py",
@@ -299,7 +318,7 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.19.0"
+KIND_VERSION = "v0.20.0"
 HELM_VERSION = "v3.9.4"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass

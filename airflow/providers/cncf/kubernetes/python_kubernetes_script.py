@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Utilities for using the kubernetes decorator"""
+"""Utilities for using the kubernetes decorator."""
 from __future__ import annotations
 
 import os
@@ -39,7 +39,7 @@ def _balance_parens(after_decorator):
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     """
-    Removes @task.kubernetes or similar as well as @setup and @teardown
+    Removes @task.kubernetes or similar as well as @setup and @teardown.
 
     :param python_source: python source code
     :param task_decorator_name: the task decorator name

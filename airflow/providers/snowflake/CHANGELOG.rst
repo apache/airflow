@@ -21,8 +21,62 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-snowflake``
+
+
 Changelog
 ---------
+
+4.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix an issue that crashes Airflow Webserver when passed invalid private key path to Snowflake (#32016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``build(pre-commit): check deferrable default value (#32370)``
+   * ``D205 Support - Providers: Snowflake to Zendesk (inclusive) (#32359)``
+
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Deferrable switch to SnowflakeSqlApiOperator (#31596)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+4.2.0
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Features
+~~~~~~~~
+
+* ``Add SnowflakeSqlApiOperator operator (#30698)``
+
+Misc
+~~~~
+
+* ``SnowflakeSqlApiOperator - Change the base class (#31751)``
+* ``Moved sql_api_generate_jwt out of hooks folder (#31586)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check (#31742)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 4.1.0
 .....

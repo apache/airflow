@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Azure Data Explorer operators"""
+"""This module contains Azure Data Explorer operators."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -62,14 +62,16 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         self.azure_data_explorer_conn_id = azure_data_explorer_conn_id
 
     def get_hook(self) -> AzureDataExplorerHook:
-        """Returns new instance of AzureDataExplorerHook"""
+        """Returns new instance of AzureDataExplorerHook."""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
 
     def execute(self, context: Context) -> KustoResultTable | str:
         """
         Run KQL Query on Azure Data Explorer (Kusto).
-        Returns `PrimaryResult` of Query v2 HTTP response contents
-        (https://docs.microsoft.com/en-us/azure/kusto/api/rest/response2)
+
+        Returns `PrimaryResult` of Query v2 HTTP response contents.
+
+        https://docs.microsoft.com/en-us/azure/kusto/api/rest/response2
         """
         hook = self.get_hook()
         response = hook.run_query(self.query, self.database, self.options)

@@ -393,6 +393,24 @@ class TestPytestSnowflakeHook:
         ), pytest.raises(TypeError, match="Password was given but private key is not encrypted."):
             SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
 
+    def test_get_conn_params_should_fail_on_invalid_key(self):
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "password": None,
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "warehouse": "af_wh",
+                "region": "af_region",
+                "role": "af_role",
+                "private_key_file": "/dev/urandom",
+            },
+        }
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ), pytest.raises(ValueError, match="The private_key_file path points to an empty or invalid file."):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
+
     def test_should_add_partner_info(self):
         with mock.patch.dict(
             "os.environ",
@@ -467,7 +485,7 @@ class TestPytestSnowflakeHook:
         ), mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine:
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_sqlalchemy_engine()
-            assert "private_key" in mock_create_engine.call_args[1]["connect_args"]
+            assert "private_key" in mock_create_engine.call_args.kwargs["connect_args"]
             assert mock_create_engine.return_value == conn
 
     def test_hook_parameters_should_take_precedence(self):

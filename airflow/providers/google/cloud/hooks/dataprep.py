@@ -58,7 +58,9 @@ class JobGroupStatuses(str, Enum):
 class GoogleDataprepHook(BaseHook):
     """
     Hook for connection with Dataprep API.
+
     To get connection Dataprep with Airflow you need Dataprep token.
+
     https://clouddataprep.com/documentation/api#section/Authentication
 
     It should be added to the Connection in Airflow in JSON format.
@@ -103,6 +105,7 @@ class GoogleDataprepHook(BaseHook):
     def get_job_group(self, job_group_id: int, embed: str, include_deleted: bool) -> dict[str, Any]:
         """
         Get the specified job group.
+
         A job group is a job that is executed from a specific node in a flow.
 
         :param job_group_id: The ID of the job that will be fetched
@@ -120,9 +123,11 @@ class GoogleDataprepHook(BaseHook):
     def run_job_group(self, body_request: dict) -> dict[str, Any]:
         """
         Creates a ``jobGroup``, which launches the specified job as the authenticated user.
+
         This performs the same action as clicking on the Run Job button in the application.
+
         To get recipe_id please follow the Dataprep API documentation
-        https://clouddataprep.com/documentation/api#operation/runJobGroup
+        https://clouddataprep.com/documentation/api#operation/runJobGroup.
 
         :param body_request: The identifier for the recipe you would like to run.
         """

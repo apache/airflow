@@ -22,6 +22,8 @@ import argparse
 import contextlib
 import io
 import re
+import subprocess
+import timeit
 from collections import Counter
 from unittest.mock import patch
 
@@ -196,13 +198,26 @@ class TestCli:
             cli_config.positive_int(allow_zero=False)("0")
             cli_config.positive_int(allow_zero=True)("-1")
 
-    def test_dag_parser_celery_command_require_celery_executor(self):
+    @pytest.mark.parametrize(
+        "command",
+        [
+            ["celery"],
+            ["celery", "--help"],
+            ["celery", "worker", "--help"],
+            ["celery", "worker"],
+            ["celery", "flower", "--help"],
+            ["celery", "flower"],
+            ["celery", "stop_worker", "--help"],
+            ["celery", "stop_worker"],
+        ],
+    )
+    def test_dag_parser_require_celery_executor(self, command):
         with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
             io.StringIO()
         ) as stderr:
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args(["celery"])
+                parser.parse_args(command)
             stderr = stderr.getvalue()
         assert (
             "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
@@ -268,3 +283,22 @@ class TestCli:
             f"--export-format: invalid choice: '{export_format}' "
             "(choose from 'csv'), see help above.\n"
         )
+
+    def test_cli_run_time(self):
+        setup_code = "import subprocess"
+        timing_code = 'subprocess.run(["airflow", "--help"])'
+        # Limit the number of samples otherwise the test will take a very long time
+        num_samples = 3
+        threshold = 3.5
+        timing_result = timeit.timeit(stmt=timing_code, number=num_samples, setup=setup_code) / num_samples
+        # Average run time of Airflow CLI should at least be within 3.5s
+        assert timing_result < threshold
+
+    def test_cli_parsing_does_not_initialize_providers_manager(self):
+        """Test that CLI parsing does not initialize providers manager.
+
+        This test is here to make sure that we do not initialize providers manager - it is run as a
+        separate subprocess, to make sure we do not have providers manager initialized in the main
+        process from other tests.
+        """
+        subprocess.check_call(["airflow", "providers", "status"])

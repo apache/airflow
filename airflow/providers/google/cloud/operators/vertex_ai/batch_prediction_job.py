@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google Vertex AI operators.
 
-.. spelling::
+.. spelling:word-list::
 
     jsonl
     codepoints
@@ -268,10 +268,7 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         return batch_prediction_job
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_batch_prediction_job()
 
@@ -346,7 +343,7 @@ class DeleteBatchPredictionJobOperator(GoogleCloudBaseOperator):
 
 class GetBatchPredictionJobOperator(GoogleCloudBaseOperator):
     """
-    Gets a BatchPredictionJob
+    Gets a BatchPredictionJob.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.

@@ -38,7 +38,7 @@ CLOUD_FUNCTIONS_LIST_LINK = CLOUD_FUNCTIONS_BASE_LINK + "/list?project={project_
 
 
 class CloudFunctionsDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Functions Details Link"""
+    """Helper class for constructing Cloud Functions Details Link."""
 
     name = "Cloud Functions Details"
     key = "cloud_functions_details"
@@ -61,7 +61,7 @@ class CloudFunctionsDetailsLink(BaseGoogleLink):
 
 
 class CloudFunctionsListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Functions Details Link"""
+    """Helper class for constructing Cloud Functions Details Link."""
 
     name = "Cloud Functions List"
     key = "cloud_functions_list"

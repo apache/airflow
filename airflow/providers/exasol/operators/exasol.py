@@ -25,7 +25,7 @@ from airflow.providers.exasol.hooks.exasol import exasol_fetch_all_handler
 
 class ExasolOperator(SQLExecuteQueryOperator):
     """
-    Executes sql code in a specific Exasol database
+    Executes sql code in a specific Exasol database.
 
     :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file.

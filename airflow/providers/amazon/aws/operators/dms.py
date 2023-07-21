@@ -88,7 +88,7 @@ class DmsCreateTaskOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Creates AWS DMS replication task from Airflow
+        Creates AWS DMS replication task from Airflow.
 
         :return: replication task arn
         """
@@ -141,7 +141,7 @@ class DmsDeleteTaskOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Deletes AWS DMS replication task from Airflow
+        Deletes AWS DMS replication task from Airflow.
 
         :return: replication task arn
         """
@@ -183,7 +183,7 @@ class DmsDescribeTasksOperator(BaseOperator):
 
     def execute(self, context: Context) -> tuple[str | None, list]:
         """
-        Describes AWS DMS replication tasks from Airflow
+        Describes AWS DMS replication tasks from Airflow.
 
         :return: Marker and list of replication tasks
         """
@@ -235,7 +235,7 @@ class DmsStartTaskOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Starts AWS DMS replication task from Airflow
+        Starts AWS DMS replication task from Airflow.
 
         :return: replication task arn
         """
@@ -282,7 +282,7 @@ class DmsStopTaskOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Stops AWS DMS replication task from Airflow
+        Stops AWS DMS replication task from Airflow.
 
         :return: replication task arn
         """

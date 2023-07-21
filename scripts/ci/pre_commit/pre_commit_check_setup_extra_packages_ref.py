@@ -37,6 +37,8 @@ PY_IDENTIFIER = r"[a-zA-Z_][a-zA-Z0-9_\.]*"
 
 sys.path.insert(0, AIRFLOW_SOURCES_DIR)
 
+os.environ["_SKIP_PYTHON_VERSION_CHECK"] = "true"
+
 from setup import (  # noqa # isort:skip
     add_all_provider_packages,
     EXTRAS_DEPRECATED_ALIASES,
@@ -207,7 +209,7 @@ def check_preinstalled_extras(console: Console) -> bool:
     :return: True if all ok, False otherwise
     """
     preinstalled_providers_from_docs = get_preinstalled_providers_from_docs()
-    preinstalled_providers_from_setup = PREINSTALLED_PROVIDERS
+    preinstalled_providers_from_setup = [provider.split(">=")[0] for provider in PREINSTALLED_PROVIDERS]
 
     preinstalled_providers_table = Table()
     preinstalled_providers_table.add_column("PREINSTALLED_IN_SETUP", justify="right", style="cyan")

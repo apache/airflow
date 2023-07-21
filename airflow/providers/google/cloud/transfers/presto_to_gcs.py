@@ -71,11 +71,11 @@ class _PrestoToGCSPrestoCursorAdapter:
 
     @property
     def rowcount(self) -> int:
-        """The read-only attribute specifies the number of rows"""
+        """The read-only attribute specifies the number of rows."""
         return self.cursor.rowcount
 
     def close(self) -> None:
-        """Close the cursor now"""
+        """Close the cursor now."""
         self.cursor.close()
 
     def execute(self, *args, **kwargs) -> PrestoResult:
@@ -86,8 +86,10 @@ class _PrestoToGCSPrestoCursorAdapter:
 
     def executemany(self, *args, **kwargs):
         """
-        Prepare a database operation (query or command) and then execute it against all parameter
-        sequences or mappings found in the sequence seq_of_parameters.
+        Prepare and execute a database operation.
+
+        Prepare a database operation (query or command) and then execute it against
+        all parameter sequences or mappings found in the sequence seq_of_parameters.
         """
         self.initialized = False
         self.rows = []
@@ -101,18 +103,16 @@ class _PrestoToGCSPrestoCursorAdapter:
         return element
 
     def fetchone(self) -> Any:
-        """
-        Fetch the next row of a query result set, returning a single sequence, or
-        ``None`` when no more data is available.
-        """
+        """Fetch the next row of a query result set, returning a single sequence, or ``None``."""
         if self.rows:
             return self.rows.pop(0)
         return self.cursor.fetchone()
 
     def fetchmany(self, size=None) -> list:
         """
-        Fetch the next set of rows of a query result, returning a sequence of sequences
-        (e.g. a list of tuples). An empty sequence is returned when no more rows are available.
+        Fetch the next set of rows of a query result, returning a sequence of sequences.
+
+        An empty sequence is returned when no more rows are available.
         """
         if size is None:
             size = self.cursor.arraysize
@@ -128,9 +128,9 @@ class _PrestoToGCSPrestoCursorAdapter:
 
     def __next__(self) -> Any:
         """
-        Return the next row from the currently executing SQL statement using the same semantics as
-        ``.fetchone()``.  A ``StopIteration`` exception is raised when the result set is exhausted.
-        :return:
+        Return the next row from the current SQL statement using the same semantics as ``.fetchone()``.
+
+        A ``StopIteration`` exception is raised when the result set is exhausted.
         """
         result = self.fetchone()
         if result is None:
@@ -138,7 +138,7 @@ class _PrestoToGCSPrestoCursorAdapter:
         return result
 
     def __iter__(self) -> _PrestoToGCSPrestoCursorAdapter:
-        """Return self to make cursors compatible to the iteration protocol"""
+        """Return self to make cursors compatible to the iteration protocol."""
         return self
 
 

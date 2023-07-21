@@ -21,8 +21,51 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-apache-hive``
+
+
 Changelog
 ---------
+
+6.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add proxy_user template check (#32334)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+6.1.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Sanitize beeline principal parameter (#31983)``
+
+Misc
+~~~~
+
+* ``Replace unicodecsv with standard csv library (#31693)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+   * ``Apache provider docstring improvements (#31730)``
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+   * ``Add Python 3.11 support (#27264)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 6.1.0
 .....

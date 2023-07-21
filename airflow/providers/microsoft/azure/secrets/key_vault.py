@@ -107,7 +107,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_conn_value(self, conn_id: str) -> str | None:
         """
-        Get a serialized representation of Airflow Connection from an Azure Key Vault secret
+        Get a serialized representation of Airflow Connection from an Azure Key Vault secret.
 
         :param conn_id: The Airflow connection id to retrieve
         """
@@ -148,7 +148,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_config(self, key: str) -> str | None:
         """
-        Get Airflow Configuration
+        Get Airflow Configuration.
 
         :param key: Configuration Option Key
         :return: Configuration Option Value
@@ -162,6 +162,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
     def build_path(path_prefix: str, secret_id: str, sep: str = "-") -> str:
         """
         Given a path_prefix and secret_id, build a valid secret name for the Azure Key Vault Backend.
+
         Also replaces underscore in the path with dashes to support easy switching between
         environment variables, so ``connection_default`` becomes ``connection-default``.
 
@@ -178,7 +179,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
         """
-        Get an Azure Key Vault secret value
+        Get an Azure Key Vault secret value.
 
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key

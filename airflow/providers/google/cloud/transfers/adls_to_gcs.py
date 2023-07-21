@@ -15,10 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Azure Data Lake Storage to
-Google Cloud Storage operator.
-"""
+"""This module contains Azure Data Lake Storage to Google Cloud Storage operator."""
+
 from __future__ import annotations
 
 import os
@@ -35,7 +33,7 @@ if TYPE_CHECKING:
 
 class ADLSToGCSOperator(ADLSListOperator):
     """
-    Synchronizes an Azure Data Lake Storage path with a GCS bucket
+    Synchronizes an Azure Data Lake Storage path with a GCS bucket.
 
     :param src_adls: The Azure Data Lake path to find the objects (templated)
     :param dest_gcs: The Google Cloud Storage bucket and prefix to

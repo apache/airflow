@@ -53,6 +53,7 @@ def max_partition(
 def _closest_date(target_dt, date_list, before_target=None) -> datetime.date | None:
     """
     This function finds the date in a list closest to the target date.
+
     An optional parameter can be given to get the closest before or after.
 
     :param target_dt: The target date
@@ -76,6 +77,7 @@ def closest_ds_partition(
 ) -> str | None:
     """
     This function finds the date in a list closest to the target date.
+
     An optional parameter can be given to get the closest before or after.
 
     :param table: A hive table name

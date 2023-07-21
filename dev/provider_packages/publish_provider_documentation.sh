@@ -28,6 +28,7 @@ do
     provider_filters+=("--package-filter" "apache-airflow-providers-${provider//./-}")
 done
 
-./docs/publish_docs.py \
+breeze release-management build-docs \
     "${provider_filters[@]}"
+
 cd "${AIRFLOW_SITE_DIRECTORY}"

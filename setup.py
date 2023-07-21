@@ -67,13 +67,17 @@ CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 # corresponding provider.yaml file.
 #
 def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
+    # in case we are loading setup from pre-commits, we want to skip the check for python version
+    # because if someone uses a version of Python where providers are excluded, the setup will fail
+    # to see the extras for those providers
+    skip_python_version_check = os.environ.get("_SKIP_PYTHON_VERSION_CHECK")
     try:
         with AIRFLOW_SOURCES_ROOT.joinpath("generated", "provider_dependencies.json").open() as f:
             dependencies = json.load(f)
         return {
             key: value
             for key, value in dependencies.items()
-            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"]
+            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check
         }
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
@@ -187,7 +191,7 @@ def git_version() -> str:
 
         try:
             repo = git.Repo(str(AIRFLOW_SOURCES_ROOT / ".git"))
-        except (git.NoSuchPathError):
+        except git.NoSuchPathError:
             logger.warning(".git directory not found: Cannot compute the git version")
             return ""
         except git.InvalidGitRepositoryError:
@@ -262,7 +266,9 @@ deprecated_api = [
 doc = [
     "astroid>=2.12.3",
     "checksumdir",
-    "click>=8.0",
+    # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
+    # https://github.com/pallets/click/issues/2558
+    "click>=8.0,!=8.1.4,!=8.1.5",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections
@@ -285,7 +291,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.1",
+    "flask-appbuilder[oauth]==4.3.3",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -309,7 +315,7 @@ ldap = [
     "python-ldap",
 ]
 leveldb = ["plyvel"]
-otel = ["opentelemetry-api==1.15.0", "opentelemetry-exporter-otlp", "opentelemetry-exporter-prometheus"]
+otel = ["opentelemetry-exporter-prometheus"]
 pandas = ["pandas>=0.17.1", "pyarrow>=9.0.0"]
 password = [
     "bcrypt>=2.0.0",
@@ -365,7 +371,6 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
-    "asynctest~=0.13",
     "aws_xray_sdk",
     "beautifulsoup4>=4.7.1",
     "black",
@@ -510,12 +515,12 @@ EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 
 
 def add_extras_for_all_providers() -> None:
-    for (provider_name, provider_dict) in PROVIDER_DEPENDENCIES.items():
+    for provider_name, provider_dict in PROVIDER_DEPENDENCIES.items():
         EXTRAS_DEPENDENCIES[provider_name] = provider_dict[DEPS]
 
 
 def add_additional_extras() -> None:
-    for (extra_name, extra_dependencies) in ADDITIONAL_EXTRAS_DEPENDENCIES.items():
+    for extra_name, extra_dependencies in ADDITIONAL_EXTRAS_DEPENDENCIES.items():
         EXTRAS_DEPENDENCIES[extra_name] = extra_dependencies
 
 
@@ -724,6 +729,9 @@ EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
 PREINSTALLED_PROVIDERS = [
+    # TODO: When we release 3.3.0 version of celery provider we should change it to "celery>=3.3.0" here
+    #       In order to make sure executors are available in the celery provider
+    "celery",
     "common.sql",
     "ftp",
     "http",
@@ -739,8 +747,17 @@ def get_provider_package_name_from_package_id(package_id: str) -> str:
     :param package_id: id of the package (like amazon or microsoft.azure)
     :return: full name of package in PyPI
     """
-    package_suffix = package_id.replace(".", "-")
-    return f"apache-airflow-providers-{package_suffix}"
+    version_spec = ""
+    if ">=" in package_id:
+        package, version = package_id.split(">=")
+        version_spec = f">={version}"
+        version_suffix = os.environ.get("VERSION_SUFFIX_FOR_PYPI")
+        if version_suffix:
+            version_spec += version_suffix
+    else:
+        package = package_id
+    package_suffix = package.replace(".", "-")
+    return f"apache-airflow-providers-{package_suffix}{version_spec}"
 
 
 def get_excluded_providers() -> list[str]:

@@ -24,7 +24,7 @@ import os
 import shutil
 from datetime import timedelta
 from tempfile import mkdtemp
-from typing import Deque, Generator
+from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -377,7 +377,7 @@ class TestSchedulerJob:
             processor_subdir=None,
             msg="Executor reports task instance "
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
-            "finished (failed) although the task says its queued. (Info: None) "
+            "finished (failed) although the task says it's queued. (Info: None) "
             "Was the task killed externally?",
         )
         scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
@@ -1386,6 +1386,7 @@ class TestSchedulerJob:
             [
                 mock.call("scheduler.tasks.starving", 1),
                 mock.call(f"pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}", 1),
+                mock.call("pool.starving_tasks", 1, tags={"pool_name": Pool.DEFAULT_POOL_NAME}),
             ],
             any_order=True,
         )
@@ -1401,6 +1402,7 @@ class TestSchedulerJob:
             [
                 mock.call("scheduler.tasks.starving", 0),
                 mock.call(f"pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}", 0),
+                mock.call("pool.starving_tasks", 0, tags={"pool_name": Pool.DEFAULT_POOL_NAME}),
             ],
             any_order=True,
         )
@@ -2122,7 +2124,7 @@ class TestSchedulerJob:
 
         # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args[0]
+        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
         assert call_args[0].dag_id == dr.dag_id
         assert call_args[1] is None
 
@@ -2157,7 +2159,7 @@ class TestSchedulerJob:
 
         # Verify Callback is set (i.e is None) when no callbacks are set on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args[0]
+        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
         assert call_args[0].dag_id == dr.dag_id
         assert call_args[1] is not None
         assert call_args[1].msg == msg
@@ -4545,7 +4547,7 @@ class TestSchedulerJob:
             self.job_runner._find_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
-        requests = scheduler_job.executor.callback_sink.send.call_args[0]
+        requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert 1 == len(requests)
         assert requests[0].full_filepath == dag.fileloc
         assert requests[0].msg == str(self.job_runner._generate_zombie_message_details(ti))
@@ -4680,7 +4682,7 @@ class TestSchedulerJob:
                 msg=str(self.job_runner._generate_zombie_message_details(ti)),
             )
         ]
-        callback_requests = scheduler_job.executor.callback_sink.send.call_args[0]
+        callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
         assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
             result.simple_task_instance.key for result in callback_requests
@@ -4743,8 +4745,8 @@ class TestSchedulerJob:
 
             return spy
 
-        num_queued_tis: Deque[int] = collections.deque([], 3)
-        num_finished_events: Deque[int] = collections.deque([], 3)
+        num_queued_tis: collections.deque[int] = collections.deque([], 3)
+        num_finished_events: collections.deque[int] = collections.deque([], 3)
 
         do_scheduling_spy = mock.patch.object(
             job_runner,

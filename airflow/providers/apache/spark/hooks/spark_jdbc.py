@@ -26,8 +26,7 @@ from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 
 class SparkJDBCHook(SparkSubmitHook):
     """
-    This hook extends the SparkSubmitHook specifically for performing data
-    transfers to/from JDBC-based databases with Apache Spark.
+    Extends the SparkSubmitHook for performing data transfers to/from JDBC-based databases with Apache Spark.
 
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
     :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>`
@@ -223,7 +222,7 @@ class SparkJDBCHook(SparkSubmitHook):
         return arguments
 
     def submit_jdbc_job(self) -> None:
-        """Submit Spark JDBC job"""
+        """Submit Spark JDBC job."""
         self._application_args = self._build_jdbc_application_arguments(self._jdbc_connection)
         self.submit(application=f"{os.path.dirname(os.path.abspath(__file__))}/spark_jdbc_script.py")
 

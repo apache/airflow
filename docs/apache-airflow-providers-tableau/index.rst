@@ -19,10 +19,18 @@
 ``apache-airflow-providers-tableau``
 =======================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -32,11 +40,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/tableau/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -48,6 +58,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -60,7 +71,7 @@ Package apache-airflow-providers-tableau
 `Tableau <https://www.tableau.com/>`__
 
 
-Release: 4.2.0
+Release: 4.2.1
 
 Provider package
 ----------------
@@ -86,5 +97,3 @@ PIP package              Version required
 ``apache-airflow``       ``>=2.4.0``
 ``tableauserverclient``
 =======================  ==================
-
-.. include:: ../../airflow/providers/tableau/CHANGELOG.rst

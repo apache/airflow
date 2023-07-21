@@ -19,22 +19,32 @@
 ``apache-airflow-providers-ssh``
 ================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
     Connection types <connections/ssh>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/ssh/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -45,6 +55,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -57,7 +68,7 @@ Package apache-airflow-providers-ssh
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
 
 
-Release: 3.7.0
+Release: 3.7.1
 
 Provider package
 ----------------
@@ -84,5 +95,3 @@ PIP package         Version required
 ``paramiko``        ``>=2.6.0``
 ``sshtunnel``       ``>=0.3.2``
 ==================  ==================
-
-.. include:: ../../airflow/providers/ssh/CHANGELOG.rst

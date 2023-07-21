@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
     """
     Interact with Amazon Redshift Data API.
+
     Provide thin wrapper around
     :external+boto3:py:class:`boto3.client("redshift-data") <RedshiftDataAPIService.Client>`.
 
@@ -61,7 +62,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         poll_interval: int = 10,
     ) -> str:
         """
-        Execute a statement against Amazon Redshift
+        Execute a statement against Amazon Redshift.
 
         :param database: the name of the database
         :param sql: the SQL statement or list of  SQL statement to run

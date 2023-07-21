@@ -18,7 +18,7 @@
 """
 Hooks for Cloud Memorystore service.
 
-.. spelling::
+.. spelling:word-list::
 
     DataProtectionMode
     FieldMask

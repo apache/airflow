@@ -261,7 +261,7 @@ class DataSyncOperator(BaseOperator):
         self.log.info("Found candidate DataSync TaskArns %s", self.candidate_task_arns)
 
     def choose_task(self, task_arn_list: list) -> str | None:
-        """Select 1 DataSync TaskArn from a list"""
+        """Select 1 DataSync TaskArn from a list."""
         if not task_arn_list:
             return None
         if len(task_arn_list) == 1:
@@ -275,7 +275,7 @@ class DataSyncOperator(BaseOperator):
         raise AirflowException(f"Unable to choose a Task from {task_arn_list}")
 
     def choose_location(self, location_arn_list: list[str] | None) -> str | None:
-        """Select 1 DataSync LocationArn from a list"""
+        """Select 1 DataSync LocationArn from a list."""
         if not location_arn_list:
             return None
         if len(location_arn_list) == 1:

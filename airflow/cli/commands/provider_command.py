@@ -17,7 +17,9 @@
 """Providers sub-commands."""
 from __future__ import annotations
 
-import re
+import sys
+
+import re2
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.providers_manager import ProvidersManager
@@ -27,7 +29,7 @@ ERROR_IMPORTING_HOOK = "Error when importing hook!"
 
 
 def _remove_rst_syntax(value: str) -> str:
-    return re.sub("[`_<>]", "", value.strip(" \n."))
+    return re2.sub("[`_<>]", "", value.strip(" \n."))
 
 
 @suppress_logs_and_warning
@@ -167,3 +169,40 @@ def auth_backend_list(args):
             "api_auth_backand_module": x,
         },
     )
+
+
+@suppress_logs_and_warning
+def executors_list(args):
+    """Lists all executors at the command line."""
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().executor_class_names),
+        output=args.output,
+        mapper=lambda x: {
+            "executor_class_names": x,
+        },
+    )
+
+
+@suppress_logs_and_warning
+def status(args):
+    """Informs if providers manager has been initialized.
+
+    If provider is initialized, shows the stack trace and exit with error code 1.
+    """
+    import rich
+
+    if ProvidersManager.initialized():
+        rich.print(
+            "\n[red]ProvidersManager was initialized during CLI parsing. This should not happen.\n",
+            file=sys.stderr,
+        )
+        rich.print(
+            "\n[yellow]Please make sure no Providers Manager initialization happens during CLI parsing.\n",
+            file=sys.stderr,
+        )
+        rich.print("Stack trace where it has been initialized:\n", file=sys.stderr)
+        rich.print(ProvidersManager.initialization_stack_trace(), file=sys.stderr)
+        sys.exit(1)
+    else:
+        rich.print("[green]All ok. Providers Manager was not initialized during the CLI parsing.")
+        sys.exit(0)

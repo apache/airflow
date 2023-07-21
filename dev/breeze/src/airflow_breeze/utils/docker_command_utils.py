@@ -41,6 +41,7 @@ except ImportError:
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
+    ALLOWED_CELERY_BROKERS,
     ALLOWED_PACKAGE_FORMATS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     FLOWER_HOST_PORT,
@@ -101,6 +102,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("setup.cfg", "/opt/airflow/setup.cfg"),
     ("setup.py", "/opt/airflow/setup.py"),
     ("tests", "/opt/airflow/tests"),
+    ("helm_tests", "/opt/airflow/helm_tests"),
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
     ("docker_tests", "/opt/airflow/docker_tests"),
     ("chart", "/opt/airflow/chart"),
@@ -281,6 +283,9 @@ def check_remote_ghcr_io_commands():
                 "[error]\nYou seem to be offline. This command requires access to network.[/]\n"
             )
             sys.exit(2)
+        get_console().print("[error]Response:[/]\n")
+        get_console().print(response.stdout.decode("utf-8"))
+        get_console().print(response.stderr.decode("utf-8"))
         if os.environ.get("CI"):
             get_console().print(
                 "\n[error]We are extremely sorry but you've hit the rare case that the "
@@ -362,38 +367,6 @@ Make sure docker-compose you install is first on the PATH variable of yours.
         )
 
 
-def check_docker_context():
-    """Checks whether Docker is using the expected context."""
-    expected_docker_context = "default"
-    response = run_command(
-        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
-        no_output_dump_on_exception=False,
-        text=True,
-        capture_output=True,
-        dry_run_override=False,
-    )
-    if response.returncode != 0:
-        get_console().print(
-            "[warning]Could not check for Docker context.[/]\n"
-            '[warning]Please make sure that Docker is using the right context by running "docker info" and '
-            "checking the active Context.[/]"
-        )
-        return
-
-    used_docker_context = response.stdout.strip().replace('"', "")
-
-    if used_docker_context == expected_docker_context:
-        get_console().print(f"[success]Good Docker context used: {used_docker_context}.[/]")
-    else:
-        get_console().print(
-            f"[error]Docker is not using the default context, used context is: {used_docker_context}[/]\n"
-            f"[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n"
-            f'[warning]You can try switching contexts by running: "docker context use '
-            f'{expected_docker_context}"[/]'
-        )
-        sys.exit(1)
-
-
 def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParams):
     raw_value = getattr(params, arg_name, None)
     value = str(raw_value) if raw_value is not None else ""
@@ -447,7 +420,9 @@ def prepare_docker_build_cache_command(
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=auto"])
+    final_command.extend(
+        ["buildx", "build", "--builder", get_and_use_docker_context(image_params.builder), "--progress=auto"]
+    )
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
     final_command.extend(arguments)
@@ -483,7 +458,7 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
                 "buildx",
                 "build",
                 "--builder",
-                image_params.builder,
+                get_and_use_docker_context(image_params.builder),
                 "--progress=auto",
                 "--push" if image_params.push else "--load",
             ]
@@ -564,7 +539,7 @@ def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCo
 
 
 def make_sure_builder_configured(params: CommonBuildParams):
-    if params.builder != "default":
+    if params.builder != "autodetect":
         cmd = ["docker", "buildx", "inspect", params.builder]
         buildx_command_result = run_command(cmd, text=True, check=False, dry_run_override=False)
         if buildx_command_result and buildx_command_result.returncode != 0:
@@ -622,6 +597,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "ONLY_MIN_VERSION_UPDATE", "false")
     set_value_to_default_if_not_set(env, "PACKAGE_FORMAT", ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, "PYTHONDONTWRITEBYTECODE", "true")
+    set_value_to_default_if_not_set(env, "REGENERATE_MISSING_DOCS", "false")
     set_value_to_default_if_not_set(env, "REMOVE_ARM_PACKAGES", "false")
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
@@ -650,6 +626,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",
     "AIRFLOW_VERSION": "airflow_version",
+    "AIRFLOW__CORE__EXECUTOR": "executor",
     "BACKEND": "backend",
     "BASE_BRANCH": "base_branch",
     "COMPOSE_FILE": "compose_file",
@@ -668,6 +645,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
     "ONLY_MIN_VERSION_UPDATE": "only_min_version_update",
+    "REGENERATE_MISSING_DOCS": "regenerate_missing_docs",
     "PACKAGE_FORMAT": "package_format",
     "POSTGRES_VERSION": "postgres_version",
     "PYTHON_MAJOR_MINOR_VERSION": "python",
@@ -680,6 +658,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
+    "CELERY_FLOWER": "celery_flower",
 }
 
 DOCKER_VARIABLE_CONSTANTS = {
@@ -690,6 +669,7 @@ DOCKER_VARIABLE_CONSTANTS = {
     "REDIS_HOST_PORT": REDIS_HOST_PORT,
     "SSH_PORT": SSH_PORT,
     "WEBSERVER_HOST_PORT": WEBSERVER_HOST_PORT,
+    "CELERY_BROKER_URLS": "amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0",
 }
 
 
@@ -717,15 +697,26 @@ def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -
         constant_param_value = DOCKER_VARIABLE_CONSTANTS[variable]
         if not env_variables.get(variable):
             env_variables[variable] = str(constant_param_value)
+    prepare_broker_url(params, env_variables)
     update_expected_environment_variables(env_variables)
     return env_variables
+
+
+def prepare_broker_url(params, env_variables):
+    """Prepare broker url for celery executor"""
+    urls = env_variables["CELERY_BROKER_URLS"].split(",")
+    url_map = {
+        ALLOWED_CELERY_BROKERS[0]: urls[0],
+        ALLOWED_CELERY_BROKERS[1]: urls[1],
+    }
+    if getattr(params, "celery_broker", None) and params.celery_broker in params.celery_broker in url_map:
+        env_variables["AIRFLOW__CELERY__BROKER_URL"] = url_map[params.celery_broker]
 
 
 def perform_environment_checks():
     check_docker_is_running()
     check_docker_version()
     check_docker_compose_version()
-    check_docker_context()
 
 
 def get_docker_syntax_version() -> str:
@@ -737,10 +728,11 @@ def get_docker_syntax_version() -> str:
 def warm_up_docker_builder(image_params: CommonBuildParams):
     from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
-    if image_params.builder == "default":
+    docker_context = get_and_use_docker_context(image_params.builder)
+    if docker_context == "default":
         return
     docker_syntax = get_docker_syntax_version()
-    get_console().print(f"[info]Warming up the {image_params.builder} builder for syntax: {docker_syntax}")
+    get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
     warm_up_image_param = deepcopy(image_params)
     warm_up_image_param.image_tag = "warmup"
     warm_up_image_param.push = False
@@ -807,3 +799,52 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
                 check=False,
                 stderr=DEVNULL,
             )
+
+
+# When you are using Docker Desktop (specifically on MacOS). the preferred context is "desktop-linux"
+# because the docker socket to use is created in the .docker/ directory in the user's home directory
+# and it does not require the user to belong to the "docker" group.
+# The "default" context is the traditional one that requires "/var/run/docker.sock" to be writeable by the
+# user running the docker command.
+PREFERRED_CONTEXTS = ["desktop-linux", "default"]
+
+
+def autodetect_docker_context():
+    """
+    Auto-detects which docker context to use.
+
+    :return: name of the docker context to use
+    """
+    output = run_command(["docker", "context", "ls", "-q"], capture_output=True, check=False, text=True)
+    if output.returncode != 0:
+        get_console().print("[warning]Could not detect docker builder. Using default.[/]")
+        return "default"
+    context_list = output.stdout.splitlines()
+    if len(context_list) == 0:
+        get_console().print("[warning]Could not detect docker builder. Using default.[/]")
+        return "default"
+    if len(context_list) == 1:
+        get_console().print(f"[info]Using {context_list[0]} as context.[/]")
+        return context_list[0]
+    if len(context_list) > 1:
+        for preferred_context in PREFERRED_CONTEXTS:
+            if preferred_context in context_list:
+                get_console().print(f"[info]Using {preferred_context} as context.[/]")
+                return preferred_context
+    fallback_context = context_list[0]
+    get_console().print(
+        f"[warning]Could not use any of the preferred docker contexts {PREFERRED_CONTEXTS}.\n"
+        f"Using {fallback_context} as context.[/]"
+    )
+    return fallback_context
+
+
+def get_and_use_docker_context(context: str):
+    if context == "autodetect":
+        context = autodetect_docker_context()
+    output = run_command(["docker", "context", "use", context], check=False)
+    if output.returncode != 0:
+        get_console().print(
+            f"[warning] Could no use the context {context}. Continuing with current context[/]"
+        )
+    return context

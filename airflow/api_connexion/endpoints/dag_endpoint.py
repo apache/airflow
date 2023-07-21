@@ -22,6 +22,7 @@ from typing import Collection
 from connexion import NoContent
 from flask import g, request
 from marshmallow import ValidationError
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import or_
 
@@ -47,7 +48,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get basic information about a DAG."""
-    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
+    dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
 
     if dag is None:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
@@ -80,27 +81,27 @@ def get_dags(
 ) -> APIResponse:
     """Get all DAGs."""
     allowed_attrs = ["dag_id"]
-    dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+    dags_query = select(DagModel).where(~DagModel.is_subdag)
     if only_active:
-        dags_query = dags_query.filter(DagModel.is_active)
+        dags_query = dags_query.where(DagModel.is_active)
     if paused is not None:
         if paused:
-            dags_query = dags_query.filter(DagModel.is_paused)
+            dags_query = dags_query.where(DagModel.is_paused)
         else:
-            dags_query = dags_query.filter(~DagModel.is_paused)
+            dags_query = dags_query.where(~DagModel.is_paused)
     if dag_id_pattern:
-        dags_query = dags_query.filter(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
+        dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
     readable_dags = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
 
-    dags_query = dags_query.filter(DagModel.dag_id.in_(readable_dags))
+    dags_query = dags_query.where(DagModel.dag_id.in_(readable_dags))
     if tags:
         cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
-        dags_query = dags_query.filter(or_(*cond))
+        dags_query = dags_query.where(or_(*cond))
 
-    total_entries = dags_query.count()
+    total_entries = session.scalar(select(func.count()).select_from(dags_query))
     dags_query = apply_sorting(dags_query, order_by, {}, allowed_attrs)
-    dags = dags_query.offset(offset).limit(limit).all()
+    dags = session.scalars(dags_query.offset(offset).limit(limit)).all()
 
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
@@ -119,7 +120,7 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
             raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
         patch_body_[update_mask[0]] = patch_body[update_mask[0]]
         patch_body = patch_body_
-    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
+    dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
     if not dag:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
     dag.is_paused = patch_body["is_paused"]
@@ -144,27 +145,30 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
         patch_body_[update_mask] = patch_body[update_mask]
         patch_body = patch_body_
     if only_active:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
+        dags_query = select(DagModel).where(~DagModel.is_subdag, DagModel.is_active)
     else:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        dags_query = select(DagModel).where(~DagModel.is_subdag)
 
     if dag_id_pattern == "~":
         dag_id_pattern = "%"
-    dags_query = dags_query.filter(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
+    dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
     editable_dags = get_airflow_app().appbuilder.sm.get_editable_dag_ids(g.user)
 
-    dags_query = dags_query.filter(DagModel.dag_id.in_(editable_dags))
+    dags_query = dags_query.where(DagModel.dag_id.in_(editable_dags))
     if tags:
         cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
-        dags_query = dags_query.filter(or_(*cond))
+        dags_query = dags_query.where(or_(*cond))
 
-    total_entries = dags_query.count()
+    total_entries = session.scalar(select(func.count()).select_from(dags_query))
 
-    dags = dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+    dags = session.scalars(dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit)).all()
 
     dags_to_update = {dag.dag_id for dag in dags}
-    session.query(DagModel).filter(DagModel.dag_id.in_(dags_to_update)).update(
-        {DagModel.is_paused: patch_body["is_paused"]}, synchronize_session="fetch"
+    session.execute(
+        update(DagModel)
+        .where(DagModel.dag_id.in_(dags_to_update))
+        .values(is_paused=patch_body["is_paused"])
+        .execution_options(synchronize_session="fetch")
     )
 
     session.flush()
