@@ -173,7 +173,7 @@ class TestRunDataPipelineOperator:
             location=TEST_LOCATION,
         )
 
-    def test_valid_data_pipeline_name(self):
+    def test_data_pipeline_name_valid(self):
         """
         Test that AirflowException is raised if Run Operator is not given a data pipeline name.
         """
@@ -187,7 +187,7 @@ class TestRunDataPipelineOperator:
         with pytest.raises(AirflowException):
             RunDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    def test_valid_project_id(self):
+    def test_project_id_valid(self):
         """
         Test that AirflowException is raised if Run Operator is not given a project ID.
         """
@@ -201,7 +201,7 @@ class TestRunDataPipelineOperator:
         with pytest.raises(AirflowException):
             RunDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    def test_valid_location(self):
+    def test_location_valid(self):
         """
         Test that AirflowException is raised if Run Operator is not given a location.
         """
@@ -215,7 +215,7 @@ class TestRunDataPipelineOperator:
         with pytest.raises(AirflowException):
             RunDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
-    def test_valid_response(self):
+    def test_response_valid(self):
         """
         Test that AirflowException is raised if Run Operator fails execution and returns error.
         """
