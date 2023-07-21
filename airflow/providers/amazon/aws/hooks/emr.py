@@ -262,7 +262,7 @@ class EmrServerlessHook(AwsBaseHook):
         """
         Cancel jobs in an intermediate state, and return the number of cancelled jobs.
 
-        If wait_for_completion is True, then the method will wait until the jobs are
+        If wait_for_completion is True, then the method will wait until all jobs are
         cancelled before returning.
 
         Note: if new jobs are triggered while this operation is ongoing,
