@@ -78,6 +78,9 @@ def parameterized_config(template) -> str:
         "AIRFLOW__TESTSECTION__TESTPERCENT": "with%percent",
         "AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD": 'echo -n "OK"',
         "AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD": 'echo -n "NOT OK"',
+        # also set minimum conf values required to pass validation
+        "AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY": "16",
+        "AIRFLOW__CORE__PARALLELISM": "32",
     },
 )
 class TestConf:
@@ -755,6 +758,22 @@ notacommand = OK
         )
         assert message == exception
 
+    @mock.patch.dict(
+        "os.environ",
+        {
+            "AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY": "200",
+            "AIRFLOW__CORE__PARALLELISM": "100",
+        },
+    )
+    def test_max_tis_per_query_too_high(self):
+        test_conf = AirflowConfigParser()
+
+        with pytest.warns(UserWarning) as ctx:
+            test_conf._validate_max_tis_per_query()
+
+        captured_warnings_msg = str(ctx.pop().message)
+        assert "max_tis_per_query" in captured_warnings_msg and "core.parallelism" in captured_warnings_msg
+
     def test_as_dict_works_without_sensitive_cmds(self):
         conf_materialize_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
         conf_maintain_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
@@ -879,6 +898,14 @@ key7 =
         assert test_conf.gettimedelta("default", "key7") is None
 
 
+@mock.patch.dict(
+    "os.environ",
+    {
+        # set minimum conf values required to pass validation
+        "AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY": "16",
+        "AIRFLOW__CORE__PARALLELISM": "32",
+    },
+)
 class TestDeprecatedConf:
     @conf_vars(
         {

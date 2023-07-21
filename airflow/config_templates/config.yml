@@ -1059,6 +1059,16 @@ metrics:
       type: string
       example: ~
       default: "False"
+    otel_ssl_active:
+      description: |
+        If True, SSL will be enabled.  Defaults to False.
+        To establish an HTTPS connection to the OpenTelemetry collector,
+        you need to configure the SSL certificate and key within the OpenTelemetry collector's
+        config.yml file.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:
@@ -2463,14 +2473,15 @@ scheduler:
     max_tis_per_query:
       description: |
         This changes the batch size of queries in the scheduling main loop.
+        This should not be greater than ``core.parallelism``.
         If this is too high, SQL query performance may be impacted by
         complexity of query predicate, and/or excessive locking.
         Additionally, you may hit the maximum allowable query length for your db.
-        Set this to 0 for no limit (not advised)
+        Set this to 0 to use the value of ``core.parallelism``
       version_added: ~
       type: integer
       example: ~
-      default: "512"
+      default: "16"
     use_row_level_locking:
       description: |
         Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.

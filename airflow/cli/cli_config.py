@@ -1236,7 +1236,10 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="trigger",
-        help="Trigger a DAG run",
+        help=(
+            "Trigger a new DAG run. If DAG is paused then dagrun state will remain queued, "
+            "and the task won't run."
+        ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_trigger"),
         args=(
             ARG_DAG_ID,
