@@ -33,12 +33,11 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
-    EmrServerlessStartApplicationTrigger,
-    EmrServerlessStartJobTrigger,
     EmrServerlessCancelJobsTrigger,
     EmrServerlessCreateApplicationTrigger,
     EmrServerlessDeleteApplicationTrigger,
     EmrServerlessStartApplicationTrigger,
+    EmrServerlessStartJobTrigger,
     EmrServerlessStopApplicationTrigger,
     EmrTerminateJobFlowTrigger,
 )
@@ -1122,14 +1121,11 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None:
-            self.log.error("Trigger error: event is None")
-            raise AirflowException("Trigger error: event is None")
-        elif event["status"] != "success":
-            raise AirflowException(f"Application {event['application_id']} failed to start")
-        else:
-            self.log.info("Application %s started", event["application_id"])
-            return event["application_id"]
+        if event is None or event["status"] != "success":
+            raise AirflowException(f"Trigger error: Application failed to start, event is {event}")
+
+        self.log.info("Application %s started", event["application_id"])
+        return event["application_id"]
 
 
 class EmrServerlessStartJobOperator(BaseOperator):
