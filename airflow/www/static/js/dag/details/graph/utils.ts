@@ -51,10 +51,18 @@ export const flattenNodes = ({
 }: FlattenNodesProps) => {
   let nodes: ReactFlowNode<CustomNodeProps>[] = [];
   const parentNode = parent ? { parentNode: parent.id } : undefined;
+
+  let fullParentNode: string | undefined;
+  if (parent) {
+    fullParentNode =
+      parent.parentNode && !parent.id.startsWith(parent.parentNode)
+        ? `${parent.parentNode}.${parent.id}`
+        : parent.id;
+  }
   children.forEach((node) => {
     let instance: TaskInstance | undefined;
     const group = getTask({ taskId: node.id, task: groups });
-    if (!node.id.includes("join_id") && selected.runId) {
+    if (!node.id.endsWith("join_id") && selected.runId) {
       instance = group?.instances.find((ti) => ti.runId === selected.runId);
     }
     const isSelected = node.id === selected.taskId && !!instance;
@@ -82,6 +90,7 @@ export const flattenNodes = ({
           }
           onToggleGroups(newGroupIds);
         },
+        fullParentNode,
         ...node.value,
       },
       type: "custom",
@@ -155,8 +164,23 @@ export const buildEdges = ({
       type: "custom",
     }))
     .map((e) => {
-      const sourceIds = e.source.split(".");
-      const targetIds = e.target.split(".");
+      const sourceNode = nodes.find((n) => n.id === e.source);
+      const targetNode = nodes.find((n) => n.id === e.target);
+
+      // Before finding the depth of the edge, append the parentNode in case prefix_group_id is false
+      const sourceIds = (
+        sourceNode?.data.fullParentNode &&
+        e.source.startsWith(sourceNode.data.fullParentNode)
+          ? e.source
+          : `${sourceNode?.data.fullParentNode}.${e.source}`
+      ).split(".");
+      const targetIds = (
+        targetNode?.data.fullParentNode &&
+        e.target.startsWith(targetNode.data.fullParentNode)
+          ? e.target
+          : `${targetNode?.data.fullParentNode}.${e.target}`
+      ).split(".");
+
       const isSelected =
         selectedTaskId &&
         (e.source === selectedTaskId || e.target === selectedTaskId);
