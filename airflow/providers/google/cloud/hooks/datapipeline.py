@@ -44,7 +44,7 @@ DEFAULT_DATAPIPELINE_LOCATION = "us-central1"
 
 class DataPipelineHook(GoogleBaseHook):
     """
-    Hook for Google DataPipeline.
+    Hook for Google Data Pipelines.
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """

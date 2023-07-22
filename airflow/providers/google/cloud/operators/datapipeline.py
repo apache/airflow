@@ -93,7 +93,6 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
             body = self.body,
             location = self.location,
         )
-        self.log.info("Response Body: ", self.data_pipeline)
         
         if "error" in self.data_pipeline:
             raise AirflowException(
