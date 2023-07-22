@@ -25,7 +25,6 @@ import re2
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.providers_manager import ProvidersManager
 
 
 def _broker_supports_visibility_timeout(url):
@@ -34,8 +33,19 @@ def _broker_supports_visibility_timeout(url):
 
 log = logging.getLogger(__name__)
 
-ProvidersManager().initialize_providers_configuration()
-broker_url = conf.get("celery", "BROKER_URL")
+# IMPORTANT NOTE! Celery Executor has initialization done dynamically and it performs initialization when
+# it is imported, so we need fallbacks here in order to be able to import the class directly without
+# having configuration initialized before. Do not remove those fallbacks!
+#
+# This is not strictly needed for production:
+#
+#   * for Airflow 2.6 and before the defaults will come from the core defaults
+#   * for Airflow 2.7+ the defaults will be loaded via ProvidersManager
+#
+# But it helps in our tests to import the executor class and validate if the celery code can be imported
+# in the current and older versions of Airflow.
+
+broker_url = conf.get("celery", "BROKER_URL", fallback="redis://redis:6379/0")
 
 broker_transport_options = conf.getsection("celery_broker_transport_options") or {}
 if "visibility_timeout" not in broker_transport_options:
@@ -61,19 +71,19 @@ else:
 DEFAULT_CELERY_CONFIG = {
     "accept_content": ["json"],
     "event_serializer": "json",
-    "worker_prefetch_multiplier": conf.getint("celery", "worker_prefetch_multiplier"),
+    "worker_prefetch_multiplier": conf.getint("celery", "worker_prefetch_multiplier", fallback=1),
     "task_acks_late": True,
     "task_default_queue": conf.get("operators", "DEFAULT_QUEUE"),
     "task_default_exchange": conf.get("operators", "DEFAULT_QUEUE"),
-    "task_track_started": conf.getboolean("celery", "task_track_started"),
+    "task_track_started": conf.getboolean("celery", "task_track_started", fallback=True),
     "broker_url": broker_url,
     "broker_transport_options": broker_transport_options_for_celery,
     "result_backend": result_backend,
     "database_engine_options": conf.getjson(
         "celery", "result_backend_sqlalchemy_engine_options", fallback={}
     ),
-    "worker_concurrency": conf.getint("celery", "WORKER_CONCURRENCY"),
-    "worker_enable_remote_control": conf.getboolean("celery", "worker_enable_remote_control"),
+    "worker_concurrency": conf.getint("celery", "WORKER_CONCURRENCY", fallback=16),
+    "worker_enable_remote_control": conf.getboolean("celery", "worker_enable_remote_control", fallback=True),
 }
 
 

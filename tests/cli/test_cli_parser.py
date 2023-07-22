@@ -324,7 +324,7 @@ class TestCliSubprocess:
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
         CONFIG_FILE.touch(exist_ok=True)
         result = subprocess.run(
-            [sys.executable, "-m", "airflow", "providers", "status"],
+            [sys.executable, "-m", "airflow", "providers", "lazy-loaded"],
             env={"PYTHONPATH": os.pathsep.join(sys.path)},
             check=False,
             text=True,
@@ -339,7 +339,7 @@ class TestCliSubprocess:
         """
         CONFIG_FILE.unlink(missing_ok=True)
         result = subprocess.run(
-            [sys.executable, "-m", "airflow", "version"],
+            [sys.executable, "-m", "airflow", "config", "list"],
             env={"PYTHONPATH": os.pathsep.join(sys.path)},
             check=False,
             text=True,
