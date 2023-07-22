@@ -874,7 +874,7 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param user_project: (Optional) The Google Cloud project to bill for this request.
+    :param user_project: (Optional) The identifier of the project to bill for this request.
         Required for Requester Pays buckets.
     """
 

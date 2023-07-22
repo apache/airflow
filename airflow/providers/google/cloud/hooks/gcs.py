@@ -322,6 +322,8 @@ class GCSHook(GoogleBaseHook):
         :param chunk_size: Blob chunk size.
         :param timeout: Request timeout in seconds.
         :param num_max_attempts: Number of attempts to download the file.
+        :param user_project: The identifier of the Google Cloud project to bill for the request.
+            Required for Requester Pays buckets.
         """
         # TODO: future improvement check file size before downloading,
         #  to check for local space availability
@@ -409,6 +411,8 @@ class GCSHook(GoogleBaseHook):
         :param object_name: The object to fetch.
         :param object_url: File reference url. Must start with "gs: //"
         :param dir: The tmp sub directory to download the file to. (passed to NamedTemporaryFile)
+        :param user_project: The identifier of the Google Cloud project to bill for the request.
+            Required for Requester Pays buckets.
         :return: File handler
         """
         if object_name is None:
@@ -442,6 +446,8 @@ class GCSHook(GoogleBaseHook):
         :param bucket_name: The bucket to fetch from.
         :param object_name: The object to fetch.
         :param object_url: File reference url. Must start with "gs: //"
+        :param user_project: The identifier of the Google Cloud project to bill for the request.
+            Required for Requester Pays buckets.
         :return: File handler
         """
         if object_name is None:
@@ -489,6 +495,8 @@ class GCSHook(GoogleBaseHook):
         :param num_max_attempts: Number of attempts to try to upload the file.
         :param metadata: The metadata to be uploaded with the file.
         :param cache_control: Cache-Control metadata field.
+        :param user_project: The identifier of the Google Cloud project to bill for the request.
+            Required for Requester Pays buckets.
         """
 
         def _call_with_retry(f: Callable[[], None]) -> None:
@@ -700,6 +708,8 @@ class GCSHook(GoogleBaseHook):
         :param bucket_name: name of the bucket which will be deleted
         :param force: false not allow to delete non empty bucket, set force=True
             allows to delete non empty bucket
+        :param user_project: The identifier of the Google Cloud project to bill for the request.
+            Required for Requester Pays buckets.
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name, user_project=user_project)
@@ -731,6 +741,8 @@ class GCSHook(GoogleBaseHook):
         :param delimiter: (Deprecated) filters objects based on the delimiter (for e.g '.csv')
         :param match_glob: (Optional) filters objects based on the glob pattern given by the string
             (e.g, ``'**/*/.json'``).
+        :param user_project: The identifier of the Google Cloud project to bill for the request.
+            Required for Requester Pays buckets.
         :return: a stream of object names matching the filtering criteria
         """
         if delimiter and delimiter != "/":
@@ -789,6 +801,8 @@ class GCSHook(GoogleBaseHook):
         :param delimiter: (Deprecated) filters objects based on the delimiter (for e.g '.csv')
         :param match_glob: (Optional) filters objects based on the glob pattern given by the string
             (e.g, ``'**/*/.json'``).
+        :param user_project: The identifier of the Google Cloud project to bill for the request.
+            Required for Requester Pays buckets.
         :return: a stream of object names matching the filtering criteria
         """
         client = self.get_conn()

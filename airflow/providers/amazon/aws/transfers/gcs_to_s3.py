@@ -80,7 +80,7 @@ class GCSToS3Operator(BaseOperator):
          on the bucket is recreated within path passed in dest_s3_key.
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string
         (e.g, ``'**/*/.json'``)
-    :param gcp_user_project: (Optional) The Google Cloud project to bill for this request.
+    :param gcp_user_project: (Optional) The identifier of the Google Cloud project to bill for this request.
         Required for Requester Pays buckets.
     """
 
