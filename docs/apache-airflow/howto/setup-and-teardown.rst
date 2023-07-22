@@ -106,7 +106,7 @@ In this case, everything downstream of create_cluster is assumed to require it. 
 
 Now, Airflow can infer that other_task does not require create_cluster, so if we clear other_task, create_cluster will not also be cleared.
 
-In that example, we (in our pretend docs land) actually wanted to delete the cluster.  But supposing we didn't, and we just wanted to say "other_task does not require create_cluster", then we could use an EmptyOperator to limit the setup's scope:
+In that example, we (in our pretend docs land) actually wanted to delete the cluster.  But supposing we did not, and we just wanted to say "other_task does not require create_cluster", then we could use an EmptyOperator to limit the setup's scope:
 
 .. code-block:: python
 
