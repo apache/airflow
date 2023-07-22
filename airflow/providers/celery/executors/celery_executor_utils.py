@@ -57,18 +57,36 @@ if TYPE_CHECKING:
 
     TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
+# IMPORTANT NOTE! Celery Executor has initialization done dynamically and it performs initialization when
+# it is imported, so we need fallbacks here in order to be able to import the class directly without
+# having configuration initialized before. Do not remove those fallbacks!
+#
+# This is not strictly needed for production:
+#
+#   * for Airflow 2.6 and before the defaults will come from the core defaults
+#   * for Airflow 2.7+ the defaults will be loaded via ProvidersManager
+#
+# But it helps in our tests to import the executor class and validate if the celery code can be imported
+# in the current and older versions of Airflow.
+
 OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout", fallback=1.0)
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
 if conf.has_option("celery", "celery_config_options"):
-    celery_configuration = conf.getimport("celery", "celery_config_options")
+    celery_configuration = conf.getimport(
+        "celery",
+        "celery_config_options",
+        fallback="airflow.providers.celery.executors.default_celery.DEFAULT_CELERY_CONFIG",
+    )
 
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
-celery_app_name = conf.get("celery", "CELERY_APP_NAME")
+celery_app_name = conf.get(
+    "celery", "CELERY_APP_NAME", fallback="airflow.providers.celery.executors.celery_executor"
+)
 if celery_app_name == "airflow.executors.celery_executor":
     warnings.warn(
         "The celery.CELERY_APP_NAME configuration uses deprecated package name: "
