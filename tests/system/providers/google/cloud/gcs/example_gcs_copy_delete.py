@@ -22,7 +22,7 @@ bucket content.
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 from airflow import models
@@ -94,7 +94,8 @@ with models.DAG(
         source_object=FILE_NAME,
         destination_bucket=BUCKET_NAME_DST,
         destination_object=FILE_NAME,
-        source_bucket_user_project=PROJECT_ID,
+        user_project=PROJECT_ID,
+        last_modified_time=datetime.now(tz=timezone.utc) - timedelta(days=1),
     )
 
     # [START howto_operator_gcs_delete_object]
