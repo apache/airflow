@@ -677,6 +677,14 @@ logging:
       type: string
       example: ~
       default: ""
+    remote_wasb_log_container:
+      description: |
+        WASB storage container where the remote logs will be stored.
+        The container should exist.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "airflow-logs"
     remote_task_handler_kwargs:
       description: |
         The remote_task_handler_kwargs param is loaded into a dictionary and passed to __init__ of remote
