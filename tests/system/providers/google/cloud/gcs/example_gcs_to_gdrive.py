@@ -58,7 +58,10 @@ with models.DAG(
     tags=["example", "gcs"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
+        task_id="create_bucket",
+        bucket_name=BUCKET_NAME,
+        project_id=PROJECT_ID,
+        resource={"billing": {"requesterPays": True}},
     )
 
     upload_file = LocalFilesystemToGCSOperator(
@@ -66,6 +69,7 @@ with models.DAG(
         src=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
         dst=f"{TMP_PATH}/{FILE_NAME}",
         bucket=BUCKET_NAME,
+        user_project=PROJECT_ID,
     )
 
     upload_file_2 = LocalFilesystemToGCSOperator(
@@ -73,6 +77,7 @@ with models.DAG(
         src=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
         dst=f"{TMP_PATH}/2_{FILE_NAME}",
         bucket=BUCKET_NAME,
+        user_project=PROJECT_ID,
     )
     # [START howto_operator_gcs_to_gdrive_copy_single_file]
     copy_single_file = GCSToGoogleDriveOperator(
@@ -80,6 +85,7 @@ with models.DAG(
         source_bucket=BUCKET_NAME,
         source_object=f"{TMP_PATH}/{FILE_NAME}",
         destination_object=f"copied_tmp/copied_{FILE_NAME}",
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gdrive_copy_single_file]
 
@@ -99,6 +105,7 @@ with models.DAG(
         source_bucket=BUCKET_NAME,
         source_object=f"{TMP_PATH}/*",
         destination_object="copied_tmp/",
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gdrive_copy_files]
 
@@ -108,11 +115,15 @@ with models.DAG(
         source_bucket=BUCKET_NAME,
         source_object=f"{TMP_PATH}/*.txt",
         move_object=True,
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gdrive_move_files]
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=BUCKET_NAME,
+        user_project=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (

@@ -958,6 +958,8 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param user_project: (Optional) The project to be billed for this request.
+        Required for Requester Pays buckets.
     """
 
     template_fields: Sequence[str] = (
@@ -970,6 +972,7 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
         "allow_overwrite",
         "gcp_conn_id",
         "impersonation_chain",
+        "user_project",
     )
     operator_extra_links = (StorageLink(),)
 
@@ -985,6 +988,7 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
         allow_overwrite: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        user_project: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -997,6 +1001,7 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
         self.allow_overwrite = allow_overwrite
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.user_project = user_project
 
     def execute(self, context: Context) -> None:
         hook = GCSHook(
@@ -1017,6 +1022,7 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
             recursive=self.recursive,
             delete_extra_files=self.delete_extra_files,
             allow_overwrite=self.allow_overwrite,
+            user_project=self.user_project,
         )
 
     def _get_uri(self, gcs_bucket: str, gcs_object: str | None) -> str:

@@ -53,6 +53,7 @@ with models.DAG(
         task_id="create_bucket",
         bucket_name=BUCKET_NAME,
         project_id=PROJECT_ID,
+        resource={"billing": {"requesterPays": True}},
     )
     # [END howto_operator_gcs_create_bucket]
 
@@ -62,6 +63,7 @@ with models.DAG(
         src=UPLOAD_FILE_PATH,
         dst=FILE_NAME,
         bucket=BUCKET_NAME,
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_local_filesystem_to_gcs]
 
@@ -71,11 +73,14 @@ with models.DAG(
         object_name=FILE_NAME,
         bucket=BUCKET_NAME,
         filename=PATH_TO_SAVED_FILE,
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_download_file_task]
 
     # [START howto_operator_gcs_delete_bucket]
-    delete_bucket = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=BUCKET_NAME)
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, user_project=PROJECT_ID
+    )
     # [END howto_operator_gcs_delete_bucket]
     delete_bucket.trigger_rule = TriggerRule.ALL_DONE
 

@@ -79,6 +79,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param user_project: (Optional) The project to be billed for this request.
     """
 
     template_fields: Sequence[str] = (
@@ -86,6 +87,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         "source_object",
         "destination_object",
         "impersonation_chain",
+        "user_project",
     )
     ui_color = "#f0eee4"
 
@@ -99,6 +101,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        user_project: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -112,9 +115,9 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.gcs_hook: GCSHook | None = None
         self.gdrive_hook: GoogleDriveHook | None = None
+        self.user_project = user_project
 
     def execute(self, context: Context):
-
         self.gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -135,7 +138,9 @@ class GCSToGoogleDriveOperator(BaseOperator):
                 raise AirflowException(error_msg)
 
             prefix, delimiter = self.source_object.split(WILDCARD, 1)
-            objects = self.gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
+            objects = self.gcs_hook.list(
+                self.source_bucket, prefix=prefix, delimiter=delimiter, user_project=self.user_project
+            )
             # TODO: After deprecating delimiter and wildcards in source objects,
             #       remove the previous line and uncomment the following:
             # match_glob = f"**/*{delimiter}" if delimiter else None
@@ -164,7 +169,10 @@ class GCSToGoogleDriveOperator(BaseOperator):
         with tempfile.NamedTemporaryFile() as file:
             filename = file.name
             self.gcs_hook.download(
-                bucket_name=self.source_bucket, object_name=source_object, filename=filename
+                bucket_name=self.source_bucket,
+                object_name=source_object,
+                filename=filename,
+                user_project=self.user_project,
             )
             self.gdrive_hook.upload_file(
                 local_location=filename,
@@ -173,4 +181,4 @@ class GCSToGoogleDriveOperator(BaseOperator):
             )
 
         if self.move_object:
-            self.gcs_hook.delete(self.source_bucket, source_object)
+            self.gcs_hook.delete(self.source_bucket, source_object, user_project=self.user_project)

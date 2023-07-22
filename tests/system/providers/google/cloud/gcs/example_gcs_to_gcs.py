@@ -62,6 +62,7 @@ with models.DAG(
         task_id="create_bucket_src",
         bucket_name=BUCKET_NAME_SRC,
         project_id=PROJECT_ID,
+        resource={"billing": {"requesterPays": True}},
     )
 
     create_bucket_dst = GCSCreateBucketOperator(
@@ -75,6 +76,7 @@ with models.DAG(
         src=RANDOM_FILE_NAME,
         dst=RANDOM_FILE_NAME,
         bucket=BUCKET_NAME_SRC,
+        user_project=PROJECT_ID,
     )
 
     upload_file_src_sub = LocalFilesystemToGCSOperator(
@@ -82,6 +84,7 @@ with models.DAG(
         src=RANDOM_FILE_NAME,
         dst=f"subdir/{RANDOM_FILE_NAME}",
         bucket=BUCKET_NAME_SRC,
+        user_project=PROJECT_ID,
     )
 
     upload_file_dst = LocalFilesystemToGCSOperator(
@@ -100,7 +103,10 @@ with models.DAG(
 
     # [START howto_synch_bucket]
     sync_bucket = GCSSynchronizeBucketsOperator(
-        task_id="sync_bucket", source_bucket=BUCKET_NAME_SRC, destination_bucket=BUCKET_NAME_DST
+        task_id="sync_bucket",
+        source_bucket=BUCKET_NAME_SRC,
+        destination_bucket=BUCKET_NAME_DST,
+        user_project=PROJECT_ID,
     )
     # [END howto_synch_bucket]
 
@@ -111,6 +117,7 @@ with models.DAG(
         destination_bucket=BUCKET_NAME_DST,
         delete_extra_files=True,
         allow_overwrite=True,
+        user_project=PROJECT_ID,
     )
     # [END howto_synch_full_bucket]
 
@@ -120,6 +127,7 @@ with models.DAG(
         source_bucket=BUCKET_NAME_SRC,
         destination_bucket=BUCKET_NAME_DST,
         destination_object="subdir/",
+        user_project=PROJECT_ID,
     )
     # [END howto_synch_to_subdir]
 
@@ -129,6 +137,7 @@ with models.DAG(
         source_bucket=BUCKET_NAME_SRC,
         source_object="subdir/",
         destination_bucket=BUCKET_NAME_DST,
+        user_project=PROJECT_ID,
     )
     # [END howto_sync_from_subdir]
 
@@ -140,6 +149,7 @@ with models.DAG(
         destination_bucket=BUCKET_NAME_DST,  # If not supplied the source_bucket value will be used
         destination_object="backup_" + OBJECT_1,  # If not supplied the source_object value will be used
         exact_match=True,
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gcs_single_file]
 
@@ -150,6 +160,7 @@ with models.DAG(
         source_object="data/*.txt",
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gcs_wildcard]
 
@@ -160,6 +171,7 @@ with models.DAG(
         source_object="subdir/",
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gcs_without_wildcard]
 
@@ -171,6 +183,7 @@ with models.DAG(
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
         delimiter=".txt",
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gcs_delimiter]
 
@@ -182,6 +195,7 @@ with models.DAG(
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
         match_glob="**/*.txt",
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gcs_match_glob]
 
@@ -192,6 +206,7 @@ with models.DAG(
         source_objects=[OBJECT_1, OBJECT_2],  # Instead of files each element could be a wildcard expression
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gcs_list]
 
@@ -204,6 +219,7 @@ with models.DAG(
         destination_object="backup_" + OBJECT_1,
         exact_match=True,
         move_object=True,
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gcs_single_file_move]
 
@@ -214,11 +230,15 @@ with models.DAG(
         source_objects=[OBJECT_1, OBJECT_2],
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
+        user_project=PROJECT_ID,
     )
     # [END howto_operator_gcs_to_gcs_list_move]
 
     delete_bucket_src = GCSDeleteBucketOperator(
-        task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket_src",
+        bucket_name=BUCKET_NAME_SRC,
+        user_project=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     delete_bucket_dst = GCSDeleteBucketOperator(
         task_id="delete_bucket_dst", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE

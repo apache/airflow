@@ -93,7 +93,7 @@ class GCSToGCSOperator(BaseOperator):
         copied.
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string (
         e.g, ``'**/*/.json'``)
-    :param source_bucket_user_project: (Optional) The project to bill when accessing the source bucket.
+    :param user_project: (Optional) The project to bill for all object transfer requests.
         Required when the source bucket is Requester Pays bucket.
 
     :Example:
@@ -175,7 +175,7 @@ class GCSToGCSOperator(BaseOperator):
         "destination_object",
         "delimiter",
         "impersonation_chain",
-        "source_bucket_user_project",
+        "user_project",
     )
     ui_color = "#f0eee4"
 
@@ -198,7 +198,7 @@ class GCSToGCSOperator(BaseOperator):
         source_object_required=False,
         exact_match=False,
         match_glob: str | None = None,
-        source_bucket_user_project: str | None = None,
+        user_project: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -237,7 +237,7 @@ class GCSToGCSOperator(BaseOperator):
         self.source_object_required = source_object_required
         self.exact_match = exact_match
         self.match_glob = match_glob
-        self.source_bucket_user_project = source_bucket_user_project
+        self.user_project = user_project
 
     def execute(self, context: Context):
         hook = GCSHook(
@@ -394,7 +394,7 @@ class GCSToGCSOperator(BaseOperator):
             prefix=prefix,
             delimiter=self.delimiter,
             match_glob=self.match_glob,
-            user_project=self.source_bucket_user_project,
+            user_project=self.user_project,
         )
 
         objects = [obj for obj in objects if self._check_exact_match(obj, prefix)]
@@ -408,7 +408,7 @@ class GCSToGCSOperator(BaseOperator):
         # If objects is empty, and we have prefix, let's check if prefix is a blob
         # and copy directly
         if len(objects) == 0 and prefix:
-            if hook.exists(self.source_bucket, prefix):
+            if hook.exists(self.source_bucket, prefix, user_project=self.user_project):
                 self._copy_single_object(
                     hook=hook, source_object=prefix, destination_object=self.destination_object
                 )
@@ -476,7 +476,7 @@ class GCSToGCSOperator(BaseOperator):
             self.source_bucket,
             prefix=prefix_,
             delimiter=delimiter,
-            user_project=self.source_bucket_user_project,
+            user_project=self.user_project,
         )
         # TODO: After deprecating delimiter and wildcards in source objects,
         #       remove previous line and uncomment the following:
@@ -509,7 +509,7 @@ class GCSToGCSOperator(BaseOperator):
                 self.source_bucket,
                 source_object,
                 self.is_older_than,
-                user_project=self.source_bucket_user_project,
+                user_project=self.user_project,
             ):
                 self.log.info("Object is older than %s seconds ago", self.is_older_than)
             else:
@@ -523,7 +523,7 @@ class GCSToGCSOperator(BaseOperator):
                 source_object,
                 self.last_modified_time,
                 self.maximum_modified_time,
-                user_project=self.source_bucket_user_project,
+                user_project=self.user_project,
             ):
                 self.log.info(
                     "Object has been modified between %s and %s",
@@ -543,7 +543,7 @@ class GCSToGCSOperator(BaseOperator):
                 self.source_bucket,
                 source_object,
                 self.last_modified_time,
-                user_project=self.source_bucket_user_project,
+                user_project=self.user_project,
             ):
                 self.log.info("Object has been modified after %s ", self.last_modified_time)
             else:
@@ -555,7 +555,7 @@ class GCSToGCSOperator(BaseOperator):
                 self.source_bucket,
                 source_object,
                 self.maximum_modified_time,
-                user_project=self.source_bucket_user_project,
+                user_project=self.user_project,
             ):
                 self.log.info("Object has been modified before %s ", self.maximum_modified_time)
             else:
@@ -575,8 +575,8 @@ class GCSToGCSOperator(BaseOperator):
             source_object,
             self.destination_bucket,
             destination_object,
-            user_project=self.source_bucket_user_project,
+            user_project=self.user_project,
         )
 
         if self.move_object:
-            hook.delete(self.source_bucket, source_object, user_project=self.source_bucket_user_project)
+            hook.delete(self.source_bucket, source_object, user_project=self.user_project)
