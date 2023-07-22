@@ -251,15 +251,6 @@ cgroups = [
     # Cgroupspy 0.2.2 added Python 3.10 compatibility
     "cgroupspy>=0.2.2",
 ]
-dask = [
-    # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
-    # Supporting it in the future
-    "cloudpickle>=1.4.1",
-    # Dask and distributed in version 2023.5.0 break our tests for Python > 3.7
-    # See https://github.com/dask/dask/issues/10279
-    "dask>=2.9.0,!=2022.10.1,!=2023.5.0",
-    "distributed>=2.11.1,!=2023.5.0",
-]
 deprecated_api = [
     "requests>=2.26.0",
 ]
@@ -484,7 +475,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "celery": celery,
     "cgroups": cgroups,
     "cncf.kubernetes": kubernetes,
-    "dask": dask,
+    "dask": [],
     "deprecated_api": deprecated_api,
     "github_enterprise": flask_appbuilder_oauth,
     "google_auth": flask_appbuilder_oauth,
@@ -538,6 +529,7 @@ EXTRAS_DEPRECATED_ALIASES: dict[str, str] = {
     "azure": "microsoft.azure",
     "cassandra": "apache.cassandra",
     "crypto": "",  # this is legacy extra - all dependencies are already "install-requires"
+    "dask": "daskexecutor",
     "druid": "apache.druid",
     "gcp": "google",
     "gcp_api": "google",
@@ -844,7 +836,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
-    if extra in ["cncf.kubernetes", "kubernetes", "celery"]:
+    if extra in ["cncf.kubernetes", "kubernetes", "celery", "daskexecutor", "dask"]:
         EXTRAS_DEPENDENCIES[extra].extend(
             [get_provider_package_name_from_package_id(package_name) for package_name in providers]
         )
