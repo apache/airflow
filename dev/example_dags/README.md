@@ -21,11 +21,14 @@ Run this script in a `docs-archive` folder of checked out `airflow-site` repo
 to refresh links to example dags to the right versions.
 
 Instructions:
-    ```shell script
-    git clone https://github.com/apache/airflow-site.git airflow-site
-    cd airflow-site
-    export AIRFLOW_SITE_DIRECTORY="$(pwd)"
-    cd -
-    cp update_example_dags_paths.py $AIRFLOW_SITE_DIRECTORY/docs-archive
-    cd $AIRFLOW_SITE_DIRECTORY/docs-archive
-    python update_example_dags_paths.py```
+
+```shell script
+git clone https://github.com/apache/airflow-site.git airflow-site
+cd airflow-site
+export AIRFLOW_SITE_DIRECTORY="$(pwd)"
+
+cd -
+cp update_example_dags_paths.py $AIRFLOW_SITE_DIRECTORY/docs-archive
+cd $AIRFLOW_SITE_DIRECTORY/docs-archive
+python update_example_dags_paths.py
+```
