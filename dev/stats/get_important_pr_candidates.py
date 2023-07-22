@@ -316,6 +316,7 @@ DEFAULT_TOP_PRS = 10
 @click.option("--save", type=click.File("wb"), help="Save PR data to a pickle file")
 @click.option("--load", type=click.File("rb"), help="Load PR data from a file and recalculate scores")
 @click.option("--verbose", is_flag="True", help="Print scoring details")
+@click.option("--rate-limit", is_flag="True", help="Print API rate limit reset time using system time and requests remaining")
 def main(
     github_token: str,
     date_start: datetime,
@@ -324,7 +325,18 @@ def main(
     date_end: datetime,
     top_number: int,
     verbose: bool,
+    rate_limit: bool
 ):
+    g = Github(github_token)
+
+    if rate_limit:
+        r = g.get_rate_limit()
+        console.print(
+            f"[blue]GitHub API Rate Limit Info\n"
+            f"[green]Requests remaining: [red]{r.core.remaining}\n"
+            f"[green]Reset time: [blue]{r.core.reset.astimezone()}"
+        )
+    
     selected_prs: list[PrStat] = []
     if load:
         console.print("Loading PRs from cache and recalculating scores.")
@@ -343,7 +355,6 @@ def main(
 
     else:
         console.print(f"Finding best candidate PRs between {date_start} and {date_end}.")
-        g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         commits = repo.get_commits(since=date_start, until=date_end)
         pulls = [pull for commit in commits for pull in commit.get_pulls()]
@@ -371,6 +382,14 @@ def main(
 
     if save:
         pickle.dump(selected_prs, save)
+
+    if rate_limit:
+        r = g.get_rate_limit()
+        console.print(
+            f"[blue]GitHub API Rate Limit Info\n"
+            f"[green]Requests remaining: [red]{r.core.remaining}\n"
+            f"[green]Reset time: [blue]{r.core.reset.astimezone()}"
+        )
 
 
 if __name__ == "__main__":
