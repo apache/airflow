@@ -45,6 +45,13 @@ def main():
     parser = cli_parser.get_parser()
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
+
+    # Here we ensure that the default configuration is written if needed before running any command
+    # that might need it. This used to be done during configuration initialization but having it
+    # in main ensures that it is not done during tests and other ways airflow imports are used
+    from airflow.configuration import write_default_airflow_configuration_if_needed
+
+    write_default_airflow_configuration_if_needed()
     args.func(args)
 
 

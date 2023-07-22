@@ -41,8 +41,10 @@ import { SimpleStatus } from "src/dag/StatusBox";
 
 interface CellProps {
   cell: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     value: any;
     row: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       original: Record<string, any>;
     };
   };

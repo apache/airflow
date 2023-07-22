@@ -35,6 +35,8 @@ from openlineage.client.facet import SourceCodeJobFacet
 
 class PythonExtractor(BaseExtractor):
     """
+    Extract executed source code and put it into SourceCodeJobFacet.
+
     This extractor provides visibility on what particular task does by extracting
     executed source code and putting it into SourceCodeJobFacet. It does not extract
     datasets yet.

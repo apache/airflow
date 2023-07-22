@@ -143,10 +143,7 @@ PROVIDE_BUCKET: str = cast(str, None)
 
 
 class GCSHook(GoogleBaseHook):
-    """
-    Interact with Google Cloud Storage. This hook uses the Google Cloud
-    connection.
-    """
+    """Use the Google Cloud connection to interact with Google Cloud Storage."""
 
     _conn: storage.Client | None = None
 
@@ -234,9 +231,7 @@ class GCSHook(GoogleBaseHook):
         user_project: str | None = None,
     ) -> None:
         """
-        Has the same functionality as copy, except that will work on files
-        over 5 TB, as well as when copying between locations and/or storage
-        classes.
+        Similar to copy; supports files over 5 TB, and copying between locations and/or storage classes.
 
         destination_object can be omitted, in which case source_object is used.
 
@@ -445,8 +440,7 @@ class GCSHook(GoogleBaseHook):
         user_project: str | None = None,
     ) -> Generator[IO[bytes], None, None]:
         """
-        Creates temporary file, returns a file handle and uploads the files content
-        on close.
+        Creates temporary file, returns a file handle and uploads the files content on close.
 
         You can use this method by passing the bucket_name and object_name parameters
         or just object_url parameter.
@@ -505,7 +499,9 @@ class GCSHook(GoogleBaseHook):
         """
 
         def _call_with_retry(f: Callable[[], None]) -> None:
-            """Helper functions to upload a file or a string with a retry mechanism and exponential back-off.
+            """
+            Helper functions to upload a file or a string with a retry mechanism and exponential back-off.
+
             :param f: Callable that should be retried.
             """
             num_file_attempts = 0
@@ -539,7 +535,7 @@ class GCSHook(GoogleBaseHook):
             blob.metadata = metadata
 
         if cache_control:
-            blob.cacheControl = cache_control
+            blob.cache_control = cache_control
 
         if filename and data:
             raise ValueError(
@@ -882,6 +878,7 @@ class GCSHook(GoogleBaseHook):
     ) -> Any:
         """
         List blobs when match_glob param is given.
+
         This method is a patched version of google.cloud.storage Client.list_blobs().
         It is used as a temporary workaround to support "match_glob" param,
         as it isn't officially supported by GCS Python client.
@@ -928,8 +925,7 @@ class GCSHook(GoogleBaseHook):
         user_project: str | None = None,
     ) -> List[str]:
         """
-        List all objects from the bucket with the give string prefix in name that were
-        updated in the time between ``timespan_start`` and ``timespan_end``.
+        List all objects from the bucket with the given string prefix that were updated in the time range.
 
         :param bucket_name: bucket name
         :param timespan_start: will return objects that were updated at or after this datetime (UTC)
@@ -1051,8 +1047,10 @@ class GCSHook(GoogleBaseHook):
         labels: dict | None = None,
     ) -> str:
         """
-        Creates a new bucket. Google Cloud Storage uses a flat namespace, so
-        you can't create a bucket with a name that is already in use.
+        Creates a new bucket.
+
+        Google Cloud Storage uses a flat namespace, so you can't
+        create a bucket with a name that is already in use.
 
         .. seealso::
             For more information, see Bucket Naming Guidelines:
@@ -1373,10 +1371,7 @@ class GCSHook(GoogleBaseHook):
 
 
 def gcs_object_is_directory(bucket: str) -> bool:
-    """
-    Return True if given Google Cloud Storage URL (gs://<bucket>/<blob>)
-    is a directory or an empty bucket. Otherwise return False.
-    """
+    """Return True if given Google Cloud Storage URL (gs://<bucket>/<blob>) is a directory or empty bucket."""
     _, blob = _parse_gcs_url(bucket)
 
     return len(blob) == 0 or blob.endswith("/")
@@ -1414,8 +1409,9 @@ def parse_json_from_gcs(gcp_conn_id: str, file_uri: str) -> Any:
 
 def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     """
-    Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
-    tuple containing the corresponding bucket and blob.
+    Given a Google Cloud Storage URL, return a tuple containing the corresponding bucket and blob.
+
+    Expected url format: gs://<bucket>/<blob>
     """
     parsed_url = urlsplit(gsurl)
     if not parsed_url.netloc:

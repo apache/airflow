@@ -16,7 +16,6 @@
     specific language governing permissions and limitations
     under the License.
 
-Package ``apache-airflow-providers-sqlite``
--------------------------------------------
+
 
 .. include:: ../../airflow/providers/sqlite/CHANGELOG.rst

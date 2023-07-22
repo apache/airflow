@@ -28,7 +28,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 
 class TaskLogReader:
@@ -86,7 +86,8 @@ class TaskLogReader:
                 for host, log in logs[0]:
                     yield "\n".join([host or "", log]) + "\n"
                 if "end_of_log" not in metadata or (
-                    not metadata["end_of_log"] and ti.state not in [State.RUNNING, State.DEFERRED]
+                    not metadata["end_of_log"]
+                    and ti.state not in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
                 ):
                     if not logs[0]:
                         # we did not receive any logs in this loop

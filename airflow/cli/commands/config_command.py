@@ -30,7 +30,17 @@ from airflow.utils.code_utils import get_terminal_formatter
 def show_config(args):
     """Show current application configuration."""
     with io.StringIO() as output:
-        conf.write(output, section=args.section)
+        conf.write(
+            output,
+            section=args.section,
+            include_examples=args.include_examples or args.defaults,
+            include_descriptions=args.include_descriptions or args.defaults,
+            include_sources=args.include_sources and not args.defaults,
+            include_env_vars=args.include_env_vars or args.defaults,
+            include_providers=not args.exclude_providers,
+            comment_out_everything=args.comment_out_everything or args.defaults,
+            only_defaults=args.defaults,
+        )
         code = output.getvalue()
         if should_use_colors(args):
             code = pygments.highlight(code=code, formatter=get_terminal_formatter(), lexer=IniLexer())
@@ -39,6 +49,14 @@ def show_config(args):
 
 def get_value(args):
     """Get one value from configuration."""
+    # while this will make get_value quite a bit slower we must initialize configuration
+    # for providers because we do not know what sections and options will be available after
+    # providers are initialized. Theoretically Providers might add new sections and options
+    # but also override defaults for existing options, so without loading all providers we
+    # cannot be sure what is the final value of the option.
+    from airflow.providers_manager import ProvidersManager
+
+    ProvidersManager().initialize_providers_configuration()
     if not conf.has_option(args.section, args.option):
         raise SystemExit(f"The option [{args.section}/{args.option}] is not found in config.")
 

@@ -502,8 +502,7 @@ class CloudBuildHook(GoogleBaseHook):
         location: str = "global",
     ) -> Build:
         """
-        Creates a new build based on the specified build. This method creates a new build
-        using the original build request, which may or may not result in an identical build.
+        Create a new build using the original build request; may or may not result in an identical build.
 
         :param id_: Build ID of the original build.
         :param project_id: Optional, Google Cloud Project project_id where the function belongs.

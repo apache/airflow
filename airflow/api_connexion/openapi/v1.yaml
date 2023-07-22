@@ -735,7 +735,10 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
 
     post:
-      summary: Trigger a new DAG run
+      summary: Trigger a new DAG run.
+      description: >
+        This will initiate a dagrun.
+        If DAG is paused then dagrun state will remain queued, and the task won't run.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: post_dag_run
       tags: [DAGRun]
@@ -1573,6 +1576,8 @@ paths:
       operationId: get_xcom_entries
       tags: [XCom]
       parameters:
+        - $ref: '#/components/parameters/FilterMapIndex'
+        - $ref: '#/components/parameters/FilterXcomKey'
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
       responses:
@@ -1600,6 +1605,7 @@ paths:
       operationId: get_xcom_entry
       tags: [XCom]
       parameters:
+        - $ref: '#/components/parameters/FilterMapIndex'
         - in: query
           name: deserialize
           schema:
@@ -2889,7 +2895,6 @@ components:
           $ref: '#/components/schemas/DagState'
         external_trigger:
           type: boolean
-          default: true
           readOnly: true
         conf:
           type: object
@@ -3084,6 +3089,8 @@ components:
           $ref: '#/components/schemas/SchedulerStatus'
         triggerer:
           $ref: '#/components/schemas/TriggererStatus'
+        dag_processor:
+          $ref: '#/components/schemas/DagProcessorStatus'
 
     MetadatabaseStatus:
       type: object
@@ -3116,6 +3123,22 @@ components:
           $ref: '#/components/schemas/HealthStatus'
         latest_triggerer_heartbeat:
           description: The time the triggerer last did a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+    DagProcessorStatus:
+      type: object
+      description: |
+        The status and the latest dag processor heartbeat.
+
+        *New in version 2.6.3*
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_dag_processor_heartbeat:
+          description: The time the dag processor last did a heartbeat.
           type: string
           format: datetime
           readOnly: true
@@ -3471,6 +3494,8 @@ components:
         execution_date:
           type: string
           format: datetime
+        map_index:
+          type: integer
         task_id:
           type: string
         dag_id:
@@ -5076,6 +5101,14 @@ components:
         Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
 
         *New in version 2.6.0*
+
+    FilterXcomKey:
+      in: query
+      name: xcom_key
+      schema:
+        type: string
+      required: false
+      description: Only filter the XCom records which have the provided key.
 
     # Other parameters
     FileToken:

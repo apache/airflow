@@ -19,10 +19,13 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeCheckOperator,
     SnowflakeIntervalCheckOperator,
@@ -30,7 +33,9 @@ from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeSqlApiOperator,
     SnowflakeValueCheckOperator,
 )
+from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -88,6 +93,34 @@ class TestSnowflakeCheckOperators:
         mock_get_db_hook.assert_called_once()
 
 
+def create_context(task, dag=None):
+    if dag is None:
+        dag = DAG(dag_id="dag")
+    tzinfo = pendulum.timezone("UTC")
+    execution_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
+    dag_run = DagRun(
+        dag_id=dag.dag_id,
+        execution_date=execution_date,
+        run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
+    )
+
+    task_instance = TaskInstance(task=task)
+    task_instance.dag_run = dag_run
+    task_instance.xcom_push = mock.Mock()
+    return {
+        "dag": dag,
+        "ts": execution_date.isoformat(),
+        "task": task,
+        "ti": task_instance,
+        "task_instance": task_instance,
+        "run_id": dag_run.run_id,
+        "dag_run": dag_run,
+        "execution_date": execution_date,
+        "data_interval_end": execution_date,
+        "logical_date": execution_date,
+    }
+
+
 class TestSnowflakeSqlApiOperator:
     @pytest.fixture
     def mock_execute_query(self):
@@ -142,3 +175,64 @@ class TestSnowflakeSqlApiOperator:
         mock_get_sql_api_query_status.side_effect = [{"status": "error"}, {"status": "success"}]
         with pytest.raises(AirflowException):
             operator.execute(context=None)
+
+    @pytest.mark.parametrize("mock_sql, statement_count", [(SQL_MULTIPLE_STMTS, 4), (SINGLE_STMT, 1)])
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
+    def test_snowflake_sql_api_execute_operator_async(self, mock_db_hook, mock_sql, statement_count):
+        """
+        Asserts that a task is deferred and an SnowflakeSqlApiTrigger will be fired
+        when the SnowflakeSqlApiOperator is executed.
+        """
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=mock_sql,
+            statement_count=statement_count,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(create_context(operator))
+
+        assert isinstance(
+            exc.value.trigger, SnowflakeSqlApiTrigger
+        ), "Trigger is not a SnowflakeSqlApiTrigger"
+
+    def test_snowflake_sql_api_execute_complete_failure(self):
+        """Test SnowflakeSqlApiOperator raise AirflowException of error event"""
+
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            operator.execute_complete(
+                context=None,
+                event={"status": "error", "message": "Test failure message", "type": "FAILED_WITH_ERROR"},
+            )
+
+    @pytest.mark.parametrize(
+        "mock_event",
+        [
+            None,
+            ({"status": "success", "statement_query_ids": ["uuid", "uuid"]}),
+        ],
+    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.check_query_output")
+    def test_snowflake_sql_api_execute_complete(self, mock_conn, mock_event):
+        """Tests execute_complete assert with successful message"""
+
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            deferrable=True,
+        )
+
+        with mock.patch.object(operator.log, "info") as mock_log_info:
+            operator.execute_complete(context=None, event=mock_event)
+        mock_log_info.assert_called_with("%s completed successfully.", TASK_ID)

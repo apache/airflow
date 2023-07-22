@@ -75,7 +75,7 @@ from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwar
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -100,6 +100,7 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
 
     from airflow.models.dag import DAG
+    from airflow.models.operator import Operator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
@@ -354,8 +355,7 @@ class BaseOperatorMeta(abc.ABCMeta):
     @classmethod
     def _apply_defaults(cls, func: T) -> T:
         """
-        Function decorator that Looks for an argument named "default_args", and
-        fills the unspecified arguments from it.
+        Look for an argument named "default_args", and fill the unspecified arguments from it.
 
         Since python2.* isn't clear about which arguments are missing when
         calling a function, and that this can be quite confusing with multi-level
@@ -462,10 +462,12 @@ class BaseOperatorMeta(abc.ABCMeta):
 @functools.total_ordering
 class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
-    Abstract base class for all operators. Since operators create objects that
-    become nodes in the dag, BaseOperator contains many recursive methods for
-    dag crawling behavior. To derive this class, you are expected to override
-    the constructor as well as the 'execute' method.
+    Abstract base class for all operators.
+
+    Since operators create objects that become nodes in the DAG, BaseOperator
+    contains many recursive methods for DAG crawling behavior. To derive from
+    this class, you are expected to override the constructor and the 'execute'
+    method.
 
     Operators derived from this class should perform or trigger certain tasks
     synchronously (wait for completion). Example of operators could be an
@@ -991,9 +993,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # including lineage information
     def __or__(self, other):
         """
-        Called for [This Operator] | [Operator], The inlets of other
-        will be set to pick up the outlets from this operator. Other will
-        be set as a downstream task of this operator.
+        Called for [This Operator] | [Operator].
+
+        The inlets of other will be set to pick up the outlets from this operator.
+        Other will be set as a downstream task of this operator.
         """
         if isinstance(other, BaseOperator):
             if not self.outlets and not self.supports_lineage:
@@ -1009,8 +1012,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __gt__(self, other):
         """
-        Called for [Operator] > [Outlet], so that if other is an attr annotated object
-        it is set as an outlet of this Operator.
+        Called for [Operator] > [Outlet].
+
+        If other is an attr annotated object it is set as an outlet of this Operator.
         """
         if not isinstance(other, Iterable):
             other = [other]
@@ -1024,8 +1028,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __lt__(self, other):
         """
-        Called for [Inlet] > [Operator] or [Operator] < [Inlet], so that if other is
-        an attr annotated object it is set as an inlet to this operator.
+        Called for [Inlet] > [Operator] or [Operator] < [Inlet].
+
+        If other is an attr annotated object it is set as an inlet to this operator.
         """
         if not isinstance(other, Iterable):
             other = [other]
@@ -1085,10 +1090,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @dag.setter
     def dag(self, dag: DAG | None):
-        """
-        Operators can be assigned to one DAG, one time. Repeat assignments to
-        that same DAG are ok.
-        """
+        """Operators can be assigned to one DAG, one time. Repeat assignments to that same DAG are ok."""
         from airflow.models.dag import DAG
 
         if dag is None:
@@ -1127,19 +1129,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
 
     def prepare_for_execution(self) -> BaseOperator:
-        """
-        Lock task for execution to disable custom action in __setattr__ and
-        returns a copy of the task.
-        """
+        """Lock task for execution to disable custom action in ``__setattr__`` and return a copy."""
         other = copy.copy(self)
         other._lock_for_execution = True
         return other
 
     def set_xcomargs_dependencies(self) -> None:
         """
-        Resolves upstream dependencies of a task. In this way passing an ``XComArg``
-        as value for a template field will result in creating upstream relation between
-        two tasks.
+        Resolves upstream dependencies of a task.
+
+        In this way passing an ``XComArg`` as value for a template field
+        will result in creating upstream relation between two tasks.
 
         **Example**: ::
 
@@ -1172,6 +1172,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def execute(self, context: Context) -> Any:
         """
         This is the main method to derive when creating an operator.
+
         Context is the same dictionary used as when rendering jinja templates.
 
         Refer to get_template_context for more context.
@@ -1182,18 +1183,18 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def post_execute(self, context: Any, result: Any = None):
         """
         This hook is triggered right after self.execute() is called.
-        It is passed the execution context and any results returned by the
-        operator.
+
+        It is passed the execution context and any results returned by the operator.
         """
         if self._post_execute_hook is not None:
             self._post_execute_hook(context, result)
 
     def on_kill(self) -> None:
         """
-        Override this method to clean up subprocesses when a task instance
-        gets killed. Any use of the threading, subprocess or multiprocessing
-        module within an operator needs to be cleaned up, or it will leave
-        ghost processes behind.
+        Override this method to clean up subprocesses when a task instance gets killed.
+
+        Any use of the threading, subprocess or multiprocessing module within an
+        operator needs to be cleaned up, or it will leave ghost processes behind.
         """
 
     def __deepcopy__(self, memo):
@@ -1253,10 +1254,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         downstream: bool = False,
         session: Session = NEW_SESSION,
     ):
-        """
-        Clears the state of task instances associated with the task, following
-        the parameters specified.
-        """
+        """Clears the state of task instances associated with the task, following the parameters specified."""
         qry = select(TaskInstance).where(TaskInstance.dag_id == self.dag_id)
 
         if start_date:
@@ -1373,11 +1371,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 self.log.info("Rendering template for %s", field)
                 self.log.info(content)
 
-    def get_direct_relatives(self, upstream: bool = False) -> Iterable[DAGNode]:
-        """
-        Get list of the direct relatives to the current task, upstream or
-        downstream.
-        """
+    def get_direct_relatives(self, upstream: bool = False) -> Iterable[Operator]:
+        """Get list of the direct relatives to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_list
         else:
@@ -1549,8 +1544,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         timeout: timedelta | None = None,
     ):
         """
-        Marks this Operator as being "deferred" - that is, suspending its
-        execution until the provided trigger fires an event.
+        Mark this Operator "deferred", suspending its execution until the provided trigger fires an event.
 
         This is achieved by raising a special exception (TaskDeferred)
         which is caught in the main _execute_task wrapper.

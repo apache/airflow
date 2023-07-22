@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module provides everything to be able to search in mails for a specific attachment
-and also to download it.
+This module provides everything to search mail for a specific attachment and download it.
+
 It uses the imaplib library that is already integrated in python 3.
 """
 from __future__ import annotations

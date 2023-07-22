@@ -16,17 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
-from functools import cached_property
-from typing import AsyncIterator
+import warnings
 
-from botocore.exceptions import WaiterError
-
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
 
-class GlueCrawlerCompleteTrigger(BaseTrigger):
+class GlueCrawlerCompleteTrigger(AwsBaseWaiterTrigger):
     """
     Watches for a glue crawl, triggers when it finishes.
 
@@ -35,41 +33,33 @@ class GlueCrawlerCompleteTrigger(BaseTrigger):
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
-    def __init__(self, crawler_name: str, poll_interval: int, aws_conn_id: str):
-        super().__init__()
-        self.crawler_name = crawler_name
-        self.poll_interval = poll_interval
-        self.aws_conn_id = aws_conn_id
-
-    def serialize(self) -> tuple[str, dict]:
-        return (
-            # dynamically generate the fully qualified name of the class
-            self.__class__.__module__ + "." + self.__class__.__qualname__,
-            {
-                "crawler_name": self.crawler_name,
-                "poll_interval": self.poll_interval,
-                "aws_conn_id": self.aws_conn_id,
-            },
+    def __init__(
+        self,
+        crawler_name: str,
+        poll_interval: int | None = None,
+        aws_conn_id: str = "aws_default",
+        waiter_delay: int = 5,
+        waiter_max_attempts: int = 1500,
+    ):
+        if poll_interval is not None:
+            warnings.warn(
+                "please use waiter_delay instead of poll_interval.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            waiter_delay = poll_interval or waiter_delay
+        super().__init__(
+            serialized_fields={"crawler_name": crawler_name},
+            waiter_name="crawler_ready",
+            waiter_args={"Name": crawler_name},
+            failure_message="Error while waiting for glue crawl to complete",
+            status_message="Status of glue crawl is",
+            status_queries=["Crawler.State", "Crawler.LastCrawl"],
+            return_value=None,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
         )
 
-    @cached_property
-    def hook(self) -> GlueCrawlerHook:
+    def hook(self) -> AwsGenericHook:
         return GlueCrawlerHook(aws_conn_id=self.aws_conn_id)
-
-    async def run(self) -> AsyncIterator[TriggerEvent]:
-        async with self.hook.async_conn as client:
-            waiter = self.hook.get_waiter("crawler_ready", deferrable=True, client=client)
-            while True:
-                try:
-                    await waiter.wait(
-                        Name=self.crawler_name,
-                        WaiterConfig={"Delay": self.poll_interval, "MaxAttempts": 1},
-                    )
-                    break  # we reach this point only if the waiter met a success criteria
-                except WaiterError as error:
-                    if "terminal failure" in str(error):
-                        raise
-                    self.log.info("Status of glue crawl is %s", error.last_response["Crawler"]["State"])
-                    await asyncio.sleep(int(self.poll_interval))
-
-        yield TriggerEvent({"status": "success", "message": "Crawl Complete"})

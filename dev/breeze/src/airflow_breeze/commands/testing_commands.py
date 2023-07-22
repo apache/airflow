@@ -99,7 +99,7 @@ def group_for_testing():
 )
 @click.option(
     "--wait-for-containers-timeout",
-    help="Timeout in seconds to wait for all containers to start",
+    help="Time to wait (in seconds) for all containers to start",
     envvar="WAIT_FOR_CONTAINERS_TIMEOUT",
     show_default=True,
     type=IntRange(0, 600),
@@ -457,7 +457,7 @@ def command_for_tests(
 
 @group_for_testing.command(
     name="integration-tests",
-    help="Run the specified integratio tests.",
+    help="Run the specified integration tests.",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,

@@ -87,7 +87,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.1.2"
+PIP_VERSION = "23.2"
 
 
 @lru_cache(maxsize=None)
@@ -120,8 +120,8 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "tests" / "charts").iterdir()
-            if candidate.is_dir()
+            for candidate in (AIRFLOW_SOURCES_ROOT / "helm_tests").iterdir()
+            if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )
 
@@ -225,6 +225,7 @@ COMMITTERS = [
     "ephraimbuddy",
     "feluelle",
     "feng-tao",
+    "ferruzzi",
     "houqp",
     "hussein-awala",
     "jedcunningham",
