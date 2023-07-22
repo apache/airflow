@@ -117,6 +117,7 @@ from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.dates import infer_time_unit, scale_time_units
+from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import alchemy_to_dict, exactly_one
 from airflow.utils.log import secrets_masker
@@ -759,7 +760,7 @@ class Airflow(AirflowBaseView):
                 dags_query = dags_query.where(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
             dags_query = dags_query.where(DagModel.dag_id.in_(filter_dag_ids))
-            filtered_dag_count = session.scalar(select(func.count()).select_from(dags_query))
+            filtered_dag_count = get_query_count(dags_query, session=session)
             if filtered_dag_count == 0 and len(arg_tags_filter):
                 flash(
                     "No matching DAG tags found.",
@@ -811,8 +812,8 @@ class Airflow(AirflowBaseView):
             status_count_active = is_paused_count.get(False, 0)
             status_count_paused = is_paused_count.get(True, 0)
 
-            status_count_running = session.scalar(select(func.count()).select_from(running_dags))
-            status_count_failed = session.scalar(select(func.count()).select_from(failed_dags))
+            status_count_running = get_query_count(running_dags, session=session)
+            status_count_failed = get_query_count(failed_dags, session=session)
 
             all_dags_count = status_count_active + status_count_paused
             if arg_status_filter == "active":
@@ -951,9 +952,7 @@ class Airflow(AirflowBaseView):
                 .where(Log.event == "robots")
                 .where(Log.dttm > (utcnow() - datetime.timedelta(days=7)))
             )
-            robots_file_access_count = session.scalar(
-                select(func.count()).select_from(robots_file_access_count)
-            )
+            robots_file_access_count = get_query_count(robots_file_access_count, session=session)
             if robots_file_access_count > 0:
                 flash(
                     Markup(
@@ -4171,7 +4170,7 @@ class Airflow(AirflowBaseView):
         arg_sorting_direction = request.args.get("sorting_direction", default="desc")
 
         logs_per_page = PAGE_SIZE
-        audit_logs_count = session.scalar(select(func.count()).select_from(query))
+        audit_logs_count = get_query_count(query, session=session)
         num_of_pages = int(math.ceil(audit_logs_count / float(logs_per_page)))
 
         start = current_page * logs_per_page
