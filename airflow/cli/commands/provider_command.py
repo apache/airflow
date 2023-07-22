@@ -184,6 +184,18 @@ def executors_list(args):
 
 
 @suppress_logs_and_warning
+def config_list(args):
+    """Lists all configurations at the command line."""
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().provider_configs),
+        output=args.output,
+        mapper=lambda x: {
+            "provider_config": x,
+        },
+    )
+
+
+@suppress_logs_and_warning
 def status(args):
     """Informs if providers manager has been initialized.
 

@@ -46,7 +46,6 @@
     :caption: References
 
     Python API <_api/airflow/providers/google/index>
-    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:

@@ -28,6 +28,8 @@ An executor is chosen to run a task based on the task's queue.
 ``CeleryKubernetesExecutor`` inherits the scalability of the ``CeleryExecutor`` to
 handle the high load at the peak time and runtime isolation of the ``KubernetesExecutor``.
 
+The configuration parameters of the Celery Executor can be found in :doc:`apache-airflow-providers-celery:configurations-ref`.
+
 
 When to use CeleryKubernetesExecutor
 ####################################

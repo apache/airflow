@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
@@ -55,14 +56,21 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     callback_sink: BaseCallbackSink | None = None
 
-    KUBERNETES_QUEUE = conf.get("celery_kubernetes_executor", "kubernetes_queue")
+    @cached_property
+    def kubernetes_queue(self) -> str:
+        # lazily retrieve the value of kubernetes_queue from the configuration
+        # because it might need providers
+        from airflow.providers_manager import ProvidersManager
+
+        ProvidersManager().initialize_providers_configuration()
+        return conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
         self._job_id: int | None = None
         self.celery_executor = celery_executor
         self.kubernetes_executor = kubernetes_executor
-        self.kubernetes_executor.kubernetes_queue = self.KUBERNETES_QUEUE
+        self.kubernetes_executor.kubernetes_queue = self.kubernetes_queue
 
     @property
     def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
@@ -194,16 +202,16 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
         :return: any TaskInstances that were unable to be adopted
         """
-        celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
-        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        celery_tis = [ti for ti in tis if ti.queue != self.kubernetes_queue]
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.kubernetes_queue]
         return [
             *self.celery_executor.try_adopt_task_instances(celery_tis),
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
 
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
-        celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
-        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        celery_tis = [ti for ti in tis if ti.queue != self.kubernetes_queue]
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.kubernetes_queue]
         return [
             *self.celery_executor.cleanup_stuck_queued_tasks(celery_tis),
             *self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis),
@@ -226,7 +234,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         :param simple_task_instance: SimpleTaskInstance
         :return: celery_executor or kubernetes_executor
         """
-        if simple_task_instance.queue == self.KUBERNETES_QUEUE:
+        if simple_task_instance.queue == self.kubernetes_queue:
             return self.kubernetes_executor
         return self.celery_executor
 
