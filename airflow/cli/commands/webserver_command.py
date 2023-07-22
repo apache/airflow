@@ -42,6 +42,7 @@ from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
 
@@ -320,6 +321,7 @@ class GunicornMonitor(LoggingMixin):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def webserver(args):
     """Starts Airflow Webserver."""
     print(settings.HEADER)
