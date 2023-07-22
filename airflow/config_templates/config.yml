@@ -1289,40 +1289,6 @@ openlineage:
       example: ~
       type: boolean
       version_added: ~
-atlas:
-  description: ~
-  options:
-    sasl_enabled:
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-    host:
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    port:
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "21000"
-    username:
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    password:
-      description: ~
-      version_added: ~
-      type: string
-      sensitive: true
-      example: ~
-      default: ""
 operators:
   description: ~
   options:
