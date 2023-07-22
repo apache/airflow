@@ -47,6 +47,7 @@ from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.weight_rule import WeightRule
 
 log = logging.getLogger(__name__)
@@ -1928,7 +1929,7 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     return parser
 
 
-def write_default_airflow_configuration_if_needed():
+def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
     if not os.path.isfile(AIRFLOW_CONFIG):
         log.debug("Creating new Airflow config file in: %s", AIRFLOW_CONFIG)
         pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
@@ -1949,6 +1950,7 @@ def write_default_airflow_configuration_if_needed():
                 only_defaults=True,
             )
         make_group_other_inaccessible(AIRFLOW_CONFIG)
+    return conf
 
 
 def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigParser):
@@ -1992,7 +1994,6 @@ def initialize_config() -> AirflowConfigParser:
 
     Called for you automatically as part of the Airflow boot process.
     """
-    global WEBSERVER_CONFIG
     airflow_config_parser = AirflowConfigParser()
     if airflow_config_parser.getboolean("core", "unit_test_mode"):
         airflow_config_parser.load_test_config()
@@ -2004,6 +2005,12 @@ def initialize_config() -> AirflowConfigParser:
         if airflow_config_parser.getboolean("core", "unit_test_mode"):
             airflow_config_parser.load_test_config()
 
+    return airflow_config_parser
+
+
+@providers_configuration_loaded
+def write_webserver_configuration_if_needed(airflow_config_parser: AirflowConfigParser):
+    global WEBSERVER_CONFIG
     WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
     if not os.path.isfile(WEBSERVER_CONFIG):
         import shutil
@@ -2011,7 +2018,6 @@ def initialize_config() -> AirflowConfigParser:
         pathlib.Path(WEBSERVER_CONFIG).parent.mkdir(parents=True, exist_ok=True)
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
-    return airflow_config_parser
 
 
 def make_group_other_inaccessible(file_path: str):
