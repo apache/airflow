@@ -218,7 +218,9 @@ with DAG(
         ),
         "array_of_objects": Param(
             [{"name": "account_name", "country": "country_name"}],
-            "Array with complex objects and validation rules",
+            "Array with complex objects and validation rules. "
+            "See <a href='https://json-schema.org/understanding-json-schema"
+            "/reference/array.html#items'>JSON Schema validation options in specs.</a>",
             type="array",
             title="JSON array field",
             items={
