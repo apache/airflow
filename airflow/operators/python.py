@@ -773,6 +773,7 @@ class ExternalBranchPythonOperator(ExternalPythonOperator, SkipMixin):
     virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path,
     so it can run on separate virtualenv similarly to ExternalPythonOperator
     """
+
     def execute(self, context: Context) -> Any:
         branch = super().execute(context)
         self.log.info("Branch callable return %s", branch)
