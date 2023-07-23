@@ -387,7 +387,11 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
 
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()
+        configuration.refresh_api_key_hook = self._refresh_api_key_hook
         return client.ApiClient(configuration)
+
+    def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
+        configuration.api_key = {"authorization": self._get_token(self.get_credentials())}
 
     def _get_config(self) -> client.configuration.Configuration:
         configuration = client.Configuration(

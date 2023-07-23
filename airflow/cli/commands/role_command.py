@@ -26,11 +26,13 @@ import os
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.www.fab_security.sqla.models import Action, Permission, Resource, Role
 from airflow.www.security import EXISTING_ROLES
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def roles_list(args):
     """Lists all existing roles."""
     from airflow.utils.cli_app_builder import get_application_builder
@@ -58,6 +60,7 @@ def roles_list(args):
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def roles_create(args):
     """Creates new empty role in DB."""
     from airflow.utils.cli_app_builder import get_application_builder
@@ -70,6 +73,7 @@ def roles_create(args):
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def roles_delete(args):
     """Deletes role in DB."""
     from airflow.utils.cli_app_builder import get_application_builder
@@ -138,6 +142,7 @@ def __roles_add_or_remove_permissions(args):
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def roles_add_perms(args):
     """Adds permissions to role in DB."""
     __roles_add_or_remove_permissions(args)
@@ -145,12 +150,14 @@ def roles_add_perms(args):
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def roles_del_perms(args):
     """Deletes permissions from role in DB."""
     __roles_add_or_remove_permissions(args)
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def roles_export(args):
     """
     Exports all the roles from the database to a file.

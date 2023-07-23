@@ -32,6 +32,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
 from airflow.api_connexion.types import APIResponse
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.security import permissions
+from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
 
@@ -112,7 +113,7 @@ def get_dataset_events(
 
     query = query.options(subqueryload(DatasetEvent.created_dagruns))
 
-    total_entries = session.scalar(select(func.count()).select_from(query))
+    total_entries = get_query_count(query, session=session)
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     events = session.scalars(query.offset(offset).limit(limit)).all()
     return dataset_event_collection_schema.dump(

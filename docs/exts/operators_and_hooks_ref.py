@@ -48,14 +48,15 @@ To test the template rendering process, you can also run this script as a standa
 """
 DEFAULT_HEADER_SEPARATOR = "="
 
-CURRENT_DIR = os.path.dirname(__file__)
+CURRENT_DIR = Path(os.path.dirname(__file__))
+TEMPLATE_DIR = CURRENT_DIR / "templates"
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, "docs")
 
 
 @lru_cache(maxsize=None)
 def _get_jinja_env():
-    loader = jinja2.FileSystemLoader(CURRENT_DIR, followlinks=True)
+    loader = jinja2.FileSystemLoader(TEMPLATE_DIR, followlinks=True)
     env = jinja2.Environment(loader=loader, undefined=jinja2.StrictUndefined)
     return env
 
@@ -213,7 +214,7 @@ def _render_deferrable_operator_content(*, header_separator: str):
             provider_yaml_content = yaml.safe_load(Path(provider_yaml_path).read_text())
             provider_info["name"] = provider_yaml_content["package-name"]
             providers.append(provider_info)
-    return _render_template("deferrable_operatos_list.rst.jinja2", providers=providers)
+    return _render_template("deferrable_operators_list.rst.jinja2", providers=providers)
 
 
 class BaseJinjaReferenceDirective(Directive):
@@ -308,6 +309,20 @@ class AuthBackendDirective(BaseJinjaReferenceDirective):
         )
 
 
+class AuthConfigurations(BaseJinjaReferenceDirective):
+    """Generate list of configurations"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        tabular_data = [
+            provider["package-name"] for provider in load_package_data() if provider.get("config") is not None
+        ]
+        return _render_template(
+            "configuration.rst.jinja2", items=tabular_data, header_separator=header_separator
+        )
+
+
 class SecretsBackendDirective(BaseJinjaReferenceDirective):
     """Generate list of secret backend handlers"""
 
@@ -384,6 +399,7 @@ def setup(app):
     app.add_directive("transfers-ref", TransfersReferenceDirective)
     app.add_directive("airflow-logging", LoggingDirective)
     app.add_directive("airflow-auth-backends", AuthBackendDirective)
+    app.add_directive("airflow-configurations", AuthConfigurations)
     app.add_directive("airflow-secrets-backends", SecretsBackendDirective)
     app.add_directive("airflow-connections", ConnectionsDirective)
     app.add_directive("airflow-extra-links", ExtraLinksDirective)

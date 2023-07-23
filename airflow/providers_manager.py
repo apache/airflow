@@ -136,7 +136,7 @@ def _read_schema_from_resources_or_local_file(filename: str) -> dict:
     try:
         with resource_files("airflow").joinpath(filename).open("rb") as f:
             schema = json.load(f)
-    except FileNotFoundError:
+    except (TypeError, FileNotFoundError):
         import pathlib
 
         with (pathlib.Path(__file__).parent / filename).open("rb") as f:
@@ -490,12 +490,25 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
         """Lazy initialization of providers configuration information."""
+        self._initialize_providers_configuration()
+
+    def _initialize_providers_configuration(self):
+        """
+        Internal method to initialize providers configuration information.
+
+        Should be used if we do not want to trigger caching for ``initialize_providers_configuration`` method.
+        In some cases we might want to make sure that the configuration is initialized, but we do not want
+        to cache the initialization method - for example when we just want to write configuration with
+        providers, but it is used in the context where no providers are loaded yet we will eventually
+        restore the original configuration and we want the subsequent ``initialize_providers_configuration``
+        method to be run in order to load the configuration for providers again.
+        """
         self.initialize_providers_list()
         self._discover_config()
         # Now update conf with the new provider configuration from providers
         from airflow.configuration import conf
 
-        conf.load_provider_configuration()
+        conf.load_providers_configuration()
 
     @provider_info_cache("auth_backends")
     def initialize_providers_auth_backends(self):
@@ -551,9 +564,10 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         except ImportError:
             log.info("You have no providers installed.")
             return
-        try:
-            seen = set()
-            for path in airflow.providers.__path__:  # type: ignore[attr-defined]
+
+        seen = set()
+        for path in airflow.providers.__path__:  # type: ignore[attr-defined]
+            try:
                 # The same path can appear in the __path__ twice, under non-normalized paths (ie.
                 # /path/to/repo/airflow/providers and /path/to/repo/./airflow/providers)
                 path = os.path.realpath(path)
@@ -561,8 +575,8 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     continue
                 seen.add(path)
                 self._add_provider_info_from_local_source_files_on_path(path)
-        except Exception as e:
-            log.warning("Error when loading 'provider.yaml' files from airflow sources: %s", e)
+            except Exception as e:
+                log.warning(f"Error when loading 'provider.yaml' files from {path} airflow sources: {e}")
 
     def _add_provider_info_from_local_source_files_on_path(self, path) -> None:
         """
@@ -573,9 +587,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         root_path = path
         for folder, subdirs, files in os.walk(path, topdown=True):
             for filename in fnmatch.filter(files, "provider.yaml"):
-                package_name = "apache-airflow-providers" + folder[len(root_path) :].replace(os.sep, "-")
-                self._add_provider_info_from_local_source_file(os.path.join(folder, filename), package_name)
-                subdirs[:] = []
+                try:
+                    package_name = "apache-airflow-providers" + folder[len(root_path) :].replace(os.sep, "-")
+                    self._add_provider_info_from_local_source_file(
+                        os.path.join(folder, filename), package_name
+                    )
+                    subdirs[:] = []
+                except Exception as e:
+                    log.warning("Error when loading 'provider.yaml' file from %s %e", folder, e)
 
     def _add_provider_info_from_local_source_file(self, path, package_name) -> None:
         """

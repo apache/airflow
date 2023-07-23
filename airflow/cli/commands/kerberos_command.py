@@ -24,9 +24,11 @@ from airflow import settings
 from airflow.security import kerberos as krb
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def kerberos(args):
     """Start a kerberos ticket renewer."""
     print(settings.HEADER)
