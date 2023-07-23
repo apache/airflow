@@ -17,12 +17,15 @@
 from __future__ import annotations
 
 from functools import wraps
-from typing import Callable, TypeVar, cast
+from typing import Callable, TypeVar
 
-T = TypeVar("T", bound=Callable)
+from airflow.typing_compat import ParamSpec
+
+PS = ParamSpec("PS")
+RT = TypeVar("RT")
 
 
-def providers_configuration_loaded(func: T) -> T:
+def providers_configuration_loaded(func: Callable[PS, RT]) -> Callable[PS, RT]:
     """
     Decorator that makes sure that providers configuration is loaded before actually calling
     the decorated function.
@@ -46,10 +49,10 @@ def providers_configuration_loaded(func: T) -> T:
     """
 
     @wraps(func)
-    def wrapped_function(*args, **kwargs):
+    def wrapped_function(*args, **kwargs) -> RT:
         from airflow.providers_manager import ProvidersManager
 
         ProvidersManager().initialize_providers_configuration()
         return func(*args, **kwargs)
 
-    return cast(T, wrapped_function)
+    return wrapped_function
