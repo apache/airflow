@@ -879,7 +879,7 @@ class TestAwsBaseHook:
     )
     def test_hook_connection_endpoint_url_valid(self, test_endpoint_url, result_url):
         """Test if test_endpoint_url is valid in test connection"""
-        conn = AwsConnectionWrapper.from_connection_metadata(conn_id=None)
+        conn = AwsConnectionWrapper.from_connection_metadata(conn_id=MOCK_AWS_CONN_ID)
         sf = BaseSessionFactory(conn=conn)
         session = sf.create_session()
         client = session.client("sts", endpoint_url=test_endpoint_url)
