@@ -134,11 +134,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         logs = []
         worker_log_relative_path = self._render_filename(ti, try_number)
         # TODO: fix this - "relative path" i.e currently REMOTE_BASE_LOG_FOLDER should start with "wasb"
-<<<<<<< HEAD
         # unlike others with shceme in URL itself to identify the correct handler.
-=======
-        # unlike others with shceme in URL itself to identify the correct handler. 
->>>>>>> c8c2989dee6fd8c4d74bfee04cf0a730e35c5c1e
         # This puts limitations on ways users can name the base_path.
         prefix = os.path.join(self.remote_base, worker_log_relative_path)
         blob_names = []
