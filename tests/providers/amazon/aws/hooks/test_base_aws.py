@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import json
 import os
 from base64 import b64encode
@@ -332,6 +333,9 @@ class TestSessionFactory:
             # Validate method of botocore credentials provider.
             # It shouldn't be 'explicit' which refers in this case to initial credentials.
             credentials = await session.get_credentials()
+
+            assert inspect.iscoroutinefunction(credentials.get_frozen_credentials)
+
             assert credentials.method == "sts-assume-role"
 
 

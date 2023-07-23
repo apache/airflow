@@ -24,6 +24,7 @@ import re2
 from airflow.cli.simple_table import AirflowConsole
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 ERROR_IMPORTING_HOOK = "Error when importing hook!"
 
@@ -33,6 +34,7 @@ def _remove_rst_syntax(value: str) -> str:
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def provider_get(args):
     """Get a provider info."""
     providers = ProvidersManager().providers
@@ -54,6 +56,7 @@ def provider_get(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def providers_list(args):
     """Lists all providers at the command line."""
     AirflowConsole().print_as(
@@ -68,6 +71,7 @@ def providers_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def hooks_list(args):
     """Lists all hooks at the command line."""
     AirflowConsole().print_as(
@@ -84,6 +88,7 @@ def hooks_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def triggers_list(args):
     AirflowConsole().print_as(
         data=ProvidersManager().trigger,
@@ -97,6 +102,7 @@ def triggers_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def connection_form_widget_list(args):
     """Lists all custom connection form fields at the command line."""
     AirflowConsole().print_as(
@@ -112,6 +118,7 @@ def connection_form_widget_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def connection_field_behaviours(args):
     """Lists field behaviours."""
     AirflowConsole().print_as(
@@ -124,6 +131,7 @@ def connection_field_behaviours(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def extra_links_list(args):
     """Lists all extra links at the command line."""
     AirflowConsole().print_as(
@@ -136,6 +144,7 @@ def extra_links_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def logging_list(args):
     """Lists all log task handlers at the command line."""
     AirflowConsole().print_as(
@@ -148,6 +157,7 @@ def logging_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def secrets_backends_list(args):
     """Lists all secrets backends at the command line."""
     AirflowConsole().print_as(
@@ -160,6 +170,7 @@ def secrets_backends_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def auth_backend_list(args):
     """Lists all API auth backend modules at the command line."""
     AirflowConsole().print_as(
@@ -172,6 +183,7 @@ def auth_backend_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def executors_list(args):
     """Lists all executors at the command line."""
     AirflowConsole().print_as(
@@ -184,6 +196,7 @@ def executors_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def config_list(args):
     """Lists all configurations at the command line."""
     AirflowConsole().print_as(
@@ -196,8 +209,8 @@ def config_list(args):
 
 
 @suppress_logs_and_warning
-def status(args):
-    """Informs if providers manager has been initialized.
+def lazy_loaded(args):
+    """Informs if providers manager has been initialized too early.
 
     If provider is initialized, shows the stack trace and exit with error code 1.
     """
