@@ -1,0 +1,40 @@
+name: Publish Docker image
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  push_to_registry:
+    name: Push Docker image to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: norknium/airflow
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        env:
+          AIRFLOW_GPL_UNIDECODE: yes
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            AIRFLOW_VERSION=2.6.3
+            AIRFLOW_EXTRAS=async,celery,cncf.kubernetes,dask,docker,grpc,http,ldap,postgres,redis,statsd,virtualenv,pandas,telegram,influxdb,mongo,papermill
+            PYTHON_BASE_IMAGE=python:3.10-slim-buster
+            ADDITIONAL_PYTHON_DEPS=scikit-learn==1.0.2 slack-sdk==3.14.1 simplejson==3.17.6 glom==22.1.0 fastapi==0.70.0 pandas-datareader==0.10.0 openpyxl==3.0.9 kubernetes==23.6.0 junitparser==3.1.0 apache-airflow-providers-sftp==4.3.0 minio
