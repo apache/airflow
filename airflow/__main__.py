@@ -34,6 +34,7 @@ import argcomplete
 # any possible import cycles with settings downstream.
 from airflow import configuration
 from airflow.cli import cli_parser
+from airflow.configuration import write_webserver_configuration_if_needed
 
 
 def main():
@@ -52,7 +53,11 @@ def main():
         # in main ensures that it is not done during tests and other ways airflow imports are used
         from airflow.configuration import write_default_airflow_configuration_if_needed
 
-        write_default_airflow_configuration_if_needed()
+        conf = write_default_airflow_configuration_if_needed()
+
+        if args.subcommand == "webserver":
+            write_webserver_configuration_if_needed(conf)
+
     args.func(args)
 
 
