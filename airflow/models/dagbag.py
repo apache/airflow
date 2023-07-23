@@ -115,15 +115,6 @@ class DagBag(LoggingMixin):
             read_dags_from_db = store_serialized_dags
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
-        
-        self.service_instance = os.environ.get('SERVICE_INSTANCE', '').lower()
-        
-        # if this fetch fails, then so will this DagBag init process
-        if self.service_instance == 'production':
-
-            from airflowinfra.multi_cluster_utils import fetch_dags_in_cluster
-            self.cluster_dags = fetch_dags_in_cluster()
-        
         self.dag_folder = dag_folder
         self.dags: Dict[str, DAG] = {}
         # the file's last modified timestamp when we last read it
