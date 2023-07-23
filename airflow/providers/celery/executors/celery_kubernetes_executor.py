@@ -26,6 +26,7 @@ from airflow.configuration import conf
 from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
@@ -57,12 +58,8 @@ class CeleryKubernetesExecutor(LoggingMixin):
     callback_sink: BaseCallbackSink | None = None
 
     @cached_property
+    @providers_configuration_loaded
     def kubernetes_queue(self) -> str:
-        # lazily retrieve the value of kubernetes_queue from the configuration
-        # because it might need providers
-        from airflow.providers_manager import ProvidersManager
-
-        ProvidersManager().initialize_providers_configuration()
         return conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):

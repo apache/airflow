@@ -2008,6 +2008,7 @@ def initialize_config() -> AirflowConfigParser:
     if not os.path.isfile(WEBSERVER_CONFIG):
         import shutil
 
+        pathlib.Path(WEBSERVER_CONFIG).parent.mkdir(parents=True, exist_ok=True)
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
     return airflow_config_parser

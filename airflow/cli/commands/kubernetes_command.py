@@ -33,9 +33,11 @@ from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DagRun, TaskInstance
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def generate_pod_yaml(args):
     """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
     execution_date = args.execution_date
@@ -71,6 +73,7 @@ def generate_pod_yaml(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def cleanup_pods(args):
     """Clean up k8s pods in evicted/failed/succeeded/pending states."""
     namespace = args.namespace

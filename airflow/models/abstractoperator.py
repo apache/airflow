@@ -469,7 +469,7 @@ class AbstractOperator(Templater, DAGNode):
 
     @cached_property
     def extra_links(self) -> list[str]:
-        return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
+        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
     def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.

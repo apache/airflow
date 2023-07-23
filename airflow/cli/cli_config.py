@@ -1872,9 +1872,9 @@ PROVIDERS_COMMANDS = (
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
-        name="status",
-        help="Get information about provider initialization status",
-        func=lazy_load_command("airflow.cli.commands.provider_command.status"),
+        name="lazy-loaded",
+        help="Checks that provider configuration is lazy loaded",
+        func=lazy_load_command("airflow.cli.commands.provider_command.lazy_loaded"),
         args=(ARG_VERBOSE,),
     ),
 )
