@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-21T23:37:36Z
+# This constraints file was automatically generated on 2023-07-23T20:45:03Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -56,7 +56,7 @@ cachelib==0.9.0
 cachetools==5.3.1
 cattrs==23.1.2
 celery==5.3.1
-certifi==2023.5.7
+certifi==2023.7.22
 cffi==1.15.1
 cgroupspy==0.2.2
 charset-normalizer==3.2.0
@@ -74,7 +74,7 @@ croniter==1.4.1
 cryptography==41.0.2
 dask==2023.7.1
 decorator==5.1.1
-dill==0.3.6
+dill==0.3.7
 distlib==0.3.7
 distributed==2023.7.1
 dnspython==2.4.0
