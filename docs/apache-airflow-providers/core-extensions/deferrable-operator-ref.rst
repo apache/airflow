@@ -16,21 +16,11 @@
     under the License.
 
 
+Supported Deferrable Operators
+==========================================
 
-Using the Test Mode Configuration
-=================================
+List of operators that supports deferrable mode
 
-Airflow has a fixed set of "test mode" configuration options. You can load these
-at any time by calling ``airflow.configuration.load_test_config()``. Please **note** that this
-operation is **not reversible**.
-
-Some options for example, ``DAG_FOLDER``, are loaded before you have a chance to call ``load_test_config()``.
-In order to eagerly load the test configuration, set ``test_mode`` in ``airflow.cfg``:
-
-.. code-block:: ini
-
-  [tests]
-  unit_test_mode = True
-
-Due to Airflow's automatic environment variable expansion (see :doc:`set-config`), you can also set the
-environment variable ``AIRFLOW__CORE__UNIT_TEST_MODE`` to temporarily overwrite ``airflow.cfg``.
+.. airflow-deferrable-operators::
+   :tags: None
+   :header-separator: "

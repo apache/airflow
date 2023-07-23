@@ -57,6 +57,14 @@ class TestSCBackwardsCompatibility:
 
         assert 3000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
 
+    def test_check_pgbouncer_uid(self):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True, "uid": 3000}},
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert 3000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0])
+
     def test_check_cleanup_job(self):
         docs = render_chart(
             values={"uid": 3000, "gid": 30, "cleanup": {"enabled": True}},
@@ -219,7 +227,10 @@ class TestSecurityContext:
         ctx_value_pod = {"runAsUser": 7000}
         ctx_value_container = {"allowPrivilegeEscalation": False}
         docs = render_chart(
-            values={"securityContexts": {"containers": ctx_value_container, "pod": ctx_value_pod}},
+            values={
+                "securityContexts": {"containers": ctx_value_container, "pod": ctx_value_pod},
+                "pgbouncer": {"enabled": True},
+            },
             show_only=[
                 "templates/flower/flower-deployment.yaml",
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -228,31 +239,35 @@ class TestSecurityContext:
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
                 "templates/statsd/statsd-deployment.yaml",
                 "templates/redis/redis-statefulset.yaml",
             ],
         )
-
-        for index in range(len(docs) - 2):
+        for doc in docs[:-3]:
             assert ctx_value_container == jmespath.search(
-                "spec.template.spec.containers[0].securityContext", docs[index]
+                "spec.template.spec.containers[0].securityContext", doc
             )
-            assert ctx_value_pod == jmespath.search("spec.template.spec.securityContext", docs[index])
+            assert ctx_value_pod == jmespath.search("spec.template.spec.securityContext", doc)
 
-        # Global security context is not propagated to redis and statsd, so we test default value
+        # Global security context is not propagated to pgbouncer, redis and statsd, so we test default value
         default_ctx_value_container = {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}
+        default_ctx_value_pod_pgbouncer = {"runAsUser": 65534}
         default_ctx_value_pod_statsd = {"runAsUser": 65534}
         default_ctx_value_pod_redis = {"runAsUser": 0}
-        for index in range(len(docs) - 2, len(docs)):
+        for doc in docs[-3:]:
             assert default_ctx_value_container == jmespath.search(
-                "spec.template.spec.containers[0].securityContext", docs[index]
+                "spec.template.spec.containers[0].securityContext", doc
             )
-        assert default_ctx_value_pod_statsd == jmespath.search(
-            "spec.template.spec.securityContext", docs[len(docs) - 2]
+        # Test pgbouncer metrics-exporter container
+        assert default_ctx_value_container == jmespath.search(
+            "spec.template.spec.containers[1].securityContext", docs[-3]
         )
-        assert default_ctx_value_pod_redis == jmespath.search(
-            "spec.template.spec.securityContext", docs[len(docs) - 1]
+        assert default_ctx_value_pod_pgbouncer == jmespath.search(
+            "spec.template.spec.securityContext", docs[-3]
         )
+        assert default_ctx_value_pod_statsd == jmespath.search("spec.template.spec.securityContext", docs[-2])
+        assert default_ctx_value_pod_redis == jmespath.search("spec.template.spec.securityContext", docs[-1])
 
     # Test securityContexts for main containers
     def test_main_container_setting(self):

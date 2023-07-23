@@ -44,10 +44,10 @@ core:
       default: "airflow.utils.net.getfqdn"
     might_contain_dag_callable:
       description: |
-         A callable to check if a python file has airflow dags defined or not
-         with argument as: `(file_path: str, zip_file: zipfile.ZipFile | None = None)`
-         return True if it has dags otherwise False
-         If this is not provided, Airflow uses its own heuristic rules.
+        A callable to check if a python file has airflow dags defined or not
+        with argument as: `(file_path: str, zip_file: zipfile.ZipFile | None = None)`
+        return True if it has dags otherwise False
+        If this is not provided, Airflow uses its own heuristic rules.
       version_added: 2.6.0
       type: string
       example: ~
@@ -288,8 +288,8 @@ core:
       default: "0"
     default_task_retry_delay:
       description: |
-          The number of seconds each task is going to wait by default between retries. Can be overridden at
-          dag or task level.
+        The number of seconds each task is going to wait by default between retries. Can be overridden at
+        dag or task level.
       version_added: 2.4.0
       type: integer
       example: ~
@@ -681,7 +681,7 @@ logging:
       description: |
         The remote_task_handler_kwargs param is loaded into a dictionary and passed to __init__ of remote
         task handler and it overrides the values provided by Airflow config. For example if you set
-        `delete_local_logs=False` and you provide ``{{"delete_local_copy": true}}``, then the local
+        `delete_local_logs=False` and you provide ``{"delete_local_copy": true}``, then the local
         log files will be deleted after they are uploaded to remote location.
       version_added: 2.6.0
       type: string
@@ -804,7 +804,8 @@ logging:
         Specify prefix pattern like mentioned below with stream handler TaskHandlerWithCustomFormatter
       version_added: 2.0.0
       type: string
-      example: "{{ti.dag_id}}-{{ti.task_id}}-{{execution_date}}-{{try_number}}"
+      example: "{ti.dag_id}-{ti.task_id}-{execution_date}-{try_number}"
+      is_template: true
       default: ""
     log_filename_template:
       description: |
@@ -812,16 +813,18 @@ logging:
       version_added: 2.0.0
       type: string
       example: ~
-      default: "dag_id={{{{ ti.dag_id }}}}/run_id={{{{ ti.run_id }}}}/task_id={{{{ ti.task_id }}}}/\
-               {{%% if ti.map_index >= 0 %%}}map_index={{{{ ti.map_index }}}}/{{%% endif %%}}\
-               attempt={{{{ try_number }}}}.log"
+      is_template: true
+      default: "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/\
+               {%% if ti.map_index >= 0 %%}map_index={{ ti.map_index }}/{%% endif %%}\
+               attempt={{ try_number }}.log"
     log_processor_filename_template:
       description: |
         Formatting for how airflow generates file names for log
       version_added: 2.0.0
       type: string
       example: ~
-      default: "{{{{ filename }}}}.log"
+      is_template: true
+      default: "{{ filename }}.log"
     dag_processor_manager_log_location:
       description: |
         Full path of dag_processor_manager logfile.
@@ -1071,7 +1074,7 @@ secrets:
         The backend_kwargs param is loaded into a dictionary and passed to __init__ of secrets backend class.
         See documentation for the secrets backend you are using. JSON is expected.
         Example for AWS Systems Manager ParameterStore:
-        ``{{"connections_prefix": "/airflow/connections", "profile_name": "default"}}``
+        ``{"connections_prefix": "/airflow/connections", "profile_name": "default"}``
       version_added: 1.10.10
       type: string
       sensitive: true
@@ -1825,7 +1828,7 @@ webserver:
       default: "True"
     auth_rate_limit:
       description: |
-          Rate limit for authentication endpoints.
+        Rate limit for authentication endpoints.
       version_added: 2.6.0
       type: string
       example: ~
@@ -2688,7 +2691,8 @@ elasticsearch:
       version_added: 1.10.4
       type: string
       example: ~
-      default: "{{dag_id}}-{{task_id}}-{{run_id}}-{{map_index}}-{{try_number}}"
+      is_template: true
+      default: "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
     end_of_log_mark:
       description: |
         Used to mark the end of a log stream for a task

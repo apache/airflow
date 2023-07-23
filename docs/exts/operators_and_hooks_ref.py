@@ -16,12 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import os
 from functools import lru_cache
-from typing import Iterable
+from pathlib import Path
+from typing import Any, Iterable, Iterator
 
 import jinja2
 import rich_click as click
+import yaml
 from docutils import nodes
 from docutils.nodes import Element
 
@@ -170,6 +173,47 @@ def _render_transfer_content(*, tags: set[str] | None, header_separator: str):
     return _render_template(
         "operators_and_hooks_ref-transfers.rst.jinja2", items=tabular_data, header_separator=header_separator
     )
+
+
+def iter_deferrable_operators(module_filename: str) -> Iterator[tuple[str, str]]:
+    ast_obj = ast.parse(open(module_filename).read())
+    cls_nodes = (node for node in ast.iter_child_nodes(ast_obj) if isinstance(node, ast.ClassDef))
+    init_method_nodes = (
+        (cls_node, node)
+        for cls_node in cls_nodes
+        for node in ast.iter_child_nodes(cls_node)
+        if isinstance(node, ast.FunctionDef) and node.name == "__init__"
+    )
+    for cls_node, node in init_method_nodes:
+        args = node.args
+        for argument in [*args.args, *args.kwonlyargs]:
+            if argument.arg == "deferrable":
+                module_name = module_filename.replace("/", ".")[:-3]
+                op_name = cls_node.name
+                yield (module_name, op_name)
+
+
+def _render_deferrable_operator_content(*, header_separator: str):
+    providers = []
+    for provider_yaml_path in get_provider_yaml_paths():
+        provider_parent_path = Path(provider_yaml_path).parent
+        provider_info: dict[str, Any] = {"name": "", "operators": []}
+        for root, _, file_names in os.walk(provider_parent_path):
+            if all([target not in root for target in ["operators", "sensors"]]):
+                continue
+
+            for file_name in file_names:
+                if not file_name.endswith(".py") or file_name == "__init__.py":
+                    continue
+                provider_info["operators"].extend(
+                    iter_deferrable_operators(f"{os.path.relpath(root)}/{file_name}")
+                )
+
+        if provider_info["operators"]:
+            provider_yaml_content = yaml.safe_load(Path(provider_yaml_path).read_text())
+            provider_info["name"] = provider_yaml_content["package-name"]
+            providers.append(provider_info)
+    return _render_template("deferrable_operatos_list.rst.jinja2", providers=providers)
 
 
 class BaseJinjaReferenceDirective(Directive):
@@ -325,6 +369,15 @@ class ExecutorsDirective(BaseJinjaReferenceDirective):
         )
 
 
+class DeferrableOperatorDirective(BaseJinjaReferenceDirective):
+    """Generate list of deferrable operators"""
+
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+        return _render_deferrable_operator_content(
+            header_separator=header_separator,
+        )
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
@@ -336,6 +389,7 @@ def setup(app):
     app.add_directive("airflow-extra-links", ExtraLinksDirective)
     app.add_directive("airflow-notifications", NotificationsDirective)
     app.add_directive("airflow-executors", ExecutorsDirective)
+    app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 
@@ -431,6 +485,14 @@ def extra_links(header_separator: str):
             header_separator=header_separator, resource_type="extra-links", template="extra_links.rst.jinja2"
         )
     )
+
+
+@cli.command()
+@option_tag
+@option_header_separator
+def deferrable_operators(tag: Iterable[str], header_separator: str):
+    """Renders Deferrable Operators content"""
+    print(_render_deferrable_operator_content(header_separator=header_separator))
 
 
 if __name__ == "__main__":
