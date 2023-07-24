@@ -74,7 +74,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     data: { dagRuns, groups },
   } = useGridData();
   const { colors } = useTheme();
-  const { setCenter, getZoom, fitView, viewportInitialized } = useReactFlow();
+  const { setCenter, getZoom, fitView } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
   const offsetTop = useOffsetTop(graphRef);
 
@@ -120,14 +120,16 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     [setCenter, getZoom]
   );
 
-  // Zoom to node on selection, fit view when losing task selection. Do not animate on the first time.
+  // Zoom to/from nodes when changing selection
   useEffect(() => {
-    const selectedNode = nodes.find((n) => n.id === selected.taskId);
-    const duration = hasRendered ? 750 : 0;
-    if (selectedNode) focusNode(selectedNode, duration);
-    else fitView({ duration });
+    if (hasRendered) {
+      fitView({
+        duration: 750,
+        nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
+      });
+    }
     setHasRendered(true);
-  }, [focusNode, nodes, selected, fitView, viewportInitialized, hasRendered]);
+  }, [focusNode, nodes, fitView, hasRendered, selected.taskId]);
 
   const edges = buildEdges({
     edges: graphData?.edges,
@@ -153,8 +155,11 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
           maxZoom={1}
           onlyRenderVisibleElements
           defaultEdgeOptions={{ zIndex: 1 }}
-          // Try to fit the whole dag on page load
+          // Fit view to selected task or the whole graph on render
           fitView
+          fitViewOptions={{
+            nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
+          }}
         >
           <Panel position="top-right">
             <Box bg="#ffffffdd" p={1}>
