@@ -360,11 +360,51 @@ Notes on using the operator:
 
 Using the TaskFlow API with Sensor operators
 --------------------------------------------
+
 You can apply the ``@task.sensor`` decorator to convert a regular Python function to an instance of the
 BaseSensorOperator class. The Python function implements the poke logic and returns an instance of
-the ``PokeReturnValue`` class as the ``poke()`` method in the BaseSensorOperator does. The ``PokeReturnValue`` is
-a new feature in Airflow 2.3 that allows a sensor operator to push an XCom value as described in
-section "Having sensors return XCOM values" of :doc:`apache-airflow-providers:howto/create-update-providers`.
+the ``PokeReturnValue`` class as the ``poke()`` method in the BaseSensorOperator does.
+In Airflow 2.3, sensor operators will be able to return XCOM values. This is achieved by returning
+an instance of the ``PokeReturnValue`` object at the end of the ``poke()`` method:
+
+  .. code-block:: python
+
+    from airflow.sensors.base import PokeReturnValue
+
+
+    class SensorWithXcomValue(BaseSensorOperator):
+        def poke(self, context: Context) -> Union[bool, PokeReturnValue]:
+            # ...
+            is_done = ...  # set to true if the sensor should stop poking.
+            xcom_value = ...  # return value of the sensor operator to be pushed to XCOM.
+            return PokeReturnValue(is_done, xcom_value)
+
+
+To implement a sensor operator that pushes a XCOM value and supports both version 2.3 and
+pre-2.3, you need to explicitly push the XCOM value if the version is pre-2.3.
+
+  .. code-block:: python
+
+    try:
+        from airflow.sensors.base import PokeReturnValue
+    except ImportError:
+        PokeReturnValue = None
+
+
+    class SensorWithXcomValue(BaseSensorOperator):
+        def poke(self, context: Context) -> bool:
+            # ...
+            is_done = ...  # set to true if the sensor should stop poking.
+            xcom_value = ...  # return value of the sensor operator to be pushed to XCOM.
+            if PokeReturnValue is not None:
+                return PokeReturnValue(is_done, xcom_value)
+            else:
+                if is_done:
+                    context["ti"].xcom_push(key="xcom_key", value=xcom_value)
+                return is_done
+
+
+
 
 Alternatively in cases where the sensor doesn't need to push XCOM values:  both ``poke()`` and the wrapped
 function can return a boolean-like value where ``True`` designates the sensor's operation as complete and

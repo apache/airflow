@@ -147,7 +147,7 @@ class FileTaskHandler(logging.Handler):
 
     def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
-        self.handler: logging.FileHandler | None = None
+        self.handler: logging.Handler | None = None
         self.local_base = base_log_folder
         if filename_template is not None:
             warnings.warn(

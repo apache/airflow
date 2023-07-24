@@ -20,9 +20,13 @@ from __future__ import annotations
 import os
 from contextlib import closing
 from tempfile import NamedTemporaryFile
+from unittest.mock import MagicMock
 
 import pytest
+from openlineage.client.facet import SchemaDatasetFacet, SchemaField, SqlJobFacet
+from openlineage.client.run import Dataset
 
+from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.mysql.operators.mysql import MySqlOperator
@@ -111,3 +115,76 @@ class TestMySql:
 
         assert isinstance(task.parameters, dict)
         assert task.parameters["foo"] == "{{ ds }}"
+
+    @pytest.mark.parametrize("client", ["mysqlclient", "mysql-connector-python"])
+    def test_mysql_operator_openlineage(self, client):
+        with MySqlContext(client):
+            sql = """
+            CREATE TABLE IF NOT EXISTS test_airflow (
+                dummy VARCHAR(50)
+            );
+            """
+            op = MySqlOperator(task_id="basic_mysql", sql=sql, dag=self.dag)
+
+            lineage = op.get_openlineage_facets_on_start()
+            assert len(lineage.inputs) == 0
+            assert len(lineage.outputs) == 0
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+            # OpenLineage provider runs same method on complete by default
+            lineage_on_complete = op.get_openlineage_facets_on_start()
+            assert len(lineage_on_complete.inputs) == 0
+            assert len(lineage_on_complete.outputs) == 1
+
+
+def test_execute_openlineage_events():
+    class MySqlHookForTests(MySqlHook):
+        conn_name_attr = "sql_default"
+        get_conn = MagicMock(name="conn")
+        get_connection = MagicMock()
+
+    dbapi_hook = MySqlHookForTests()
+
+    class SQLExecuteQueryOperatorForTest(MySqlOperator):
+        def get_db_hook(self):
+            return dbapi_hook
+
+    sql = """CREATE TABLE IF NOT EXISTS popular_orders_day_of_week (
+        order_day_of_week VARCHAR(64) NOT NULL,
+        order_placed_on   TIMESTAMP NOT NULL,
+        orders_placed     INTEGER NOT NULL
+    );
+FORGOT TO COMMENT"""
+    op = SQLExecuteQueryOperatorForTest(task_id="mysql-operator", sql=sql)
+    DB_SCHEMA_NAME = "PUBLIC"
+    rows = [
+        (DB_SCHEMA_NAME, "popular_orders_day_of_week", "order_day_of_week", 1, "varchar"),
+        (DB_SCHEMA_NAME, "popular_orders_day_of_week", "order_placed_on", 2, "timestamp"),
+        (DB_SCHEMA_NAME, "popular_orders_day_of_week", "orders_placed", 3, "int4"),
+    ]
+    dbapi_hook.get_connection.return_value = Connection(
+        conn_id="mysql_default", conn_type="mysql", host="host", port=1234
+    )
+    dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
+
+    lineage = op.get_openlineage_facets_on_start()
+    assert len(lineage.inputs) == 0
+    assert lineage.outputs == [
+        Dataset(
+            namespace="mysql://host:1234",
+            name="PUBLIC.popular_orders_day_of_week",
+            facets={
+                "schema": SchemaDatasetFacet(
+                    fields=[
+                        SchemaField(name="order_day_of_week", type="varchar"),
+                        SchemaField(name="order_placed_on", type="timestamp"),
+                        SchemaField(name="orders_placed", type="int4"),
+                    ]
+                )
+            },
+        )
+    ]
+
+    assert lineage.job_facets == {"sql": SqlJobFacet(query=sql)}
+
+    assert lineage.run_facets["extractionError"].failedTasks == 1

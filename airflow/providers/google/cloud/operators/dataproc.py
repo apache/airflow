@@ -1286,6 +1286,10 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
 class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     """Start a Spark SQL query Job on a Cloud DataProc cluster.
 
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
+
     :param query: The query or reference to the query file (q extension). (templated)
     :param query_uri: The HCFS URI of the script that contains the SQL queries.
     :param variables: Map of named parameters for the query. (templated)

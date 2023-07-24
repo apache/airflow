@@ -43,6 +43,7 @@ class TestCliConfigList:
             include_descriptions=False,
             include_sources=False,
             include_env_vars=False,
+            include_providers=True,
             comment_out_everything=False,
             only_defaults=False,
         )
@@ -60,6 +61,7 @@ class TestCliConfigList:
             include_descriptions=False,
             include_sources=False,
             include_env_vars=False,
+            include_providers=True,
             comment_out_everything=False,
             only_defaults=False,
         )
@@ -177,6 +179,13 @@ class TestCliConfigList:
         output = temp_stdout.getvalue()
         lines = output.split("\n")
         assert any(line.startswith("task_runner = test-env-runner") for line in lines if line)
+
+    def test_cli_has_providers(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+        output = temp_stdout.getvalue()
+        lines = output.split("\n")
+        assert any(line.startswith("celery_config_options") for line in lines if line)
 
     def test_cli_comment_out_everything(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:

@@ -32,6 +32,7 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
 
 
@@ -43,6 +44,7 @@ def _run_scheduler_job(job_runner: SchedulerJobRunner, *, skip_serve_logs: bool)
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def scheduler(args):
     """Starts Airflow Scheduler."""
     print(settings.HEADER)
