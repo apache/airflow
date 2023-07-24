@@ -72,6 +72,7 @@ class TestDruidHook:
         )
 
         # Exists just as it should
+        self.is_sql_based_ingestion = True
         self.db_hook.submit_indexing_job("Long json file")
 
         assert task_post.called_once
