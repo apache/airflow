@@ -823,17 +823,6 @@ ARG_DO_PICKLE = Arg(
     action="store_true",
 )
 
-# IMPORTANT NOTE! ONLY FOR CELERY ARGUMENTS
-#
-# Celery configs below have explicit fallback values because celery provider defaults are not yet loaded
-# via provider at the time we parse the command line, so in case it is not set, we need to have manual
-# fallback. After ProvidersManager.initialize_providers_configuration() is called, the fallbacks are
-# not needed anymore and everywhere where you access configuration in provider-specific code and when
-# you are sure that providers configuration has been initialized, you can use conf.get() without fallbacks.
-#
-# DO NOT REMOVE THE FALLBACKS in args parsing even if you are tempted to.
-# TODO: possibly move the commands to providers but that could be big performance hit on the CLI
-# worker
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
