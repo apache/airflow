@@ -14,14 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from unittest import mock
 
-from airflow.www.fab_security.sqla.models import (
-    add_index_on_ab_user_username_postgres,
-    add_index_on_ab_register_user_username_postgres
-)
-
 from sqlalchemy import Table, Column, MetaData, String, create_mock_engine
+
+from airflow.www.fab_security.sqla.models import (
+    add_index_on_ab_register_user_username_postgres,
+    add_index_on_ab_user_username_postgres,
+)
 
 _mock_conn = mock.MagicMock()
 _mock_conn.dialect = mock.MagicMock()
@@ -29,7 +31,7 @@ _mock_conn.dialect.name = "postgresql"
 
 
 def test_add_index_on_ab_user_username_postgres():
-    table = Table('test_table', MetaData(), Column("username", String))
+    table = Table("test_table", MetaData(), Column("username", String))
 
     assert len(table.indexes) == 0
 
@@ -45,7 +47,7 @@ def test_add_index_on_ab_user_username_postgres():
 
 
 def test_add_index_on_ab_register_user_username_postgres():
-    table = Table('test_table', MetaData(), Column("username", String))
+    table = Table("test_table", MetaData(), Column("username", String))
 
     assert len(table.indexes) == 0
 
