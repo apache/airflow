@@ -374,3 +374,31 @@ JSON example output:
 
     airflow_db={"conn_type": "mysql", "login": "root", "password": "plainpassword", "host": "mysql", "schema": "airflow"}
     druid_broker_default={"conn_type": "druid", "host": "druid-broker", "port": 8082, "extra": "{\"endpoint\": \"druid/v2/sql\"}"}
+
+Testing for DAG Import Errors
+-----------------------------
+The CLI can be used to check whether any discovered DAGs have import errors via the `dags` `list-import-errors` command. The output is predictable for situations where there are no errors, such as `[]` for the json style output, so it is possible to create an automation step which fails if any DAGs cannot be imported. For instance, the check could be run in CI or pre-commit.
+
+Example command that fails if there are any errors:
+
+.. code-block:: bash
+
+    airflow dags list-import-errors | grep -q "No data found"
+
+This line can be added to automation as-is, or if you want to include the output you can tee the output:
+
+.. code-block:: bash
+
+    airflow dags list-import-errors | tee import_errors.txt && grep -q "No data found" import_errors.txt
+
+Example in a Jenkins pipeline:
+
+.. code-block:: groovy
+
+    stage('All DAGs can load') {
+        steps {
+            sh 'airflow dags list-import-errors | tee import_errors.txt && grep -q "No data found" import_errors.txt'
+        }
+    }
+
+NOTE: For this to work accurately, you must ensure Airflow does not log any additional text to stdout. For example, you may need to fix any deprecation warnings, or you may need to set `lazy_load_plugins = True` in the Airflow config if you have a plugin that logs when loaded.
