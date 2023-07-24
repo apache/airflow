@@ -127,7 +127,7 @@ class TestBaseSensor:
         sensor, dr = make_sensor(True)
 
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -140,7 +140,7 @@ class TestBaseSensor:
 
         with pytest.raises(AirflowSensorTimeout):
             self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -152,7 +152,7 @@ class TestBaseSensor:
         sensor, dr = make_sensor(False, soft_fail=True)
 
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -167,7 +167,7 @@ class TestBaseSensor:
 
         # first run times out and task instance is skipped
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -183,7 +183,7 @@ class TestBaseSensor:
         date1 = timezone.utcnow()
         time_machine.move_to(date1, tick=False)
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -203,7 +203,7 @@ class TestBaseSensor:
         time_machine.coordinates.shift(sensor.poke_interval)
         date2 = date1 + timedelta(seconds=sensor.poke_interval)
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -222,7 +222,7 @@ class TestBaseSensor:
         # third poke returns True and task succeeds
         time_machine.coordinates.shift(sensor.poke_interval)
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -239,7 +239,7 @@ class TestBaseSensor:
         date1 = timezone.utcnow()
         time_machine.move_to(date1, tick=False)
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -251,7 +251,7 @@ class TestBaseSensor:
         time_machine.coordinates.shift(sensor.poke_interval)
         with pytest.raises(AirflowSensorTimeout):
             self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -268,7 +268,7 @@ class TestBaseSensor:
         date1 = timezone.utcnow()
         time_machine.move_to(date1, tick=False)
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -279,7 +279,7 @@ class TestBaseSensor:
         # second poke returns False, timeout occurs
         time_machine.coordinates.shift(sensor.poke_interval)
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -302,7 +302,7 @@ class TestBaseSensor:
         date1 = timezone.utcnow()
         time_machine.move_to(date1, tick=False)
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -320,7 +320,7 @@ class TestBaseSensor:
         time_machine.coordinates.shift(sensor.poke_interval)
         with pytest.raises(AirflowSensorTimeout):
             self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -335,7 +335,7 @@ class TestBaseSensor:
         date3 = date1 + timedelta(seconds=sensor.poke_interval) * 2 + sensor.retry_delay
         time_machine.coordinates.shift(sensor.poke_interval + sensor.retry_delay.total_seconds())
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -354,7 +354,7 @@ class TestBaseSensor:
         time_machine.coordinates.shift(sensor.poke_interval)
         self._run(sensor)
 
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -384,7 +384,7 @@ class TestBaseSensor:
         # first poke returns False and task is re-scheduled
         with time_machine.travel(date1, tick=False):
             self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -401,7 +401,7 @@ class TestBaseSensor:
         # second poke returns False and task is re-scheduled
         with time_machine.travel(date2, tick=False):
             self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -418,7 +418,7 @@ class TestBaseSensor:
         # third poke returns True and task succeeds
         with time_machine.travel(date3, tick=False):
             self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -434,7 +434,7 @@ class TestBaseSensor:
         date1 = timezone.utcnow()
         with time_machine.travel(date1, tick=False):
             self._run(sensor, test_mode=True)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -640,7 +640,7 @@ class TestBaseSensor:
         sensor.poke = Mock(side_effect=[False, RuntimeError, False, False, False, False, False, False])
 
         def assert_ti_state(try_number, max_tries, state):
-            tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+            tis = dr.get_task_instances()
 
             assert len(tis) == 2
 
@@ -732,7 +732,7 @@ class TestBaseSensor:
         sensor.poke = Mock(side_effect=[False, RuntimeError, False, False, False, False, False, False])
 
         def assert_ti_state(try_number, max_tries, state):
-            tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+            tis = dr.get_task_instances()
 
             assert len(tis) == 2
 
@@ -788,7 +788,7 @@ class TestBaseSensor:
         sensor, dr = make_sensor(True, xcom_value=xcom_value)
 
         self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:
@@ -806,7 +806,7 @@ class TestBaseSensor:
 
         with pytest.raises(AirflowSensorTimeout):
             self._run(sensor)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == SENSOR_OP:

@@ -23,15 +23,13 @@ from typing import Callable
 
 from tabulate import tabulate
 
-from airflow.models.dagrun import DagRun
 from airflow.utils.context import Context
 from airflow.utils.state import State
 
 
 def get_test_run(dag):
     def callback(context: Context):
-        dagrun = context["dag_run"]
-        ti = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)
+        ti = context["dag_run"].get_task_instances()
         if not ti:
             logging.warning("could not retrieve tasks that ran in the DAG, cannot display a summary")
             return

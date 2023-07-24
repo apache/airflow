@@ -5542,7 +5542,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
                 count += 1
                 dag = get_airflow_app().dag_bag.get_dag(dr.dag_id)
                 tis_to_clear = dag_to_tis.setdefault(dag, [])
-                tis_to_clear += DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+                tis_to_clear += dr.get_task_instances()
 
             for dag, tis in dag_to_tis.items():
                 cleared_ti_count += len(tis)

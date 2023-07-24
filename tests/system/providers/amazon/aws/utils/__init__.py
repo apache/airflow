@@ -29,7 +29,6 @@ from botocore.client import BaseClient
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.decorators import task
-from airflow.models.dagrun import DagRun
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
@@ -253,8 +252,7 @@ def set_env_id() -> str:
 
 
 def all_tasks_passed(ti) -> bool:
-    dagrun = ti.get_dagrun()
-    task_runs = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)
+    task_runs = ti.get_dagrun().get_task_instances()
     return all([_task.state != State.FAILED for _task in task_runs])
 
 

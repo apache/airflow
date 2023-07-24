@@ -2948,7 +2948,7 @@ class TestDagDecorator:
         )
 
         self.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
-        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
+        ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == self.VALUE
 
     def test_dag_param_dagrun_parameterized(self):
@@ -2977,7 +2977,7 @@ class TestDagDecorator:
         )
 
         self.operator.run(start_date=self.DEFAULT_DATE, end_date=self.DEFAULT_DATE)
-        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
+        ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == new_value
 
     @pytest.mark.parametrize("value", [VALUE, 0])

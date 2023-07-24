@@ -1403,9 +1403,7 @@ class DAG(LoggingMixin):
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if callbacks:
             callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-            tis = DagRun.get_task_instances(
-                dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag, session=session
-            )
+            tis = dagrun.get_task_instances(session=session)
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = dag.get_task(ti.task_id)
             context = ti.get_template_context(session=session)

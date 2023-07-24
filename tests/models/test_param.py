@@ -310,7 +310,7 @@ class TestDagParamRuntime:
 
         xcom_arg.operator.run(dr.execution_date, dr.execution_date)
 
-        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
+        ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == self.VALUE
 
     def test_dag_param_overwrite(self, dag_maker):
@@ -334,7 +334,7 @@ class TestDagParamRuntime:
 
         xcom_arg.operator.run(dr.execution_date, dr.execution_date)
 
-        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
+        ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == new_value
 
     def test_dag_param_default(self, dag_maker):
@@ -352,7 +352,7 @@ class TestDagParamRuntime:
 
         xcom_arg.operator.run(dr.execution_date, dr.execution_date)
 
-        ti = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)[0]
+        ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == "test"
 
     @pytest.mark.parametrize(

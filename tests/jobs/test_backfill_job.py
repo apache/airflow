@@ -140,7 +140,7 @@ class TestBackfillJob:
         dag = self._get_dummy_dag(dag_maker)
         dag_run = dag_maker.create_dagrun(state=None)
 
-        for ti in DagRun.get_task_instances(dag_id=dag_run.dag_id, run_id=dag_run.run_id, dag=dag_run.dag):
+        for ti in dag_run.get_task_instances():
             ti.set_state(State.SUCCESS)
 
         job = Job(executor=MockExecutor())
@@ -1282,7 +1282,7 @@ class TestBackfillJob:
         job_runner = BackfillJobRunner(job=job, dag=sub_dag, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         run_job(job=job, execute_callable=job_runner._execute)
 
-        for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag):
+        for ti in dr.get_task_instances():
             if ti.task_id == "leave1" or ti.task_id == "leave2":
                 assert State.SUCCESS == ti.state
             else:
@@ -1305,7 +1305,7 @@ class TestBackfillJob:
 
         session = settings.Session()
 
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         for ti in tis:
             if ti.task_id == op1.task_id:
                 ti.state = State.UP_FOR_RETRY
@@ -1332,7 +1332,7 @@ class TestBackfillJob:
 
         assert dr.state == State.FAILED
 
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         for ti in tis:
             if ti.task_id in (op1.task_id, op4.task_id, op6.task_id):
                 assert ti.state == State.SUCCESS
@@ -1778,8 +1778,8 @@ class TestBackfillJob:
         # make two dagruns, only reset for one
         dr1 = dag_maker.create_dagrun(state=State.SUCCESS)
         dr2 = dag.create_dagrun(run_id="test2", state=State.RUNNING, session=session)
-        ti1 = DagRun.get_task_instances(dag_id=dr1.dag_id, run_id=dr1.run_id, dag=dr1.dag, session=session)[0]
-        ti2 = DagRun.get_task_instances(dag_id=dr2.dag_id, run_id=dr2.run_id, dag=dr2.dag, session=session)[0]
+        ti1 = dr1.get_task_instances(session=session)[0]
+        ti2 = dr2.get_task_instances(session=session)[0]
         ti1.state = State.SCHEDULED
         ti2.state = State.SCHEDULED
 

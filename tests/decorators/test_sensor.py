@@ -51,7 +51,7 @@ class TestSensorDecorator:
 
         dr = dag_maker.create_dagrun()
         sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == "sensor_f":
@@ -79,7 +79,7 @@ class TestSensorDecorator:
 
         dr = dag_maker.create_dagrun()
         sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == "sensor_f":
@@ -105,7 +105,7 @@ class TestSensorDecorator:
         with pytest.raises(AirflowSensorTimeout):
             sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
 
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == "sensor_f":
@@ -131,7 +131,7 @@ class TestSensorDecorator:
         with pytest.raises(AirflowSensorTimeout):
             sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
 
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == "sensor_f":
@@ -155,7 +155,7 @@ class TestSensorDecorator:
 
         dr = dag_maker.create_dagrun()
         sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == "sensor_f":
@@ -179,7 +179,7 @@ class TestSensorDecorator:
 
         dr = dag_maker.create_dagrun()
         sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == "sensor_f":
@@ -207,7 +207,7 @@ class TestSensorDecorator:
         dr = dag_maker.create_dagrun()
         uf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date, ignore_ti_state=True)
         sf.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert len(tis) == 2
         for ti in tis:
             if ti.task_id == "sensor_f":

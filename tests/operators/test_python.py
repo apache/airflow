@@ -90,7 +90,7 @@ class BasePythonTest:
     def assert_expected_task_states(dag_run: DagRun, expected_states: dict):
         """Helper function that asserts `TaskInstances` of a given `task_id` are in a given state."""
         asserts = []
-        for ti in DagRun.get_task_instances(dag_id=dag_run.dag_id, run_id=dag_run.run_id, dag=dag_run.dag):
+        for ti in dag_run.get_task_instances():
             try:
                 expected = expected_states[ti.task_id]
             except KeyError:
@@ -348,7 +348,7 @@ class TestBranchOperator(BasePythonTest):
 
         dr = self.create_dag_run()
         branch_op.run(start_date=self.default_date, end_date=self.default_date)
-        for ti in DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag):
+        for ti in dr.get_task_instances():
             if ti.task_id == self.task_id:
                 assert ti.xcom_pull(task_ids=self.task_id) == "branch_1"
                 break
@@ -379,7 +379,7 @@ class TestBranchOperator(BasePythonTest):
         self.assert_expected_task_states(dr, expected_states)
 
         # Clear the children tasks.
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
         with create_session() as session:
             clear_task_instances(children_tis, session=session, dag=branch_op.dag)
@@ -596,7 +596,7 @@ class TestShortCircuitOperator(BasePythonTest):
         self.assert_expected_task_states(dr, expected_states)
 
         # Clear downstream task "op1" that was previously executed.
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         with create_session() as session:
             clear_task_instances(
                 [ti for ti in tis if ti.task_id == "op1"], session=session, dag=short_circuit.dag
@@ -617,7 +617,7 @@ class TestShortCircuitOperator(BasePythonTest):
         short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
         short_op_no_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
 
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="return_value") == "signature"
         assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is False
 
@@ -630,7 +630,7 @@ class TestShortCircuitOperator(BasePythonTest):
             short_op_push_xcom >> empty_task
         dr = self.create_dag_run()
         short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="skipmixin_key") == {
             "skipped": ["empty_task"]
         }
@@ -654,7 +654,7 @@ class TestShortCircuitOperator(BasePythonTest):
         for ti in decision.schedulable_tis:
             ti.run()
         # dr.run(start_date=self.default_date, end_date=self.default_date)
-        tis = DagRun.get_task_instances(dag_id=dr.dag_id, run_id=dr.run_id, dag=dr.dag)
+        tis = dr.get_task_instances()
 
         assert (
             tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="return_value", map_indexes=0)
@@ -1180,7 +1180,7 @@ class TestShortCircuitWithTeardown:
             op1 >> op2 >> op3 >> op4
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
-            tis = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)
+            tis = dagrun.get_task_instances()
             ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
             ti._run_raw_task()
             expected_tasks = {dag.task_dict[x] for x in expected}
@@ -1211,7 +1211,7 @@ class TestShortCircuitWithTeardown:
                 raise ValueError("unexpected")
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
-            tis = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)
+            tis = dagrun.get_task_instances()
             ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
@@ -1238,7 +1238,7 @@ class TestShortCircuitWithTeardown:
             op1 >> t2
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
-            tis = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)
+            tis = dagrun.get_task_instances()
             ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
@@ -1273,7 +1273,7 @@ class TestShortCircuitWithTeardown:
             op1 >> t2
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
-            tis = DagRun.get_task_instances(dag_id=dagrun.dag_id, run_id=dagrun.run_id, dag=dagrun.dag)
+            tis = dagrun.get_task_instances()
             ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
