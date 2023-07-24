@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 def initdb(args):
     """Initializes the metadata database."""
     warnings.warn(
-        "Subcommand `init` is deprecated.  Use `sync` instead for sync the db and/or "
+        "ActionCommand `init` is deprecated.  Use `sync` instead for sync the db and/or "
         "create-default-connections to create the default connections",
         DeprecationWarning,
     )
@@ -61,7 +61,7 @@ def resetdb(args):
 
 def upgradedb(args):
     """Upgrades the metadata database."""
-    warnings.warn("Subcommand `updgrade` is deprecated. Use `sync` instead.", DeprecationWarning)
+    warnings.warn("ActionCommand `updgrade` is deprecated. Use `sync` instead.", DeprecationWarning)
     syncdb(args)
 
 
