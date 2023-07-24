@@ -52,6 +52,11 @@ class BaseAuthManager(LoggingMixin):
         """Return the login page url."""
         ...
 
+    @abstractmethod
+    def get_url_logout(self, **kwargs) -> str:
+        """Return the logout page url."""
+        ...
+
     def get_security_manager_override_class(self) -> type:
         """
         Return the security manager override class.
