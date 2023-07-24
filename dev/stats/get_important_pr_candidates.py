@@ -59,6 +59,7 @@ class PrStat:
     def __init__(self, g, pull_request: PullRequest):
         self.g = g
         self.pull_request = pull_request
+        self.title = pull_request.title
         self._users: set[str] = set()
         self.len_comments: int = 0
         self.comment_reactions: int = 0
@@ -319,7 +320,7 @@ DEFAULT_TOP_PRS = 10
 @click.option(
     "--rate-limit",
     is_flag="True",
-    help="Print API rate limit reset time using system time and requests remaining",
+    help="Print API rate limit reset time using system time, and requests remaining",
 )
 def main(
     github_token: str,
@@ -335,9 +336,10 @@ def main(
 
     if rate_limit:
         r = g.get_rate_limit()
+        requests_remaining: int = r.core.remaining
         console.print(
             f"[blue]GitHub API Rate Limit Info\n"
-            f"[green]Requests remaining: [red]{r.core.remaining}\n"
+            f"[green]Requests remaining: [red]{requests_remaining}\n"
             f"[green]Reset time: [blue]{r.core.reset.astimezone()}"
         )
 
@@ -346,43 +348,45 @@ def main(
         console.print("Loading PRs from cache and recalculating scores.")
         selected_prs = pickle.load(load, encoding="bytes")
         issue_num = 0
-        for pr_stat in selected_prs:
+        for pr in selected_prs:
             issue_num += 1
             console.print(
-                f"[green]Loading PR: #{pr_stat.pull_request.number} `{pr_stat.pull_request.title}`.[/]"
-                f" Score: {pr_stat.score}."
-                f" Url: {pr_stat.pull_request.html_url}"
+                f"[green]Loading PR: #{pr.pull_request.number} `{pr.pull_request.title}`.[/]"
+                f" Score: {pr.score}."
+                f" Url: {pr.pull_request.html_url}"
             )
 
             if verbose:
-                console.print(pr_stat.verboseStr())
+                console.print(pr.verboseStr())
 
     else:
         console.print(f"Finding best candidate PRs between {date_start} and {date_end}.")
         repo = g.get_repo("apache/airflow")
         commits = repo.get_commits(since=date_start, until=date_end)
-        pulls = [pull for commit in commits for pull in commit.get_pulls()]
+        pulls: list[PullRequest] = [pull for commit in commits for pull in commit.get_pulls()]
         issue_num = 0
-        for pr in pulls:
+        scores: dict = {}
+        for pull in pulls:
+            p = PrStat(g=g, pull_request=pull)  # type: ignore
+            scores.update({pull.number: [p.score, pull.title]})
             issue_num += 1
-            pr_stat = PrStat(pull_request=pr, g=g)  # type: ignore
             console.print(
-                f"[green]Selecting PR: #{pr.number} `{pr.title}` as candidate.[/]"
-                f" Score: {pr_stat.score}."
-                f" Url: {pr.html_url}"
+                f"[green]Selecting PR: #{pull.number} `{pull.title}` as candidate.[/]"
+                f" Score: {scores[pull.number][0]}."
+                f" Url: {pull.html_url}"
             )
 
             if verbose:
-                console.print(pr_stat.verboseStr())
+                console.print(p.verboseStr())
 
-            selected_prs.append(pr_stat)
+            selected_prs.append(p)
             if issue_num == MAX_PR_CANDIDATES:
                 console.print(f"[red]Reached {MAX_PR_CANDIDATES}. Stopping")
                 break
 
     console.print(f"Top {top_number} out of {issue_num} PRs:")
-    for pr_stat in sorted(selected_prs, key=lambda s: -s.score)[:top_number]:
-        console.print(f" * {pr_stat}")
+    for pr_scored in sorted(scores.items(), key=lambda s: s[1], reverse=True)[:top_number]:
+        console.print(f"[green] * PR #{pr_scored[0]}: {pr_scored[1][1]}. Score: [magenta]{pr_scored[1][0]}")
 
     if save:
         pickle.dump(selected_prs, save)
@@ -392,6 +396,7 @@ def main(
         console.print(
             f"[blue]GitHub API Rate Limit Info\n"
             f"[green]Requests remaining: [red]{r.core.remaining}\n"
+            f"[green]Requests made: [red]{requests_remaining - r.core.remaining}\n"
             f"[green]Reset time: [blue]{r.core.reset.astimezone()}"
         )
 
