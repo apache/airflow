@@ -210,7 +210,7 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     run_id = www_request.args.get("run_id")
     # First check run id, then check execution date, if not fall back on the latest dagrun
     if run_id:
-        dagrun = DAG.get_dagrun(dag_id=dag.dag_id, run_id=run_id, session=session)
+        dagrun = dag.get_dagrun(run_id=run_id, session=session)
         date_time = dagrun.execution_date
     elif date_time:
         date_time = _safe_parse_datetime(date_time)
@@ -1436,7 +1436,7 @@ class Airflow(AirflowBaseView):
 
         logging.info("Retrieving rendered templates.")
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=dttm, session=session)
+        dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
         title = "Rendered Template"
@@ -1554,7 +1554,7 @@ class Airflow(AirflowBaseView):
 
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=dttm, session=session)
+        dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
 
         if not ti:
@@ -2382,7 +2382,7 @@ class Airflow(AirflowBaseView):
         confirmed = request.form.get("confirmed") == "true"
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dr = DAG.get_dagrun(dag_id=dag.dag_id, run_id=dag_run_id)
+        dr = dag.get_dagrun(run_id=dag_run_id)
         start_date = dr.logical_date
         end_date = dr.logical_date
 
@@ -3128,7 +3128,7 @@ class Airflow(AirflowBaseView):
 
         dt_nr_dr_data["arrange"] = arrange
         dttm = dt_nr_dr_data["dttm"]
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=dttm)
+        dag_run = dag.get_dagrun(execution_date=dttm)
         dag_run_id = dag_run.run_id if dag_run else None
 
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
@@ -3618,7 +3618,7 @@ class Airflow(AirflowBaseView):
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data["dttm"]
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=dttm)
+        dag_run = dag.get_dagrun(execution_date=dttm)
         dag_run_id = dag_run.run_id if dag_run else None
 
         form = DateTimeWithNumRunsWithDagRunsForm(data=dt_nr_dr_data)

@@ -128,7 +128,7 @@ def set_state(
         raise ValueError("Received tasks with no DAG")
 
     if execution_date:
-        run_id = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=execution_date, session=session).run_id
+        run_id = dag.get_dagrun(execution_date=execution_date, session=session).run_id
     if not run_id:
         raise ValueError("Received tasks with no run_id")
 
@@ -323,7 +323,7 @@ def get_execution_dates(
 def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASession = NEW_SESSION):
     """Return DAG executions' run_ids."""
     last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
-    current_dagrun = DAG.get_dagrun(dag_id=dag.dag_id, run_id=run_id, session=session)
+    current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
     first_dagrun = session.scalar(
         select(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.execution_date.asc()).limit(1)
     )
@@ -402,7 +402,7 @@ def set_dag_run_state_to_success(
     if execution_date:
         if not timezone.is_localized(execution_date):
             raise ValueError(f"Received non-localized date {execution_date}")
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=execution_date)
+        dag_run = dag.get_dagrun(execution_date=execution_date)
         if not dag_run:
             raise ValueError(f"DagRun with execution_date: {execution_date} not found")
         run_id = dag_run.run_id
@@ -455,7 +455,7 @@ def set_dag_run_state_to_failed(
     if execution_date:
         if not timezone.is_localized(execution_date):
             raise ValueError(f"Received non-localized date {execution_date}")
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=execution_date)
+        dag_run = dag.get_dagrun(execution_date=execution_date)
         if not dag_run:
             raise ValueError(f"DagRun with execution_date: {execution_date} not found")
         run_id = dag_run.run_id
@@ -548,7 +548,7 @@ def __set_dag_run_state_to_running_or_queued(
 
         if not timezone.is_localized(execution_date):
             raise ValueError(f"Received non-localized date {execution_date}")
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=execution_date)
+        dag_run = dag.get_dagrun(execution_date=execution_date)
         if not dag_run:
             raise ValueError(f"DagRun with execution_date: {execution_date} not found")
         run_id = dag_run.run_id

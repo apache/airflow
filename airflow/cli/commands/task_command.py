@@ -107,7 +107,7 @@ def _get_dag_run(
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     execution_date: pendulum.DateTime | None = None
     if exec_date_or_run_id:
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, run_id=exec_date_or_run_id, session=session)
+        dag_run = dag.get_dagrun(run_id=exec_date_or_run_id, session=session)
         if dag_run:
             return dag_run, False
         with suppress(ParserError, TypeError):

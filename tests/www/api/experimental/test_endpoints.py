@@ -29,7 +29,6 @@ import pytest
 from airflow import settings
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
-from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, parse as parse_datetime, utcnow
@@ -182,7 +181,7 @@ class TestApiExperimental(TestBase):
         response = json.loads(response.data.decode("utf-8"))
         dagbag = DagBag()
         dag = dagbag.get_dag("example_bash_operator")
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=response_execution_date)
+        dag_run = dag.get_dagrun(response_execution_date)
         dag_run_id = dag_run.run_id
         assert run_id == dag_run_id
         assert dag_run_id == response["run_id"]
@@ -205,7 +204,7 @@ class TestApiExperimental(TestBase):
 
         dagbag = DagBag()
         dag = dagbag.get_dag(dag_id)
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=execution_date)
+        dag_run = dag.get_dagrun(execution_date)
         assert dag_run, f"Dag Run not found for execution date {execution_date}"
 
         # Test correct execution with execution date and microseconds replaced
@@ -220,7 +219,7 @@ class TestApiExperimental(TestBase):
 
         dagbag = DagBag()
         dag = dagbag.get_dag(dag_id)
-        dag_run = DAG.get_dagrun(dag_id=dag.dag_id, execution_date=response_execution_date)
+        dag_run = dag.get_dagrun(response_execution_date)
         assert dag_run, f"Dag Run not found for execution date {execution_date}"
 
         # Test error for nonexistent dag
