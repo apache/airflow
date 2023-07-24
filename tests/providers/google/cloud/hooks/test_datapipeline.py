@@ -36,9 +36,9 @@ from airflow.providers.google.cloud.hooks.datapipeline import (
 )
 
 TASK_ID = "test-datapipeline-operators"
-TEST_NAME = "projects/test-datapipeline-operators/locations/test-location"
+TEST_NAME = "projects/test-project-id/locations/test-location"
 TEST_BODY = {
-    "name": "projects/test-datapipeline-operators/locations/test-location/pipelines/test-pipeline",
+    "name": "projects/test-project-id/locations/test-location/pipelines/test-pipeline",
             "type": "PIPELINE_TYPE_BATCH",
             "workload": {
                 "dataflowFlexTemplateRequest": {
@@ -62,7 +62,7 @@ TEST_LOCATION = "test-location"
 TEST_PROJECTID = "test-project-id"
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_DATA_PIPELINE_NAME = "test_data_pipeline_name"
-TEST_PARENT = "projects/test-datapipeline-operators/locations/test-location/pipelines/test-pipeline"
+TEST_PARENT = "projects/test-project-id/locations/test-location"
 
 class TestDataPipelineHook:
     """
@@ -79,11 +79,11 @@ class TestDataPipelineHook:
         Test that get_conn is called with the correct params and 
         returns the correct API address
         """
-        result = self.datapipeline_hook.get_conn()
+        connection = self.datapipeline_hook.get_conn()
         mock_build.assert_called_once_with(
             "datapipelines", "v1", http=mock_authorize.return_value, cache_discovery=False
         )
-        assert mock_build.return_value == result
+        assert mock_build.return_value == connection
 
     @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook.build_parent_name")
     def test_build_parent_name(self, mock_build_parent_name):
@@ -101,9 +101,8 @@ class TestDataPipelineHook:
         )
         assert mock_build_parent_name.return_value == result
 
-    @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook.create_data_pipeline")
     @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook.get_conn")
-    def test_create_data_pipeline(self, datapipeline, mock_connection):
+    def test_create_data_pipeline(self, mock_connection):
         """
         Test that request are called with the correct params
         Test that request returns the correct value
@@ -114,15 +113,13 @@ class TestDataPipelineHook:
 
         result = self.datapipeline_hook.create_data_pipeline(
             body = TEST_BODY,
-            location = TEST_LOCATION,
             project_id = TEST_PROJECTID,
+            location = TEST_LOCATION,
         )
-        mock_request.execute(mock.MagicMock())
         
         # assert that the api is requested 
         mock_request.assert_called_once_with(
             parent = TEST_PARENT,
             body = TEST_BODY,
         )
-
-        assert datapipeline.return_value == result
+        assert result == {"name": TEST_PARENT}
