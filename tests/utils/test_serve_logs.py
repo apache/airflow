@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import jwt
 import pytest
 import time_machine
-from py import path
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.utils.jwt_signer import JWTSigner
@@ -68,14 +68,14 @@ def sample_log(request, tmpdir):
     client = request.getfixturevalue("client")
 
     if client == request.getfixturevalue("client_without_config"):
-        f = tmpdir / "sample.log"
+        f = Path(tmpdir) / "sample.log"
     elif client == request.getfixturevalue("client_with_config"):
-        log_folder = DEFAULT_LOGGING_CONFIG["handlers"]["task"]["base_log_folder"]
-        f = path.local(log_folder) / "sample.log"
+        log_folder = Path(DEFAULT_LOGGING_CONFIG["handlers"]["task"]["base_log_folder"])
+        f = log_folder / "sample.log"
     else:
         raise ValueError(f"Unknown client fixture: {client}")
 
-    f.write(LOG_DATA.encode())
+    f.write_bytes(LOG_DATA.encode())
     return f
 
 
