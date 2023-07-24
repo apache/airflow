@@ -1629,8 +1629,8 @@ def test_restore_and_reload_provider_configuration():
     assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
     conf.restore_core_default_configuration()
     assert conf.providers_configuration_loaded is False
-    with pytest.raises(AirflowConfigException, match="not found"):
-        conf.get("celery", "celery_app_name")
+    # built-in pre-2-7 celery executor
+    assert conf.get("celery", "celery_app_name") == "airflow.executors.celery_executor"
     conf.load_providers_configuration()
     assert conf.providers_configuration_loaded is True
     assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
@@ -1639,7 +1639,7 @@ def test_restore_and_reload_provider_configuration():
 def test_error_when_contributing_to_existing_section():
     from airflow.settings import conf
 
-    try:
+    with conf.make_sure_configuration_loaded(with_providers=True):
         assert conf.providers_configuration_loaded is True
         assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
         conf.restore_core_default_configuration()
@@ -1665,6 +1665,3 @@ def test_error_when_contributing_to_existing_section():
             ):
                 conf.load_providers_configuration()
         assert conf.get("celery", "celery_app_name") == "test"
-    finally:
-        conf.restore_core_default_configuration()
-        conf.load_providers_configuration()

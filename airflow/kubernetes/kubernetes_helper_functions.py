@@ -128,7 +128,7 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
 
 @cache
 def get_logs_task_metadata() -> bool:
-    return conf.getboolean("kubernetes_executor", "logs_task_metadata", fallback=False)
+    return conf.getboolean("kubernetes_executor", "logs_task_metadata")
 
 
 def annotations_for_logging_task_metadata(annotation_set):

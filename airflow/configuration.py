@@ -163,7 +163,6 @@ def retrieve_configuration_description(
     :param include_airflow: Include Airflow configs
     :param include_providers: Include provider configs
     :param selected_provider: If specified, include selected provider only
-    :param config_file_name: name of the file in "config_templates" directory to read default config from
     :return: Python dictionary containing configs & their info
     """
     base_configuration_description: dict[str, dict[str, Any]] = {}
@@ -208,6 +207,7 @@ class AirflowConfigParser(ConfigParser):
         # interpolation placeholders. The _default_values config parser will interpolate them
         # properly when we call get() on it.
         self._default_values = create_default_config_parser(self.configuration_description)
+        self._pre_2_7_default_values = create_pre_2_7_defaults()
         if default_config is not None:
             self._update_defaults_from_string(default_config)
         self._update_logging_deprecated_template_to_one_from_defaults()
@@ -286,6 +286,10 @@ class AirflowConfigParser(ConfigParser):
         if raw and value is not None:
             return value.replace("%", "%%")
         return value
+
+    def get_default_pre_2_7_value(self, section: str, key: str, **kwargs) -> Any:
+        """Get pre 2.7 default config values."""
+        return self._pre_2_7_default_values.get(section, key, fallback=None, **kwargs)
 
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}_cmd" pattern, the idea behind this
@@ -1043,6 +1047,11 @@ class AirflowConfigParser(ConfigParser):
         # ...then the default config
         if self.get_default_value(section, key) is not None or "fallback" in kwargs:
             return expand_env_var(self.get_default_value(section, key, **kwargs))
+
+        if self.get_default_pre_2_7_value(section, key) is not None:
+            # no expansion needed
+            return self.get_default_pre_2_7_value(section, key, **kwargs)
+
         if not suppress_warnings:
             log.warning("section/key [%s/%s] not found in config", section, key)
 
@@ -1402,7 +1411,10 @@ class AirflowConfigParser(ConfigParser):
                 )
 
         config_sources: ConfigSourcesType = {}
+
+        # We check sequentially all those sources and the last one we saw it in will "win"
         configs: Iterable[tuple[str, ConfigParser]] = [
+            ("default-pre-2-7", self._pre_2_7_default_values),
             ("default", self._default_values),
             ("airflow.cfg", self),
         ]
@@ -1735,6 +1747,7 @@ class AirflowConfigParser(ConfigParser):
             if display_source:
                 updated_source_name = source_name
                 if source_name == "default":
+                    # defaults can come from other sources (default-<PROVIDER>) that should be used here
                     source_description_section = configuration_description.get(section, {})
                     source_description_key = source_description_section.get("options", {}).get(k, {})
                     if source_description_key is not None:
@@ -1927,6 +1940,18 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
                 else:
                     parser.set(section, key, default_value.format(**all_vars))
     return parser
+
+
+def create_pre_2_7_defaults() -> ConfigParser:
+    """
+    Creates parser using the old defaults from Airflow < 2.7.0, in order to be able to fall-back to those
+    defaults when old version of provider, not supporting "config contribution" is installed with Airflow
+    2.7.0+. This "default" configuration does not support variable expansion, those are pretty much
+    hard-coded defaults we want to fall-back to in such case.
+    """
+    config_parser = ConfigParser()
+    config_parser.read(_default_config_file_path("pre_2_7_defaults.cfg"))
+    return config_parser
 
 
 def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
