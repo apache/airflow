@@ -22,7 +22,6 @@ import base64
 import datetime
 import json
 import logging
-from functools import cached_property
 from typing import Any
 from uuid import uuid4
 
@@ -34,7 +33,6 @@ from flask_appbuilder.const import (
     AUTH_LDAP,
     AUTH_OAUTH,
     AUTH_OID,
-    AUTH_REMOTE_USER,
     LOGMSG_ERR_SEC_ADD_REGISTER_USER,
     LOGMSG_ERR_SEC_AUTH_LDAP,
     LOGMSG_ERR_SEC_AUTH_LDAP_TLS,
@@ -66,14 +64,14 @@ from flask_appbuilder.security.views import (
     UserRemoteUserModelView,
     UserStatsChartView,
 )
-from flask_babel import lazy_gettext as _
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.configuration import auth_manager, conf
+from airflow.configuration import conf
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
@@ -207,12 +205,6 @@ class BaseSecurityManager:
     actionmodelview = PermissionModelView
     userstatschartview = UserStatsChartView
     permissionmodelview = PermissionModelView
-
-    @cached_property
-    def resourcemodelview(self):
-        from airflow.www.views import ResourceModelView
-
-        return ResourceModelView
 
     def __init__(self, appbuilder):
         self.appbuilder = appbuilder
@@ -375,11 +367,6 @@ class BaseSecurityManager:
         return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
 
     @property
-    def auth_type(self):
-        """Get the auth type."""
-        return self.appbuilder.get_app.config["AUTH_TYPE"]
-
-    @property
     def auth_username_ci(self):
         """Gets the auth username for CI."""
         return self.appbuilder.get_app.config.get("AUTH_USERNAME_CI", True)
@@ -530,17 +517,9 @@ class BaseSecurityManager:
         return self.appbuilder.get_app.config["OAUTH_PROVIDERS"]
 
     @property
-    def is_auth_limited(self) -> bool:
-        return self.appbuilder.get_app.config["AUTH_RATE_LIMITED"]
-
-    @property
-    def auth_rate_limit(self) -> str:
-        return self.appbuilder.get_app.config["AUTH_RATE_LIMIT"]
-
-    @property
     def current_user(self):
         """Current user object."""
-        if auth_manager.is_logged_in():
+        if get_auth_manager().is_logged_in():
             return g.user
         elif current_user_jwt:
             return current_user_jwt
@@ -731,114 +710,6 @@ class BaseSecurityManager:
         jwt_decoded_payload = json.loads(decoded_payload.decode("utf-8"))
 
         return jwt_decoded_payload
-
-    def register_views(self):
-        if not self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEWS", True):
-            return
-
-        if self.auth_user_registration:
-            if self.auth_type == AUTH_DB:
-                self.registeruser_view = self.registeruserdbview()
-            elif self.auth_type == AUTH_OID:
-                self.registeruser_view = self.registeruseroidview()
-            elif self.auth_type == AUTH_OAUTH:
-                self.registeruser_view = self.registeruseroauthview()
-            if self.registeruser_view:
-                self.appbuilder.add_view_no_menu(self.registeruser_view)
-
-        self.appbuilder.add_view_no_menu(self.resetpasswordview())
-        self.appbuilder.add_view_no_menu(self.resetmypasswordview())
-        self.appbuilder.add_view_no_menu(self.userinfoeditview())
-
-        if self.auth_type == AUTH_DB:
-            self.user_view = self.userdbmodelview
-            self.auth_view = self.authdbview()
-
-        elif self.auth_type == AUTH_LDAP:
-            self.user_view = self.userldapmodelview
-            self.auth_view = self.authldapview()
-        elif self.auth_type == AUTH_OAUTH:
-            self.user_view = self.useroauthmodelview
-            self.auth_view = self.authoauthview()
-        elif self.auth_type == AUTH_REMOTE_USER:
-            self.user_view = self.userremoteusermodelview
-            self.auth_view = self.authremoteuserview()
-        else:
-            self.user_view = self.useroidmodelview
-            self.auth_view = self.authoidview()
-            if self.auth_user_registration:
-                pass
-                # self.registeruser_view = self.registeruseroidview()
-                # self.appbuilder.add_view_no_menu(self.registeruser_view)
-
-        self.appbuilder.add_view_no_menu(self.auth_view)
-
-        # this needs to be done after the view is added, otherwise the blueprint
-        # is not initialized
-        if self.is_auth_limited:
-            self.limiter.limit(self.auth_rate_limit, methods=["POST"])(self.auth_view.blueprint)
-
-        self.user_view = self.appbuilder.add_view(
-            self.user_view,
-            "List Users",
-            icon="fa-user",
-            label=_("List Users"),
-            category="Security",
-            category_icon="fa-cogs",
-            category_label=_("Security"),
-        )
-
-        role_view = self.appbuilder.add_view(
-            self.rolemodelview,
-            "List Roles",
-            icon="fa-group",
-            label=_("List Roles"),
-            category="Security",
-            category_icon="fa-cogs",
-        )
-        role_view.related_views = [self.user_view.__class__]
-
-        if self.userstatschartview:
-            self.appbuilder.add_view(
-                self.userstatschartview,
-                "User's Statistics",
-                icon="fa-bar-chart-o",
-                label=_("User's Statistics"),
-                category="Security",
-            )
-        if self.auth_user_registration:
-            self.appbuilder.add_view(
-                self.registerusermodelview,
-                "User's Statistics",
-                icon="fa-user-plus",
-                label=_("User Registrations"),
-                category="Security",
-            )
-        self.appbuilder.menu.add_separator("Security")
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
-            self.appbuilder.add_view(
-                self.actionmodelview,
-                "Actions",
-                icon="fa-lock",
-                label=_("Actions"),
-                category="Security",
-            )
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
-            self.appbuilder.add_view(
-                self.resourcemodelview,
-                "Resources",
-                icon="fa-list-alt",
-                label=_("Resources"),
-                category="Security",
-            )
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
-            self.appbuilder.add_view(
-                self.permissionmodelview,
-                "Permission Pairs",
-                icon="fa-link",
-                label=_("Permissions"),
-                category="Security",
-            )
 
     def create_db(self):
         """Setups the DB, creates admin and public roles if they don't exist."""
@@ -1415,7 +1286,7 @@ class BaseSecurityManager:
         return result
 
     def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
-        if auth_manager.is_logged_in():
+        if get_auth_manager().is_logged_in():
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
             return self._get_user_permission_resources(

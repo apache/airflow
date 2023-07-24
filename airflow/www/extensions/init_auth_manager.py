@@ -14,33 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Session authentication backend."""
 from __future__ import annotations
 
-from functools import wraps
-from typing import Any, Callable, TypeVar, cast
-
-from flask import Response
-
-from airflow.www.extensions.init_auth_manager import get_auth_manager
-
-CLIENT_AUTH: tuple[str, str] | Any | None = None
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.compat.functools import cache
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 
 
-def init_app(_):
-    """Initialize authentication backend."""
+@cache
+def get_auth_manager() -> BaseAuthManager:
+    """
+    Initialize auth manager.
 
+    Import the user manager class, instantiate it and return it.
+    """
+    auth_manager_cls = conf.getimport(section="core", key="auth_manager")
 
-T = TypeVar("T", bound=Callable)
+    if not auth_manager_cls:
+        raise AirflowConfigException(
+            "No auth manager defined in the config. "
+            "Please specify one using section/key [core/auth_manager]."
+        )
 
-
-def requires_authentication(function: T):
-    """Decorate functions that require authentication."""
-
-    @wraps(function)
-    def decorated(*args, **kwargs):
-        if not get_auth_manager().is_logged_in():
-            return Response("Unauthorized", 401, {})
-        return function(*args, **kwargs)
-
-    return cast(T, decorated)
+    return auth_manager_cls()

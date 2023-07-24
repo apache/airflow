@@ -20,6 +20,7 @@ from __future__ import annotations
 from flask_login import current_user
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
 
 
 class FabAuthManager(BaseAuthManager):
@@ -43,3 +44,7 @@ class FabAuthManager(BaseAuthManager):
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
         return current_user and not current_user.is_anonymous
+
+    def get_security_manager_override_class(self) -> type:
+        """Return the security manager override."""
+        return FabAirflowSecurityManagerOverride
