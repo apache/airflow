@@ -1984,6 +1984,16 @@ class TestDag:
         dag.test()
         mock_object.assert_called_with([0, 1, 2, 3, 4])
 
+    @pytest.mark.execution_timeout
+    def test_deferrable_operator(self, dag_maker):
+        from airflow.sensors.date_time import DateTimeSensorAsync
+
+        with dag_maker(
+            dag_id="test_deferrable", is_paused_upon_creation=True, start_date=DEFAULT_DATE
+        ) as dag:
+            DateTimeSensorAsync(task_id="wait", target_time=datetime.datetime.now() + timedelta(seconds=1))
+        dag.test()
+
     def test_dag_connection_file(self):
         test_connections_string = """
 ---
