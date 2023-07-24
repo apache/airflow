@@ -17,13 +17,7 @@
  * under the License.
  */
 
-import React, {
-  useRef,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { Box, useTheme, Select, Text } from "@chakra-ui/react";
 import ReactFlow, {
   ReactFlowProvider,
@@ -74,7 +68,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     data: { dagRuns, groups },
   } = useGridData();
   const { colors } = useTheme();
-  const { setCenter, getZoom, fitView } = useReactFlow();
+  const { getZoom, fitView } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
   const offsetTop = useOffsetTop(graphRef);
 
@@ -102,34 +96,19 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     ]
   );
 
-  const focusNode = useCallback(
-    (selectedNode: ReactFlowNode<CustomNodeProps>, duration = 0) => {
-      if (selectedNode) {
-        const zoom = getZoom();
-        const x = selectedNode.positionAbsolute?.x || selectedNode.position.x;
-        const y = selectedNode.positionAbsolute?.y || selectedNode.position.y;
-        if (x !== undefined && y !== undefined) {
-          setCenter(
-            x + (selectedNode.data.width || 0) / 2,
-            y + (selectedNode.data.height || 0) / 2,
-            { duration, zoom }
-          );
-        }
-      }
-    },
-    [setCenter, getZoom]
-  );
-
-  // Zoom to/from nodes when changing selection
+  // Zoom to/from nodes when changing selection, maintain zoom level when changing task selection
   useEffect(() => {
     if (hasRendered) {
+      const zoom = getZoom();
       fitView({
         duration: 750,
         nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
+        minZoom: selected.taskId ? zoom : undefined,
+        maxZoom: selected.taskId ? zoom : undefined,
       });
     }
     setHasRendered(true);
-  }, [focusNode, nodes, fitView, hasRendered, selected.taskId]);
+  }, [fitView, hasRendered, selected.taskId, getZoom]);
 
   const edges = buildEdges({
     edges: graphData?.edges,
