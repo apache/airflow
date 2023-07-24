@@ -32,7 +32,7 @@ class TestMigrateDatabaseJob:
                     "serviceAccount": {"create": True},
                 },
             },
-            show_only=["templates/webserver/migrate-database-job-serviceaccount.yaml"],
+            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
@@ -43,7 +43,7 @@ class TestMigrateDatabaseJob:
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },
-            show_only=["templates/webserver/migrate-database-job-serviceaccount.yaml"],
+            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 

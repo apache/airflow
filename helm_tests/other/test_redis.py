@@ -49,7 +49,7 @@ class TestRedis:
                     "serviceAccount": {"create": True},
                 },
             },
-            show_only=["templates/webserver/redis-serviceaccount.yaml"],
+            show_only=["templates/redis/redis-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
@@ -60,7 +60,7 @@ class TestRedis:
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },
-            show_only=["templates/webserver/redis-serviceaccount.yaml"],
+            show_only=["templates/redis/redis-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 
