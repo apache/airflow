@@ -170,6 +170,17 @@ class TestDruidHook:
         assert hook.get_conn_url() == "https://test_host:1/ingest"
 
     @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
+    def test_get_conn_url_with_endpoint(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "https"
+        get_conn_value.port = "1"
+        get_conn_value.extra_dejson = {"endpoint": "ingest"}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidHook(timeout=1, max_ingestion_time=5)
+        assert hook.get_conn_url("sql_ingest") == "https://test_host:1/sql_ingest"
+
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
     def test_get_auth(self, mock_get_connection):
         get_conn_value = MagicMock()
         get_conn_value.login = "airflow"
