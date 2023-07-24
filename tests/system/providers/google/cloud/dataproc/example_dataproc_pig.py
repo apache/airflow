@@ -35,9 +35,8 @@ DAG_ID = "dataproc_pig"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-CLUSTER_NAME = f"cluster-dataproc-pig-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 REGION = "europe-west1"
-ZONE = "europe-west1-b"
 
 
 # Cluster definition
@@ -53,8 +52,6 @@ CLUSTER_CONFIG = {
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
 }
-
-TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
 
 # Jobs definitions
 # [START how_to_cloud_dataproc_pig_config]
