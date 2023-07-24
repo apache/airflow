@@ -1618,7 +1618,10 @@ VARIABLES_COMMANDS = (
 DB_COMMANDS = (
     ActionCommand(
         name="init",
-        help="Initialize the metadata database",
+        help=(
+        "Deprecated -- use `sync` instead. To create default connections use `create-default-connections`. " 
+        "Initialize the metadata database" 
+        ),
         func=lazy_load_command("airflow.cli.commands.db_command.initdb"),
         args=(ARG_VERBOSE,),
     ),
@@ -1637,7 +1640,7 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name="upgrade",
-        help="Upgrade the metadata database to latest version",
+        help="Deprecated -- use `sync` instead. Upgrade the metadata database to latest version",
         description=(
             "Upgrade the schema of the metadata database. "
             "To print but not execute commands, use option ``--show-sql-only``. "
@@ -1646,6 +1649,27 @@ DB_COMMANDS = (
             "migrate from the *current* Alembic revision."
         ),
         func=lazy_load_command("airflow.cli.commands.db_command.upgradedb"),
+        args=(
+            ARG_DB_REVISION__UPGRADE,
+            ARG_DB_VERSION__UPGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_DB_RESERIALIZE_DAGS,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="sync",
+        help="Syncs the metadata database to the latest version",
+        description=(
+            "Upgrade the schema of the metadata database. "
+            "To print but not execute commands, use option ``--show-sql-only``. "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use "
+            "``--show-sql-only``, because if actually *running* migrations, we should only "
+            "migrate from the *current* Alembic revision."
+        ),
+        func=lazy_load_command("airflow.cli.commands.db_command.syncdb"),
         args=(
             ARG_DB_REVISION__UPGRADE,
             ARG_DB_VERSION__UPGRADE,
@@ -1720,6 +1744,12 @@ DB_COMMANDS = (
         help="Drop archived tables created through the db clean command",
         func=lazy_load_command("airflow.cli.commands.db_command.drop_archived"),
         args=(ARG_DB_TABLES, ARG_YES),
+    ),
+    ActionCommand(
+        name="create-default-connections",
+        help="Creates all the default connections from all the providers",
+        func=lazy_load_command("airflow.utils.db.create_default_connections"),
+        args=(ARG_VERBOSE,),
     ),
 )
 CONNECTIONS_COMMANDS = (
