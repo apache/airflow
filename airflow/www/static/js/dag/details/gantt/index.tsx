@@ -69,6 +69,15 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
     const { scrollTop } = e.currentTarget as HTMLDivElement;
     if (scrollTop && ganttScrollRef?.current) {
       ganttScrollRef.current.scrollTo(0, scrollTop);
+
+      // Double check scroll position after 100ms
+      setTimeout(() => {
+        const gridScrollTop = gridScrollRef.current?.scrollTop;
+        const ganttScrollTop = ganttScrollRef.current?.scrollTop;
+        if (ganttScrollTop !== gridScrollTop && ganttScrollRef.current) {
+          ganttScrollRef.current.scrollTo(0, gridScrollTop || 0);
+        }
+      }, 100);
     }
   };
 
@@ -94,14 +103,6 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
     }
     return () => {};
   }, [ganttRef, calculateGanttDimensions]);
-
-  const checkScrollPosition = () => {
-    const gridScrollTop = gridScrollRef.current?.scrollTop;
-    const ganttScrollTop = ganttScrollRef.current?.scrollTop;
-    if (ganttScrollTop !== gridScrollTop && gridScrollRef.current) {
-      gridScrollRef.current.scrollTo(0, ganttScrollTop || 0);
-    }
-  };
 
   const dagRun = dagRuns.find((dr) => dr.runId === runId);
 
@@ -160,7 +161,6 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
                 openGroupIds={openGroupIds}
                 dagRun={dagRun}
                 task={c}
-                checkScrollPosition={checkScrollPosition}
                 key={`gantt-${c.id}`}
               />
             ))}

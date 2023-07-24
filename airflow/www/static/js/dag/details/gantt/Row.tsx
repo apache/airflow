@@ -32,16 +32,9 @@ interface Props {
   openGroupIds: string[];
   dagRun: DagRun;
   task: Task;
-  checkScrollPosition: () => void;
 }
 
-const Row = ({
-  ganttWidth = 500,
-  openGroupIds,
-  task,
-  dagRun,
-  checkScrollPosition,
-}: Props) => {
+const Row = ({ ganttWidth = 500, openGroupIds, task, dagRun }: Props) => {
   const {
     selected: { runId, taskId },
     onSelect,
@@ -104,7 +97,6 @@ const Row = ({
                   runId: instance.runId,
                   taskId: instance.taskId,
                 });
-                checkScrollPosition();
               }}
             >
               {instance.state !== "queued" && hasQueuedDttm && (
@@ -137,7 +129,6 @@ const Row = ({
             openGroupIds={openGroupIds}
             dagRun={dagRun}
             task={c}
-            checkScrollPosition={checkScrollPosition}
             key={`gantt-${c.id}`}
           />
         ))}

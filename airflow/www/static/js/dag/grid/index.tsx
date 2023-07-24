@@ -75,14 +75,15 @@ const Grid = ({
     const { scrollTop } = e.currentTarget as HTMLDivElement;
     if (scrollTop && gridScrollRef?.current) {
       gridScrollRef.current.scrollTo(0, scrollTop);
-    }
-  };
 
-  const checkScrollPosition = () => {
-    const gridScrollTop = gridScrollRef?.current?.scrollTop;
-    const ganttScrollTop = ganttScrollRef?.current?.scrollTop;
-    if (ganttScrollTop !== gridScrollTop && ganttScrollRef?.current) {
-      ganttScrollRef.current.scrollTo(0, gridScrollTop || 0);
+      // Double check the scroll position after 100ms
+      setTimeout(() => {
+        const gridScrollTop = gridScrollRef?.current?.scrollTop;
+        const ganttScrollTop = ganttScrollRef?.current?.scrollTop;
+        if (ganttScrollTop !== gridScrollTop && gridScrollRef?.current) {
+          gridScrollRef.current.scrollTo(0, ganttScrollTop || 0);
+        }
+      }, 100);
     }
   };
 
@@ -185,7 +186,6 @@ const Grid = ({
               onToggleGroups,
               hoveredTaskState,
               isGridCollapsed,
-              checkScrollPosition,
             })}
           </Tbody>
         </Table>
