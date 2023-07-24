@@ -146,8 +146,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-airflow-config-yaml-consistent                      | Check consistency between config.yml and default_config.cfg  |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                          |         |

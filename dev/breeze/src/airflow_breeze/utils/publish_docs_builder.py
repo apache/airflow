@@ -29,11 +29,10 @@ from rich.console import Console
 from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.utils.docs_errors import DocBuildError, parse_sphinx_warnings
 from airflow_breeze.utils.helm_chart_utils import chart_version
-from airflow_breeze.utils.publish_docs_helpers import load_package_data, pretty_format_path
+from airflow_breeze.utils.publish_docs_helpers import CONSOLE_WIDTH, load_package_data, pretty_format_path
 from airflow_breeze.utils.spelling_checks import SpellingError, parse_spelling_warnings
 
 PROCESS_TIMEOUT = 15 * 60
-CONSOLE_WIDTH = 180
 
 ROOT_PROJECT_DIR = Path(__file__).parents[5].resolve()
 DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")

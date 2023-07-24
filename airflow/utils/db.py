@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
     from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql.selectable import Select
 
     from airflow.models.base import Base
     from airflow.models.connection import Connection
@@ -911,8 +912,8 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     # If we have an empty table, and the default values exist, we will seed the
     # table with values from pre 2.3.0, so old logs will still be retrievable.
     if not stored:
-        is_default_log_id = elasticsearch_id == conf.airflow_defaults.get("elasticsearch", "log_id_template")
-        is_default_filename = filename == conf.airflow_defaults.get("logging", "log_filename_template")
+        is_default_log_id = elasticsearch_id == conf.get_default_value("elasticsearch", "log_id_template")
+        is_default_filename = filename == conf.get_default_value("logging", "log_filename_template")
         if is_default_log_id and is_default_filename:
             session.add(
                 LogTemplate(
@@ -1872,3 +1873,17 @@ def get_sqla_model_classes():
         return [mapper.class_ for mapper in Base.registry.mappers]
     except AttributeError:
         return Base._decl_class_registry.values()
+
+
+def get_query_count(query_stmt: Select, session: Session) -> int:
+    """Get count of query.
+
+    A SELECT COUNT() FROM is issued against the subquery built from the
+    given statement. The ORDER BY clause is stripped from the statement
+    since it's unnecessary for COUNT, and can impact query planning and
+    degrade performance.
+
+    :meta private:
+    """
+    count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
+    return session.scalar(count_stmt)
