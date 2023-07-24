@@ -34,9 +34,9 @@ from jwt.exceptions import (
 from setproctitle import setproctitle
 
 from airflow.configuration import conf
-from airflow.logging_config import configure_logging
 from airflow.utils.docs import get_docs_url
 from airflow.utils.jwt_signer import JWTSigner
+from airflow.utils.module_loading import import_string
 
 logger = logging.getLogger(__name__)
 
@@ -45,12 +45,10 @@ def create_app():
     flask_app = Flask(__name__, static_folder=None)
     expiration_time_in_seconds = conf.getint("webserver", "log_request_clock_grace", fallback=30)
     log_directory = os.path.expanduser(conf.get("logging", "BASE_LOG_FOLDER"))
-    log_config_class = configure_logging()
-    if log_config_class is not None:
+    log_config_class = conf.get("logging", "logging_config_class")
+    if log_config_class:
         logger.info("Detected user-defined logging config. Attempting to load %s", log_config_class)
         try:
-            from airflow.utils.module_loading import import_string
-
             logging_config = import_string(log_config_class)
             try:
                 base_log_folder = logging_config["handlers"]["task"]["base_log_folder"]
