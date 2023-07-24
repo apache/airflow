@@ -56,35 +56,30 @@ TEST_BODY = {
 }
 TEST_LOCATION = "test-location"
 TEST_PROJECTID = "test-project-id"
-TEST_GCP_CONN_ID = "test_gcp_conn_id"
-TEST_DATA_PIPELINE_NAME = "test_data_pipeline_name"
-TEST_PARENT = "projects/test-datapipeline-operators/locations/test-location/pipelines/test-pipeline"
+TEST_GCP_CONN_ID = "test-gcp-conn-id"
+TEST_DATA_PIPELINE_NAME = "test-data-pipeline-name"
+TEST_PARENT = "projects/test-project-id/locations/test-location/pipelines/test-data-pipeline-name"
+TEST_JOB_ID = "test-job-id"
 
 class TestDataPipelineHook:
     def setup_method(self):
         self.datapipeline_hook = DataPipelineHook(gcp_conn_id="google_cloud_default")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook.run_data_pipeline")
-    @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.get_conn")
-    def test_datapipeline_hook_call_run_api(self, mock_datapipeline_hook, mock_connection):
+    @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook.get_conn")
+    def test_run_data_pipeline(self, mock_connection):
         """Test that run_data_pipeline is called with correct parameters and
-           calls Data Pipelines API
+           calls Google Data Pipelines API
         """
-        mock_locations = mock_connection.return_value.projects.return_value.locations #get location of mock
-        mock_request = mock_locations.return_value.pipelines.return_value.run #mock run API
-        mock_request.return_value.execute.return_value = {"job"}
-
-        response = self.datapipeline_hook.run_data_pipeline(
+        mock_request = mock_connection.return_value.projects.return_value.locations.return_value.pipelines.return_value.run #mock run API
+        mock_request.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
+ 
+        self.datapipeline_hook.run_data_pipeline(
             data_pipeline_name=TEST_DATA_PIPELINE_NAME,
             project_id=TEST_PROJECTID,
             location=TEST_LOCATION,
         )
 
         mock_request.assert_called_once_with(
-            name = TEST_DATA_PIPELINE_NAME,
+            name = TEST_PARENT,
             body = {},
         )
-
-        #notes:
-        # call run_data_pipeline on class hook with test params
-        # 
