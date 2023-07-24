@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import os
 import textwrap
+import warnings
 from tempfile import NamedTemporaryFile
 
 from packaging.version import parse as parse_version
@@ -39,6 +40,9 @@ log = logging.getLogger(__name__)
 @providers_configuration_loaded
 def initdb(args):
     """Initializes the metadata database."""
+    warnings.warn("Subcommand `init` is deprecated.  Use `sync` instead for sync the db and/or "
+                  "create-default-connections to create the default connections"
+                 , DeprecationWarning)
     print("DB: " + repr(settings.engine.url))
     db.initdb()
     print("Initialization done")
@@ -52,11 +56,15 @@ def resetdb(args):
         raise SystemExit("Cancelled")
     db.resetdb(skip_init=args.skip_init)
 
-
-@cli_utils.action_cli(check_db=False)
-@providers_configuration_loaded
 def upgradedb(args):
     """Upgrades the metadata database."""
+    warnings.warn("Subcommand `updgrade` is deprecated. Use `sync` instead.", DeprecationWarning)
+    syncdb(args)
+        
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def syncdb(args):
+    """Syncs the metadata database."""
     print("DB: " + repr(settings.engine.url))
     if args.to_revision and args.to_version:
         raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
@@ -85,7 +93,7 @@ def upgradedb(args):
         to_revision = args.to_revision
 
     if not args.show_sql_only:
-        print("Performing upgrade with database " + repr(settings.engine.url))
+        print("Performing upgrade to the metadata database " + repr(settings.engine.url))
     else:
         print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
 
@@ -96,8 +104,7 @@ def upgradedb(args):
         reserialize_dags=args.reserialize_dags,
     )
     if not args.show_sql_only:
-        print("Upgrades done")
-
+        print("Database syncing done!")
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
