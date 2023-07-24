@@ -93,6 +93,14 @@ def init_dagruns(app, reset_dagruns):
             start_date=timezone.utcnow(),
             state=State.RUNNING,
         )
+        app.dag_bag.get_dag("example_task_group").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
     yield
     clear_db_runs()
 
@@ -506,12 +514,27 @@ def test_code_from_db_all_example_dags(admin_client):
             ),
             "example_bash_operator",
         ),
+        (
+            "clear",
+            dict(
+                group_id="section_1",
+                dag_id="example_task_group",
+                execution_date=DEFAULT_DATE,
+                upstream="false",
+                downstream="false",
+                future="false",
+                past="false",
+                only_failed="false",
+            ),
+            "example_task_group",
+        ),
     ],
     ids=[
         "paused",
         "failed-flash-hint",
         "success-flash-hint",
         "clear",
+        "clear-task-group",
     ],
 )
 def test_views_post(admin_client, url, data, content):
