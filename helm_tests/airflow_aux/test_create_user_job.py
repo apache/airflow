@@ -404,7 +404,7 @@ class TestCreateUserJobServiceAccount:
                     "serviceAccount": {"create": True},
                 },
             },
-            show_only=["templates/webserver/create-user-job-serviceaccount.yaml"],
+            show_only=["templates/jobs/create-user-job-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
@@ -415,6 +415,6 @@ class TestCreateUserJobServiceAccount:
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },
-            show_only=["templates/webserver/create-user-job-serviceaccount.yaml"],
+            show_only=["templates/jobs/create-user-job-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
