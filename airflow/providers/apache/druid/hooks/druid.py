@@ -104,7 +104,6 @@ class DruidHook(BaseHook):
         else:
             druid_task_id = req_json["task"]
             druid_task_status_url = f"{url}/{druid_task_id}/status"
-        druid_task_id = req_json["task"]
         self.log.info("Druid indexing task-id: %s", druid_task_id)
 
         running = True
