@@ -73,11 +73,12 @@ class TestDataPipelineHook:
         mock_request = mock_connection.return_value.projects.return_value.locations.return_value.pipelines.return_value.run
         mock_request.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
  
-        self.datapipeline_hook.run_data_pipeline(
+        result = self.datapipeline_hook.run_data_pipeline(
             data_pipeline_name=TEST_DATA_PIPELINE_NAME,
             project_id=TEST_PROJECTID,
             location=TEST_LOCATION,
         )
+        assert result == {"job": {"id": TEST_JOB_ID}}
 
         mock_request.assert_called_once_with(
             name = TEST_PARENT,
