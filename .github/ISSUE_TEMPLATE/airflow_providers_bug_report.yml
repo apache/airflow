@@ -49,6 +49,7 @@ body:
         - cloudant
         - cncf-kubernetes
         - common-sql
+        - daskexecutor
         - databricks
         - datadog
         - dbt-cloud

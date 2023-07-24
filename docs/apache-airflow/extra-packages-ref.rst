@@ -50,7 +50,7 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+--------------+
 | cncf.kubernetes     | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor (also installs the Kubernetes provider package)        |              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+--------------+
-| dask                | ``pip install 'apache-airflow[dask]'``              | DaskExecutor                                                               |              |
+| daskexecutor        | ``pip install 'apache-airflow[daskexecutor]'``      | DaskExecutor  ((also installs the Daskexecutor provider package)           |              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+--------------+
 | deprecated_api      | ``pip install 'apache-airflow[deprecated_api]'``    | Deprecated, experimental API that is replaced with the new REST API        |              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+--------------+
@@ -349,10 +349,10 @@ Those are the extras that are needed to generated documentation for Airflow. Thi
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------+
 
 
-Deprecated 1.10 extras
-----------------------
+Deprecated extras
+-----------------
 
-These are the extras that have been deprecated in 2.0 and will be removed in Airflow 3.0.0. They were
+These are the extras that have been used before and deprecated in 2.0 and will be removed in Airflow 3.0.0. They were
 all replaced by new extras, which have naming consistent with the names of provider packages.
 
 The ``crypto`` extra is not needed any more, because all crypto dependencies are part of airflow package,
@@ -370,6 +370,8 @@ so there is no replacement for ``crypto`` extra.
 | cassandra           | apache.cassandra            |
 +---------------------+-----------------------------+
 | crypto              |                             |
++---------------------+-----------------------------+
+| dask                | daskexecutor                |
 +---------------------+-----------------------------+
 | druid               | apache.druid                |
 +---------------------+-----------------------------+
