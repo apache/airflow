@@ -30,6 +30,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.utils.context import Context
+from airflow.utils.db import exists_query
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -377,7 +378,7 @@ class PlainXComArg(XComArg):
 
         task = self.operator
         if isinstance(task, MappedOperator):
-            unfinished_ti_count_query = session.query(func.count(TaskInstance.map_index)).filter(
+            unfinished_ti_exists = exists_query(
                 TaskInstance.dag_id == task.dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.task_id == task.task_id,
@@ -388,8 +389,9 @@ class PlainXComArg(XComArg):
                     TaskInstance.state.is_(None),
                     TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
                 ),
+                session=session,
             )
-            if unfinished_ti_count_query.scalar():
+            if unfinished_ti_exists:
                 return None  # Not all of the expanded tis are done yet.
             query = session.query(func.count(XCom.map_index)).filter(
                 XCom.dag_id == task.dag_id,

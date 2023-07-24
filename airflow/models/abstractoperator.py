@@ -31,6 +31,7 @@ from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.template.templater import Templater
 from airflow.utils.context import Context
+from airflow.utils.db import exists_query
 from airflow.utils.log.secrets_masker import redact
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import skip_locked, with_row_locks
@@ -593,16 +594,12 @@ class AbstractOperator(Templater, DAGNode):
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
             else:
-                zero_index_ti_exists = (
-                    session.scalar(
-                        select(func.count(TaskInstance.task_id)).where(
-                            TaskInstance.dag_id == self.dag_id,
-                            TaskInstance.task_id == self.task_id,
-                            TaskInstance.run_id == run_id,
-                            TaskInstance.map_index == 0,
-                        )
-                    )
-                    > 0
+                zero_index_ti_exists = exists_query(
+                    TaskInstance.dag_id == self.dag_id,
+                    TaskInstance.task_id == self.task_id,
+                    TaskInstance.run_id == run_id,
+                    TaskInstance.map_index == 0,
+                    session=session,
                 )
                 if not zero_index_ti_exists:
                     # Otherwise convert this into the first mapped index, and create
