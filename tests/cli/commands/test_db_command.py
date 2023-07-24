@@ -39,7 +39,7 @@ class TestCliDb:
     @mock.patch("airflow.cli.commands.db_command.db.initdb")
     def test_cli_initdb(self, mock_initdb):
         with pytest.warns(
-            expected_warning=DeprecationWarning, match="Subcommand `init` is deprecated"
+            expected_warning=DeprecationWarning, match="ActionCommand `init` is deprecated"
         ) as warning_record:
             db_command.initdb(self.parser.parse_args(["db", "init"]))
         assert warning_record
@@ -132,7 +132,7 @@ class TestCliDb:
     @mock.patch("airflow.cli.commands.db_command.syncdb")
     def test_cli_upgrade(self, mock_syncdb):
         with pytest.warns(
-            expected_warning=DeprecationWarning, match="Subcommand `updgrade` is deprecated"
+            expected_warning=DeprecationWarning, match="ActionCommand `updgrade` is deprecated"
         ) as warning_record:
             db_command.upgradedb(self.parser.parse_args(["db", "upgrade"]))
         assert warning_record
