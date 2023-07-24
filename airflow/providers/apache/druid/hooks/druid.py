@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import time
+from enum import Enum
 from typing import Any, Iterable
 
 import requests
@@ -26,6 +27,11 @@ from pydruid.db import connect
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+
+class IngestionType(Enum):
+    BATCH = 1
+    MSQ = 2
 
 
 class DruidHook(BaseHook):
@@ -59,15 +65,16 @@ class DruidHook(BaseHook):
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
 
-    def get_conn_url(self, override_endpoint=None) -> str:
+    def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH) -> str:
         """Get Druid connection url."""
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
         conn_type = conn.conn_type or "http"
-        endpoint = conn.extra_dejson.get("endpoint", "")
-        if override_endpoint:
-            endpoint = override_endpoint
+        if ingestion_type == IngestionType.BATCH:
+            endpoint = conn.extra_dejson.get("endpoint", "")
+        else:
+            endpoint = conn.extra_dejson.get("msq_endpoint", "")
         return f"{conn_type}://{host}:{port}/{endpoint}"
 
     def get_auth(self) -> requests.auth.HTTPBasicAuth | None:
@@ -84,7 +91,9 @@ class DruidHook(BaseHook):
         else:
             return None
 
-    def submit_indexing_job(self, json_index_spec: dict[str, Any] | str) -> None:
+    def submit_indexing_job(
+            self, json_index_spec: dict[str, Any] | str, ingestion_type: IngestionType = IngestionType.BATCH
+    ) -> None:
         """Submit Druid ingestion job."""
         url = self.get_conn_url()
 
@@ -98,12 +107,11 @@ class DruidHook(BaseHook):
 
         req_json = req_index.json()
         # Wait until the job is completed
-        if url.endswith("/druid/v2/sql/task"):
-            druid_task_id = req_json["taskId"]
-            druid_task_status_url = f"{self.get_conn_url('druid/indexer/v1/task')}/{druid_task_id}/status"
-        else:
+        if ingestion_type == IngestionType.BATCH:
             druid_task_id = req_json["task"]
-            druid_task_status_url = f"{url}/{druid_task_id}/status"
+        else:
+            druid_task_id = req_json["taskId"]
+        druid_task_status_url = f"{self.get_conn_url()}/{druid_task_id}/status"
         self.log.info("Druid indexing task-id: %s", druid_task_id)
 
         running = True
