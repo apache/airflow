@@ -42,7 +42,7 @@ class AnonymousUser(AnonymousUserMixin):
     @property
     def perms(self):
         if not self._perms:
-            self._perms = set()
-            for role in self.roles:
-                self._perms.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
+            self._perms = {
+                (perm.action.name, perm.resource.name) for role in self.roles for perm in role.permissions
+            }
         return self._perms
