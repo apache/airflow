@@ -2738,8 +2738,8 @@ class DAG(LoggingMixin):
         )
 
         tasks = self.task_dict
-        # Special case when retry is set and DAG is paused
-        task_try_number: dict[str, int] = {}
+
+        task_try_numbers: dict[tuple[str, int], int] = collections.defaultdict(int)
 
         self.log.debug("starting dagrun")
         # Instead of starting a scheduler, we run the minimal loop possible to check
@@ -2755,16 +2755,16 @@ class DAG(LoggingMixin):
                     _run_task(ti, session=session)
                 except Exception:
                     if ti.state == TaskInstanceState.UP_FOR_RETRY:
-                        try_number = task_try_number.get(f"{ti.task_id}_{ti.map_index}", 0)
+                        try_number = task_try_numbers[ti.task_id, ti.map_index]
                         if try_number > ti.max_tries:
                             ti.set_state(TaskInstanceState.FAILED)
                         else:
-                            task_try_number[f"{ti.task_id}_{ti.map_index}"] = try_number + 1
+                            task_try_numbers[ti.task_id, ti.map_index] = try_number + 1
                     self.log.info(
                         "Task failed. DAG will continue to run until finished and be marked as failed.",
                         exc_info=True,
                     )
-            for ti in dr.get_task_instances(session=session, state=[TaskInstanceState.SCHEDULED]):
+            for ti in dr.get_task_instances(session=session, state=TaskInstanceState.SCHEDULED):
                 if not ti.next_method:
                     continue
                 # Special case: TI resumes from deferred state.
@@ -2773,12 +2773,12 @@ class DAG(LoggingMixin):
                     ti.task = tasks[ti.task_id]
                     _run_task(ti, session=session)
                 except Exception:
-                    try_number = task_try_number.get(f"{ti.task_id}_{ti.map_index}", 0)
+                    try_number = task_try_numbers[ti.task_id, ti.map_index]
                     if try_number > ti.max_tries:
                         ti.set_state(TaskInstanceState.FAILED)
                     else:
                         ti.set_state(TaskInstanceState.UP_FOR_RETRY)
-                        task_try_number[f"{ti.task_id}_{ti.map_index}"] = try_number + 1
+                        task_try_numbers[ti.task_id, ti.map_index] = try_number + 1
 
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
