@@ -231,7 +231,7 @@ class FileTaskHandler(logging.Handler):
 
         with create_session() as session:
             if isinstance(ti_or_ti_key, TaskInstanceKey):
-                ti = TaskInstance.from_ti_key(ti_or_ti_key, session)
+                ti = TaskInstance.get_from_key(ti_or_ti_key, session)
                 if not ti:
                     raise ValueError("TaskInstance not found")
             else:
