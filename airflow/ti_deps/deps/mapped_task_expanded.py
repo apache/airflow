@@ -28,9 +28,13 @@ class MappedTaskIsExpanded(BaseTIDep):
     IS_TASK_DEP = False
 
     def _get_dep_statuses(self, ti, session, dep_context):
+        from airflow.models.operator import needs_expansion
+
         if dep_context.ignore_unmapped_tasks:
             return
-        if ti.map_index == -1:
-            yield self._failing_status(reason="The task has yet to be mapped!")
+        if not needs_expansion(ti.task):
             return
-        yield self._passing_status(reason="The task has been mapped")
+        if ti.map_index == -1:
+            yield self._failing_status(reason="The task has yet to be expanded!")
+            return
+        yield self._passing_status(reason="The task has been expanded")

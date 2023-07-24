@@ -78,6 +78,7 @@ from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -1115,12 +1116,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return self._dag is not None
 
     deps: frozenset[BaseTIDep] = frozenset(
-        {
+        (
             NotInRetryPeriodDep(),
             PrevDagrunDep(),
+            MappedTaskIsExpanded(),
             TriggerRuleDep(),
             NotPreviouslySkippedDep(),
-        }
+        )
     )
     """
     Returns the set of dependencies for the operator. These differ from execution
