@@ -35,7 +35,11 @@ class TestDruidHook:
         session.mount("mock", adapter)
 
         class TestDRuidhook(DruidHook):
-            def get_conn_url(self):
+            self.is_sql_based_ingestion = False
+
+            def get_conn_url(self, override_endpoint=None):
+                if self.is_sql_based_ingestion and not override_endpoint:
+                    return "http://druid-overlord:8081/druid/v2/sql/task"
                 return "http://druid-overlord:8081/druid/indexer/v1/task"
 
         self.db_hook = TestDRuidhook()
@@ -61,6 +65,22 @@ class TestDruidHook:
         task_post = requests_mock.post(
             "http://druid-overlord:8081/druid/indexer/v1/task",
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
+        )
+        status_check = requests_mock.get(
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
+            text='{"status":{"status": "SUCCESS"}}',
+        )
+
+        # Exists just as it should
+        self.db_hook.submit_indexing_job("Long json file")
+
+        assert task_post.called_once
+        assert status_check.called_once
+
+    def test_submit_sql_based_ingestion_ok(self, requests_mock):
+        task_post = requests_mock.post(
+            "http://druid-overlord:8081/druid/v2/sql/task",
+            text='{"taskId":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
         )
         status_check = requests_mock.get(
             "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",

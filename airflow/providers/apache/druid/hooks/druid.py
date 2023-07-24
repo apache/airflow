@@ -59,13 +59,15 @@ class DruidHook(BaseHook):
         if self.timeout < 1:
             raise ValueError("Druid timeout should be equal or greater than 1")
 
-    def get_conn_url(self) -> str:
+    def get_conn_url(self, override_endpoint=None) -> str:
         """Get Druid connection url."""
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
         conn_type = conn.conn_type or "http"
         endpoint = conn.extra_dejson.get("endpoint", "")
+        if override_endpoint:
+            endpoint = override_endpoint
         return f"{conn_type}://{host}:{port}/{endpoint}"
 
     def get_auth(self) -> requests.auth.HTTPBasicAuth | None:
@@ -96,6 +98,12 @@ class DruidHook(BaseHook):
 
         req_json = req_index.json()
         # Wait until the job is completed
+        if url.endswith("/druid/v2/sql/task"):
+            druid_task_id = req_json["taskId"]
+            druid_task_status_url = f"{self.get_conn_url('druid/indexer/v1/task')}/{druid_task_id}/status"
+        else:
+            druid_task_id = req_json["task"]
+            druid_task_status_url = f"{url}/{druid_task_id}/status"
         druid_task_id = req_json["task"]
         self.log.info("Druid indexing task-id: %s", druid_task_id)
 
@@ -103,7 +111,7 @@ class DruidHook(BaseHook):
 
         sec = 0
         while running:
-            req_status = requests.get(f"{url}/{druid_task_id}/status", auth=self.get_auth())
+            req_status = requests.get(druid_task_status_url, auth=self.get_auth())
 
             self.log.info("Job still running for %s seconds...", sec)
 
