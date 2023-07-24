@@ -792,7 +792,7 @@ class TestWorkerServiceAccount:
                     "serviceAccount": {"create": True},
                 },
             },
-            show_only=["templates/webserver/worker-serviceaccount.yaml"],
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
@@ -803,6 +803,6 @@ class TestWorkerServiceAccount:
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },
-            show_only=["templates/webserver/worker-serviceaccount.yaml"],
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False

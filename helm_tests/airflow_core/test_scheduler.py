@@ -811,7 +811,7 @@ class TestSchedulerServiceAccount:
                     "serviceAccount": {"create": True},
                 },
             },
-            show_only=["templates/webserver/scheduler-serviceaccount.yaml"],
+            show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
@@ -822,6 +822,6 @@ class TestSchedulerServiceAccount:
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },
-            show_only=["templates/webserver/scheduler-serviceaccount.yaml"],
+            show_only=["templates/scheduler/scheduler-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False

@@ -369,15 +369,15 @@ class TestCleanupServiceAccount:
                     "enabled": True,
                 },
             },
-            show_only=["templates/webserver/cleanup-serviceaccount.yaml"],
+            show_only=["templates/cleanup/cleanup-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
     def test_overriden_automount_service_account_token(self):
         docs = render_chart(
             values={
-                "cleanup": {"enabled": True, "automountServiceAccountToken": False},
+                "cleanup": {"enabled": True, "serviceAccount": {"automountServiceAccountToken": False}},
             },
-            show_only=["templates/webserver/cleanup-serviceaccount.yaml"],
+            show_only=["templates/cleanup/cleanup-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False

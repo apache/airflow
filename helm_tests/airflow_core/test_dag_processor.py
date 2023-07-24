@@ -30,10 +30,11 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
+                    "enabled": True,
                     "serviceAccount": {"create": True},
                 },
             },
-            show_only=["templates/webserver/dag-processor-serviceaccount.yaml"],
+            show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
@@ -41,10 +42,11 @@ class TestDagProcessor:
         docs = render_chart(
             values={
                 "dagProcessor": {
+                    "enabled": True,
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },
-            show_only=["templates/webserver/dag-processor-serviceaccount.yaml"],
+            show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 

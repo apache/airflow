@@ -33,7 +33,7 @@ class TestStatsd:
                     "serviceAccount": {"create": True},
                 },
             },
-            show_only=["templates/webserver/statsd-serviceaccount.yaml"],
+            show_only=["templates/statsd/statsd-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
@@ -44,7 +44,7 @@ class TestStatsd:
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },
-            show_only=["templates/webserver/statsd-serviceaccount.yaml"],
+            show_only=["templates/statsd/statsd-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 

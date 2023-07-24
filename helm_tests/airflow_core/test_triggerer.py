@@ -598,7 +598,7 @@ class TestTriggererServiceAccount:
                     "serviceAccount": {"create": True},
                 },
             },
-            show_only=["templates/webserver/triggerer-serviceaccount.yaml"],
+            show_only=["templates/triggerer/triggerer-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
@@ -609,7 +609,7 @@ class TestTriggererServiceAccount:
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },
-            show_only=["templates/webserver/triggerer-serviceaccount.yaml"],
+            show_only=["templates/triggerer/triggerer-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 

@@ -583,15 +583,23 @@ class TestFlowerServiceAccount:
             values={
                 "flower": {
                     "enabled": True,
+                    "serviceAccount": {
+                        "create": True,
+                    },
                 }
             },
-            show_only=["templates/webserver/flower-serviceaccount.yaml"],
+            show_only=["templates/flower/flower-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
     def test_overriden_automount_service_account_token(self):
         docs = render_chart(
-            values={"flower": {"enabled": True, "automountServiceAccountToken": False}},
-            show_only=["templates/webserver/flower-serviceaccount.yaml"],
+            values={
+                "flower": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                }
+            },
+            show_only=["templates/flower/flower-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
