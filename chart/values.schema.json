@@ -5342,7 +5342,7 @@
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         },
                         "statsSecretName": {
-                            "description": "The PgBouncer Metrics Secret name.",
+                            "description": "Name of an existing Secrets object containing PgBouncer Metrics secrets.",
                             "type": [
                                 "string",
                                 "null"
@@ -5350,7 +5350,7 @@
                             "default": null
                         },
                         "statsSecretKey": {
-                            "description": "The PgBouncer Metrics Secret key.",
+                            "description": "Key referencing the PGBouncer Metrics connection URI within an existing Secrets object. Defaults to `connection` if left null.",
                             "type": [
                                 "string",
                                 "null"
