@@ -376,7 +376,7 @@ class HiveCliHook(BaseHook):
             }
 
             order_type = OrderedDict()
-            for col, dtype in df.dtypes.iteritems():
+            for col, dtype in df.dtypes.items():
                 order_type[col] = dtype_kind_hive_type[dtype.kind]
             return order_type
 

@@ -986,7 +986,7 @@ class TestStringifiedDAGs:
         assert serialized_dag["dag"]["tasks"][0]["_operator_extra_links"] == serialized_links
 
         # Test all the extra_links are set
-        assert set(simple_task.extra_links) == {*links, "airflow", "github", "google"}
+        assert simple_task.extra_links == sorted({*links, "airflow", "github", "google"})
 
         dr = dag_maker.create_dagrun(execution_date=test_date)
         (ti,) = dr.task_instances

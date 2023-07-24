@@ -101,6 +101,10 @@ class TestDaskExecutor(TestBaseDask):
         executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
         self.assert_tasks_on_executor(executor, timeout_executor=120)
 
+    # This test is quarantined because it became rather flaky on our CI in July 2023 and reason for this
+    # is unknown. An issue for that was created: https://github.com/apache/airflow/issues/32778 and the
+    # marker should be removed while (possibly) the reason for flaky behaviour is found and fixed.
+    @pytest.mark.quarantined
     @pytest.mark.execution_timeout(180)
     def test_backfill_integration(self):
         """

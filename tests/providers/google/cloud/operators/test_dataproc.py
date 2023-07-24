@@ -2220,6 +2220,8 @@ class TestDataprocListBatchesOperator:
     def test_execute(self, mock_hook):
         page_token = "page_token"
         page_size = 42
+        filter = 'batch_id=~"a-batch-id*" AND create_time>="2023-07-05T14:25:04.643818Z"'
+        order_by = "create_time desc"
 
         op = DataprocListBatchesOperator(
             task_id=TASK_ID,
@@ -2232,6 +2234,8 @@ class TestDataprocListBatchesOperator:
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+            filter=filter,
+            order_by=order_by,
         )
         op.execute(context=MagicMock())
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -2243,6 +2247,8 @@ class TestDataprocListBatchesOperator:
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+            filter=filter,
+            order_by=order_by,
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))

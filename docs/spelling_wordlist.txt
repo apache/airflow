@@ -481,6 +481,7 @@ Dont
 DOS'ing
 DownloadReportV
 downscaling
+downstreams
 Drillbit
 Drivy
 dropdown
@@ -1493,6 +1494,7 @@ tblproperties
 TCP
 tcp
 teardown
+teardowns
 templatable
 templateable
 Templated
@@ -1597,6 +1599,7 @@ Upsert
 upsert
 upserts
 Upsight
+upstreams
 Uptime
 uri
 uris

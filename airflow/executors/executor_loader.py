@@ -98,6 +98,9 @@ class ExecutorLoader:
 
         :return: an instance of executor class via executor_name
         """
+        from airflow.providers_manager import ProvidersManager
+
+        ProvidersManager().initialize_providers_configuration()
         if executor_name == CELERY_KUBERNETES_EXECUTOR:
             return cls.__load_celery_kubernetes_executor()
         elif executor_name == LOCAL_KUBERNETES_EXECUTOR:

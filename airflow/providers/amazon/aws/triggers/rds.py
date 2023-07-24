@@ -126,9 +126,9 @@ class RdsDbAvailableTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str,
-        region_name: str | None,
         response: dict[str, Any],
         db_type: RdsDbType,
+        region_name: str | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={
@@ -172,9 +172,9 @@ class RdsDbDeletedTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str,
-        region_name: str | None,
         response: dict[str, Any],
         db_type: RdsDbType,
+        region_name: str | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={
@@ -218,9 +218,9 @@ class RdsDbStoppedTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str,
-        region_name: str | None,
         response: dict[str, Any],
         db_type: RdsDbType,
+        region_name: str | None = None,
     ) -> None:
         super().__init__(
             serialized_fields={

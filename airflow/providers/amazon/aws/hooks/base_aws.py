@@ -197,22 +197,35 @@ class BaseSessionFactory(LoggingMixin):
     def _create_session_with_assume_role(
         self, session_kwargs: dict[str, Any], deferrable: bool = False
     ) -> boto3.session.Session:
-
         if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
-            credentials = botocore.credentials.DeferredRefreshableCredentials(
-                method="assume-role-with-web-identity",
-                refresh_using=credential_fetcher.fetch_credentials,
-                time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
-            )
+
+            params = {
+                "method": "assume-role-with-web-identity",
+                "refresh_using": credential_fetcher.fetch_credentials,
+                "time_fetcher": lambda: datetime.datetime.now(tz=tzlocal()),
+            }
+
+            if deferrable:
+                from aiobotocore.credentials import AioDeferredRefreshableCredentials
+
+                credentials = AioDeferredRefreshableCredentials(**params)
+            else:
+                credentials = botocore.credentials.DeferredRefreshableCredentials(**params)
         else:
             # Refreshable credentials do have initial credentials
-            credentials = botocore.credentials.RefreshableCredentials.create_from_metadata(
-                metadata=self._refresh_credentials(),
-                refresh_using=self._refresh_credentials,
-                method="sts-assume-role",
-            )
+            params = {
+                "metadata": self._refresh_credentials(),
+                "refresh_using": self._refresh_credentials,
+                "method": "sts-assume-role",
+            }
+            if deferrable:
+                from aiobotocore.credentials import AioRefreshableCredentials
+
+                credentials = AioRefreshableCredentials.create_from_metadata(**params)
+            else:
+                credentials = botocore.credentials.RefreshableCredentials.create_from_metadata(**params)
 
         if deferrable:
             from aiobotocore.session import get_session as async_get_session

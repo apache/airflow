@@ -671,6 +671,10 @@ class DatabricksRunNowOperator(BaseOperator):
         else:
             _handle_databricks_operator_execution(self, hook, self.log, context)
 
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event:
+            _handle_deferrable_databricks_operator_completion(event, self.log)
+
     def on_kill(self):
         if self.run_id:
             self._hook.cancel_run(self.run_id)
@@ -698,6 +702,3 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
         hook = self._get_hook(caller="DatabricksRunNowDeferrableOperator")
         self.run_id = hook.run_now(self.json)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
-
-    def execute_complete(self, context: dict | None, event: dict):
-        _handle_deferrable_databricks_operator_completion(event, self.log)
