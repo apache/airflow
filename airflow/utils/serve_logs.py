@@ -34,6 +34,7 @@ from jwt.exceptions import (
 from setproctitle import setproctitle
 
 from airflow.configuration import conf
+from airflow.logging_config import configure_logging
 from airflow.utils.docs import get_docs_url
 from airflow.utils.jwt_signer import JWTSigner
 
@@ -44,28 +45,28 @@ def create_app():
     flask_app = Flask(__name__, static_folder=None)
     expiration_time_in_seconds = conf.getint("webserver", "log_request_clock_grace", fallback=30)
     log_directory = os.path.expanduser(conf.get("logging", "BASE_LOG_FOLDER"))
-    log_config_class = conf.get("logging", "logging_config_class")
+    log_config_class = configure_logging()
     if log_config_class is not None:
-        logger.info(f"Detected user-defined logging config. Attempting to load {log_config_class}")
+        logger.info("Detected user-defined logging config. Attempting to load %s", log_config_class)
         try:
-            import importlib
+            from airflow.utils.module_loading import import_string
 
-            module_name, dict_name = log_config_class.split(".")
-            module = importlib.import_module(module_name)
-            logging_config = getattr(module, dict_name)
-            handler_config = logging_config.get("handlers", {})
-            task_config = handler_config.get("task", {})
-            base_log_folder = task_config.get("base_log_folder", None)
+            logging_config = import_string(log_config_class)
+            try:
+                base_log_folder = logging_config["handlers"]["task"]["base_log_folder"]
+            except KeyError:
+                base_log_folder = None
             if base_log_folder is not None:
                 log_directory = base_log_folder
                 logger.info(
-                    f"Successfully imported user-defined logging config. "
-                    f"Flask App will serve log from {log_directory}"
+                    "Successfully imported user-defined logging config. Flask App will serve log from %s",
+                    log_directory,
                 )
             else:
                 logger.warning(
-                    f"User-defined logging config does not specify 'base_log_folder'. "
-                    f"Flask App will use default log directory {log_directory}"
+                    "User-defined logging config does not specify 'base_log_folder'. "
+                    "Flask App will use default log directory %s",
+                    base_log_folder,
                 )
         except Exception as e:
             raise ImportError(f"Unable to load {log_config_class} due to error: {e}")
