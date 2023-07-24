@@ -38,7 +38,9 @@ class TestCliDb:
 
     @mock.patch("airflow.cli.commands.db_command.db.initdb")
     def test_cli_initdb(self, mock_initdb):
-        with pytest.warns(expected_warning=DeprecationWarning, match="Subcommand `init` is deprecated") as warning_record:
+        with pytest.warns(
+            expected_warning=DeprecationWarning, match="Subcommand `init` is deprecated"
+        ) as warning_record:
             db_command.initdb(self.parser.parse_args(["db", "init"]))
         assert warning_record
         mock_initdb.assert_called_once_with()
@@ -126,17 +128,21 @@ class TestCliDb:
     def test_cli_sync_failure(self, mock_upgradedb, args, pattern):
         with pytest.raises(SystemExit, match=pattern):
             db_command.syncdb(self.parser.parse_args(["db", "upgrade", *args]))
-    
+
     @mock.patch("airflow.cli.commands.db_command.syncdb")
     def test_cli_upgrade(self, mock_syncdb):
-        with pytest.warns(expected_warning=DeprecationWarning, match="Subcommand `updgrade` is deprecated") as warning_record:
+        with pytest.warns(
+            expected_warning=DeprecationWarning, match="Subcommand `updgrade` is deprecated"
+        ) as warning_record:
             db_command.upgradedb(self.parser.parse_args(["db", "upgrade"]))
         assert warning_record
         mock_syncdb.assert_called_once()
-        
+
     @mock.patch("airflow.utils.db.create_default_connections")
     def test_cli_create_default_connections(self, mock_default_connections):
-        create_default_connection_fnc = dict((db_command.name, db_command.func) for db_command in DB_COMMANDS)["create-default-connections"]
+        create_default_connection_fnc = dict(
+            (db_command.name, db_command.func) for db_command in DB_COMMANDS
+        )["create-default-connections"]
         create_default_connection_fnc()
         mock_default_connections.assert_called_once()
 

@@ -1619,8 +1619,9 @@ DB_COMMANDS = (
     ActionCommand(
         name="init",
         help=(
-        "Deprecated -- use `sync` instead. To create default connections use `create-default-connections`. " 
-        "Initialize the metadata database" 
+            "Deprecated -- use `sync` instead. "
+            "To create default connections use `create-default-connections`. "
+            "Initialize the metadata database"
         ),
         func=lazy_load_command("airflow.cli.commands.db_command.initdb"),
         args=(ARG_VERBOSE,),
