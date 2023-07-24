@@ -22,6 +22,7 @@ from unittest.mock import Mock
 import pytest
 
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
+from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
 from airflow.www.fab_security.sqla.models import User
 
 
@@ -55,3 +56,6 @@ class TestFabAuthManager:
         mock_current_user.return_value = user
 
         assert auth_manager.is_logged_in() is False
+
+    def test_get_security_manager_override_class_return_fab_security_manager_override(self, auth_manager):
+        assert auth_manager.get_security_manager_override_class() is FabAirflowSecurityManagerOverride

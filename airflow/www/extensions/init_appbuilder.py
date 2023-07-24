@@ -208,13 +208,6 @@ class AirflowAppBuilder:
 
         if self.update_perms:  # default is True, if False takes precedence from config
             self.update_perms = app.config.get("FAB_UPDATE_PERMS", True)
-        _security_manager_class_name = app.config.get("FAB_SECURITY_MANAGER_CLASS", None)
-        if _security_manager_class_name is not None:
-            self.security_manager_class = dynamic_class_import(_security_manager_class_name)
-        if self.security_manager_class is None:
-            from flask_appbuilder.security.sqla.manager import SecurityManager
-
-            self.security_manager_class = SecurityManager
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session

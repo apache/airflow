@@ -14,33 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Session authentication backend."""
 from __future__ import annotations
 
-from functools import wraps
-from typing import Any, Callable, TypeVar, cast
+import pytest
 
-from flask import Response
-
-from airflow.www.extensions.init_auth_manager import get_auth_manager
-
-CLIENT_AUTH: tuple[str, str] | Any | None = None
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
 
 
-def init_app(_):
-    """Initialize authentication backend."""
+@pytest.fixture
+def auth_manager():
+    class EmptyAuthManager(BaseAuthManager):
+        def get_user_name(self) -> str:
+            raise NotImplementedError()
+
+    return EmptyAuthManager()
 
 
-T = TypeVar("T", bound=Callable)
-
-
-def requires_authentication(function: T):
-    """Decorate functions that require authentication."""
-
-    @wraps(function)
-    def decorated(*args, **kwargs):
-        if not get_auth_manager().is_logged_in():
-            return Response("Unauthorized", 401, {})
-        return function(*args, **kwargs)
-
-    return cast(T, decorated)
+class TestBaseAuthManager:
+    def test_get_security_manager_override_class_return_empty_class(self, auth_manager):
+        assert auth_manager.get_security_manager_override_class() is object

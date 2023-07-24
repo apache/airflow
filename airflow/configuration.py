@@ -2209,6 +2209,39 @@ def initialize_secrets_backends() -> list[BaseSecretsBackend]:
     return backend_list
 
 
+@functools.lru_cache(maxsize=None)
+def _DEFAULT_CONFIG() -> str:
+    path = _default_config_file_path("default_airflow.cfg")
+    with open(path) as fh:
+        return fh.read()
+
+
+@functools.lru_cache(maxsize=None)
+def _TEST_CONFIG() -> str:
+    path = _default_config_file_path("default_test.cfg")
+    with open(path) as fh:
+        return fh.read()
+
+
+_deprecated = {
+    "DEFAULT_CONFIG": _DEFAULT_CONFIG,
+    "TEST_CONFIG": _TEST_CONFIG,
+    "TEST_CONFIG_FILE_PATH": functools.partial(_default_config_file_path, "default_test.cfg"),
+    "DEFAULT_CONFIG_FILE_PATH": functools.partial(_default_config_file_path, "default_airflow.cfg"),
+}
+
+
+def __getattr__(name):
+    if name in _deprecated:
+        warnings.warn(
+            f"{__name__}.{name} is deprecated and will be removed in future",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return _deprecated[name]()
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
 def initialize_auth_manager() -> BaseAuthManager:
     """
     Initialize auth manager.
@@ -2257,5 +2290,4 @@ WEBSERVER_CONFIG = ""  # Set by initialize_config
 
 conf = initialize_config()
 secrets_backend_list = initialize_secrets_backends()
-auth_manager = initialize_auth_manager()
 conf.validate()
