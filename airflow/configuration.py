@@ -1944,7 +1944,7 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
 
 def create_pre_2_7_defaults() -> ConfigParser:
     """
-    Creates parser using the old defaults from Airflow < 2.7.0, in order to be able ot fall-back to those
+    Creates parser using the old defaults from Airflow < 2.7.0, in order to be able to fall-back to those
     defaults when old version of provider, not supporting "config contribution" is installed with Airflow
     2.7.0+. This "default" configuration does not support variable expansion, those are pretty much
     hard-coded defaults we want to fall-back to in such case.
