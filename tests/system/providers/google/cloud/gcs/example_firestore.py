@@ -17,29 +17,6 @@
 # under the License.
 """
 Example Airflow DAG that shows interactions with Google Cloud Firestore.
-
-Prerequisites
-=============
-
-This example uses two Google Cloud projects:
-
-* ``GCP_PROJECT_ID`` - It contains a bucket and a firestore database.
-* ``G_FIRESTORE_PROJECT_ID`` - it contains the Data Warehouse based on the BigQuery service.
-
-Saving in a bucket should be possible from the ``G_FIRESTORE_PROJECT_ID`` project.
-Reading from a bucket should be possible from the ``GCP_PROJECT_ID`` project.
-
-The bucket and dataset should be located in the same region.
-
-If you want to run this example, you must do the following:
-
-1. Create Google Cloud project and enable the BigQuery API
-2. Create the Firebase project
-3. Create a bucket in the same location as the Firebase project
-4. Grant Firebase admin account permissions to manage BigQuery. This is required to create a dataset.
-5. Create a bucket in Firebase project and
-6. Give read/write access for Firebase admin to bucket to step no. 5.
-7. Create collection in the Firestore database.
 """
 from __future__ import annotations
 
@@ -58,22 +35,21 @@ from airflow.providers.google.firebase.operators.firestore import CloudFirestore
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "example_gcp_firestore"
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-gcp-project")
-FIRESTORE_PROJECT_ID = os.environ.get("G_FIRESTORE_PROJECT_ID", "example-firebase-project")
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
-EXPORT_DESTINATION_URL = os.environ.get("GCP_FIRESTORE_ARCHIVE_URL", f"gs://{BUCKET_NAME}/namespace/")
-EXPORT_COLLECTION_ID = os.environ.get("GCP_FIRESTORE_COLLECTION_ID", "firestore_collection_id")
+
+EXPORT_DESTINATION_URL = f"gs://{BUCKET_NAME}/namespace"
+EXPORT_COLLECTION_ID = "firestore_collection_id"
 EXTERNAL_TABLE_SOURCE_URI = (
     f"{EXPORT_DESTINATION_URL}/all_namespaces/kind_{EXPORT_COLLECTION_ID}"
     f"/all_namespaces_kind_{EXPORT_COLLECTION_ID}.export_metadata"
 )
-DATASET_LOCATION = os.environ.get("GCP_FIRESTORE_DATASET_LOCATION", "EU")
+DATASET_LOCATION = "EU"
 
-if BUCKET_NAME is None:
-    raise ValueError("Bucket name is required. Please set GCP_FIRESTORE_ARCHIVE_URL env variable.")
 
 with models.DAG(
     DAG_ID,
@@ -90,13 +66,13 @@ with models.DAG(
         task_id="create_dataset",
         dataset_id=DATASET_NAME,
         location=DATASET_LOCATION,
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
     )
 
     # [START howto_operator_export_database_to_gcs]
     export_database_to_gcs = CloudFirestoreExportDatabaseOperator(
         task_id="export_database_to_gcs",
-        project_id=FIRESTORE_PROJECT_ID,
+        project_id=PROJECT_ID,
         body={"outputUriPrefix": EXPORT_DESTINATION_URL, "collectionIds": [EXPORT_COLLECTION_ID]},
     )
     # [END howto_operator_export_database_to_gcs]
@@ -107,7 +83,7 @@ with models.DAG(
         bucket=BUCKET_NAME,
         table_resource={
             "tableReference": {
-                "projectId": GCP_PROJECT_ID,
+                "projectId": PROJECT_ID,
                 "datasetId": DATASET_NAME,
                 "tableId": "firestore_data",
             },
@@ -124,7 +100,7 @@ with models.DAG(
         task_id="execute_query",
         configuration={
             "query": {
-                "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}.firestore_data`",
+                "query": f"SELECT COUNT(*) FROM `{PROJECT_ID}.{DATASET_NAME}.firestore_data`",
                 "useLegacySql": False,
             }
         },
@@ -133,7 +109,7 @@ with models.DAG(
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
         dataset_id=DATASET_NAME,
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
