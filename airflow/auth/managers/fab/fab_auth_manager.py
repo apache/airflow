@@ -17,8 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from flask import url_for
 from flask_login import current_user
 
+from airflow import AirflowException
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
 
@@ -48,3 +50,12 @@ class FabAuthManager(BaseAuthManager):
     def get_security_manager_override_class(self) -> type:
         """Return the security manager override."""
         return FabAirflowSecurityManagerOverride
+
+    def get_url_login(self, **kwargs) -> str:
+        """Return the login page url."""
+        if not self.security_manager.auth_view:
+            raise AirflowException("`auth_view` not defined in the security manager.")
+        if "next_url" in kwargs and kwargs["next_url"]:
+            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
+        else:
+            return url_for(f"{self.security_manager.auth_view.endpoint}.login")
