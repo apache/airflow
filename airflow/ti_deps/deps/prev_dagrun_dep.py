@@ -22,13 +22,13 @@ from typing import TYPE_CHECKING
 from sqlalchemy import func, literal, or_, select
 from sqlalchemy.orm import Session
 
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
 
 _SUCCESSFUL_STATES = (TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)
