@@ -18,8 +18,13 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.www.security import AirflowSecurityManager
 
 
 class BaseAuthManager(LoggingMixin):
@@ -29,6 +34,9 @@ class BaseAuthManager(LoggingMixin):
     Auth managers are responsible for any user management related operation such as login, logout, authz, ...
     """
 
+    def __init__(self):
+        self._security_manager: AirflowSecurityManager | None = None
+
     @abstractmethod
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
@@ -37,6 +45,11 @@ class BaseAuthManager(LoggingMixin):
     @abstractmethod
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
+        ...
+
+    @abstractmethod
+    def get_url_login(self, **kwargs) -> str:
+        """Return the login page url."""
         ...
 
     def get_security_manager_override_class(self) -> type:
@@ -50,3 +63,19 @@ class BaseAuthManager(LoggingMixin):
         By default, return an empty class.
         """
         return object
+
+    @property
+    def security_manager(self) -> AirflowSecurityManager:
+        """Get the security manager."""
+        if not self._security_manager:
+            raise AirflowException("Security manager not defined.")
+        return self._security_manager
+
+    @security_manager.setter
+    def security_manager(self, security_manager: AirflowSecurityManager):
+        """
+        Set the security manager.
+
+        :param security_manager: the security manager
+        """
+        self._security_manager = security_manager

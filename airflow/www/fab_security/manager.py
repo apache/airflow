@@ -26,7 +26,7 @@ from typing import Any
 from uuid import uuid4
 
 import re2
-from flask import Flask, current_app, g, session, url_for
+from flask import Flask, g, session, url_for
 from flask_appbuilder import AppBuilder
 from flask_appbuilder.const import (
     AUTH_DB,
@@ -64,11 +64,11 @@ from flask_appbuilder.security.views import (
     UserRemoteUserModelView,
     UserStatsChartView,
 )
-from flask_jwt_extended import JWTManager, current_user as current_user_jwt
+from flask_jwt_extended import current_user as current_user_jwt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_login import AnonymousUserMixin, LoginManager, current_user
-from werkzeug.security import check_password_hash, generate_password_hash
+from flask_login import current_user
+from werkzeug.security import check_password_hash
 
 from airflow.configuration import conf
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -88,33 +88,6 @@ def _oauth_tokengetter(token=None):
     token = session.get("oauth")
     log.debug("Token Get: %s", token)
     return token
-
-
-class AnonymousUser(AnonymousUserMixin):
-    """User object used when no active user is logged in."""
-
-    _roles: set[tuple[str, str]] = set()
-    _perms: set[tuple[str, str]] = set()
-
-    @property
-    def roles(self):
-        if not self._roles:
-            public_role = current_app.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
-            self._roles = {current_app.appbuilder.sm.find_role(public_role)} if public_role else set()
-        return self._roles
-
-    @roles.setter
-    def roles(self, roles):
-        self._roles = roles
-        self._perms = set()
-
-    @property
-    def perms(self):
-        if not self._perms:
-            self._perms = set()
-            for role in self.roles:
-                self._perms.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
-        return self._perms
 
 
 class BaseSecurityManager:
@@ -273,11 +246,6 @@ class BaseSecurityManager:
                 self.oauth_remotes[provider_name] = obj_provider
 
         self._builtin_roles = self.create_builtin_roles()
-        # Setup Flask-Login
-        self.lm = self.create_login_manager(app)
-
-        # Setup Flask-Jwt-Extended
-        self.jwt_manager = self.create_jwt_manager(app)
 
         # Setup Flask-Limiter
         self.limiter = self.create_limiter(app)
@@ -286,29 +254,6 @@ class BaseSecurityManager:
         limiter = Limiter(key_func=get_remote_address)
         limiter.init_app(app)
         return limiter
-
-    def create_login_manager(self, app) -> LoginManager:
-        """
-        Override to implement your custom login manager instance.
-
-        :param app: Flask app
-        """
-        lm = LoginManager(app)
-        lm.anonymous_user = AnonymousUser
-        lm.login_view = "login"
-        lm.user_loader(self.load_user)
-        return lm
-
-    def create_jwt_manager(self, app) -> JWTManager:
-        """
-        Override to implement your custom JWT manager instance.
-
-        :param app: Flask app
-        """
-        jwt_manager = JWTManager()
-        jwt_manager.init_app(app)
-        jwt_manager.user_lookup_loader(self.load_user_jwt)
-        return jwt_manager
 
     def create_builtin_roles(self):
         """Returns FAB builtin roles."""
@@ -723,20 +668,6 @@ class BaseSecurityManager:
         self.add_role(self.auth_role_public)
         if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
             log.warning(LOGMSG_WAR_SEC_NO_USER)
-
-    def reset_password(self, userid, password):
-        """
-        Change/Reset a user's password for authdb.
-        Password will be hashed and saved.
-
-        :param userid:
-            the user.id to reset the password
-        :param password:
-            The clear text password to reset and save hashed on the db
-        """
-        user = self.get_user_by_id(userid)
-        user.password = generate_password_hash(password)
-        self.update_user(user)
 
     def update_user_auth_stat(self, user, success=True):
         """Update user authentication stats.
@@ -1604,17 +1535,6 @@ class BaseSecurityManager:
         :param permission: Object representing resource-> action pair
         """
         raise NotImplementedError
-
-    def load_user(self, user_id):
-        """Load user by ID."""
-        return self.get_user_by_id(int(user_id))
-
-    def load_user_jwt(self, _jwt_header, jwt_data):
-        identity = jwt_data["sub"]
-        user = self.load_user(identity)
-        # Set flask g.user to JWT user, we can't do it on before request
-        g.user = user
-        return user
 
     @staticmethod
     def before_request():

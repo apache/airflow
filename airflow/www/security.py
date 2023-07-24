@@ -216,6 +216,7 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
             resetmypasswordview=self.resetmypasswordview,
             resetpasswordview=self.resetpasswordview,
             rolemodelview=self.rolemodelview,
+            user_model=self.user_model,
             userinfoeditview=self.userinfoeditview,
             userdbmodelview=self.userdbmodelview,
             userldapmodelview=self.userldapmodelview,
