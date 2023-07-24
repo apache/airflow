@@ -27,7 +27,32 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class SqsSensorTrigger(BaseTrigger):
-    """Trigger for SqsSensor."""
+    """
+    Asynchronously get messages from an Amazon SQS queue and then delete the messages from the queue.
+
+    :param aws_conn_id: AWS connection id
+    :param sqs_queue: The SQS queue url
+    :param max_messages: The maximum number of messages to retrieve for each poke (templated)
+    :param num_batches: The number of times the sensor will call the SQS API to receive messages (default: 1)
+    :param wait_time_seconds: The time in seconds to wait for receiving messages (default: 1 second)
+    :param visibility_timeout: Visibility timeout, a period of time during which
+        Amazon SQS prevents other consumers from receiving and processing the message.
+    :param message_filtering: Specified how received messages should be filtered. Supported options are:
+        `None` (no filtering, default), `'literal'` (message Body literal match) or `'jsonpath'`
+        (message Body filtered using a JSONPath expression).
+        You may add further methods by overriding the relevant class methods.
+    :param message_filtering_match_values: Optional value/s for the message filter to match on.
+        For example, with literal matching, if a message body matches any of the specified values
+        then it is included. For JSONPath matching, the result of the JSONPath expression is used
+        and may match any of the specified values.
+    :param message_filtering_config: Additional configuration to pass to the message filter.
+        For example with JSONPath filtering you can pass a JSONPath expression string here,
+        such as `'foo[*].baz'`. Messages with a Body which does not match are ignored.
+    :param delete_message_on_reception: Default to `True`, the messages are deleted from the queue
+        as soon as being consumed. Otherwise, the messages remain in the queue after consumption and
+        should be deleted manually.
+    :param waiter_delay: The time in seconds to wait between calls to the SQS API to receive messages.
+    """
 
     def __init__(
         self,
