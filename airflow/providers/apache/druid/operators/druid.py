@@ -65,5 +65,5 @@ class DruidOperator(BaseOperator):
             timeout=self.timeout,
             max_ingestion_time=self.max_ingestion_time,
         )
-        self.log.info("Submitting %s", self.json_index_file, self.ingestion_type)
-        hook.submit_indexing_job(self.json_index_file)
+        self.log.info("Submitting %s", self.json_index_file)
+        hook.submit_indexing_job(self.json_index_file, self.ingestion_type)
