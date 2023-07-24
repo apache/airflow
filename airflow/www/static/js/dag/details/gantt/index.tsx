@@ -25,7 +25,7 @@ import { useGridData } from "src/api";
 import Time from "src/components/Time";
 import { getDuration } from "src/datetime_utils";
 
-import Chart from "./Chart";
+import Row from "./Row";
 
 interface Props {
   openGroupIds: string[];
@@ -112,14 +112,8 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
   const intervals = runDuration / numBars;
 
   return (
-    <Box
-      ref={ganttRef}
-      position="relative"
-      height="100%"
-      pointerEvents="none"
-      overflow="hidden"
-    >
-      <Box borderBottomWidth={1} pt={`${top}px`}>
+    <Box ref={ganttRef} position="relative" height="100%" overflow="hidden">
+      <Box borderBottomWidth={1} pt={`${top}px`} pointerEvents="none">
         {Array.from(Array(numBars)).map((_, i) => (
           <Box
             position="absolute"
@@ -152,19 +146,25 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
       <Box
         maxHeight={height}
         height="100%"
-        overflow="auto"
+        overflowY="scroll"
         ref={ganttScrollRef}
         overscrollBehavior="contain"
       >
-        {!!runId && !!dagRun && !!groups.children && (
-          <Chart
-            ganttWidth={width}
-            openGroupIds={openGroupIds}
-            dagRun={dagRun}
-            tasks={groups.children}
-            checkScrollPosition={checkScrollPosition}
-          />
-        )}
+        <div>
+          {!!runId &&
+            !!dagRun &&
+            !!groups.children &&
+            groups.children.map((c) => (
+              <Row
+                ganttWidth={width}
+                openGroupIds={openGroupIds}
+                dagRun={dagRun}
+                task={c}
+                checkScrollPosition={checkScrollPosition}
+                key={`gantt-${c.id}`}
+              />
+            ))}
+        </div>
       </Box>
     </Box>
   );

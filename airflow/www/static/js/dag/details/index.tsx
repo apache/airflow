@@ -154,10 +154,13 @@ const Details = ({
   );
 
   useEffect(() => {
-    if ((!taskId || isGroup) && tabIndex > 3) {
+    // We only have 3 tabs for when nothing or a task group are selected
+    const tabCount =
+      (runId && !taskId) || (runId && taskId && !isGroup) ? 4 : 3;
+    if (tabCount === 3 && tabIndex > 2) {
       onChangeTab(1);
     }
-  }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
+  }, [taskId, runId, tabIndex, isGroup, onChangeTab]);
 
   const run = dagRuns.find((r) => r.runId === runId);
   const { data: mappedTaskInstance } = useTaskInstance({
@@ -299,7 +302,6 @@ const Details = ({
             <TabPanel p={0} height="100%">
               <Gantt
                 openGroupIds={openGroupIds}
-                // hoveredTaskState={hoveredTaskState}
                 gridScrollRef={gridScrollRef}
                 ganttScrollRef={ganttScrollRef}
               />
