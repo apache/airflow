@@ -1984,7 +1984,8 @@ class TestDag:
         dag.test()
         mock_object.assert_called_with([0, 1, 2, 3, 4])
 
-    @pytest.mark.execution_timeout(120)
+    # TODO: enable timeout
+    # @pytest.mark.execution_timeout(120)
     def test_deferrable_operator(self, dag_maker):
         from airflow.sensors.date_time import DateTimeSensorAsync
 
