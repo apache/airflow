@@ -598,13 +598,19 @@ class DbApiHook(BaseForDbApiHook):
         """
 
     @staticmethod
-    def get_openlineage_authority_part(connection) -> str:
+    def get_openlineage_authority_part(connection, default_port: int | None = None) -> str:
         """
         This method serves as common method for several hooks to get authority part from Airflow Connection.
 
         The authority represents the hostname and port of the connection
         and conforms OpenLineage naming convention for a number of databases (e.g. MySQL, Postgres, Trino).
+
+        :param default_port: (optional) used if no port parsed from connection URI
         """
         parsed = urlparse(connection.get_uri())
-        authority = f"{parsed.hostname}:{parsed.port}"
+        port = parsed.port or default_port
+        if port:
+            authority = f"{parsed.hostname}:{port}"
+        else:
+            authority = parsed.hostname
         return authority
