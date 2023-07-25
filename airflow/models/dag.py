@@ -2751,7 +2751,7 @@ class DAG(LoggingMixin):
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
-
+        return dr
     @provide_session
     def create_dagrun(
         self,

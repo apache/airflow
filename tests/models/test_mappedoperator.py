@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
 from datetime import timedelta
 from unittest.mock import patch
 
 import pendulum
 import pytest
 
+from airflow.decorators import setup, task, teardown
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
@@ -651,3 +653,175 @@ def test_task_mapping_with_explicit_task_group():
 
     assert finish.upstream_list == [mapped]
     assert mapped.downstream_list == [finish]
+
+
+class TestMappedSetupTeardown:
+    @staticmethod
+    def get_states(dr):
+        ti_dict = defaultdict(dict)
+        for ti in dr.get_task_instances():
+            if ti.map_index == -1:
+                ti_dict[ti.task_id] = ti.state
+            else:
+                ti_dict[ti.task_id][ti.map_index] = ti.state
+        return ti_dict
+
+    def test_one_to_many_work_failed(self, session, dag_maker):
+        """
+        Work task failed.  Setup maps to teardown.  Should have 3 teardowns all successful even
+        though the work task has failed.
+        """
+        with dag_maker(dag_id="one_to_many") as dag:
+
+            @setup
+            def my_setup():
+                print("setting up multiple things")
+                return [1, 2, 3]
+
+            @task
+            def my_work(val):
+                print(f"doing work with multiple things: {val}")
+                raise ValueError("fail!")
+                return val
+
+            @teardown
+            def my_teardown(val):
+                print(f"teardown: {val}")
+
+            s = my_setup()
+            t = my_teardown.expand(val=s)
+            with t:
+                my_work(s)
+
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "my_setup": "success",
+            "my_work": "failed",
+            "my_teardown": {0: "success", 1: "success", 2: "success"},
+        }
+        assert states == expected
+
+    def test_many_one_explicit_odd_setup_mapped_setups_fail(self, dag_maker):
+        """
+        one unmapped setup goes to two different teardowns
+        one mapped setup goes to same teardown
+        mapped setups fail
+        teardowns should still run
+        """
+        with dag_maker(
+            dag_id="many_one_explicit_odd_setup_mapped_setups_fail",
+        ) as dag:
+
+            @task
+            def other_setup():
+                print("other setup")
+                return "other setup"
+
+            @task
+            def other_work():
+                print("other work")
+                return "other work"
+
+            @task
+            def other_teardown():
+                print("other teardown")
+                return "other teardown"
+
+            @task
+            def my_setup(val):
+                print(f"setup: {val}")
+                raise ValueError("fail")
+                return val
+
+            @task
+            def my_work(val):
+                print(f"work: {val}")
+
+            @task
+            def my_teardown(val):
+                print(f"teardown: {val}")
+
+            s = my_setup.expand(val=["data1.json", "data2.json", "data3.json"])
+            o_setup = other_setup()
+            o_teardown = other_teardown()
+            with o_teardown.as_teardown(setups=o_setup):
+                other_work()
+            t = my_teardown(s).as_teardown(setups=s)
+            with t:
+                my_work(s)
+            o_setup >> t
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "my_teardown": None,  # todo: why is this None?
+            "other_setup": "success",
+            "other_work": "success",
+            "other_teardown": "success",
+            "my_setup": {0: "failed", 1: "failed", 2: "failed"},
+            "my_work": "upstream_failed",
+        }
+        assert states == expected
+
+    def test_many_one_explicit_odd_setup_all_setups_fail(self, dag_maker):
+        """
+        one unmapped setup goes to two different teardowns
+        one mapped setup goes to same teardown
+        all setups fail
+        teardowns should not run
+        """
+        with dag_maker(
+            dag_id="many_one_explicit_odd_setup_mapped_setups_fail",
+        ) as dag:
+
+            @task
+            def other_setup():
+                print("other setup")
+                raise ValueError("fail")
+                return "other setup"
+
+            @task
+            def other_work():
+                print("other work")
+                return "other work"
+
+            @task
+            def other_teardown():
+                print("other teardown")
+                return "other teardown"
+
+            @task
+            def my_setup(val):
+                print(f"setup: {val}")
+                raise ValueError("fail")
+                return val
+
+            @task
+            def my_work(val):
+                print(f"work: {val}")
+
+            @task
+            def my_teardown(val):
+                print(f"teardown: {val}")
+
+            s = my_setup.expand(val=["data1.json", "data2.json", "data3.json"])
+            o_setup = other_setup()
+            o_teardown = other_teardown()
+            with o_teardown.as_teardown(setups=o_setup):
+                other_work()
+            t = my_teardown(s).as_teardown(setups=s)
+            with t:
+                my_work(s)
+            o_setup >> t
+
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "my_teardown": None,  # todo: why isn't this upstream_failed?
+            "other_setup": "failed",
+            "other_work": "upstream_failed",
+            "other_teardown": "upstream_failed",
+            "my_setup": {0: "failed", 1: "failed", 2: "failed"},
+            "my_work": "upstream_failed",
+        }
+        assert states == expected
