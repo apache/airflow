@@ -106,11 +106,6 @@ def __getattr__(name: str):
     return val
 
 
-if not settings.LAZY_LOAD_PLUGINS:
-    from airflow import plugins_manager
-
-    plugins_manager.ensure_plugins_loaded()
-
 if not settings.LAZY_LOAD_PROVIDERS:
     from airflow import providers_manager
 
@@ -118,6 +113,10 @@ if not settings.LAZY_LOAD_PROVIDERS:
     manager.initialize_providers_list()
     manager.initialize_providers_hooks()
     manager.initialize_providers_extra_links()
+if not settings.LAZY_LOAD_PLUGINS:
+    from airflow import plugins_manager
+
+    plugins_manager.ensure_plugins_loaded()
 
 
 # This is never executed, but tricks static analyzers (PyDev, PyCharm,)

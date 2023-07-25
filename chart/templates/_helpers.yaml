@@ -371,6 +371,14 @@ If release name contains chart name it will be used as a full name.
   {{- printf "%s/%s" .Values.kerberos.ccacheMountPath .Values.kerberos.ccacheFileName }}
 {{- end }}
 
+{{- define "celery_executor_namespace" -}}
+  {{- if semverCompare ">=2.7.0" .Values.airflowVersion }}
+    {{- print "airflow.providers.celery.executors.celery_executor.app" -}}
+  {{- else }}
+    {{- print "airflow.executors.celery_executor.app" -}}
+  {{- end }}
+{{- end }}
+
 {{- define "pgbouncer_config" -}}
 {{ $resultBackendConnection := .Values.data.resultBackendConnection | default .Values.data.metadataConnection }}
 {{ $pgMetadataHost := .Values.data.metadataConnection.host | default (printf "%s-%s.%s" .Release.Name "postgresql" .Release.Namespace) }}

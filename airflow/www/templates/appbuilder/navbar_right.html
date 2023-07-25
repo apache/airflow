@@ -80,6 +80,6 @@
   </li>
 {% else %}
   <li>
-    <a href="{{appbuilder.get_url_for_login}}"><span class="material-icons">login</span>{{_("Log In")}}</a>
+    <a href="{{auth_manager.get_url_login()}}"><span class="material-icons">login</span>{{_("Log In")}}</a>
   </li>
 {% endif %}

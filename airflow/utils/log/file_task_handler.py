@@ -356,7 +356,7 @@ class FileTaskHandler(logging.Handler):
         namespace = None
         with suppress(Exception):
             namespace = pod_override.metadata.namespace
-        return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
+        return namespace or conf.get("kubernetes_executor", "namespace")
 
     def _get_log_retrieval_url(
         self, ti: TaskInstance, log_relative_path: str, log_type: LogType | None = None
