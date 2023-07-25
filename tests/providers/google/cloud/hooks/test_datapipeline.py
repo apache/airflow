@@ -17,22 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-import copy
-import re
-import shlex
-from asyncio import Future
-from typing import Any
 from unittest import mock
-from unittest.mock import MagicMock
-from uuid import UUID
 
-import pytest
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.apache.beam.hooks.beam import BeamHook, run_beam_command
 from airflow.providers.google.cloud.hooks.datapipeline import (
-    DataPipelineHook,
-    DEFAULT_DATAPIPELINE_LOCATION
+    DataPipelineHook
 )
 
 TASK_ID = "test-datapipeline-operators"
@@ -60,7 +48,6 @@ TEST_BODY = {
 }
 TEST_LOCATION = "test-location"
 TEST_PROJECTID = "test-project-id"
-TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_DATA_PIPELINE_NAME = "test_data_pipeline_name"
 TEST_PARENT = "projects/test-project-id/locations/test-location"
 
@@ -70,11 +57,11 @@ class TestDataPipelineHook:
     """
     
     def setup_method(self):
-        self.datapipeline_hook = DataPipelineHook(gcp_conn_id = "test_google_cloud_default")
+        self.datapipeline_hook = DataPipelineHook(gcp_conn_id = "google_cloud_default")
 
     @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.build")
-    def test_datapipeline_client_creation(self, mock_build, mock_authorize):
+    def test_get_conn(self, mock_build, mock_authorize):
         """
         Test that get_conn is called with the correct params and 
         returns the correct API address
@@ -117,7 +104,6 @@ class TestDataPipelineHook:
             location = TEST_LOCATION,
         )
         
-        # assert that the api is requested 
         mock_request.assert_called_once_with(
             parent = TEST_PARENT,
             body = TEST_BODY,

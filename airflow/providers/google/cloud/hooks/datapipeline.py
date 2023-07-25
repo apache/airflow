@@ -18,27 +18,12 @@
 """This module contains a Google Data Pipelines Hook."""
 from __future__ import annotations
 
-import functools
-import json
-import re
-import shlex
-import subprocess
-import time
-import uuid
-import warnings
-import urllib.parse
-from copy import deepcopy
-
 from googleapiclient.discovery import build
 
 from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
 )
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.timeout import timeout
 
-# This is the default location
-# https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAPIPELINE_LOCATION = "us-central1"
 
 
@@ -56,14 +41,14 @@ class DataPipelineHook(GoogleBaseHook):
         **kwargs,
     ) -> None:
         super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
+            gcp_conn_id = gcp_conn_id,
+            impersonation_chain = impersonation_chain,
         )
 
     def get_conn(self) -> build:
         """Returns a Google Cloud Data Pipelines service object."""
         http_authorized = self._authorize()
-        return build("datapipelines", "v1", http=http_authorized, cache_discovery=False)
+        return build("datapipelines", "v1", http = http_authorized, cache_discovery = False)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_data_pipeline(

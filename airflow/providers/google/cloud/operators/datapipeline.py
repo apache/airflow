@@ -19,25 +19,12 @@
 """This module contains Google Data Pipelines operators."""
 from __future__ import annotations
 
-import copy
-import re
-import uuid
-import warnings
-from contextlib import ExitStack
-from enum import Enum
-from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
-
 from airflow import AirflowException
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.datapipeline import (
     DEFAULT_DATAPIPELINE_LOCATION,
     DataPipelineHook
 )
-from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.version import version
-
 
 class CreateDataPipelineOperator(GoogleCloudBaseOperator):
     """ 
@@ -68,7 +55,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         self.location = location
         self.gcp_conn_id = gcp_conn_id
         self.datapipeline_hook : DataPipelineHook | None = None
-        self.body["pipelineSources"] = {"airflow":"airflow"}
+        self.body["pipelineSources"] = {"airflow": "airflow"}
             
     def execute(self, context: Context):
         if self.body is None:

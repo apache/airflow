@@ -18,18 +18,14 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest as pytest
 
-import airflow
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.datapipeline import (
     CreateDataPipelineOperator,
     RunDataPipelineOperator,
 )
-from airflow.providers.google.cloud.hooks.datapipeline import DataPipelineHook
-from airflow.version import version
 
 TASK_ID = "test-datapipeline-operators"
 TEST_BODY = {
@@ -73,16 +69,16 @@ class TestCreateDataPipelineOperator:
         )
     
     @mock.patch("airflow.providers.google.cloud.operators.datapipeline.DataPipelineHook")
-    def test_execute(self, mock_datapipeline, create_operator):
+    def test_execute(self, mock_hook, create_operator):
         """ 
         Test that the execute function creates and calls the DataPipeline hook with the correct parameters
         """
         create_operator.execute(mock.MagicMock())
-        mock_datapipeline.assert_called_once_with(
+        mock_hook.assert_called_once_with(
             gcp_conn_id = "test_gcp_conn_id",
         )
         
-        mock_datapipeline.return_value.create_data_pipeline.assert_called_once_with(
+        mock_hook.return_value.create_data_pipeline.assert_called_once_with(
             project_id = TEST_PROJECTID,
             body = TEST_BODY,
             location = TEST_LOCATION
