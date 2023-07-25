@@ -26,6 +26,7 @@ from unittest.mock import MagicMock
 import pytest
 from kubernetes.client import models as k8s
 from pytest import param
+from sqlalchemy import text
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
@@ -54,7 +55,7 @@ class TestSqlAlchemyUtils:
         # make sure NOT to run in UTC. Only postgres supports storing
         # timezone information in the datetime field
         if session.bind.dialect.name == "postgresql":
-            session.execute("SET timezone='Europe/Amsterdam'")
+            session.execute(text("SET timezone='Europe/Amsterdam'"))
 
         self.session = session
 
@@ -208,17 +209,17 @@ class TestSqlAlchemyUtils:
 
     def test_prohibit_commit(self):
         with prohibit_commit(self.session) as guard:
-            self.session.execute("SELECT 1")
+            self.session.execute(text("SELECT 1"))
             with pytest.raises(RuntimeError):
                 self.session.commit()
             self.session.rollback()
 
-            self.session.execute("SELECT 1")
+            self.session.execute(text("SELECT 1"))
             guard.commit()
 
             # Check the expected_commit is reset
             with pytest.raises(RuntimeError):
-                self.session.execute("SELECT 1")
+                self.session.execute(text("SELECT 1"))
                 self.session.commit()
 
     def test_prohibit_commit_specific_session_only(self):
@@ -233,12 +234,12 @@ class TestSqlAlchemyUtils:
         assert other_session is not self.session
 
         with prohibit_commit(self.session):
-            self.session.execute("SELECT 1")
+            self.session.execute(text("SELECT 1"))
             with pytest.raises(RuntimeError):
                 self.session.commit()
             self.session.rollback()
 
-            other_session.execute("SELECT 1")
+            other_session.execute(text("SELECT 1"))
             other_session.commit()
 
     def teardown_method(self):
