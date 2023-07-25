@@ -35,7 +35,7 @@ from datetime import datetime
 
 from airflow import models
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
-from airflow.providers.google.cloud.operators.datapipeline import RunDataPipelineOperator
+from airflow.providers.google.cloud.operators.datapipeline import CreateDataPipelineOperator, RunDataPipelineOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.trigger_rule import TriggerRule
