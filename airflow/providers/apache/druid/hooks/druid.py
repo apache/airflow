@@ -95,7 +95,7 @@ class DruidHook(BaseHook):
             self, json_index_spec: dict[str, Any] | str, ingestion_type: IngestionType = IngestionType.BATCH
     ) -> None:
         """Submit Druid ingestion job."""
-        url = self.get_conn_url()
+        url = self.get_conn_url(ingestion_type)
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
         req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
