@@ -28,7 +28,7 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.operators.databricks import (
-    DatabricksJobsCreateOperator,
+    DatabricksCreateJobsOperator,
     DatabricksRunNowDeferrableOperator,
     DatabricksRunNowOperator,
     DatabricksSubmitRunDeferrableOperator,
@@ -241,12 +241,12 @@ def make_run_with_state_mock(
     )
 
 
-class TestDatabricksJobsCreateOperator:
+class TestDatabricksCreateJobsOperator:
     def test_init_with_named_parameters(self):
         """
         Test the initializer with the named parameters.
         """
-        op = DatabricksJobsCreateOperator(
+        op = DatabricksCreateJobsOperator(
             task_id=TASK_ID,
             name=JOB_NAME,
             tags=TAGS,
@@ -295,7 +295,7 @@ class TestDatabricksJobsCreateOperator:
             "git_source": GIT_SOURCE,
             "access_control_list": ACCESS_CONTROL_LIST,
         }
-        op = DatabricksJobsCreateOperator(task_id=TASK_ID, json=json)
+        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
 
         expected = utils.normalise_json_content(
             {
@@ -346,7 +346,7 @@ class TestDatabricksJobsCreateOperator:
             "access_control_list": ACCESS_CONTROL_LIST,
         }
 
-        op = DatabricksJobsCreateOperator(
+        op = DatabricksCreateJobsOperator(
             task_id=TASK_ID,
             json=json,
             name=override_name,
@@ -384,7 +384,7 @@ class TestDatabricksJobsCreateOperator:
         json = {"name": "test-{{ ds }}"}
 
         dag = DAG("test", start_date=datetime.now())
-        op = DatabricksJobsCreateOperator(dag=dag, task_id=TASK_ID, json=json)
+        op = DatabricksCreateJobsOperator(dag=dag, task_id=TASK_ID, json=json)
         op.render_template_fields(context={"ds": DATE})
         expected = utils.normalise_json_content({"name": f"test-{DATE}"})
         assert expected == op.json
@@ -397,7 +397,7 @@ class TestDatabricksJobsCreateOperator:
             r"for parameter json\[test\] is not a number or a string"
         )
         with pytest.raises(AirflowException, match=exception_message):
-            DatabricksJobsCreateOperator(task_id=TASK_ID, json=json)
+            DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_create(self, db_mock_class):
@@ -417,9 +417,9 @@ class TestDatabricksJobsCreateOperator:
             "git_source": GIT_SOURCE,
             "access_control_list": ACCESS_CONTROL_LIST,
         }
-        op = DatabricksJobsCreateOperator(task_id=TASK_ID, json=json)
+        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
         db_mock = db_mock_class.return_value
-        db_mock.create.return_value = JOB_ID
+        db_mock.create_job.return_value = JOB_ID
 
         db_mock.find_job_id_by_name.return_value = None
 
@@ -445,10 +445,10 @@ class TestDatabricksJobsCreateOperator:
             retry_limit=op.databricks_retry_limit,
             retry_delay=op.databricks_retry_delay,
             retry_args=None,
-            caller="DatabricksJobsCreateOperator",
+            caller="DatabricksCreateJobsOperator",
         )
 
-        db_mock.create.assert_called_once_with(expected)
+        db_mock.create_job.assert_called_once_with(expected)
         assert JOB_ID == return_result
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -469,7 +469,7 @@ class TestDatabricksJobsCreateOperator:
             "git_source": GIT_SOURCE,
             "access_control_list": ACCESS_CONTROL_LIST,
         }
-        op = DatabricksJobsCreateOperator(task_id=TASK_ID, json=json)
+        op = DatabricksCreateJobsOperator(task_id=TASK_ID, json=json)
         db_mock = db_mock_class.return_value
         db_mock.find_job_id_by_name.return_value = JOB_ID
 
@@ -495,10 +495,10 @@ class TestDatabricksJobsCreateOperator:
             retry_limit=op.databricks_retry_limit,
             retry_delay=op.databricks_retry_delay,
             retry_args=None,
-            caller="DatabricksJobsCreateOperator",
+            caller="DatabricksCreateJobsOperator",
         )
 
-        db_mock.reset.assert_called_once_with(JOB_ID, expected)
+        db_mock.reset_job.assert_called_once_with(JOB_ID, expected)
         assert JOB_ID == return_result
 
 
