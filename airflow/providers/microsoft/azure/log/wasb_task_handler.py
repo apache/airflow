@@ -28,6 +28,7 @@ from azure.core.exceptions import HttpResponseError
 from packaging.version import Version
 
 from airflow.configuration import conf
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -92,7 +93,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             )
             return None
 
-    def set_context(self, ti):
+    def set_context(self, ti: TaskInstance) -> None:  # type: ignore[override]
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to Wasb remote storage.

@@ -32,7 +32,7 @@ from urllib.parse import urljoin
 import pendulum
 
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
@@ -194,7 +194,7 @@ class FileTaskHandler(logging.Handler):
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
 
     @cached_property
-    def supports_task_log_ship(self):
+    def supports_task_log_ship(self) -> bool:
         return "identifier" in inspect.signature(self.set_context).parameters
 
     @staticmethod
@@ -231,9 +231,9 @@ class FileTaskHandler(logging.Handler):
 
         with create_session() as session:
             if isinstance(ti_or_ti_key, TaskInstanceKey):
-                ti = TaskInstance.get_from_key(ti_or_ti_key, session)
+                ti = TaskInstance.get_by_key(ti_or_ti_key, session)
                 if not ti:
-                    raise ValueError("TaskInstance not found")
+                    raise AirflowException("TaskInstance not found")
             else:
                 ti = ti_or_ti_key
             dag_run = ti.get_dagrun(session=session)
