@@ -55,6 +55,7 @@ class TestPool:
                 pool=name,
                 slots=i,
                 description=name,
+                include_deferred=False,
             )
             self.pools.append(pool)
         with create_session() as session:
@@ -64,7 +65,7 @@ class TestPool:
         self.clean_db()
 
     def test_open_slots(self, dag_maker):
-        pool = Pool(pool="test_pool", slots=5)
+        pool = Pool(pool="test_pool", slots=5, include_deferred=False)
         with dag_maker(
             dag_id="test_open_slots",
             start_date=DEFAULT_DATE,
@@ -154,7 +155,7 @@ class TestPool:
         } == pool.slots_stats()
 
     def test_infinite_slots(self, dag_maker):
-        pool = Pool(pool="test_pool", slots=-1)
+        pool = Pool(pool="test_pool", slots=-1, include_deferred=False)
         with dag_maker(
             dag_id="test_infinite_slots",
         ):
@@ -247,18 +248,22 @@ class TestPool:
 
     def test_create_pool(self, session):
         self.add_pools()
-        pool = Pool.create_or_update_pool(name="foo", slots=5, description="")
+        pool = Pool.create_or_update_pool(name="foo", slots=5, description="", include_deferred=True)
         assert pool.pool == "foo"
         assert pool.slots == 5
         assert pool.description == ""
+        assert pool.include_deferred is True
         assert session.query(Pool).count() == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_existing(self, session):
         self.add_pools()
-        pool = Pool.create_or_update_pool(name=self.pools[0].pool, slots=5, description="")
+        pool = Pool.create_or_update_pool(
+            name=self.pools[0].pool, slots=5, description="", include_deferred=False
+        )
         assert pool.pool == self.pools[0].pool
         assert pool.slots == 5
         assert pool.description == ""
+        assert pool.include_deferred is False
         assert session.query(Pool).count() == self.TOTAL_POOL_COUNT
 
     def test_delete_pool(self, session):
@@ -276,7 +281,9 @@ class TestPool:
             Pool.delete_pool(Pool.DEFAULT_POOL_NAME)
 
     def test_is_default_pool(self):
-        pool = Pool.create_or_update_pool(name="not_default_pool", slots=1, description="test")
+        pool = Pool.create_or_update_pool(
+            name="not_default_pool", slots=1, description="test", include_deferred=False
+        )
         default_pool = Pool.get_default_pool()
         assert not Pool.is_default_pool(id=pool.id)
         assert Pool.is_default_pool(str(default_pool.id))

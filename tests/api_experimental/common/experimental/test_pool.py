@@ -45,6 +45,7 @@ class TestPool:
                 pool=name,
                 slots=i,
                 description=name,
+                include_deferred=False,
             )
             self.pools.append(pool)
         with create_session() as session:
@@ -69,18 +70,20 @@ class TestPool:
         assert pools[1].pool == self.pools[1].pool
 
     def test_create_pool(self):
-        pool = pool_api.create_pool(name="foo", slots=5, description="")
+        pool = pool_api.create_pool(name="foo", slots=5, description="", include_deferred=True)
         assert pool.pool == "foo"
         assert pool.slots == 5
         assert pool.description == ""
+        assert pool.include_deferred is True
         with create_session() as session:
             assert session.query(models.Pool).count() == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_existing(self):
-        pool = pool_api.create_pool(name=self.pools[0].pool, slots=5, description="")
+        pool = pool_api.create_pool(name=self.pools[0].pool, slots=5, description="", include_deferred=True)
         assert pool.pool == self.pools[0].pool
         assert pool.slots == 5
         assert pool.description == ""
+        assert pool.include_deferred is True
         with create_session() as session:
             assert session.query(models.Pool).count() == self.TOTAL_POOL_COUNT
 
@@ -91,6 +94,7 @@ class TestPool:
                     name=name,
                     slots=5,
                     description="",
+                    include_deferred=False,
                 )
 
     def test_create_pool_name_too_long(self):
@@ -103,6 +107,7 @@ class TestPool:
                 name=long_name,
                 slots=5,
                 description="",
+                include_deferred=False,
             )
 
     def test_create_pool_bad_slots(self):
@@ -111,6 +116,7 @@ class TestPool:
                 name="foo",
                 slots="foo",
                 description="",
+                include_deferred=False,
             )
 
     def test_delete_pool(self):

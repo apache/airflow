@@ -110,6 +110,7 @@ class Pool(Base):
         name: str,
         slots: int,
         description: str,
+        include_deferred: bool,
         session: Session = NEW_SESSION,
     ) -> Pool:
         """Create a pool with given parameters or update it if it already exists."""
@@ -118,11 +119,12 @@ class Pool(Base):
 
         pool = session.scalar(select(Pool).filter_by(pool=name))
         if pool is None:
-            pool = Pool(pool=name, slots=slots, description=description)
+            pool = Pool(pool=name, slots=slots, description=description, include_deferred=include_deferred)
             session.add(pool)
         else:
             pool.slots = slots
             pool.description = description
+            pool.include_deferred = include_deferred
 
         session.commit()
         return pool

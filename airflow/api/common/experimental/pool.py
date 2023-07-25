@@ -50,7 +50,7 @@ def get_pools(session: Session = NEW_SESSION):
 
 @deprecated(reason="Use Pool.create_pool() instead", version="2.2.4")
 @provide_session
-def create_pool(name, slots, description, session: Session = NEW_SESSION):
+def create_pool(name, slots, description, include_deferred, session: Session = NEW_SESSION):
     """Create a pool with given parameters."""
     if not (name and name.strip()):
         raise AirflowBadRequest("Pool name shouldn't be empty")
@@ -68,11 +68,12 @@ def create_pool(name, slots, description, session: Session = NEW_SESSION):
     session.expire_on_commit = False
     pool = session.scalar(select(Pool).filter_by(pool=name).limit(1))
     if pool is None:
-        pool = Pool(pool=name, slots=slots, description=description)
+        pool = Pool(pool=name, slots=slots, description=description, include_deferred=include_deferred)
         session.add(pool)
     else:
         pool.slots = slots
         pool.description = description
+        pool.include_deferred = include_deferred
 
     session.commit()
 

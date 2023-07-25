@@ -63,7 +63,7 @@ class TestBasePoolEndpoints:
 
 class TestGetPools(TestBasePoolEndpoints):
     def test_response_200(self, session):
-        pool_model = Pool(pool="test_pool_a", slots=3)
+        pool_model = Pool(pool="test_pool_a", slots=3, include_deferred=True)
         session.add(pool_model)
         session.commit()
         result = session.query(Pool).all()
@@ -81,6 +81,7 @@ class TestGetPools(TestBasePoolEndpoints):
                     "scheduled_slots": 0,
                     "open_slots": 128,
                     "description": "Default pool",
+                    "include_deferred": False,
                 },
                 {
                     "name": "test_pool_a",
@@ -91,13 +92,14 @@ class TestGetPools(TestBasePoolEndpoints):
                     "scheduled_slots": 0,
                     "open_slots": 3,
                     "description": None,
+                    "include_deferred": True,
                 },
             ],
             "total_entries": 2,
         } == response.json
 
     def test_response_200_with_order_by(self, session):
-        pool_model = Pool(pool="test_pool_a", slots=3)
+        pool_model = Pool(pool="test_pool_a", slots=3, include_deferred=True)
         session.add(pool_model)
         session.commit()
         result = session.query(Pool).all()
@@ -115,6 +117,7 @@ class TestGetPools(TestBasePoolEndpoints):
                     "scheduled_slots": 0,
                     "open_slots": 3,
                     "description": None,
+                    "include_deferred": True,
                 },
                 {
                     "name": "default_pool",
@@ -125,6 +128,7 @@ class TestGetPools(TestBasePoolEndpoints):
                     "scheduled_slots": 0,
                     "open_slots": 128,
                     "description": "Default pool",
+                    "include_deferred": False,
                 },
             ],
             "total_entries": 2,
@@ -164,7 +168,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
     )
     @provide_session
     def test_limit_and_offset(self, url, expected_pool_ids, session):
-        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
+        pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()
         result = session.query(Pool).count()
@@ -175,7 +179,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         assert pool_ids == expected_pool_ids
 
     def test_should_respect_page_size_limit_default(self, session):
-        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
+        pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()
         result = session.query(Pool).count()
@@ -185,7 +189,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
         assert len(response.json["pools"]) == 100
 
     def test_should_raise_400_for_invalid_orderby(self, session):
-        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 121)]
+        pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 121)]
         session.add_all(pools)
         session.commit()
         result = session.query(Pool).count()
@@ -199,7 +203,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
-        pools = [Pool(pool=f"test_pool{i}", slots=1) for i in range(1, 200)]
+        pools = [Pool(pool=f"test_pool{i}", slots=1, include_deferred=False) for i in range(1, 200)]
         session.add_all(pools)
         session.commit()
         result = session.query(Pool).count()
@@ -211,7 +215,7 @@ class TestGetPoolsPagination(TestBasePoolEndpoints):
 
 class TestGetPool(TestBasePoolEndpoints):
     def test_response_200(self, session):
-        pool_model = Pool(pool="test_pool_a", slots=3)
+        pool_model = Pool(pool="test_pool_a", slots=3, include_deferred=True)
         session.add(pool_model)
         session.commit()
         response = self.client.get("/api/v1/pools/test_pool_a", environ_overrides={"REMOTE_USER": "test"})
@@ -225,6 +229,7 @@ class TestGetPool(TestBasePoolEndpoints):
             "scheduled_slots": 0,
             "open_slots": 3,
             "description": None,
+            "include_deferred": True,
         } == response.json
 
     def test_response_404(self):
@@ -246,7 +251,7 @@ class TestGetPool(TestBasePoolEndpoints):
 class TestDeletePool(TestBasePoolEndpoints):
     def test_response_204(self, session):
         pool_name = "test_pool"
-        pool_instance = Pool(pool=pool_name, slots=3)
+        pool_instance = Pool(pool=pool_name, slots=3, include_deferred=False)
         session.add(pool_instance)
         session.commit()
 
@@ -268,7 +273,7 @@ class TestDeletePool(TestBasePoolEndpoints):
 
     def test_should_raises_401_unauthenticated(self, session):
         pool_name = "test_pool"
-        pool_instance = Pool(pool=pool_name, slots=3)
+        pool_instance = Pool(pool=pool_name, slots=3, include_deferred=False)
         session.add(pool_instance)
         session.commit()
 
@@ -285,7 +290,7 @@ class TestPostPool(TestBasePoolEndpoints):
     def test_response_200(self):
         response = self.client.post(
             "api/v1/pools",
-            json={"name": "test_pool_a", "slots": 3, "description": "test pool"},
+            json={"name": "test_pool_a", "slots": 3, "description": "test pool", "include_deferred": True},
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
@@ -298,16 +303,17 @@ class TestPostPool(TestBasePoolEndpoints):
             "scheduled_slots": 0,
             "open_slots": 3,
             "description": "test pool",
+            "include_deferred": True,
         } == response.json
 
     def test_response_409(self, session):
         pool_name = "test_pool_a"
-        pool_instance = Pool(pool=pool_name, slots=3)
+        pool_instance = Pool(pool=pool_name, slots=3, include_deferred=False)
         session.add(pool_instance)
         session.commit()
         response = self.client.post(
             "api/v1/pools",
-            json={"name": "test_pool_a", "slots": 3},
+            json={"name": "test_pool_a", "slots": 3, "include_deferred": False},
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 409
@@ -322,22 +328,27 @@ class TestPostPool(TestBasePoolEndpoints):
         "request_json, error_detail",
         [
             pytest.param(
-                {"slots": 3},
+                {"slots": 3, "include_deferred": False},
                 "Missing required property(ies): ['name']",
                 id="for missing pool name",
             ),
             pytest.param(
-                {"name": "invalid_pool"},
+                {"name": "invalid_pool", "include_deferred": False},
                 "Missing required property(ies): ['slots']",
                 id="for missing slots",
             ),
             pytest.param(
-                {},
-                "Missing required property(ies): ['name', 'slots']",
-                id="for missing pool name AND slots",
+                {"name": "invalid_pool", "slots": 3},
+                "Missing required property(ies): ['include_deferred']",
+                id="for missing include_deferred",
             ),
             pytest.param(
-                {"name": "invalid_pool", "slots": 3, "extra_field_1": "extra"},
+                {},
+                "Missing required property(ies): ['include_deferred', 'name', 'slots']",
+                id="for missing pool name AND slots AND include_deferred",
+            ),
+            pytest.param(
+                {"name": "invalid_pool", "slots": 3, "include_deferred": False, "extra_field_1": "extra"},
                 "{'extra_field_1': ['Unknown field.']}",
                 id="for extra fields",
             ),
@@ -363,12 +374,12 @@ class TestPostPool(TestBasePoolEndpoints):
 
 class TestPatchPool(TestBasePoolEndpoints):
     def test_response_200(self, session):
-        pool = Pool(pool="test_pool", slots=2)
+        pool = Pool(pool="test_pool", slots=2, include_deferred=True)
         session.add(pool)
         session.commit()
         response = self.client.patch(
             "api/v1/pools/test_pool",
-            json={"name": "test_pool_a", "slots": 3},
+            json={"name": "test_pool_a", "slots": 3, "include_deferred": False},
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
@@ -381,25 +392,27 @@ class TestPatchPool(TestBasePoolEndpoints):
             "scheduled_slots": 0,
             "slots": 3,
             "description": None,
+            "include_deferred": False,
         } == response.json
 
     @pytest.mark.parametrize(
         "error_detail, request_json",
         [
             # Missing properties
-            ("Missing required property(ies): ['name']", {"slots": 3}),
-            ("Missing required property(ies): ['slots']", {"name": "test_pool_a"}),
-            ("Missing required property(ies): ['name', 'slots']", {}),
+            ("Missing required property(ies): ['name']", {"slots": 3, "include_deferred": False}),
+            ("Missing required property(ies): ['slots']", {"name": "test_pool_a", "include_deferred": False}),
+            ("Missing required property(ies): ['include_deferred']", {"name": "test_pool_a", "slots": 3}),
+            ("Missing required property(ies): ['include_deferred', 'name', 'slots']", {}),
             # Extra properties
             (
                 "{'extra_field': ['Unknown field.']}",
-                {"name": "test_pool_a", "slots": 3, "extra_field": "extra"},
+                {"name": "test_pool_a", "slots": 3, "include_deferred": True, "extra_field": "extra"},
             ),
         ],
     )
     @provide_session
     def test_response_400(self, error_detail, request_json, session):
-        pool = Pool(pool="test_pool", slots=2)
+        pool = Pool(pool="test_pool", slots=2, include_deferred=False)
         session.add(pool)
         session.commit()
         response = self.client.patch(
@@ -414,7 +427,7 @@ class TestPatchPool(TestBasePoolEndpoints):
         } == response.json
 
     def test_should_raises_401_unauthenticated(self, session):
-        pool = Pool(pool="test_pool", slots=2)
+        pool = Pool(pool="test_pool", slots=2, include_deferred=False)
         session.add(pool)
         session.commit()
 
@@ -443,7 +456,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
             pytest.param(
                 400,
                 "api/v1/pools/default_pool",
-                {"name": "test_pool_a", "slots": 3},
+                {"name": "test_pool_a", "slots": 3, "include_deferred": False},
                 {
                     "detail": "Default Pool's name can't be modified",
                     "status": 400,
@@ -455,7 +468,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
             pytest.param(
                 400,
                 "api/v1/pools/default_pool?update_mask=name, slots",
-                {"name": "test_pool_a", "slots": 3},
+                {"name": "test_pool_a", "slots": 3, "include_deferred": False},
                 {
                     "detail": "Default Pool's name can't be modified",
                     "status": 400,
@@ -477,8 +490,43 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "scheduled_slots": 0,
                     "slots": 3,
                     "description": "Default pool",
+                    "include_deferred": False,
                 },
                 id="200 Update mask with slots",
+            ),
+            pytest.param(
+                200,
+                "api/v1/pools/default_pool?update_mask=include_deferred",
+                {"name": "test_pool_a", "include_deferred": True},
+                {
+                    "occupied_slots": 0,
+                    "queued_slots": 0,
+                    "name": "default_pool",
+                    "open_slots": 128,
+                    "running_slots": 0,
+                    "scheduled_slots": 0,
+                    "slots": 128,
+                    "description": "Default pool",
+                    "include_deferred": True,
+                },
+                id="200 Update mask with include_deferred",
+            ),
+            pytest.param(
+                200,
+                "api/v1/pools/default_pool?update_mask=slots,include_deferred",
+                {"name": "test_pool_a", "slots": 3, "include_deferred": True},
+                {
+                    "occupied_slots": 0,
+                    "queued_slots": 0,
+                    "name": "default_pool",
+                    "open_slots": 3,
+                    "running_slots": 0,
+                    "scheduled_slots": 0,
+                    "slots": 3,
+                    "description": "Default pool",
+                    "include_deferred": True,
+                },
+                id="200 Update mask with slots AND include_deferred",
             ),
             pytest.param(
                 200,
@@ -493,6 +541,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "scheduled_slots": 0,
                     "slots": 3,
                     "description": "Default pool",
+                    "include_deferred": False,
                 },
                 id="200 Update mask with slots and name",
             ),
@@ -502,6 +551,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                 {
                     "name": "default_pool",
                     "slots": 3,
+                    "include_deferred": True,
                 },
                 {
                     "occupied_slots": 0,
@@ -512,6 +562,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
                     "scheduled_slots": 0,
                     "slots": 3,
                     "description": "Default pool",
+                    "include_deferred": True,
                 },
                 id="200 no update mask",
             ),
@@ -525,37 +576,50 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
 
 class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
     @pytest.mark.parametrize(
-        "url, patch_json, expected_name, expected_slots",
+        "url, patch_json, expected_name, expected_slots, expected_include_deferred",
         [
             (
                 "api/v1/pools/test_pool?update_mask=name, slots",
                 {"name": "test_pool_a", "slots": 2},
                 "test_pool_a",
                 2,
+                False,
             ),
             (
                 "api/v1/pools/test_pool?update_mask=name",
                 {"name": "test_pool_a", "slots": 2},
                 "test_pool_a",
                 3,
+                False,
             ),
             (
                 "api/v1/pools/test_pool?update_mask=slots",
                 {"name": "test_pool_a", "slots": 2},
                 "test_pool",
                 2,
+                False,
             ),
             (
                 "api/v1/pools/test_pool?update_mask=slots",
                 {"slots": 2},
                 "test_pool",
                 2,
+                False,
+            ),
+            (
+                "api/v1/pools/test_pool?update_mask=include_deferred",
+                {"include_deferred": True},
+                "test_pool",
+                3,
+                True,
             ),
         ],
     )
     @provide_session
-    def test_response_200(self, url, patch_json, expected_name, expected_slots, session):
-        pool = Pool(pool="test_pool", slots=3)
+    def test_response_200(
+        self, url, patch_json, expected_name, expected_slots, expected_include_deferred, session
+    ):
+        pool = Pool(pool="test_pool", slots=3, include_deferred=False)
         session.add(pool)
         session.commit()
         response = self.client.patch(url, json=patch_json, environ_overrides={"REMOTE_USER": "test"})
@@ -569,6 +633,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
             "scheduled_slots": 0,
             "open_slots": expected_slots,
             "description": None,
+            "include_deferred": expected_include_deferred,
         } == response.json
 
     @pytest.mark.parametrize(
@@ -602,7 +667,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
     )
     @provide_session
     def test_response_400(self, error_detail, url, patch_json, session):
-        pool = Pool(pool="test_pool", slots=3)
+        pool = Pool(pool="test_pool", slots=3, include_deferred=False)
         session.add(pool)
         session.commit()
         response = self.client.patch(url, json=patch_json, environ_overrides={"REMOTE_USER": "test"})

@@ -31,7 +31,7 @@ class TestPoolSlotsAvailableDep:
     def setup_method(self):
         db.clear_db_pools()
         with create_session() as session:
-            test_pool = Pool(pool="test_pool")
+            test_pool = Pool(pool="test_pool", include_deferred=False)
             test_includes_deferred_pool = Pool(pool="test_includes_deferred_pool", include_deferred=True)
             session.add_all([test_pool, test_includes_deferred_pool])
             session.commit()

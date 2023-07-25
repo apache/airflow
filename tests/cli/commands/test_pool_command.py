@@ -67,6 +67,18 @@ class TestCliPools:
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
         assert self.session.query(Pool).count() == 2
 
+    def test_pool_update_deferred(self):
+        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
+        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+
+        pool_command.pool_set(
+            self.parser.parse_args(["pools", "set", "foo", "1", "test", "--include-deferred"])
+        )
+        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is True
+
+        pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
+        assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+
     def test_pool_get(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
         pool_command.pool_get(self.parser.parse_args(["pools", "get", "foo"]))
@@ -88,7 +100,7 @@ class TestCliPools:
             pool_command.pool_import(self.parser.parse_args(["pools", "import", "pools_import_invalid.json"]))
 
     def test_pool_import_invalid_pools(self):
-        pool_config_input = {"foo": {"description": "foo_test"}}
+        pool_config_input = {"foo": {"description": "foo_test", "include_deferred": False}}
         with open("pools_import_invalid.json", mode="w") as file:
             json.dump(pool_config_input, file)
 
@@ -98,9 +110,9 @@ class TestCliPools:
     def test_pool_import_export(self):
         # Create two pools first
         pool_config_input = {
-            "foo": {"description": "foo_test", "slots": 1},
-            "default_pool": {"description": "Default pool", "slots": 128},
-            "baz": {"description": "baz_test", "slots": 2},
+            "foo": {"description": "foo_test", "slots": 1, "include_deferred": True},
+            "default_pool": {"description": "Default pool", "slots": 128, "include_deferred": False},
+            "baz": {"description": "baz_test", "slots": 2, "include_deferred": False},
         }
         with open("pools_import.json", mode="w") as file:
             json.dump(pool_config_input, file)
