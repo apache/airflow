@@ -323,9 +323,9 @@ class Pool(Base):
 
         return int(
             session.scalar(
-                select(func.sum(TaskInstance.pool_slots))
-                .filter(TaskInstance.pool == self.pool)
-                .filter(TaskInstance.state == TaskInstanceState.DEFERRED)
+                select(func.sum(TaskInstance.pool_slots)).where(
+                    TaskInstance.pool == self.pool, TaskInstance.state == TaskInstanceState.DEFERRED
+                )
             )
             or 0
         )
