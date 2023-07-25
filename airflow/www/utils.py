@@ -84,7 +84,10 @@ def get_mapped_instances(task_instance, session):
 
 def get_instance_with_map(task_instance, session):
     if task_instance.map_index == -1:
-        return alchemy_to_dict(task_instance)
+        data = alchemy_to_dict(task_instance)
+        # Fetch execution_date explicitly since it's not a column and a proxy
+        data["execution_date"] = task_instance.execution_date
+        return data
     mapped_instances = get_mapped_instances(task_instance, session)
     return get_mapped_summary(task_instance, mapped_instances)
 
@@ -137,6 +140,7 @@ def get_mapped_summary(parent_instance, task_instances):
         "end_date": group_end_date,
         "mapped_states": mapped_states,
         "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
+        "execution_date": parent_instance.execution_date,
     }
 
 
