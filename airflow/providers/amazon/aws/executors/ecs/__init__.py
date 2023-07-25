@@ -23,24 +23,25 @@ Each Airflow task gets delegated out to an Amazon ECS Task.
 from __future__ import annotations
 
 import time
-from collections import defaultdict, deque, namedtuple
+from collections import defaultdict, deque
 from copy import deepcopy
-from typing import Any, Callable, Dict, List
+from typing import Any
 
 import boto3
-from marshmallow import EXCLUDE, Schema, fields, post_load
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstanceKey
+from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
+from airflow.providers.amazon.aws.executors.ecs.utils import (
+    CommandType,
+    EcsExecutorException,
+    EcsQueuedTask,
+    EcsTaskInfo,
+    ExecutorConfigType,
+)
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import State
-
-CommandType = List[str]
-ExecutorConfigFunctionType = Callable[[CommandType], dict]
-EcsQueuedTask = namedtuple("EcsQueuedTask", ("key", "command", "queue", "executor_config"))
-ExecutorConfigType = Dict[str, Any]
-EcsTaskInfo = namedtuple("EcsTaskInfo", ("cmd", "queue", "config"))
 
 
 class EcsExecutorTask:
@@ -238,7 +239,7 @@ class AwsEcsExecutor(BaseExecutor):
                 self.pending_tasks.append(ecs_task)
             elif not run_task_response["tasks"]:
                 self.log.error("ECS RunTask Response: %s", run_task_response)
-                raise EcsExecutorError(
+                raise EcsExecutorException(
                     "No failures and no tasks provided in response. This should never happen."
                 )
             else:
@@ -410,85 +411,3 @@ class EcsTaskCollection:
     def __len__(self):
         """Determines the number of tasks in collection."""
         return len(self.tasks)
-
-
-class BotoContainerSchema(Schema):
-    """
-    Botocore Serialization Object for ECS 'Container' shape.
-
-    Note that there are many more parameters, but the executor only needs the members listed below.
-    """
-
-    exit_code = fields.Integer(data_key="exitCode")
-    last_status = fields.String(data_key="lastStatus")
-    name = fields.String(required=True)
-
-    class Meta:
-        """Options object for a Schema. See Schema.Meta for more details and valid values."""
-
-        unknown = EXCLUDE
-
-
-class BotoTaskSchema(Schema):
-    """
-    Botocore Serialization Object for ECS 'Task' shape.
-
-    Note that there are many more parameters, but the executor only needs the members listed below.
-    """
-
-    task_arn = fields.String(data_key="taskArn", required=True)
-    last_status = fields.String(data_key="lastStatus", required=True)
-    desired_status = fields.String(data_key="desiredStatus", required=True)
-    containers = fields.List(fields.Nested(BotoContainerSchema), required=True)
-    started_at = fields.Field(data_key="startedAt")
-    stopped_reason = fields.String(data_key="stoppedReason")
-
-    @post_load
-    def make_task(self, data, **kwargs):
-        """Overwrites marshmallow load() to return an instance of EcsExecutorTask instead of a dictionary."""
-        return EcsExecutorTask(**data)
-
-    class Meta:
-        """Options object for a Schema. See Schema.Meta for more details and valid values."""
-
-        unknown = EXCLUDE
-
-
-class BotoFailureSchema(Schema):
-    """Botocore Serialization Object for ECS 'Failure' Shape."""
-
-    arn = fields.String()
-    reason = fields.String()
-
-    class Meta:
-        """Options object for a Schema. See Schema.Meta for more details and valid values."""
-
-        unknown = EXCLUDE
-
-
-class BotoRunTaskSchema(Schema):
-    """Botocore Serialization Object for ECS 'RunTask' Operation output."""
-
-    tasks = fields.List(fields.Nested(BotoTaskSchema), required=True)
-    failures = fields.List(fields.Nested(BotoFailureSchema), required=True)
-
-    class Meta:
-        """Options object for a Schema. See Schema.Meta for more details and valid values."""
-
-        unknown = EXCLUDE
-
-
-class BotoDescribeTasksSchema(Schema):
-    """Botocore Serialization Object for ECS 'DescribeTask' Operation output."""
-
-    tasks = fields.List(fields.Nested(BotoTaskSchema), required=True)
-    failures = fields.List(fields.Nested(BotoFailureSchema), required=True)
-
-    class Meta:
-        """Options object for a Schema. See Schema.Meta for more details and valid values."""
-
-        unknown = EXCLUDE
-
-
-class EcsExecutorError(Exception):
-    """Thrown when something unexpected has occurred within the ECS ecosystem."""

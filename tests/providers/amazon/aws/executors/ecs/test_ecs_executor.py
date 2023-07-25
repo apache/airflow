@@ -25,10 +25,10 @@ import pytest
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.ecs import (
     AwsEcsExecutor,
-    BotoTaskSchema,
     EcsExecutorTask,
     EcsTaskCollection,
 )
+from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.utils.state import State
 
 ARN1 = "arn1"
