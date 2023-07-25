@@ -206,7 +206,7 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(CREATE_ENDPOINT, json)
         return response["job_id"]
 
-    def reset_job(self, job_id: str, json: dict):
+    def reset_job(self, job_id: str, json: dict) -> None:
         """
         Utility function to call the ``api/2.1/jobs/reset`` endpoint.
 
