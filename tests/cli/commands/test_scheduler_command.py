@@ -160,8 +160,8 @@ class TestSchedulerCommand:
             execute_callable=mock_scheduler_job()._execute,
         )
         mock_log.exception.assert_called_once_with("Exception when running scheduler job")
-        mock_process.assert_has_calls([mock.call(target=serve_logs)])
-        mock_process().terminate.assert_called_once()
+        mock_process.assert_called_once_with(target=serve_logs)
+        mock_process().terminate.assert_called_once_with()
 
 
 # Creating MockServer subclass of the HealthServer handler so that we can test the do_GET logic
