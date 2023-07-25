@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
-from sqlalchemy import Table, Column, MetaData, String, create_mock_engine
+from sqlalchemy import Column, MetaData, String, Table
 
 from airflow.www.fab_security.sqla.models import (
     add_index_on_ab_register_user_username_postgres,
