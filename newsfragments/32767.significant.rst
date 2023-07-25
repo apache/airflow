@@ -1,4 +1,4 @@
-The Kubernetes, Celery, CeleryKubernetes, and LocalKubernetes executors are moved to corresponding providers.
+The Kubernetes, Celery, CeleryKubernetes, LocalKubernetes, and Dask executors are moved to corresponding providers.
 
 In order to use the executors, you need to install the providers:
 
