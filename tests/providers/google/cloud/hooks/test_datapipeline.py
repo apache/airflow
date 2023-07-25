@@ -48,8 +48,10 @@ TEST_BODY = {
 }
 TEST_LOCATION = "test-location"
 TEST_PROJECTID = "test-project-id"
-TEST_DATA_PIPELINE_NAME = "test_data_pipeline_name"
+TEST_DATA_PIPELINE_NAME = "test-data-pipeline-name"
 TEST_PARENT = "projects/test-project-id/locations/test-location"
+TEST_JOB_ID = "test-job-id"
+TEST_NAME = "projects/test-project-id/locations/test-location/pipelines/test-data-pipeline-name"
 
 class TestDataPipelineHook:
     """
@@ -109,3 +111,23 @@ class TestDataPipelineHook:
             body = TEST_BODY,
         )
         assert result == {"name": TEST_PARENT}
+        
+    @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook.get_conn")
+    def test_run_data_pipeline(self, mock_connection):
+        """Test that run_data_pipeline is called with correct parameters and
+           calls Google Data Pipelines API
+        """
+        mock_request = mock_connection.return_value.projects.return_value.locations.return_value.pipelines.return_value.run
+        mock_request.return_value.execute.return_value = {"job": {"id": TEST_JOB_ID}}
+ 
+        result = self.datapipeline_hook.run_data_pipeline(
+            data_pipeline_name=TEST_DATA_PIPELINE_NAME,
+            project_id=TEST_PROJECTID,
+            location=TEST_LOCATION,
+        )
+        assert result == {"job": {"id": TEST_JOB_ID}}
+
+        mock_request.assert_called_once_with(
+            name = TEST_PARENT,
+            body = {},
+        )
