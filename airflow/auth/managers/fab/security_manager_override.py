@@ -19,8 +19,14 @@ from __future__ import annotations
 
 from functools import cached_property
 
+from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
 from flask_babel import lazy_gettext
+from flask_jwt_extended import JWTManager
+from flask_login import LoginManager
+from werkzeug.security import generate_password_hash
+
+from airflow.auth.managers.fab.auth.anonymous_user import AnonymousUser
 
 
 class FabAirflowSecurityManagerOverride:
@@ -47,6 +53,7 @@ class FabAirflowSecurityManagerOverride:
     :param resetmypasswordview: The class for reset my password view.
     :param resetpasswordview: The class for reset password view.
     :param rolemodelview: The class for role model view.
+    :param user_model: The user model.
     :param userinfoeditview: The class for user info edit view.
     :param userdbmodelview: The class for user db model view.
     :param userldapmodelview: The class for user ldap model view.
@@ -80,6 +87,7 @@ class FabAirflowSecurityManagerOverride:
         self.resetmypasswordview = kwargs["resetmypasswordview"]
         self.resetpasswordview = kwargs["resetpasswordview"]
         self.rolemodelview = kwargs["rolemodelview"]
+        self.user_model = kwargs["user_model"]
         self.userinfoeditview = kwargs["userinfoeditview"]
         self.userdbmodelview = kwargs["userdbmodelview"]
         self.userldapmodelview = kwargs["userldapmodelview"]
@@ -87,6 +95,12 @@ class FabAirflowSecurityManagerOverride:
         self.useroidmodelview = kwargs["useroidmodelview"]
         self.userremoteusermodelview = kwargs["userremoteusermodelview"]
         self.userstatschartview = kwargs["userstatschartview"]
+
+        # Setup Flask login
+        self.lm = self.create_login_manager()
+
+        # Setup Flask-Jwt-Extended
+        self.create_jwt_manager()
 
     def register_views(self):
         """Register FAB auth manager related views."""
@@ -191,6 +205,46 @@ class FabAirflowSecurityManagerOverride:
                 label=lazy_gettext("Permissions"),
                 category="Security",
             )
+
+    def create_login_manager(self) -> LoginManager:
+        """Create the login manager."""
+        lm = LoginManager(self.appbuilder.app)
+        lm.anonymous_user = AnonymousUser
+        lm.login_view = "login"
+        lm.user_loader(self.load_user)
+        return lm
+
+    def create_jwt_manager(self):
+        """Create the JWT manager."""
+        jwt_manager = JWTManager()
+        jwt_manager.init_app(self.appbuilder.app)
+        jwt_manager.user_lookup_loader(self.load_user_jwt)
+
+    def reset_password(self, userid, password):
+        """
+        Change/Reset a user's password for authdb.
+
+        Password will be hashed and saved.
+        :param userid: the user id to reset the password
+        :param password: the clear text password to reset and save hashed on the db
+        """
+        user = self.get_user_by_id(userid)
+        user.password = generate_password_hash(password)
+        self.update_user(user)
+
+    def load_user(self, user_id):
+        """Load user by ID."""
+        return self.get_user_by_id(int(user_id))
+
+    def load_user_jwt(self, _jwt_header, jwt_data):
+        identity = jwt_data["sub"]
+        user = self.load_user(identity)
+        # Set flask g.user to JWT user, we can't do it on before request
+        g.user = user
+        return user
+
+    def get_user_by_id(self, pk):
+        return self.appbuilder.get_session.get(self.user_model, pk)
 
     @property
     def auth_user_registration(self):

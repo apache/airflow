@@ -229,9 +229,6 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.rollback()
             return False
 
-    def get_user_by_id(self, pk):
-        return self.get_session.get(self.user_model, pk)
-
     def add_role(self, name: str) -> Role:
         role = self.find_role(name)
         if role is None:

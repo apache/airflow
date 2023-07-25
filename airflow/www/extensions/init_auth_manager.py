@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from typing import TYPE_CHECKING
+
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import BaseAuthManager
 
 
 @cache
