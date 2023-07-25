@@ -48,6 +48,8 @@ export interface CustomNodeProps {
   isActive?: boolean;
   setupTeardownType?: "setup" | "teardown";
   fullParentNode?: string;
+  labelStyle?: string;
+  style?: string;
 }
 
 export const BaseNode = ({
@@ -65,6 +67,8 @@ export const BaseNode = ({
     isOpen,
     isActive,
     setupTeardownType,
+    labelStyle,
+    style,
   },
 }: NodeProps<CustomNodeProps>) => {
   const { colors } = useTheme();
@@ -73,6 +77,8 @@ export const BaseNode = ({
 
   if (!task) return null;
 
+  let bg = isOpen ? "blackAlpha.50" : "white";
+  let textColor = "";
   const { isMapped } = task;
   const mappedStates = instance?.mappedStates;
 
@@ -82,7 +88,13 @@ export const BaseNode = ({
     ? `${label} [${instance ? totalTasks : " "}]`
     : label;
 
-  const bg = isOpen ? "blackAlpha.50" : "white";
+  if (style) {
+    [, bg] = style.split(":");
+  }
+
+  if (labelStyle) {
+    [, textColor] = labelStyle.split(":");
+  }
 
   return (
     <Tooltip
@@ -128,7 +140,11 @@ export const BaseNode = ({
               alignItems="center"
               width="100%"
             >
-              <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
+              <Text
+                noOfLines={1}
+                maxWidth={`calc(${width}px - 8px)`}
+                color={isSelected ? "black" : textColor}
+              >
                 {taskName}
               </Text>
               {setupTeardownType === "setup" && (
