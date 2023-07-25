@@ -36,15 +36,15 @@ LOG_DATA = "Airflow log data" * 20
 
 
 @pytest.fixture
-def client_without_config(tmpdir):
-    with conf_vars({("logging", "base_log_folder"): str(tmpdir)}):
+def client_without_config(tmp_path):
+    with conf_vars({("logging", "base_log_folder"): tmp_path.as_posix()}):
         app = create_app()
 
         yield app.test_client()
 
 
 @pytest.fixture
-def client_with_config(tmpdir):
+def client_with_config():
     with conf_vars(
         {
             (
@@ -64,17 +64,17 @@ def client(request):
 
 
 @pytest.fixture
-def sample_log(request, tmpdir):
+def sample_log(request, tmp_path):
     client = request.getfixturevalue("client")
 
     if client == request.getfixturevalue("client_without_config"):
-        f = Path(tmpdir) / "sample.log"
+        base_log_dir = tmp_path
     elif client == request.getfixturevalue("client_with_config"):
-        log_folder = Path(DEFAULT_LOGGING_CONFIG["handlers"]["task"]["base_log_folder"])
-        f = log_folder / "sample.log"
+        base_log_dir = Path(DEFAULT_LOGGING_CONFIG["handlers"]["task"]["base_log_folder"])
     else:
         raise ValueError(f"Unknown client fixture: {client}")
 
+    f = base_log_dir.joinpath("sample.log")
     f.write_bytes(LOG_DATA.encode())
     return f
 
