@@ -26,8 +26,7 @@ from sqlalchemy import and_, func, inspect, literal
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
-from airflow.www.fab_security.manager import BaseSecurityManager
-from airflow.www.fab_security.sqla.models import (
+from airflow.auth.managers.fab.models import (
     Action,
     Permission,
     RegisterUser,
@@ -36,6 +35,7 @@ from airflow.www.fab_security.sqla.models import (
     User,
     assoc_permission_role,
 )
+from airflow.www.fab_security.manager import BaseSecurityManager
 
 log = logging.getLogger(__name__)
 

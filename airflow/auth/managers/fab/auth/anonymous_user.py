@@ -20,8 +20,10 @@ from __future__ import annotations
 from flask import current_app
 from flask_login import AnonymousUserMixin
 
+from airflow.auth.managers.model.base_user import BaseUser
 
-class AnonymousUser(AnonymousUserMixin):
+
+class AnonymousUser(AnonymousUserMixin, BaseUser):
     """User object used when no active user is logged in."""
 
     _roles: set[tuple[str, str]] = set()
