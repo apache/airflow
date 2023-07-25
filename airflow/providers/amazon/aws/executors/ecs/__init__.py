@@ -28,7 +28,7 @@ from copy import deepcopy
 from typing import Any, Callable, Dict, List
 
 import boto3
-from marshmallow import EXCLUDE, Schema, ValidationError, fields, post_load
+from marshmallow import EXCLUDE, Schema, fields, post_load
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
@@ -187,14 +187,8 @@ class AwsEcsExecutor(BaseExecutor):
             if not batched_task_arns:
                 continue
             boto_describe_tasks = self.ecs.describe_tasks(tasks=batched_task_arns, cluster=self.cluster)
-            try:
-                describe_tasks_response = BotoDescribeTasksSchema().load(boto_describe_tasks)
-            except ValidationError as err:
-                self.log.error("ECS DescribeTask Response: %s", boto_describe_tasks)
-                raise EcsExecutorError(
-                    f"DescribeTasks API call does not match expected JSON shape. "
-                    f"Are you sure that the correct version of Boto3 is installed? {err}"
-                )
+            describe_tasks_response = BotoDescribeTasksSchema().load(boto_describe_tasks)
+
             all_task_descriptions["tasks"].extend(describe_tasks_response["tasks"])
             all_task_descriptions["failures"].extend(describe_tasks_response["failures"])
         return all_task_descriptions
@@ -268,14 +262,7 @@ class AwsEcsExecutor(BaseExecutor):
         """
         run_task_api = self._run_task_kwargs(task_id, cmd, queue, exec_config)
         boto_run_task = self.ecs.run_task(**run_task_api)
-        try:
-            run_task_response = BotoRunTaskSchema().load(boto_run_task)
-        except ValidationError as err:
-            self.log.error("ECS RunTask Response: %s", err)
-            raise EcsExecutorError(
-                f"RunTask API call does not match expected JSON shape. "
-                f"Are you sure that the correct version of Boto3 is installed? {err}"
-            )
+        run_task_response = BotoRunTaskSchema().load(boto_run_task)
         return run_task_response
 
     def _run_task_kwargs(
@@ -325,16 +312,6 @@ class AwsEcsExecutor(BaseExecutor):
         )
         if not isinstance(run_kwargs, dict):
             raise ValueError(f"AWS ECS Executor config value must be a dictionary. Got {type(run_kwargs)}")
-
-        print(
-            "NANI",
-            run_kwargs,
-            conf.get(
-                "ecs_executor",
-                "run_task_kwargs",
-                fallback=fallback,
-            ),
-        )
 
         if (
             "overrides" not in run_kwargs
