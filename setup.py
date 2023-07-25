@@ -481,10 +481,10 @@ ADDITIONAL_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
 CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "aiobotocore": aiobotocore,
     "async": async_packages,
-    "celery": celery,
+    "celery": celery,  # TODO: remove and move to a regular provider package in a separate PR
     "cgroups": cgroups,
-    "cncf.kubernetes": kubernetes,
-    "dask": dask,
+    "cncf.kubernetes": kubernetes,  # TODO: remove and move to a regular provider package in a separate PR
+    "dask": dask,  # TODO: remove and move to a provider package in a separate PR
     "deprecated_api": deprecated_api,
     "github_enterprise": flask_appbuilder_oauth,
     "google_auth": flask_appbuilder_oauth,
@@ -538,6 +538,7 @@ EXTRAS_DEPRECATED_ALIASES: dict[str, str] = {
     "azure": "microsoft.azure",
     "cassandra": "apache.cassandra",
     "crypto": "",  # this is legacy extra - all dependencies are already "install-requires"
+    "dask": "daskexecutor",
     "druid": "apache.druid",
     "gcp": "google",
     "gcp_api": "google",
@@ -844,7 +845,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
-    if extra in ["cncf.kubernetes", "kubernetes", "celery"]:
+    if extra in ["cncf.kubernetes", "kubernetes", "celery", "daskexecutor", "dask"]:
         EXTRAS_DEPENDENCIES[extra].extend(
             [get_provider_package_name_from_package_id(package_name) for package_name in providers]
         )

@@ -55,6 +55,9 @@ the provider may need. Understand that not all providers will need all the compo
 If you still have doubts about building your provider, we recommend that you read the initial provider guide and
 open a issue on GitHub so the community can help you.
 
+The folders are optional: example_dags, hooks, links, logs, notifications, operators, secrets, sensors, transfers,
+triggers, waiters (and the list changes continuously).
+
   .. code-block:: bash
 
       airflow/
@@ -63,20 +66,27 @@ open a issue on GitHub so the community can help you.
       │   ├── example_dags/
       │   │   ├── __init__.py
       │   │   └── example_<NEW_PROVIDER>.py
+      │   ├── executors/
+      │   │   ├── __init__.py
+      │   │   └── <NEW_PROVIDER>.py
       │   ├── hooks/
       │   │   ├── __init__.py
       │   │   └── <NEW_PROVIDER>.py
       │   ├── operators/
       │   │   ├── __init__.py
       │   │   └── <NEW_PROVIDER>.py
-      │   ├── sensors/
+      ....
+      │   ├── transfers/
       │   │   ├── __init__.py
       │   │   └── <NEW_PROVIDER>.py
-      │   └── transfers/
+      │   └── triggers/
       │       ├── __init__.py
       │       └── <NEW_PROVIDER>.py
       └── tests/providers/<NEW_PROVIDER>/
           ├── __init__.py
+          ├── executors/
+          │   ├── __init__.py
+          │   └── test_<NEW_PROVIDER>.py
           ├── hooks/
           │   ├── __init__.py
           │   └── test_<NEW_PROVIDER>.py
@@ -84,10 +94,11 @@ open a issue on GitHub so the community can help you.
           │   ├── __init__.py
           │   ├── test_<NEW_PROVIDER>.py
           │   └── test_<NEW_PROVIDER>_system.py
-          ├── sensors/
+          ...
+          ├── transfers/
           │   ├── __init__.py
           │   └── test_<NEW_PROVIDER>.py
-          └── transfers/
+          └── triggers/
               ├── __init__.py
               └── test_<NEW_PROVIDER>.py
 
@@ -113,26 +124,27 @@ Some steps for documentation occurs automatically by ``pre-commit`` see `Install
 
   .. code-block:: bash
 
-      airflow/
-      ├── INSTALL
-      ├── CONTRIBUTING.rst
-      ├── setup.py
-      ├── docs/
-      │   ├── spelling_wordlist.txt
-      │   ├── apache-airflow/
-      │   │   └── extra-packages-ref.rst
-      │   ├── integration-logos/<NEW_PROVIDER>/
-      │   │   └── <NEW_PROVIDER>.png
-      │   └── apache-airflow-providers-<NEW_PROVIDER>/
-      │       ├── index.rst
-      │       ├── commits.rst
-      │       ├── connections.rst
-      │       └── operators/
-      │           └── <NEW_PROVIDER>.rst
-      └── providers/
-          └── <NEW_PROVIDER>/
-              ├── provider.yaml
-              └── CHANGELOG.rst
+     ├── INSTALL
+     ├── CONTRIBUTING.rst
+     ├── setup.py
+     ├── airflow/
+     │   └── providers/
+     │       └── <NEW_PROVIDER>/
+     │           ├── provider.yaml
+     │           └── CHANGELOG.rst
+     │
+     └── docs/
+         ├── spelling_wordlist.txt
+         ├── apache-airflow/
+         │   └── extra-packages-ref.rst
+         ├── integration-logos/<NEW_PROVIDER>/
+         │   └── <NEW_PROVIDER>.png
+         └── apache-airflow-providers-<NEW_PROVIDER>/
+             ├── index.rst
+             ├── commits.rst
+             ├── connections.rst
+             └── operators/
+                 └── <NEW_PROVIDER>.rst
 
 
 Files automatically updated by pre-commit:
@@ -199,9 +211,19 @@ In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/operators/<NEW_PROVIDER>.r
           :end-before: [END howto_operator_<NEW_PROVIDER>]
 
 
-In the ``docs/apache-airflow-providers-new_provider/index.rst``:
+Copy from another, similar provider the docs: ``docs/apache-airflow-providers-new_provider/*.rst``:
 
-- add all information of the purpose of your provider. It is recommended to check with another provider to help you complete this document as best as possible.
+At least those docs should be present
+
+* security.rst
+* changelog.rst
+* commits.rst
+* index.rst
+* installing-providers-from-sources.rst
+* configurations-ref.rst - if your provider has ``config`` element in provider.yaml with configuration options
+  specific for your provider
+
+Make sure to update/add all information that are specific for the new provider.
 
 In the ``airflow/providers/<NEW_PROVIDER>/provider.yaml`` add information of your provider:
 

@@ -36,6 +36,7 @@ Some of the providers have their own configuration options, you will find detail
 in the provider's documentation. The pre-installed providers that you may want to configure are:
 
 * :doc:`Configuration Reference for Celery Provider <apache-airflow-providers-celery:configurations-ref>`
+* :doc:`Configuration Reference for Apache Hive Provider <apache-airflow-providers-apache-hive:configurations-ref>`
 
 .. note::
     For more information see :doc:`/howto/set-config`.

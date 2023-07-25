@@ -24,10 +24,10 @@ import pytest
 from distributed import LocalCluster
 
 from airflow.exceptions import AirflowException
-from airflow.executors.dask_executor import DaskExecutor
 from airflow.jobs.backfill_job_runner import BackfillJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.models import DagBag
+from airflow.providers.daskexecutor.executors.dask_executor import DaskExecutor
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
@@ -159,7 +159,7 @@ class TestDaskExecutorTLS(TestBaseDask):
             # and tasks to have completed.
             executor.client.close()
 
-    @mock.patch("airflow.executors.dask_executor.DaskExecutor.sync")
+    @mock.patch("airflow.providers.daskexecutor.executors.dask_executor.DaskExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
     @mock.patch("airflow.executors.base_executor.Stats.gauge")
     def test_gauge_executor_metrics(self, mock_stats_gauge, mock_trigger_tasks, mock_sync):
