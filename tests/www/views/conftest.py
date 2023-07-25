@@ -151,7 +151,6 @@ class _TemplateWithContext(NamedTuple):
             # flask_wtf.csrf.CSRFProtect.init_app
             "csrf_token",
             # flask_login.utils._user_context_processor
-            "current_user",
             # flask_appbuilder.baseviews.BaseView.render_template
             "appbuilder",
             "base_template",
