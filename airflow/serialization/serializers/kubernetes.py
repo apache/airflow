@@ -22,18 +22,14 @@ from typing import TYPE_CHECKING
 
 from airflow.utils.module_loading import qualname
 
-serializers = []
-
-try:
-    from kubernetes.client import models as k8s
-
-    serializers = [k8s.v1_pod.V1Pod, k8s.V1ResourceRequirements]
-except ImportError:
-    k8s = None
+# lazy loading for performance reasons
+serializers = [
+    "kubernetes.client.models.v1_resource_requirements.V1ResourceRequirements",
+    "kubernetes.client.models.v1_pod.V1Pod",
+]
 
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
-
 
 __version__ = 1
 
@@ -42,17 +38,17 @@ log = logging.getLogger(__name__)
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
+    from kubernetes.client import models as k8s
+
     if not k8s:
         return "", "", 0, False
 
     if isinstance(o, (k8s.V1Pod, k8s.V1ResourceRequirements)):
         from airflow.kubernetes.pod_generator import PodGenerator
 
+        # We're running this in an except block, so we don't want it to fail
+        # under any circumstances, e.g. accessing a non-existing attribute.
         def safe_get_name(pod):
-            """
-            We're running this in an except block, so we don't want it to
-            fail under any circumstances, e.g. by accessing an attribute that isn't there
-            """
             try:
                 return pod.metadata.name
             except Exception:

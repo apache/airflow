@@ -19,13 +19,20 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import TYPE_CHECKING, Any, Union
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
-    from mysql.connector.abstracts import MySQLConnectionAbstract
+    try:
+        from mysql.connector.abstracts import MySQLConnectionAbstract
+    except ModuleNotFoundError:
+        logger.warning("The package 'mysql-connector-python' is not installed. Import skipped")
     from MySQLdb.connections import Connection as MySQLdbConnection
 
 MySQLConnectionTypes = Union["MySQLdbConnection", "MySQLConnectionAbstract"]
@@ -181,7 +188,14 @@ class MySqlHook(DbApiHook):
             return MySQLdb.connect(**conn_config)
 
         if client_name == "mysql-connector-python":
-            import mysql.connector
+            try:
+                import mysql.connector
+            except ModuleNotFoundError:
+                raise AirflowOptionalProviderFeatureException(
+                    "The pip package 'mysql-connector-python' is not installed, therefore the connection "
+                    "wasn't established. Please, consider using default driver or pip install the package "
+                    "'mysql-connector-python'. Warning! It might cause dependency conflicts."
+                )
 
             conn_config = self._get_conn_config_mysql_connector_python(conn)
             return mysql.connector.connect(**conn_config)
@@ -284,3 +298,28 @@ class MySqlHook(DbApiHook):
         cursor.close()
         conn.commit()
         conn.close()  # type: ignore[misc]
+
+    def get_openlineage_database_info(self, connection):
+        """Returns MySQL specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=DbApiHook.get_openlineage_authority_part(connection, default_port=3306),
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "column_type",
+            ],
+            normalize_name_method=lambda name: name.upper(),
+        )
+
+    def get_openlineage_database_dialect(self, _):
+        """Returns database dialect."""
+        return "mysql"
+
+    def get_openlineage_default_schema(self):
+        """MySQL has no concept of schema."""
+        return None

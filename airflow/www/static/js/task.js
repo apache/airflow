@@ -19,16 +19,30 @@
 
 /* global document, moment */
 
+import validator from "validator";
+
 // reformat task details to be more human-readable
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.js-ti-attr').forEach((attr) => {
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".js-ti-attr").forEach((attr) => {
     const value = attr.innerHTML;
-    if (value.length === 32 && moment(value, 'YYYY-MM-DD').isValid()) {
+    if (value.length === 32 && moment(value, "YYYY-MM-DD").isValid()) {
       // 32 is the length of our timestamps
-      attr.innerHTML = `<time datetime="${value}">${value}</time>`;
-    } else if (value.includes('http')) {
+      // eslint-disable-next-line no-param-reassign
+      attr.innerHTML = "";
+      const timeElement = document.createElement("time");
+      timeElement.setAttribute("datetime", value);
+      const textNode = document.createTextNode(value);
+      timeElement.appendChild(textNode);
+      attr.appendChild(timeElement);
+    } else if (validator.isURL(value)) {
       // very basic url detection
-      attr.innerHTML = `<a href=${value}>${value}</a>`;
+      // eslint-disable-next-line no-param-reassign
+      attr.innerHTML = "";
+      const linkElement = document.createElement("a");
+      linkElement.setAttribute("href", value);
+      const textNode = document.createTextNode(value);
+      linkElement.appendChild(textNode);
+      attr.appendChild(linkElement);
     }
   });
 });

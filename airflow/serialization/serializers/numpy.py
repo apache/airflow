@@ -19,47 +19,36 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.utils.module_loading import qualname
+from airflow.utils.module_loading import import_string, qualname
 
-serializers = []
-
-try:
-    import numpy as np
-
-    serializers = [
-        np.int_,
-        np.intc,
-        np.intp,
-        np.int8,
-        np.int16,
-        np.int32,
-        np.int64,
-        np.uint8,
-        np.uint16,
-        np.uint32,
-        np.uint64,
-        np.bool_,
-        np.float_,
-        np.float16,
-        np.float64,
-        np.complex_,
-        np.complex64,
-        np.complex128,
-    ]
-except ImportError:
-    np = None  # type: ignore
-
+# lazy loading for performance reasons
+serializers = [
+    "numpy.int8",
+    "numpy.int16",
+    "numpy.int32",
+    "numpy.int64",
+    "numpy.uint8",
+    "numpy.uint16",
+    "numpy.uint32",
+    "numpy.uint64",
+    "numpy.bool_",
+    "numpy.float64",
+    "numpy.float16",
+    "numpy.complex128",
+    "numpy.complex64",
+]
 
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
 
-deserializers: list = serializers
-_deserializers: dict[str, type[object]] = {qualname(x): x for x in deserializers}
+deserializers = serializers
 
 __version__ = 1
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
+    import numpy as np
+
     if np is None:
         return "", "", 0, False
 
@@ -97,8 +86,7 @@ def deserialize(classname: str, version: int, data: str) -> Any:
     if version > __version__:
         raise TypeError("serialized version is newer than class version")
 
-    f = _deserializers.get(classname, None)
-    if callable(f):
-        return f(data)  # type: ignore [call-arg]
+    if classname not in deserializers:
+        raise TypeError(f"unsupported {classname} found for numpy deserialization")
 
-    raise TypeError(f"unsupported {classname} found for numpy deserialization")
+    return import_string(classname)(data)

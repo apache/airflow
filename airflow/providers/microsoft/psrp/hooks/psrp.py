@@ -29,7 +29,7 @@ from pypsrp.messages import MessageType
 from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
 from pypsrp.wsman import WSMan
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 INFORMATIONAL_RECORD_LEVEL_MAP = {
@@ -158,8 +158,9 @@ class PsrpHook(BaseHook):
     @contextmanager
     def invoke(self) -> Generator[PowerShell, None, None]:
         """
-        Context manager that yields a PowerShell object to which commands can be
-        added. Upon exit, the commands will be invoked.
+        Yields a PowerShell object to which commands can be added.
+
+        Upon exit, the commands will be invoked.
         """
         logger = copy(self.log)
         logger.setLevel(self._logging_level)
@@ -231,7 +232,7 @@ class PsrpHook(BaseHook):
                 "Passing **kwargs to 'invoke_cmdlet' is deprecated "
                 "and will be removed in a future release. Please use 'parameters' "
                 "instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             parameters = kwargs

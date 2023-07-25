@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a sqoop 1 operator"""
+"""This module contains a sqoop 1 operator."""
 from __future__ import annotations
 
 import os
@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 class SqoopOperator(BaseOperator):
     """
     Execute a Sqoop job.
-    Documentation for Apache Sqoop can be found here:
-    https://sqoop.apache.org/docs/1.4.2/SqoopUserGuide.html
+
+    Documentation for Apache Sqoop can be found here: https://sqoop.apache.org/docs/1.4.2/SqoopUserGuide.html
 
     :param conn_id: str
     :param cmd_type: str specify command to execute "export" or "import"
@@ -192,7 +192,7 @@ class SqoopOperator(BaseOperator):
         self.libjars = libjars
 
     def execute(self, context: Context) -> None:
-        """Execute sqoop job"""
+        """Execute sqoop job."""
         if self.hook is None:
             self.hook = self._get_hook()
 

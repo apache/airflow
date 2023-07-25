@@ -87,7 +87,9 @@ class TestSqsPublishOperator:
     def test_execute_success_fifo_queue(self):
         self.operator.sqs_queue = FIFO_QUEUE_URL
         self.operator.message_group_id = "abc"
-        self.sqs_hook.create_queue(FIFO_QUEUE_NAME, attributes={"FifoQueue": "true"})
+        self.sqs_hook.create_queue(
+            FIFO_QUEUE_NAME, attributes={"FifoQueue": "true", "ContentBasedDeduplication": "true"}
+        )
         result = self.operator.execute(self.mock_context)
         assert "MD5OfMessageBody" in result
         assert "MessageId" in result

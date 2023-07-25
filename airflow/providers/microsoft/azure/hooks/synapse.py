@@ -62,7 +62,7 @@ class AzureSynapseHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -74,7 +74,7 @@ class AzureSynapseHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {"login": "Client ID", "password": "Secret", "host": "Synapse Workspace URL"},
@@ -140,6 +140,7 @@ class AzureSynapseHook(BaseHook):
     ):
         """
         Run a job in an Apache Spark pool.
+
         :param payload: Livy compatible payload which represents the spark job that a user wants to submit.
         """
         job = self.get_conn().spark_batch.create_spark_batch_job(payload)
@@ -196,6 +197,7 @@ class AzureSynapseHook(BaseHook):
     ) -> None:
         """
         Cancel the spark job run.
+
         :param job_id: The synapse spark job identifier.
         """
         self.get_conn().spark_batch.cancel_spark_batch_job(job_id)

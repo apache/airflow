@@ -21,8 +21,187 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-microsoft-azure``
+
+
 Changelog
 ---------
+
+6.2.1
+.....
+
+.. note::
+  Note: this version contains a fix to ``get_blobs_list_async`` method in ``WasbHook`` where it returned
+  a list of blob names, but advertised (via type hints) that it returns a list of ``BlobProperties`` objects.
+  This was a bug in the implementation and it was fixed in this release. However, if you were relying on the
+  previous behaviour, you might need to retrieve ``name`` property from the array elements returned by
+  this method.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix breaking change when Active Directory ID is used as host in WASB (#32560)``
+* ``Fix get_blobs_list_async method to return BlobProperties (#32545)``
+
+Misc
+~~~~
+
+* ``Moves 'AzureBlobStorageToGCSOperator' from Azure to Google provider (#32306)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``D205 Support - Providers: Stragglers and new additions (#32447)``
+
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adds connection test for ADLS Gen2  (#32126)``
+* ``Add option to pass extra configs to ClientSecretCredential  (#31783)``
+* ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cancel pipeline if unexpected exception caught (#32238)``
+* ``Fix where account url is build if not provided using login (account name) (#32082)``
+* ``refresh connection if an exception is caught in "AzureDataFactory" (#32323)``
+
+Misc
+~~~~
+
+* ``Doc changes: Added Transfers section in Azure provider docs (#32241)``
+* ``Adds Sensor section in the Azure providers docs  (#32299)``
+* ``Add default_deferrable config (#31712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``invalid args fix (#32326)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``
+
+6.1.2
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Replace unicodecsv with standard csv library (#31693)``
+* ``Removed unused variables in AzureBlobStorageToGCSOperator (#31765)``
+* ``Remove Python 3.7 support (#30963)``
+* ``Add docstring and signature for _read_remote_logs (#31623)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace spelling directive with spelling:word-list (#31752)``
+   * ``Add D400 pydocstyle check - Microsoft provider only (#31425)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+   * ``Microsoft provider docstring improvements (#31708)``
+
+6.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode execution in WasbPrefixSensor (#31411)``
+
+Misc
+~~~~
+
+* ``Optimize deferred mode execution for wasb sensors (#31009)``
+
+6.1.0
+.....
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to 'WasbPrefixSensor' (#30252)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Optimize deferrable execution mode 'AzureDataFactoryPipelineRunStatusSensor' (#30983)``
+* ``Optimize deferred execution for AzureDataFactoryRunPipelineOperator (#31214)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move TaskInstanceKey to a separate file (#31033)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Upgrade ruff to 0.0.262 (#30809)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+
+6.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS hook's param ``delegate_to`` is removed from ``AzureBlobStorageToGCSOperator``.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+
+Misc
+~~~~
+
+* ``Merge WasbBlobAsyncSensor to WasbBlobSensor (#30488)``
+
+5.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AzureDataFactoryPipelineRunLink get_link method (#30514)``
+* ``Load subscription_id from extra__azure__subscriptionId (#30556)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Prepare docs for ad hoc release of Providers (#30545)``
+
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable 'AzureDataFactoryRunPipelineOperator' (#30147)``
+* ``Add deferrable 'AzureDataFactoryPipelineRunStatusSensor' (#29801)``
+* ``Support deleting the local log files when using remote logging (#29772)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ADF job failure during deferral (#30248)``
+* ``Fix AzureDataLakeStorageV2Hook 'account_url' with Active Directory authentication (#29980) (#29981)``
+
+Misc
+~~~~
+
+* ``merge AzureDataFactoryPipelineRunStatusAsyncSensor to AzureDataFactoryPipelineRunStatusSensor (#30250)``
+* ``Expose missing params in AzureSynapseHook API docs (#30099)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``organize azure provider.yaml (#30155)``
 
 5.2.1
 .....
@@ -96,8 +275,9 @@ Bug Fixes
 5.0.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -199,8 +379,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~

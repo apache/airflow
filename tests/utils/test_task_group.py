@@ -17,12 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pendulum
 import pytest
 
-from airflow.decorators import dag, task_group as task_group_decorator
-from airflow.exceptions import TaskAlreadyInTaskGroup
-from airflow.models import DAG
+from airflow.decorators import dag, task as task_decorator, task_group as task_group_decorator
+from airflow.exceptions import AirflowException, TaskAlreadyInTaskGroup
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -30,6 +33,20 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from tests.models import DEFAULT_DATE
+
+
+def make_task(name, type_="classic"):
+    if type_ == "classic":
+        return BashOperator(task_id=name, bash_command="echo 1")
+
+    else:
+
+        @task_decorator
+        def my_task():
+            pass
+
+        return my_task.override(task_id=name)()
+
 
 EXPECTED_JSON = {
     "id": None,
@@ -530,6 +547,34 @@ def test_dag_edges():
         ("group_d.task11", "group_d.task12"),
         ("group_d.upstream_join_id", "group_d.task11"),
         ("task1", "group_a.upstream_join_id"),
+    ]
+
+
+def test_dag_edges_setup_teardown():
+    execution_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", start_date=execution_date) as dag:
+        setup1 = EmptyOperator(task_id="setup1").as_setup()
+        teardown1 = EmptyOperator(task_id="teardown1").as_teardown()
+
+        with setup1 >> teardown1:
+            EmptyOperator(task_id="task1")
+
+        with TaskGroup("group_a"):
+            setup2 = EmptyOperator(task_id="setup2").as_setup()
+            teardown2 = EmptyOperator(task_id="teardown2").as_teardown()
+
+            with setup2 >> teardown2:
+                EmptyOperator(task_id="task2")
+
+    edges = dag_edges(dag)
+
+    assert sorted((e["source_id"], e["target_id"], e.get("is_setup_teardown")) for e in edges) == [
+        ("group_a.setup2", "group_a.task2", None),
+        ("group_a.setup2", "group_a.teardown2", True),
+        ("group_a.task2", "group_a.teardown2", None),
+        ("setup1", "task1", None),
+        ("setup1", "teardown1", True),
+        ("task1", "teardown1", None),
     ]
 
 
@@ -1172,6 +1217,48 @@ def test_topological_nested_groups():
     ]
 
 
+def test_hierarchical_alphabetical_sort():
+    execution_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", start_date=execution_date) as dag:
+        task1 = EmptyOperator(task_id="task1")
+        task5 = EmptyOperator(task_id="task5")
+        with TaskGroup("group_c"):
+            task7 = EmptyOperator(task_id="task7")
+        with TaskGroup("group_b"):
+            task6 = EmptyOperator(task_id="task6")
+        with TaskGroup("group_a"):
+            with TaskGroup("group_d"):
+                task2 = EmptyOperator(task_id="task2")
+                task3 = EmptyOperator(task_id="task3")
+                task4 = EmptyOperator(task_id="task4")
+            task9 = EmptyOperator(task_id="task9")
+            task8 = EmptyOperator(task_id="task8")
+
+    def nested(group):
+        return [
+            nested(node) if isinstance(node, TaskGroup) else node
+            for node in group.hierarchical_alphabetical_sort()
+        ]
+
+    sorted_list = nested(dag.task_group)
+
+    assert sorted_list == [
+        [  # group_a
+            [  # group_d
+                task2,
+                task3,
+                task4,
+            ],
+            task8,
+            task9,
+        ],
+        [task6],  # group_b
+        [task7],  # group_c
+        task1,
+        task5,
+    ]
+
+
 def test_topological_group_dep():
     execution_date = pendulum.parse("20200101")
     with DAG("test_dag_edges", start_date=execution_date) as dag:
@@ -1301,3 +1388,163 @@ def test_iter_tasks():
         "section_2.task3",
         "section_2.bash_task",
     ]
+
+
+def test_override_dag_default_args():
+    with DAG(
+        dag_id="test_dag",
+        start_date=pendulum.parse("20200101"),
+        default_args={
+            "retries": 1,
+            "owner": "x",
+        },
+    ):
+        with TaskGroup(
+            group_id="task_group",
+            default_args={
+                "owner": "y",
+                "execution_timeout": timedelta(seconds=10),
+            },
+        ):
+            task = EmptyOperator(task_id="task")
+
+    assert task.retries == 1
+    assert task.owner == "y"
+    assert task.execution_timeout == timedelta(seconds=10)
+
+
+def test_override_dag_default_args_in_nested_tg():
+    with DAG(
+        dag_id="test_dag",
+        start_date=pendulum.parse("20200101"),
+        default_args={
+            "retries": 1,
+            "owner": "x",
+        },
+    ):
+        with TaskGroup(
+            group_id="task_group",
+            default_args={
+                "owner": "y",
+                "execution_timeout": timedelta(seconds=10),
+            },
+        ):
+            with TaskGroup(group_id="nested_task_group"):
+                task = EmptyOperator(task_id="task")
+
+    assert task.retries == 1
+    assert task.owner == "y"
+    assert task.execution_timeout == timedelta(seconds=10)
+
+
+def test_override_dag_default_args_in_multi_level_nested_tg():
+    with DAG(
+        dag_id="test_dag",
+        start_date=pendulum.parse("20200101"),
+        default_args={
+            "retries": 1,
+            "owner": "x",
+        },
+    ):
+        with TaskGroup(
+            group_id="task_group",
+            default_args={
+                "owner": "y",
+                "execution_timeout": timedelta(seconds=10),
+            },
+        ):
+            with TaskGroup(
+                group_id="first_nested_task_group",
+                default_args={
+                    "owner": "z",
+                },
+            ):
+                with TaskGroup(group_id="second_nested_task_group"):
+                    with TaskGroup(group_id="third_nested_task_group"):
+                        task = EmptyOperator(task_id="task")
+
+    assert task.retries == 1
+    assert task.owner == "z"
+    assert task.execution_timeout == timedelta(seconds=10)
+
+
+def test_task_group_arrow_with_setups_teardowns():
+    with DAG(dag_id="hi", start_date=pendulum.datetime(2022, 1, 1)):
+        with TaskGroup(group_id="tg1") as tg1:
+            s1 = BaseOperator(task_id="s1")
+            w1 = BaseOperator(task_id="w1")
+            t1 = BaseOperator(task_id="t1")
+            s1 >> w1 >> t1.as_teardown(setups=s1)
+        w2 = BaseOperator(task_id="w2")
+        tg1 >> w2
+    assert t1.downstream_task_ids == set()
+    assert w1.downstream_task_ids == {"tg1.t1", "w2"}
+
+
+def test_tasks_defined_outside_taskgrooup(dag_maker):
+    # Test that classic tasks defined outside a task group are added to the root task group
+    # when the relationships are defined inside the task group
+    with dag_maker() as dag:
+        t1 = make_task("t1")
+        t2 = make_task("t2")
+        t3 = make_task("t3")
+        with TaskGroup(group_id="tg1"):
+            t1 >> t2 >> t3
+    dag.validate()
+    assert dag.task_group.children.keys() == {"tg1"}
+    assert dag.task_group.children["tg1"].children.keys() == {"t1", "t2", "t3"}
+    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
+    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == {"t2"}
+    assert dag.task_group.children["tg1"].children["t2"].upstream_task_ids == {"t1"}
+    assert dag.task_group.children["tg1"].children["t2"].downstream_task_ids == {"t3"}
+    assert dag.task_group.children["tg1"].children["t3"].upstream_task_ids == {"t2"}
+    assert dag.task_group.children["tg1"].children["t3"].downstream_task_ids == set()
+
+    # Test that decorated tasks defined outside a task group are added to the root task group
+    # when relationships are defined inside the task group
+    with dag_maker() as dag:
+        t1 = make_task("t1", type_="decorated")
+        t2 = make_task("t2", type_="decorated")
+        t3 = make_task("t3", type_="decorated")
+        with TaskGroup(group_id="tg1"):
+            t1 >> t2 >> t3
+    dag.validate()
+    assert dag.task_group.children.keys() == {"tg1"}
+    assert dag.task_group.children["tg1"].children.keys() == {"t1", "t2", "t3"}
+    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
+    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == {"t2"}
+    assert dag.task_group.children["tg1"].children["t2"].upstream_task_ids == {"t1"}
+    assert dag.task_group.children["tg1"].children["t2"].downstream_task_ids == {"t3"}
+    assert dag.task_group.children["tg1"].children["t3"].upstream_task_ids == {"t2"}
+    assert dag.task_group.children["tg1"].children["t3"].downstream_task_ids == set()
+
+    # Test adding single decorated task defined outside a task group to a task group
+    with dag_maker() as dag:
+        t1 = make_task("t1", type_="decorated")
+        with TaskGroup(group_id="tg1") as tg1:
+            tg1.add_task(t1)
+    dag.validate()
+    assert dag.task_group.children.keys() == {"tg1"}
+    assert dag.task_group.children["tg1"].children.keys() == {"t1"}
+    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
+    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == set()
+
+    # Test adding single classic task defined outside a task group to a task group
+    with dag_maker() as dag:
+        t1 = make_task("t1")
+        with TaskGroup(group_id="tg1") as tg1:
+            tg1.add_task(t1)
+    dag.validate()
+    assert dag.task_group.children.keys() == {"tg1"}
+    assert dag.task_group.children["tg1"].children.keys() == {"t1"}
+    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
+    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == set()
+
+    with pytest.raises(
+        AirflowException,
+        match="Using this method on a task group that's not a context manager is not supported.",
+    ):
+        with dag_maker():
+            t1 = make_task("t1")
+            tg1 = TaskGroup(group_id="tg1")
+            tg1.add_task(t1)

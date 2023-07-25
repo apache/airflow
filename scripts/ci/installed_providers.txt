@@ -2,6 +2,7 @@ amazon
 celery
 cncf.kubernetes
 common.sql
+daskexecutor
 docker
 elasticsearch
 ftp
@@ -18,5 +19,6 @@ redis
 sendgrid
 sftp
 slack
+snowflake
 sqlite
 ssh

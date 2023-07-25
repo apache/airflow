@@ -165,6 +165,15 @@ While both DAG constructors get called when the file is accessed, only ``dag_1``
 
 You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
+In the case where the ``.airflowignore`` does not meet your needs and you want a more flexible way to control if a python file needs to be parsed by Airflow. You can plug your callable by setting ``might_contain_dag_callable`` in the config file.
+Note, this callable will replace the default Airflow heuristic, i.e. checking if the strings ``airflow`` and ``dag`` (case-insensitively) in the file.
+
+.. code-block::
+
+    def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool:
+        # Your logic to check if there are DAGs defined in the file_path
+        # Return True if the file_path needs to be parsed, otherwise False
+
 
 .. _concepts-dag-run:
 
@@ -183,7 +192,7 @@ DAGs do not *require* a schedule, but it's very common to define one. You define
 
 The ``schedule`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
 
-    with DAG("my_daily_dag", schedule="0 * * * *"):
+    with DAG("my_daily_dag", schedule="0 0 * * *"):
         ...
 
 .. tip::
@@ -234,8 +243,8 @@ DAG Assignment
 Note that every single Operator/Task must be assigned to a DAG in order to run. Airflow has several ways of calculating the DAG without you passing it explicitly:
 
 * If you declare your Operator inside a ``with DAG`` block
-* If you declare your Operator inside a ``@dag`` decorator,
-* If you put your Operator upstream or downstream of a Operator that has a DAG
+* If you declare your Operator inside a ``@dag`` decorator
+* If you put your Operator upstream or downstream of an Operator that has a DAG
 
 Otherwise, you must pass it into each Operator with ``dag=``.
 
@@ -290,11 +299,11 @@ Control Flow
 
 By default, a DAG will only run a Task when all the Tasks it depends on are successful. There are several ways of modifying this, however:
 
-* :ref:`concepts:branching`, where you can select which Task to move onto based on a condition
-* :ref:`concepts:latest-only`, a special form of branching that only runs on DAGs running against the present
-* :ref:`concepts:depends-on-past`, where tasks can depend on themselves *from a previous run*
-* :ref:`concepts:trigger-rules`, which let you set the conditions under which a DAG will run a task.
-
+* :ref:`concepts:branching` - select which Task to move onto based on a condition
+* :ref:`concepts:trigger-rules` - set the conditions under which a DAG will run a task
+* :doc:`/howto/setup-and-teardown` - define setup and teardown relationships
+* :ref:`concepts:latest-only` - a special form of branching that only runs on DAGs running against the present
+* :ref:`concepts:depends-on-past` - tasks can depend on themselves *from a previous run*
 
 .. _concepts:branching:
 
@@ -319,7 +328,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
 .. code-block:: python
 
     @task.branch(task_id="branch_task")
-    def branch_func(ti):
+    def branch_func(ti=None):
         xcom_value = int(ti.xcom_pull(task_ids="start_task"))
         if xcom_value >= 5:
             return "continue_task"
@@ -473,6 +482,14 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
     By setting ``trigger_rule`` to ``none_failed_min_one_success`` in the ``join`` task, we can instead get the intended behaviour:
 
     .. image:: /img/branch_with_trigger.png
+
+
+Setup and teardown
+------------------
+
+In data workflows it's common to create a resource (such as a compute resource), use it to do some work, and then tear it down. Airflow provides setup and teardown tasks to support this need.
+
+Please see main article :doc:`/howto/setup-and-teardown` for details on how to use this feature.
 
 
 Dynamic DAGs

@@ -22,12 +22,14 @@ import json
 import sys
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.models import BaseOperator, TaskInstance
+from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE, XCOM_RETURN_KEY
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
 
 if TYPE_CHECKING:
+    from airflow.models import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.context import Context
 
 
@@ -71,13 +73,10 @@ class GoogleApiToS3Operator(BaseOperator):
 
         .. note:: This means the response will be a list of responses.
 
-    :param google_api_num_retries: Define the number of retries for the google api requests being made
+    :param google_api_num_retries: Define the number of retries for the Google API requests being made
         if it fails.
     :param s3_overwrite: Specifies whether the s3 file will be overwritten if exists.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param aws_conn_id: The connection id specifying the authentication information for the S3 Bucket.
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
@@ -113,7 +112,6 @@ class GoogleApiToS3Operator(BaseOperator):
         google_api_num_retries: int = 0,
         s3_overwrite: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         aws_conn_id: str = "aws_default",
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -131,7 +129,6 @@ class GoogleApiToS3Operator(BaseOperator):
         self.google_api_num_retries = google_api_num_retries
         self.s3_overwrite = s3_overwrite
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.aws_conn_id = aws_conn_id
         self.google_impersonation_chain = google_impersonation_chain
 
@@ -156,7 +153,6 @@ class GoogleApiToS3Operator(BaseOperator):
     def _retrieve_data_from_google_api(self) -> dict:
         google_discovery_api_hook = GoogleDiscoveryApiHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_service_name=self.google_api_service_name,
             api_version=self.google_api_service_version,
             impersonation_chain=self.google_impersonation_chain,
@@ -177,7 +173,9 @@ class GoogleApiToS3Operator(BaseOperator):
             replace=self.s3_overwrite,
         )
 
-    def _update_google_api_endpoint_params_via_xcom(self, task_instance: TaskInstance) -> None:
+    def _update_google_api_endpoint_params_via_xcom(
+        self, task_instance: TaskInstance | TaskInstancePydantic
+    ) -> None:
 
         if self.google_api_endpoint_params_via_xcom:
             google_api_endpoint_params = task_instance.xcom_pull(
@@ -186,7 +184,9 @@ class GoogleApiToS3Operator(BaseOperator):
             )
             self.google_api_endpoint_params.update(google_api_endpoint_params)
 
-    def _expose_google_api_response_via_xcom(self, task_instance: TaskInstance, data: dict) -> None:
+    def _expose_google_api_response_via_xcom(
+        self, task_instance: TaskInstance | TaskInstancePydantic, data: dict
+    ) -> None:
         if sys.getsizeof(data) < MAX_XCOM_SIZE:
             task_instance.xcom_push(key=self.google_api_response_via_xcom or XCOM_RETURN_KEY, value=data)
         else:

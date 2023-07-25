@@ -66,17 +66,19 @@ github:
     v2-5-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
+    v2-6-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
 
   collaborators:
-    - auvipy
-    - paolaperaza
-    - petedejoy
-    - gmcdonald
     - mhenc
-    - ferruzzi
-    - norm
-    - mobuchowski
-    - hussein-awala
+    - pankajkoti
+    - utkarsharma2
+    - Lee-W
+    - sunank200
+    - amoghrajesh
+    - jens-scheffler-bosch
+    - nathadfield
 
 notifications:
   jobs: jobs@airflow.apache.org

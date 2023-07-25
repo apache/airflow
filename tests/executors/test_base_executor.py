@@ -48,10 +48,14 @@ def test_is_single_threaded_default_value():
     assert not BaseExecutor.is_single_threaded
 
 
+def test_is_production_default_value():
+    assert BaseExecutor.is_production
+
+
 def test_get_task_log():
     executor = BaseExecutor()
     ti = TaskInstance(task=BaseOperator(task_id="dummy"))
-    assert executor.get_task_log(ti=ti) == ([], [])
+    assert executor.get_task_log(ti=ti, try_number=1) == ([], [])
 
 
 def test_serve_logs_default_value():
@@ -83,9 +87,11 @@ def test_gauge_executor_metrics(mock_stats_gauge, mock_trigger_tasks, mock_sync)
     executor = BaseExecutor()
     executor.heartbeat()
     calls = [
-        mock.call("executor.open_slots", mock.ANY),
-        mock.call("executor.queued_tasks", mock.ANY),
-        mock.call("executor.running_tasks", mock.ANY),
+        mock.call("executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "BaseExecutor"}),
+        mock.call("executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "BaseExecutor"}),
+        mock.call(
+            "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "BaseExecutor"}
+        ),
     ]
     mock_stats_gauge.assert_has_calls(calls)
 
@@ -206,7 +212,6 @@ def test_running_retry_attempt_type(loop_duration, total_tries):
     min_seconds_for_test = 5
 
     with time_machine.travel(pendulum.now("UTC"), tick=False) as t:
-
         # set MIN_SECONDS so tests don't break if the value is changed
         RunningRetryAttemptType.MIN_SECONDS = min_seconds_for_test
         a = RunningRetryAttemptType()

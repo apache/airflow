@@ -51,12 +51,19 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.7, 3.8, 3.9, 3.10)
+* Python (One of: 3.8, 3.9, 3.10, 3.11)
 * MySQL 5.7+
 * libxml
+* helm (only for helm chart tests)
 
 Refer to the `Dockerfile.ci <Dockerfile.ci>`__ for a comprehensive list
 of required packages.
+
+.. note::
+
+   - MySql 2.2.0 needs pkgconf to be a pre requisite, refer `here <http://pkgconf.org/>`_ to install pkgconf
+   - MacOs with ARM architectures require graphviz for venv setup, refer `here <https://graphviz.org/download/>`_ to install graphviz
+   - The helm chart tests need helm to be installed as a pre requisite. Refer `here <https://helm.sh/docs/intro/install/>`_ to install and setup helm
 
 Extra Packages
 --------------
@@ -64,11 +71,17 @@ Extra Packages
 .. note::
 
    Only ``pip`` installation is currently officially supported.
+   Make sure you have the latest pip installed, reference `version <https://pip.pypa.io/en/stable/#>`_
 
    While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
+
+   There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+   Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+  newer versions of ``bazel`` will handle it.
 
    If you wish to install airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
@@ -91,7 +104,7 @@ you should set LIBRARY\_PATH before running ``pip install``:
 
     export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/opt/openssl/lib/
 
-You are STRONGLY encouraged to also install and use `pre-commit hooks <TESTING.rst#pre-commit-hooks>`_
+You are STRONGLY encouraged to also install and use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`_
 for your local virtualenv development environment. Pre-commit hooks can speed up your
 development cycle a lot.
 
@@ -102,7 +115,7 @@ Creating a Local virtualenv
 
 To use your IDE for Airflow development and testing, you need to configure a virtual
 environment. Ideally you should set up virtualenv for all Python versions that Airflow
-supports (3.7, 3.8, 3.9, 3.10).
+supports (3.8, 3.9, 3.10, 3.11).
 
 To create and initialize the local virtualenv:
 
@@ -122,7 +135,7 @@ To create and initialize the local virtualenv:
 
     .. code-block:: bash
 
-      conda create -n airflow python=3.7  # or 3.8, 3.9, 3.10
+      conda create -n airflow python=3.8  # or 3.9, 3.10, 3.11
       conda activate airflow
 
 2. Install Python PIP requirements:
@@ -135,6 +148,11 @@ To create and initialize the local virtualenv:
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
+
+   There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+   Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+   newer versions of ``bazel`` will handle it.
 
    If you wish to install airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
@@ -150,9 +168,9 @@ for different python versions). For development on current main source:
 
    .. code-block:: bash
 
-    # use the same version of python as you are working with, 3.7, 3.8, 3.9, or 3.10
+    # use the same version of python as you are working with, 3.8, 3.9, 3.10 or 3.11
     pip install -e ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 This will install Airflow in 'editable' mode - where sources of Airflow are taken directly from the source
 code rather than moved to the installation directory. During the installation airflow will install - but then
@@ -163,9 +181,9 @@ You can also install Airflow in non-editable mode:
 
    .. code-block:: bash
 
-    # use the same version of python as you are working with, 3.7, 3.8, 3.9, or 3.10
+    # use the same version of python as you are working with, 3.8, 3.9, 3.10 or 3.11
     pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 This will copy the sources to directory where usually python packages are installed. You can see the list
 of directories via ``python -m site`` command. In this case the providers are installed from PyPI, not from
@@ -173,9 +191,9 @@ sources, unless you set ``INSTALL_PROVIDERS_FROM_SOURCES`` environment variable 
 
    .. code-block:: bash
 
-    # use the same version of python as you are working with, 3.7, 3.8, 3.9, or 3.10
+    # use the same version of python as you are working with, 3.8, 3.9, 3.10 or 3.11
     INSTALL_PROVIDERS_FROM_SOURCES="true" pip install ".[devel,<OTHER EXTRAS>]" \
-        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
+        --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 
 Note: when you first initialize database (the next step), you may encounter some problems.
@@ -234,7 +252,7 @@ before running ``pip install`` command:
 .. code-block:: bash
 
   INSTALL_PROVIDERS_FROM_SOURCES="true" pip install -U -e ".[devel,<OTHER EXTRAS>]" \
-     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
+     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
 
 This way no providers packages will be installed and they will always be imported from the "airflow/providers"
 folder.

@@ -17,57 +17,60 @@
  * under the License.
  */
 
-import React, { useMemo, useState } from 'react';
-import { snakeCase } from 'lodash';
-import type { SortingRule } from 'react-table';
+import React, { useMemo, useState } from "react";
+import { snakeCase } from "lodash";
+import type { SortingRule } from "react-table";
 
-import { useDatasetEvents } from 'src/api';
+import { useDatasetEvents } from "src/api";
 import {
-  Table, TimeCell, TaskInstanceLink, TriggeredRuns,
-} from 'src/components/Table';
+  Table,
+  TimeCell,
+  TaskInstanceLink,
+  TriggeredRuns,
+} from "src/components/Table";
 
-const Events = ({
-  datasetId,
-}: { datasetId: number }) => {
+const Events = ({ datasetId }: { datasetId: number }) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
-  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([{ id: 'timestamp', desc: true }]);
+  const [sortBy, setSortBy] = useState<SortingRule<object>[]>([
+    { id: "timestamp", desc: true },
+  ]);
 
   const sort = sortBy[0];
-  const orderBy = sort ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
 
   const {
     data: { datasetEvents = [], totalEntries = 0 },
     isLoading: isEventsLoading,
   } = useDatasetEvents({
-    datasetId, limit, offset, orderBy,
+    datasetId,
+    limit,
+    offset,
+    orderBy,
   });
 
   const columns = useMemo(
     () => [
       {
-        Header: 'Source Task Instance',
-        accessor: 'sourceTaskId',
+        Header: "Source Task Instance",
+        accessor: "sourceTaskId",
         Cell: TaskInstanceLink,
       },
       {
-        Header: 'When',
-        accessor: 'timestamp',
+        Header: "When",
+        accessor: "timestamp",
         Cell: TimeCell,
       },
       {
-        Header: 'Triggered Runs',
-        accessor: 'createdDagruns',
+        Header: "Triggered Runs",
+        accessor: "createdDagruns",
         Cell: TriggeredRuns,
       },
     ],
-    [],
+    []
   );
 
-  const data = useMemo(
-    () => datasetEvents,
-    [datasetEvents],
-  );
+  const data = useMemo(() => datasetEvents, [datasetEvents]);
 
   const memoSort = useMemo(() => sortBy, [sortBy]);
 

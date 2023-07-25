@@ -22,13 +22,13 @@ from unittest import mock
 from airflow.models import Log
 
 
-def client_with_login(app, **kwargs):
+def client_with_login(app, expected_response_code=302, **kwargs):
     patch_path = "airflow.www.fab_security.manager.check_password_hash"
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
         client = app.test_client()
         resp = client.post("/login/", data=kwargs)
-        assert resp.status_code == 302
+        assert resp.status_code == expected_response_code
     return client
 
 

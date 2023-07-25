@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Save Rendered Template Fields"""
+"""Save Rendered Template Fields."""
 from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, PrimaryKeyConstraint, text
+from sqlalchemy import Column, ForeignKeyConstraint, Integer, PrimaryKeyConstraint, delete, select, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Session, relationship
 
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 
 class RenderedTaskInstanceFields(Base):
-    """Save Rendered Template Fields"""
+    """Save Rendered Template Fields."""
 
     __tablename__ = "rendered_task_instance_fields"
 
@@ -127,22 +127,19 @@ class RenderedTaskInstanceFields(Base):
     @provide_session
     def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
-        Get templated field for a TaskInstance from the RenderedTaskInstanceFields
-        table.
+        Get templated field for a TaskInstance from the RenderedTaskInstanceFields table.
 
         :param ti: Task Instance
         :param session: SqlAlchemy Session
         :return: Rendered Templated TI field
         """
-        result = (
-            session.query(cls.rendered_fields)
-            .filter(
+        result = session.scalar(
+            select(cls).where(
                 cls.dag_id == ti.dag_id,
                 cls.task_id == ti.task_id,
                 cls.run_id == ti.run_id,
                 cls.map_index == ti.map_index,
             )
-            .one_or_none()
         )
 
         if result:
@@ -155,28 +152,26 @@ class RenderedTaskInstanceFields(Base):
     @provide_session
     def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
-        Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields
-        table.
+        Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields table.
 
         :param ti: Task Instance
         :param session: SqlAlchemy Session
         :return: Kubernetes Pod Yaml
         """
-        result = (
-            session.query(cls.k8s_pod_yaml)
-            .filter(
+        result = session.scalar(
+            select(cls).where(
                 cls.dag_id == ti.dag_id,
                 cls.task_id == ti.task_id,
                 cls.run_id == ti.run_id,
                 cls.map_index == ti.map_index,
             )
-            .one_or_none()
         )
         return result.k8s_pod_yaml if result else None
 
     @provide_session
+    @retry_db_transaction
     def write(self, session: Session = None):
-        """Write instance to database
+        """Write instance to database.
 
         :param session: SqlAlchemy Session
         """
@@ -208,8 +203,8 @@ class RenderedTaskInstanceFields(Base):
             return
 
         tis_to_keep_query = (
-            session.query(cls.dag_id, cls.task_id, cls.run_id)
-            .filter(cls.dag_id == dag_id, cls.task_id == task_id)
+            select(cls.dag_id, cls.task_id, cls.run_id, DagRun.execution_date)
+            .where(cls.dag_id == dag_id, cls.task_id == task_id)
             .join(cls.dag_run)
             .distinct()
             .order_by(DagRun.execution_date.desc())
@@ -235,11 +230,17 @@ class RenderedTaskInstanceFields(Base):
         session: Session,
     ) -> None:
         # This query might deadlock occasionally and it should be retried if fails (see decorator)
-        session.query(cls).filter(
-            cls.dag_id == dag_id,
-            cls.task_id == task_id,
-            tuple_not_in_condition(
-                (cls.dag_id, cls.task_id, cls.run_id),
-                session.query(ti_clause.c.dag_id, ti_clause.c.task_id, ti_clause.c.run_id),
-            ),
-        ).delete(synchronize_session=False)
+        stmt = (
+            delete(cls)
+            .where(
+                cls.dag_id == dag_id,
+                cls.task_id == task_id,
+                tuple_not_in_condition(
+                    (cls.dag_id, cls.task_id, cls.run_id),
+                    select(ti_clause.c.dag_id, ti_clause.c.task_id, ti_clause.c.run_id),
+                    session=session,
+                ),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        session.execute(stmt)

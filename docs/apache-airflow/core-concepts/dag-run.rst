@@ -40,6 +40,10 @@ There are two possible terminal states for the DAG Run:
     Be careful if some of your tasks have defined some specific :ref:`trigger rule <concepts:trigger-rules>`.
     These can lead to some unexpected behavior, e.g. if you have a leaf task with trigger rule `"all_done"`, it will be executed regardless of the states of the rest of the tasks and if it will succeed, then the whole DAG Run will also be marked as ``success``, even if something failed in the middle.
 
+*Added in Airflow 2.7*
+
+DAGs that have a currently running DAG run can be shown on the UI dashboard in the "Running" tab. Similarly, DAGs whose latest DAG run is marked as failed can be found on the "Failed" tab.
+
 Cron Presets
 ''''''''''''
 
@@ -56,6 +60,8 @@ or one of the following cron "presets". For more elaborate scheduling requiremen
 | ``None``       | Don't schedule, use for exclusively "externally triggered" DAGs    |                 |
 +----------------+--------------------------------------------------------------------+-----------------+
 | ``@once``      | Schedule once and only once                                        |                 |
++----------------+--------------------------------------------------------------------+-----------------+
+| ``@continuous``| Run as soon as the previous run finishes                           |                 |
 +----------------+--------------------------------------------------------------------+-----------------+
 | ``@hourly``    | Run once an hour at the end of the hour                            | ``0 * * * *``   |
 +----------------+--------------------------------------------------------------------+-----------------+
@@ -155,6 +161,12 @@ with a data between 2016-01-01 and 2016-01-02, and the next one will be created
 just after midnight on the morning of 2016-01-03 with a data interval between
 2016-01-02 and 2016-01-03.
 
+Be aware that using a ``datetime.timedelta`` object as schedule can lead to a different behavior.
+In such a case, the single DAG Run created will cover data between 2016-01-01 06:00 and
+2016-01-02 06:00 (one schedule interval ending now). For a more detailed description of the
+differences between a cron and a delta based schedule, take a look at the
+:ref:`timetables comparison <Differences between the cron and delta data interval timetables>`
+
 If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have created a DAG Run
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02,
 as that interval hasn't completed) and the scheduler will execute them sequentially.
@@ -181,7 +193,7 @@ Run the below command
         --end-date END_DATE \
         dag_id
 
-The `backfill command <cli-and-env-variables-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
+The `backfill command <../cli-and-env-variables-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
 
 Re-run Tasks
 ------------
@@ -212,7 +224,7 @@ You can also clear the task through CLI using the command:
         --end-date END_DATE
 
 For the specified ``dag_id`` and time interval, the command clears all instances of the tasks matching the regex.
-For more options, you can check the help of the `clear command <cli-ref.html#clear>`_ :
+For more options, you can check the help of the `clear command <../cli-and-env-variables-ref.html#clear>`_ :
 
 .. code-block:: bash
 

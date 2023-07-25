@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 from botocore.waiter import Waiter
 
+from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -33,6 +34,12 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksDeleteNodegroupOperator,
     EksPodOperator,
 )
+from airflow.providers.amazon.aws.triggers.eks import (
+    EksCreateFargateProfileTrigger,
+    EksCreateNodegroupTrigger,
+    EksDeleteFargateProfileTrigger,
+)
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.typing_compat import TypedDict
 from tests.providers.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
@@ -44,6 +51,7 @@ from tests.providers.amazon.aws.utils.eks_test_constants import (
     TASK_ID,
 )
 from tests.providers.amazon.aws.utils.eks_test_utils import convert_keys
+from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 CLUSTER_NAME = "cluster1"
 NODEGROUP_NAME = "nodegroup1"
@@ -59,17 +67,6 @@ CREATE_NODEGROUP_KWARGS = {
     "capacityType": "ON_DEMAND",
     "instanceTypes": "t3.large",
 }
-
-
-def assert_expected_waiter_type(waiter: mock.MagicMock, expected: str):
-    """
-    There does not appear to be a straight-forward way to assert the type of waiter.
-    Instead, get the class name and check if it contains the expected name.
-
-    :param waiter: A mocked Boto3 Waiter object.
-    :param expected: The expected class name of the Waiter object, for example "ClusterActive".
-    """
-    assert expected in str(type(waiter.call_args[0][0]))
 
 
 class ClusterParams(TypedDict):
@@ -205,7 +202,11 @@ class TestEksCreateClusterOperator:
         operator.execute({})
         mock_create_cluster.assert_called_with(**convert_keys(parameters))
         mock_create_nodegroup.assert_not_called()
-        mock_waiter.assert_called_once_with(mock.ANY, name=CLUSTER_NAME)
+        mock_waiter.assert_called_once_with(
+            mock.ANY,
+            name=CLUSTER_NAME,
+            WaiterConfig={"Delay": mock.ANY, "MaxAttempts": mock.ANY},
+        )
         assert_expected_waiter_type(mock_waiter, "ClusterActive")
 
     @mock.patch.object(Waiter, "wait")
@@ -221,7 +222,11 @@ class TestEksCreateClusterOperator:
 
         mock_create_cluster.assert_called_once_with(**convert_keys(self.create_cluster_params))
         mock_create_nodegroup.assert_called_once_with(**convert_keys(self.create_nodegroup_params))
-        mock_waiter.assert_called_once_with(mock.ANY, name=CLUSTER_NAME)
+        mock_waiter.assert_called_once_with(
+            mock.ANY,
+            name=CLUSTER_NAME,
+            WaiterConfig={"Delay": mock.ANY, "MaxAttempts": mock.ANY},
+        )
         assert_expected_waiter_type(mock_waiter, "ClusterActive")
 
     @mock.patch.object(Waiter, "wait")
@@ -240,7 +245,12 @@ class TestEksCreateClusterOperator:
         mock_create_nodegroup.assert_called_once_with(**convert_keys(self.create_nodegroup_params))
         # Calls waiter once for the cluster and once for the nodegroup.
         assert mock_waiter.call_count == 2
-        mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
+        mock_waiter.assert_called_with(
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            nodegroupName=NODEGROUP_NAME,
+            WaiterConfig={"MaxAttempts": mock.ANY},
+        )
         assert_expected_waiter_type(mock_waiter, "NodegroupActive")
 
     @mock.patch.object(Waiter, "wait")
@@ -258,7 +268,11 @@ class TestEksCreateClusterOperator:
         mock_create_fargate_profile.assert_called_once_with(
             **convert_keys(self.create_fargate_profile_params)
         )
-        mock_waiter.assert_called_once_with(mock.ANY, name=CLUSTER_NAME)
+        mock_waiter.assert_called_once_with(
+            mock.ANY,
+            name=CLUSTER_NAME,
+            WaiterConfig={"Delay": mock.ANY, "MaxAttempts": mock.ANY},
+        )
         assert_expected_waiter_type(mock_waiter, "ClusterActive")
 
     @mock.patch.object(Waiter, "wait")
@@ -280,7 +294,10 @@ class TestEksCreateClusterOperator:
         # Calls waiter once for the cluster and once for the nodegroup.
         assert mock_waiter.call_count == 2
         mock_waiter.assert_called_with(
-            mock.ANY, clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            fargateProfileName=FARGATE_PROFILE_NAME,
+            WaiterConfig={"MaxAttempts": mock.ANY},
         )
         assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
 
@@ -320,6 +337,34 @@ class TestEksCreateClusterOperator:
         ):
             missing_fargate_pod_execution_role_arn.execute({})
 
+    @mock.patch.object(EksHook, "create_cluster")
+    def test_eks_create_cluster_short_circuit_early(self, mock_create_cluster, caplog):
+        mock_create_cluster.return_value = None
+        eks_create_cluster_operator = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute=None,
+            wait_for_completion=False,
+            deferrable=False,
+        )
+        eks_create_cluster_operator.execute({})
+        assert len(caplog.records) == 0
+
+    @mock.patch.object(EksHook, "create_cluster")
+    def test_eks_create_cluster_with_deferrable(self, mock_create_cluster, caplog):
+        mock_create_cluster.return_value = None
+
+        eks_create_cluster_operator = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute=None,
+            wait_for_completion=False,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred):
+            eks_create_cluster_operator.execute({})
+        assert "Waiting for EKS Cluster to provision. This will take some time." in caplog.messages
+
 
 class TestEksCreateFargateProfileOperator:
     def setup_method(self) -> None:
@@ -355,33 +400,50 @@ class TestEksCreateFargateProfileOperator:
         mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
         mock_waiter.assert_not_called()
 
-        @pytest.mark.parametrize(
-            "create_fargate_profile_kwargs",
-            [
-                pytest.param(None, id="without fargate profile kwargs"),
-                pytest.param(CREATE_FARGATE_PROFILE_KWARGS, id="with fargate profile kwargs"),
-            ],
-        )
-        @mock.patch.object(Waiter, "wait")
-        @mock.patch.object(EksHook, "create_fargate_profile")
-        def test_execute_with_wait_when_fargate_profile_does_not_already_exist(
-            self, mock_create_fargate_profile, mock_waiter, create_fargate_profile_kwargs
-        ):
-            op_kwargs = {**self.create_fargate_profile_params}
-            if create_fargate_profile_kwargs:
-                op_kwargs["create_fargate_profile_kwargs"] = create_fargate_profile_kwargs
-                parameters = {**self.create_fargate_profile_params, **create_fargate_profile_kwargs}
-            else:
-                assert "create_fargate_profile_kwargs" not in op_kwargs
-                parameters = self.create_fargate_profile_params
+    @pytest.mark.parametrize(
+        "create_fargate_profile_kwargs",
+        [
+            pytest.param(None, id="without fargate profile kwargs"),
+            pytest.param(CREATE_FARGATE_PROFILE_KWARGS, id="with fargate profile kwargs"),
+        ],
+    )
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "create_fargate_profile")
+    def test_execute_with_wait_when_fargate_profile_does_not_already_exist(
+        self, mock_create_fargate_profile, mock_waiter, create_fargate_profile_kwargs
+    ):
+        op_kwargs = {**self.create_fargate_profile_params}
+        if create_fargate_profile_kwargs:
+            op_kwargs["create_fargate_profile_kwargs"] = create_fargate_profile_kwargs
+            parameters = {**self.create_fargate_profile_params, **create_fargate_profile_kwargs}
+        else:
+            assert "create_fargate_profile_kwargs" not in op_kwargs
+            parameters = self.create_fargate_profile_params
 
-            operator = EksCreateFargateProfileOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
+        operator = EksCreateFargateProfileOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
+        operator.execute({})
+        mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
+        mock_waiter.assert_called_with(
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            fargateProfileName=FARGATE_PROFILE_NAME,
+            WaiterConfig={"MaxAttempts": mock.ANY},
+        )
+        assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
+
+    @mock.patch.object(EksHook, "create_fargate_profile")
+    def test_create_fargate_profile_deferrable(self, _):
+        op_kwargs = {**self.create_fargate_profile_params}
+        operator = EksCreateFargateProfileOperator(
+            task_id=TASK_ID,
+            **op_kwargs,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
             operator.execute({})
-            mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
-            mock_waiter.assert_called_with(
-                mock.ANY, clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
-            )
-            assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
+        assert isinstance(
+            exc.value.trigger, EksCreateFargateProfileTrigger
+        ), "Trigger is not a EksCreateFargateProfileTrigger"
 
 
 class TestEksCreateNodegroupOperator:
@@ -444,6 +506,36 @@ class TestEksCreateNodegroupOperator:
             mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
             assert_expected_waiter_type(mock_waiter, "NodegroupActive")
 
+    @mock.patch.object(EksHook, "create_nodegroup")
+    def test_create_nodegroup_deferrable(self, mock_create_nodegroup):
+        mock_create_nodegroup.return_value = True
+        op_kwargs = {**self.create_nodegroup_params}
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            **op_kwargs,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute({})
+        assert isinstance(exc.value.trigger, EksCreateNodegroupTrigger)
+
+    def test_create_nodegroup_deferrable_versus_wait_for_completion(self):
+        op_kwargs = {**self.create_nodegroup_params}
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            **op_kwargs,
+            deferrable=True,
+            wait_for_completion=True,
+        )
+        assert operator.wait_for_completion is False
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            **op_kwargs,
+            deferrable=False,
+            wait_for_completion=True,
+        )
+        assert operator.wait_for_completion is True
+
 
 class TestEksDeleteClusterOperator:
     def setup_method(self) -> None:
@@ -477,6 +569,11 @@ class TestEksDeleteClusterOperator:
         mock_delete_cluster.assert_called_once_with(name=self.cluster_name)
         mock_waiter.assert_called_with(mock.ANY, name=CLUSTER_NAME)
         assert_expected_waiter_type(mock_waiter, "ClusterDeleted")
+
+    def test_eks_delete_cluster_operator_with_deferrable(self):
+        self.delete_cluster_operator.deferrable = True
+        with pytest.raises(TaskDeferred):
+            self.delete_cluster_operator.execute({})
 
 
 class TestEksDeleteNodegroupOperator:
@@ -542,13 +639,26 @@ class TestEksDeleteFargateProfileOperator:
             clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
         )
         mock_waiter.assert_called_with(
-            mock.ANY, clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            fargateProfileName=FARGATE_PROFILE_NAME,
+            WaiterConfig={"Delay": 30, "MaxAttempts": 60},
         )
         assert_expected_waiter_type(mock_waiter, "FargateProfileDeleted")
 
+    @mock.patch.object(EksHook, "delete_fargate_profile")
+    def test_delete_fargate_profile_deferrable(self, _):
+        self.delete_fargate_profile_operator.deferrable = True
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.delete_fargate_profile_operator.execute({})
+        assert isinstance(
+            exc.value.trigger, EksDeleteFargateProfileTrigger
+        ), "Trigger is not a EksDeleteFargateProfileTrigger"
+
 
 class TestEksPodOperator:
-    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.execute")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
     def test_existing_nodegroup(
@@ -565,7 +675,7 @@ class TestEksPodOperator:
             labels={"demo": "hello_world"},
             get_logs=True,
             # Delete the pod when it reaches its final state, or the execution is interrupted.
-            is_delete_operator_pod=True,
+            on_finish_action="delete_pod",
         )
         op_return_value = op.execute(ti_context)
         mock_k8s_pod_operator_execute.assert_called_once_with(ti_context)
@@ -575,3 +685,58 @@ class TestEksPodOperator:
         )
         assert mock_k8s_pod_operator_execute.return_value == op_return_value
         assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
+
+    @pytest.mark.parametrize(
+        "compatible_kpo, kwargs, expected_attributes",
+        [
+            (
+                True,
+                {"on_finish_action": "delete_succeeded_pod"},
+                {"on_finish_action": OnFinishAction.DELETE_SUCCEEDED_POD},
+            ),
+            (
+                # test that priority for deprecated param
+                True,
+                {"on_finish_action": "keep_pod", "is_delete_operator_pod": True},
+                {"on_finish_action": OnFinishAction.DELETE_POD, "is_delete_operator_pod": True},
+            ),
+            (
+                # test default
+                True,
+                {},
+                {"on_finish_action": OnFinishAction.KEEP_POD, "is_delete_operator_pod": False},
+            ),
+            (
+                False,
+                {"is_delete_operator_pod": True},
+                {"is_delete_operator_pod": True},
+            ),
+            (
+                False,
+                {"is_delete_operator_pod": False},
+                {"is_delete_operator_pod": False},
+            ),
+            (
+                # test default
+                False,
+                {},
+                {"is_delete_operator_pod": False},
+            ),
+        ],
+    )
+    def test_on_finish_action_handler(self, compatible_kpo, kwargs, expected_attributes):
+        kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
+
+        with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
+            op = EksPodOperator(
+                task_id="run_pod",
+                pod_name="run_pod",
+                cluster_name=CLUSTER_NAME,
+                image="amazon/aws-cli:latest",
+                cmds=["sh", "-c", "ls"],
+                labels={"demo": "hello_world"},
+                get_logs=True,
+                **kwargs,
+            )
+            for expected_attr in expected_attributes:
+                assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]

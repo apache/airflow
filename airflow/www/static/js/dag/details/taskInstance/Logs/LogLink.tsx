@@ -17,45 +17,53 @@
  * under the License.
  */
 
-import React from 'react';
+import React from "react";
 
-import { getMetaValue } from 'src/utils';
-import LinkButton from 'src/components/LinkButton';
-import type { Dag, DagRun, TaskInstance } from 'src/types';
+import { getMetaValue } from "src/utils";
+import LinkButton from "src/components/LinkButton";
+import type { Dag, DagRun, TaskInstance } from "src/types";
 
-const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
-const externalLogUrl = getMetaValue('external_log_url');
+const logsWithMetadataUrl = getMetaValue("logs_with_metadata_url");
+const externalLogUrl = getMetaValue("external_log_url");
 
 interface Props {
-  dagId: Dag['id'];
-  taskId: TaskInstance['taskId'];
-  executionDate: DagRun['executionDate'];
+  dagId: Dag["id"];
+  taskId: TaskInstance["taskId"];
+  executionDate: DagRun["executionDate"];
   isInternal?: boolean;
-  tryNumber: TaskInstance['tryNumber'];
-  mapIndex?: TaskInstance['mapIndex'];
+  tryNumber: TaskInstance["tryNumber"];
+  mapIndex?: TaskInstance["mapIndex"];
 }
 
 const LogLink = ({
-  dagId, taskId, executionDate, isInternal, tryNumber, mapIndex,
+  dagId,
+  taskId,
+  executionDate,
+  isInternal,
+  tryNumber,
+  mapIndex,
 }: Props) => {
-  let fullMetadataUrl = `${isInternal ? logsWithMetadataUrl : externalLogUrl
-  }?dag_id=${encodeURIComponent(dagId)
-  }&task_id=${encodeURIComponent(taskId)
-  }&execution_date=${encodeURIComponent(executionDate)
-  }&map_index=${encodeURIComponent(mapIndex?.toString() ?? '-1')
-  }`;
+  let fullMetadataUrl = `${
+    isInternal ? logsWithMetadataUrl : externalLogUrl
+  }?dag_id=${encodeURIComponent(dagId)}&task_id=${encodeURIComponent(
+    taskId
+  )}&execution_date=${encodeURIComponent(
+    executionDate
+  )}&map_index=${encodeURIComponent(mapIndex?.toString() ?? "-1")}`;
 
   if (isInternal && tryNumber) {
-    fullMetadataUrl += `&format=file${tryNumber > 0 && `&try_number=${tryNumber}`}`;
+    fullMetadataUrl += `&format=file${
+      tryNumber > 0 && `&try_number=${tryNumber}`
+    }`;
   } else {
     fullMetadataUrl += `&try_number=${tryNumber}`;
   }
   return (
     <LinkButton
       href={fullMetadataUrl}
-      target={isInternal ? undefined : '_blank'}
+      target={isInternal ? undefined : "_blank"}
     >
-      {isInternal ? 'Download' : tryNumber}
+      {isInternal ? "Download" : tryNumber}
     </LinkButton>
   );
 };

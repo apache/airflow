@@ -60,7 +60,7 @@ class TestCloudDatastoreExportEntitiesOperator:
         )
         op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, delegate_to=None, impersonation_chain=None)
+        mock_hook.assert_called_once_with(gcp_conn_id=CONN_ID, impersonation_chain=None)
         mock_hook.return_value.export_to_storage_bucket.assert_called_once_with(
             project_id=PROJECT_ID,
             bucket=BUCKET,
@@ -89,7 +89,7 @@ class TestCloudDatastoreImportEntitiesOperator:
         )
         op.execute(context={"ti": mock.MagicMock()})
 
-        mock_hook.assert_called_once_with(CONN_ID, None, impersonation_chain=None)
+        mock_hook.assert_called_once_with(CONN_ID, impersonation_chain=None)
         mock_hook.return_value.import_from_storage_bucket.assert_called_once_with(
             project_id=PROJECT_ID,
             bucket=BUCKET,

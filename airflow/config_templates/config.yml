@@ -42,6 +42,16 @@ core:
       type: string
       example: ~
       default: "airflow.utils.net.getfqdn"
+    might_contain_dag_callable:
+      description: |
+        A callable to check if a python file has airflow dags defined or not
+        with argument as: `(file_path: str, zip_file: zipfile.ZipFile | None = None)`
+        return True if it has dags otherwise False
+        If this is not provided, Airflow uses its own heuristic rules.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "airflow.utils.file.might_contain_dag_via_default_heuristic"
     default_timezone:
       description: |
         Default timezone in case supplied date times are naive
@@ -60,6 +70,13 @@ core:
       type: string
       example: ~
       default: "SequentialExecutor"
+    auth_manager:
+      description: |
+        The auth manager class that airflow should use. Full import path to the auth manager class.
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -249,7 +266,7 @@ core:
       default: "True"
     dag_discovery_safe_mode:
       description: |
-        When discovering DAGs, ignore any files that don't contain the strings ``DAG`` and ``airflow``.
+        If enabled, Airflow will only scan files containing both ``DAG`` and ``airflow`` (case-insensitive).
       version_added: 1.10.3
       type: string
       example: ~
@@ -271,8 +288,8 @@ core:
       default: "0"
     default_task_retry_delay:
       description: |
-          The number of seconds each task is going to wait by default between retries. Can be overridden at
-          dag or task level.
+        The number of seconds each task is going to wait by default between retries. Can be overridden at
+        dag or task level.
       version_added: 2.4.0
       type: integer
       example: ~
@@ -424,24 +441,48 @@ core:
       description: Kwargs to supply to dataset manager.
       version_added: 2.4.0
       type: string
+      sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
     internal_api_url:
       description: |
-        (experimental)Airflow Internal API url. Only used if [core] database_access_isolation is True.
-      version_added: 2.6.0
+        (experimental) Airflow Internal API url. Only used if [core] database_access_isolation is True.
+      version_added: 2.7.0
       type: string
       default: ~
       example: 'http://localhost:8080'
+    test_connection:
+      description: |
+        The ability to allow testing connections across Airflow UI, API and CLI.
+        Supported options: Disabled, Enabled, Hidden. Default: Disabled
+        Disabled - Disables the test connection functionality and disables the Test Connection button in UI.
+        Enabled - Enables the test connection functionality and shows the Test Connection button in UI.
+        Hidden - Disables the test connection functionality and hides the Test Connection button in UI.
+        Before setting this to Enabled, make sure that you review the users who are able to add/edit
+        connections and ensure they are trusted. Connection testing can be done maliciously leading to
+        undesired and insecure outcomes. For more information on capabilities of users, see the documentation:
+        https://airflow.apache.org/docs/apache-airflow/stable/security/index.html#capabilities-of-authenticated-ui-users
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "Disabled"
 database:
   description: ~
   options:
+    alembic_ini_file_path:
+      description: |
+        Path to the ``alembic.ini`` file. You can either provide the file path relative
+        to the Airflow home directory or the absolute path if it is located elsewhere.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "alembic.ini"
     sql_alchemy_conn:
       description: |
         The SqlAlchemy connection string to the metadata database.
@@ -546,7 +587,7 @@ database:
         See https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.connect_args
       version_added: 2.3.0
       type: string
-      example: ~
+      example: '{"timeout": 30}'
       default: ~
     load_default_connections:
       description: |
@@ -606,6 +647,14 @@ logging:
       type: string
       example: ~
       default: ""
+    delete_local_logs:
+      description: |
+        Whether the local log files for GCS, S3, WASB and OSS remote logging should be deleted after
+        they are uploaded to the remote location.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "False"
     google_key_path:
       description: |
         Path to Google Credential JSON file. If omitted, authorization based on `the Application Default
@@ -627,6 +676,17 @@ logging:
       version_added: 2.0.0
       type: string
       example: ~
+      default: ""
+    remote_task_handler_kwargs:
+      description: |
+        The remote_task_handler_kwargs param is loaded into a dictionary and passed to __init__ of remote
+        task handler and it overrides the values provided by Airflow config. For example if you set
+        `delete_local_logs=False` and you provide ``{"delete_local_copy": true}``, then the local
+        log files will be deleted after they are uploaded to remote location.
+      version_added: 2.6.0
+      type: string
+      sensitive: true
+      example: '{"delete_local_copy": true}'
       default: ""
     encrypt_s3_logs:
       description: |
@@ -744,7 +804,8 @@ logging:
         Specify prefix pattern like mentioned below with stream handler TaskHandlerWithCustomFormatter
       version_added: 2.0.0
       type: string
-      example: "{{ti.dag_id}}-{{ti.task_id}}-{{execution_date}}-{{try_number}}"
+      example: "{ti.dag_id}-{ti.task_id}-{execution_date}-{try_number}"
+      is_template: true
       default: ""
     log_filename_template:
       description: |
@@ -752,16 +813,18 @@ logging:
       version_added: 2.0.0
       type: string
       example: ~
-      default: "dag_id={{{{ ti.dag_id }}}}/run_id={{{{ ti.run_id }}}}/task_id={{{{ ti.task_id }}}}/\
-               {{%% if ti.map_index >= 0 %%}}map_index={{{{ ti.map_index }}}}/{{%% endif %%}}\
-               attempt={{{{ try_number }}}}.log"
+      is_template: true
+      default: "dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/\
+               {%% if ti.map_index >= 0 %%}map_index={{ ti.map_index }}/{%% endif %%}\
+               attempt={{ try_number }}.log"
     log_processor_filename_template:
       description: |
         Formatting for how airflow generates file names for log
       version_added: 2.0.0
       type: string
       example: ~
-      default: "{{{{ filename }}}}.log"
+      is_template: true
+      default: "{{ filename }}.log"
     dag_processor_manager_log_location:
       description: |
         Full path of dag_processor_manager logfile.
@@ -842,12 +905,40 @@ logging:
       type: string
       example: "0o664"
       default: "0o664"
-
-
+    celery_stdout_stderr_separation:
+      description: |
+        By default Celery sends all logs into stderr.
+        If enabled any previous logging handlers will get *removed*.
+        With this option AirFlow will create new handlers
+        and send low level logs like INFO and WARNING to stdout,
+        while sending higher severity logs to stderr.
+      version_added: 2.5.4
+      type: boolean
+      example: ~
+      default: "False"
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
   options:
+    metrics_allow_list:
+      description: |
+        If you want to avoid emitting all the available metrics, you can configure an
+        allow list of prefixes (comma separated) to send only the metrics that start
+        with the elements of the list (e.g: "scheduler,executor,dagrun")
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: ""
+    metrics_block_list:
+      description: |
+        If you want to avoid emitting all the available metrics, you can configure a
+        block list of prefixes (comma separated) to filter out metrics that start with
+        the elements of the list (e.g: "scheduler,executor,dagrun").
+        If metrics_allow_list and metrics_block_list are both configured, metrics_block_list is ignored.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: ""
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -873,15 +964,6 @@ metrics:
       type: string
       example: ~
       default: "airflow"
-    statsd_allow_list:
-      description: |
-        If you want to avoid sending all the available metrics to StatsD,
-        you can configure an allow list of prefixes (comma separated) to send only the metrics that
-        start with the elements of the list (e.g: "scheduler,executor,dagrun")
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: ""
     stat_name_handler:
       description: |
         A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
@@ -923,11 +1005,68 @@ metrics:
       type: string
       example: ~
       default: ~
+    statsd_disabled_tags:
+      description: |
+        If you want to avoid sending all the available metrics tags to StatsD,
+        you can configure a block list of prefixes (comma separated) to filter out metric tags
+        that start with the elements of the list (e.g: "job_id,run_id")
+      version_added: 2.6.0
+      type: string
+      example: job_id,run_id,dag_id,task_id
+      default: job_id,run_id
     statsd_influxdb_enabled:
       description: |
         To enable sending Airflow metrics with StatsD-Influxdb tagging convention.
       version_added: 2.6.0
       type: boolean
+      example: ~
+      default: "False"
+    otel_on:
+      description: |
+        Enables sending metrics to OpenTelemetry.
+      version_added: 2.5.1
+      type: string
+      example: ~
+      default: "False"
+    otel_host:
+      description: ~
+      version_added: 2.5.1
+      type: string
+      example: ~
+      default: "localhost"
+    otel_port:
+      description: ~
+      version_added: 2.5.1
+      type: string
+      example: ~
+      default: "8889"
+    otel_prefix:
+      description: ~
+      version_added: 2.0.0
+      type: string
+      example: ~
+      default: "airflow"
+    otel_interval_milliseconds:
+      description: ~
+      version_added: 2.0.0
+      type: integer
+      example: ~
+      default: "60000"
+    otel_debugging_on:
+      description: |
+        If True, all metrics are also emitted to the console.  Defaults to False.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "False"
+    otel_ssl_active:
+      description: |
+        If True, SSL will be enabled.  Defaults to False.
+        To establish an HTTPS connection to the OpenTelemetry collector,
+        you need to configure the SSL certificate and key within the OpenTelemetry collector's
+        config.yml file.
+      version_added: 2.7.0
+      type: string
       example: ~
       default: "False"
 secrets:
@@ -945,9 +1084,10 @@ secrets:
         The backend_kwargs param is loaded into a dictionary and passed to __init__ of secrets backend class.
         See documentation for the secrets backend you are using. JSON is expected.
         Example for AWS Systems Manager ParameterStore:
-        ``{{"connections_prefix": "/airflow/connections", "profile_name": "default"}}``
+        ``{"connections_prefix": "/airflow/connections", "profile_name": "default"}``
       version_added: 1.10.10
       type: string
+      sensitive: true
       example: ~
       default: ""
 cli:
@@ -1071,6 +1211,15 @@ api:
       version_added: 2.2.0
       example: ~
       default: ""
+    enable_xcom_deserialize_support:
+      description: |
+        Indicates whether the *xcomEntries* endpoint supports the *deserialize*
+        flag. If set to False, setting this flag in a request would result in a
+        400 Bad Request error.
+      type: boolean
+      version_added: 2.7.0
+      example: ~
+      default: "False"
 lineage:
   description: ~
   options:
@@ -1081,40 +1230,65 @@ lineage:
       type: string
       example: ~
       default: ""
-atlas:
-  description: ~
+openlineage:
+  description: |
+    This section applies settings for OpenLineage integration.
+    For backwards compatibility with `openlineage-python` one can still use
+    `openlineage.yml` file or `OPENLINEAGE_` environment variables. However, below
+    configuration takes precedence over those.
+    More in documentation - https://openlineage.io/docs/client/python#configuration.
   options:
-    sasl_enabled:
-      description: ~
-      version_added: ~
-      type: string
+    disabled:
+      description: |
+        Set this to true if you don't want OpenLineage to emit events.
+      type: boolean
       example: ~
       default: "False"
-    host:
-      description: ~
+      version_added: ~
+    namespace:
+      description: |
+        OpenLineage namespace
+      version_added: ~
+      type: string
+      example: "food_delivery"
+      default: ~
+    extractors:
+      description: |
+        Comma-separated paths to custom OpenLineage extractors.
+      type: string
+      example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
+      default: ''
+      version_added: ~
+    config_path:
+      description: |
+        Path to YAML config. This provides backwards compatibility to pass config as
+        `openlineage.yml` file.
       version_added: ~
       type: string
       example: ~
-      default: ""
-    port:
-      description: ~
-      version_added: ~
+      default: ''
+    transport:
+      description: |
+        OpenLineage Client transport configuration. It should contain type
+        and additional options per each type.
+
+        Currently supported types are:
+
+          * HTTP
+          * Kafka
+          * Console
       type: string
-      example: ~
-      default: "21000"
-    username:
-      description: ~
+      example: '{"type": "http", "url": "http://localhost:5000"}'
+      default: ''
       version_added: ~
-      type: string
+    disable_source_code:
+      description: |
+        If disabled, OpenLineage events do not contain source code of particular
+        operators, like PythonOperator.
+      default: ~
       example: ~
-      default: ""
-    password:
-      description: ~
+      type: boolean
       version_added: ~
-      type: string
-      sensitive: true
-      example: ~
-      default: ""
 operators:
   description: ~
   options:
@@ -1126,6 +1300,13 @@ operators:
       type: string
       example: ~
       default: "airflow"
+    default_deferrable:
+      description: |
+        The default value of attribute "deferrable" in operators and sensors.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "false"
     default_cpus:
       description: ~
       version_added: ~
@@ -1165,27 +1346,16 @@ operators:
       type: string
       example: ~
       default: "False"
-hive:
-  description: ~
-  options:
-    default_hive_mapred_queue:
-      description: |
-        Default mapreduce queue for HiveOperator tasks
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    mapred_job_name_template:
-      description: |
-        Template for mapred_job_name in HiveOperator, supports the following named parameters
-        hostname, dag_id, task_id, execution_date
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: ~
 webserver:
   description: ~
   options:
+    config_file:
+      description: |
+        Path of webserver config file used for configuring the webserver parameters
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "{AIRFLOW_HOME}/webserver_config.py"
     base_url:
       description: |
         The base url of your website as airflow cannot guess what domain or
@@ -1372,6 +1542,13 @@ webserver:
       type: string
       example: ~
       default: "LR"
+    grid_view_sorting_order:
+      description: |
+        Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "topological"
     log_fetch_timeout_sec:
       description: |
         The amount of time (in secs) webserver will wait for initial handshake
@@ -1596,11 +1773,31 @@ webserver:
     run_internal_api:
       description: |
         Boolean for running Internal API in the webserver.
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
-
+    auth_rate_limited:
+      description: |
+        Boolean for enabling rate limiting on authentication endpoints.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
+    auth_rate_limit:
+      description: |
+        Rate limit for authentication endpoints.
+      version_added: 2.6.0
+      type: string
+      example: ~
+      default: "5 per 40 second"
+    caching_hash_method:
+      description: |
+        The caching algorithm used by the webserver. Must be a valid hashlib function name.
+      version_added: 2.6.0
+      type: string
+      example: "sha256"
+      default: "md5"
 email:
   description: |
     Configuration email backend and whether to
@@ -1658,7 +1855,6 @@ email:
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~
-
 smtp:
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
@@ -1738,6 +1934,7 @@ sentry:
       description: ~
       version_added: 1.10.6
       type: string
+      sensitive: true
       example: ~
       default: ""
     before_send:
@@ -1761,284 +1958,6 @@ local_kubernetes_executor:
       type: string
       example: ~
       default: "kubernetes"
-celery_kubernetes_executor:
-  description: |
-    This section only applies if you are using the ``CeleryKubernetesExecutor`` in
-    ``[core]`` section above
-  options:
-    kubernetes_queue:
-      description: |
-        Define when to send a task to ``KubernetesExecutor`` when using ``CeleryKubernetesExecutor``.
-        When the queue of a task is the value of ``kubernetes_queue`` (default ``kubernetes``),
-        the task is executed via ``KubernetesExecutor``,
-        otherwise via ``CeleryExecutor``
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "kubernetes"
-celery:
-  description: |
-    This section only applies if you are using the CeleryExecutor in
-    ``[core]`` section above
-  options:
-    celery_app_name:
-      description: |
-        The app name that will be used by celery
-      version_added: ~
-      type: string
-      example: ~
-      default: "airflow.executors.celery_executor"
-    worker_concurrency:
-      description: |
-        The concurrency that will be used when starting workers with the
-        ``airflow celery worker`` command. This defines the number of task instances that
-        a worker will take, so size up your workers based on the resources on
-        your worker box and the nature of your tasks
-      version_added: ~
-      type: string
-      example: ~
-      default: "16"
-    worker_autoscale:
-      description: |
-        The maximum and minimum concurrency that will be used when starting workers with the
-        ``airflow celery worker`` command (always keep minimum processes, but grow
-        to maximum if necessary). Note the value should be max_concurrency,min_concurrency
-        Pick these numbers based on resources on worker box and the nature of the task.
-        If autoscale option is available, worker_concurrency will be ignored.
-        http://docs.celeryproject.org/en/latest/reference/celery.bin.worker.html#cmdoption-celery-worker-autoscale
-      version_added: ~
-      type: string
-      example: 16,12
-      default: ~
-    worker_prefetch_multiplier:
-      description: |
-        Used to increase the number of tasks that a worker prefetches which can improve performance.
-        The number of processes multiplied by worker_prefetch_multiplier is the number of tasks
-        that are prefetched by a worker. A value greater than 1 can result in tasks being unnecessarily
-        blocked if there are multiple workers and one worker prefetches tasks that sit behind long
-        running tasks while another worker has unutilized processes that are unable to process the already
-        claimed blocked tasks.
-        https://docs.celeryproject.org/en/stable/userguide/optimizing.html#prefetch-limits
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "1"
-    worker_enable_remote_control:
-      description: |
-        Specify if remote control of the workers is enabled.
-        In some cases when the broker does not support remote control, Celery creates lots of
-        ``.*reply-celery-pidbox`` queues. You can prevent this by setting this to false.
-        However, with this disabled Flower won't work.
-        https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview
-      version_added: 2.3.0
-      type: boolean
-      example: ~
-      default: "true"
-    broker_url:
-      description: |
-        The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
-        a sqlalchemy database. Refer to the Celery documentation for more information.
-      version_added: ~
-      type: string
-      sensitive: true
-      example: ~
-      default: "redis://redis:6379/0"
-    result_backend:
-      description: |
-        The Celery result_backend. When a job finishes, it needs to update the
-        metadata of the job. Therefore it will post a message on a message bus,
-        or insert it into a database (depending of the backend)
-        This status is used by the scheduler to update the state of the task
-        The use of a database is highly recommended
-        When not specified, sql_alchemy_conn with a db+ scheme prefix will be used
-        http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-result-backend-settings
-      version_added: ~
-      type: string
-      sensitive: true
-      example: "db+postgresql://postgres:airflow@postgres/airflow"
-      default: ~
-    flower_host:
-      description: |
-        Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
-        it ``airflow celery flower``. This defines the IP that Celery Flower runs on
-      version_added: ~
-      type: string
-      example: ~
-      default: "0.0.0.0"
-    flower_url_prefix:
-      description: |
-        The root URL for Flower
-      version_added: ~
-      type: string
-      example: "/flower"
-      default: ""
-    flower_port:
-      description: |
-        This defines the port that Celery Flower runs on
-      version_added: ~
-      type: string
-      example: ~
-      default: "5555"
-    flower_basic_auth:
-      description: |
-        Securing Flower with Basic Authentication
-        Accepts user:password pairs separated by a comma
-      version_added: 1.10.2
-      type: string
-      sensitive: true
-      example: "user1:password1,user2:password2"
-      default: ""
-    sync_parallelism:
-      description: |
-        How many processes CeleryExecutor uses to sync task state.
-        0 means to use max(1, number of cores - 1) processes.
-      version_added: 1.10.3
-      type: string
-      example: ~
-      default: "0"
-    celery_config_options:
-      description: |
-        Import path for celery configuration options
-      version_added: ~
-      type: string
-      example: ~
-      default: "airflow.config_templates.default_celery.DEFAULT_CELERY_CONFIG"
-    ssl_active:
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-    ssl_key:
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    ssl_cert:
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    ssl_cacert:
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    pool:
-      description: |
-        Celery Pool implementation.
-        Choices include: ``prefork`` (default), ``eventlet``, ``gevent`` or ``solo``.
-        See:
-        https://docs.celeryproject.org/en/latest/userguide/workers.html#concurrency
-        https://docs.celeryproject.org/en/latest/userguide/concurrency/eventlet.html
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "prefork"
-    operation_timeout:
-      description: |
-        The number of seconds to wait before timing out ``send_task_to_executor`` or
-        ``fetch_celery_task_state`` operations.
-      version_added: 1.10.8
-      type: float
-      example: ~
-      default: "1.0"
-    task_track_started:
-      description: |
-        Celery task will report its status as 'started' when the task is executed by a worker.
-        This is used in Airflow to keep track of the running tasks and if a Scheduler is restarted
-        or run in HA mode, it can adopt the orphan tasks launched by previous SchedulerJob.
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "True"
-    task_adoption_timeout:
-      description: |
-        Time in seconds after which adopted tasks which are queued in celery are assumed to be stalled,
-        and are automatically rescheduled. This setting does the same thing as ``stalled_task_timeout`` but
-        applies specifically to adopted tasks only. When set to 0, the ``stalled_task_timeout`` setting
-        also applies to adopted tasks.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "600"
-    stalled_task_timeout:
-      description: |
-        Time in seconds after which tasks queued in celery are assumed to be stalled, and are automatically
-        rescheduled. Adopted tasks will instead use the ``task_adoption_timeout`` setting if specified.
-        When set to 0, automatic clearing of stalled tasks is disabled.
-      version_added: 2.3.1
-      type: integer
-      example: ~
-      default: "0"
-    task_publish_max_retries:
-      description: |
-        The Maximum number of retries for publishing task messages to the broker when failing
-        due to ``AirflowTaskTimeout`` error before giving up and marking Task as failed.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "3"
-    worker_precheck:
-      description: |
-        Worker initialisation check to validate Metadata Database connection
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "False"
-celery_broker_transport_options:
-  description: |
-    This section is for specifying options which can be passed to the
-    underlying celery broker transport. See:
-    http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_transport_options
-  options:
-    visibility_timeout:
-      description: |
-        The visibility timeout defines the number of seconds to wait for the worker
-        to acknowledge the task before the message is redelivered to another worker.
-        Make sure to increase the visibility timeout to match the time of the longest
-        ETA you're planning to use.
-        visibility_timeout is only supported for Redis and SQS celery brokers.
-        See:
-        http://docs.celeryproject.org/en/master/userguide/configuration.html#std:setting-broker_transport_options
-      version_added: ~
-      type: string
-      example: "21600"
-      default: ~
-dask:
-  description: |
-    This section only applies if you are using the DaskExecutor in
-    [core] section above
-  options:
-    cluster_address:
-      description: |
-        The IP address and port of the Dask cluster's scheduler.
-      version_added: ~
-      type: string
-      example: ~
-      default: "127.0.0.1:8786"
-    tls_ca:
-      description: |
-        TLS/ SSL settings to access a secured Dask scheduler.
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    tls_cert:
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
-    tls_key:
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: ""
 scheduler:
   description: ~
   options:
@@ -2048,7 +1967,7 @@ scheduler:
         from the CLI or the UI), this defines the frequency at which they should
         listen (in seconds).
       version_added: ~
-      type: string
+      type: float
       example: ~
       default: "5"
     scheduler_heartbeat_sec:
@@ -2057,15 +1976,24 @@ scheduler:
         scheduler section in the docs for more information). This defines
         how often the scheduler should run (in seconds).
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "5"
+    local_task_job_heartbeat_sec:
+      description: |
+        The frequency (in seconds) at which the LocalTaskJob should send heartbeat signals to the
+        scheduler to notify it's still alive. If this value is set to 0, the heartbeat interval will default
+        to the value of scheduler_zombie_task_threshold.
+      version_added: 2.7.0
+      type: integer
+      example: ~
+      default: "0"
     num_runs:
       description: |
         The number of times to try to schedule each DAG file
         -1 indicates unlimited number
       version_added: 1.10.6
-      type: string
+      type: integer
       example: ~
       default: "-1"
     scheduler_idle_sleep_time:
@@ -2074,7 +2002,7 @@ scheduler:
         in the loop. i.e. if it scheduled something then it will start the next loop
         iteration straight away.
       version_added: 2.2.0
-      type: string
+      type: float
       example: ~
       default: "1"
     min_file_process_interval:
@@ -2083,7 +2011,7 @@ scheduler:
         ``min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
         this interval. Keeping this number low will increase CPU usage.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "30"
     parsing_cleanup_interval:
@@ -2095,18 +2023,30 @@ scheduler:
       type: integer
       example: ~
       default: "60"
+    stale_dag_threshold:
+      description: |
+        How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
+        DAGs (DAGs which are no longer present in the expected files). The reason why we need
+        this threshold is to account for the time between when the file is parsed and when the
+        DAG is loaded. The absolute maximum that this could take is `dag_file_processor_timeout`,
+        but when you have a long timeout configured, it results in a significant delay in the
+        deactivation of stale dags.
+      version_added: 2.6.0
+      type: integer
+      example: ~
+      default: "50"
     dag_dir_list_interval:
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "300"
     print_stats_interval:
       description: |
         How often should stats be printed to the logs. Setting to 0 will disable printing stats
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "30"
     pool_metrics_interval:
@@ -2120,9 +2060,10 @@ scheduler:
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
         ago (in seconds), scheduler is considered unhealthy.
-        This is used by the health check in the "/health" endpoint
+        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        for SchedulerJob.
       version_added: 1.10.2
-      type: string
+      type: integer
       example: ~
       default: "30"
     enable_health_check:
@@ -2138,7 +2079,7 @@ scheduler:
         When you start a scheduler, airflow starts a tiny web server
         subprocess to serve a health check on this port
       version_added: 2.4.0
-      type: string
+      type: integer
       example: ~
       default: "8974"
     orphaned_tasks_check_interval:
@@ -2160,7 +2101,7 @@ scheduler:
         not heartbeat in this many seconds, the scheduler will mark the
         associated task instance as failed and will re-schedule the task.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "300"
     zombie_detection_interval:
@@ -2179,7 +2120,7 @@ scheduler:
         however it can be set on a per DAG basis in the
         DAG definition (catchup)
       version_added: ~
-      type: string
+      type: boolean
       example: ~
       default: "True"
     ignore_first_depends_on_past_by_default:
@@ -2190,20 +2131,21 @@ scheduler:
         in the DB with an execution_date earlier than it., i.e. no manual marking
         success will be needed for a newly added task to be scheduled.
       version_added: 2.3.0
-      type: string
+      type: boolean
       example: ~
       default: "True"
     max_tis_per_query:
       description: |
         This changes the batch size of queries in the scheduling main loop.
+        This should not be greater than ``core.parallelism``.
         If this is too high, SQL query performance may be impacted by
         complexity of query predicate, and/or excessive locking.
         Additionally, you may hit the maximum allowable query length for your db.
-        Set this to 0 for no limit (not advised)
+        Set this to 0 to use the value of ``core.parallelism``
       version_added: ~
-      type: string
+      type: integer
       example: ~
-      default: "512"
+      default: "16"
     use_row_level_locking:
       description: |
         Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.
@@ -2218,7 +2160,7 @@ scheduler:
         Max number of DAGs to create DagRuns for per scheduler loop.
       example: ~
       version_added: 2.0.0
-      type: string
+      type: integer
       default: "10"
       see_also: ":ref:`scheduler:ha:tunables`"
     max_dagruns_per_loop_to_schedule:
@@ -2227,7 +2169,7 @@ scheduler:
         and queuing tasks.
       example: ~
       version_added: 2.0.0
-      type: string
+      type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
     schedule_after_task_execution:
@@ -2239,12 +2181,22 @@ scheduler:
       version_added: 2.0.0
       type: boolean
       default: "True"
+    parsing_pre_import_modules:
+      description: |
+        The scheduler reads dag files to extract the airflow modules that are going to be used,
+        and imports them ahead of time to avoid having to re-do it for each parsing process.
+        This flag can be set to False to disable this behavior in case an airflow module needs to be freshly
+        imported each time (at the cost of increased DAG parsing time).
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
     parsing_processes:
       description: |
         The scheduler can run multiple processes in parallel to parse dags.
         This defines how many processes will run.
       version_added: 1.10.14
-      type: string
+      type: integer
       example: ~
       default: "2"
     file_parsing_sort_mode:
@@ -2258,7 +2210,6 @@ scheduler:
           same host. This is useful when running with Scheduler in HA mode where each scheduler can
           parse different DAG files.
         * ``alphabetical``: Sort by filename
-
       version_added: 2.1.0
       type: string
       example: ~
@@ -2292,7 +2243,7 @@ scheduler:
         Turn off scheduler use of cron intervals by setting this to False.
         DAGs submitted manually in the web UI or with trigger_dag will still run.
       version_added: 1.10.2
-      type: string
+      type: boolean
       example: ~
       default: "True"
     allow_trigger_in_future:
@@ -2300,16 +2251,40 @@ scheduler:
         Allow externally triggered DagRuns for Execution Dates in the future
         Only has effect if schedule_interval is set to None in DAG
       version_added: 1.10.8
-      type: string
+      type: boolean
       example: ~
       default: "False"
     trigger_timeout_check_interval:
       description: |
         How often to check for expired trigger requests that have not run yet.
       version_added: 2.2.0
-      type: string
+      type: float
       example: ~
       default: "15"
+    task_queued_timeout:
+      description: |
+        Amount of time a task can be in the queued state before being retried or set to failed.
+      version_added: 2.6.0
+      type: float
+      example: ~
+      default: "600.0"
+    task_queued_timeout_check_interval:
+      description: |
+        How often to check for tasks that have been in the queued state for
+        longer than `[scheduler] task_queued_timeout`.
+      version_added: 2.6.0
+      type: float
+      example: ~
+      default: "120.0"
+    allowed_run_id_pattern:
+      description: |
+        The run_id pattern used to verify the validity of user input to the run_id parameter when
+        triggering a DAG. This pattern cannot change the pattern used by scheduler to generate run_id
+        for scheduled DAG runs or DAG runs triggered without changing the run_id parameter.
+      version_added: 2.6.3
+      type: string
+      example: ~
+      default: "^[A-Za-z0-9_.~:+-]+$"
 triggerer:
   description: ~
   options:
@@ -2320,6 +2295,13 @@ triggerer:
       type: string
       example: ~
       default: "1000"
+    job_heartbeat_sec:
+      description: |
+        How often to heartbeat the Triggerer job to ensure it hasn't been killed.
+      version_added: 2.6.3
+      type: float
+      example: ~
+      default: "5"
 kerberos:
   description: ~
   options:
@@ -2384,7 +2366,8 @@ elasticsearch:
       version_added: 1.10.4
       type: string
       example: ~
-      default: "{{dag_id}}-{{task_id}}-{{run_id}}-{{map_index}}-{{try_number}}"
+      is_template: true
+      default: "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
     end_of_log_mark:
       description: |
         Used to mark the end of a log stream for a task
@@ -2465,6 +2448,20 @@ kubernetes_executor:
     previous_name: kubernetes
     version: 2.5.0
   options:
+    api_client_retry_configuration:
+      description: |
+        Kwargs to override the default urllib3 Retry used in the kubernetes API client
+      version_added: 2.6.0
+      type: string
+      example: '{ "total": 3, "backoff_factor": 0.5 }'
+      default: ""
+    logs_task_metadata:
+      description: |
+        Flag to control the information added to kubernetes executor logs for better traceability
+      version_added: 2.7.0
+      type: boolean
+      example: ~
+      default: "False"
     pod_template_file:
       description: |
         Path to the YAML pod file that forms the basis for KubernetesExecutor workers.
@@ -2626,20 +2623,6 @@ kubernetes_executor:
       type: boolean
       example: ~
       default: "True"
-    worker_pods_pending_timeout:
-      description: |
-        How long in seconds a worker can be in Pending before it is considered a failure
-      version_added: 2.1.0
-      type: integer
-      example: ~
-      default: "300"
-    worker_pods_pending_timeout_check_interval:
-      description: |
-        How often in seconds to check if Pending workers have exceeded their timeouts
-      version_added: 2.1.0
-      type: integer
-      example: ~
-      default: "120"
     worker_pods_queued_check_interval:
       description: |
         How often in seconds to check for task instances stuck in "queued" status without a pod
@@ -2647,14 +2630,13 @@ kubernetes_executor:
       type: integer
       example: ~
       default: "60"
-    worker_pods_pending_timeout_batch_size:
+    ssl_ca_cert:
       description: |
-        How many pending pods to check for timeout violations in each check interval.
-        You may want this higher if you have a very large cluster and/or use ``multi_namespace_mode``.
-      version_added: 2.1.0
-      type: integer
+        Path to a CA certificate to be used by the Kubernetes client to verify the server's SSL certificate.
+      version_added: 2.6.0
+      type: string
       example: ~
-      default: "100"
+      default: ""
 sensors:
   description: ~
   options:

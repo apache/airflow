@@ -28,14 +28,13 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
     DataprocSubmitJobOperator,
-    DataprocUpdateClusterOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_hadoop"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CLUSTER_NAME = f"dataproc-hadoop-{ENV_ID}"
@@ -53,18 +52,10 @@ CLUSTER_CONFIG = {
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
     "worker_config": {
-        "num_instances": 2,
+        "num_instances": 3,
         "machine_type_uri": "n1-standard-4",
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
-}
-
-# Update options
-CLUSTER_UPDATE = {
-    "config": {"worker_config": {"num_instances": 3}, "secondary_worker_config": {"num_instances": 3}}
-}
-UPDATE_MASK = {
-    "paths": ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
 }
 
 TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
@@ -87,7 +78,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "dataproc", "hadoop"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
@@ -99,16 +90,6 @@ with models.DAG(
         cluster_config=CLUSTER_CONFIG,
         region=REGION,
         cluster_name=CLUSTER_NAME,
-    )
-
-    scale_cluster = DataprocUpdateClusterOperator(
-        task_id="scale_cluster",
-        cluster_name=CLUSTER_NAME,
-        cluster=CLUSTER_UPDATE,
-        update_mask=UPDATE_MASK,
-        graceful_decommission_timeout=TIMEOUT,
-        project_id=PROJECT_ID,
-        region=REGION,
     )
 
     hadoop_task = DataprocSubmitJobOperator(
@@ -127,7 +108,14 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    create_bucket >> create_cluster >> scale_cluster >> hadoop_task >> delete_cluster >> delete_bucket
+    (
+        # TEST SETUP
+        [create_bucket, create_cluster]
+        # TEST BODY
+        >> hadoop_task
+        # TEST TEARDOWN
+        >> [delete_cluster, delete_bucket]
+    )
 
     from tests.system.utils.watcher import watcher
 

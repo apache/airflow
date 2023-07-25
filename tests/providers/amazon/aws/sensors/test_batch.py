@@ -20,16 +20,18 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.sensors.batch import (
     BatchComputeEnvironmentSensor,
     BatchJobQueueSensor,
     BatchSensor,
 )
+from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
 
 TASK_ID = "batch_job_sensor"
 JOB_ID = "8222a1c2-b246-4e19-b1b8-0039bb4407c0"
+AWS_REGION = "eu-west-1"
 
 
 class TestBatchSensor:
@@ -195,3 +197,23 @@ class TestBatchJobQueueSensor:
             jobQueues=[self.job_queue],
         )
         assert "AWS Batch job queue failed" in str(ctx.value)
+
+
+class TestBatchAsyncSensor:
+    TASK = BatchSensor(task_id="task", job_id=JOB_ID, region_name=AWS_REGION, deferrable=True)
+
+    def test_batch_sensor_async(self):
+        """
+        Asserts that a task is deferred and a BatchSensorTrigger will be fired
+        when the BatchSensorAsync is executed.
+        """
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.TASK.execute({})
+        assert isinstance(exc.value.trigger, BatchJobTrigger), "Trigger is not a BatchJobTrigger"
+
+    def test_batch_sensor_async_execute_failure(self):
+        """Tests that an AirflowException is raised in case of error event"""
+
+        with pytest.raises(AirflowException):
+            self.TASK.execute_complete(context={}, event={"status": "failure"})

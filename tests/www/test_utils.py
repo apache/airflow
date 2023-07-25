@@ -17,21 +17,44 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import re
 from datetime import datetime
+from unittest.mock import Mock
 from urllib.parse import parse_qs
 
+import pendulum
 from bs4 import BeautifulSoup
+from markupsafe import Markup
 
+from airflow.models import DagRun
+from airflow.utils import json as utils_json
 from airflow.www import utils
-from airflow.www.utils import wrapped_markdown
+from airflow.www.utils import DagRunCustomSQLAInterface, json_f, wrapped_markdown
 
 
 class TestUtils:
-    def check_generate_pages_html(self, current_page, total_pages, window=7, check_middle=False):
+    def check_generate_pages_html(
+        self,
+        current_page,
+        total_pages,
+        window=7,
+        check_middle=False,
+        sorting_key=None,
+        sorting_direction=None,
+    ):
         extra_links = 4  # first, prev, next, last
         search = "'>\"/><img src=x onerror=alert(1)>"
-        html_str = utils.generate_pages(current_page, total_pages, search=search)
+        if sorting_key and sorting_direction:
+            html_str = utils.generate_pages(
+                current_page,
+                total_pages,
+                search=search,
+                sorting_key=sorting_key,
+                sorting_direction=sorting_direction,
+            )
+        else:
+            html_str = utils.generate_pages(current_page, total_pages, search=search)
 
         assert search not in html_str, "The raw search string shouldn't appear in the output"
         assert "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E" in html_str
@@ -47,10 +70,27 @@ class TestUtils:
 
         page_items = ulist_items[2:-2]
         mid = int(len(page_items) / 2)
+        all_nodes = []
+        pages = []
+
+        if sorting_key and sorting_direction:
+            last_page = total_pages - 1
+
+            if current_page <= mid or total_pages < window:
+                pages = list(range(0, min(total_pages, window)))
+            elif mid < current_page < last_page - mid:
+                pages = list(range(current_page - mid, current_page + mid + 1))
+            else:
+                pages = list(range(total_pages - window, last_page + 1))
+
+            pages.append(last_page + 1)
+            pages.sort(reverse=True if sorting_direction == "desc" else False)
+
         for i, item in enumerate(page_items):
             a_node = item.a
             href_link = a_node["href"]
             node_text = a_node.string
+            all_nodes.append(node_text)
             if node_text == str(current_page + 1):
                 if check_middle:
                     assert mid == i
@@ -62,6 +102,13 @@ class TestUtils:
                 assert query["page"] == [str(int(node_text) - 1)]
                 assert query["search"] == [search]
 
+        if sorting_key and sorting_direction:
+            if pages[0] == 0:
+                pages = pages[1:]
+                pages = list(map(lambda x: str(x), pages))
+
+            assert pages == all_nodes
+
     def test_generate_pager_current_start(self):
         self.check_generate_pages_html(current_page=0, total_pages=6)
 
@@ -70,6 +117,11 @@ class TestUtils:
 
     def test_generate_pager_current_end(self):
         self.check_generate_pages_html(current_page=38, total_pages=39)
+
+    def test_generate_pager_current_start_with_sorting(self):
+        self.check_generate_pages_html(
+            current_page=0, total_pages=4, sorting_key="dag_id", sorting_direction="asc"
+        )
 
     def test_params_no_values(self):
         """Should return an empty string if no params are passed"""
@@ -107,7 +159,6 @@ class TestUtils:
         assert "<script>alert(1)</script>" not in html
 
     def test_task_instance_link(self):
-
         from airflow.www.app import cached_app
 
         with cached_app(testing=True).test_request_context():
@@ -179,6 +230,42 @@ class TestAttrRenderer:
     def test_markdown_none(self):
         rendered = self.attr_renderer["doc_md"](None)
         assert rendered is None
+
+    def test_get_dag_run_conf(self):
+        dag_run_conf = {
+            "1": "string",
+            "2": b"bytes",
+            "3": 123,
+            "4": "à".encode("latin"),
+            "5": datetime(2023, 1, 1),
+        }
+        expected_encoded_dag_run_conf = (
+            '{"1": "string", "2": "bytes", "3": 123, "4": "à", "5": "2023-01-01T00:00:00+00:00"}'
+        )
+        encoded_dag_run_conf, conf_is_json = utils.get_dag_run_conf(
+            dag_run_conf, json_encoder=utils_json.WebEncoder
+        )
+        assert expected_encoded_dag_run_conf == encoded_dag_run_conf
+
+    def test_json_f_webencoder(self):
+        dag_run_conf = {
+            "1": "string",
+            "2": b"bytes",
+            "3": 123,
+            "4": "à".encode("latin"),
+            "5": datetime(2023, 1, 1),
+        }
+        expected_encoded_dag_run_conf = (
+            # HTML sanitization is insane
+            '{"1": "string", "2": "bytes", "3": 123, "4": "\\u00e0", "5": "2023-01-01T00:00:00+00:00"}'
+        )
+        expected_markup = Markup("<nobr>{}</nobr>").format(expected_encoded_dag_run_conf)
+
+        formatter = json_f("conf")
+        dagrun = Mock()
+        dagrun.get = Mock(return_value=dag_run_conf)
+
+        assert formatter(dagrun) == expected_markup
 
 
 class TestWrappedMarkdown:
@@ -328,3 +415,44 @@ class TestWrappedMarkdown:
 </div>"""
             == rendered
         )
+
+
+def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, session):
+    interface = DagRunCustomSQLAInterface(obj=DagRun, session=session)
+    dag_ids = (f"test_dag_{x}" for x in range(1, 4))
+    dates = (pendulum.datetime(2023, 1, x) for x in range(1, 4))
+    for dag_id, date in itertools.product(dag_ids, dates):
+        with dag_maker(dag_id=dag_id) as dag:
+            dag.create_dagrun(execution_date=date, state="running", run_type="scheduled")
+    dag_runs = session.query(DagRun).all()
+    assert len(dag_runs) == 9
+    assert len(set(x.run_id for x in dag_runs)) == 3
+    run_id_for_single_delete = "scheduled__2023-01-01T00:00:00+00:00"
+    # we have 3 runs with this same run_id
+    assert len(list(x for x in dag_runs if x.run_id == run_id_for_single_delete)) == 3
+    # each is a different dag
+
+    # if we delete one, it shouldn't delete the others
+    one_run = [x for x in dag_runs if x.run_id == run_id_for_single_delete][0]
+    assert interface.delete(item=one_run) is True
+    session.commit()
+    dag_runs = session.query(DagRun).all()
+    # we should have one fewer dag run now
+    assert len(dag_runs) == 8
+
+    # now let's try multi delete
+    run_id_for_multi_delete = "scheduled__2023-01-02T00:00:00+00:00"
+    # verify we have 3
+    runs_of_interest = [x for x in dag_runs if x.run_id == run_id_for_multi_delete]
+    assert len(runs_of_interest) == 3
+    # and that each is different dag
+    assert len(set(x.dag_id for x in dag_runs)) == 3
+
+    to_delete = runs_of_interest[:2]
+    # now try multi delete
+    assert interface.delete_all(items=to_delete) is True
+    session.commit()
+    dag_runs = session.query(DagRun).all()
+    assert len(dag_runs) == 6
+    assert len(set(x.dag_id for x in dag_runs)) == 3
+    assert len(set(x.run_id for x in dag_runs)) == 3

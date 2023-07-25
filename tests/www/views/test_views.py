@@ -24,15 +24,15 @@ from unittest import mock
 
 import pytest
 
-from airflow.configuration import initialize_config
+from airflow.configuration import initialize_config, write_webserver_configuration_if_needed
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
+from airflow.utils.task_group import TaskGroup
 from airflow.www import views
 from airflow.www.views import (
     get_key_paths,
     get_safe_url,
     get_task_stats_from_query,
     get_value_from_path,
-    truncate_task_duration,
 )
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
@@ -62,6 +62,19 @@ def test_configuration_expose_config(admin_client):
     check_content_in_response(["Airflow Configuration"], resp)
 
 
+@mock.patch("airflow.configuration.WEBSERVER_CONFIG")
+def test_webserver_configuration_config_file(mock_webserver_config_global, admin_client, tmp_path):
+    import airflow.configuration
+
+    config_file = str(tmp_path / "my_custom_webserver_config.py")
+    with mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": config_file}):
+        conf = initialize_config()
+        write_webserver_configuration_if_needed(conf)
+        assert airflow.configuration.WEBSERVER_CONFIG == config_file
+
+    assert os.path.isfile(config_file)
+
+
 def test_redoc_should_render_template(capture_templates, admin_client):
     from airflow.utils.docs import get_docs_url
 
@@ -72,6 +85,7 @@ def test_redoc_should_render_template(capture_templates, admin_client):
     assert len(templates) == 1
     assert templates[0].name == "airflow/redoc.html"
     assert templates[0].local_context == {
+        "config_test_connection": "Disabled",
         "openapi_spec_url": "/api/v1/openapi.yaml",
         "rest_api_enabled": True,
         "get_docs_url": get_docs_url,
@@ -147,6 +161,19 @@ def test_task_start_date_filter(admin_client, url, content):
 
 
 @pytest.mark.parametrize(
+    "url",
+    [
+        "/taskinstance/list/?_flt_1_try_number=0",  # greater than
+        "/taskinstance/list/?_flt_2_try_number=5",  # less than
+    ],
+)
+def test_try_number_filter(admin_client, url):
+    resp = admin_client.get(url)
+    # Ensure that the taskInstance view can filter on gt / lt try_number
+    check_content_in_response("List Task Instance", resp)
+
+
+@pytest.mark.parametrize(
     "url, content",
     [
         (
@@ -168,7 +195,7 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
     [
         ("", "/home"),
         ("javascript:alert(1)", "/home"),
-        (" javascript:alert(1)", "http://localhost:8080/ javascript:alert(1)"),
+        (" javascript:alert(1)", "/home"),
         ("http://google.com", "/home"),
         ("google.com", "http://localhost:8080/google.com"),
         ("\\/google.com", "http://localhost:8080/\\/google.com"),
@@ -194,20 +221,6 @@ def test_get_safe_url(mock_url_for, app, test_url, expected_url):
     mock_url_for.return_value = "/home"
     with app.test_request_context(base_url="http://localhost:8080"):
         assert get_safe_url(test_url) == expected_url
-
-
-@pytest.mark.parametrize(
-    "test_duration, expected_duration",
-    [
-        (0.12345, 0.123),
-        (0.12355, 0.124),
-        (3.12, 3.12),
-        (9.99999, 10.0),
-        (10.01232, 10),
-    ],
-)
-def test_truncate_task_duration(test_duration, expected_duration):
-    assert truncate_task_duration(test_duration) == expected_duration
 
 
 @pytest.fixture
@@ -306,6 +319,109 @@ def test_mark_task_instance_state(test_app):
         assert dagrun.get_state() == State.QUEUED
 
 
+def test_mark_task_group_state(test_app):
+    """
+    Test that _mark_task_group_state() does all three things:
+    - Marks the given TaskGroup as SUCCESS;
+    - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
+    - Set DagRun to QUEUED.
+    """
+    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.operators.empty import EmptyOperator
+    from airflow.utils.session import create_session
+    from airflow.utils.state import State
+    from airflow.utils.timezone import datetime
+    from airflow.utils.types import DagRunType
+    from airflow.www.views import Airflow
+    from tests.test_utils.db import clear_db_runs
+
+    clear_db_runs()
+    start_date = datetime(2020, 1, 1)
+    with DAG("test_mark_task_group_state", start_date=start_date) as dag:
+        start = EmptyOperator(task_id="start")
+
+        with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
+            task_1 = EmptyOperator(task_id="task_1")
+            task_2 = EmptyOperator(task_id="task_2")
+            task_3 = EmptyOperator(task_id="task_3")
+
+            task_1 >> [task_2, task_3]
+
+        task_4 = EmptyOperator(task_id="task_4")
+        task_5 = EmptyOperator(task_id="task_5")
+        task_6 = EmptyOperator(task_id="task_6")
+        task_7 = EmptyOperator(task_id="task_7")
+        task_8 = EmptyOperator(task_id="task_8")
+
+        start >> section_1 >> [task_4, task_5, task_6, task_7, task_8]
+
+    dagrun = dag.create_dagrun(
+        start_date=start_date,
+        execution_date=start_date,
+        data_interval=(start_date, start_date),
+        state=State.FAILED,
+        run_type=DagRunType.SCHEDULED,
+    )
+
+    def get_task_instance(session, task):
+        return (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.task_id == task.task_id,
+                TaskInstance.execution_date == start_date,
+            )
+            .one()
+        )
+
+    with create_session() as session:
+        get_task_instance(session, task_1).state = State.FAILED
+        get_task_instance(session, task_2).state = State.SUCCESS
+        get_task_instance(session, task_3).state = State.UPSTREAM_FAILED
+        get_task_instance(session, task_4).state = State.SUCCESS
+        get_task_instance(session, task_5).state = State.UPSTREAM_FAILED
+        get_task_instance(session, task_6).state = State.FAILED
+        get_task_instance(session, task_7).state = State.SKIPPED
+
+        session.commit()
+
+    test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
+    test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+
+    with test_app.test_request_context():
+        view = Airflow()
+
+        view._mark_task_group_state(
+            dag_id=dag.dag_id,
+            run_id=dagrun.run_id,
+            group_id=section_1.group_id,
+            origin="",
+            upstream=False,
+            downstream=False,
+            future=False,
+            past=False,
+            state=State.SUCCESS,
+        )
+
+    with create_session() as session:
+        # After _mark_task_group_state, task_1 is marked as SUCCESS
+        assert get_task_instance(session, task_1).state == State.SUCCESS
+        # task_2 should remain as SUCCESS
+        assert get_task_instance(session, task_2).state == State.SUCCESS
+        # task_3 should be marked as SUCCESS
+        assert get_task_instance(session, task_3).state == State.SUCCESS
+        # task_4 should remain as SUCCESS
+        assert get_task_instance(session, task_4).state == State.SUCCESS
+        # task_5 and task_6 are cleared because they were in FAILED/UPSTREAM_FAILED state
+        assert get_task_instance(session, task_5).state == State.NONE
+        assert get_task_instance(session, task_6).state == State.NONE
+        # task_7 remains as SKIPPED
+        assert get_task_instance(session, task_7).state == State.SKIPPED
+        dagrun.refresh_from_db(session=session)
+        # dagrun should be set to QUEUED
+        assert dagrun.get_state() == State.QUEUED
+
+
 TEST_CONTENT_DICT = {"key1": {"key2": "val2", "key3": "val3", "key4": {"key5": "val5"}}}
 
 
@@ -395,7 +511,7 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/log?execution_date=invalid",
+            "/log?dag_id=tutorial&execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (

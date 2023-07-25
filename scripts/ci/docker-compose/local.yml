@@ -70,6 +70,9 @@ services:
         source: ../../../airflow
         target: /opt/airflow/airflow
       - type: bind
+        source: ../../../constraints
+        target: /opt/airflow/constraints
+      - type: bind
         source: ../../../provider_packages
         target: /opt/airflow/provider_packages
       - type: bind
@@ -97,9 +100,6 @@ services:
         source: ../../../pyproject.toml
         target: /opt/airflow/pyproject.toml
       - type: bind
-        source: ../../../pytest.ini
-        target: /opt/airflow/pytest.ini
-      - type: bind
         source: ../../../scripts
         target: /opt/airflow/scripts
       - type: bind
@@ -114,6 +114,9 @@ services:
       - type: bind
         source: ../../../tests
         target: /opt/airflow/tests
+      - type: bind
+        source: ../../../helm_tests
+        target: /opt/airflow/helm_tests
       - type: bind
         source: ../../../kubernetes_tests
         target: /opt/airflow/kubernetes_tests

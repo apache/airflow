@@ -21,8 +21,22 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-yandex``
+
+
 Changelog
 ---------
+
+.. note::
+  This release dropped support for Python 3.7
+
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``support Yandex SDK feature "endpoint" (#29635)``
 
 3.2.0
 .....

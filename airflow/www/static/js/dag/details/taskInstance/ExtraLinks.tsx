@@ -17,20 +17,16 @@
  * under the License.
  */
 
-import React from 'react';
-import {
-  Button,
-  Flex,
-  Link,
-  Divider,
-} from '@chakra-ui/react';
+import React from "react";
+import { Button, Flex, Link, Box, Text, Divider } from "@chakra-ui/react";
 
-import { useExtraLinks } from 'src/api';
+import { useExtraLinks } from "src/api";
 
 interface Props {
   dagId: string;
   taskId: string;
   executionDate: string;
+  mapIndex?: number | undefined;
   extraLinks: string[];
 }
 
@@ -38,17 +34,25 @@ const ExtraLinks = ({
   dagId,
   taskId,
   executionDate,
-  extraLinks = [],
+  mapIndex,
+  extraLinks,
 }: Props) => {
-  const { data: links = [] } = useExtraLinks({
-    dagId, taskId, executionDate, extraLinks,
+  const { data: links } = useExtraLinks({
+    dagId,
+    taskId,
+    executionDate,
+    mapIndex,
+    extraLinks,
   });
 
-  if (!links.length) return null;
-  const isExternal = (url: string | null) => url && /^(?:[a-z]+:)?\/\//.test(url);
+  if (!links?.length) return null;
+
+  const isExternal = (url: string | null) =>
+    url && /^(?:[a-z]+:)?\/\//.test(url);
 
   return (
-    <>
+    <Box mb={3}>
+      <Text as="strong">Extra Links</Text>
       <Divider my={2} />
       <Flex flexWrap="wrap">
         {links.map(({ name, url }) => (
@@ -58,13 +62,15 @@ const ExtraLinks = ({
             colorScheme="blue"
             href={url}
             isDisabled={!url}
-            target={isExternal(url) ? '_blank' : undefined}
+            target={isExternal(url) ? "_blank" : undefined}
+            mr={2}
           >
             {name}
           </Button>
         ))}
       </Flex>
-    </>
+      <Divider my={2} />
+    </Box>
   );
 };
 

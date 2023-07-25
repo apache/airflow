@@ -57,10 +57,10 @@ There are very many reasons why your task might not be getting scheduled. Here a
 - Are the dependencies for the task met? The task instances directly
   upstream from the task need to be in a ``success`` state. Also,
   if you have set ``depends_on_past=True``, the previous task instance
-  needs to have succeeded (except if it is the first run for that task).
+  needs to have succeeded or been skipped (except if it is the first run for that task).
   Also, if ``wait_for_downstream=True``, make sure you understand
   what it means - all tasks *immediately* downstream of the *previous*
-  task instance must have succeeded.
+  task instance must have succeeded or been skipped.
   You can view how these properties are set from the ``Task Instance Details``
   page for your task.
 
@@ -440,6 +440,17 @@ If the tasks are not related by dependency, you will need to :ref:`build a custo
 
 Airflow UI
 ^^^^^^^^^^
+
+Why did my task fail with no logs in the UI?
+--------------------------------------------
+
+Logs are :ref:`typically served when a task reaches a terminal state <serving-worker-trigger-logs>`. Sometimes, a task's normal lifecycle is disrupted, and the task's
+worker is unable to write the task's logs. This typically happens for one of two reasons:
+
+1. :ref:`Zombie tasks <concepts:zombies>`.
+2. Tasks failed after getting stuck in queued (Airflow 2.6.0+). Tasks that are in queued for longer than :ref:`scheduler.task_queued_timeout <config:scheduler__task_queued_timeout>` will be marked as failed, and there will be no task logs in the Airflow UI.
+
+Setting retries for each task drastically reduces the chance that either of these problems impact a workflow.
 
 How do I stop the sync perms happening multiple times per webserver?
 --------------------------------------------------------------------

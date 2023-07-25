@@ -75,7 +75,7 @@ result -
 Deleting a task
 ----------------
 
-Be careful when deleting a task from a DAG. You would not be able to see the Task in Graph View, Tree View, etc making
+Be careful when deleting a task from a DAG. You would not be able to see the Task in Graph View, Grid View, etc making
 it difficult to check the logs of that Task from the Webserver. If that is not desired, please create a new DAG.
 
 
@@ -166,13 +166,17 @@ Good example:
       @task()
       def print_array():
           """Print Numpy array."""
-          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE
+          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE!
 
           a = np.arange(15).reshape(3, 5)
           print(a)
           return a
 
       print_array()
+
+In the Bad example, NumPy is imported each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the Good example, NumPy is only imported when the task is running.
+
+.. _best_practices/dynamic_dag_generation:
 
 Dynamic DAG Generation
 ----------------------
@@ -213,7 +217,7 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
-Make sure to use variable with template in operator, not in the top level code.
+In top-level code, variables using jinja templates do not produce a request until a task is running, whereas, ``Variable.get()`` produces a request every time the dag file is parsed by the scheduler. Using ``Variable.get()`` will lead to suboptimal performance in the dag file processing. In some cases this can cause the dag file to timeout before it is fully parsed.
 
 Bad example:
 
@@ -390,6 +394,34 @@ It's important to note, that without ``watcher`` task, the whole DAG Run will ge
 If we want the ``watcher`` to monitor the state of all tasks, we need to make it dependent on all of them separately. Thanks to this, we can fail the DAG Run if any of the tasks fail. Note that the watcher task has a trigger rule set to ``"one_failed"``.
 On the other hand, without the ``teardown`` task, the ``watcher`` task will not be needed, because ``failing_task`` will propagate its ``failed`` state to downstream task ``passed_task`` and the whole DAG Run will also get the ``failed`` status.
 
+
+Using AirflowClusterPolicySkipDag exception in cluster policies to skip specific DAGs
+-------------------------------------------------------------------------------------
+
+.. versionadded:: 2.7
+
+Airflow DAGs can usually be deployed and updated with the specific branch of Git repository via ``git-sync``.
+But, when you have to run multiple Airflow clusters for some operational reasons, it's very cumbersome to maintain multiple Git branches.
+Especially, you have some difficulties when you need to synchronize two separate branches(like ``prod`` and ``beta``) periodically with proper branching strategy.
+
+- cherry-pick is too cumbersome to maintain Git repository.
+- hard-reset is not recommended way for GitOps
+
+So, you can consider connecting multiple Airflow clusters with same Git branch (like ``main``), and maintaining those with different environment variables and different connection configurations with same ``connection_id``.
+you can also raise :class:`~airflow.exceptions.AirflowClusterPolicySkipDag` exception on the cluster policy, to load specific DAGs to :class:`~airflow.models.dagbag.DagBag` on the specific Airflow deployment only, if needed.
+
+.. code-block:: python
+
+  def dag_policy(dag: DAG):
+      """Skipping the DAG with `only_for_beta` tag."""
+
+      if "only_for_beta" in dag.tags:
+          raise AirflowClusterPolicySkipDag(
+              f"DAG {dag.dag_id} is not loaded on the production cluster, due to `only_for_beta` tag."
+          )
+
+The example above, shows the ``dag_policy`` code snippet to skip the DAG depending on the tags it has.
+
 .. _best_practices/reducing_dag_complexity:
 
 Reducing DAG complexity
@@ -428,6 +460,14 @@ want to optimize your DAGs there are the following actions you can take:
   consider splitting them if you observe it takes a long time to reflect changes in your DAG files in the
   UI of Airflow.
 
+* Write efficient Python code. A balance must be struck between fewer DAGs per file, as stated above, and
+  writing less code overall. Creating the Python files that describe DAGs should follow best programming
+  practices and not be treated like configurations. If your DAGs share similar code you should not copy
+  them over and over again to a large number of nearly identical source files, as this will cause a
+  number of unnecessary repeated imports of the same resources. Rather, you should aim to minimize
+  repeated code across all of your DAGs so that the application can run efficiently and can be easily
+  debugged. See :ref:`best_practices/dynamic_dag_generation` on how to create multiple DAGs with similar
+  code.
 
 Testing a DAG
 ^^^^^^^^^^^^^
@@ -861,7 +901,7 @@ Using DockerOperator or Kubernetes Pod Operator
 -----------------------------------------------
 
 Another strategy is to use the :class:`airflow.providers.docker.operators.docker.DockerOperator`
-:class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+:class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 Those require that Airflow has access to a Docker engine or Kubernetes cluster.
 
 Similarly as in case of Python operators, the taskflow decorators are handy for you if you would like to
@@ -920,7 +960,7 @@ The drawbacks:
 
 You can see detailed examples of using :class:`airflow.operators.providers.Docker` in
 :ref:`Taskflow Docker example <taskflow/docker_example>`
-and :class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+and :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 :ref:`Taskflow Kubernetes example <taskflow/kubernetes_example>`
 
 Using multiple Docker Images and Celery Queues

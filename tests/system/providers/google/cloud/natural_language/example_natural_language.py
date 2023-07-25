@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from google.cloud.language_v1.proto.language_service_pb2 import Document
+from google.cloud.language_v1 import Document
 
 from airflow import models
 from airflow.operators.bash import BashOperator

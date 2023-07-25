@@ -18,12 +18,12 @@
 """This module contains an operator to move data from MSSQL to Hive."""
 from __future__ import annotations
 
+import csv
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 import pymssql
-import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
@@ -35,11 +35,13 @@ if TYPE_CHECKING:
 
 class MsSqlToHiveOperator(BaseOperator):
     """
-    Moves data from Microsoft SQL Server to Hive. The operator runs
-    your query against Microsoft SQL Server, stores the file locally
-    before loading it into a Hive table. If the ``create`` or
-    ``recreate`` arguments are set to ``True``,
-    a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
+    Moves data from Microsoft SQL Server to Hive.
+
+    The operator runs your query against Microsoft SQL Server, stores
+    the file locally before loading it into a Hive table. If the
+    ``create`` or ``recreate`` arguments are set to ``True``, a
+    ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
+
     Hive data types are inferred from the cursor's metadata.
     Note that the table generated in Hive uses ``STORED AS textfile``
     which isn't the most efficient serialization format. If a
@@ -60,6 +62,7 @@ class MsSqlToHiveOperator(BaseOperator):
     :param mssql_conn_id: source Microsoft SQL Server connection
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :param hive_auth: optional authentication option passed for the Hive connection
     :param tblproperties: TBLPROPERTIES of the hive table being created
     """
 
@@ -79,6 +82,7 @@ class MsSqlToHiveOperator(BaseOperator):
         delimiter: str = chr(1),
         mssql_conn_id: str = "mssql_default",
         hive_cli_conn_id: str = "hive_cli_default",
+        hive_auth: str | None = None,
         tblproperties: dict | None = None,
         **kwargs,
     ) -> None:
@@ -93,6 +97,7 @@ class MsSqlToHiveOperator(BaseOperator):
         self.hive_cli_conn_id = hive_cli_conn_id
         self.partition = partition or {}
         self.tblproperties = tblproperties
+        self.hive_auth = hive_auth
 
     @classmethod
     def type_map(cls, mssql_type: int) -> str:
@@ -110,8 +115,8 @@ class MsSqlToHiveOperator(BaseOperator):
         with mssql.get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(self.sql)
-                with NamedTemporaryFile("w") as tmp_file:
-                    csv_writer = csv.writer(tmp_file, delimiter=self.delimiter, encoding="utf-8")
+                with NamedTemporaryFile(mode="w", encoding="utf-8") as tmp_file:
+                    csv_writer = csv.writer(tmp_file, delimiter=self.delimiter)
                     field_dict = OrderedDict()
                     for col_count, field in enumerate(cursor.description, start=1):
                         col_position = f"Column{col_count}"
@@ -119,7 +124,7 @@ class MsSqlToHiveOperator(BaseOperator):
                     csv_writer.writerows(cursor)
                     tmp_file.flush()
 
-            hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
+            hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth)
             self.log.info("Loading file into Hive")
             hive.load_file(
                 tmp_file.name,

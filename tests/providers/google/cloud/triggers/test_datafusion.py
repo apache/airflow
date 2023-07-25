@@ -18,17 +18,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
+from unittest import mock
 
 import pytest
 
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 HOOK_STATUS_STR = "airflow.providers.google.cloud.hooks.datafusion.DataFusionAsyncHook.get_pipeline_status"
 CLASSPATH = "airflow.providers.google.cloud.triggers.datafusion.DataFusionStartPipelineTrigger"

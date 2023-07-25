@@ -20,7 +20,9 @@ from __future__ import annotations
 import datetime
 import functools
 import hashlib
+import logging
 import time
+import traceback
 from datetime import timedelta
 from typing import Any, Callable, Iterable
 
@@ -28,9 +30,11 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
+    AirflowFailException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    AirflowTaskTimeout,
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.baseoperator import BaseOperator
@@ -83,9 +87,18 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     a criteria is met and fail if and when they time out.
 
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
-    :param poke_interval: Time in seconds that the job should wait in
-        between each try
-    :param timeout: Time, in seconds before the task times out and fails.
+    :param poke_interval: Time that the job should wait in between each try.
+        Can be ``timedelta`` or ``float`` seconds.
+    :param timeout: Time elapsed before the task times out and fails.
+        Can be ``timedelta`` or ``float`` seconds.
+        This should not be confused with ``execution_timeout`` of the
+        ``BaseOperator`` class. ``timeout`` measures the time elapsed between the
+        first poke and the current time (taking into account any
+        reschedule delay between each poke), while ``execution_timeout``
+        checks the **running** time of the task (leaving out any reschedule
+        delay). In case that the ``mode`` is ``poke`` (see below), both of
+        them are equivalent (as the sensor is never rescheduled), which is not
+        the case in ``reschedule`` mode.
     :param mode: How the sensor operates.
         Options are: ``{ poke | reschedule }``, default is ``poke``.
         When set to ``poke`` the sensor is taking up a worker slot for its
@@ -101,6 +114,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     :param exponential_backoff: allow progressive longer waits between
         pokes by using exponential backoff algorithm
     :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
+    :param silent_fail: If true, and poke method raises an exception different from
+        AirflowSensorTimeout, AirflowTaskTimeout, AirflowSkipException
+        and AirflowFailException, the sensor will log the error and continue
+        its execution. Otherwise, the sensor task fails, and it can be retried
+        based on the provided `retries` parameter.
     """
 
     ui_color: str = "#e6f1f2"
@@ -113,22 +131,42 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     def __init__(
         self,
         *,
-        poke_interval: float = 60,
-        timeout: float = conf.getfloat("sensors", "default_timeout"),
+        poke_interval: timedelta | float = 60,
+        timeout: timedelta | float = conf.getfloat("sensors", "default_timeout"),
         soft_fail: bool = False,
         mode: str = "poke",
         exponential_backoff: bool = False,
         max_wait: timedelta | float | None = None,
+        silent_fail: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.poke_interval = poke_interval
+        self.poke_interval = self._coerce_poke_interval(poke_interval).total_seconds()
         self.soft_fail = soft_fail
-        self.timeout = timeout
+        self.timeout = self._coerce_timeout(timeout).total_seconds()
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self.max_wait = self._coerce_max_wait(max_wait)
+        self.silent_fail = silent_fail
         self._validate_input_values()
+
+    @staticmethod
+    def _coerce_poke_interval(poke_interval: float | timedelta) -> timedelta:
+        if isinstance(poke_interval, timedelta):
+            return poke_interval
+        if isinstance(poke_interval, (int, float)) and poke_interval >= 0:
+            return timedelta(seconds=poke_interval)
+        raise AirflowException(
+            "Operator arg `poke_interval` must be timedelta object or a non-negative number"
+        )
+
+    @staticmethod
+    def _coerce_timeout(timeout: float | timedelta) -> timedelta:
+        if isinstance(timeout, timedelta):
+            return timeout
+        if isinstance(timeout, (int, float)) and timeout >= 0:
+            return timedelta(seconds=timeout)
+        raise AirflowException("Operator arg `timeout` must be timedelta object or a non-negative number")
 
     @staticmethod
     def _coerce_max_wait(max_wait: float | timedelta | None) -> timedelta | None:
@@ -168,7 +206,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         started_at: datetime.datetime | float
 
         if self.reschedule:
-
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
             first_try_number = context["ti"].max_tries - self.retries + 1
@@ -197,7 +234,22 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
         xcom_value = None
         while True:
-            poke_return = self.poke(context)
+            try:
+                poke_return = self.poke(context)
+            except (
+                AirflowSensorTimeout,
+                AirflowTaskTimeout,
+                AirflowSkipException,
+                AirflowFailException,
+            ) as e:
+                raise e
+            except Exception as e:
+                if self.silent_fail:
+                    logging.error("Sensor poke failed: \n %s", traceback.format_exc())
+                    poke_return = False
+                else:
+                    raise e
+
             if poke_return:
                 if isinstance(poke_return, PokeReturnValue):
                     xcom_value = poke_return.xcom_value
@@ -239,7 +291,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         if not self.exponential_backoff:
             return self.poke_interval
 
-        min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
+        # The value of min_backoff should always be greater than or equal to 1.
+        min_backoff = max(int(self.poke_interval * (2 ** (try_number - 2))), 1)
 
         run_hash = int(
             hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode()).hexdigest(),
@@ -296,7 +349,7 @@ def poke_mode_only(cls):
 
         def mode_setter(_, value):
             if value != "poke":
-                raise ValueError("cannot set mode to 'poke'.")
+                raise ValueError(f"Cannot set mode to '{value}'. Only 'poke' is acceptable")
 
         if not issubclass(cls_type, BaseSensorOperator):
             raise ValueError(

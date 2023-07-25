@@ -71,7 +71,7 @@ def validate_group_key(k: str, max_length: int = 200):
 
 
 def alchemy_to_dict(obj: Any) -> dict | None:
-    """Transforms a SQLAlchemy model instance into a dictionary"""
+    """Transforms a SQLAlchemy model instance into a dictionary."""
     if not obj:
         return None
     output = {}
@@ -101,7 +101,7 @@ def ask_yesno(question: str, default: bool | None = None) -> bool:
 
 
 def prompt_with_timeout(question: str, timeout: int, default: bool | None = None) -> bool:
-    """Ask the user a question and timeout if they don't respond"""
+    """Ask the user a question and timeout if they don't respond."""
 
     def handler(signum, frame):
         raise AirflowException(f"Timeout {timeout}s reached")
@@ -115,15 +115,12 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
 
 
 def is_container(obj: Any) -> bool:
-    """Test if an object is a container (iterable) but not a string"""
+    """Test if an object is a container (iterable) but not a string."""
     return hasattr(obj, "__iter__") and not isinstance(obj, str)
 
 
 def as_tuple(obj: Any) -> tuple:
-    """
-    If obj is a container, returns obj as a tuple.
-    Otherwise, returns a tuple containing obj.
-    """
+    """Return obj as a tuple if obj is a container, otherwise return a tuple containing obj."""
     if is_container(obj):
         return tuple(obj)
     else:
@@ -131,7 +128,7 @@ def as_tuple(obj: Any) -> tuple:
 
 
 def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
-    """Yield successive chunks of a given size from a list of items"""
+    """Yield successive chunks of a given size from a list of items."""
     if chunk_size <= 0:
         raise ValueError("Chunk size must be a positive integer")
     for i in range(0, len(items), chunk_size):
@@ -139,10 +136,7 @@ def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
 
 
 def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0):
-    """
-    Reduce the given list of items by splitting it into chunks
-    of the given size and passing each chunk through the reducer
-    """
+    """Split the list of items into chunks of a given size and pass each chunk through the reducer."""
     if len(iterable) == 0:
         return initializer
     if chunk_size == 0:
@@ -152,7 +146,7 @@ def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializ
 
 def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
     """
-    Return an iterable with one level flattened
+    Return an iterable with one level flattened.
 
     >>> as_flattened_list((('blue', 'red'), ('green', 'yellow', 'pink')))
     ['blue', 'red', 'green', 'yellow', 'pink']
@@ -172,8 +166,7 @@ def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Temp
 
 def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     """
-    Given task instance, try_number, filename_template, return the rendered log
-    filename
+    Given task instance, try_number, filename_template, return the rendered log filename.
 
     :param ti: task instance
     :param try_number: try_number of the task
@@ -215,7 +208,7 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
 
 
 def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
-    """Use a predicate to partition entries into false entries and true entries"""
+    """Use a predicate to partition entries into false entries and true entries."""
     iter_1, iter_2 = tee(iterable)
     return filterfalse(pred, iter_1), filter(pred, iter_2)
 
@@ -242,9 +235,10 @@ def cross_downstream(*args, **kwargs):
 
 def build_airflow_url_with_query(query: dict[str, Any]) -> str:
     """
-    Build airflow url using base_url and default_view and provided query
+    Build airflow url using base_url and default_view and provided query.
+
     For example:
-    'http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
+    http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
     """
     import flask
 
@@ -326,8 +320,7 @@ def at_most_one(*args) -> bool:
 
 def prune_dict(val: Any, mode="strict"):
     """
-    Given dict ``val``, returns new dict based on ``val`` with all
-    empty elements removed.
+    Given dict ``val``, returns new dict based on ``val`` with all empty elements removed.
 
     What constitutes "empty" is controlled by the ``mode`` parameter.  If mode is 'strict'
     then only ``None`` elements will be removed.  If mode is ``truthy``, then element ``x``
@@ -348,7 +341,7 @@ def prune_dict(val: Any, mode="strict"):
                 continue
             elif isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
-                if new_val:
+                if not is_empty(new_val):
                     new_dict[k] = new_val
             else:
                 new_dict[k] = v
@@ -360,7 +353,7 @@ def prune_dict(val: Any, mode="strict"):
                 continue
             elif isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
-                if new_val:
+                if not is_empty(new_val):
                     new_list.append(new_val)
             else:
                 new_list.append(v)

@@ -22,9 +22,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
+from airflow.providers.amazon.aws.triggers.emr import EmrContainerTrigger
 
 SUBMIT_JOB_SUCCESS_RETURN = {
     "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -85,7 +86,10 @@ class TestEmrContainerOperator:
         emr_session_mock.client.return_value = emr_client_mock
         boto3_session_mock = MagicMock(return_value=emr_session_mock)
 
-        with patch("boto3.session.Session", boto3_session_mock):
+        with patch("boto3.session.Session", boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             assert self.emr_container.execute(None) == "job123456"
             assert mock_check_query_status.call_count == 5
 
@@ -130,13 +134,30 @@ class TestEmrContainerOperator:
             max_polling_attempts=3,
         )
 
-        with patch("boto3.session.Session", boto3_session_mock):
+        with patch("boto3.session.Session", boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             with pytest.raises(AirflowException) as ctx:
                 timeout_container.execute(None)
 
             assert mock_check_query_status.call_count == 3
             assert "Final state of EMR Containers job is SUBMITTED" in str(ctx.value)
             assert "Max tries of poll status exceeded" in str(ctx.value)
+
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    @mock.patch.object(
+        EmrContainerHook, "check_query_status", return_value=EmrContainerHook.INTERMEDIATE_STATES[0]
+    )
+    def test_operator_defer(self, mock_submit_job, mock_check_query_status):
+        """Test the execute method raise TaskDeferred if running operator in deferrable mode"""
+        self.emr_container.deferrable = True
+        self.emr_container.wait_for_completion = False
+        with pytest.raises(TaskDeferred) as exc:
+            self.emr_container.execute(context=None)
+        assert isinstance(
+            exc.value.trigger, EmrContainerTrigger
+        ), f"{exc.value.trigger} is not a EmrContainerTrigger"
 
 
 class TestEmrEksCreateClusterOperator:

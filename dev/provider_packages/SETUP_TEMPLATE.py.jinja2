@@ -36,7 +36,10 @@ def do_setup():
         extras_require={{ EXTRAS_REQUIREMENTS }},
         packages=find_namespace_packages(
             include=['airflow.providers.{{ PROVIDER_PACKAGE_ID }}',
-                     'airflow.providers.{{ PROVIDER_PACKAGE_ID }}.*']),
+                     'airflow.providers.{{ PROVIDER_PACKAGE_ID }}.*',
+                     'airflow.providers.{{ PROVIDER_PACKAGE_ID }}_vendor',
+                     'airflow.providers.{{ PROVIDER_PACKAGE_ID }}_vendor.*'],
+       ),
     )
 
 

@@ -17,11 +17,13 @@
 """Database sub-commands."""
 from __future__ import annotations
 
+import logging
 import os
 import textwrap
 from tempfile import NamedTemporaryFile
 
 from packaging.version import parse as parse_version
+from tenacity import RetryCallState, Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -29,8 +31,12 @@ from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.process_utils import execute_interactive
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+log = logging.getLogger(__name__)
 
 
+@providers_configuration_loaded
 def initdb(args):
     """Initializes the metadata database."""
     print("DB: " + repr(settings.engine.url))
@@ -38,6 +44,7 @@ def initdb(args):
     print("Initialization done")
 
 
+@providers_configuration_loaded
 def resetdb(args):
     """Resets the metadata database."""
     print("DB: " + repr(settings.engine.url))
@@ -47,6 +54,7 @@ def resetdb(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def upgradedb(args):
     """Upgrades the metadata database."""
     print("DB: " + repr(settings.engine.url))
@@ -92,6 +100,7 @@ def upgradedb(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def downgrade(args):
     """Downgrades the metadata database."""
     if args.to_revision and args.to_version:
@@ -138,12 +147,14 @@ def downgrade(args):
         raise SystemExit("Cancelled")
 
 
+@providers_configuration_loaded
 def check_migrations(args):
     """Function to wait for all airflow migrations to complete. Used for launching airflow in k8s."""
     db.check_migrations(timeout=args.migration_wait_timeout)
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def shell(args):
     """Run a shell that allows to access metadata database."""
     url = settings.engine.url
@@ -187,9 +198,24 @@ def shell(args):
 
 
 @cli_utils.action_cli(check_db=False)
-def check(_):
+@providers_configuration_loaded
+def check(args):
     """Runs a check command that checks if db is available."""
-    db.check()
+    retries: int = args.retry
+    retry_delay: int = args.retry_delay
+
+    def _warn_remaining_retries(retrystate: RetryCallState):
+        remain = retries - retrystate.attempt_number
+        log.warning("%d retries remain. Will retry in %d seconds", remain, retry_delay)
+
+    for attempt in Retrying(
+        stop=stop_after_attempt(1 + retries),
+        wait=wait_fixed(retry_delay),
+        reraise=True,
+        before_sleep=_warn_remaining_retries,
+    ):
+        with attempt:
+            db.check()
 
 
 # lazily imported by CLI parser for `help` command
@@ -197,6 +223,7 @@ all_tables = sorted(config_dict)
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def cleanup_tables(args):
     """Purges old records in metadata database."""
     run_cleanup(
@@ -210,6 +237,7 @@ def cleanup_tables(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def export_archived(args):
     """Exports archived records from metadata database."""
     export_archived_records(
@@ -222,6 +250,7 @@ def export_archived(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def drop_archived(args):
     """Drops archived tables from metadata database."""
     drop_archived_tables(

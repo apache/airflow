@@ -32,9 +32,9 @@ from kubernetes.client.api_client import ApiClient
 
 api_client = ApiClient()
 
-CHART_DIR = str((Path(__file__).parent / ".." / ".." / "chart").resolve())
+CHART_DIR = Path(__file__).resolve().parents[2] / "chart"
 
-DEFAULT_KUBERNETES_VERSION = "1.23.13"
+DEFAULT_KUBERNETES_VERSION = "1.23.17"
 BASE_URL_SPEC = (
     f"https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/"
     f"v{DEFAULT_KUBERNETES_VERSION}-standalone-strict"
@@ -114,7 +114,7 @@ def render_chart(
     Function that renders a helm chart into dictionaries. For helm chart testing only
     """
     values = values or {}
-    chart_dir = chart_dir or CHART_DIR
+    chart_dir = chart_dir or str(CHART_DIR)
     namespace = namespace or "default"
     with NamedTemporaryFile() as tmp_file:
         content = yaml.dump(values)

@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -81,6 +82,10 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 
 
 class TestStackdriverHookMethods:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            stackdriver.StackdriverHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(CREDENTIALS, PROJECT_ID),

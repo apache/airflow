@@ -34,7 +34,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
     def __init__(
         self,
-        api_version: str = "v3.3",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -236,7 +236,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
         :param profile_id: User profile ID associated with this request.
         :param conversions: Conversations to insert, should by type of Conversation:
-            https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
+            https://developers.google.com/doubleclick-advertisers/rest/v4/conversions/batchinsert
         :param encryption_entity_type: The encryption entity type. This should match the encryption
             configuration for ad serving or Data Transfer.
         :param encryption_entity_id: The encryption entity ID. This should match the encryption
@@ -280,7 +280,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
         :param profile_id: User profile ID associated with this request.
         :param conversions: Conversations to update, should by type of Conversation:
-            https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
+            https://developers.google.com/doubleclick-advertisers/rest/v4/conversions/batchupdate
         :param encryption_entity_type: The encryption entity type. This should match the encryption
             configuration for ad serving or Data Transfer.
         :param encryption_entity_id: The encryption entity ID. This should match the encryption

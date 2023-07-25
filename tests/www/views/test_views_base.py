@@ -22,9 +22,11 @@ import json
 
 import pytest
 
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import timezone
 from airflow.utils.session import create_session
+from airflow.www import app as application
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -60,19 +62,19 @@ def test_doc_urls(admin_client, monkeypatch):
 def heartbeat_healthy():
     # case-1: healthy scheduler status
     last_heartbeat = timezone.utcnow()
-    job = BaseJob(
-        job_type="SchedulerJob",
+    job = Job(
         state="running",
         latest_heartbeat=last_heartbeat,
     )
+    SchedulerJobRunner(job=job),
     with create_session() as session:
         session.add(job)
     yield "healthy", last_heartbeat.isoformat()
     with create_session() as session:
-        session.query(BaseJob).filter(
-            BaseJob.job_type == "SchedulerJob",
-            BaseJob.state == "running",
-            BaseJob.latest_heartbeat == last_heartbeat,
+        session.query(Job).filter(
+            Job.job_type == "SchedulerJob",
+            Job.state == "running",
+            Job.latest_heartbeat == last_heartbeat,
         ).delete()
 
 
@@ -80,22 +82,22 @@ def heartbeat_healthy():
 def heartbeat_too_slow():
     # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
     last_heartbeat = timezone.utcnow() - datetime.timedelta(minutes=1)
-    job = BaseJob(
-        job_type="SchedulerJob",
+    job = Job(
         state="running",
         latest_heartbeat=last_heartbeat,
     )
+    SchedulerJobRunner(job=job),
     with create_session() as session:
-        session.query(BaseJob).filter(
-            BaseJob.job_type == "SchedulerJob",
+        session.query(Job).filter(
+            Job.job_type == "SchedulerJob",
         ).update({"latest_heartbeat": last_heartbeat - datetime.timedelta(seconds=1)})
         session.add(job)
     yield "unhealthy", last_heartbeat.isoformat()
     with create_session() as session:
-        session.query(BaseJob).filter(
-            BaseJob.job_type == "SchedulerJob",
-            BaseJob.state == "running",
-            BaseJob.latest_heartbeat == last_heartbeat,
+        session.query(Job).filter(
+            Job.job_type == "SchedulerJob",
+            Job.state == "running",
+            Job.latest_heartbeat == last_heartbeat,
         ).delete()
 
 
@@ -103,9 +105,9 @@ def heartbeat_too_slow():
 def heartbeat_not_running():
     # case-3: unhealthy scheduler status - scenario 2 (no running SchedulerJob)
     with create_session() as session:
-        session.query(BaseJob).filter(
-            BaseJob.job_type == "SchedulerJob",
-            BaseJob.state == "running",
+        session.query(Job).filter(
+            Job.job_type == "SchedulerJob",
+            Job.state == "running",
         ).delete()
     yield "unhealthy", None
 
@@ -400,12 +402,20 @@ def test_page_instance_name_xss_prevention(admin_client):
         check_content_not_in_response(xss_string, resp)
 
 
-@conf_vars(
-    {
-        ("webserver", "instance_name"): "<b>Bold Site Title Test</b>",
-        ("webserver", "instance_name_has_markup"): "True",
-    }
-)
+instance_name_with_markup_conf = {
+    ("webserver", "instance_name"): "<b>Bold Site Title Test</b>",
+    ("webserver", "instance_name_has_markup"): "True",
+}
+
+
+@conf_vars(instance_name_with_markup_conf)
 def test_page_instance_name_with_markup(admin_client):
     resp = admin_client.get("home", follow_redirects=True)
     check_content_in_response("<b>Bold Site Title Test</b>", resp)
+    check_content_not_in_response("&lt;b&gt;Bold Site Title Test&lt;/b&gt;", resp)
+
+
+@conf_vars(instance_name_with_markup_conf)
+def test_page_instance_name_with_markup_title():
+    appbuilder = application.create_app(testing=True).appbuilder
+    assert appbuilder.app_name == "Bold Site Title Test"

@@ -184,7 +184,7 @@ class TestDagBag:
 
             found_2 = dagbag.process_file(tf_2.name)
             assert len(found_2) == 0
-            assert dagbag.import_errors[tf_2.name].startswith("Ignoring DAG")
+            assert dagbag.import_errors[tf_2.name].startswith("AirflowDagDuplicatedIdException: Ignoring DAG")
             assert dagbag.dags == dags_in_bag  # Should not change.
 
     def test_zip_skip_log(self, caplog):
@@ -872,7 +872,8 @@ class TestDagBag:
         )
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
-    def test_sync_to_db_syncs_dag_specific_perms_on_update(self):
+    @patch("airflow.models.dagbag.DagBag._sync_perm_for_dag")
+    def test_sync_to_db_syncs_dag_specific_perms_on_update(self, mock_sync_perm_for_dag):
         """
         Test that dagbag.sync_to_db will sync DAG specific permissions when a DAG is
         new or updated
@@ -884,8 +885,6 @@ class TestDagBag:
                 dag_folder=os.path.join(TEST_DAGS_FOLDER, "test_example_bash_operator.py"),
                 include_examples=False,
             )
-            mock_sync_perm_for_dag = mock.MagicMock()
-            dagbag._sync_perm_for_dag = mock_sync_perm_for_dag
 
             def _sync_to_db():
                 mock_sync_perm_for_dag.reset_mock()
@@ -909,7 +908,6 @@ class TestDagBag:
     def test_sync_perm_for_dag(self, mock_security_manager):
         """
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        when DAG specific perm views don't exist already or the DAG has access_control set.
         """
         db_clean_up()
         with create_session() as session:
@@ -925,7 +923,7 @@ class TestDagBag:
 
             def _sync_perms():
                 mock_sync_perm_for_dag.reset_mock()
-                dagbag._sync_perm_for_dag(dag, session=session)
+                DagBag._sync_perm_for_dag(dag, session=session)
 
             # perms dont exist
             _sync_perms()
@@ -933,7 +931,7 @@ class TestDagBag:
 
             # perms now exist
             _sync_perms()
-            mock_sync_perm_for_dag.assert_not_called()
+            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
 
             # Always sync if we have access_control
             dag.access_control = {"Public": {"can_read"}}
@@ -981,6 +979,54 @@ class TestDagBag:
         assert set(updated_ser_dag_1.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_1_update_time > ser_dag_1_update_time
 
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
+    def test_get_dag_refresh_race_condition(self):
+        """
+        Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
+        is before DagBag.dags_last_fetched.
+        """
+
+        # serialize the initial version of the DAG
+        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
+            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+        # deserialize the DAG
+        with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 10)), tick=False):
+            dag_bag = DagBag(read_dags_from_db=True)
+
+            with assert_queries_count(2):
+                ser_dag = dag_bag.get_dag("example_bash_operator")
+
+            ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+            assert ser_dag.tags == ["example", "example2"]
+            assert ser_dag_update_time == tz.datetime(2020, 1, 5, 1, 0, 10)
+
+            with create_session() as session:
+                assert SerializedDagModel.get_last_updated_datetime(
+                    dag_id="example_bash_operator",
+                    session=session,
+                ) == tz.datetime(2020, 1, 5, 0, 0, 0)
+
+        # Simulate a long-running serialization transaction
+        # Make a change in the DAG and write Serialized DAG to the DB
+        # Note the date *before* the deserialize step above, simulating a serialization happening
+        # long before the transaction is committed
+        with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
+            example_bash_op_dag.tags += ["new_tag"]
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+        # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
+        # fetches the Serialized DAG from DB
+        with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 30)), tick=False):
+            with assert_queries_count(2):
+                updated_ser_dag = dag_bag.get_dag("example_bash_operator")
+                updated_ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+
+        assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
+        assert updated_ser_dag_update_time > ser_dag_update_time
+
     def test_collect_dags_from_db(self):
         """DAGs are collected from Database"""
         db.clear_db_dags()
@@ -1008,12 +1054,14 @@ class TestDagBag:
         obey cluster policy.
         """
         dag_file = os.path.join(TEST_DAGS_FOLDER, "test_missing_owner.py")
+        dag_id = "test_missing_owner"
+        err_cls_name = "AirflowClusterPolicyViolation"
 
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
-                f"""DAG policy violation (DAG ID: test_missing_owner, Path: {dag_file}):\n"""
+                f"""{err_cls_name}: DAG policy violation (DAG ID: {dag_id}, Path: {dag_file}):\n"""
                 """Notices:\n"""
                 """ * Task must have non-None non-default owner. Current value: airflow"""
             )
@@ -1028,12 +1076,14 @@ class TestDagBag:
         """
         TEST_DAGS_CORRUPTED_FOLDER = pathlib.Path(__file__).parent.with_name("dags_corrupted")
         dag_file = os.path.join(TEST_DAGS_CORRUPTED_FOLDER, "test_nonstring_owner.py")
+        dag_id = "test_nonstring_owner"
+        err_cls_name = "AirflowClusterPolicyViolation"
 
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert set() == set(dagbag.dag_ids)
         expected_import_errors = {
             dag_file: (
-                f"""DAG policy violation (DAG ID: test_nonstring_owner, Path: {dag_file}):\n"""
+                f"""{err_cls_name}: DAG policy violation (DAG ID: {dag_id}, Path: {dag_file}):\n"""
                 """Notices:\n"""
                 """ * owner should be a string. Current value: ['a']"""
             )
@@ -1062,7 +1112,6 @@ class TestDagBag:
         assert "has no tags" in dagbag.import_errors[dag_file]
 
     def test_dagbag_dag_collection(self):
-
         dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False, collect_dags=False)
         # since collect_dags is False, dagbag.dags should be empty
         assert not dagbag.dags

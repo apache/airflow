@@ -19,29 +19,29 @@
 
 /* global moment */
 
-import { defaultFormatWithTZ } from 'src/datetime_utils';
+import { defaultFormatWithTZ } from "src/datetime_utils";
 
 export enum LogLevel {
-  DEBUG = 'DEBUG',
-  INFO = 'INFO',
-  WARNING = 'WARNING',
-  ERROR = 'ERROR',
-  CRITICAL = 'CRITICAL',
+  DEBUG = "DEBUG",
+  INFO = "INFO",
+  WARNING = "WARNING",
+  ERROR = "ERROR",
+  CRITICAL = "CRITICAL",
 }
 
 export const logLevelColorMapping = {
-  [LogLevel.DEBUG]: 'gray.300',
-  [LogLevel.INFO]: 'green.200',
-  [LogLevel.WARNING]: 'yellow.200',
-  [LogLevel.ERROR]: 'red.200',
-  [LogLevel.CRITICAL]: 'red.400',
+  [LogLevel.DEBUG]: "gray.300",
+  [LogLevel.INFO]: "green.200",
+  [LogLevel.WARNING]: "yellow.200",
+  [LogLevel.ERROR]: "red.200",
+  [LogLevel.CRITICAL]: "red.400",
 };
 
 export const parseLogs = (
   data: string | undefined,
   timezone: string | null,
   logLevelFilters: Array<LogLevel>,
-  fileSourceFilters: Array<string>,
+  fileSourceFilters: Array<string>
 ) => {
   if (!data) {
     return {};
@@ -51,9 +51,9 @@ export const parseLogs = (
   let warning;
 
   try {
-    lines = data.split('\n');
+    lines = data.split("\n");
   } catch (err) {
-    warning = 'Unable to show logs. There was an error parsing logs.';
+    warning = "Unable to show logs. There was an error parsing logs.";
     return { warning };
   }
 
@@ -64,28 +64,38 @@ export const parseLogs = (
     let parsedLine = line;
 
     // Apply log level filter.
-    if (logLevelFilters.length > 0 && logLevelFilters.every((level) => !line.includes(level))) {
+    if (
+      logLevelFilters.length > 0 &&
+      logLevelFilters.every((level) => !line.includes(level))
+    ) {
       return;
     }
 
     const regExp = /\[(.*?)\] \{(.*?)\}/;
     const matches = line.match(regExp);
-    let logGroup = '';
+    let logGroup = "";
     if (matches) {
       // Replace UTC with the local timezone.
       const dateTime = matches[1];
-      [logGroup] = matches[2].split(':');
+      [logGroup] = matches[2].split(":");
       if (dateTime && timezone) {
         // @ts-ignore
-        const localDateTime = moment.utc(dateTime).tz(timezone).format(defaultFormatWithTZ);
+        const localDateTime = moment
+          .utc(dateTime)
+          .tz(timezone)
+          .format(defaultFormatWithTZ);
         parsedLine = line.replace(dateTime, localDateTime);
       }
 
       fileSources.add(logGroup);
     }
 
-    if (fileSourceFilters.length === 0
-        || fileSourceFilters.some((fileSourceFilter) => line.includes(fileSourceFilter))) {
+    if (
+      fileSourceFilters.length === 0 ||
+      fileSourceFilters.some((fileSourceFilter) =>
+        line.includes(fileSourceFilter)
+      )
+    ) {
       parsedLines.push(parsedLine);
     }
   });
@@ -94,12 +104,13 @@ export const parseLogs = (
     parsedLogs: parsedLines
       .map((l) => {
         if (l.length >= 1000000) {
-          warning = 'Large log file. Some lines have been truncated. Download logs in order to see everything.';
+          warning =
+            "Large log file. Some lines have been truncated. Download logs in order to see everything.";
           return `${l.slice(0, 1000000)}...`;
         }
         return l;
       })
-      .join('\n'),
+      .join("\n"),
     fileSources: Array.from(fileSources).sort(),
     warning,
   };

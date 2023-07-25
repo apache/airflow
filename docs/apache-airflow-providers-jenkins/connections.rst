@@ -47,8 +47,8 @@ Host
 Port
     Specify a port number.
 
-Extras (optional)
-    Specify whether you want to use ``http`` or ``https`` scheme by entering ``true`` to use ``https`` or ``false`` for ``http`` in extras.  Default is ``http``.
+Use Https
+    Specify whether you want to use ``https``.  Default is ``http``.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

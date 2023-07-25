@@ -19,13 +19,15 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
+from functools import cached_property
 from pathlib import Path
 from typing import Collection
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
+from packaging.version import Version
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
@@ -43,12 +45,24 @@ _DEFAULT_SCOPESS = frozenset(
 logger = logging.getLogger(__name__)
 
 
+def get_default_delete_local_copy():
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
+
+    TODO: delete this function when min airflow version >= 2.6.
+    """
+    from airflow.version import version
+
+    if Version(version) < Version("2.6"):
+        return False
+    return conf.getboolean("logging", "delete_local_logs")
+
+
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     """
-    GCSTaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
-    uploads to and reads from GCS remote storage. Upon log reading
-    failure, it reads from host machine's local disk.
+    GCSTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It extends airflow FileTaskHandler and uploads to and reads from GCS remote
+    storage. Upon log reading failure, it reads from host machine's local disk.
 
     :param base_log_folder: Base log folder to place logs.
     :param gcs_log_folder: Path to a remote location where logs will be saved. It must have the prefix
@@ -63,6 +77,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     :param gcp_scopes: Comma-separated string containing OAuth2 scopes
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.
+    :param delete_local_copy: Whether local log files should be deleted after they are downloaded when using
+        remote logging
     """
 
     trigger_should_wrap = True
@@ -77,6 +93,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: Collection[str] | None = _DEFAULT_SCOPESS,
         project_id: str | None = None,
+        **kwargs,
     ):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder
@@ -87,6 +104,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.gcp_keyfile_dict = gcp_keyfile_dict
         self.scopes = gcp_scopes
         self.project_id = project_id
+        self.delete_local_copy = (
+            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        )
 
     @cached_property
     def hook(self) -> GCSHook | None:
@@ -147,7 +167,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             # read log and remove old logs to get just the latest additions
             with open(local_loc) as logfile:
                 log = logfile.read()
-            self.gcs_write(log, remote_loc)
+            gcs_write = self.gcs_write(log, remote_loc)
+            if gcs_write and self.delete_local_copy:
+                shutil.rmtree(os.path.dirname(local_loc))
 
         # Mark closed so we don't double write if close is called twice
         self.closed = True
@@ -187,6 +209,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from GCS.
+
         If failed, read the log from task instance host machine.
 
         todo: when min airflow version >= 2.6, remove this method
@@ -207,13 +230,13 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         return "".join([f"*** {x}\n" for x in messages]) + "\n".join(logs), {"end_of_log": True}
 
-    def gcs_write(self, log, remote_log_location):
+    def gcs_write(self, log, remote_log_location) -> bool:
         """
-        Writes the log to the remote_log_location. Fails silently if no log
-        was created.
+        Write the log to the remote location and return `True`; fail silently and return `False` on error.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage
+        :return: whether the log is successfully written to remote location or not.
         """
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
@@ -232,6 +255,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             blob.upload_from_string(log, content_type="text/plain")
         except Exception as e:
             self.log.error("Could not write logs to %s: %s", remote_log_location, e)
+            return False
+        return True
 
     @staticmethod
     def no_log_found(exc):

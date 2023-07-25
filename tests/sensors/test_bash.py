@@ -21,7 +21,7 @@ import datetime
 
 import pytest
 
-from airflow.exceptions import AirflowSensorTimeout
+from airflow.exceptions import AirflowFailException, AirflowSensorTimeout
 from airflow.models.dag import DAG
 from airflow.sensors.bash import BashSensor
 
@@ -53,4 +53,30 @@ class TestBashSensor:
             dag=self.dag,
         )
         with pytest.raises(AirflowSensorTimeout):
+            op.execute(None)
+
+    def test_retry_code_retries(self):
+        op = BashSensor(
+            task_id="test_false_condition",
+            bash_command='freturn() { return "$1"; }; freturn 99',
+            output_encoding="utf-8",
+            poke_interval=1,
+            timeout=2,
+            retry_exit_code=99,
+            dag=self.dag,
+        )
+        with pytest.raises(AirflowSensorTimeout):
+            op.execute(None)
+
+    def test_retry_code_fails(self):
+        op = BashSensor(
+            task_id="test_false_condition",
+            bash_command='freturn() { return "$1"; }; freturn 1',
+            output_encoding="utf-8",
+            poke_interval=1,
+            timeout=2,
+            retry_exit_code=99,
+            dag=self.dag,
+        )
+        with pytest.raises(AirflowFailException):
             op.execute(None)

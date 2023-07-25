@@ -19,11 +19,6 @@
 Example Airflow DAG that creates, patches and deletes a Cloud SQL instance, and also
 creates, patches and deletes a database inside the instance, in Google Cloud.
 
-This DAG relies on the following OS environment variables
-https://airflow.apache.org/concepts.html#variables
-* GCP_PROJECT_ID - Google Cloud project for the Cloud SQL instance.
-* INSTANCE_NAME - Name of the Cloud SQL instance.
-* DB_NAME - Name of the database inside a Cloud SQL instance.
 """
 from __future__ import annotations
 
@@ -34,6 +29,7 @@ from urllib.parse import urlsplit
 from airflow import models
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.cloud_sql import (
+    CloudSQLCloneInstanceOperator,
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,
     CloudSQLDeleteInstanceDatabaseOperator,
@@ -64,7 +60,7 @@ FILE_URI = f"gs://{BUCKET_NAME}/{FILE_NAME}"
 
 FAILOVER_REPLICA_NAME = f"{INSTANCE_NAME}-failover-replica"
 READ_REPLICA_NAME = f"{INSTANCE_NAME}-read-replica"
-
+CLONED_INSTANCE_NAME = f"{INSTANCE_NAME}-clone"
 
 # Bodies below represent Cloud SQL instance resources:
 # https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances
@@ -233,6 +229,15 @@ with models.DAG(
     # [END howto_operator_cloudsql_import]
 
     # ############################################## #
+    # ### CLONE AN INSTANCE ######################## #
+    # ############################################## #
+    # [START howto_operator_cloudsql_clone]
+    sql_instance_clone = CloudSQLCloneInstanceOperator(
+        instance=INSTANCE_NAME, destination_instance_name=CLONED_INSTANCE_NAME, task_id="sql_instance_clone"
+    )
+    # [END howto_operator_cloudsql_clone]
+
+    # ############################################## #
     # ### DELETING A DATABASE FROM AN INSTANCE ##### #
     # ############################################## #
 
@@ -260,6 +265,11 @@ with models.DAG(
     sql_instance_failover_replica_delete_task.trigger_rule = TriggerRule.ALL_DONE
     sql_instance_read_replica_delete_task.trigger_rule = TriggerRule.ALL_DONE
 
+    sql_instance_clone_delete_task = CloudSQLDeleteInstanceOperator(
+        instance=CLONED_INSTANCE_NAME,
+        task_id="sql_instance_clone_delete_task",
+    )
+
     # [START howto_operator_cloudsql_delete]
     sql_instance_delete_task = CloudSQLDeleteInstanceOperator(
         instance=INSTANCE_NAME, task_id="sql_instance_delete_task"
@@ -284,9 +294,11 @@ with models.DAG(
         >> sql_export_task
         >> sql_gcp_add_object_permission_task
         >> sql_import_task
+        >> sql_instance_clone
         >> sql_db_delete_task
         >> sql_instance_failover_replica_delete_task
         >> sql_instance_read_replica_delete_task
+        >> sql_instance_clone_delete_task
         >> sql_instance_delete_task
         # TEST TEARDOWN
         >> delete_bucket

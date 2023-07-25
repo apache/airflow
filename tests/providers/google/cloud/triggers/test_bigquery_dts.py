@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
+from unittest import mock
 
 import pytest
 from google.cloud.bigquery_datatransfer_v1 import TransferState
@@ -27,17 +27,11 @@ from google.cloud.bigquery_datatransfer_v1 import TransferState
 from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
 from airflow.triggers.base import TriggerEvent
 
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
-
 PROJECT_ID = "test-project-id"
 CONFIG_ID = "test-config-id"
 RUN_ID = "test-run-id"
 POLL_INTERVAL = 10
 GCP_CONN_ID = "google-cloud-default-id"
-DELEGATE_TO = "test-delegate-to"
 LOCATION = "us-central1"
 IMPERSONATION_CHAIN = ["test", "chain"]
 
@@ -50,7 +44,6 @@ def trigger():
         run_id=RUN_ID,
         poll_interval=POLL_INTERVAL,
         gcp_conn_id=GCP_CONN_ID,
-        delegate_to=DELEGATE_TO,
         location=LOCATION,
         impersonation_chain=IMPERSONATION_CHAIN,
     )
@@ -70,7 +63,6 @@ class TestBigQueryDataTransferRunTrigger:
             "run_id": RUN_ID,
             "poll_interval": POLL_INTERVAL,
             "gcp_conn_id": GCP_CONN_ID,
-            "delegate_to": DELEGATE_TO,
             "location": LOCATION,
             "impersonation_chain": IMPERSONATION_CHAIN,
         }
@@ -79,7 +71,6 @@ class TestBigQueryDataTransferRunTrigger:
         "attr, expected_value",
         [
             ("gcp_conn_id", GCP_CONN_ID),
-            ("delegate_to", DELEGATE_TO),
             ("location", LOCATION),
             ("impersonation_chain", IMPERSONATION_CHAIN),
         ],

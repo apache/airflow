@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from typing import Any
 from unittest import mock
 
@@ -44,7 +43,7 @@ TEST_MESSAGES = [
 ]
 
 
-class TestPubSubTopicCreateOperator(unittest.TestCase):
+class TestPubSubTopicCreateOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_failifexists(self, mock_hook):
         operator = PubSubCreateTopicOperator(
@@ -86,7 +85,7 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
         )
 
 
-class TestPubSubTopicDeleteOperator(unittest.TestCase):
+class TestPubSubTopicDeleteOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute(self, mock_hook):
         operator = PubSubDeleteTopicOperator(task_id=TASK_ID, project_id=TEST_PROJECT, topic=TEST_TOPIC)
@@ -102,7 +101,7 @@ class TestPubSubTopicDeleteOperator(unittest.TestCase):
         )
 
 
-class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
+class TestPubSubSubscriptionCreateOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute(self, mock_hook):
         operator = PubSubCreateSubscriptionOperator(
@@ -199,7 +198,7 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
         assert response == TEST_SUBSCRIPTION
 
 
-class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
+class TestPubSubSubscriptionDeleteOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute(self, mock_hook):
         operator = PubSubDeleteSubscriptionOperator(
@@ -217,7 +216,7 @@ class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
         )
 
 
-class TestPubSubPublishOperator(unittest.TestCase):
+class TestPubSubPublishOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_publish(self, mock_hook):
         operator = PubSubPublishMessageOperator(
@@ -233,7 +232,7 @@ class TestPubSubPublishOperator(unittest.TestCase):
         )
 
 
-class TestPubSubPullOperator(unittest.TestCase):
+class TestPubSubPullOperator:
     def _generate_messages(self, count):
         return [
             ReceivedMessage(

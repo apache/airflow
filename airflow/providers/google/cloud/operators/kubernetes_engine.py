@@ -18,30 +18,35 @@
 """This module contains Google Kubernetes Engine operators."""
 from __future__ import annotations
 
-import os
-import tempfile
 import warnings
-from contextlib import contextmanager
-from typing import TYPE_CHECKING, Generator, Sequence
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
+from kubernetes.client.models import V1Pod
 
-from airflow.exceptions import AirflowException
-from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+except ImportError:
+    # preserve backward compatibility for older versions of cncf.kubernetes provider
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+
+from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook, GKEPodHook
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
     KubernetesEnginePodLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
-from airflow.utils.process_utils import execute_in_subprocess, patch_environ
+from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
+from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
@@ -105,7 +110,7 @@ class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -181,8 +186,7 @@ class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
 
 class GKECreateClusterOperator(GoogleCloudBaseOperator):
     """
-    Create a Google Kubernetes Engine Cluster of specified dimensions
-    The operator will wait until the cluster is created.
+    Create a Google Kubernetes Engine Cluster of specified dimensions and wait until the cluster is created.
 
     The **minimum** required to define a cluster to create is:
 
@@ -228,6 +232,8 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
+    :param poll_interval: Interval size which defines how often operation status is checked.
     """
 
     template_fields: Sequence[str] = (
@@ -250,7 +256,7 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: int = 10,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -263,40 +269,70 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
         self.deferrable = deferrable
-        self._check_input()
+        self._validate_input()
 
         self._hook: GKEHook | None = None
 
-    def _check_input(self) -> None:
-        if (
-            not all([self.project_id, self.location, self.body])
-            or (isinstance(self.body, dict) and "name" not in self.body)
-            or (
-                isinstance(self.body, dict)
-                and ("initial_node_count" not in self.body and "node_pools" not in self.body)
-            )
-            or (not (isinstance(self.body, dict)) and not (getattr(self.body, "name", None)))
-            or (
-                not (isinstance(self.body, dict))
-                and (
-                    not (getattr(self.body, "initial_node_count", None))
-                    and not (getattr(self.body, "node_pools", None))
+    def _validate_input(self) -> None:
+        """Primary validation of the input body."""
+        self._alert_deprecated_body_fields()
+
+        error_messages: list[str] = []
+        if not self._body_field("name"):
+            error_messages.append("Field body['name'] is missing or incorrect")
+
+        if self._body_field("initial_node_count"):
+            if self._body_field("node_pools"):
+                error_messages.append(
+                    "Do not use filed body['initial_node_count'] and body['node_pools'] at the same time."
                 )
-            )
-        ):
-            self.log.error(
-                "One of (project_id, location, body, body['name'], "
-                "body['initial_node_count']), body['node_pools'] is missing or incorrect"
-            )
+
+        if self._body_field("node_config"):
+            if self._body_field("node_pools"):
+                error_messages.append(
+                    "Do not use filed body['node_config'] and body['node_pools'] at the same time."
+                )
+
+        if self._body_field("node_pools"):
+            if any([self._body_field("node_config"), self._body_field("initial_node_count")]):
+                error_messages.append(
+                    "The field body['node_pools'] should not be set if "
+                    "body['node_config'] or body['initial_code_count'] are specified."
+                )
+
+        if not any([self._body_field("node_config"), self._body_field("initial_node_count")]):
+            if not self._body_field("node_pools"):
+                error_messages.append(
+                    "Field body['node_pools'] is required if none of fields "
+                    "body['initial_node_count'] or body['node_pools'] are specified."
+                )
+
+        for message in error_messages:
+            self.log.error(message)
+
+        if error_messages:
             raise AirflowException("Operator has incorrect or missing input.")
-        elif (
-            isinstance(self.body, dict) and ("initial_node_count" in self.body and "node_pools" in self.body)
-        ) or (
-            not (isinstance(self.body, dict))
-            and (getattr(self.body, "initial_node_count", None) and getattr(self.body, "node_pools", None))
-        ):
-            self.log.error("Only one of body['initial_node_count']) and body['node_pools'] may be specified")
-            raise AirflowException("Operator has incorrect or missing input.")
+
+    def _body_field(self, field_name: str, default_value: Any = None) -> Any:
+        """Extracts the value of the given field name."""
+        if isinstance(self.body, dict):
+            return self.body.get(field_name, default_value)
+        else:
+            return getattr(self.body, field_name, default_value)
+
+    def _alert_deprecated_body_fields(self) -> None:
+        """Generates warning messages if deprecated fields were used in the body."""
+        deprecated_body_fields_with_replacement = [
+            ("initial_node_count", "node_pool.initial_node_count"),
+            ("node_config", "node_pool.config"),
+            ("zone", "location"),
+            ("instance_group_urls", "node_pools.instance_group_urls"),
+        ]
+        for deprecated_field, replacement in deprecated_body_fields_with_replacement:
+            if self._body_field(deprecated_field):
+                warnings.warn(
+                    f"The body field '{deprecated_field}' is deprecated. Use '{replacement}' instead."
+                )
 
     def execute(self, context: Context) -> str:
         hook = self._get_hook()
@@ -357,8 +393,7 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
 
 class GKEStartPodOperator(KubernetesPodOperator):
     """
-    Executes a task in a Kubernetes pod in the specified Google Kubernetes
-    Engine cluster
+    Executes a task in a Kubernetes pod in the specified Google Kubernetes Engine cluster.
 
     This Operator assumes that the system has gcloud installed and has configured a
     connection id with a service account.
@@ -381,7 +416,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         should be spawned in
     :param use_internal_ip: Use the internal IP address as the endpoint.
     :param project_id: The Google Developers Console project id
-    :param gcp_conn_id: The google cloud connection id to use. This allows for
+    :param gcp_conn_id: The Google cloud connection id to use. This allows for
         users to specify a service account.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or list of accounts required to get the access_token
@@ -392,10 +427,16 @@ class GKEStartPodOperator(KubernetesPodOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param regional: The location param is region name.
+    :param deferrable: Run operator in the deferrable mode.
+    :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
+        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
+        Current default is `keep_pod`, but this will be changed in the next major release of this provider.
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True, delete the
-        pod; if False, leave the pod.  Current default is False, but this will be
+        pod; if False, leave the pod. Current default is False, but this will be
         changed in the next major release of this provider.
+        Deprecated - use `on_finish_action` instead.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -412,29 +453,54 @@ class GKEStartPodOperator(KubernetesPodOperator):
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        regional: bool = False,
+        regional: bool | None = None,
+        on_finish_action: str | None = None,
         is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
-        if is_delete_operator_pod is None:
+        if is_delete_operator_pod is not None:
             warnings.warn(
-                f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
-                "Currently the default for this parameter is `False` but in a future release the default "
-                "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
-                "set `is_delete_operator_pod=False` explicitly.",
-                DeprecationWarning,
+                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            is_delete_operator_pod = False
+            kwargs["on_finish_action"] = (
+                OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
+            )
+        else:
+            if on_finish_action is not None:
+                kwargs["on_finish_action"] = OnFinishAction(on_finish_action)
+            else:
+                warnings.warn(
+                    f"You have not set parameter `on_finish_action` in class {self.__class__.__name__}. "
+                    "Currently the default for this parameter is `keep_pod` but in a future release"
+                    " the default will be changed to `delete_pod`. To ensure pods are not deleted in"
+                    " the future you will need to set `on_finish_action=keep_pod` explicitly.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+                kwargs["on_finish_action"] = OnFinishAction.KEEP_POD
 
-        super().__init__(is_delete_operator_pod=is_delete_operator_pod, **kwargs)
+        if regional is not None:
+            warnings.warn(
+                f"You have set parameter regional in class {self.__class__.__name__}. "
+                "In current implementation of the operator the parameter is not used and will "
+                "be deleted in future.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
-        self.use_internal_ip = use_internal_ip
         self.impersonation_chain = impersonation_chain
-        self.regional = regional
+        self.use_internal_ip = use_internal_ip
+
+        self.pod: V1Pod | None = None
+        self._ssl_ca_cert: str | None = None
+        self._cluster_url: str | None = None
 
         if self.gcp_conn_id is None:
             raise AirflowException(
@@ -448,88 +514,80 @@ class GKEStartPodOperator(KubernetesPodOperator):
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
     @staticmethod
-    @contextmanager
-    def get_gke_config_file(
-        gcp_conn_id,
-        project_id: str | None,
-        cluster_name: str,
-        impersonation_chain: str | Sequence[str] | None,
-        regional: bool,
-        location: str,
-        use_internal_ip: bool,
-    ) -> Generator[str, None, None]:
+    def get_gke_config_file():
+        warnings.warn(
+            "The `get_gke_config_file` method is deprecated, "
+            "please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=1,
+        )
 
-        hook = GoogleBaseHook(gcp_conn_id=gcp_conn_id)
-        project_id = project_id or hook.project_id
+    @cached_property
+    def cluster_hook(self) -> GKEHook:
+        return GKEHook(
+            gcp_conn_id=self.gcp_conn_id,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
 
-        if not project_id:
-            raise AirflowException(
-                "The project id must be passed either as "
-                "keyword project_id parameter or as project_id extra "
-                "in Google Cloud connection definition. Both are not set!"
+    @cached_property
+    def hook(self) -> GKEPodHook:
+        if self._cluster_url is None or self._ssl_ca_cert is None:
+            raise AttributeError(
+                "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
+                "Try to use self.get_kube_creds method",
             )
 
-        # Write config to a temp file and set the environment variable to point to it.
-        # This is to avoid race conditions of reading/writing a single file
-        with tempfile.NamedTemporaryFile() as conf_file, patch_environ(
-            {KUBE_CONFIG_ENV_VAR: conf_file.name}
-        ), hook.provide_authorized_gcloud():
-            # Attempt to get/update credentials
-            # We call gcloud directly instead of using google-cloud-python api
-            # because there is no way to write kubernetes config to a file, which is
-            # required by KubernetesPodOperator.
-            # The gcloud command looks at the env variable `KUBECONFIG` for where to save
-            # the kubernetes config file.
-            cmd = [
-                "gcloud",
-                "container",
-                "clusters",
-                "get-credentials",
-                cluster_name,
-                "--project",
-                project_id,
-            ]
-            if impersonation_chain:
-                if isinstance(impersonation_chain, str):
-                    impersonation_account = impersonation_chain
-                elif len(impersonation_chain) == 1:
-                    impersonation_account = impersonation_chain[0]
-                else:
-                    raise AirflowException(
-                        "Chained list of accounts is not supported, please specify only one service account"
-                    )
+        hook = GKEPodHook(
+            cluster_url=self._cluster_url,
+            ssl_ca_cert=self._ssl_ca_cert,
+        )
+        return hook
 
-                cmd.extend(
-                    [
-                        "--impersonate-service-account",
-                        impersonation_account,
-                    ]
-                )
-            if regional:
-                cmd.append("--region")
-            else:
-                cmd.append("--zone")
-            cmd.append(location)
-            if use_internal_ip:
-                cmd.append("--internal-ip")
-            execute_in_subprocess(cmd)
+    def execute(self, context: Context):
+        """Executes process of creating pod and executing provided command inside it."""
+        self.fetch_cluster_info()
+        return super().execute(context)
 
-            # Tell `KubernetesPodOperator` where the config file is located
-            yield os.environ[KUBE_CONFIG_ENV_VAR]
-
-    def execute(self, context: Context) -> str | None:
-
-        with GKEStartPodOperator.get_gke_config_file(
-            gcp_conn_id=self.gcp_conn_id,
+    def fetch_cluster_info(self) -> tuple[str, str | None]:
+        """Fetches cluster info for connecting to it."""
+        cluster = self.cluster_hook.get_cluster(
+            name=self.cluster_name,
             project_id=self.project_id,
-            cluster_name=self.cluster_name,
-            impersonation_chain=self.impersonation_chain,
-            regional=self.regional,
-            location=self.location,
-            use_internal_ip=self.use_internal_ip,
-        ) as config_file:
-            self.config_file = config_file
-            result = super().execute(context)
-            if not self.is_delete_operator_pod:
-                KubernetesEnginePodLink.persist(context=context, task_instance=self)
-            return result
+        )
+
+        if not self.use_internal_ip:
+            self._cluster_url = f"https://{cluster.endpoint}"
+        else:
+            self._cluster_url = f"https://{cluster.private_cluster_config.private_endpoint}"
+        self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
+        return self._cluster_url, self._ssl_ca_cert
+
+    def invoke_defer_method(self):
+        """Method to easily redefine triggers which are being used in child classes."""
+        trigger_start_time = utcnow()
+        self.defer(
+            trigger=GKEStartPodTrigger(
+                pod_name=self.pod.metadata.name,
+                pod_namespace=self.pod.metadata.namespace,
+                trigger_start_time=trigger_start_time,
+                cluster_url=self._cluster_url,
+                ssl_ca_cert=self._ssl_ca_cert,
+                get_logs=self.get_logs,
+                startup_timeout=self.startup_timeout_seconds,
+                cluster_context=self.cluster_context,
+                poll_interval=self.poll_interval,
+                in_cluster=self.in_cluster,
+                base_container_name=self.base_container_name,
+                on_finish_action=self.on_finish_action,
+            ),
+            method_name="execute_complete",
+            kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},
+        )
+
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        # It is required for hook to be initialized
+        self._cluster_url = kwargs["cluster_url"]
+        self._ssl_ca_cert = kwargs["ssl_ca_cert"]
+
+        return super().execute_complete(context, event, **kwargs)

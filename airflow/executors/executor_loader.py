@@ -60,9 +60,10 @@ class ExecutorLoader:
         LOCAL_EXECUTOR: "airflow.executors.local_executor.LocalExecutor",
         LOCAL_KUBERNETES_EXECUTOR: "airflow.executors.local_kubernetes_executor.LocalKubernetesExecutor",
         SEQUENTIAL_EXECUTOR: "airflow.executors.sequential_executor.SequentialExecutor",
-        CELERY_EXECUTOR: "airflow.executors.celery_executor.CeleryExecutor",
-        CELERY_KUBERNETES_EXECUTOR: "airflow.executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
-        DASK_EXECUTOR: "airflow.executors.dask_executor.DaskExecutor",
+        CELERY_EXECUTOR: "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+        CELERY_KUBERNETES_EXECUTOR: "airflow.providers.celery."
+        "executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
+        DASK_EXECUTOR: "airflow.providers.daskexecutor.executors.dask_executor.DaskExecutor",
         KUBERNETES_EXECUTOR: "airflow.executors.kubernetes_executor.KubernetesExecutor",
         DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",
     }
@@ -97,6 +98,9 @@ class ExecutorLoader:
 
         :return: an instance of executor class via executor_name
         """
+        from airflow.providers_manager import ProvidersManager
+
+        ProvidersManager().initialize_providers_configuration()
         if executor_name == CELERY_KUBERNETES_EXECUTOR:
             return cls.__load_celery_kubernetes_executor()
         elif executor_name == LOCAL_KUBERNETES_EXECUTOR:
@@ -170,15 +174,17 @@ class ExecutorLoader:
         initialized) because loading the executor class is heavy work we want to
         avoid unless needed.
         """
-        if not executor.is_single_threaded:
+        # Single threaded executors can run with any backend.
+        if executor.is_single_threaded:
             return
 
-        # This is set in tests when we want to be able to use the SequentialExecutor.
+        # This is set in tests when we want to be able to use SQLite.
         if os.environ.get("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK") == "1":
             return
 
         from airflow.settings import engine
 
+        # SQLite only works with single threaded executors
         if engine.dialect.name == "sqlite":
             raise AirflowConfigException(f"error: cannot use SQLite with the {executor.__name__}")
 

@@ -19,30 +19,39 @@
 
 /* global describe, test, expect */
 
-import React from 'react';
-import { render } from '@testing-library/react';
+import React from "react";
+import { render } from "@testing-library/react";
 
-import { ChakraWrapper } from 'src/utils/testUtils';
+import { ChakraWrapper } from "src/utils/testUtils";
 
-import TaskName from './TaskName';
+import TaskName from "./TaskName";
 
-describe('Test TaskName', () => {
-  test('Displays a normal task name', () => {
-    const { getByText } = render(<TaskName label="test" onToggle={() => {}} />, { wrapper: ChakraWrapper });
+describe("Test TaskName", () => {
+  test("Displays a normal task name", () => {
+    const { getByText } = render(
+      <TaskName label="test" onToggle={() => {}} />,
+      { wrapper: ChakraWrapper }
+    );
 
-    expect(getByText('test')).toBeDefined();
+    expect(getByText("test")).toBeDefined();
   });
 
-  test('Displays a mapped task name', () => {
-    const { getByText } = render(<TaskName level={0} label="test" isMapped onToggle={() => {}} />, { wrapper: ChakraWrapper });
+  test("Displays a mapped task name", () => {
+    const { getByText } = render(
+      <TaskName level={0} label="test" isMapped onToggle={() => {}} />,
+      { wrapper: ChakraWrapper }
+    );
 
-    expect(getByText('test [ ]')).toBeDefined();
+    expect(getByText("test [ ]")).toBeDefined();
   });
 
-  test('Displays a group task name', () => {
-    const { getByText, getByTestId } = render(<TaskName level={0} label="test" isGroup onToggle={() => {}} />, { wrapper: ChakraWrapper });
+  test("Displays a group task name", () => {
+    const { getByText, getByTestId } = render(
+      <TaskName level={0} label="test" isGroup onToggle={() => {}} />,
+      { wrapper: ChakraWrapper }
+    );
 
-    expect(getByText('test')).toBeDefined();
-    expect(getByTestId('open-group')).toBeDefined();
+    expect(getByText("test")).toBeDefined();
+    expect(getByTestId("open-group")).toBeDefined();
   });
 });

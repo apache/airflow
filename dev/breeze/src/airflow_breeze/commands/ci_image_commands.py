@@ -35,6 +35,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_extras,
     option_additional_pip_install_flags,
     option_additional_python_deps,
+    option_airflow_constraints_location,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference_build,
     option_answer,
@@ -48,7 +49,6 @@ from airflow_breeze.utils.common_options import (
     option_force_build,
     option_github_repository,
     option_github_token,
-    option_github_username,
     option_image_name,
     option_image_tag_for_building,
     option_image_tag_for_pulling,
@@ -113,8 +113,6 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
         if not should_we_run_the_build(build_ci_params=ci_image_params):
             return False
-    if ci_image_params.prepare_buildx_cache or ci_image_params.push:
-        login_to_github_docker_registry(image_params=ci_image_params, output=output)
     return True
 
 
@@ -154,9 +152,13 @@ def run_build_in_parallel(
     )
 
 
-def start_building(params: BuildCiParams):
+def prepare_for_building_ci_image(params: BuildCiParams):
     check_if_image_building_is_needed(params, output=None)
     make_sure_builder_configured(params=params)
+    login_to_github_docker_registry(
+        github_token=params.github_token,
+        output=None,
+    )
 
 
 @ci_image.command(name="build")
@@ -171,7 +173,6 @@ def start_building(params: BuildCiParams):
 @option_upgrade_on_failure
 @option_platform_multiple
 @option_github_token
-@option_github_username
 @option_docker_cache
 @option_image_tag_for_building
 @option_prepare_buildx_cache
@@ -188,6 +189,7 @@ def start_building(params: BuildCiParams):
 @option_dev_apt_deps
 @option_force_build
 @option_python_image
+@option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference_build
 @option_tag_as_latest
@@ -228,7 +230,7 @@ def build(
             params = BuildCiParams(**parameters_passed)
             params.python = python
             params_list.append(params)
-        start_building(params=params_list[0])
+        prepare_for_building_ci_image(params=params_list[0])
         run_build_in_parallel(
             image_params_list=params_list,
             python_version_list=python_version_list,
@@ -239,7 +241,7 @@ def build(
         )
     else:
         params = BuildCiParams(**parameters_passed)
-        start_building(params=params)
+        prepare_for_building_ci_image(params=params)
         run_build(ci_image_params=params)
 
 
@@ -279,6 +281,10 @@ def pull(
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
     perform_environment_checks()
     check_remote_ghcr_io_commands()
+    login_to_github_docker_registry(
+        github_token=github_token,
+        output=None,
+    )
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         ci_image_params_list = [
@@ -304,7 +310,10 @@ def pull(
         )
     else:
         image_params = BuildCiParams(
-            image_tag=image_tag, python=python, github_repository=github_repository, github_token=github_token
+            image_tag=image_tag,
+            python=python,
+            github_repository=github_repository,
+            github_token=github_token,
         )
         return_code, info = run_pull_image(
             image_params=image_params,
@@ -329,6 +338,7 @@ def pull(
 @option_image_tag_for_verifying
 @option_image_name
 @option_pull
+@option_github_token
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
@@ -337,13 +347,23 @@ def verify(
     image_name: str,
     image_tag: str | None,
     pull: bool,
+    github_token: str,
     github_repository: str,
     extra_pytest_args: tuple,
 ):
     """Verify CI image."""
     perform_environment_checks()
+    login_to_github_docker_registry(
+        github_token=github_token,
+        output=None,
+    )
     if image_name is None:
-        build_params = BuildCiParams(python=python, image_tag=image_tag, github_repository=github_repository)
+        build_params = BuildCiParams(
+            python=python,
+            image_tag=image_tag,
+            github_repository=github_repository,
+            github_token=github_token,
+        )
         image_name = build_params.airflow_image_name_with_tag
     if pull:
         check_remote_ghcr_io_commands()
@@ -464,9 +484,9 @@ def run_build_ci_image(
             output=output,
         )
     else:
+        env = os.environ.copy()
+        env["DOCKER_BUILDKIT"] = "1"
         if ci_image_params.empty_image:
-            env = os.environ.copy()
-            env["DOCKER_BUILDKIT"] = "1"
             get_console(output=output).print(
                 f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n"
             )
@@ -502,6 +522,7 @@ def run_build_ci_image(
                 cwd=AIRFLOW_SOURCES_ROOT,
                 text=True,
                 check=False,
+                env=env,
                 output=output,
             )
             if build_command_result.returncode != 0 and not ci_image_params.upgrade_to_newer_dependencies:
@@ -515,6 +536,7 @@ def run_build_ci_image(
                             image_params=ci_image_params,
                         ),
                         cwd=AIRFLOW_SOURCES_ROOT,
+                        env=env,
                         text=True,
                         check=False,
                         output=output,
@@ -553,6 +575,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
     )
     ci_image_params = BuildCiParams(
         python=command_params.python,
+        builder=command_params.builder,
         github_repository=command_params.github_repository,
         upgrade_to_newer_dependencies=False,
         image_tag=command_params.image_tag,
@@ -575,8 +598,8 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
             get_console().print(f"[info]{command_params.image_type} image already built locally.[/]")
     else:
         get_console().print(
-            f"[warning]{command_params.image_type} image was never built locally or deleted. "
-            "Forcing build.[/]"
+            f"[warning]{command_params.image_type} image for Python {command_params.python} "
+            f"was never built locally or was deleted. Forcing build.[/]"
         )
         ci_image_params.force_build = True
     if check_if_image_building_is_needed(

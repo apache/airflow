@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
     EmrServerlessDeleteApplicationOperator,
     EmrServerlessStartJobOperator,
+    EmrServerlessStopApplicationOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor, EmrServerlessJobSensor
@@ -99,15 +100,27 @@ with DAG(
         configuration_overrides=SPARK_CONFIGURATION_OVERRIDES,
     )
     # [END howto_operator_emr_serverless_start_job]
-    start_job.waiter_check_interval_seconds = 10
+    start_job.wait_for_completion = False
 
     # [START howto_sensor_emr_serverless_job]
     wait_for_job = EmrServerlessJobSensor(
         task_id="wait_for_job",
         application_id=emr_serverless_app_id,
         job_run_id=start_job.output,
+        # the default is to wait for job completion, here we just wait for the job to be running.
+        target_states={"RUNNING"},
     )
     # [END howto_sensor_emr_serverless_job]
+    wait_for_job.poke_interval = 10
+
+    # [START howto_operator_emr_serverless_stop_application]
+    stop_app = EmrServerlessStopApplicationOperator(
+        task_id="stop_application",
+        application_id=emr_serverless_app_id,
+        force_stop=True,
+    )
+    # [END howto_operator_emr_serverless_stop_application]
+    stop_app.waiter_check_interval_seconds = 1
 
     # [START howto_operator_emr_serverless_delete_application]
     delete_app = EmrServerlessDeleteApplicationOperator(
@@ -134,6 +147,7 @@ with DAG(
         wait_for_app_creation,
         start_job,
         wait_for_job,
+        stop_app,
         # TEST TEARDOWN
         delete_app,
         delete_s3_bucket,

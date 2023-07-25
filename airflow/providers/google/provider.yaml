@@ -28,7 +28,17 @@ description: |
       - `Google Marketing Platform <https://marketingplatform.google.com/>`__
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
+suspended: false
 versions:
+  - 10.4.0
+  - 10.3.0
+  - 10.2.0
+  - 10.1.1
+  - 10.1.0
+  - 10.0.0
+  - 9.0.0
+  - 8.12.0
+  - 8.11.0
   - 8.10.0
   - 8.9.0
   - 8.8.0
@@ -60,73 +70,63 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
-  # Google has very clear rules on what dependencies should be used. All the limits below
-  # follow strict guidelines of Google Libraries as quoted here:
-  # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth
-  # should preserve >1, <3 pins on these packages.
-  # https://github.com/googleapis/google-cloud-python/issues/10566
-  # Some of Google Packages are limited to <2.0.0 because 2.0.0 releases of the libraries
-  # Introduced breaking changes across the board. Those libraries should be upgraded soon
-  # TODO: Upgrade all Google libraries that are limited to <2.0.0
-  - PyOpenSSL
   - asgiref>=3.5.2
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
-  - google-ads>=15.1.1
-  - google-api-core>=2.7.0,<3.0.0
-  - google-api-python-client>=1.6.0,<2.0.0
+  - google-ads>=21.2.0
+  - google-api-core>=2.11.0
+  - google-api-python-client>=1.6.0
   - google-auth>=1.0.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.7.1,<2.0.0
-  - google-cloud-automl>=2.1.0
-  - google-cloud-bigquery-datatransfer>=3.0.0
-  - google-cloud-bigtable>=2.0.0,<3.0.0
-  - google-cloud-build>=3.0.0
-  - google-cloud-compute>=0.1.0,<2.0.0
-  - google-cloud-container>=2.2.0,<3.0.0
-  # google-cloud-dataflow-client of version 0.5.5 requires higher versions of
-  # protobuf and proto-plus libraries which can break other dependencies in the current package.
-  - google-cloud-dataflow-client>=0.5.2,<0.5.5
-  - google-cloud-dataform>=0.2.0
-  - google-cloud-datacatalog>=3.0.0
-  - google-cloud-dataplex>=0.1.0
-  - google-cloud-dataproc>=3.1.0
-  - google-cloud-dataproc-metastore>=1.2.0,<2.0.0
-  # google-cloud-dlp of version 3.8.0+ requires higher versions of
-  # protobuf and proto-plus libraries which can break other dependencies in the current package.
-  - google-cloud-dlp>=3.0.0,<3.8.0
-  - google-cloud-kms>=2.0.0
-  - google-cloud-language>=1.1.1,<2.0.0
-  - google-cloud-logging>=2.1.1
-  - google-cloud-memcache>=0.2.0
-  - google-cloud-monitoring>=2.0.0
-  - google-cloud-os-login>=2.0.0
-  - google-cloud-orchestration-airflow>=1.0.0,<2.0.0
-  - google-cloud-pubsub>=2.0.0
-  - google-cloud-redis>=2.0.0
-  - google-cloud-secret-manager>=0.2.0,<2.0.0
-  - google-cloud-spanner>=1.10.0,<2.0.0
-  - google-cloud-speech>=0.36.3,<2.0.0
-  - google-cloud-storage>=1.30,<3.0.0
-  - google-cloud-tasks>=2.0.0
-  - google-cloud-texttospeech>=0.4.0,<2.0.0
-  - google-cloud-translate>=1.5.0,<2.0.0
-  - google-cloud-videointelligence>=1.7.0,<2.0.0
-  - google-cloud-vision>=0.35.2,<2.0.0
-  - google-cloud-workflows>=0.1.0,<2.0.0
+  - google-cloud-aiplatform>=1.22.1
+  - google-cloud-automl>=2.11.0
+  - google-cloud-bigquery-datatransfer>=3.11.0
+  - google-cloud-bigtable>=2.17.0
+  - google-cloud-build>=3.13.0
+  - google-cloud-compute>=1.10.0
+  - google-cloud-container>=2.17.4
+  - google-cloud-datacatalog>=3.11.1
+  - google-cloud-dataflow-client>=0.8.2
+  - google-cloud-dataform>=0.5.0
+  - google-cloud-dataplex>=1.4.2
+  - google-cloud-dataproc>=5.4.0
+  - google-cloud-dataproc-metastore>=1.10.0
+  - google-cloud-dlp>=3.12.0
+  - google-cloud-kms>=2.15.0
+  - google-cloud-language>=2.9.0
+  - google-cloud-logging>=3.5.0
+  - google-cloud-memcache>=1.7.0
+  - google-cloud-monitoring>=2.14.1
+  - google-cloud-orchestration-airflow>=1.7.0
+  - google-cloud-os-login>=2.9.1
+  - google-cloud-pubsub>=2.15.0
+  - google-cloud-redis>=2.12.0
+  - google-cloud-secret-manager>=2.16.0
+  - google-cloud-spanner>=3.11.1
+  - google-cloud-speech>=2.18.0
+  - google-cloud-storage>=2.7.0
+  - google-cloud-storage-transfer>=1.4.1
+  - google-cloud-tasks>=2.13.0
+  - google-cloud-texttospeech>=2.14.1
+  - google-cloud-translate>=3.11.0
+  - google-cloud-videointelligence>=2.11.0
+  - google-cloud-vision>=3.4.0
+  - google-cloud-workflows>=1.10.0
   - grpcio-gcp>=0.2.2
   - httpx
   - json-merge-patch>=0.2
   - looker-sdk>=22.2.0
   - pandas-gbq
   - pandas>=0.17.1
-  - sqlalchemy-bigquery>=1.2.1
   # A transient dependency of google-cloud-bigquery-datatransfer, but we
   # further constrain it since older versions are buggy.
   - proto-plus>=1.19.6
+  - PyOpenSSL
+  - sqlalchemy-bigquery>=1.2.1
+  - sqlalchemy-spanner>=1.6.2
 
 integrations:
   - integration-name: Google Analytics360
@@ -633,6 +633,9 @@ sensors:
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
+  - integration-name: Google Dataproc Metastore
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataproc_metastore
   - integration-name: Google Cloud Storage (GCS)
     python-modules:
       - airflow.providers.google.cloud.sensors.gcs
@@ -835,6 +838,47 @@ hooks:
     python-modules:
       - airflow.providers.google.cloud.hooks.dataform
 
+triggers:
+  - integration-name: Google BigQuery Data Transfer Service
+    python-modules:
+      - airflow.providers.google.cloud.triggers.bigquery_dts
+  - integration-name: Google BigQuery
+    python-modules:
+      - airflow.providers.google.cloud.triggers.bigquery
+  - integration-name: Google Cloud Build
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_build
+  - integration-name: Google Cloud Composer
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_composer
+  - integration-name: Google Cloud Storage Transfer Service
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_storage_transfer_service
+  - integration-name: Google Cloud SQL
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_sql
+  - integration-name: Google Dataflow
+    python-modules:
+      - airflow.providers.google.cloud.triggers.dataflow
+  - integration-name: Google Data Fusion
+    python-modules:
+      - airflow.providers.google.cloud.triggers.datafusion
+  - integration-name: Google Dataproc
+    python-modules:
+      - airflow.providers.google.cloud.triggers.dataproc
+  - integration-name: Google Cloud Storage (GCS)
+    python-modules:
+      - airflow.providers.google.cloud.triggers.gcs
+  - integration-name: Google Kubernetes Engine
+    python-modules:
+      - airflow.providers.google.cloud.triggers.kubernetes_engine
+  - integration-name: Google Machine Learning Engine
+    python-modules:
+      - airflow.providers.google.cloud.triggers.mlengine
+  - integration-name: Google Cloud Pub/Sub
+    python-modules:
+      - airflow.providers.google.cloud.triggers.pubsub
+
 transfers:
   - source-integration-name: Presto
     target-integration-name: Google Cloud Storage (GCS)
@@ -883,7 +927,11 @@ transfers:
     python-module: airflow.providers.google.cloud.transfers.gcs_to_sftp
   - source-integration-name: PostgreSQL
     target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/postgres_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.postgres_to_gcs
+  - source-integration-name: Google BigQuery
+    target-integration-name: Common SQL
+    python-module: airflow.providers.google.cloud.transfers.bigquery_to_sql
   - source-integration-name: Google BigQuery
     target-integration-name: MySQL
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/bigquery_to_mysql.rst
@@ -892,6 +940,10 @@ transfers:
     target-integration-name: Microsoft SQL Server (MSSQL)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/bigquery_to_mssql.rst
     python-module: airflow.providers.google.cloud.transfers.bigquery_to_mssql
+  - source-integration-name: Google BigQuery
+    target-integration-name: PostgreSQL
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/bigquery_to_postgres.rst
+    python-module: airflow.providers.google.cloud.transfers.bigquery_to_postgres
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google BigQuery
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_bigquery.rst
@@ -962,7 +1014,10 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.mssql_to_gcs
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/mssql_to_gcs.rst
-
+  - source-integration-name: Microsoft Azure Blob Storage
+    target-integration-name: Google Cloud Storage (GCS)
+    python-module: airflow.providers.google.cloud.transfers.azure_blob_to_gcs
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/azure_blob_to_gcs.rst
 
 connection-types:
   - hook-class-name: airflow.providers.google.common.hooks.base_google.GoogleBaseHook
@@ -1084,6 +1139,9 @@ additional-extras:
   - name: apache.beam
     dependencies:
       - apache-beam[gcp]
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.2.0
   - name: leveldb
     dependencies:
       - plyvel

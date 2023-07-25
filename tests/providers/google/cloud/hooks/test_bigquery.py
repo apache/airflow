@@ -20,14 +20,17 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
 from gcloud.aio.bigquery import Job, Table as Table_async
+from google.api_core import page_iterator
 from google.cloud.bigquery import DEFAULT_RETRY, DatasetReference, Table, TableReference
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem
+from google.cloud.bigquery.table import _EmptyRowIterator
 from google.cloud.exceptions import NotFound
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryAsyncHook,
     BigQueryCursor,
@@ -40,7 +43,6 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     _validate_value,
     split_tablename,
 )
-from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
 PROJECT_ID = "bq-project"
 CREDENTIALS = "bq-credentials"
@@ -67,6 +69,11 @@ class _BigQueryBaseTestClass:
         self.hook = MockedBigQueryHook()
 
 
+def test_delegate_to_runtime_error():
+    with pytest.raises(RuntimeError):
+        BigQueryHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
+
 class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryConnection")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook._authorize")
@@ -85,15 +92,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             num_retries=self.hook.num_retries,
         )
         assert mock_bigquery_connection.return_value == result
-
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
-    def test_location_propagates_properly(self, run_with_config, _):
-        # TODO: this creates side effect
-        assert self.hook.location is None
-        self.hook.run_query(sql="select 1", location="US")
-        assert run_with_config.call_count == 1
-        assert self.hook.location == "US"
 
     def test_bigquery_insert_rows_not_implemented(self):
         with pytest.raises(NotImplementedError):
@@ -431,45 +429,63 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.SchemaField")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_list_rows(self, mock_client, mock_schema, mock_table):
-        self.hook.list_rows(
-            dataset_id=DATASET_ID,
-            table_id=TABLE_ID,
-            max_results=10,
-            selected_fields=["field_1", "field_2"],
-            page_token="page123",
-            start_index=5,
-            location=LOCATION,
-        )
-        mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
-        mock_schema.assert_has_calls([mock.call(x, "") for x in ["field_1", "field_2"]])
-        mock_client.return_value.list_rows.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value,
-            max_results=10,
-            selected_fields=mock.ANY,
-            page_token="page123",
-            start_index=5,
-        )
+        mock_row_iterator = _EmptyRowIterator()
+        mock_client.return_value.list_rows.return_value = mock_row_iterator
+
+        for return_iterator, expected in [(False, []), (True, mock_row_iterator)]:
+            actual = self.hook.list_rows(
+                dataset_id=DATASET_ID,
+                table_id=TABLE_ID,
+                max_results=10,
+                selected_fields=["field_1", "field_2"],
+                page_token="page123",
+                start_index=5,
+                location=LOCATION,
+                return_iterator=return_iterator,
+            )
+            mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
+            mock_schema.assert_has_calls([mock.call(x, "") for x in ["field_1", "field_2"]])
+            mock_client.return_value.list_rows.assert_called_once_with(
+                table=mock_table.from_api_repr.return_value,
+                max_results=10,
+                selected_fields=mock.ANY,
+                page_token="page123",
+                start_index=5,
+                retry=DEFAULT_RETRY,
+            )
+            assert actual == expected
+            mock_table.from_api_repr.reset_mock()
+            mock_client.return_value.list_rows.reset_mock()
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_list_rows_with_empty_selected_fields(self, mock_client, mock_table):
-        self.hook.list_rows(
-            dataset_id=DATASET_ID,
-            table_id=TABLE_ID,
-            max_results=10,
-            page_token="page123",
-            selected_fields=[],
-            start_index=5,
-            location=LOCATION,
-        )
-        mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
-        mock_client.return_value.list_rows.assert_called_once_with(
-            table=mock_table.from_api_repr.return_value,
-            max_results=10,
-            page_token="page123",
-            selected_fields=None,
-            start_index=5,
-        )
+        mock_row_iterator = _EmptyRowIterator()
+        mock_client.return_value.list_rows.return_value = mock_row_iterator
+
+        for return_iterator, expected in [(False, []), (True, mock_row_iterator)]:
+            actual = self.hook.list_rows(
+                dataset_id=DATASET_ID,
+                table_id=TABLE_ID,
+                max_results=10,
+                page_token="page123",
+                selected_fields=[],
+                start_index=5,
+                location=LOCATION,
+                return_iterator=return_iterator,
+            )
+            mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
+            mock_client.return_value.list_rows.assert_called_once_with(
+                table=mock_table.from_api_repr.return_value,
+                max_results=10,
+                page_token="page123",
+                selected_fields=None,
+                start_index=5,
+                retry=DEFAULT_RETRY,
+            )
+            assert actual == expected
+            mock_table.from_api_repr.reset_mock()
+            mock_client.return_value.list_rows.reset_mock()
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_run_table_delete(self, mock_client):
@@ -914,7 +930,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     def test_dbapi_get_uri(self):
         assert self.hook.get_uri().startswith("bigquery://")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.hashlib.md5")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.md5")
     @pytest.mark.parametrize(
         "test_dag_id, expected_job_id",
         [("test-dag-id-1.1", "airflow_test_dag_id_1_1_test_job_id_2020_01_23T00_00_00_hash")],
@@ -1203,7 +1219,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
                 "schemaUpdateOptions": [],
             }
         }
-        mock_insert.assert_called_once_with(configuration=conf, project_id=PROJECT_ID)
+        mock_insert.assert_called_once_with(configuration=conf, project_id=PROJECT_ID, location=None)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
@@ -1214,6 +1230,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         mock_insert.assert_has_calls(
             [
                 mock.call(
+                    location=None,
                     configuration={
                         "query": {
                             "query": "SELECT 'bar'",
@@ -1225,6 +1242,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
                     project_id=PROJECT_ID,
                 ),
                 mock.call(
+                    location=None,
                     configuration={
                         "query": {
                             "query": "SELECT 'baz'",
@@ -1554,6 +1572,25 @@ class TestDatasetsOperations(_BigQueryBaseTestClass):
             assert res.full_dataset_id == exp["id"]
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
+    def test_get_datasets_list_returns_iterator(self, mock_client):
+        client = mock.sentinel.client
+        mock_iterator = page_iterator.HTTPIterator(
+            client, mock.sentinel.api_request, "/foo", mock.sentinel.item_to_value
+        )
+        mock_client.return_value.list_datasets.return_value = mock_iterator
+        actual = self.hook.get_datasets_list(project_id=PROJECT_ID, return_iterator=True)
+
+        mock_client.return_value.list_datasets.assert_called_once_with(
+            project=PROJECT_ID,
+            include_all=False,
+            filter=None,
+            max_results=None,
+            page_token=None,
+            retry=DEFAULT_RETRY,
+        )
+        assert actual == mock_iterator
+
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
     def test_delete_dataset(self, mock_client):
         delete_contents = True
         self.hook.delete_dataset(
@@ -1660,13 +1697,14 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
         self.hook.run_query(
             sql="select 1",
             destination_dataset_table=f"{DATASET_ID}.{TABLE_ID}",
+            priority="BATCH",
             time_partitioning={"type": "DAY", "field": "test_field", "expirationMs": 1000},
         )
 
         configuration = {
             "query": {
                 "query": "select 1",
-                "priority": "INTERACTIVE",
+                "priority": "BATCH",
                 "useLegacySql": True,
                 "timePartitioning": {"type": "DAY", "field": "test_field", "expirationMs": 1000},
                 "schemaUpdateOptions": [],
@@ -1678,7 +1716,7 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
             }
         }
 
-        mock_insert.assert_called_once_with(configuration=configuration, project_id=PROJECT_ID)
+        mock_insert.assert_called_once_with(configuration=configuration, project_id=PROJECT_ID, location=None)
 
     def test_dollar_makes_partition(self):
         tp_out = _cleanse_time_partitioning("test.teast$20170101", {})
@@ -2014,19 +2052,20 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning:
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, mock_bq_hook, func_name):
         args, kwargs = [1], {"param1": "val1"}
-        new_path = re.escape(f"`airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.{func_name}`")
-        message_pattern = rf"This method is deprecated\.\s+Please use {new_path}"
+        new_path = re.escape(f"airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.{func_name}")
+        message_pattern = rf"This method is deprecated\.\s+Please use `{new_path}`"
         message_regex = re.compile(message_pattern, re.MULTILINE)
 
         mocked_func = getattr(mock_bq_hook, func_name)
         bq_cursor = BigQueryCursor(mock.MagicMock(), PROJECT_ID, mock_bq_hook)
         func = getattr(bq_cursor, func_name)
 
-        with pytest.warns(DeprecationWarning, match=message_regex):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=message_regex):
             _ = func(*args, **kwargs)
 
         mocked_func.assert_called_once_with(*args, **kwargs)
-        assert re.search(f".*{new_path}.*", func.__doc__)
+
+        assert re.search(f".*:func:`~{new_path}`.*", func.__doc__)
 
 
 class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
@@ -2094,14 +2133,14 @@ class _BigQueryBaseAsyncTestClass:
 
 class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
     async def test_get_job_instance(self, mock_session):
         hook = BigQueryAsyncHook()
         result = await hook.get_job_instance(project_id=PROJECT_ID, job_id=JOB_ID, session=mock_session)
         assert isinstance(result, Job)
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_status_success(self, mock_job_instance):
         hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
@@ -2112,7 +2151,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert resp == response
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_status_oserror(self, mock_job_instance):
         """Assets that the BigQueryAsyncHook returns a pending response when OSError is raised"""
         mock_job_instance.return_value.result.side_effect = OSError()
@@ -2121,7 +2160,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert job_status == "pending"
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_status_exception(self, mock_job_instance, caplog):
         """Assets that the logging is done correctly when BigQueryAsyncHook raises Exception"""
         mock_job_instance.return_value.result.side_effect = Exception()
@@ -2130,7 +2169,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert "Query execution finished with errors..." in caplog.text
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_output_assert_once_with(self, mock_job_instance):
         hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
@@ -2193,7 +2232,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert response is None
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_output(self, mock_job_instance):
         """
         Tests to check if a particular object in Google Cloud Storage
@@ -2273,7 +2312,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert BigQueryAsyncHook._convert_to_float_if_possible(test_input) == expected
 
     @pytest.mark.asyncio
-    @async_mock.patch("aiohttp.client.ClientSession")
+    @mock.patch("aiohttp.client.ClientSession")
     async def test_get_table_client(self, mock_session):
         """Test get_table_client async function and check whether the return value is a
         Table instance object"""
@@ -2310,3 +2349,29 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert isinstance(result[0][0], int)
         assert isinstance(result[0][1], float)
         assert isinstance(result[0][2], str)
+
+    def test_get_records_as_dict(self):
+        query_result = {
+            "kind": "bigquery#getQueryResultsResponse",
+            "etag": "test_etag",
+            "schema": {
+                "fields": [
+                    {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
+                    {"name": "f1_", "type": "FLOAT", "mode": "NULLABLE"},
+                    {"name": "f2_", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+            "jobReference": {
+                "projectId": "test_airflow-providers",
+                "jobId": "test_jobid",
+                "location": "US",
+            },
+            "totalRows": "1",
+            "rows": [{"f": [{"v": "22"}, {"v": "3.14"}, {"v": "PI"}]}],
+            "totalBytesProcessed": "0",
+            "jobComplete": True,
+            "cacheHit": False,
+        }
+        hook = BigQueryAsyncHook()
+        result = hook.get_records(query_result, as_dict=True)
+        assert result == [{"f0_": 22, "f1_": 3.14, "f2_": "PI"}]

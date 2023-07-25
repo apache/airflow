@@ -19,10 +19,11 @@ from __future__ import annotations
 import operator
 from typing import TYPE_CHECKING, Any, Collection
 
+from pendulum import DateTime
+
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 if TYPE_CHECKING:
-    from pendulum import DateTime
     from sqlalchemy import Session
 
     from airflow.models.dataset import DatasetEvent
@@ -33,7 +34,6 @@ class _TrivialTimetable(Timetable):
     """Some code reuse for "trivial" timetables that has nothing complex."""
 
     periodic = False
-    can_run = False
     run_ordering = ("execution_date",)
 
     @classmethod
@@ -62,6 +62,7 @@ class NullTimetable(_TrivialTimetable):
     This corresponds to ``schedule=None``.
     """
 
+    can_be_scheduled = False
     description: str = "Never, external triggers only"
 
     @property
@@ -108,7 +109,42 @@ class OnceTimetable(_TrivialTimetable):
         return DagRunInfo.exact(run_after)
 
 
-class DatasetTriggeredTimetable(NullTimetable):
+class ContinuousTimetable(_TrivialTimetable):
+    """Timetable that schedules continually, while still respecting start_date and end_date.
+
+    This corresponds to ``schedule="@continuous"``.
+    """
+
+    description: str = "As frequently as possible, but only one run at a time."
+
+    active_runs_limit = 1  # Continuous DAGRuns should be constrained to one run at a time
+
+    @property
+    def summary(self) -> str:
+        return "@continuous"
+
+    def next_dagrun_info(
+        self,
+        *,
+        last_automated_data_interval: DataInterval | None,
+        restriction: TimeRestriction,
+    ) -> DagRunInfo | None:
+        if restriction.earliest is None:  # No start date, won't run.
+            return None
+        if last_automated_data_interval is not None:  # has already run once
+            start = last_automated_data_interval.end
+            end = DateTime.utcnow()
+        else:  # first run
+            start = restriction.earliest
+            end = max(restriction.earliest, DateTime.utcnow())  # won't run any earlier than start_date
+
+        if restriction.latest is not None and end > restriction.latest:
+            return None
+
+        return DagRunInfo.interval(start, end)
+
+
+class DatasetTriggeredTimetable(_TrivialTimetable):
     """Timetable that never schedules anything.
 
     This should not be directly used anywhere, but only set if a DAG is triggered by datasets.
@@ -152,3 +188,11 @@ class DatasetTriggeredTimetable(NullTimetable):
             events, key=operator.attrgetter("source_dag_run.data_interval_end")
         ).source_dag_run.data_interval_end
         return DataInterval(start, end)
+
+    def next_dagrun_info(
+        self,
+        *,
+        last_automated_data_interval: DataInterval | None,
+        restriction: TimeRestriction,
+    ) -> DagRunInfo | None:
+        return None

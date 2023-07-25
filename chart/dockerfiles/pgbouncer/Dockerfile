@@ -14,14 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-ARG ALPINE_VERSION="3.12"
+ARG ALPINE_VERSION="3.14"
 FROM alpine:${ALPINE_VERSION} AS builder
 SHELL ["/bin/ash", "-e", "-x", "-c", "-o", "pipefail"]
 
 ARG PGBOUNCER_VERSION
 ARG AIRFLOW_PGBOUNCER_VERSION
 
-ARG PGBOUNCER_SHA256="a0c13d10148f557e36ff7ed31793abb7a49e1f8b09aa2d4695d1c28fa101fee7"
+ARG PGBOUNCER_SHA256
 
 # Those are build deps only but still we want the latest versions of those
 # "Pin versions in apk add" https://github.com/hadolint/hadolint/wiki/DL3018
@@ -70,6 +70,8 @@ LABEL org.apache.airflow.component="pgbouncer" \
 HEALTHCHECK --interval=10s --timeout=3s CMD stat /tmp/.s.PGSQL.*
 
 EXPOSE 6432
+
+USER nobody
 
 # pgbouncer can't run as root, so let's drop to 'nobody'
 ENTRYPOINT ["/usr/bin/pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini" ]

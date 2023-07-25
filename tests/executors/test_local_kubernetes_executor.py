@@ -35,6 +35,9 @@ class TestLocalKubernetesExecutor:
     def test_is_local_default_value(self):
         assert not LocalKubernetesExecutor.is_local
 
+    def test_is_production_default_value(self):
+        assert LocalKubernetesExecutor.is_production
+
     def test_serve_logs_default_value(self):
         assert LocalKubernetesExecutor.serve_logs
 
@@ -93,11 +96,11 @@ class TestLocalKubernetesExecutor:
         local_k8s_exec = LocalKubernetesExecutor(local_executor_mock, k8s_executor_mock)
         simple_task_instance = mock.MagicMock()
         simple_task_instance.queue = conf.get("local_kubernetes_executor", "kubernetes_queue")
-        local_k8s_exec.get_task_log(ti=simple_task_instance)
-        k8s_executor_mock.get_task_log.assert_called_once_with(ti=simple_task_instance)
+        local_k8s_exec.get_task_log(ti=simple_task_instance, try_number=3)
+        k8s_executor_mock.get_task_log.assert_called_once_with(ti=simple_task_instance, try_number=3)
         k8s_executor_mock.reset_mock()
         simple_task_instance.queue = "test-queue"
-        messages, logs = local_k8s_exec.get_task_log(ti=simple_task_instance)
+        messages, logs = local_k8s_exec.get_task_log(ti=simple_task_instance, try_number=3)
         k8s_executor_mock.get_task_log.assert_not_called()
         assert logs == []
         assert messages == []

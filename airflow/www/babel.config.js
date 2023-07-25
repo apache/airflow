@@ -17,12 +17,16 @@
  * under the License.
  */
 
-module.exports = function (api) {
+module.exports = (api) => {
   api.cache(true);
 
-  const presets = ['@babel/preset-env', '@babel/preset-react', '@babel/preset-typescript'];
+  const presets = [
+    "@babel/preset-env",
+    "@babel/preset-react",
+    "@babel/preset-typescript",
+  ];
 
-  const plugins = ['@babel/plugin-transform-runtime'];
+  const plugins = ["@babel/plugin-transform-runtime"];
 
   return {
     presets,

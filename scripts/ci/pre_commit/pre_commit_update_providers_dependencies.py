@@ -45,8 +45,7 @@ sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))  # make sure setup is imported fro
 warnings: list[str] = []
 errors: list[str] = []
 
-CROSS_PROVIDERS_DEPS = "cross-providers-deps"
-DEPS = "deps"
+suspended_paths: list[str] = []
 
 ALL_DEPENDENCIES: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
 
@@ -97,7 +96,11 @@ def find_all_providers_and_provider_files():
                 provider_name = str(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR)).replace(
                     os.sep, "."
                 )
-                ALL_PROVIDERS[provider_name] = yaml.safe_load(provider_file.read_text())
+                provider_info = yaml.safe_load(provider_file.read_text())
+                if not provider_info["suspended"]:
+                    ALL_PROVIDERS[provider_name] = provider_info
+                else:
+                    suspended_paths.append(provider_file.parent.relative_to(AIRFLOW_PROVIDERS_DIR).as_posix())
             path = Path(root, filename)
             if path.is_file() and path.name.endswith(".py"):
                 ALL_PROVIDER_FILES.append(Path(root, filename))
@@ -107,6 +110,8 @@ def get_provider_id_from_relative_import_or_file(relative_path_or_file: str) -> 
     provider_candidate = relative_path_or_file.replace(os.sep, ".").split(".")
     while len(provider_candidate) > 0:
         candidate_provider_id = ".".join(provider_candidate)
+        if "google_vendor" in candidate_provider_id:
+            candidate_provider_id = candidate_provider_id.replace("google_vendor", "google")
         if candidate_provider_id in ALL_PROVIDERS:
             return candidate_provider_id
         provider_candidate = provider_candidate[:-1]
@@ -120,6 +125,9 @@ def get_provider_id_from_import(import_name: str, file_path: Path) -> str | None
     relative_provider_import = import_name[len(AIRFLOW_PROVIDERS_IMPORT_PREFIX) :]
     provider_id = get_provider_id_from_relative_import_or_file(relative_provider_import)
     if provider_id is None:
+        relative_path_from_import = relative_provider_import.replace(".", os.sep)
+        if any(relative_path_from_import.startswith(suspended_path) for suspended_path in suspended_paths):
+            return None
         warnings.append(f"We could not determine provider id from import {import_name} in {file_path}")
     return provider_id
 
@@ -146,7 +154,10 @@ def get_provider_id_from_file_name(file_path: Path) -> str | None:
                 return None
     provider_id = get_provider_id_from_relative_import_or_file(str(relative_path))
     if provider_id is None and file_path.name not in ["__init__.py", "get_provider_info.py"]:
-        warnings.append(f"We had a problem to classify the file {file_path} to a provider")
+        if any(relative_path.as_posix().startswith(suspended_path) for suspended_path in suspended_paths):
+            return None
+        else:
+            warnings.append(f"We had a problem to classify the file {file_path} to a provider")
     return provider_id
 
 
@@ -160,7 +171,7 @@ def check_if_different_provider_used(file_path: Path) -> None:
         if imported_provider is not None and imported_provider not in ALL_PROVIDERS:
             warnings.append(f"The provider {imported_provider} from {file_path} cannot be found.")
         elif imported_provider and file_provider != imported_provider:
-            ALL_DEPENDENCIES[file_provider][CROSS_PROVIDERS_DEPS].append(imported_provider)
+            ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
 
 
 if __name__ == "__main__":
@@ -168,13 +179,11 @@ if __name__ == "__main__":
     num_files = len(ALL_PROVIDER_FILES)
     num_providers = len(ALL_PROVIDERS)
     console.print(f"Found {len(ALL_PROVIDERS)} providers with {len(ALL_PROVIDER_FILES)} Python files.")
-
     for file in ALL_PROVIDER_FILES:
         check_if_different_provider_used(file)
-
     for provider, provider_yaml_content in ALL_PROVIDERS.items():
-        ALL_DEPENDENCIES[provider][DEPS].extend(provider_yaml_content["dependencies"])
-
+        if not provider_yaml_content.get("suspended"):
+            ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
     if warnings:
         console.print("[yellow]Warnings!\n")
         for warning in warnings:
@@ -187,9 +196,13 @@ if __name__ == "__main__":
         console.print(f"[bright_blue]Total: {len(errors)} errors.")
     unique_sorted_dependencies: dict[str, dict[str, list[str]]] = defaultdict(dict)
     for key in sorted(ALL_DEPENDENCIES.keys()):
-        unique_sorted_dependencies[key][DEPS] = sorted(ALL_DEPENDENCIES[key][DEPS])
-        unique_sorted_dependencies[key][CROSS_PROVIDERS_DEPS] = sorted(
-            set(ALL_DEPENDENCIES[key][CROSS_PROVIDERS_DEPS])
+        unique_sorted_dependencies[key]["deps"] = sorted(ALL_DEPENDENCIES[key]["deps"])
+        unique_sorted_dependencies[key]["cross-providers-deps"] = sorted(
+            set(ALL_DEPENDENCIES[key]["cross-providers-deps"])
+        )
+        excluded_versions = ALL_PROVIDERS[key].get("excluded-python-versions")
+        unique_sorted_dependencies[key]["excluded-python-versions"] = (
+            excluded_versions if excluded_versions else []
         )
     if errors:
         console.print()

@@ -17,21 +17,22 @@
 
 
 
-Metrics
-=======
+Metrics Configuration
+=====================
 
-Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__.
+Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__
+or `OpenTelemetry <https://opentelemetry.io/>`__.
 
-Setup
------
+Setup - StatsD
+--------------
 
-First you must install StatsD requirement:
+To use StatsD you must first install the required packages:
 
 .. code-block:: bash
 
    pip install 'apache-airflow[statsd]'
 
-Add the following lines to your configuration file e.g. ``airflow.cfg``
+then add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. code-block:: ini
 
@@ -41,26 +42,9 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     statsd_port = 8125
     statsd_prefix = airflow
 
-If you want to avoid sending all the available metrics to StatsD, you can configure an allow list of prefixes to send only
-the metrics that start with the elements of the list:
-
-.. code-block:: ini
-
-    [metrics]
-    statsd_allow_list = scheduler,executor,dagrun
-
-If you want to redirect metrics to different name, you can configure ``stat_name_handler`` option
-in ``[metrics]`` section.  It should point to a function that validates the StatsD stat name, applies changes
-to the stat name if necessary, and returns the transformed stat name. The function may looks as follow:
-
-.. code-block:: python
-
-    def my_custom_stat_name_handler(stat_name: str) -> str:
-        return stat_name.lower()[:32]
-
-If you want to use a custom StatsD client instead of the default one provided by Airflow, the following key must be added
-to the configuration file alongside the module path of your custom StatsD client. This module must be available on
-your :envvar:`PYTHONPATH`.
+If you want to use a custom StatsD client instead of the default one provided by Airflow,
+the following key must be added to the configuration file alongside the module path of your
+custom StatsD client. This module must be available on your :envvar:`PYTHONPATH`.
 
 .. code-block:: ini
 
@@ -69,10 +53,87 @@ your :envvar:`PYTHONPATH`.
 
 See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
+
+Setup - OpenTelemetry
+---------------------
+
+To use OpenTelemetry you must first install the required packages:
+
+.. code-block:: bash
+
+   pip install 'apache-airflow[otel]'
+
+Add the following lines to your configuration file e.g. ``airflow.cfg``
+
+.. code-block:: ini
+
+    [metrics]
+    otel_on = False
+    otel_host = localhost
+    otel_port = 8889
+    otel_prefix = airflow
+    otel_interval_milliseconds = 30000  # The interval between exports, defaults to 60000
+    otel_ssl_active = False
+
+Enable Https
+-----------------
+
+To establish an HTTPS connection to the OpenTelemetry collector
+You need to configure the SSL certificate and key within the OpenTelemetry collector's ``config.yml`` file.
+
+.. code-block:: yaml
+
+   receivers:
+     otlp:
+       protocols:
+         http:
+           endpoint: 0.0.0.0:4318
+           tls:
+             cert_file: "/path/to/cert/cert.crt"
+             key_file: "/path/to/key/key.pem"
+
+Allow/Block Lists
+-----------------
+
+If you want to avoid sending all the available metrics, you can configure an allow list or block list
+of prefixes to send or block only the metrics that start with the elements of the list:
+
+.. code-block:: ini
+
+    [metrics]
+    metrics_allow_list = scheduler,executor,dagrun
+
+.. code-block:: ini
+
+    [metrics]
+    metrics_block_list = scheduler,executor,dagrun
+
+
+Rename Metrics
+--------------
+
+If you want to redirect metrics to a different name, you can configure the ``stat_name_handler`` option
+in ``[metrics]`` section.  It should point to a function that validates the stat name, applies changes
+to the stat name if necessary, and returns the transformed stat name. The function may look as follows:
+
+.. code-block:: python
+
+    def my_custom_stat_name_handler(stat_name: str) -> str:
+        return stat_name.lower()[:32]
+
+
+Other Configuration Options
+---------------------------
+
 .. note::
 
     For a detailed listing of configuration options regarding metrics,
     see the configuration reference documentation - :ref:`config:metrics`.
+
+
+Metric Descriptions
+===================
+
 
 Counters
 --------
@@ -93,8 +154,12 @@ Name                                                                   Descripti
 ``previously_succeeded``                                               Number of previously succeeded task instances
 ``zombies_killed``                                                     Zombie tasks killed
 ``scheduler_heartbeat``                                                Scheduler heartbeats
-``dag_processing.processes``                                           Number of currently running DAG parsing processes
+``dag_processing.processes``                                           Relative number of currently running DAG parsing processes (ie this delta
+                                                                       is negative when, since the last metric was sent, processes have completed)
 ``dag_processing.processor_timeouts``                                  Number of file processors that have been killed due to taking too long
+``dag_processing.sla_callback_count``                                  Number of SLA callbacks received
+``dag_processing.other_callback_count``                                Number of non-SLA callbacks received
+``dag_processing.file_path_queue_update_count``                        Number of times we've scanned the filesystem and queued all existing dags
 ``dag_file_processor_timeouts``                                        (DEPRECATED) same behavior as ``dag_processing.processor_timeouts``
 ``dag_processing.manager_stalls``                                      Number of stalled ``DagFileProcessorManager``
 ``dag_file_refresh_error``                                             Number of failures loading any DAG files
@@ -116,7 +181,7 @@ Name                                                                   Descripti
 ``task_removed_from_dag.<dag_id>``                                     Number of tasks removed for a given dag (i.e. task no longer exists in DAG)
 ``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given dag (i.e. task instance which was
                                                                        previously in REMOVED state in the DB is added to DAG file)
-``task_instance_created-<operator_name>``                              Number of tasks instances created for a given Operator
+``task_instance_created_<operator_name>``                              Number of tasks instances created for a given Operator
 ``triggers.blocked_main_thread``                                       Number of triggers that blocked the main thread (likely due to not being
                                                                        fully asynchronous)
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event
@@ -136,9 +201,9 @@ Name                                                Description
 ``dagbag_size``                                     Number of DAGs found when the scheduler ran a scan based on it's
                                                     configuration
 ``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
-``dag_processing.total_parse_time``                 Seconds taken to scan and import all DAG files once
+``dag_processing.total_parse_time``                 Seconds taken to scan and import ``dag_processing.file_path_queue_size`` DAG files
+``dag_processing.file_path_queue_size``             Number of DAG files to be considered for the next scan
 ``dag_processing.last_run.seconds_ago.<dag_file>``  Seconds since ``<dag_file>`` was last processed
-``scheduler.tasks.running``                         Number of tasks running in executor
 ``scheduler.tasks.starving``                        Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                      Number of tasks that are ready for execution (set to queued)
                                                     with respect to pool limits, DAG concurrency, executor state,
@@ -150,7 +215,7 @@ Name                                                Description
 ``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
 ``pool.running_slots.<pool_name>``                  Number of running slots in the pool
 ``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
-``triggers.running``                                Number of triggers currently running (per triggerer)
+``triggers.running.<hostname>``                     Number of triggers currently running for a triggerer (described by hostname)
 =================================================== ========================================================================
 
 Timers
@@ -160,7 +225,9 @@ Timers
 Name                                                Description
 =================================================== ========================================================================
 ``dagrun.dependency-check.<dag_id>``                Milliseconds taken to check DAG dependencies
-``dag.<dag_id>.<task_id>.duration``                 Milliseconds taken to finish a task
+``dag.<dag_id>.<task_id>.duration``                 Seconds taken to run a task
+``dag.<dag_id>.<task_id>.scheduled_duration``       Seconds a task spends in the Scheduled state, before being Queued
+``dag.<dag_id>.<task_id>.queued_duration``          Seconds a task spends in the Queued state, before being Running
 ``dag_processing.last_duration.<dag_file>``         Seconds taken to load the given DAG file
 ``dagrun.duration.success.<dag_id>``                Seconds taken for a DagRun to reach success state
 ``dagrun.duration.failed.<dag_id>``                 Milliseconds taken for a DagRun to reach failed state

@@ -48,7 +48,6 @@ class TestGcsToGDriveOperator:
         mock_gcs_hook.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=None,
                 ),
@@ -61,12 +60,56 @@ class TestGcsToGDriveOperator:
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=None,
                 ),
                 mock.call().upload_file(
-                    local_location="TMP1", remote_location="copied_sales/2017/january-backup.avro"
+                    local_location="TMP1",
+                    remote_location="copied_sales/2017/january-backup.avro",
+                    folder_id=None,
+                ),
+            ]
+        )
+
+    @mock.patch(MODULE + ".GCSHook")
+    @mock.patch(MODULE + ".GoogleDriveHook")
+    @mock.patch(MODULE + ".tempfile.NamedTemporaryFile")
+    def test_should_copy_single_file_with_folder(self, mock_named_temporary_file, mock_gdrive, mock_gcs_hook):
+        type(mock_named_temporary_file.return_value.__enter__.return_value).name = mock.PropertyMock(
+            side_effect=["TMP1"]
+        )
+        task = GCSToGoogleDriveOperator(
+            task_id="copy_single_file",
+            source_bucket="data",
+            source_object="sales/sales-2017/january.avro",
+            destination_object="copied_sales/2017/january-backup.avro",
+            destination_folder_id="aAopls6bE4tUllZVGJvRUU",
+        )
+
+        task.execute(mock.MagicMock())
+
+        mock_gcs_hook.assert_has_calls(
+            [
+                mock.call(
+                    gcp_conn_id="google_cloud_default",
+                    impersonation_chain=None,
+                ),
+                mock.call().download(
+                    bucket_name="data", filename="TMP1", object_name="sales/sales-2017/january.avro"
+                ),
+            ]
+        )
+
+        mock_gdrive.assert_has_calls(
+            [
+                mock.call(
+                    gcp_conn_id="google_cloud_default",
+                    impersonation_chain=None,
+                ),
+                mock.call().upload_file(
+                    local_location="TMP1",
+                    remote_location="copied_sales/2017/january-backup.avro",
+                    folder_id="aAopls6bE4tUllZVGJvRUU",
                 ),
             ]
         )
@@ -93,11 +136,13 @@ class TestGcsToGDriveOperator:
         mock_gcs_hook.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
+                # TODO: After deprecating delimiter and wildcards in source objects,
+                #       remove previous line and uncomment the following:
+                # mock.call().list("data", match_glob="**/*.avro", prefix="sales/sales-2017/"),
                 mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
                 mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),
                 mock.call().download(bucket_name="data", filename="TMP3", object_name="sales/C.avro"),
@@ -107,13 +152,18 @@ class TestGcsToGDriveOperator:
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
-                mock.call().upload_file(local_location="TMP1", remote_location="sales/A.avro"),
-                mock.call().upload_file(local_location="TMP2", remote_location="sales/B.avro"),
-                mock.call().upload_file(local_location="TMP3", remote_location="sales/C.avro"),
+                mock.call().upload_file(
+                    local_location="TMP1", remote_location="sales/A.avro", folder_id=None
+                ),
+                mock.call().upload_file(
+                    local_location="TMP2", remote_location="sales/B.avro", folder_id=None
+                ),
+                mock.call().upload_file(
+                    local_location="TMP3", remote_location="sales/C.avro", folder_id=None
+                ),
             ]
         )
 
@@ -137,11 +187,13 @@ class TestGcsToGDriveOperator:
         mock_gcs_hook.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
+                # TODO: After deprecating delimiter and wildcards in source objects,
+                #       remove previous line and uncomment the following:
+                # mock.call().list("data", match_glob="**/*.avro", prefix="sales/sales-2017/"),
                 mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
                 mock.call().delete("data", "sales/A.avro"),
                 mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),
@@ -154,13 +206,18 @@ class TestGcsToGDriveOperator:
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
-                mock.call().upload_file(local_location="TMP1", remote_location="sales/A.avro"),
-                mock.call().upload_file(local_location="TMP2", remote_location="sales/B.avro"),
-                mock.call().upload_file(local_location="TMP3", remote_location="sales/C.avro"),
+                mock.call().upload_file(
+                    local_location="TMP1", remote_location="sales/A.avro", folder_id=None
+                ),
+                mock.call().upload_file(
+                    local_location="TMP2", remote_location="sales/B.avro", folder_id=None
+                ),
+                mock.call().upload_file(
+                    local_location="TMP3", remote_location="sales/C.avro", folder_id=None
+                ),
             ]
         )
 

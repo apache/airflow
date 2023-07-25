@@ -47,6 +47,7 @@ from airflow.models import import_all_models
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
@@ -58,6 +59,7 @@ app: Flask | None = None
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def internal_api(args):
     """Starts Airflow Internal API."""
     print(settings.HEADER)
@@ -134,14 +136,14 @@ def internal_api(args):
         # then have a copy of the app
         run_args += ["--preload"]
 
-        gunicorn_master_proc = None
+        gunicorn_master_proc: psutil.Process | None = None
 
         def kill_proc(signum, _):
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
                 gunicorn_master_proc.wait(timeout=30)
-            if gunicorn_master_proc.poll() is not None:
+            if gunicorn_master_proc.is_running():
                 gunicorn_master_proc.kill()
             sys.exit(0)
 
@@ -201,7 +203,7 @@ def internal_api(args):
 
 
 def create_app(config=None, testing=False):
-    """Create a new instance of Airflow Internal API app"""
+    """Create a new instance of Airflow Internal API app."""
     flask_app = Flask(__name__)
 
     flask_app.config["APP_NAME"] = "Airflow Internal API"
@@ -255,7 +257,7 @@ def create_app(config=None, testing=False):
 
 
 def cached_app(config=None, testing=False):
-    """Return cached instance of Airflow Internal API app"""
+    """Return cached instance of Airflow Internal API app."""
     global app
     if not app:
         app = create_app(config=config, testing=testing)

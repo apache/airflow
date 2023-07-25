@@ -17,7 +17,6 @@
 """Webserver command."""
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import signal
@@ -25,6 +24,7 @@ import subprocess
 import sys
 import textwrap
 import time
+import types
 from contextlib import suppress
 from time import sleep
 from typing import NoReturn
@@ -39,8 +39,10 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
 
@@ -123,7 +125,7 @@ class GunicornMonitor(LoggingMixin):
     @staticmethod
     def _get_file_hash(fname: str):
         """Calculate MD5 hash for file."""
-        hash_md5 = hashlib.md5()
+        hash_md5 = md5()
         with open(fname, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_md5.update(chunk)
@@ -319,6 +321,7 @@ class GunicornMonitor(LoggingMixin):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def webserver(args):
     """Starts Airflow Webserver."""
     print(settings.HEADER)
@@ -425,18 +428,22 @@ def webserver(args):
         # then have a copy of the app
         run_args += ["--preload"]
 
-        gunicorn_master_proc = None
+        gunicorn_master_proc: psutil.Process | subprocess.Popen
 
-        def kill_proc(signum, _):
+        def kill_proc(signum: int, frame: types.FrameType | None) -> NoReturn:
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
                 gunicorn_master_proc.wait(timeout=30)
-            if gunicorn_master_proc.poll() is not None:
+            if isinstance(gunicorn_master_proc, subprocess.Popen):
+                still_running = gunicorn_master_proc.poll() is not None
+            else:
+                still_running = gunicorn_master_proc.is_running()
+            if still_running:
                 gunicorn_master_proc.kill()
             sys.exit(0)
 
-        def monitor_gunicorn(gunicorn_master_pid: int):
+        def monitor_gunicorn(gunicorn_master_pid: int) -> NoReturn:
             # Register signal handlers
             signal.signal(signal.SIGINT, kill_proc)
             signal.signal(signal.SIGTERM, kill_proc)

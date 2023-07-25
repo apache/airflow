@@ -17,7 +17,7 @@
 # under the License.
 """This module contains a Google Cloud Vertex AI hook.
 
-.. spelling::
+.. spelling:word-list::
 
     irreproducible
     codepoints
@@ -27,7 +27,6 @@
 """
 from __future__ import annotations
 
-import warnings
 from typing import Sequence
 
 from google.api_core.client_options import ClientOptions
@@ -48,16 +47,16 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._hyperparameter_tuning_job: HyperparameterTuningJob | None = None
@@ -89,7 +88,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         labels: dict[str, str] | None = None,
         encryption_spec_key_name: str | None = None,
     ) -> HyperparameterTuningJob:
-        """Returns HyperparameterTuningJob object"""
+        """Returns HyperparameterTuningJob object."""
         return HyperparameterTuningJob(
             display_name=display_name,
             custom_job=custom_job,
@@ -118,7 +117,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ) -> CustomJob:
-        """Returns CustomJob object"""
+        """Returns CustomJob object."""
         return CustomJob(
             display_name=display_name,
             worker_pool_specs=worker_pool_specs,
@@ -145,7 +144,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
             raise AirflowException(error)
 
     def cancel_hyperparameter_tuning_job(self) -> None:
-        """Cancel HyperparameterTuningJob"""
+        """Cancel HyperparameterTuningJob."""
         if self._hyperparameter_tuning_job:
             self._hyperparameter_tuning_job.cancel()
 
@@ -314,7 +313,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> types.HyperparameterTuningJob:
         """
-        Gets a HyperparameterTuningJob
+        Gets a HyperparameterTuningJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

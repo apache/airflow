@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-.. spelling::
+"""Spelling exceptions.
 
+.. spelling:word-list::
     CreateRunResponse
     DatasetResource
     LinkedServiceResource
@@ -33,11 +33,18 @@ from __future__ import annotations
 import inspect
 import time
 from functools import wraps
-from typing import Any, Callable, Union
+from typing import Any, Callable, TypeVar, Union, cast
 
+from asgiref.sync import sync_to_async
+from azure.core.exceptions import ServiceRequestError
 from azure.core.polling import LROPoller
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.identity.aio import (
+    ClientSecretCredential as AsyncClientSecretCredential,
+    DefaultAzureCredential as AsyncDefaultAzureCredential,
+)
 from azure.mgmt.datafactory import DataFactoryManagementClient
+from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataFactoryManagementClient
 from azure.mgmt.datafactory.models import (
     CreateRunResponse,
     DataFlow,
@@ -54,6 +61,9 @@ from airflow.hooks.base import BaseHook
 from airflow.typing_compat import TypedDict
 
 Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
+AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
+
+T = TypeVar("T", bound=Any)
 
 
 def provide_targeted_factory(func: Callable) -> Callable:
@@ -108,8 +118,9 @@ class AzureDataFactoryPipelineRunStatus:
     FAILED = "Failed"
     CANCELING = "Canceling"
     CANCELLED = "Cancelled"
-
     TERMINAL_STATUSES = {CANCELLED, FAILED, SUCCEEDED}
+    INTERMEDIATE_STATES = {QUEUED, IN_PROGRESS, CANCELING}
+    FAILURE_STATES = {FAILED, CANCELLED}
 
 
 class AzureDataFactoryPipelineRunException(AirflowException):
@@ -147,7 +158,7 @@ class AzureDataFactoryHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -163,7 +174,7 @@ class AzureDataFactoryHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -203,6 +214,10 @@ class AzureDataFactoryHook(BaseHook):
         self._conn = self._create_client(credential, subscription_id)
 
         return self._conn
+
+    def refresh_conn(self) -> DataFactoryManagementClient:
+        self._conn = None
+        return self.get_conn()
 
     @provide_targeted_factory
     def get_factory(
@@ -802,6 +817,7 @@ class AzureDataFactoryHook(BaseHook):
             resource_group_name=resource_group_name,
         )
         pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+        executed_after_token_refresh = True
 
         start_time = time.monotonic()
 
@@ -818,7 +834,14 @@ class AzureDataFactoryHook(BaseHook):
             # Wait to check the status of the pipeline run based on the ``check_interval`` configured.
             time.sleep(check_interval)
 
-            pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+            try:
+                pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+                executed_after_token_refresh = True
+            except ServiceRequestError:
+                if executed_after_token_refresh:
+                    self.refresh_conn()
+                    continue
+                raise
 
         return pipeline_run_status in expected_statuses
 
@@ -1039,3 +1062,149 @@ class AzureDataFactoryHook(BaseHook):
             return success
         except Exception as e:
             return False, str(e)
+
+
+def provide_targeted_factory_async(func: T) -> T:
+    """
+    Provide the targeted factory to the async decorated function in case it isn't specified.
+
+    If ``resource_group_name`` or ``factory_name`` is not provided it defaults to the value specified in
+    the connection extras.
+    """
+    signature = inspect.signature(func)
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        bound_args = signature.bind(*args, **kwargs)
+
+        async def bind_argument(arg: Any, default_key: str) -> None:
+            # Check if arg was not included in the function signature or, if it is, the value is not provided.
+            if arg not in bound_args.arguments or bound_args.arguments[arg] is None:
+                self = args[0]
+                conn = await sync_to_async(self.get_connection)(self.conn_id)
+                extras = conn.extra_dejson
+                default_value = extras.get(default_key) or extras.get(
+                    f"extra__azure_data_factory__{default_key}"
+                )
+                if not default_value:
+                    raise AirflowException("Could not determine the targeted data factory.")
+
+                bound_args.arguments[arg] = default_value
+
+        await bind_argument("resource_group_name", "resource_group_name")
+        await bind_argument("factory_name", "factory_name")
+
+        return await func(*bound_args.args, **bound_args.kwargs)
+
+    return cast(T, wrapper)
+
+
+class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
+    """
+    An Async Hook that connects to Azure DataFactory to perform pipeline operations.
+
+    :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
+    """
+
+    default_conn_name: str = "azure_data_factory_default"
+
+    def __init__(self, azure_data_factory_conn_id: str = default_conn_name):
+        self._async_conn: AsyncDataFactoryManagementClient = None
+        self.conn_id = azure_data_factory_conn_id
+        super().__init__(azure_data_factory_conn_id=azure_data_factory_conn_id)
+
+    async def get_async_conn(self) -> AsyncDataFactoryManagementClient:
+        """Get async connection and connect to azure data factory."""
+        if self._async_conn is not None:
+            return self._async_conn
+
+        conn = await sync_to_async(self.get_connection)(self.conn_id)
+        extras = conn.extra_dejson
+        tenant = get_field(extras, "tenantId")
+
+        try:
+            subscription_id = get_field(extras, "subscriptionId", strict=True)
+        except KeyError:
+            raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
+
+        credential: AsyncCredentials
+        if conn.login is not None and conn.password is not None:
+            if not tenant:
+                raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
+
+            credential = AsyncClientSecretCredential(
+                client_id=conn.login, client_secret=conn.password, tenant_id=tenant
+            )
+        else:
+            credential = AsyncDefaultAzureCredential()
+
+        self._async_conn = AsyncDataFactoryManagementClient(
+            credential=credential,
+            subscription_id=subscription_id,
+        )
+
+        return self._async_conn
+
+    async def refresh_conn(self) -> AsyncDataFactoryManagementClient:
+        self._conn = None
+        return await self.get_async_conn()
+
+    @provide_targeted_factory_async
+    async def get_pipeline_run(
+        self,
+        run_id: str,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
+        **config: Any,
+    ) -> PipelineRun:
+        """
+        Connect to Azure Data Factory asynchronously to get the pipeline run details by run id.
+
+        :param run_id: The pipeline run identifier.
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        :param config: Extra parameters for the ADF client.
+        """
+        client = await self.get_async_conn()
+        pipeline_run = await client.pipeline_runs.get(resource_group_name, factory_name, run_id)
+        return pipeline_run
+
+    async def get_adf_pipeline_run_status(
+        self, run_id: str, resource_group_name: str | None = None, factory_name: str | None = None
+    ) -> str:
+        """
+        Connect to Azure Data Factory asynchronously and get the pipeline status by run_id.
+
+        :param run_id: The pipeline run identifier.
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        """
+        pipeline_run = await self.get_pipeline_run(
+            run_id=run_id,
+            factory_name=factory_name,
+            resource_group_name=resource_group_name,
+        )
+        status: str = pipeline_run.status
+        return status
+
+    @provide_targeted_factory_async
+    async def cancel_pipeline_run(
+        self,
+        run_id: str,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
+        **config: Any,
+    ) -> None:
+        """
+        Cancel the pipeline run.
+
+        :param run_id: The pipeline run identifier.
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        :param config: Extra parameters for the ADF client.
+        """
+        client = await self.get_async_conn()
+        try:
+            await client.pipeline_runs.cancel(resource_group_name, factory_name, run_id)
+        except Exception as e:
+            raise AirflowException(e)

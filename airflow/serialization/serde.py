@@ -19,17 +19,19 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import functools
 import logging
-import re
 import sys
 from importlib import import_module
 from types import ModuleType
-from typing import Any, TypeVar, Union, cast
+from typing import Any, Pattern, TypeVar, Union, cast
 
 import attr
+import re2
 
 import airflow.serialization.serializers
 from airflow.configuration import conf
+from airflow.stats import Stats
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
 
 log = logging.getLogger(__name__)
@@ -45,6 +47,7 @@ CACHE = "__cache__"
 OLD_TYPE = "__type"
 OLD_SOURCE = "__source"
 OLD_DATA = "__var"
+OLD_DICT = "dict"
 
 DEFAULT_VERSION = 0
 
@@ -54,20 +57,28 @@ S = Union[list, tuple, set]
 
 _serializers: dict[str, ModuleType] = {}
 _deserializers: dict[str, ModuleType] = {}
+_stringifiers: dict[str, ModuleType] = {}
 _extra_allowed: set[str] = set()
 
 _primitives = (int, bool, float, str)
 _builtin_collections = (frozenset, list, set, tuple)  # dict is treated specially.
-_patterns: list[re.Pattern] = []
 
 
 def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
-    """Encodes o so it can be understood by the deserializer"""
+    """Encodes o so it can be understood by the deserializer."""
     return {CLASSNAME: cls, VERSION: version, DATA: data}
 
 
-def decode(d: dict[str, str | int | T]) -> tuple:
-    return d[CLASSNAME], d[VERSION], d.get(DATA, None)
+def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
+    classname = d[CLASSNAME]
+    version = d[VERSION]
+
+    if not isinstance(classname, str) or not isinstance(version, int):
+        raise ValueError(f"cannot decode {d!r}")
+
+    data = d.get(DATA)
+
+    return classname, version, data
 
 
 def serialize(o: object, depth: int = 0) -> U | None:
@@ -83,6 +94,11 @@ def serialize(o: object, depth: int = 0) -> U | None:
     1. A ``serialize`` function provided by the object.
     2. A registered serializer in the namespace of ``airflow.serialization.serializers``
     3. Annotations from attr or dataclass.
+
+    Limitations: attr and dataclass objects can lose type information for nested objects
+    as they do not store this when calling ``asdict``. This means that at deserialization values
+    will be deserialized as a dict as opposed to reinstating the object. Provide
+    your own serializer to work around this.
 
     :param o: The object to serialize.
     :param depth: Private tracker for nested serialization.
@@ -104,14 +120,8 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
         return o
 
-    # tuples and plain dicts are iterated over recursively
-    if isinstance(o, _builtin_collections):
-        s = [serialize(d, depth + 1) for d in o]
-        if isinstance(o, tuple):
-            return tuple(s)
-        if isinstance(o, set):
-            return set(s)
-        return s
+    if isinstance(o, list):
+        return [serialize(d, depth + 1) for d in o]
 
     if isinstance(o, dict):
         if CLASSNAME in o or SCHEMA_ID in o:
@@ -145,9 +155,16 @@ def serialize(o: object, depth: int = 0) -> U | None:
         dct[DATA] = data
         return dct
 
+    # pydantic models are recursive
+    if _is_pydantic(cls):
+        data = o.dict()  # type: ignore[attr-defined]
+        dct[DATA] = serialize(data, depth + 1)
+        return dct
+
     # dataclasses
     if dataclasses.is_dataclass(cls):
-        data = dataclasses.asdict(o)
+        # fixme: unfortunately using asdict with nested dataclasses it looses information
+        data = dataclasses.asdict(o)  # type: ignore[call-overload]
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
@@ -163,8 +180,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
 def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     """
-    Deserializes an object of primitive type T into an object. Uses an allow
-    list to determine if a class can be loaded.
+    Deserialize an object of primitive type and uses an allow list to determine if a class can be loaded.
 
     :param o: primitive to deserialize into an arbitrary object.
     :param full: if False it will return a stringified representation
@@ -180,11 +196,21 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     if isinstance(o, _primitives):
         return o
 
+    # tuples, sets are included here for backwards compatibility
     if isinstance(o, _builtin_collections):
-        return [deserialize(d) for d in o]
+        col = [deserialize(d) for d in o]
+        if isinstance(o, tuple):
+            return tuple(col)
+
+        if isinstance(o, set):
+            return set(col)
+
+        return col
 
     if not isinstance(o, dict):
-        raise TypeError()
+        # if o is not a dict, then it's already deserialized
+        # in this case we should return it as is
+        return o
 
     o = _convert(o)
 
@@ -195,8 +221,8 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     # custom deserialization starts here
     cls: Any
     version = 0
-    value: Any
-    classname: str
+    value: Any = None
+    classname = ""
 
     if type_hint:
         cls = type_hint
@@ -206,18 +232,21 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
     if CLASSNAME in o and VERSION in o:
         classname, version, value = decode(o)
-        if not _match(classname) and classname not in _extra_allowed:
-            raise ImportError(
-                f"{classname} was not found in allow list for deserialization imports. "
-                f"To allow it, add it to allowed_deserialization_classes in the configuration"
-            )
 
-        if full:
-            cls = import_string(classname)
+    if not classname:
+        raise TypeError("classname cannot be empty")
 
     # only return string representation
     if not full:
         return _stringify(classname, version, value)
+
+    if not _match(classname) and classname not in _extra_allowed:
+        raise ImportError(
+            f"{classname} was not found in allow list for deserialization imports. "
+            f"To allow it, add it to allowed_deserialization_classes in the configuration"
+        )
+
+    cls = import_string(classname)
 
     # registered deserializer
     if classname in _deserializers:
@@ -227,8 +256,8 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     if hasattr(cls, "deserialize"):
         return getattr(cls, "deserialize")(deserialize(value), version)
 
-    # attr or dataclass
-    if attr.has(cls) or dataclasses.is_dataclass(cls):
+    # attr or dataclass or pydantic
+    if attr.has(cls) or dataclasses.is_dataclass(cls) or _is_pydantic(cls):
         class_version = getattr(cls, "__version__", 0)
         if int(version) > class_version:
             raise TypeError(
@@ -245,63 +274,92 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
 
 def _convert(old: dict) -> dict:
-    """Converts an old style serialization to new style"""
+    """Converts an old style serialization to new style."""
     if OLD_TYPE in old and OLD_DATA in old:
-        return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA][OLD_DATA]}
+        # Return old style dicts directly as they do not need wrapping
+        if old[OLD_TYPE] == OLD_DICT:
+            return old[OLD_DATA]
+        else:
+            return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
 
     return old
 
 
 def _match(classname: str) -> bool:
-    return any(p.match(classname) is not None for p in _patterns)
+    return any(p.match(classname) is not None for p in _get_patterns())
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
+    """Convert a previously serialized object in a somewhat human-readable format.
+
+    This function is not designed to be exact, and will not extensively traverse
+    the whole tree of an object.
+    """
+    if classname in _stringifiers:
+        return _stringifiers[classname].stringify(classname, version, value)
+
     s = f"{classname}@version={version}("
     if isinstance(value, _primitives):
         s += f"{value})"
     elif isinstance(value, _builtin_collections):
-        s += ",".join(str(serialize(value)))
+        # deserialized values can be != str
+        s += ",".join(str(deserialize(value, full=False)))
     elif isinstance(value, dict):
         for k, v in value.items():
-            s += f"{k}={serialize(v)},"
+            s += f"{k}={deserialize(v, full=False)},"
         s = s[:-1] + ")"
 
     return s
 
 
+def _is_pydantic(cls: Any) -> bool:
+    """Return True if the class is a pydantic model.
+
+    Checking is done by attributes as it is significantly faster than
+    using isinstance.
+    """
+    return hasattr(cls, "__validators__") and hasattr(cls, "__fields__") and hasattr(cls, "dict")
+
+
 def _register():
-    """Register builtin serializers and deserializers for types that don't have any themselves"""
+    """Register builtin serializers and deserializers for types that don't have any themselves."""
     _serializers.clear()
     _deserializers.clear()
+    _stringifiers.clear()
 
-    for _, name, _ in iter_namespace(airflow.serialization.serializers):
-        name = import_module(name)
-        for s in getattr(name, "serializers", list()):
-            if not isinstance(s, str):
-                s = qualname(s)
-            if s in _serializers and _serializers[s] != name:
-                raise AttributeError(f"duplicate {s} for serialization in {name} and {_serializers[s]}")
-            log.debug("registering %s for serialization")
-            _serializers[s] = name
-        for d in getattr(name, "deserializers", list()):
-            if not isinstance(d, str):
-                d = qualname(d)
-            if d in _deserializers and _deserializers[d] != name:
-                raise AttributeError(f"duplicate {d} for deserialization in {name} and {_serializers[d]}")
-            log.debug("registering %s for deserialization", d)
-            _deserializers[d] = name
-            _extra_allowed.add(d)
+    with Stats.timer("serde.load_serializers") as timer:
+        for _, name, _ in iter_namespace(airflow.serialization.serializers):
+            name = import_module(name)
+            for s in getattr(name, "serializers", ()):
+                if not isinstance(s, str):
+                    s = qualname(s)
+                if s in _serializers and _serializers[s] != name:
+                    raise AttributeError(f"duplicate {s} for serialization in {name} and {_serializers[s]}")
+                log.debug("registering %s for serialization", s)
+                _serializers[s] = name
+            for d in getattr(name, "deserializers", ()):
+                if not isinstance(d, str):
+                    d = qualname(d)
+                if d in _deserializers and _deserializers[d] != name:
+                    raise AttributeError(f"duplicate {d} for deserialization in {name} and {_serializers[d]}")
+                log.debug("registering %s for deserialization", d)
+                _deserializers[d] = name
+                _extra_allowed.add(d)
+            for c in getattr(name, "stringifiers", ()):
+                if not isinstance(c, str):
+                    c = qualname(c)
+                if c in _deserializers and _deserializers[c] != name:
+                    raise AttributeError(f"duplicate {c} for stringifiers in {name} and {_stringifiers[c]}")
+                log.debug("registering %s for stringifying", c)
+                _stringifiers[c] = name
+
+    log.debug("loading serializers took %.3f seconds", timer.duration)
 
 
-def _compile_patterns():
+@functools.lru_cache(maxsize=None)
+def _get_patterns() -> list[Pattern]:
     patterns = conf.get("core", "allowed_deserialization_classes").split()
-
-    _patterns.clear()  # ensure to reinit
-    for p in patterns:
-        p = re.sub(r"(\w)\.", r"\1\..", p)
-        _patterns.append(re.compile(p))
+    return [re2.compile(re2.sub(r"(\w)\.", r"\1\..", p)) for p in patterns]
 
 
 _register()
-_compile_patterns()

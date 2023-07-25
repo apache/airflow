@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
 from airflow.utils import db
@@ -76,6 +78,30 @@ class TestSparkJDBCHook:
                 conn_type="postgres",
                 host="localhost",
                 schema="default",
+                port=5432,
+                login="user",
+                password="supersecret",
+                extra='{"conn_prefix":"jdbc:postgresql://"}',
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id="jdbc-invalid-host",
+                conn_type="postgres",
+                host="localhost/test",
+                schema="default",
+                port=5432,
+                login="user",
+                password="supersecret",
+                extra='{"conn_prefix":"jdbc:postgresql://"}',
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id="jdbc-invalid-schema",
+                conn_type="postgres",
+                host="localhost",
+                schema="default?test=",
                 port=5432,
                 login="user",
                 password="supersecret",
@@ -150,3 +176,11 @@ class TestSparkJDBCHook:
 
         # Expect Exception
         hook._build_jdbc_application_arguments(hook._resolve_jdbc_connection())
+
+    def test_invalid_host(self):
+        with pytest.raises(ValueError, match="host should not contain a"):
+            SparkJDBCHook(jdbc_conn_id="jdbc-invalid-host", **self._config)
+
+    def test_invalid_schema(self):
+        with pytest.raises(ValueError, match="schema should not contain a"):
+            SparkJDBCHook(jdbc_conn_id="jdbc-invalid-schema", **self._config)

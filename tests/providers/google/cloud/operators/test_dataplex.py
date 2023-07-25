@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
 
@@ -46,12 +46,11 @@ BODY_LAKE = {
 DATAPLEX_TASK_ID = "testTask001"
 
 GCP_CONN_ID = "google_cloud_default"
-DELEGATE_TO = "test-delegate-to"
 API_VERSION = "v1"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestDataplexCreateTaskOperator(TestCase):
+class TestDataplexCreateTaskOperator:
     @mock.patch(HOOK_STR)
     @mock.patch(TASK_STR)
     def test_execute(self, task_mock, hook_mock):
@@ -65,7 +64,6 @@ class TestDataplexCreateTaskOperator(TestCase):
             validate_only=None,
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.wait_for_operation.return_value = None
@@ -73,7 +71,6 @@ class TestDataplexCreateTaskOperator(TestCase):
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -90,7 +87,7 @@ class TestDataplexCreateTaskOperator(TestCase):
         )
 
 
-class TestDataplexDeleteTaskOperator(TestCase):
+class TestDataplexDeleteTaskOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, hook_mock):
         op = DataplexDeleteTaskOperator(
@@ -101,13 +98,11 @@ class TestDataplexDeleteTaskOperator(TestCase):
             task_id="delete_dataplex_task",
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -122,7 +117,7 @@ class TestDataplexDeleteTaskOperator(TestCase):
         )
 
 
-class TestDataplexListTasksOperator(TestCase):
+class TestDataplexListTasksOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, hook_mock):
         op = DataplexListTasksOperator(
@@ -132,13 +127,11 @@ class TestDataplexListTasksOperator(TestCase):
             task_id="list_dataplex_task",
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -156,7 +149,7 @@ class TestDataplexListTasksOperator(TestCase):
         )
 
 
-class TestDataplexGetTaskOperator(TestCase):
+class TestDataplexGetTaskOperator:
     @mock.patch(HOOK_STR)
     @mock.patch(TASK_STR)
     def test_execute(self, task_mock, hook_mock):
@@ -168,7 +161,6 @@ class TestDataplexGetTaskOperator(TestCase):
             task_id="get_dataplex_task",
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.wait_for_operation.return_value = None
@@ -176,7 +168,6 @@ class TestDataplexGetTaskOperator(TestCase):
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -191,7 +182,7 @@ class TestDataplexGetTaskOperator(TestCase):
         )
 
 
-class TestDataplexDeleteLakeOperator(TestCase):
+class TestDataplexDeleteLakeOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, hook_mock):
         op = DataplexDeleteLakeOperator(
@@ -201,13 +192,11 @@ class TestDataplexDeleteLakeOperator(TestCase):
             task_id="delete_dataplex_lake",
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -221,7 +210,7 @@ class TestDataplexDeleteLakeOperator(TestCase):
         )
 
 
-class TestDataplexCreateLakeOperator(TestCase):
+class TestDataplexCreateLakeOperator:
     @mock.patch(HOOK_STR)
     @mock.patch(LAKE_STR)
     def test_execute(self, lake_mock, hook_mock):
@@ -234,7 +223,6 @@ class TestDataplexCreateLakeOperator(TestCase):
             validate_only=None,
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         hook_mock.return_value.wait_for_operation.return_value = None
@@ -242,7 +230,6 @@ class TestDataplexCreateLakeOperator(TestCase):
         op.execute(context=mock.MagicMock())
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )

@@ -17,18 +17,18 @@
  * under the License.
  */
 
-import React from 'react';
-import {
-  Button,
-  ButtonProps,
-  Link,
-} from '@chakra-ui/react';
+import React from "react";
+import { Button, ButtonProps, Link } from "@chakra-ui/react";
 
 interface Props extends ButtonProps {
   href?: string;
   target?: string;
 }
 
-const LinkButton = ({ children, ...rest }: Props) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
+const LinkButton = ({ children, ...rest }: Props) => (
+  <Button as={Link} variant="ghost" colorScheme="blue" {...rest}>
+    {children}
+  </Button>
+);
 
 export default LinkButton;

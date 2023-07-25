@@ -29,18 +29,18 @@ from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (
-    GoogleDisplayVideo360CreateReportOperator,
+    GoogleDisplayVideo360CreateQueryOperator,
     GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
     GoogleDisplayVideo360DeleteReportOperator,
     GoogleDisplayVideo360DownloadLineItemsOperator,
-    GoogleDisplayVideo360DownloadReportOperator,
-    GoogleDisplayVideo360RunReportOperator,
+    GoogleDisplayVideo360DownloadReportV2Operator,
+    GoogleDisplayVideo360RunQueryOperator,
     GoogleDisplayVideo360SDFtoGCSOperator,
     GoogleDisplayVideo360UploadLineItemsOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
-    GoogleDisplayVideo360ReportSensor,
+    GoogleDisplayVideo360RunQuerySensor,
 )
 
 # [START howto_display_video_env_variables]
@@ -50,31 +50,31 @@ OBJECT_NAME = os.environ.get("GMP_OBJECT_NAME", "files/report.csv")
 PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.txt")
 PATH_TO_SAVED_FILE = os.environ.get("GCP_GCS_PATH_TO_SAVED_FILE", "test-gcs-example-download.txt")
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
-SDF_VERSION = os.environ.get("GMP_SDF_VERSION", "SDF_VERSION_5_1")
+SDF_VERSION = os.environ.get("GMP_SDF_VERSION", "SDF_VERSION_5_5")
 BQ_DATA_SET = os.environ.get("GMP_BQ_DATA_SET", "airflow_test")
 GMP_PARTNER_ID = os.environ.get("GMP_PARTNER_ID", 123)
 ENTITY_TYPE = os.environ.get("GMP_ENTITY_TYPE", "LineItem")
 ERF_SOURCE_OBJECT = GoogleDisplayVideo360Hook.erf_uri(GMP_PARTNER_ID, ENTITY_TYPE)
 
-REPORT = {
-    "kind": "doubleclickbidmanager#query",
+REPORT_V2 = {
     "metadata": {
-        "title": "Polidea Test Report",
-        "dataRange": "LAST_7_DAYS",
+        "title": "Airflow Test Report",
+        "dataRange": {"range": "LAST_7_DAYS"},
         "format": "CSV",
         "sendNotification": False,
     },
     "params": {
-        "type": "TYPE_GENERAL",
+        "type": "STANDARD",
         "groupBys": ["FILTER_DATE", "FILTER_PARTNER"],
-        "filters": [{"type": "FILTER_PARTNER", "value": 1486931}],
+        "filters": [{"type": "FILTER_PARTNER", "value": ADVERTISER_ID}],
         "metrics": ["METRIC_IMPRESSIONS", "METRIC_CLICKS"],
-        "includeInviteData": True,
     },
     "schedule": {"frequency": "ONE_TIME"},
 }
 
-PARAMETERS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
+PARAMETERS = {
+    "dataRange": {"range": "LAST_7_DAYS"},
+}
 
 CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: dict = {
     "version": SDF_VERSION,
@@ -86,48 +86,6 @@ DOWNLOAD_LINE_ITEMS_REQUEST: dict = {"filterType": ADVERTISER_ID, "format": "CSV
 # [END howto_display_video_env_variables]
 
 START_DATE = datetime(2021, 1, 1)
-
-with models.DAG(
-    "example_display_video",
-    start_date=START_DATE,
-    catchup=False,
-) as dag1:
-    # [START howto_google_display_video_createquery_report_operator]
-    create_report = GoogleDisplayVideo360CreateReportOperator(body=REPORT, task_id="create_report")
-    report_id = cast(str, XComArg(create_report, key="report_id"))
-    # [END howto_google_display_video_createquery_report_operator]
-
-    # [START howto_google_display_video_runquery_report_operator]
-    run_report = GoogleDisplayVideo360RunReportOperator(
-        report_id=report_id, parameters=PARAMETERS, task_id="run_report"
-    )
-    # [END howto_google_display_video_runquery_report_operator]
-
-    # [START howto_google_display_video_wait_report_operator]
-    wait_for_report = GoogleDisplayVideo360ReportSensor(task_id="wait_for_report", report_id=report_id)
-    # [END howto_google_display_video_wait_report_operator]
-
-    # [START howto_google_display_video_getquery_report_operator]
-    get_report = GoogleDisplayVideo360DownloadReportOperator(
-        report_id=report_id,
-        task_id="get_report",
-        bucket_name=BUCKET,
-        report_name="test1.csv",
-    )
-    # [END howto_google_display_video_getquery_report_operator]
-
-    # [START howto_google_display_video_deletequery_report_operator]
-    delete_report = GoogleDisplayVideo360DeleteReportOperator(report_id=report_id, task_id="delete_report")
-    # [END howto_google_display_video_deletequery_report_operator]
-
-    run_report >> wait_for_report >> get_report >> delete_report
-
-    # Task dependencies created via `XComArgs`:
-    #   create_report >> run_report
-    #   create_report >> wait_for_report
-    #   create_report >> get_report
-    #   create_report >> delete_report
-
 
 with models.DAG(
     "example_display_video_misc",
@@ -209,3 +167,46 @@ with models.DAG(
 
     # Task dependency created via `XComArgs`:
     #   save_sdf_in_gcs >> upload_sdf_to_big_query
+
+with models.DAG(
+    "example_display_video_v2",
+    start_date=START_DATE,
+    catchup=False,
+) as dag:
+    # [START howto_google_display_video_create_query_operator]
+    create_query_v2 = GoogleDisplayVideo360CreateQueryOperator(body=REPORT_V2, task_id="create_query")
+
+    query_id = cast(str, XComArg(create_query_v2, key="query_id"))
+    # [END howto_google_display_video_create_query_operator]
+
+    # [START howto_google_display_video_run_query_report_operator]
+    run_query_v2 = GoogleDisplayVideo360RunQueryOperator(
+        query_id=query_id, parameters=PARAMETERS, task_id="run_report"
+    )
+
+    query_id = cast(str, XComArg(run_query_v2, key="query_id"))
+    report_id = cast(str, XComArg(run_query_v2, key="report_id"))
+    # [END howto_google_display_video_run_query_report_operator]
+
+    # [START howto_google_display_video_wait_run_query_sensor]
+    wait_for_query = GoogleDisplayVideo360RunQuerySensor(
+        task_id="wait_for_query",
+        query_id=query_id,
+        report_id=report_id,
+    )
+    # [END howto_google_display_video_wait_run_query_sensor]
+
+    # [START howto_google_display_video_get_report_operator]
+    get_report_v2 = GoogleDisplayVideo360DownloadReportV2Operator(
+        query_id=query_id,
+        report_id=report_id,
+        task_id="get_report",
+        bucket_name=BUCKET,
+        report_name="test1.csv",
+    )
+    # # [END howto_google_display_video_get_report_operator]
+    # # [START howto_google_display_video_delete_query_report_operator]
+    delete_report_v2 = GoogleDisplayVideo360DeleteReportOperator(report_id=report_id, task_id="delete_report")
+    # # [END howto_google_display_video_delete_query_report_operator]
+
+    create_query_v2 >> run_query_v2 >> wait_for_query >> get_report_v2 >> delete_report_v2

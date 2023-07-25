@@ -19,12 +19,8 @@
 
 /* global stateColors */
 
-import {
-  Flex,
-  Text,
-  HStack,
-} from '@chakra-ui/react';
-import React from 'react';
+import { Flex, Text, HStack, Center, Kbd } from "@chakra-ui/react";
+import React from "react";
 
 interface LegendProps {
   onStatusHover: (status: string | null) => void;
@@ -38,7 +34,11 @@ interface BadgeProps extends LegendProps {
 }
 
 const StatusBadge = ({
-  state, stateColor, onStatusHover, onStatusLeave, displayValue,
+  state,
+  stateColor,
+  onStatusHover,
+  onStatusLeave,
+  displayValue,
 }: BadgeProps) => (
   <Text
     borderRadius={4}
@@ -49,33 +49,46 @@ const StatusBadge = ({
     onMouseEnter={() => onStatusHover(state)}
     onMouseLeave={() => onStatusLeave()}
   >
-    {displayValue || state }
+    {displayValue || state}
   </Text>
 );
 
 const LegendRow = ({ onStatusHover, onStatusLeave }: LegendProps) => (
-  <Flex p={4} flexWrap="wrap" justifyContent="end">
-    <HStack spacing={2} wrap="wrap">
-      {
-      Object.entries(stateColors).map(([state, stateColor]) => (
+  <Flex p={4} justifyContent="space-between" flexWrap="wrap">
+    <Center>
+      <Text fontSize="11px" position="relative">
+        Press{" "}
+        <Kbd position="relative" top={-0.5}>
+          shift
+        </Kbd>{" "}
+        +{" "}
+        <Kbd position="relative" top={-0.5}>
+          /
+        </Kbd>{" "}
+        for Shortcuts
+      </Text>
+    </Center>
+    <Flex flexWrap="wrap" justifyContent="end">
+      <HStack spacing={2} wrap="wrap">
+        {Object.entries(stateColors).map(([state, stateColor]) => (
+          <StatusBadge
+            key={state}
+            state={state}
+            stateColor={stateColor}
+            onStatusHover={onStatusHover}
+            onStatusLeave={onStatusLeave}
+          />
+        ))}
         <StatusBadge
-          key={state}
-          state={state}
-          stateColor={stateColor}
+          key="no_status"
+          displayValue="no_status"
+          state={null}
+          stateColor="white"
           onStatusHover={onStatusHover}
           onStatusLeave={onStatusLeave}
         />
-      ))
-      }
-      <StatusBadge
-        key="no_status"
-        displayValue="no_status"
-        state={null}
-        stateColor="white"
-        onStatusHover={onStatusHover}
-        onStatusLeave={onStatusLeave}
-      />
-    </HStack>
+      </HStack>
+    </Flex>
   </Flex>
 );
 

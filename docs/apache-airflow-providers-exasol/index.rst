@@ -19,16 +19,25 @@
 ``apache-airflow-providers-exasol``
 ===================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/exasol/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -39,6 +48,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -51,7 +61,7 @@ Package apache-airflow-providers-exasol
 `Exasol <https://docs.exasol.com/home.htm>`__
 
 
-Release: 4.1.3
+Release: 4.2.1
 
 Provider package
 ----------------
@@ -69,10 +79,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.3.0``
+``apache-airflow``                       ``>=2.4.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``pyexasol``                             ``>=0.5.1``
 ``pandas``                               ``>=0.17.1``
@@ -103,7 +115,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-exasol 4.1.3 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-exasol-4.1.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-exasol-4.1.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-exasol-4.1.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-exasol 4.1.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.1.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.1.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.1.3-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/exasol/CHANGELOG.rst
+* `The apache-airflow-providers-exasol 4.2.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-exasol-4.2.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-exasol-4.2.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-exasol-4.2.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-exasol 4.2.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.2.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.2.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.2.1-py3-none-any.whl.sha512>`__)

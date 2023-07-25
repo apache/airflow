@@ -20,7 +20,6 @@ from __future__ import annotations
 import collections.abc
 import logging
 import os
-import re
 import smtplib
 import warnings
 from email.mime.application import MIMEApplication
@@ -28,6 +27,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
 from typing import Any, Iterable
+
+import re2
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException, RemovedInAirflow3Warning
@@ -320,12 +321,13 @@ def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> 
 
 def _get_email_list_from_str(addresses: str) -> list[str]:
     """
-    Extract a list of email addresses from a string. The string
-    can contain multiple email addresses separated by
-    any of the following delimiters: ',' or ';'.
+    Extract a list of email addresses from a string.
+
+    The string can contain multiple email addresses separated
+    by any of the following delimiters: ',' or ';'.
 
     :param addresses: A string containing one or more email addresses.
     :return: A list of email addresses.
     """
     pattern = r"\s*[,;]\s*"
-    return [address for address in re.split(pattern, addresses)]
+    return [address for address in re2.split(pattern, addresses)]

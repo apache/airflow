@@ -30,14 +30,14 @@ class TestJenkinsHook:
         """tests `init` method to validate http client creation when all parameters are passed"""
         default_connection_id = "jenkins_default"
 
-        connection_host = "http://test.com"
+        connection_host = "test.com"
         connection_port = 8080
         get_connection_mock.return_value = mock.Mock(
             connection_id=default_connection_id,
             login="test",
             password="test",
             schema="",
-            extra="",
+            extra_dejson={"use_https": False},
             host=connection_host,
             port=connection_port,
         )
@@ -53,14 +53,14 @@ class TestJenkinsHook:
         parameters are passed"""
         default_connection_id = "jenkins_default"
 
-        connection_host = "http://test.com"
+        connection_host = "test.com"
         connection_port = 8080
         get_connection_mock.return_value = mock.Mock(
             connection_id=default_connection_id,
             login="test",
             password="test",
             schema="",
-            extra="true",
+            extra_dejson={"use_https": True},
             host=connection_host,
             port=connection_port,
         )

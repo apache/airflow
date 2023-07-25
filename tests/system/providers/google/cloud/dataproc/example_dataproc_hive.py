@@ -33,7 +33,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_hive"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 CLUSTER_NAME = f"cluster-dataproc-hive-{ENV_ID}"
 REGION = "europe-west1"
@@ -74,7 +74,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "dataproc", "hive"],
 ) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
@@ -100,7 +100,14 @@ with models.DAG(
     # [END how_to_cloud_dataproc_delete_cluster_operator]
     delete_cluster.trigger_rule = TriggerRule.ALL_DONE
 
-    create_cluster >> hive_task >> delete_cluster
+    (
+        # TEST SETUP
+        create_cluster
+        # TEST BODY
+        >> hive_task
+        # TEST TEARDOWN
+        >> delete_cluster
+    )
 
     from tests.system.utils.watcher import watcher
 

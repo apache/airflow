@@ -181,8 +181,39 @@ class TestVaultSecrets:
         connection = test_client.get_connection(conn_id="airflow/test_postgres")
         assert "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz" == connection.get_uri()
 
+    @pytest.mark.parametrize(
+        "mount_point, connections_path, conn_id, expected_args",
+        [
+            (
+                "airflow",
+                "connections",
+                "test_postgres",
+                {"mount_point": "airflow", "path": "connections/test_postgres"},
+            ),
+            (
+                "airflow",
+                "",
+                "path/to/connections/test_postgres",
+                {"mount_point": "airflow", "path": "path/to/connections/test_postgres"},
+            ),
+            (
+                None,
+                "connections",
+                "airflow/test_postgres",
+                {"mount_point": "airflow", "path": "connections/test_postgres"},
+            ),
+            (
+                None,
+                "",
+                "airflow/path/to/connections/test_postgres",
+                {"mount_point": "airflow", "path": "path/to/connections/test_postgres"},
+            ),
+        ],
+    )
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_get_conn_uri_engine_version_1(self, mock_hvac):
+    def test_get_conn_uri_engine_version_1(
+        self, mock_hvac, mount_point, connections_path, conn_id, expected_args
+    ):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_client.secrets.kv.v1.read_secret.return_value = {
@@ -197,8 +228,8 @@ class TestVaultSecrets:
         }
 
         kwargs = {
-            "connections_path": "connections",
-            "mount_point": "airflow",
+            "connections_path": connections_path,
+            "mount_point": mount_point,
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
@@ -206,10 +237,8 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
-        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
-            mount_point="airflow", path="connections/test_postgres"
-        )
+        returned_uri = test_client.get_conn_uri(conn_id=conn_id)
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(**expected_args)
         assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -347,8 +376,29 @@ class TestVaultSecrets:
         returned_uri = test_client.get_variable("airflow/hello")
         assert "world" == returned_uri
 
+    @pytest.mark.parametrize(
+        "mount_point, variables_path, variable_key, expected_args",
+        [
+            ("airflow", "variables", "hello", {"mount_point": "airflow", "path": "variables/hello"}),
+            (
+                "airflow",
+                "",
+                "path/to/variables/hello",
+                {"mount_point": "airflow", "path": "path/to/variables/hello"},
+            ),
+            (None, "variables", "airflow/hello", {"mount_point": "airflow", "path": "variables/hello"}),
+            (
+                None,
+                "",
+                "airflow/path/to/variables/hello",
+                {"mount_point": "airflow", "path": "path/to/variables/hello"},
+            ),
+        ],
+    )
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_get_variable_value_engine_version_1(self, mock_hvac):
+    def test_get_variable_value_engine_version_1(
+        self, mock_hvac, mount_point, variables_path, variable_key, expected_args
+    ):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_client.secrets.kv.v1.read_secret.return_value = {
@@ -363,8 +413,8 @@ class TestVaultSecrets:
         }
 
         kwargs = {
-            "variables_path": "variables",
-            "mount_point": "airflow",
+            "variables_path": variables_path,
+            "mount_point": mount_point,
             "auth_type": "token",
             "url": "http://127.0.0.1:8200",
             "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
@@ -372,41 +422,8 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        returned_uri = test_client.get_variable("hello")
-        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
-            mount_point="airflow", path="variables/hello"
-        )
-        assert "world" == returned_uri
-
-    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    def test_get_variable_value_engine_version_1_without_predefined_mount_point(self, mock_hvac):
-        mock_client = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client
-        mock_client.secrets.kv.v1.read_secret.return_value = {
-            "request_id": "182d0673-618c-9889-4cba-4e1f4cfe4b4b",
-            "lease_id": "",
-            "renewable": False,
-            "lease_duration": 2764800,
-            "data": {"value": "world"},
-            "wrap_info": None,
-            "warnings": None,
-            "auth": None,
-        }
-
-        kwargs = {
-            "variables_path": "variables",
-            "mount_point": None,
-            "auth_type": "token",
-            "url": "http://127.0.0.1:8200",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
-            "kv_engine_version": 1,
-        }
-
-        test_client = VaultBackend(**kwargs)
-        returned_uri = test_client.get_variable("airflow/hello")
-        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
-            mount_point="airflow", path="variables/hello"
-        )
+        returned_uri = test_client.get_variable(variable_key)
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(**expected_args)
         assert "world" == returned_uri
 
     @mock.patch.dict(

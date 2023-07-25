@@ -19,17 +19,27 @@
 ========================================
 
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
     Connection types <connections>
     Operators <operators/index>
+    Logging for Tasks <logging/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -41,6 +51,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -53,15 +64,8 @@ Package apache-airflow-providers-apache-hdfs
 `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
-.. note::
 
-   The ``snakebite-py3`` used by the provider is an old package and it has an old version of ``argparse`` in
-   its dependencies and it might cause in some cases running airflow commands raises the error similar to
-   ``TypeError: __init__() got an unexpected keyword argument 'encoding'``. In this case make
-   sure to remove ``argparse`` with ``pip uninstall argparse`` command to get rid of this error.
-
-
-Release: 3.2.0
+Release: 4.1.0
 
 Provider package
 ----------------
@@ -79,12 +83,11 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 =================================  ==================
 PIP package                        Version required
 =================================  ==================
-``apache-airflow``                 ``>=2.3.0``
-``snakebite-py3``
+``apache-airflow``                 ``>=2.4.0``
 ``hdfs[avro,dataframe,kerberos]``  ``>=2.0.4``
 =================================  ==================
-
-.. include:: ../../airflow/providers/apache/hdfs/CHANGELOG.rst

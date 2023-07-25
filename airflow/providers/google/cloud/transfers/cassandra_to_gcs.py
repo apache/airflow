@@ -15,14 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains operator for copying
-data from Cassandra to Google Cloud Storage in JSON format.
-"""
+"""This module contains operator for copying data from Cassandra to Google Cloud Storage in JSON format."""
+
 from __future__ import annotations
 
 import json
-import warnings
 from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
@@ -46,7 +43,7 @@ NOT_SET = NotSetType(object())
 
 class CassandraToGCSOperator(BaseOperator):
     """
-    Copy data from Cassandra to Google Cloud Storage in JSON format
+    Copy data from Cassandra to Google Cloud Storage in JSON format.
 
     Note: Arrays of arrays are not supported.
 
@@ -67,9 +64,6 @@ class CassandraToGCSOperator(BaseOperator):
     :param cassandra_conn_id: Reference to a specific Cassandra hook.
     :param gzip: Option to compress file for upload
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -106,7 +100,6 @@ class CassandraToGCSOperator(BaseOperator):
         gzip: bool = False,
         cassandra_conn_id: str = "cassandra_default",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         query_timeout: float | None | NotSetType = NOT_SET,
         encode_uuid: bool = True,
@@ -121,11 +114,6 @@ class CassandraToGCSOperator(BaseOperator):
         self.approx_max_file_size_bytes = approx_max_file_size_bytes
         self.cassandra_conn_id = cassandra_conn_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'mpersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
         self.query_timeout = query_timeout
@@ -230,8 +218,7 @@ class CassandraToGCSOperator(BaseOperator):
 
     def _write_local_schema_file(self, cursor):
         """
-        Takes a cursor, and writes the BigQuery schema for the results to a
-        local file system.
+        Takes a cursor, and writes the BigQuery schema for the results to a local file system.
 
         :return: A dictionary where key is a filename to be used as an object
             name in GCS, and values are file handles to local files that
@@ -255,7 +242,6 @@ class CassandraToGCSOperator(BaseOperator):
         """Upload a file (data split or schema .json file) to Google Cloud Storage."""
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         hook.upload(
@@ -306,9 +292,9 @@ class CassandraToGCSOperator(BaseOperator):
 
     def convert_user_type(self, value: Any) -> dict[str, Any]:
         """
-        Converts a user type to RECORD that contains n fields, where n is the
-        number of attributes. Each element in the user type class will be converted to its
-        corresponding data type in BQ.
+        Converts a user type to RECORD that contains n fields, where n is the number of attributes.
+
+        Each element in the user type class will be converted to its corresponding data type in BQ.
         """
         names = value._fields
         values = [self.convert_value(getattr(value, name)) for name in names]
@@ -316,17 +302,20 @@ class CassandraToGCSOperator(BaseOperator):
 
     def convert_tuple_type(self, values: tuple[Any]) -> dict[str, Any]:
         """
-        Converts a tuple to RECORD that contains n fields, each will be converted
-        to its corresponding data type in bq and will be named 'field_<index>', where
-        index is determined by the order of the tuple elements defined in cassandra.
+        Converts a tuple to RECORD that contains n fields.
+
+        Each field will be converted to its corresponding data type in bq and
+        will be named 'field_<index>', where index is determined by the order
+        of the tuple elements defined in cassandra.
         """
         names = ["field_" + str(i) for i in range(len(values))]
         return self.generate_data_dict(names, values)
 
     def convert_map_type(self, value: OrderedMapSerializedKey) -> list[dict[str, Any]]:
         """
-        Converts a map to a repeated RECORD that contains two fields: 'key' and 'value',
-        each will be converted to its corresponding data type in BQ.
+        Converts a map to a repeated RECORD that contains two fields: 'key' and 'value'.
+
+        Each will be converted to its corresponding data type in BQ.
         """
         converted_map = []
         for k, v in zip(value.keys(), value.values()):

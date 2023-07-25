@@ -13,9 +13,14 @@ acyclic
 AddressesType
 adhoc
 adls
+adobjects
+AdsInsights
+adsinsights
 afterall
 AgentKey
 aio
+aiobotocore
+AioSession
 Airbnb
 airbnb
 Airbyte
@@ -298,6 +303,7 @@ cpu
 cpus
 crd
 createDisposition
+CreateQueryOperator
 creationTimestamp
 credssp
 Cron
@@ -317,6 +323,7 @@ customDataImportUids
 customizability
 customizable
 customizations
+cwd
 cx
 Daemonize
 daemonize
@@ -327,6 +334,7 @@ dagbags
 DagCallbackRequest
 DagFileProcessorManager
 dagmodel
+DagParam
 Dagre
 dagre
 DagRun
@@ -336,6 +344,7 @@ DagRunState
 DAGs
 Dask
 dask
+daskexecutor
 dat
 Databricks
 databricks
@@ -377,6 +386,7 @@ DataTransferServiceClient
 datatypes
 DateFrame
 datestamp
+DateTime
 datetime
 Datetimepicker
 Datetimes
@@ -417,12 +427,14 @@ deps
 deques
 deregister
 desc
+descendents
 deserialization
 Deserialize
 deserialize
 Deserialized
 deserialized
 deserializer
+deserializes
 deserializing
 dest
 dev
@@ -441,6 +453,7 @@ discoverability
 discoverable
 diskTypes
 displayName
+DisplayVideo
 distcp
 distro
 distros
@@ -467,12 +480,15 @@ dogstatsd
 donot
 Dont
 DOS'ing
+DownloadReportV
 downscaling
+downstreams
 Drillbit
 Drivy
 dropdown
 druidHook
 ds
+dsl
 Dsn
 dsn
 dttm
@@ -499,6 +515,7 @@ emr
 EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
+encodable
 encryptor
 enqueue
 enqueued
@@ -584,6 +601,7 @@ fn
 fo
 followsa
 formatter
+formatters
 Formaturas
 forwardability
 forwardable
@@ -591,6 +609,7 @@ fqdn
 frontend
 fs
 fsGroup
+fullname
 func
 Fundera
 ga
@@ -636,6 +655,7 @@ golang
 googleads
 GoogleAdsRow
 googleapiclient
+GoogleDisplayVideo
 gpu
 gpus
 greenlet
@@ -804,6 +824,8 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+Kafka
+kafka
 Kalibrr
 Kamil
 KEDA
@@ -843,6 +865,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Lakehouse
 LanguageServiceClient
 lastname
 latencies
@@ -913,6 +936,7 @@ metadatabase
 metarouter
 Metastore
 metastore
+metavar
 mget
 mgmt
 microservice
@@ -1013,7 +1037,9 @@ onboarded
 OnFailure
 onkill
 Oozie
+openapi
 openfaas
+openlineage
 oper
 Opsgenie
 opsgenie
@@ -1029,8 +1055,10 @@ os
 OSS
 oss
 ot
+otel
 overridable
 oversubscription
+PaaS
 Pagerduty
 pagerduty
 pageviews
@@ -1182,6 +1210,7 @@ RBAC
 rbac
 rc
 rdbms
+RDS
 readfp
 Readme
 readme
@@ -1199,6 +1228,7 @@ redbubble
 Reddit
 Redhat
 redis
+rediss
 redoc
 redownloading
 redshift
@@ -1249,6 +1279,8 @@ rtype
 ru
 runAsUser
 runnable
+RunQueryOperator
+RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
@@ -1331,6 +1363,7 @@ sourceArchiveUrl
 sourceRepository
 sourceUploadUrl
 Spark
+sparkappinfo
 sparkApplication
 sparkcmd
 SparkPi
@@ -1398,7 +1431,7 @@ Subdirectory
 subdirectory
 subfolder
 subfolders
-Submodules
+submodule
 submodules
 subnet
 subnets
@@ -1462,6 +1495,7 @@ tblproperties
 TCP
 tcp
 teardown
+teardowns
 templatable
 templateable
 Templated
@@ -1538,6 +1572,8 @@ undead
 Undeads
 ungenerated
 unicode
+unicodecsv
+unindent
 unittest
 unittests
 unix
@@ -1556,6 +1592,7 @@ unprocessable
 unqueued
 unterminated
 untransformed
+untrusted
 unutilized
 updateMask
 updateonly
@@ -1563,6 +1600,7 @@ Upsert
 upsert
 upserts
 Upsight
+upstreams
 Uptime
 uri
 uris
@@ -1613,6 +1651,7 @@ Webhook
 webhook
 WebhookClient
 webhooks
+webpack
 webpage
 webProperty
 Webserver

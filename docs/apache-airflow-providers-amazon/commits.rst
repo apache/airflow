@@ -28,14 +28,274 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.3.1
+.....
+
+Latest change: 2023-07-12
+
+=================================================================================================  ===========  =================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================
+`50a68c6c4e <https://github.com/apache/airflow/commit/50a68c6c4ecb0a45272be7df7939ded6f28cf2f9>`_  2023-07-12   ``Append region info to S3ToRedshitOperator if present (#32328)``
+=================================================================================================  ===========  =================================================================
+
+8.3.0
+.....
+
+Latest change: 2023-07-09
+
+=================================================================================================  ===========  ============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================================
+`cd1ac927a7 <https://github.com/apache/airflow/commit/cd1ac927a7c8451fb27547ee9dc94950214df393>`_  2023-07-09   ``Prepare docs for July 2023 RC3 amazon provider (#32455)``
+`c99c03135c <https://github.com/apache/airflow/commit/c99c03135ca7e7c41e1c6d338de9e41422ea84f0>`_  2023-07-08   ``D205 Support - Providers: Stragglers and new additions (#32447)``
+`8c6751ff0f <https://github.com/apache/airflow/commit/8c6751ff0f2056af1cb08cec03db8a4d6c913ca7>`_  2023-07-07   ``quick fix on RDS operator to prevent parameter collision (#32436)``
+`869f3a93a8 <https://github.com/apache/airflow/commit/869f3a93a8873381a57382f8a0ab88879ca43f9a>`_  2023-07-07   ``Remove ability to specify arbitrary hook params in AWS RDS trigger (#32386)``
+`05f1acfcb7 <https://github.com/apache/airflow/commit/05f1acfcb708a6785d5b60dd6a2a1ef930a73a7d>`_  2023-07-07   ``Introduce a base class for aws triggers (#32274)``
+`7a3bc8d7c8 <https://github.com/apache/airflow/commit/7a3bc8d7c85448447abd39287ef6a3704b237a90>`_  2023-07-06   ``Only update crawler tags if present in config dict (#32331)``
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``
+`5623a21a1f <https://github.com/apache/airflow/commit/5623a21a1fc738ccb97ade4d4197b181bf1128d4>`_  2023-07-04   ``deprecate arbitrary parameter passing to RDS hook (#32352)``
+`575bf2f040 <https://github.com/apache/airflow/commit/575bf2f04089b7c99a8ee30637f1d88492ef4742>`_  2023-07-04   ``Bug fix GCSToS3Operator: avoid 'ValueError' when 'replace=False' with files already in S3 (#32322)``
+`17132ef4c6 <https://github.com/apache/airflow/commit/17132ef4c65b842dab4ff311fd2b0e6d08969e1b>`_  2023-07-04   ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
+`5c72befcfd <https://github.com/apache/airflow/commit/5c72befcfde63ade2870491cfeb708675399d9d6>`_  2023-07-03   ``Fix 'LambdaInvokeFunctionOperator' payload parameter type (#32259)``
+`d6e254db68 <https://github.com/apache/airflow/commit/d6e254db689db070f2f181006e7d6bc593482300>`_  2023-06-30   ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
+`dd937e51fe <https://github.com/apache/airflow/commit/dd937e51fe1ae3cd36a6993bd42e425960644e1d>`_  2023-06-30   ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+`e781aef1a7 <https://github.com/apache/airflow/commit/e781aef1a76f594392e0b8c4a13bbccef4bf8969>`_  2023-06-29   ``aws waiter util: log status info with error level on waiter error (#32247)``
+`a46b942f48 <https://github.com/apache/airflow/commit/a46b942f48880689a11d098aa1cac2ba1a0a56b6>`_  2023-06-29   ``Add deferrable mode to S3KeysUnchangedSensor (#31940)``
+`b1b69af88f <https://github.com/apache/airflow/commit/b1b69af88f9e24db2d1f003435d8ee8cdb6933b0>`_  2023-06-28   ``Add deferrable mode to 'RdsCreateDbInstanceOperator' and 'RdsDeleteDbInstanceOperator' (#32171)``
+`d029e043f4 <https://github.com/apache/airflow/commit/d029e043f43bf8cca475e7ade66a978f7ad8cb90>`_  2023-06-28   ``Add 'ChimeNotifier' (#32222)``
+`1d60332cf8 <https://github.com/apache/airflow/commit/1d60332cf82325b80e76a6771bca192c1477d594>`_  2023-06-28   ``Add an option to 'GlueJobOperator' to stop the job run when the TI is killed (#32155)``
+`bd2f156bc8 <https://github.com/apache/airflow/commit/bd2f156bc842f201c736709dae65d04f08573bae>`_  2023-06-28   ``D205 Support - Providers: Amazon/AWS (#32224)``
+`25526a112f <https://github.com/apache/airflow/commit/25526a112fb81a88d6c29e914bdf0c05b749189c>`_  2023-06-28   ``Add deferrable mode for 'AthenaOperator' (#32186)``
+`1fb2831239 <https://github.com/apache/airflow/commit/1fb28312393a59bb064e4a1cade59de5c86ef16a>`_  2023-06-28   ``Add a deferrable mode to 'BatchCreateComputeEnvironmentOperator' (#32036)``
+`14785bc84c <https://github.com/apache/airflow/commit/14785bc84c984b8747fa062b84e800d22ddc0477>`_  2023-06-27   ``deferrable mode for 'SageMakerTuningOperator' and 'SageMakerEndpointOperator' (#32112)``
+`2794c4172e <https://github.com/apache/airflow/commit/2794c4172e7b7655b813236fe47222cec46f57e4>`_  2023-06-27   ``D205 Support - Auto-fixes and Stragglers (#32212)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+`06b5a1e850 <https://github.com/apache/airflow/commit/06b5a1e8509e5ede94aedc1c9dba08115745e8c6>`_  2023-06-27   ``Add deferrable mode in EMR operator and sensor (#32029)``
+`3a85d4e7e8 <https://github.com/apache/airflow/commit/3a85d4e7e867357fb5456973544028e8249bff2f>`_  2023-06-27   ``Revert "add deferrable mode for 'AthenaOperator' (#32110)" (#32172)``
+`256438c3d6 <https://github.com/apache/airflow/commit/256438c3d6a80c989c68d2e0f3c8549108770f0e>`_  2023-06-27   ``add deferrable mode for 'AthenaOperator' (#32110)``
+`e0f4de347f <https://github.com/apache/airflow/commit/e0f4de347fd22538b1fdc5cd303fd7ec55d970ab>`_  2023-06-27   ``EKS Create/Delete Nodegroup Deferrable mode (#32165)``
+`10df7436f3 <https://github.com/apache/airflow/commit/10df7436f3bcdf8465b8cea536511d6126ae377c>`_  2023-06-27   ``Add 'ChimeWebhookHook' (#31939)``
+`e4eb19866e <https://github.com/apache/airflow/commit/e4eb19866eeddc5839fda0b444849b01ea1dbc39>`_  2023-06-26   ``rewrite method used in ecs to fetch less logs (#31786)``
+`2f96127b9e <https://github.com/apache/airflow/commit/2f96127b9eb84c045632c44fdc6871e04d3b0634>`_  2023-06-26   ``Minor name change for the util wait method. (#32152)``
+`cc87ae578e <https://github.com/apache/airflow/commit/cc87ae578ebf930fe5e83bef515e07c327cac268>`_  2023-06-26   ``feature: AWS - GlueJobOperator - job_poll_interval (#32147)``
+`e4468ed380 <https://github.com/apache/airflow/commit/e4468ed38017f1782a5aea59c1d6a62eaca121b5>`_  2023-06-26   ``Clean up string concatenation (#32129)``
+`8057659e96 <https://github.com/apache/airflow/commit/8057659e96ef1375e9fbe9afb44d494e09483190>`_  2023-06-25   ``Handle 'UnboundLocalError' while parsing invalid 's3_url' (#32120)``
+`d49fa999a9 <https://github.com/apache/airflow/commit/d49fa999a94a2269dd6661fe5eebbb4c768c7848>`_  2023-06-23   ``bugfix: break down run+wait method in ECS operator (#32104)``
+`72d09a677f <https://github.com/apache/airflow/commit/72d09a677fea22b51dbf20f3b12bae6b3c1e4792>`_  2023-06-23   ``Use a waiter in 'AthenaHook' (#31942)``
+`5c887988b0 <https://github.com/apache/airflow/commit/5c887988b02b02e60f693c9341013592a291ee27>`_  2023-06-23   ``Refactor Eks Create Cluster Operator code (#31960)``
+`415e076761 <https://github.com/apache/airflow/commit/415e0767616121854b6a29b3e44387f708cdf81e>`_  2023-06-23   ``Deferrable mode for ECS operators (#31881)``
+`479719297f <https://github.com/apache/airflow/commit/479719297ff4efa8373dc7b6909bfc59a5444c3a>`_  2023-06-22   ``add async wait method to the "with logging" aws utils (#32055)``
+`afe293d934 <https://github.com/apache/airflow/commit/afe293d934b32a586c6ff09a79eafbfd5ff391f0>`_  2023-06-21   ``cleanup Amazon CHANGELOG.rst (#32031)``
+`743bf5a0ae <https://github.com/apache/airflow/commit/743bf5a0ae1279c96d018aad54dcce108f16dc96>`_  2023-06-20   ``Add custom waiters to EMR Serverless  (#30463)``
+=================================================================================================  ===========  ============================================================================================================
+
+8.2.0
+.....
+
+Latest change: 2023-06-20
+
+=================================================================================================  ===========  ===============================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`f0b91ac6a7 <https://github.com/apache/airflow/commit/f0b91ac6a75a9f6f74663f8300078db09337cb16>`_  2023-06-20   ``Add 'deferrable' param in 'EmrContainerSensor' (#30945)``
+`e01ff4749c <https://github.com/apache/airflow/commit/e01ff4749cb2469b21f467a1b0089d0115f39368>`_  2023-06-19   ``Add realtime container execution logs for BatchOperator (#31837)``
+`41fb9b4c49 <https://github.com/apache/airflow/commit/41fb9b4c493dc74be7c21f68a2877cb2de97d983>`_  2023-06-17   ``Deprecate 'wait_for_completion' from 'EcsRegisterTaskDefinitionOperator' and 'EcsDeregisterTaskDefinitionOperator' (#31884)``
+`e0f21f43c6 <https://github.com/apache/airflow/commit/e0f21f43c63b13fd48f55aa660746edc37df1458>`_  2023-06-16   ``Various fixes on ECS run task operator (#31838)``
+`3689cee485 <https://github.com/apache/airflow/commit/3689cee485215651bdb5ef434f24ab8774995a37>`_  2023-06-15   ``Use a continuation token to get logs in ecs (#31824)``
+`9be22e4cc0 <https://github.com/apache/airflow/commit/9be22e4cc09faba5db6432ccac8d2193114d95ee>`_  2023-06-15   ``Add deferrable option to EmrTerminateJobFlowOperator (#31646)``
+`67204565b8 <https://github.com/apache/airflow/commit/67204565b848b29c1c36188183eb27240e5c48bc>`_  2023-06-14   ``Add Deferrable option to EmrCreateJobFlowOperator (#31641)``
+`212a37fbec <https://github.com/apache/airflow/commit/212a37fbeccebce2b8fb14535234a9bdc4b93708>`_  2023-06-14   ``Deferrable mode for EksCreateFargateProfileOperator and EksDeleteFargateProfileOperator (#31657)``
+`688f91b330 <https://github.com/apache/airflow/commit/688f91b330addbc88a5bbda2f0e29cbed2313678>`_  2023-06-14   ``Add deferrable mode to 'BatchSensor'  (#30279)``
+`4e61b654c3 <https://github.com/apache/airflow/commit/4e61b654c39d47bfe72e3004be45ba1bd97be660>`_  2023-06-08   ``Fetch status in while loop so as to not exit too early (#31804)``
+`b9b8da79b5 <https://github.com/apache/airflow/commit/b9b8da79b512d8b62bc753e57ec28b6331761ae1>`_  2023-06-08   ``Add deferrable mode for S3KeySensor (#31018)``
+`0854500769 <https://github.com/apache/airflow/commit/0854500769a07f8251269caeab65c95a05d9c28a>`_  2023-06-08   ``Amazon provider docstring improvements (#31729)``
+`3a7c9f277f <https://github.com/apache/airflow/commit/3a7c9f277f25356783587ea38ccaf852aabc3674>`_  2023-06-07   ``Add Deferrable mode to Emr Add Steps operator (#30928)``
+`359dfb5446 <https://github.com/apache/airflow/commit/359dfb54469cb33b817d0e76641e2be09dc04d2d>`_  2023-06-07   ``Added config template field to EmrServerlessStartJobOperator (#31746)``
+`a3768b44e9 <https://github.com/apache/airflow/commit/a3768b44e9b57aa9334d4a133f6179cd5da0c469>`_  2023-06-07   ``[AWS hook] use provided client to get the official waiter on fallback (#31748)``
+`07ea574fed <https://github.com/apache/airflow/commit/07ea574fed5d56ca9405ee9e47828841289e3a3c>`_  2023-06-07   ``Add D400 pydocstyle check (#31742)``
+`9e268e13b1 <https://github.com/apache/airflow/commit/9e268e13b147401a5665e497aee87ac107ade8d1>`_  2023-06-07   ``Replace spelling directive with spelling:word-list (#31752)``
+`cda83c226b <https://github.com/apache/airflow/commit/cda83c226bf231f3a7e1b78c00bf13f9defb5d6e>`_  2023-06-05   ``Add D400 pydocstyle check - Amazon provider only (#31423)``
+`c255ac411b <https://github.com/apache/airflow/commit/c255ac411b93d222bc9a0dbd4139a15687d2c981>`_  2023-06-05   ``Support of wildcard in S3ListOperator and S3ToGCSOperator (#31640)``
+`62938e945b <https://github.com/apache/airflow/commit/62938e945b94fbc18e14ef8e5d23f374c92af4b3>`_  2023-06-05   ``fix return values on glue operators deferrable mode (#31694)``
+`4c62a4f58b <https://github.com/apache/airflow/commit/4c62a4f58bd7a76e971ecf4ed798bc795afec4c5>`_  2023-06-05   ``Add back missing AsyncIterator import (#31710)``
+`f69dd29e87 <https://github.com/apache/airflow/commit/f69dd29e872ad3db3df1dc2d0b64add0e09d7a10>`_  2023-06-04   ``Remove aws unused code (#31610)``
+`a247a8f7c9 <https://github.com/apache/airflow/commit/a247a8f7c9d3e4ba7dcb01f45d4b089477de5008>`_  2023-06-04   ``Add deferrable mode in Redshift delete cluster (#30244)``
+`5dc6e5bfbe <https://github.com/apache/airflow/commit/5dc6e5bfbe61aae40aef169110e238dfe6b421fc>`_  2023-06-02   ``allow anonymous AWS access (#31659)``
+`dc5bf3fd02 <https://github.com/apache/airflow/commit/dc5bf3fd02c589578209cb0dd5b7d005b1516ae9>`_  2023-06-02   ``Add discoverability for triggers in provider.yaml (#31576)``
+`635f94cc39 <https://github.com/apache/airflow/commit/635f94cc392b0393a4f9a38fb78123e842781fca>`_  2023-05-31   ``Add deferrable mode to AWS glue operators (Job & Crawl) (#30948)``
+`a8c45b088e <https://github.com/apache/airflow/commit/a8c45b088e088a5f1d9c924f9efb660c80c0ce12>`_  2023-05-31   ``handle missing LogUri in emr 'describe_cluster' API response (#31482)``
+`ce7766e0a5 <https://github.com/apache/airflow/commit/ce7766e0a52e15b2b1ef7e7f9c613ea686fbfca6>`_  2023-05-31   ``Add docstring and signature for _read_remote_logs (#31623)``
+`5b3382f638 <https://github.com/apache/airflow/commit/5b3382f63898e497d482870636ed156ce861afbc>`_  2023-05-30   ``Add null check for host in Amazon Redshift connection (#31567)``
+`9fa75aaf7a <https://github.com/apache/airflow/commit/9fa75aaf7a391ebf0e6b6949445c060f6de2ceb9>`_  2023-05-29   ``Remove Python 3.7 support (#30963)``
+`fb10108eec <https://github.com/apache/airflow/commit/fb10108eec4d9c621f5bcdba3120d9a88a368e7f>`_  2023-05-27   ``add workgroup to templated fields (#31574)``
+`5b0f668b6d <https://github.com/apache/airflow/commit/5b0f668b6dad448bdf99976658231f6ffa607f8b>`_  2023-05-25   ``Add deferrable param in BatchOperator (#30865)``
+`aac2f8f0a9 <https://github.com/apache/airflow/commit/aac2f8f0a9eff40b02212257079ab3708a4e5745>`_  2023-05-24   ``AWS system test example_dynamodb_to_s3: add retry when fecthing the export time (#31388)``
+`44741f354c <https://github.com/apache/airflow/commit/44741f354cf8b7113099b0e0f147b58a55ecc5d3>`_  2023-05-24   `` Change Deferrable implementation for RedshiftResumeClusterOperator to follow standard (#30864)``
+`911bd1cdb8 <https://github.com/apache/airflow/commit/911bd1cdb869295e267b99cdaa0bfe68cc7ace12>`_  2023-05-24   ``Add Deferrable Mode to RedshiftCreateClusterSnapshotOperator (#30856)``
+`0b7c095c9f <https://github.com/apache/airflow/commit/0b7c095c9fa54981248a72659da9acdf3bf5c2c0>`_  2023-05-23   ``Change Deferrable implementation for RedshiftPauseClusterOperator to follow standard (#30853)``
+`c5597d1fab <https://github.com/apache/airflow/commit/c5597d1fabe5d8f3a170885f6640344d93bf64bf>`_  2023-05-23   ``Add Python 3.11 support (#27264)``
+=================================================================================================  ===========  ===============================================================================================================================
+
+8.1.0
+.....
+
+Latest change: 2023-05-19
+
+=================================================================================================  ===========  ====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
+`0b4f1c116a <https://github.com/apache/airflow/commit/0b4f1c116a6129d3125b953312ad0cbf4ebab7ce>`_  2023-05-19   ``Fix AWS system test example_dynamodb (#31395)``
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`0b3b6704cb <https://github.com/apache/airflow/commit/0b3b6704cb12a3b8f22da79d80b3db85528418b7>`_  2023-05-17   ``Fix AWS system test example_dynamodb_to_s3 (#31362)``
+`e05e3a9db8 <https://github.com/apache/airflow/commit/e05e3a9db8b6d38cfbff63ce008e20185dcf2482>`_  2023-05-16   ``Handle temporary credentials when resource_type is used to get custom waiters (#31333)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
+`0117246db6 <https://github.com/apache/airflow/commit/0117246db65c631a06a4bc9ee24ad9abdecc820e>`_  2023-05-15   ``Add future-compatible mongo Hook typing (#31289)``
+`3193857376 <https://github.com/apache/airflow/commit/3193857376bc2c8cd2eb133017be1e8cbcaa8405>`_  2023-05-13   ``Add Deferrable Mode for EC2StateSensor (#31130)``
+`6b21e4b88c <https://github.com/apache/airflow/commit/6b21e4b88c3d18eb1ba176e6ac53da90a4523880>`_  2023-05-13   ``Bring back detection of implicit single-line string concatenation (#31270)``
+`d6051fd10a <https://github.com/apache/airflow/commit/d6051fd10a0949264098af23ce74c76129cfbcf4>`_  2023-05-12   ``Add on_kill to EMR Serverless Job Operator (#31169)``
+`8a5fe6ad7d <https://github.com/apache/airflow/commit/8a5fe6ad7de4ed73e8f102eb2e9c35f81d1d558a>`_  2023-05-10   ``Add retries to S3 delete_bucket (#31192)``
+`cd3fa33e82 <https://github.com/apache/airflow/commit/cd3fa33e82922e01888d609ed9c24b9c2dadfa27>`_  2023-05-09   ``DynamoDBToS3Operator - Add a feature to export the table to a point in time. (#31142)``
+`4c9b5fe4c1 <https://github.com/apache/airflow/commit/4c9b5fe4c15ff9d813a34e5f31b5e2910f70cff8>`_  2023-05-09   ``Add deferrable param in SageMakerTransformOperator (#31063)``
+`dff7e0de36 <https://github.com/apache/airflow/commit/dff7e0de362e4cd318d7c285ec102923503eceb3>`_  2023-05-08   ``Revert "DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)" (#31139)``
+`a809c91528 <https://github.com/apache/airflow/commit/a809c91528bebacdb5c3bac75ae3c7bf33a99308>`_  2023-05-08   ``Add deferrable param in SageMakerTrainingOperator (#31042)``
+`1c144ee141 <https://github.com/apache/airflow/commit/1c144ee141059a4c7e0450fd086eced2197568cf>`_  2023-05-08   ``Add deferrable param in SageMakerProcessingOperator (#31062)``
+`fc4166127a <https://github.com/apache/airflow/commit/fc4166127a1d2099d358fee1ea10662838cf9cf3>`_  2023-05-08   ``DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)``
+`c99d2d2369 <https://github.com/apache/airflow/commit/c99d2d23696ce5e9c55fc246a5f9a17bc4a7c3a5>`_  2023-05-05   ``Import aiobotocore only if deferrable is true (#31094)``
+`e3d9d7dc4c <https://github.com/apache/airflow/commit/e3d9d7dc4cf01c552273348814bceda0de285115>`_  2023-05-04   ``Add template field to S3ToRedshiftOperator (#30781)``
+`9c5908e050 <https://github.com/apache/airflow/commit/9c5908e050476ac10762a123ca41034343804084>`_  2023-05-04   ``'StepFunctionStartExecutionOperator': get logs in case of failure (#31072)``
+`ac46902154 <https://github.com/apache/airflow/commit/ac46902154c060246dec942f921f7670015e6031>`_  2023-05-04   ``Move TaskInstanceKey to a separate file (#31033)``
+`cb71d41c75 <https://github.com/apache/airflow/commit/cb71d41c75ca1b2ddf06b383e767a25c817e5b9f>`_  2023-05-03   ``Update return types of 'get_key' methods on 'S3Hook' (#30923)``
+`2d5166f982 <https://github.com/apache/airflow/commit/2d5166f9829835bdfd6479aa789c8a27147288d6>`_  2023-05-03   ``Add extras links to some more EMR Operators and Sensors (#31032)``
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`e4d935e490 <https://github.com/apache/airflow/commit/e4d935e49007b17bf5c11f2ff1fdf4a1a3de164d>`_  2023-05-02   ``Add tags param in RedshiftCreateClusterSnapshotOperator (#31006)``
+`2f247a2ba2 <https://github.com/apache/airflow/commit/2f247a2ba2fb7c9f1fe71567a80f0063e21a5f55>`_  2023-05-02   ``Add IAM authentication to Amazon Redshift Connection by AWS Connection (#28187)``
+`9662fd8cc0 <https://github.com/apache/airflow/commit/9662fd8cc05f69f51ca94b495b14f907aed0d936>`_  2023-05-01   ``bigfix: EMRHook  Loop through paginated response to check for cluster id (#29732)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`612676b975 <https://github.com/apache/airflow/commit/612676b975a2ff26541bb2581fbdf2befc6c3de9>`_  2023-04-28   ``Support 'shareIdentifier' in BatchOperator (#30829)``
+`1f0174931b <https://github.com/apache/airflow/commit/1f0174931b6ea88fce4539bbc99e42f7da84fac3>`_  2023-04-28   ``improve/fix glue job logs printing (#30886)``
+`b36c33230f <https://github.com/apache/airflow/commit/b36c33230f76bc0bd0ceed9755ea3af6436abd1c>`_  2023-04-28   ``BaseAWS - Override client when resource_type is user to get custom waiters (#30897)``
+=================================================================================================  ===========  ====================================================================================================
+
+8.0.0
+.....
+
+Latest change: 2023-04-26
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`97ad7cee44 <https://github.com/apache/airflow/commit/97ad7cee443c7f4ee6c0fbaabcc73de16f99a5e5>`_  2023-04-26   ``Prepare docs for ad-hoc rc3 of Amazon provider (#30876)``
+`a044a21859 <https://github.com/apache/airflow/commit/a044a218593f2caeac53cce2681a5d7940b85984>`_  2023-04-26   ``Fix async conn for none aws_session_token (#30868)``
+`b335e474e2 <https://github.com/apache/airflow/commit/b335e474e2738cec4f9bd2b67b6b4bb4e5aae865>`_  2023-04-26   ``Restore aiobotocore as optional dependency of amazon provider (#30874)``
+`84e9cec701 <https://github.com/apache/airflow/commit/84e9cec7016a152b885df670c83a090e0b187621>`_  2023-04-25   ``Prepare docs for ad-hoc release of Amazon provider (#30848)``
+`f3aa33aa13 <https://github.com/apache/airflow/commit/f3aa33aa13a60f6dc750f3757af9cb9ea478e949>`_  2023-04-24   ``Update AWS EMR Cluster Link to use the new dashboard (#30844)``
+`ecaffd5892 <https://github.com/apache/airflow/commit/ecaffd5892874e359a180f2e7a1d613ae8eb33a3>`_  2023-04-24   ``Add a "force" option to emr serverless stop/delete operator (#30757)``
+`62ea0ff21c <https://github.com/apache/airflow/commit/62ea0ff21ccc900e1bb717937b1a3ab1509767a6>`_  2023-04-24   ``Add support for deferrable operators in AMPP (#30032)``
+`c585ad51c5 <https://github.com/apache/airflow/commit/c585ad51c522c6e9f3bbbf7ae6e0132e25a3a378>`_  2023-04-22   ``Upgrade ruff to 0.0.262 (#30809)``
+`e6723aa3f0 <https://github.com/apache/airflow/commit/e6723aa3f0b9406b25f678e15555da00b7549e16>`_  2023-04-21   ``fixes to system tests following obsolete cleanup (#30804)``
+`e8b978a4cf <https://github.com/apache/airflow/commit/e8b978a4cfe91862d1145d7c21fec6f065479c9d>`_  2023-04-21   ``restore fallback to empty connection behavior (#30806)``
+`e46ce78b66 <https://github.com/apache/airflow/commit/e46ce78b66953146c04de5da00cab6299787adad>`_  2023-04-21   ``Prepare docs for adhoc release of providers (#30787)``
+`e4b8729739 <https://github.com/apache/airflow/commit/e4b8729739ec1ff67a00d7f778f4bf07eec33a8e>`_  2023-04-21   ``Remove deprecated code from Amazon provider (#30755)``
+`7e01c09644 <https://github.com/apache/airflow/commit/7e01c096446dbd134e0efa144e7de87b800639a1>`_  2023-04-21   ``AWS logs. Exit fast when 3 consecutive responses are returned from AWS Cloudwatch logs (#30756)``
+`8a191938b6 <https://github.com/apache/airflow/commit/8a191938b62edcce8093d2522759ede960a00f5f>`_  2023-04-21   ``Remove @poke_mode_only from EmrStepSensor (#30774)``
+`fbc1382514 <https://github.com/apache/airflow/commit/fbc13825140cc6cc6b3d4b27db6d329692a1c451>`_  2023-04-21   ``remove delegate_to from GCP operators and hooks (#30748)``
+`c14bc770f6 <https://github.com/apache/airflow/commit/c14bc770f697fd980550ff308571174a094a0ed5>`_  2023-04-19   ``add a stop operator to emr serverless (#30720)``
+`d7cef588d6 <https://github.com/apache/airflow/commit/d7cef588d6f6a749bd5e8fbf3153a275f4120ee8>`_  2023-04-19   ``SqlToS3Operator - Add feature to partition SQL table (#30460)``
+`221249e872 <https://github.com/apache/airflow/commit/221249e8726d4082634912a27840011771f713be>`_  2023-04-18   ``Fixed logging issue (#30703)``
+`38f2b4a4df <https://github.com/apache/airflow/commit/38f2b4a4dfb1485d664a468680978e73317f9a76>`_  2023-04-14   ``Organize Amazon providers docs index (#30541)``
+`7c2d3617bf <https://github.com/apache/airflow/commit/7c2d3617bf1be0781e828d3758ee6d9c6490d0f0>`_  2023-04-14   ``DynamoDBHook - waiter_path() to consider 'resource_type' or 'client_type' (#30595)``
+`51f9910ecb <https://github.com/apache/airflow/commit/51f9910ecbf1186aff164e09d118bdf04d21dfcb>`_  2023-04-14   ``Remove duplicate param docstring in EksPodOperator (#30634)``
+`96661789cc <https://github.com/apache/airflow/commit/96661789ccfd6798677cd7f15e987e24c1e9db1b>`_  2023-04-14   ``New AWS sensor — DynamoDBValueSensor (#28338)``
+`92cab74b28 <https://github.com/apache/airflow/commit/92cab74b280e9e7162120506c46fe275fbe0b577>`_  2023-04-12   ``Add ability to override waiter delay in EcsRunTaskOperator (#30586)``
+`2ce1130006 <https://github.com/apache/airflow/commit/2ce11300064ec821ffe745980012100fc32cb4b4>`_  2023-04-11   ``Add support in AWS Batch Operator for multinode jobs (#29522)``
+`58294c5440 <https://github.com/apache/airflow/commit/58294c5440608b1a58828cbae36f91b7148c04b4>`_  2023-04-10   ``Decouple "job runner" from BaseJob ORM model (#30255)``
+=================================================================================================  ===========  ===================================================================================================
+
+7.4.1
+.....
+
+Latest change: 2023-04-09
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`874ea9588e <https://github.com/apache/airflow/commit/874ea9588e3ce7869759440302e53bb6a730a11e>`_  2023-04-09   ``Prepare docs for ad hoc release of Providers (#30545)``
+`fa4fb1f5fe <https://github.com/apache/airflow/commit/fa4fb1f5fe6f8dfd00d9956197e01efa0a95e24a>`_  2023-04-05   ``Revert "Add AWS deferrable BatchOperator (#29300)" (#30489)``
+`c1b5eafc82 <https://github.com/apache/airflow/commit/c1b5eafc8201b8c84f34fdf21fa1d000b97c13e8>`_  2023-04-05   ``Add more info to quicksight error messages (#30466)``
+`77c272e6e8 <https://github.com/apache/airflow/commit/77c272e6e8ecda0ce48917064e58ba14f6a15844>`_  2023-04-05   ``Add AWS deferrable BatchOperator (#29300)``
+`2736765956 <https://github.com/apache/airflow/commit/2736765956cc22b343609c87380df350fc4ab7ed>`_  2023-04-05   ``add template field for s3 bucket (#30472)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+`9fc0f20132 <https://github.com/apache/airflow/commit/9fc0f20132e7d4d4d5cd4d918612af7e9ddf34dd>`_  2023-04-03   ``Add s3_bucket to template fields in SFTP to S3 operator (#30444)``
+`8bf4f62ae6 <https://github.com/apache/airflow/commit/8bf4f62ae6ff56bc695e92aeb876f17b0d33bfe5>`_  2023-04-03   ``Fix 'RedshiftResumeClusterOperator' deferrable implementation (#30370)``
+=================================================================================================  ===========  ==========================================================================
+
+7.4.0
+.....
+
+Latest change: 2023-04-02
+
+=================================================================================================  ===========  ============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
+`46d9a0c294 <https://github.com/apache/airflow/commit/46d9a0c294ea72574a79f0fb567eb9dc97cf96c1>`_  2023-03-21   ``Make update config behavior optional in GlueJobOperator (#30162)``
+`2a42cb46af <https://github.com/apache/airflow/commit/2a42cb46af66c7d6a95a718726cb9206258a0c14>`_  2023-03-21   ``Move and convert all AWS example dags to system tests (#30003)``
+`05c0841880 <https://github.com/apache/airflow/commit/05c0841880ccfc25c9e525cafde3e46d7c6f9fce>`_  2023-03-21   ``custom waiters with dynamic values, applied to appflow (#29911)``
+`0036ef7d35 <https://github.com/apache/airflow/commit/0036ef7d35b1a5f654affa10528c348e6097644f>`_  2023-03-21   ``Add deferrable mode to 'RedshiftResumeClusterOperator' (#30090)``
+`b54285d0a1 <https://github.com/apache/airflow/commit/b54285d0a15945ebdcbe3ff9220c82059f09d8a4>`_  2023-03-16   ``Remove aws async ci job (#30127)``
+`4effd6f48b <https://github.com/apache/airflow/commit/4effd6f48b5b0fabde7e8bc731844a1cd258dc0e>`_  2023-03-14   ``Add 'AwsToAwsBaseOperator' (#30044)``
+`cf77c3b966 <https://github.com/apache/airflow/commit/cf77c3b96609aa8c260566274d54b06eb38c8100>`_  2023-03-13   ``Add deferrable mode in RedshiftPauseClusterOperator (#28850)``
+`3780b01fc4 <https://github.com/apache/airflow/commit/3780b01fc46385809423bec9ef858be5be64b703>`_  2023-03-10   ``Add support of a different AWS connection for DynamoDB (#29452)``
+`d2cc9df82c <https://github.com/apache/airflow/commit/d2cc9df82c8b6ae6cccb51462b8b5a37155666a7>`_  2023-03-07   ``Add 'EC2CreateInstanceOperator', 'EC2TerminateInstanceOperator' (#29548)``
+`b6392ae5fd <https://github.com/apache/airflow/commit/b6392ae5fd466fa06ca92c061a0f93272e27a26b>`_  2023-03-07   ``Support deleting the local log files when using remote logging (#29772)``
+`bf27e5379c <https://github.com/apache/airflow/commit/bf27e5379cbd2b77c9917cd4f0be48a8d24bbabb>`_  2023-03-05   ``Move string enum class to utils module + add test (#29906)``
+`971039454a <https://github.com/apache/airflow/commit/971039454a3684d0ea7261dfe91f34ac4b62af72>`_  2023-03-04   ``Align cncf provider file names with AIP-21 (#29905)``
+`2cebdc5007 <https://github.com/apache/airflow/commit/2cebdc5007f90b42937b2a0346f3c727dc36e131>`_  2023-03-03   ``rewrite polling code for appflow hook (#28869)``
+=================================================================================================  ===========  ============================================================================
+
+7.3.0
+.....
+
+Latest change: 2023-03-03
+
+=================================================================================================  ===========  =======================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================================================
+`fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
+`76d8aaa836 <https://github.com/apache/airflow/commit/76d8aaa8362ba199d98680d71ccb3a800cbc4d38>`_  2023-03-02   ``Fix Amazon ECS Enums (#29871)``
+`faf792f634 <https://github.com/apache/airflow/commit/faf792f634f3d2dae672ca184b4d95bd4834924d>`_  2023-03-02   ``Implement custom boto waiters for some EMR operators (#29822)``
+`ea8ce218b9 <https://github.com/apache/airflow/commit/ea8ce218b9abe3c69f4c2d8c65180cf8bafebdd6>`_  2023-03-02   ``Impovements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
+`181a825259 <https://github.com/apache/airflow/commit/181a8252597e314e5675e2b9655cb44da412eeb2>`_  2023-03-01   ``Use waiters in ECS Operators instead of inner sensors (#29761)``
+`5de47910f3 <https://github.com/apache/airflow/commit/5de47910f3ebd803453b8fb5ca6e4f26ad611375>`_  2023-03-01   ``Allow to specify which connection, variable or config are being looked up in the backend using *_lookup_pattern parameters (#29580)``
+`1f7bc1ab3c <https://github.com/apache/airflow/commit/1f7bc1ab3c5bc5d51dda40197b52a111cb1f22ee>`_  2023-02-28   ``add num rows affected to Redshift Data API hook (#29797)``
+`4b36137a31 <https://github.com/apache/airflow/commit/4b36137a31241d0f502604213546b6bf677fea69>`_  2023-02-28   ``Implement file credentials provider for AWS hook AssumeRoleWithWebIdentity (#29623)``
+`df4abcbcfe <https://github.com/apache/airflow/commit/df4abcbcfed2ddca3ad06d67b1fb721de9e1755d>`_  2023-02-27   ``fix code checking job names in sagemaker (#29245)``
+`38b901ec3f <https://github.com/apache/airflow/commit/38b901ec3f07e6e65880b11cc432fb8ad6243629>`_  2023-02-24   ``Standardize AWS lambda naming (#29749)``
+`5e006d743d <https://github.com/apache/airflow/commit/5e006d743d1ba3781acd8e053642f2367a8e7edc>`_  2023-02-23   ``Avoid emitting fallback message for S3TaskHandler if streaming logs (#29708)``
+`ba2d562cfb <https://github.com/apache/airflow/commit/ba2d562cfb36c5b9b845251f991c3d5bfa17db4f>`_  2023-02-22   ``Add 'wait_for_completion' param in 'RedshiftCreateClusterOperator' (#29657)``
+`6c13f04365 <https://github.com/apache/airflow/commit/6c13f04365b916e938e3bea57e37fc80890b8377>`_  2023-02-22   ``AWS Glue job hook: Make s3_bucket parameter optional (#29659)``
+`45419e23a9 <https://github.com/apache/airflow/commit/45419e23a955299da956c7a73261f629fb6deaef>`_  2023-02-20   ``'RedshiftDataOperator' replace 'await_result' with 'wait_for_completion' (#29633)``
+`0604033829 <https://github.com/apache/airflow/commit/0604033829787ebed59b9982bf08c1a68d93b120>`_  2023-02-20   ``Add Amazon Redshift-data to S3<>RS Transfer Operators (#27947)``
+=================================================================================================  ===========  =======================================================================================================================================
+
 7.2.1
 .....
 
-Latest change: 2023-02-17
+Latest change: 2023-02-18
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`470fdaea27 <https://github.com/apache/airflow/commit/470fdaea275660970777c0f72b8867b382eabc14>`_  2023-02-18   ``Prepare docs for 02 2023 midmonth wave of Providers (#29589)``
 `46d45e09cb <https://github.com/apache/airflow/commit/46d45e09cb5607ae583929f3eba1923a64631f48>`_  2023-02-17   ``Explicitly handle exceptions raised by config parsing in AWS provider (#29587)``
 `cadab59e8d <https://github.com/apache/airflow/commit/cadab59e8df90588b07cf8d9ee3ce13f9a79f656>`_  2023-02-15   ``Fix docstring for EcsRunTaskOperator region_name -> region (#29562)``
 `f9e9d23457 <https://github.com/apache/airflow/commit/f9e9d23457cba5d3e18b5bdb7b65ecc63735b65b>`_  2023-02-11   ``Restore trigger logging (#29482)``

@@ -18,14 +18,14 @@
 """This module contains Google BigQuery to Google Cloud Storage operator."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
-from google.cloud.bigquery import DEFAULT_RETRY, ExtractJob
+from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
@@ -60,9 +60,6 @@ class BigQueryToGCSOperator(BaseOperator):
     :param field_delimiter: The delimiter to use when extracting to a CSV.
     :param print_header: Whether to print a header for a CSV file extract.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :param location: The location used for the operation.
@@ -93,6 +90,7 @@ class BigQueryToGCSOperator(BaseOperator):
         "export_format",
         "labels",
         "impersonation_chain",
+        "job_id",
     )
     template_ext: Sequence[str] = ()
     ui_color = "#e4e6f0"
@@ -109,7 +107,6 @@ class BigQueryToGCSOperator(BaseOperator):
         field_delimiter: str = ",",
         print_header: bool = True,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         labels: dict | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -118,7 +115,7 @@ class BigQueryToGCSOperator(BaseOperator):
         job_id: str | None = None,
         force_rerun: bool = False,
         reattach_states: set[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -130,11 +127,6 @@ class BigQueryToGCSOperator(BaseOperator):
         self.field_delimiter = field_delimiter
         self.print_header = print_header
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.labels = labels
         self.location = location
         self.impersonation_chain = impersonation_chain
@@ -147,14 +139,14 @@ class BigQueryToGCSOperator(BaseOperator):
         self.deferrable = deferrable
 
     @staticmethod
-    def _handle_job_error(job: ExtractJob) -> None:
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
     def _prepare_configuration(self):
         source_project, source_dataset, source_table = self.hook.split_tablename(
             table_input=self.source_project_dataset_table,
-            default_project_id=self.project_id or self.hook.project_id,
+            default_project_id=self.hook.project_id,
             var_name="source_project_dataset_table",
         )
 
@@ -192,12 +184,12 @@ class BigQueryToGCSOperator(BaseOperator):
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=hook.project_id,
+            project_id=self.project_id or hook.project_id,
             location=self.location,
             job_id=job_id,
             timeout=self.result_timeout,
             retry=self.result_retry,
-            nowait=True,
+            nowait=self.deferrable,
         )
 
     def execute(self, context: Context):
@@ -208,7 +200,6 @@ class BigQueryToGCSOperator(BaseOperator):
         )
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
@@ -226,7 +217,9 @@ class BigQueryToGCSOperator(BaseOperator):
 
         try:
             self.log.info("Executing: %s", configuration)
-            job: ExtractJob = self._submit_job(hook=hook, job_id=job_id, configuration=configuration)
+            job: BigQueryJob | UnknownJob = self._submit_job(
+                hook=hook, job_id=job_id, configuration=configuration
+            )
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(
@@ -262,7 +255,7 @@ class BigQueryToGCSOperator(BaseOperator):
                 trigger=BigQueryInsertJobTrigger(
                     conn_id=self.gcp_conn_id,
                     job_id=job_id,
-                    project_id=self.hook.project_id,
+                    project_id=self.project_id or self.hook.project_id,
                 ),
                 method_name="execute_complete",
             )
@@ -272,8 +265,8 @@ class BigQueryToGCSOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])

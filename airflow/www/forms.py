@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import json
+import operator
 from datetime import datetime as dt
+from typing import Iterator
 
 import pendulum
 from flask_appbuilder.fieldwidgets import (
@@ -34,9 +36,12 @@ from wtforms import widgets
 from wtforms.fields import Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField
 from wtforms.validators import InputRequired, Optional
 
+from airflow.compat.functools import cache
 from airflow.configuration import conf
+from airflow.providers_manager import ProvidersManager
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+from airflow.www.validators import ValidKey
 from airflow.www.widgets import (
     AirflowDateTimePickerROWidget,
     AirflowDateTimePickerWidget,
@@ -89,7 +94,7 @@ class DateTimeWithTimezoneField(Field):
 
 
 class DateTimeForm(FlaskForm):
-    """Date filter form needed for task views"""
+    """Date filter form needed for task views."""
 
     execution_date = DateTimeWithTimezoneField("Logical date", widget=AirflowDateTimePickerWidget())
 
@@ -97,7 +102,7 @@ class DateTimeForm(FlaskForm):
 class DateTimeWithNumRunsForm(FlaskForm):
     """
     Date time and number of runs form for tree view, task duration
-    and landing times
+    and landing times.
     """
 
     base_date = DateTimeWithTimezoneField(
@@ -117,7 +122,7 @@ class DateTimeWithNumRunsForm(FlaskForm):
 
 
 class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
-    """Date time and number of runs and dag runs form for graph and gantt view"""
+    """Date time and number of runs and dag runs form for graph and gantt view."""
 
     execution_date = SelectField("DAG run")
 
@@ -149,7 +154,7 @@ class DagRunEditForm(DynamicForm):
 
 
 class TaskInstanceEditForm(DynamicForm):
-    """Form for editing TaskInstance"""
+    """Form for editing TaskInstance."""
 
     dag_id = StringField(lazy_gettext("Dag Id"), validators=[InputRequired()], widget=BS3TextFieldROWidget())
     task_id = StringField(
@@ -176,17 +181,59 @@ class TaskInstanceEditForm(DynamicForm):
     note = TextAreaField(lazy_gettext("User Note"), widget=BS3TextAreaFieldWidget())
 
 
-class ConnectionForm(DynamicForm):
-    """Form for editing and adding Connection"""
+@cache
+def create_connection_form_class() -> type[DynamicForm]:
+    """Create a form class for editing and adding Connection.
 
-    conn_id = StringField(
-        lazy_gettext("Connection Id"), validators=[InputRequired()], widget=BS3TextFieldWidget()
-    )
-    # conn_type is added later via lazy_add_provider_discovered_options_to_connection_form
-    description = StringField(lazy_gettext("Description"), widget=BS3TextAreaFieldWidget())
-    host = StringField(lazy_gettext("Host"), widget=BS3TextFieldWidget())
-    schema = StringField(lazy_gettext("Schema"), widget=BS3TextFieldWidget())
-    login = StringField(lazy_gettext("Login"), widget=BS3TextFieldWidget())
-    password = PasswordField(lazy_gettext("Password"), widget=BS3PasswordFieldWidget())
-    port = IntegerField(lazy_gettext("Port"), validators=[Optional()], widget=BS3TextFieldWidget())
-    extra = TextAreaField(lazy_gettext("Extra"), widget=BS3TextAreaFieldWidget())
+    This class is created dynamically because it relies heavily on run-time
+    provider discovery, which slows down webserver startup a lot.
+    By creating the class at runtime, we can delay loading the providers until
+    when the connection form is first used, which may as well be never for a
+    short-lived server.
+    """
+    providers_manager = ProvidersManager()
+
+    def _iter_connection_types() -> Iterator[tuple[str, str]]:
+        """List available connection types."""
+        yield ("email", "Email")
+        yield ("fs", "File (path)")
+        yield ("generic", "Generic")
+        yield ("mesos_framework-id", "Mesos Framework ID")
+        for connection_type, provider_info in providers_manager.hooks.items():
+            if provider_info:
+                yield (connection_type, provider_info.hook_name)
+
+    class ConnectionForm(DynamicForm):
+        def process(self, formdata=None, obj=None, **kwargs):
+            super().process(formdata=formdata, obj=obj, **kwargs)
+            for field in self._fields.values():
+                if isinstance(getattr(field, "data", None), str):
+                    field.data = field.data.strip()
+
+        conn_id = StringField(
+            lazy_gettext("Connection Id"),
+            validators=[InputRequired(), ValidKey()],
+            widget=BS3TextFieldWidget(),
+        )
+        conn_type = SelectField(
+            lazy_gettext("Connection Type"),
+            choices=sorted(_iter_connection_types(), key=operator.itemgetter(1)),
+            widget=Select2Widget(),
+            validators=[InputRequired()],
+            description=(
+                "Connection Type missing? Make sure you've installed the "
+                "corresponding Airflow Provider Package."
+            ),
+        )
+        description = StringField(lazy_gettext("Description"), widget=BS3TextAreaFieldWidget())
+        host = StringField(lazy_gettext("Host"), widget=BS3TextFieldWidget())
+        schema = StringField(lazy_gettext("Schema"), widget=BS3TextFieldWidget())
+        login = StringField(lazy_gettext("Login"), widget=BS3TextFieldWidget())
+        password = PasswordField(lazy_gettext("Password"), widget=BS3PasswordFieldWidget())
+        port = IntegerField(lazy_gettext("Port"), validators=[Optional()], widget=BS3TextFieldWidget())
+        extra = TextAreaField(lazy_gettext("Extra"), widget=BS3TextAreaFieldWidget())
+
+    for key, value in providers_manager.connection_form_widgets.items():
+        setattr(ConnectionForm, key, value.field)
+
+    return ConnectionForm

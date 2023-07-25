@@ -25,17 +25,19 @@ if TYPE_CHECKING:
 
 BUILD_BASE_LINK = "/cloud-build"
 
-BUILD_LINK = BUILD_BASE_LINK + "/builds/{build_id}?project={project_id}"
+BUILD_LINK = BUILD_BASE_LINK + "/builds;region={region}/{build_id}?project={project_id}"
 
-BUILD_LIST_LINK = BUILD_BASE_LINK + "/builds?project={project_id}"
+BUILD_LIST_LINK = BUILD_BASE_LINK + "/builds;region={region}?project={project_id}"
 
-BUILD_TRIGGERS_LIST_LINK = BUILD_BASE_LINK + "/triggers?project={project_id}"
+BUILD_TRIGGERS_LIST_LINK = BUILD_BASE_LINK + "/triggers;region={region}?project={project_id}"
 
-BUILD_TRIGGER_DETAILS_LINK = BUILD_BASE_LINK + "/triggers/edit/{trigger_id}?project={project_id}"
+BUILD_TRIGGER_DETAILS_LINK = (
+    BUILD_BASE_LINK + "/triggers;region={region}/edit/{trigger_id}?project={project_id}"
+)
 
 
 class CloudBuildLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build link"""
+    """Helper class for constructing Cloud Build link."""
 
     name = "Cloud Build Details"
     key = "cloud_build_key"
@@ -47,19 +49,21 @@ class CloudBuildLink(BaseGoogleLink):
         task_instance,
         build_id: str,
         project_id: str,
+        region: str,
     ):
         task_instance.xcom_push(
             context=context,
             key=CloudBuildLink.key,
             value={
                 "project_id": project_id,
+                "region": region,
                 "build_id": build_id,
             },
         )
 
 
 class CloudBuildListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build List link"""
+    """Helper class for constructing Cloud Build List link."""
 
     name = "Cloud Builds List"
     key = "cloud_build_list_key"
@@ -70,18 +74,20 @@ class CloudBuildListLink(BaseGoogleLink):
         context: Context,
         task_instance,
         project_id: str,
+        region: str,
     ):
         task_instance.xcom_push(
             context=context,
             key=CloudBuildListLink.key,
             value={
                 "project_id": project_id,
+                "region": region,
             },
         )
 
 
 class CloudBuildTriggersListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build Triggers List link"""
+    """Helper class for constructing Cloud Build Triggers List link."""
 
     name = "Cloud Build Triggers List"
     key = "cloud_build_triggers_list_key"
@@ -92,18 +98,20 @@ class CloudBuildTriggersListLink(BaseGoogleLink):
         context: Context,
         task_instance,
         project_id: str,
+        region: str,
     ):
         task_instance.xcom_push(
             context=context,
             key=CloudBuildTriggersListLink.key,
             value={
                 "project_id": project_id,
+                "region": region,
             },
         )
 
 
 class CloudBuildTriggerDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build Trigger Details link"""
+    """Helper class for constructing Cloud Build Trigger Details link."""
 
     name = "Cloud Build Triggers Details"
     key = "cloud_build_triggers_details_key"
@@ -114,6 +122,7 @@ class CloudBuildTriggerDetailsLink(BaseGoogleLink):
         context: Context,
         task_instance,
         project_id: str,
+        region: str,
         trigger_id: str,
     ):
         task_instance.xcom_push(
@@ -121,6 +130,7 @@ class CloudBuildTriggerDetailsLink(BaseGoogleLink):
             key=CloudBuildTriggerDetailsLink.key,
             value={
                 "project_id": project_id,
+                "region": region,
                 "trigger_id": trigger_id,
             },
         )

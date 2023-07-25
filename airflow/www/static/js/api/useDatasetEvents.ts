@@ -17,31 +17,49 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from 'axios';
-import { useQuery } from 'react-query';
+import axios, { AxiosResponse } from "axios";
+import { useQuery } from "react-query";
 
-import { getMetaValue } from 'src/utils';
-import type { API } from 'src/types';
-import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
+import { getMetaValue } from "src/utils";
+import type { API } from "src/types";
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
 export default function useDatasetEvents({
-  datasetId, sourceDagId, sourceRunId, sourceTaskId, sourceMapIndex, limit, offset, orderBy,
+  datasetId,
+  sourceDagId,
+  sourceRunId,
+  sourceTaskId,
+  sourceMapIndex,
+  limit,
+  offset,
+  orderBy,
 }: API.GetDatasetEventsVariables) {
   const query = useQuery(
-    ['datasets-events', datasetId, sourceDagId, sourceRunId, sourceTaskId, sourceMapIndex, limit, offset, orderBy],
+    [
+      "datasets-events",
+      datasetId,
+      sourceDagId,
+      sourceRunId,
+      sourceTaskId,
+      sourceMapIndex,
+      limit,
+      offset,
+      orderBy,
+    ],
     () => {
-      const datasetsUrl = getMetaValue('dataset_events_api');
+      const datasetsUrl = getMetaValue("dataset_events_api");
 
       const params = new URLSearchParamsWrapper();
 
-      if (limit) params.set('limit', limit.toString());
-      if (offset) params.set('offset', offset.toString());
-      if (orderBy) params.set('order_by', orderBy);
-      if (datasetId) params.set('dataset_id', datasetId.toString());
-      if (sourceDagId) params.set('source_dag_id', sourceDagId);
-      if (sourceRunId) params.set('source_run_id', sourceRunId);
-      if (sourceTaskId) params.set('source_task_id', sourceTaskId);
-      if (sourceMapIndex) params.set('source_map_index', sourceMapIndex.toString());
+      if (limit) params.set("limit", limit.toString());
+      if (offset) params.set("offset", offset.toString());
+      if (orderBy) params.set("order_by", orderBy);
+      if (datasetId) params.set("dataset_id", datasetId.toString());
+      if (sourceDagId) params.set("source_dag_id", sourceDagId);
+      if (sourceRunId) params.set("source_run_id", sourceRunId);
+      if (sourceTaskId) params.set("source_task_id", sourceTaskId);
+      if (sourceMapIndex)
+        params.set("source_map_index", sourceMapIndex.toString());
 
       return axios.get<AxiosResponse, API.DatasetEventCollection>(datasetsUrl, {
         params,
@@ -49,7 +67,7 @@ export default function useDatasetEvents({
     },
     {
       keepPreviousData: true,
-    },
+    }
   );
   return {
     ...query,

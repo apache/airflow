@@ -18,14 +18,20 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 
 # Use dummy AWS credentials
+from airflow.providers.amazon.aws.triggers.batch import (
+    BatchCreateComputeEnvironmentTrigger,
+    BatchJobTrigger,
+)
+
 AWS_REGION = "eu-west-1"
 AWS_ACCESS_KEY_ID = "airflow_dummy_key"
 AWS_SECRET_ACCESS_KEY = "airflow_dummy_secret"
@@ -48,7 +54,7 @@ class TestBatchOperator:
     @mock.patch.dict("os.environ", AWS_ACCESS_KEY_ID=AWS_ACCESS_KEY_ID)
     @mock.patch.dict("os.environ", AWS_SECRET_ACCESS_KEY=AWS_SECRET_ACCESS_KEY)
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def setup_method(self, method, get_client_type_mock):
+    def setup_method(self, _, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
         self.batch = BatchOperator(
             task_id="task",
@@ -58,7 +64,7 @@ class TestBatchOperator:
             max_retries=self.MAX_RETRIES,
             status_retries=self.STATUS_RETRIES,
             parameters=None,
-            overrides={},
+            container_overrides={},
             array_properties=None,
             aws_conn_id="airflow_test",
             region_name="eu-west-1",
@@ -91,8 +97,11 @@ class TestBatchOperator:
         assert self.batch.hook.max_retries == self.MAX_RETRIES
         assert self.batch.hook.status_retries == self.STATUS_RETRIES
         assert self.batch.parameters == {}
-        assert self.batch.overrides == {}
-        assert self.batch.array_properties == {}
+        assert self.batch.container_overrides == {}
+        assert self.batch.array_properties is None
+        assert self.batch.node_overrides is None
+        assert self.batch.share_identifier is None
+        assert self.batch.scheduling_priority_override is None
         assert self.batch.hook.region_name == "eu-west-1"
         assert self.batch.hook.aws_conn_id == "airflow_test"
         assert self.batch.hook.client == self.client_mock
@@ -107,12 +116,15 @@ class TestBatchOperator:
             "job_name",
             "job_definition",
             "job_queue",
-            "overrides",
+            "container_overrides",
             "array_properties",
+            "node_overrides",
             "parameters",
             "waiters",
             "tags",
             "wait_for_completion",
+            "awslogs_enabled",
+            "awslogs_fetch_interval",
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -131,7 +143,6 @@ class TestBatchOperator:
             jobName=JOB_NAME,
             containerOverrides={},
             jobDefinition="hello-world",
-            arrayProperties={},
             parameters={},
             tags={},
         )
@@ -155,7 +166,6 @@ class TestBatchOperator:
             jobName=JOB_NAME,
             containerOverrides={},
             jobDefinition="hello-world",
-            arrayProperties={},
             parameters={},
             tags={},
         )
@@ -166,9 +176,17 @@ class TestBatchOperator:
         self.batch.waiters = mock_waiters
 
         self.client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
-        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "status": "SUCCEEDED",
+                    "logStreamName": "logStreamName",
+                    "container": {"logConfiguration": {}},
+                }
+            ]
+        }
         self.batch.execute(self.mock_context)
-
         mock_waiters.wait_for_job.assert_called_once_with(JOB_ID)
         check_mock.assert_called_once_with(JOB_ID)
 
@@ -185,6 +203,106 @@ class TestBatchOperator:
         self.client_mock.terminate_job.return_value = {}
         self.batch.on_kill()
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
+
+    @pytest.mark.parametrize("override", ["overrides", "node_overrides"])
+    @patch(
+        "airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.client",
+        new_callable=mock.PropertyMock,
+    )
+    def test_override_not_sent_if_not_set(self, client_mock, override):
+        """
+        check that when setting container override or node override, the other key is not sent
+        in the API call (which would create a validation error from boto)
+        """
+        override_arg = {override: {"a": "a"}}
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            **override_arg,
+            # setting those to bypass code that is not relevant here
+            do_xcom_push=False,
+            wait_for_completion=False,
+        )
+
+        batch.execute(None)
+
+        expected_args = {
+            "jobQueue": "queue",
+            "jobName": JOB_NAME,
+            "jobDefinition": "hello-world",
+            "parameters": {},
+            "tags": {},
+        }
+        if override == "overrides":
+            expected_args["containerOverrides"] = {"a": "a"}
+        else:
+            expected_args["nodeOverrides"] = {"a": "a"}
+        client_mock().submit_job.assert_called_once_with(**expected_args)
+
+    def test_deprecated_override_param(self):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            _ = BatchOperator(
+                task_id="task",
+                job_name=JOB_NAME,
+                job_queue="queue",
+                job_definition="hello-world",
+                overrides={"a": "b"},  # <- the deprecated field
+            )
+
+    def test_cant_set_old_and_new_override_param(self):
+        with pytest.raises(AirflowException):
+            _ = BatchOperator(
+                task_id="task",
+                job_name=JOB_NAME,
+                job_queue="queue",
+                job_definition="hello-world",
+                # can't set both of those, as one is a replacement for the other
+                overrides={"a": "b"},
+                container_overrides={"a": "b"},
+            )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_defer_if_deferrable_param_set(self, mock_client):
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            do_xcom_push=False,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            batch.execute(context=None)
+        assert isinstance(exc.value.trigger, BatchJobTrigger)
+
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    @mock.patch.object(BatchClientHook, "wait_for_job")
+    @mock.patch.object(BatchClientHook, "check_job_success")
+    @mock.patch("airflow.providers.amazon.aws.links.batch.BatchJobQueueLink.persist")
+    @mock.patch("airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink.persist")
+    def test_monitor_job_with_logs(
+        self, job_definition_persist_mock, job_queue_persist_mock, check_mock, wait_mock, job_description_mock
+    ):
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            awslogs_enabled=True,
+        )
+
+        batch.job_id = JOB_ID
+
+        batch.monitor_job(context=None)
+
+        job_description_mock.assert_called_with(job_id=JOB_ID)
+        job_definition_persist_mock.assert_called_once()
+        job_queue_persist_mock.assert_called_once()
+        wait_mock.assert_called_once()
+        assert len(wait_mock.call_args) == 2
 
 
 class TestBatchCreateComputeEnvironmentOperator:
@@ -211,3 +329,25 @@ class TestBatchCreateComputeEnvironmentOperator:
             computeResources=compute_resources,
             tags=tags,
         )
+
+    @mock.patch.object(BatchClientHook, "client")
+    def test_defer(self, client_mock):
+        client_mock.create_compute_environment.return_value = {"computeEnvironmentArn": "my_arn"}
+
+        operator = BatchCreateComputeEnvironmentOperator(
+            task_id="task",
+            compute_environment_name="my_env_name",
+            environment_type="my_env_type",
+            state="my_state",
+            compute_resources={},
+            max_retries=123456,
+            poll_interval=456789,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as deferred:
+            operator.execute(None)
+
+        assert isinstance(deferred.value.trigger, BatchCreateComputeEnvironmentTrigger)
+        assert deferred.value.trigger.waiter_delay == 456789
+        assert deferred.value.trigger.attempts == 123456

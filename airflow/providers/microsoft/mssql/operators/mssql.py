@@ -20,12 +20,13 @@ from __future__ import annotations
 import warnings
 from typing import Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
 class MsSqlOperator(SQLExecuteQueryOperator):
     """
-    Executes sql code in a specific Microsoft SQL database
+    Executes sql code in a specific Microsoft SQL database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -35,6 +36,10 @@ class MsSqlOperator(SQLExecuteQueryOperator):
 
     If conn_type is ``'odbc'``, then :py:class:`~airflow.providers.odbc.hooks.odbc.OdbcHook`
     is used.  Otherwise, :py:class:`~airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook` is used.
+
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
 
     :param sql: the sql code to be executed (templated)
     :param mssql_conn_id: reference to a specific mssql database
@@ -61,6 +66,6 @@ class MsSqlOperator(SQLExecuteQueryOperator):
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
             Also, you can provide `hook_params={'schema': <database>}`.""",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )

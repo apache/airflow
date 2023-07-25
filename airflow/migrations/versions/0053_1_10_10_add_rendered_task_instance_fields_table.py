@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import text
 
 from airflow.migrations.db_types import StringID
 
@@ -48,7 +49,7 @@ def upgrade():
         # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
         # versions, check for the function existing.
         try:
-            conn.execute("SELECT JSON_VALID(1)").fetchone()
+            conn.execute(text("SELECT JSON_VALID(1)")).fetchone()
         except (sa.exc.OperationalError, sa.exc.ProgrammingError):
             json_type = sa.Text
 

@@ -58,7 +58,7 @@ class FileTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> typing.AsyncIterator["TriggerEvent"]:
+    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """Loop until the relevant files are found."""
         while True:
             for path in glob(self.filepath, recursive=self.recursive):

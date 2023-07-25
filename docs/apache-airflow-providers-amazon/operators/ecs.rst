@@ -28,7 +28,7 @@ Airflow provides operators to run Task Definitions on an ECS cluster.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------
@@ -250,7 +250,7 @@ both can be overridden with provided values.  Raises an AirflowException with
 the failure reason if a failed state is provided and that state is reached
 before the target state.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ecs_fargate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_ecs_task_state]

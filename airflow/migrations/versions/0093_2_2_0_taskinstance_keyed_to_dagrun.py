@@ -156,7 +156,7 @@ def upgrade():
             "run_id", existing_type=string_id_col_type, existing_nullable=True, nullable=False
         )
 
-        batch_op.drop_constraint("task_reschedule_dag_task_date_fkey", "foreignkey")
+        batch_op.drop_constraint("task_reschedule_dag_task_date_fkey", type_="foreignkey")
         if dialect_name == "mysql":
             # Mysql creates an index and a constraint -- we have to drop both
             batch_op.drop_index("task_reschedule_dag_task_date_fkey")
@@ -351,8 +351,8 @@ def downgrade():
     if dialect_name == "mssql":
 
         with op.batch_alter_table("dag_run", schema=None) as batch_op:
-            batch_op.drop_constraint("dag_run_dag_id_execution_date_key", "unique")
-            batch_op.drop_constraint("dag_run_dag_id_run_id_key", "unique")
+            batch_op.drop_constraint("dag_run_dag_id_execution_date_key", type_="unique")
+            batch_op.drop_constraint("dag_run_dag_id_run_id_key", type_="unique")
             batch_op.drop_index("dag_id_state")
             batch_op.drop_index("idx_dag_run_running_dags")
             batch_op.drop_index("idx_dag_run_queued_dags")
@@ -403,7 +403,7 @@ def _multi_table_update(dialect_name, target, column):
     if dialect_name == "sqlite":
         # Most SQLite versions don't support multi table update (and SQLA doesn't know about it anyway), so we
         # need to do a Correlated subquery update
-        sub_q = select([dag_run.c[column.name]]).where(condition)
+        sub_q = select(dag_run.c[column.name]).where(condition)
 
         return target.update().values({column: sub_q})
     else:

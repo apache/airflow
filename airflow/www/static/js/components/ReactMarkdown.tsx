@@ -35,35 +35,33 @@ import {
   Thead,
   Tr,
   UnorderedList,
-} from '@chakra-ui/react';
-import React, { PropsWithChildren, ReactNode } from 'react';
+} from "@chakra-ui/react";
+import React, { PropsWithChildren, ReactNode } from "react";
 
-import type { Components } from 'react-markdown';
+import type { Components } from "react-markdown";
 
-import ReactMD from 'react-markdown';
-import type { ReactMarkdownOptions } from 'react-markdown/lib/react-markdown';
+import ReactMD from "react-markdown";
+import type { ReactMarkdownOptions } from "react-markdown/lib/react-markdown";
 
-import remarkGfm from 'remark-gfm';
+import remarkGfm from "remark-gfm";
 
 const fontSizeMapping = {
-  h1: '1.5em',
-  h2: '1.25em',
-  h3: '1.125em',
-  h4: '1em',
-  h5: '0.875em',
-  h6: '0.75em',
+  h1: "1.5em",
+  h2: "1.25em",
+  h3: "1.125em",
+  h4: "1em",
+  h5: "0.875em",
+  h6: "0.75em",
 };
 
-const makeHeading = (h: keyof typeof fontSizeMapping) => (
-  {
-    children,
-    ...props
-  }: PropsWithChildren,
-) => (
-  <Heading as={h} fontSize={fontSizeMapping[h]} {...props} my={3}>
-    {children}
-  </Heading>
-);
+const makeHeading =
+  (h: keyof typeof fontSizeMapping) =>
+  ({ children, ...props }: PropsWithChildren) =>
+    (
+      <Heading as={h} fontSize={fontSizeMapping[h]} {...props} my={3}>
+        {children}
+      </Heading>
+    );
 
 const components = {
   p: ({ children }: PropsWithChildren) => <Text>{children}</Text>,
@@ -80,8 +78,15 @@ const components = {
       {children}
     </Box>
   ),
-  code: ({ inline, className, children }: {
-    inline?: boolean, className?: string, children: ReactNode }) => {
+  code: ({
+    inline,
+    className,
+    children,
+  }: {
+    inline?: boolean;
+    className?: string;
+    children: ReactNode;
+  }) => {
     if (inline) {
       return <Code p={2}>{children}</Code>;
     }
@@ -100,44 +105,38 @@ const components = {
   },
   del: ({ children }: PropsWithChildren) => <Text as="del">{children}</Text>,
   hr: () => <Divider my={3} />,
-  a: ({ href, title, children }: { href: string, title?: string, children: ReactNode }) => <Link fontWeight="bold" color="blue.600" href={href} title={title}>{children}</Link>,
+  a: ({
+    href,
+    title,
+    children,
+  }: {
+    href: string;
+    title?: string;
+    children: ReactNode;
+  }) => (
+    <Link fontWeight="bold" color="blue.600" href={href} title={title}>
+      {children}
+    </Link>
+  ),
   img: (props: ImageProps) => <Image my={3} {...props} maxWidth="300px" />,
   text: ({ children }: PropsWithChildren) => <Text as="span">{children}</Text>,
-  ul: ({
-    children,
-  }: PropsWithChildren) => (
-    <UnorderedList
-      spacing={1}
-      pl={4}
-      mb={3}
-    >
+  ul: ({ children }: PropsWithChildren) => (
+    <UnorderedList spacing={1} pl={4} mb={3}>
       {children}
     </UnorderedList>
   ),
-  ol: ({
-    children,
-  }: PropsWithChildren) => (
-    <OrderedList
-      spacing={1}
-      pl={4}
-      mb={3}
-    >
+  ol: ({ children }: PropsWithChildren) => (
+    <OrderedList spacing={1} pl={4} mb={3}>
       {children}
     </OrderedList>
   ),
-  li: ({
-    children,
-  }: PropsWithChildren) => (
-    <ListItem>
-      {children}
-    </ListItem>
-  ),
-  h1: makeHeading('h1'),
-  h2: makeHeading('h2'),
-  h3: makeHeading('h3'),
-  h4: makeHeading('h4'),
-  h5: makeHeading('h5'),
-  h6: makeHeading('h6'),
+  li: ({ children }: PropsWithChildren) => <ListItem>{children}</ListItem>,
+  h1: makeHeading("h1"),
+  h2: makeHeading("h2"),
+  h3: makeHeading("h3"),
+  h4: makeHeading("h4"),
+  h5: makeHeading("h5"),
+  h6: makeHeading("h6"),
   pre: ({ children }: PropsWithChildren) => <Code my={3}>{children}</Code>,
   table: ({ children }: PropsWithChildren) => <Table mb={3}>{children}</Table>,
   thead: Thead,

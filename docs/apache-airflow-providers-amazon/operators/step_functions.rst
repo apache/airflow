@@ -26,7 +26,7 @@ machines to execute the steps of your application in a reliable and scalable fas
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------
@@ -38,6 +38,7 @@ Start an AWS Step Functions state machine execution
 
 To start a new AWS Step Functions state machine execution you can use
 :class:`~airflow.providers.amazon.aws.operators.step_function.StepFunctionStartExecutionOperator`.
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_step_functions.py
     :language: python

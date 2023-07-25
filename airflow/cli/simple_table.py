@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import inspect
 import json
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
@@ -27,8 +27,13 @@ from rich.table import Table
 from tabulate import tabulate
 
 from airflow.plugins_manager import PluginsDirectorySource
+from airflow.typing_compat import TypeGuard
 from airflow.utils import yaml
 from airflow.utils.platform import is_tty
+
+
+def is_data_sequence(data: Sequence[dict | Any]) -> TypeGuard[Sequence[dict]]:
+    return all(isinstance(d, dict) for d in data)
 
 
 class AirflowConsole(Console):
@@ -88,7 +93,12 @@ class AirflowConsole(Console):
             return None
         return str(value)
 
-    def print_as(self, data: list[dict | Any], output: str, mapper: Callable | None = None):
+    def print_as(
+        self,
+        data: Sequence[dict | Any],
+        output: str,
+        mapper: Callable[[Any], dict] | None = None,
+    ) -> None:
         """Prints provided using format specified by output argument."""
         output_to_renderer: dict[str, Callable[[Any], None]] = {
             "json": self.print_as_json,
@@ -102,13 +112,12 @@ class AirflowConsole(Console):
                 f"Unknown formatter: {output}. Allowed options: {list(output_to_renderer.keys())}"
             )
 
-        if not all(isinstance(d, dict) for d in data) and not mapper:
-            raise ValueError("To tabulate non-dictionary data you need to provide `mapper` function")
-
         if mapper:
-            dict_data: list[dict] = [mapper(d) for d in data]
-        else:
+            dict_data: Sequence[dict] = [mapper(d) for d in data]
+        elif is_data_sequence(data):
             dict_data = data
+        else:
+            raise ValueError("To tabulate non-dictionary data you need to provide `mapper` function")
         dict_data = [{k: self._normalize_data(v, output) for k, v in d.items()} for d in dict_data]
         renderer(dict_data)
 

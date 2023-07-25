@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.dataform import DataformHook
@@ -31,7 +32,6 @@ REGION = "region"
 REPOSITORY_ID = "test_repository"
 WORKSPACE_ID = "test_workspace"
 GCP_CONN_ID = "google_cloud_default"
-DELEGATE_TO = "test-delegate-to"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 COMPILATION_RESULT = {
     "git_commitish": "main",
@@ -53,6 +53,10 @@ FILE_CONTENTS = b"test content"
 
 
 class TestDataflowHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            DataformHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"),
@@ -60,7 +64,6 @@ class TestDataflowHook:
         ):
             self.hook = DataformHook(
                 gcp_conn_id=GCP_CONN_ID,
-                delegate_to=DELEGATE_TO,
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
 

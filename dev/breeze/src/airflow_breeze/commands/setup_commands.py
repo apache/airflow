@@ -260,12 +260,18 @@ def dict_hash(dictionary: dict[str, Any]) -> str:
     """MD5 hash of a dictionary. Sorted and dumped via json to account for random sequence)"""
     # noinspection InsecureHash
     dhash = hashlib.md5()
-    encoded = json.dumps(dictionary, sort_keys=True, default=vars).encode()
+    try:
+        encoded = json.dumps(dictionary, sort_keys=True, default=vars).encode()
+    except TypeError:
+        get_console().print(dictionary)
+        raise
     dhash.update(encoded)
     return dhash.hexdigest()
 
 
 def get_command_hash_export() -> str:
+    import rich_click
+
     hashes = []
     with Context(main) as ctx:
         the_context_dict = ctx.to_info_dict()
@@ -273,15 +279,37 @@ def get_command_hash_export() -> str:
             get_stderr_console().print(the_context_dict)
         hashes.append(f"main:{dict_hash(the_context_dict['command']['params'])}")
         commands_dict = the_context_dict["command"]["commands"]
+        options = rich_click.rich_click.OPTION_GROUPS
         for command in sorted(commands_dict.keys()):
             current_command_dict = commands_dict[command]
+            current_command_hash_dict = {
+                "command": current_command_dict,
+                "options": rich_click.rich_click.COMMAND_GROUPS.get(f"breeze {command}"),
+            }
             if "commands" in current_command_dict:
                 subcommands = current_command_dict["commands"]
                 for subcommand in sorted(subcommands.keys()):
-                    hashes.append(f"{command}:{subcommand}:{dict_hash(subcommands[subcommand])}")
-                hashes.append(f"{command}:{dict_hash(current_command_dict)}")
+                    subcommand_click_dict = subcommands[subcommand]
+                    try:
+                        subcommand_rich_click_dict = options[f"breeze {command} {subcommand}"]
+                    except KeyError:
+                        get_console().print(
+                            f"[error]The `breeze {command} {subcommand}` is missing in rich-click options[/]"
+                        )
+                        get_console().print(
+                            "[info]Please add add it to rich_click.OPTION_GROUPS "
+                            "via one of the `*_commands_config.py` "
+                            "files in `dev/breeze/src/airflow_breeze/commands`[/]"
+                        )
+                        sys.exit(1)
+                    final_dict = {
+                        "click_commands": subcommand_click_dict,
+                        "rich_click_options": subcommand_rich_click_dict,
+                    }
+                    hashes.append(f"{command}:{subcommand}:{dict_hash(final_dict)}")
+                hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
             else:
-                hashes.append(f"{command}:{dict_hash(current_command_dict)}")
+                hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
     return "\n".join(hashes) + "\n"
 
 
@@ -492,7 +520,7 @@ def find_options_in_options_list(option: str, option_list: list[list[str]]) -> i
     return None
 
 
-def check_params(command: str, subcommand: str | None, command_dict: dict[str, Any]) -> bool:
+def errors_detected_in_params(command: str, subcommand: str | None, command_dict: dict[str, Any]) -> bool:
     import rich_click
 
     get_console().print(
@@ -508,7 +536,7 @@ def check_params(command: str, subcommand: str | None, command_dict: dict[str, A
             f"defined in rich click configuration."
         )
         get_console().print(f"[warning]Please add it to the `{command_path_config(command)}`.")
-        return False
+        return True
     rich_click_param_groups = options[rich_click_key]
     defined_param_names = [
         param["opts"] for param in command_dict["params"] if param["param_type_name"] == "option"
@@ -526,7 +554,7 @@ def check_params(command: str, subcommand: str | None, command_dict: dict[str, A
                         f"`{rich_click_key}` group in `{command_path_config(command)}`."
                     )
                     get_console().print(
-                        "[warning]Please remove it from there od add parameter in "
+                        "[warning]Please remove it from there or add parameter in "
                         "the command. NOTE! This error might be printed when the option is"
                         "added twice in the command definition!."
                     )
@@ -567,10 +595,10 @@ def check_that_all_params_are_in_groups(commands: tuple[str, ...]) -> int:
         if "commands" in current_command_dict:
             subcommands = current_command_dict["commands"]
             for subcommand in sorted(subcommands.keys()):
-                if check_params(command, subcommand, subcommands[subcommand]):
+                if errors_detected_in_params(command, subcommand, subcommands[subcommand]):
                     errors_detected = True
         else:
-            if check_params(command, None, current_command_dict):
+            if errors_detected_in_params(command, None, current_command_dict):
                 errors_detected = True
     return 1 if errors_detected else 0
 

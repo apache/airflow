@@ -18,26 +18,28 @@ from __future__ import annotations
 
 import shlex
 import time
-import warnings
+from functools import cached_property
 from io import StringIO
 from typing import Any
 
 from google.api_core.retry import exponential_sleep_generator
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+from airflow.utils.types import NOTSET, ArgNotSet
 
 # Paramiko should be imported after airflow.providers.ssh. Then the import will fail with
 # cannot import "airflow.providers.ssh" and will be correctly discovered as optional feature
 # TODO:(potiuk) We should add test harness detecting such cases shortly
 import paramiko  # isort:skip
 
+CMD_TIMEOUT = 10
+
 
 class _GCloudAuthorizedSSHClient(paramiko.SSHClient):
-    """SSH Client that maintains the context for gcloud authorization during the connection"""
+    """SSH Client that maintains the context for gcloud authorization during the connection."""
 
     def __init__(self, google_hook, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -65,7 +67,7 @@ class _GCloudAuthorizedSSHClient(paramiko.SSHClient):
 
 class ComputeEngineSSHHook(SSHHook):
     """
-    Hook to connect to a remote instance in compute engine
+    Hook to connect to a remote instance in compute engine.
 
     :param instance_name: The name of the Compute Engine instance
     :param zone: The zone of the Compute Engine instance
@@ -80,9 +82,6 @@ class ComputeEngineSSHHook(SSHHook):
         keys are managed using instance metadata
     :param expire_time: The maximum amount of time in seconds before the private key expires
     :param gcp_conn_id: The connection id to use when fetching connection information
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     """
 
     conn_name_attr = "gcp_conn_id"
@@ -109,8 +108,14 @@ class ComputeEngineSSHHook(SSHHook):
         use_iap_tunnel: bool = False,
         use_oslogin: bool = True,
         expire_time: int = 300,
-        delegate_to: str | None = None,
+        cmd_timeout: int | ArgNotSet = NOTSET,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         # Ignore original constructor
         # super().__init__()
         self.instance_name = instance_name
@@ -123,20 +128,16 @@ class ComputeEngineSSHHook(SSHHook):
         self.use_oslogin = use_oslogin
         self.expire_time = expire_time
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
+        self.cmd_timeout = cmd_timeout
         self._conn: Any | None = None
 
     @cached_property
     def _oslogin_hook(self) -> OSLoginHook:
-        return OSLoginHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        return OSLoginHook(gcp_conn_id=self.gcp_conn_id)
 
     @cached_property
     def _compute_hook(self) -> ComputeEngineHook:
-        return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id)
 
     def _load_connection_config(self):
         def _boolify(value):
@@ -178,6 +179,17 @@ class ComputeEngineSSHHook(SSHHook):
                 self._compute_hook._get_field("expire_time"),
                 self.expire_time,
             )
+
+            if conn.extra is not None:
+                extra_options = conn.extra_dejson
+                if "cmd_timeout" in extra_options and self.cmd_timeout is NOTSET:
+                    if extra_options["cmd_timeout"]:
+                        self.cmd_timeout = int(extra_options["cmd_timeout"])
+                    else:
+                        self.cmd_timeout = None
+
+            if self.cmd_timeout is NOTSET:
+                self.cmd_timeout = CMD_TIMEOUT
 
     def get_conn(self) -> paramiko.SSHClient:
         """Return SSH connection."""

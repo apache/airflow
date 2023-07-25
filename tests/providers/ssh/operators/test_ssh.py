@@ -28,6 +28,7 @@ from airflow.models import TaskInstance
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
+from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 
 TEST_DAG_ID = "unit_tests_ssh_test_op"
@@ -108,7 +109,7 @@ class TestSSHOperator:
             result = task.execute(None)
             assert result == expected
             self.exec_ssh_client_command.assert_called_with(
-                mock.ANY, COMMAND, environment={"TEST": "value"}, get_pty=False
+                mock.ANY, COMMAND, timeout=NOTSET, environment={"TEST": "value"}, get_pty=False
             )
 
     @mock.patch("os.environ", {"AIRFLOW_CONN_" + TEST_CONN_ID.upper(): "ssh://test_id@localhost"})

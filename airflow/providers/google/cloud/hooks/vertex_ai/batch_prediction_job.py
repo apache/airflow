@@ -17,7 +17,7 @@
 # under the License.
 """This module contains a Google Cloud Vertex AI hook.
 
-.. spelling::
+.. spelling:word-list::
 
     jsonl
     codepoints
@@ -26,7 +26,6 @@
 """
 from __future__ import annotations
 
-import warnings
 from typing import Sequence
 
 from google.api_core.client_options import ClientOptions
@@ -47,16 +46,16 @@ class BatchPredictionJobHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._batch_prediction_job: BatchPredictionJob | None = None
@@ -86,7 +85,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         return obj["name"].rpartition("/")[-1]
 
     def cancel_batch_prediction_job(self) -> None:
-        """Cancel BatchPredictionJob"""
+        """Cancel BatchPredictionJob."""
         if self._batch_prediction_job:
             self._batch_prediction_job.cancel()
 
@@ -115,6 +114,8 @@ class BatchPredictionJobHook(GoogleBaseHook):
         labels: dict[str, str] | None = None,
         encryption_spec_key_name: str | None = None,
         sync: bool = True,
+        create_request_timeout: float | None = None,
+        batch_size: int | None = None,
     ) -> BatchPredictionJob:
         """
         Create a batch prediction job.
@@ -208,6 +209,14 @@ class BatchPredictionJobHook(GoogleBaseHook):
         :param sync: Whether to execute this method synchronously. If False, this method will be executed in
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
+        :param create_request_timeout: Optional. The timeout for the create request in seconds.
+        :param batch_size: Optional. The number of the records (e.g. instances)
+            of the operation given in each batch
+            to a machine replica. Machine type, and size of a single record should be considered
+            when setting this parameter, higher value speeds up the batch operation's execution,
+            but too high value will result in a whole batch not fitting in a machine's memory,
+            and the whole operation will fail.
+            The default value is same as in the aiplatform's BatchPredictionJob.
         """
         self._batch_prediction_job = BatchPredictionJob.create(
             job_display_name=job_display_name,
@@ -233,6 +242,8 @@ class BatchPredictionJobHook(GoogleBaseHook):
             credentials=self.get_credentials(),
             encryption_spec_key_name=encryption_spec_key_name,
             sync=sync,
+            create_request_timeout=create_request_timeout,
+            batch_size=batch_size,
         )
         return self._batch_prediction_job
 
@@ -280,7 +291,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> BatchPredictionJob:
         """
-        Gets a BatchPredictionJob
+        Gets a BatchPredictionJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

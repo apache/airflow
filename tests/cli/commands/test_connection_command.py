@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import shlex
 import warnings
@@ -166,9 +167,7 @@ class TestCliExportConnections:
         def my_side_effect(_):
             raise Exception("dummy exception")
 
-        mock_session.return_value.__enter__.return_value.query.return_value.order_by.side_effect = (
-            my_side_effect
-        )
+        mock_session.return_value.__enter__.return_value.scalars.side_effect = my_side_effect
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         with pytest.raises(Exception, match=r"dummy exception"):
             connection_command.connections_export(args)
@@ -545,6 +544,7 @@ class TestCliAddConnections:
             ),
         ],
     )
+    @pytest.mark.execution_timeout(120)
     def test_cli_connection_add(self, cmd, expected_output, expected_conn):
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_add(self.parser.parse_args(cmd))
@@ -633,6 +633,16 @@ class TestCliAddConnections:
                     ["connections", "add", "fsconn", "--conn-host=/tmp", "--conn-type=File"]
                 )
             )
+
+    def test_cli_connections_add_invalid_conn_id(self):
+        with pytest.raises(SystemExit) as e:
+            connection_command.connections_add(
+                self.parser.parse_args(["connections", "add", "Test$", f"--conn-uri={TEST_URL}"])
+            )
+        assert (
+            e.value.args[0] == "Could not create connection. The key 'Test$' has to be made of "
+            "alphanumeric characters, dashes, dots and underscores exclusively"
+        )
 
 
 class TestCliDeleteConnections:
@@ -919,3 +929,48 @@ class TestCliImportConnections:
 
         # The existing connection should have been overwritten
         assert current_conns_as_dicts["new3"] == expected_connections["new3"]
+
+
+class TestCliTestConnections:
+    parser = cli_parser.get_parser()
+
+    def setup_class(self):
+        clear_db_connections()
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
+    def test_cli_connections_test_success(self, mock_test_conn):
+        """Check that successful connection test result is displayed properly."""
+        conn_id = "http_default"
+        mock_test_conn.return_value = True, None
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
+
+            assert "Connection success!" in stdout.getvalue()
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
+    def test_cli_connections_test_fail(self, mock_test_conn):
+        """Check that failed connection test result is displayed properly."""
+        conn_id = "http_default"
+        mock_test_conn.return_value = False, "Failed."
+        with redirect_stdout(io.StringIO()) as stdout:
+            connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
+
+            assert "Connection failed!\nFailed.\n\n" in stdout.getvalue()
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_cli_connections_test_missing_conn(self):
+        """Check a connection test on a non-existent connection raises a "Connection not found" message."""
+        with redirect_stdout(io.StringIO()) as stdout, pytest.raises(SystemExit):
+            connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+        assert "Connection not found.\n\n" in stdout.getvalue()
+
+    def test_cli_connections_test_disabled_by_default(self):
+        """Check that test connection functionality is disabled by default."""
+        with redirect_stdout(io.StringIO()) as stdout, pytest.raises(SystemExit):
+            connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+        assert (
+            "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "
+            "enable it.\n\n"
+        ) in stdout.getvalue()

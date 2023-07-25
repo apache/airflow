@@ -1,13 +1,17 @@
 {
-  "extends": ["airbnb", "airbnb/hooks"],
+  "extends": ["airbnb", "airbnb/hooks", "prettier"],
   "parser": "@babel/eslint-parser",
   "parserOptions": {
     "babelOptions": {
-      "presets": ["@babel/preset-env", "@babel/preset-react", "@babel/preset-typescript"],
+      "presets": [
+        "@babel/preset-env",
+        "@babel/preset-react",
+        "@babel/preset-typescript"
+      ],
       "plugins": ["@babel/plugin-transform-runtime"]
     }
   },
-  "plugins": [ "html", "react" ],
+  "plugins": ["html", "react"],
   "rules": {
     "no-param-reassign": 1,
     "react/prop-types": 0,
@@ -21,7 +25,7 @@
         "ts": "never",
         "tsx": "never"
       }
-   ],
+    ],
     "import/no-extraneous-dependencies": [
       "error",
       {
@@ -48,11 +52,9 @@
   "overrides": [
     {
       "files": ["*.ts", "*.tsx"],
-      "extends": [
-        "airbnb-typescript"
-      ],
+      "extends": ["airbnb-typescript", "prettier"],
       "parser": "@typescript-eslint/parser",
-      "plugins": [ "@typescript-eslint" ],
+      "plugins": ["@typescript-eslint"],
       "parserOptions": {
         "project": "./tsconfig.json"
       },

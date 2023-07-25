@@ -26,12 +26,14 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class DebugExecutor(BaseExecutor):
@@ -43,14 +45,19 @@ class DebugExecutor(BaseExecutor):
     """
 
     _terminated = threading.Event()
-    change_sensor_mode_to_reschedule: bool = True
+
     is_single_threaded: bool = True
+    is_production: bool = False
+
+    change_sensor_mode_to_reschedule: bool = True
 
     def __init__(self):
         super().__init__()
         self.tasks_to_run: list[TaskInstance] = []
         # Place where we keep information for task instance raw run
         self.tasks_params: dict[TaskInstanceKey, dict[str, Any]] = {}
+        from airflow.configuration import conf
+
         self.fail_fast = conf.getboolean("debug", "fail_fast")
 
     def execute_async(self, *args, **kwargs) -> None:
@@ -92,7 +99,7 @@ class DebugExecutor(BaseExecutor):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: str | None = None,
+        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,

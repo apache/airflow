@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 class OSSCreateBucketOperator(BaseOperator):
     """
-    This operator creates an OSS bucket
+    This operator creates an OSS bucket.
 
     :param region: OSS region you want to create bucket
     :param bucket_name: This is bucket name you want to create
@@ -55,7 +55,7 @@ class OSSCreateBucketOperator(BaseOperator):
 
 class OSSDeleteBucketOperator(BaseOperator):
     """
-    This operator to delete an OSS bucket
+    This operator to delete an OSS bucket.
 
     :param region: OSS region you want to create bucket
     :param bucket_name: This is bucket name you want to delete
@@ -81,7 +81,7 @@ class OSSDeleteBucketOperator(BaseOperator):
 
 class OSSUploadObjectOperator(BaseOperator):
     """
-    This operator to upload an file-like object
+    This operator to upload an file-like object.
 
     :param key: the OSS path of the object
     :param file: local file to upload.
@@ -113,7 +113,7 @@ class OSSUploadObjectOperator(BaseOperator):
 
 class OSSDownloadObjectOperator(BaseOperator):
     """
-    This operator to Download an OSS object
+    This operator to Download an OSS object.
 
     :param key: key of the object to download.
     :param local_file: local path + file name to save.
@@ -145,7 +145,7 @@ class OSSDownloadObjectOperator(BaseOperator):
 
 class OSSDeleteBatchObjectOperator(BaseOperator):
     """
-    This operator to delete OSS objects
+    This operator to delete OSS objects.
 
     :param key: key list of the objects to delete.
     :param region: OSS region
@@ -174,7 +174,7 @@ class OSSDeleteBatchObjectOperator(BaseOperator):
 
 class OSSDeleteObjectOperator(BaseOperator):
     """
-    This operator to delete an OSS object
+    This operator to delete an OSS object.
 
     :param key: key of the object to delete.
     :param region: OSS region

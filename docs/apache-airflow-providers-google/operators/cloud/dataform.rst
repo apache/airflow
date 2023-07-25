@@ -25,14 +25,14 @@ Dataform lets you manage data transformation in the Extraction, Loading, and Tra
 for data integration. After raw data is extracted from source systems and loaded into BigQuery, Dataform
 helps you to transform it into a well-defined, tested, and documented suite of data tables.
 
-For more information about the task visit `Dataform production documentation <Product documentation <https://cloud.google.com/dataform/docs/reference>`__
+For more information about the task visit `Dataform production documentation <Product documentation <https://cloud.google.com/dataform/docs>`__
 
 
 Configuration
 -------------
 
 Before you can use the Dataform operators you need to initialize repository and workspace, for more information
-about this visit `Dataform Production documentation <Product documentation <https://cloud.google.com/dataform/docs/reference>`__
+about this visit `Dataform Production documentation <Product documentation <https://cloud.google.com/dataform/docs>`__
 
 Create Repository
 -----------------

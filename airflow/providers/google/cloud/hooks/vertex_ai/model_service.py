@@ -17,7 +17,7 @@
 # under the License.
 """This module contains a Google Cloud Vertex AI hook.
 
-.. spelling::
+.. spelling:word-list::
 
     aiplatform
     camelCase
@@ -40,6 +40,14 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class ModelServiceHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Endpoint Service APIs."""
+
+    def __init__(self, **kwargs):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+        super().__init__(**kwargs)
 
     def get_model_service_client(self, region: str | None = None) -> ModelServiceClient:
         """Returns ModelServiceClient."""

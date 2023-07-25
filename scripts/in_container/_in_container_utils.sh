@@ -73,7 +73,10 @@ function in_container_fix_ownership() {
             "${AIRFLOW_SOURCES}/docs"
             "${AIRFLOW_SOURCES}/dags"
             "${AIRFLOW_SOURCES}/airflow/"
+            "${AIRFLOW_SOURCES}/constraints/"
             "${AIRFLOW_SOURCES}/images/"
+            "${AIRFLOW_SOURCES}/.mypy_cache/"
+            "${AIRFLOW_SOURCES}/dev/"
         )
         count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
         if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
@@ -160,7 +163,16 @@ function install_airflow_from_wheel() {
         exit 4
     fi
     if [[ ${constraints_reference} == "none" ]]; then
+        set +e
         pip install "${airflow_package}${extras}"
+        res=$?
+        set -e
+        if [[ ${res} != "0" ]]; then
+            >&2 echo
+            >&2 echo "WARNING! Could not install airflow without constraints, trying to install it without dependencies in case some of the required providers are not yet released"
+            >&2 echo
+            pip install "${airflow_package}${extras}" --no-deps
+        fi
     else
         set +e
         pip install "${airflow_package}${extras}" --constraint \
@@ -261,7 +273,7 @@ function install_local_airflow_with_eager_upgrade() {
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers
     # shellcheck disable=SC2086
-    pip install -e ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
 }
 
@@ -290,7 +302,7 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    pip install -e ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
 
 }

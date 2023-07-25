@@ -21,9 +21,12 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.secrets import BaseSecretsBackend
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -33,15 +36,15 @@ class MetastoreBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from airflow metastore database."""
 
     @provide_session
-    def get_connection(self, conn_id, session=None) -> Connection | None:
+    def get_connection(self, conn_id: str, session: Session = NEW_SESSION) -> Connection | None:
         from airflow.models.connection import Connection
 
-        conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id).limit(1))
         session.expunge_all()
         return conn
 
     @provide_session
-    def get_connections(self, conn_id, session=None) -> list[Connection]:
+    def get_connections(self, conn_id: str, session: Session = NEW_SESSION) -> list[Connection]:
         warnings.warn(
             "This method is deprecated. Please use "
             "`airflow.secrets.metastore.MetastoreBackend.get_connection`.",
@@ -54,7 +57,7 @@ class MetastoreBackend(BaseSecretsBackend):
         return []
 
     @provide_session
-    def get_variable(self, key: str, session=None):
+    def get_variable(self, key: str, session: Session = NEW_SESSION) -> str | None:
         """
         Get Airflow Variable from Metadata DB.
 
@@ -63,7 +66,7 @@ class MetastoreBackend(BaseSecretsBackend):
         """
         from airflow.models.variable import Variable
 
-        var_value = session.query(Variable).filter(Variable.key == key).first()
+        var_value = session.scalar(select(Variable).where(Variable.key == key).limit(1))
         session.expunge_all()
         if var_value:
             return var_value.val

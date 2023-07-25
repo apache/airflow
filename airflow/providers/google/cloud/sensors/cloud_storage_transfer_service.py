@@ -35,8 +35,7 @@ if TYPE_CHECKING:
 
 class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
     """
-    Waits for at least one operation belonging to the job to have the
-    expected status.
+    Waits for at least one operation belonging to the job to have the expected status.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -93,7 +92,7 @@ class CloudDataTransferServiceJobStatusSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
         operations = hook.list_transfer_operations(
-            request_filter={"project_id": self.project_id, "job_names": [self.job_name]}
+            request_filter={"project_id": self.project_id or hook.project_id, "job_names": [self.job_name]}
         )
 
         for operation in operations:

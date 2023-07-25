@@ -21,8 +21,206 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-cncf-kubernetes``
+
+
 Changelog
 ---------
+
+7.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Logging from all containers in KubernetesOperatorPod (#31663)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix async KPO by waiting pod termination in 'execute_complete' before cleanup (#32467)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Stragglers and new additions (#32447)``
+
+7.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator validate xcom json and add retries (#32113)``
+* ``Fix 'KubernetesPodTrigger' waiting strategy (#31348)``
+* ``fix spark-kubernetes-operator compatibality (#31798)``
+
+Misc
+~~~~
+* ``Add default_deferrable config (#31712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+
+7.1.0
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+
+Features
+~~~~~~~~
+* ``KubernetesResourceOperator - KubernetesDeleteResourceOperator & KubernetesCreateResourceOperator (#29930)``
+* ``add a return when the event is yielded in a loop to stop the execution (#31985)``
+* ``Add possibility to disable logging the pod template in a case when task fails (#31595)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove return statement after yield from triggers class (#31703)``
+* ``Fix Fargate logging for AWS system tests (#31622)``
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check (#31742)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+
+7.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+  Return None when namespace is not defined in the Kubernetes connection
+
+* ``Remove deprecated features from KubernetesHook (#31402)``
+
+Features
+~~~~~~~~
+
+.. note::
+  If ``kubernetes_default`` connection is not defined, then KubernetesHook / KubernetesPodOperator will behave as though given ``conn_id=None``.
+  This should make it easier to mitigate breaking change introduced in 6.0.0
+
+* ``K8s hook should still work with missing default conn (#31187)``
+* ``Add protocol to define methods relied upon by KubernetesPodOperator (#31298)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix kubernetes task decorator pickle error (#31110)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Empty xcom result file log message more specific (#31228)``
+* ``Add options to KubernetesPodOperator (#30992)``
+* ``add missing read for K8S config file from conn in deferred 'KubernetesPodOperator'  (#29498)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Upgrade ruff to 0.0.262 (#30809)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add cli cmd to list the provider trigger info (#30822)``
+   * ``Fix pod describing on system test failure (#31191)``
+   * ``Docstring improvements (#31375)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add multiple exit code handling in skip logic for 'DockerOperator' and 'KubernetesPodOperator' (#30769)``
+* ``Skip KubernetesPodOperator task when it returns a provided exit code (#29000)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deprecate 'skip_exit_code' in 'DockerOperator' and 'KubernetesPodOperator' (#30733)``
+  * ``Remove skip_exit_code from KubernetesPodOperator (#30788)``
+
+6.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Use ``kubernetes_default`` connection by default in the ``KubernetesPodOperator``.
+
+* ``Use default connection id for KubernetesPodOperator (#28848)``
+
+Features
+~~~~~~~~
+
+* ``Allow to set limits for XCOM container (#28125)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add mechanism to suspend providers (#30422)``
+
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``enhance spark_k8s_operator (#29977)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator xcom push when 'get_logs=False' (#29052)``
+* ``Fixed hanged KubernetesPodOperator (#28336)``
+
+Misc
+~~~~
+* ``Align cncf provider file names with AIP-21 (#29905)``
+* ``Remove "boilerplate" from all taskflow decorators (#30118)``
+* ``Ensure setup/teardown work on a previously decorated function (#30216)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``adding trigger info to provider yaml (#29950)``
+
+5.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'KubernetesPodOperator._render_nested_template_fields' improved by changing the conditionals for a map (#29760)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and augment 'check-for-inclusive-language' CI check (#29549)``
 
 5.2.1
 .....
@@ -91,8 +289,9 @@ Misc
 5.0.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~

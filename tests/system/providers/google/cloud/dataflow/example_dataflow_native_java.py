@@ -24,6 +24,12 @@ Important Note:
     or is not compatible with the Java version used in the test, the source code for this test can be
     downloaded from here (https://beam.apache.org/get-started/wordcount-example) and needs to be compiled
     manually in order to work.
+
+    You can follow the instructions on how to pack a self-executing jar here:
+    https://beam.apache.org/documentation/runners/dataflow/
+
+Requirements:
+    These operators require the gcloud command and Java's JRE to run.
 """
 from __future__ import annotations
 
@@ -31,6 +37,7 @@ import os
 from datetime import datetime
 
 from airflow import models
+from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunJavaPipelineOperator
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -83,6 +90,7 @@ with models.DAG(
 
     # [START howto_operator_start_java_job_jar_on_gcs]
     start_java_job = BeamRunJavaPipelineOperator(
+        runner=BeamRunnerType.DataflowRunner,
         task_id="start-java-job",
         jar=GCS_JAR,
         pipeline_options={

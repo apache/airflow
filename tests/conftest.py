@@ -22,6 +22,7 @@ import subprocess
 import sys
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -32,12 +33,14 @@ import time_machine
 from itsdangerous import URLSafeSerializer
 
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
-tests_directory = os.path.dirname(os.path.realpath(__file__))
+AIRFLOW_TESTS_DIR = Path(os.path.dirname(os.path.realpath(__file__))).resolve()
+AIRFLOW_SOURCES_ROOT_DIR = AIRFLOW_TESTS_DIR.parent.parent
 
-os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
+os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
+os.environ["AIRFLOW_ENABLE_AIP_44"] = os.environ.get("AIRFLOW_ENABLE_AIP_44") or "true"
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
@@ -51,12 +54,18 @@ from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa: E402  # isort: 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
+# Ignore files that are really test dags to be ignored by pytest
+collect_ignore = [
+    "tests/dags/subdir1/test_ignore_this.py",
+    "tests/dags/test_invalid_dup_task.pyy",
+    "tests/dags_corrupted/test_impersonation_custom.py",
+    "tests/test_utils/perf/dags/elastic_dag.py",
+]
+
 
 @pytest.fixture()
 def reset_environment():
-    """
-    Resets env variables.
-    """
+    """Resets env variables."""
     init_env = os.environ.copy()
     yield
     changed_env = os.environ
@@ -69,10 +78,7 @@ def reset_environment():
 
 @pytest.fixture()
 def secret_key() -> str:
-    """
-    Return secret key configured.
-    :return:
-    """
+    """Return secret key configured."""
     from airflow.configuration import conf
 
     the_key = conf.get("webserver", "SECRET_KEY")
@@ -91,9 +97,7 @@ def url_safe_serializer(secret_key) -> URLSafeSerializer:
 
 @pytest.fixture()
 def reset_db():
-    """
-    Resets Airflow db.
-    """
+    """Resets Airflow db."""
 
     from airflow.utils import db
 
@@ -106,9 +110,7 @@ ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count
 
 @pytest.fixture(autouse=True)
 def trace_sql(request):
-    """
-    Displays queries from the tests to console.
-    """
+    """Displays queries from the tests to console."""
     trace_sql_option = request.config.getoption("trace_sql")
     if not trace_sql_option:
         yield
@@ -148,9 +150,7 @@ def trace_sql(request):
 
 
 def pytest_addoption(parser):
-    """
-    Add options parser for custom plugins
-    """
+    """Add options parser for custom plugins."""
     group = parser.getgroup("airflow")
     group.addoption(
         "--with-db-init",
@@ -224,10 +224,7 @@ def initial_db_init():
 
 @pytest.fixture(autouse=True, scope="session")
 def initialize_airflow_tests(request):
-    """
-    Helper that setups Airflow testing environment.
-    """
-
+    """Helper that setups Airflow testing environment."""
     print(" AIRFLOW ".center(60, "="))
 
     # Setup test environment for breeze
@@ -278,11 +275,14 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
     )
+    config.addinivalue_line(
+        "markers", "need_serialized_dag: mark tests that require dags in serialized form to be present"
+    )
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
 
 def pytest_unconfigure(config):
-    os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"]
+    del os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"]
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -411,21 +411,24 @@ def pytest_runtest_setup(item):
 
 @pytest.fixture
 def frozen_sleep(monkeypatch):
-    """
-    Use time-machine to "stub" sleep, so that it takes no time, but that
-    ``datetime.now()`` appears to move forwards
+    """Use time-machine to "stub" sleep.
 
-    If your module under test does ``import time`` and then ``time.sleep``::
+    This means the ``sleep()`` takes no time, but ``datetime.now()`` appears to move forwards.
+
+    If your module under test does ``import time`` and then ``time.sleep``:
+
+    .. code-block:: python
 
         def test_something(frozen_sleep):
             my_mod.fn_under_test()
 
-
     If your module under test does ``from time import sleep`` then you will
-    have to mock that sleep function directly::
+    have to mock that sleep function directly:
+
+    .. code-block:: python
 
         def test_something(frozen_sleep, monkeypatch):
-            monkeypatch.setattr('my_mod.sleep', frozen_sleep)
+            monkeypatch.setattr("my_mod.sleep", frozen_sleep)
             my_mod.fn_under_test()
     """
     traveller = None
@@ -447,15 +450,17 @@ def frozen_sleep(monkeypatch):
 
 @pytest.fixture(scope="session")
 def app():
-    from airflow.www import app
+    from tests.test_utils.config import conf_vars
 
-    return app.create_app(testing=True)
+    with conf_vars({("webserver", "auth_rate_limited"): "False"}):
+        from airflow.www import app
+
+        yield app.create_app(testing=True)
 
 
 @pytest.fixture
 def dag_maker(request):
-    """
-    The dag_maker helps us to create DAG, DagModel, and SerializedDAG automatically.
+    """Fixture to help create DAG, DagModel, and SerializedDAG automatically.
 
     You have to use the dag_maker as a context manager and it takes
     the same argument as DAG::
@@ -477,10 +482,11 @@ def dag_maker(request):
 
     The dag_maker.create_dagrun takes the same arguments as dag.create_dagrun
 
-    If you want to operate on serialized DAGs, then either pass ``serialized=True` to the ``dag_maker()``
-    call, or you can mark your test/class/file with ``@pytest.mark.need_serialized_dag(True)``. In both of
-    these cases the ``dag`` returned by the context manager will be a lazily-evaluated proxy object to the
-    SerializedDAG.
+    If you want to operate on serialized DAGs, then either pass
+    ``serialized=True`` to the ``dag_maker()`` call, or you can mark your
+    test/class/file with ``@pytest.mark.need_serialized_dag(True)``. In both of
+    these cases the ``dag`` returned by the context manager will be a
+    lazily-evaluated proxy object to the SerializedDAG.
     """
     import lazy_object_proxy
 
@@ -688,8 +694,8 @@ def dag_maker(request):
 
 @pytest.fixture
 def create_dummy_dag(dag_maker):
-    """
-    This fixture creates a `DAG` with a single `EmptyOperator` task.
+    """Create a `DAG` with a single `EmptyOperator` task.
+
     DagRun and DagModel is also created.
 
     Apart from the already existing arguments, any other argument in kwargs
@@ -710,6 +716,7 @@ def create_dummy_dag(dag_maker):
         dag_id="dag",
         task_id="op1",
         max_active_tis_per_dag=16,
+        max_active_tis_per_dagrun=None,
         pool="default_pool",
         executor_config={},
         trigger_rule="all_done",
@@ -725,6 +732,7 @@ def create_dummy_dag(dag_maker):
             op = EmptyOperator(
                 task_id=task_id,
                 max_active_tis_per_dag=max_active_tis_per_dag,
+                max_active_tis_per_dagrun=max_active_tis_per_dagrun,
                 executor_config=executor_config,
                 on_success_callback=on_success_callback,
                 on_execute_callback=on_execute_callback,
@@ -743,8 +751,7 @@ def create_dummy_dag(dag_maker):
 
 @pytest.fixture
 def create_task_instance(dag_maker, create_dummy_dag):
-    """
-    Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc)
+    """Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc).
 
     Uses ``create_dummy_dag`` to create the dag structure.
     """
@@ -756,6 +763,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         run_id=None,
         run_type=None,
         data_interval=None,
+        map_index=-1,
         **kwargs,
     ) -> TaskInstance:
         if execution_date is None:
@@ -775,6 +783,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         (ti,) = dagrun.task_instances
         ti.task = task
         ti.state = state
+        ti.map_index = map_index
 
         dag_maker.session.flush()
         return ti
@@ -875,6 +884,15 @@ def _clear_db(request):
     """Clear DB before each test module run."""
     if not request.config.option.db_cleanup:
         return
+    from airflow.configuration import conf
+
+    sql_alchemy_conn = conf.get("database", "sql_alchemy_conn")
+    if sql_alchemy_conn.startswith("sqlite"):
+        sql_alchemy_file = sql_alchemy_conn.replace("sqlite:///", "")
+        if not os.path.exists(sql_alchemy_file):
+            print(f"The sqlite file `{sql_alchemy_file}` does not exist. Attempt to initialize it.")
+            initial_db_init()
+
     dist_option = getattr(request.config.option, "dist", "no")
     if dist_option != "no" or hasattr(request.config, "workerinput"):
         # Skip if pytest-xdist detected (controller or worker)
@@ -892,7 +910,35 @@ def _clear_db(request):
 
 
 @pytest.fixture(autouse=True)
-def _clear_entry_point_cache():
+def clear_lru_cache():
+    from airflow.executors.executor_loader import ExecutorLoader
     from airflow.utils.entry_points import _get_grouped_entry_points
 
+    ExecutorLoader.validate_database_executor_compatibility.cache_clear()
     _get_grouped_entry_points.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def refuse_to_run_test_from_wrongly_named_files(request):
+    dirname: str = request.node.fspath.dirname
+    filename: str = request.node.fspath.basename
+    is_system_test: bool = "tests/system/" in dirname
+    if is_system_test and not request.node.fspath.basename.startswith("example_"):
+        raise Exception(
+            f"All test method files in tests/system must start with 'example_'. Seems that {filename} "
+            f"contains {request.function} that looks like a test case. Please rename the file to "
+            f"follow the example_* pattern if you want to run the tests in it."
+        )
+    if not is_system_test and not request.node.fspath.basename.startswith("test_"):
+        raise Exception(
+            f"All test method files in tests/ must start with 'test_'. Seems that {filename} "
+            f"contains {request.function} that looks like a test case. Please rename the file to "
+            f"follow the test_* pattern if you want to run the tests in it."
+        )
+
+
+@pytest.fixture(autouse=True)
+def initialize_providers_manager():
+    from airflow.providers_manager import ProvidersManager
+
+    ProvidersManager().initialize_providers_configuration()

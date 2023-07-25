@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 
 CONN_ID = "aws_conn_test"
@@ -34,6 +32,7 @@ class TestRedshiftDataOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
     def test_execute(self, mock_exec_query):
         cluster_identifier = "cluster_identifier"
+        workgroup_name = None
         db_user = "db_user"
         secret_arn = "secret_arn"
         statement_name = "statement_name"
@@ -59,6 +58,46 @@ class TestRedshiftDataOperator:
             sql=SQL,
             database=DATABASE,
             cluster_identifier=cluster_identifier,
+            workgroup_name=workgroup_name,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+            parameters=parameters,
+            with_event=False,
+            wait_for_completion=wait_for_completion,
+            poll_interval=poll_interval,
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
+    def test_execute_with_workgroup_name(self, mock_exec_query):
+        cluster_identifier = None
+        workgroup_name = "workgroup_name"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        parameters = [{"name": "id", "value": "1"}]
+        poll_interval = 5
+        wait_for_completion = True
+
+        operator = RedshiftDataOperator(
+            aws_conn_id=CONN_ID,
+            task_id=TASK_ID,
+            sql=SQL,
+            database=DATABASE,
+            workgroup_name=workgroup_name,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+            parameters=parameters,
+            wait_for_completion=True,
+            poll_interval=poll_interval,
+        )
+        operator.execute(None)
+        mock_exec_query.assert_called_once_with(
+            sql=SQL,
+            database=DATABASE,
+            cluster_identifier=cluster_identifier,
+            workgroup_name=workgroup_name,
             db_user=db_user,
             secret_arn=secret_arn,
             statement_name=statement_name,
@@ -87,6 +126,7 @@ class TestRedshiftDataOperator:
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
             task_id=TASK_ID,
+            cluster_identifier="cluster_identifier",
             sql=SQL,
             database=DATABASE,
             wait_for_completion=False,
@@ -97,17 +137,38 @@ class TestRedshiftDataOperator:
             Id=STATEMENT_ID,
         )
 
-    def test_deprecated_await_result_parameter(self):
-        warning_message = (
-            "Parameter `RedshiftDataOperator.await_result` is deprecated and will be removed "
-            "in a future release. Please use method `wait_for_completion` instead."
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_return_sql_result(self, mock_conn):
+        expected_result = {"Result": True}
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+        mock_conn.get_statement_result.return_value = expected_result
+        cluster_identifier = "cluster_identifier"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        operator = RedshiftDataOperator(
+            task_id=TASK_ID,
+            cluster_identifier=cluster_identifier,
+            database=DATABASE,
+            db_user=db_user,
+            sql=SQL,
+            statement_name=statement_name,
+            secret_arn=secret_arn,
+            aws_conn_id=CONN_ID,
+            return_sql_result=True,
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
-            op = RedshiftDataOperator(
-                task_id=TASK_ID,
-                aws_conn_id=CONN_ID,
-                sql=SQL,
-                database=DATABASE,
-                await_result=True,
-            )
-        assert op.wait_for_completion
+        actual_result = operator.execute(None)
+        assert actual_result == expected_result
+        mock_conn.execute_statement.assert_called_once_with(
+            Database=DATABASE,
+            Sql=SQL,
+            ClusterIdentifier=cluster_identifier,
+            DbUser=db_user,
+            SecretArn=secret_arn,
+            StatementName=statement_name,
+            WithEvent=False,
+        )
+        mock_conn.get_statement_result.assert_called_once_with(
+            Id=STATEMENT_ID,
+        )

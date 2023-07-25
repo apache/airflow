@@ -54,6 +54,25 @@ with DAG(
     livy_java_task >> livy_python_task
     # [END create_livy]
 
+    # [START create_livy_deferrable]
+    livy_java_task_deferrable = LivyOperator(
+        task_id="livy_java_task_deferrable",
+        file="/spark-examples.jar",
+        num_executors=1,
+        conf={
+            "spark.shuffle.compress": "false",
+        },
+        class_name="org.apache.spark.examples.SparkPi",
+        deferrable=True,
+    )
+
+    livy_python_task_deferrable = LivyOperator(
+        task_id="livy_python_task_deferrable", file="/pi.py", polling_interval=60, deferrable=True
+    )
+
+    livy_java_task_deferrable >> livy_python_task_deferrable
+    # [END create_livy_deferrable]
+
     from tests.system.utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure

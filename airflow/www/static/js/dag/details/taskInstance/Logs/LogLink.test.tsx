@@ -19,12 +19,12 @@
 
 /* global describe, test, expect */
 
-import React from 'react';
-import { render } from '@testing-library/react';
-import LogLink from './LogLink';
+import React from "react";
+import { render } from "@testing-library/react";
+import LogLink from "./LogLink";
 
-describe('Test LogLink Component.', () => {
-  test('Internal Link', () => {
+describe("Test LogLink Component.", () => {
+  test("Internal Link", () => {
     const tryNumber = 1;
     const { getByText, container } = render(
       <LogLink
@@ -33,19 +33,21 @@ describe('Test LogLink Component.', () => {
         taskId="dummyTaskId"
         executionDate="2020:01:01T01:00+00:00"
         isInternal
-      />,
+      />
     );
 
-    expect(getByText('Download')).toBeDefined();
-    const linkElement = container.querySelector('a');
+    expect(getByText("Download")).toBeDefined();
+    const linkElement = container.querySelector("a");
     expect(linkElement).toBeDefined();
-    expect(linkElement).not.toHaveAttribute('target');
-    expect(linkElement?.href.includes(
-      `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&map_index=-1&format=file&try_number=${tryNumber}`,
-    )).toBeTruthy();
+    expect(linkElement).not.toHaveAttribute("target");
+    expect(
+      linkElement?.href.includes(
+        `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&map_index=-1&format=file&try_number=${tryNumber}`
+      )
+    ).toBeTruthy();
   });
 
-  test('External Link', () => {
+  test("External Link", () => {
     const tryNumber = 1;
     const { getByText, container } = render(
       <LogLink
@@ -53,15 +55,17 @@ describe('Test LogLink Component.', () => {
         dagId="dummyDagId"
         taskId="dummyTaskId"
         executionDate="2020:01:01T01:00+00:00"
-      />,
+      />
     );
 
     expect(getByText(tryNumber)).toBeDefined();
-    const linkElement = container.querySelector('a');
+    const linkElement = container.querySelector("a");
     expect(linkElement).toBeDefined();
-    expect(linkElement).toHaveAttribute('target', '_blank');
-    expect(linkElement?.href.includes(
-      `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&map_index=-1&try_number=${tryNumber}`,
-    )).toBeTruthy();
+    expect(linkElement).toHaveAttribute("target", "_blank");
+    expect(
+      linkElement?.href.includes(
+        `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&map_index=-1&try_number=${tryNumber}`
+      )
+    ).toBeTruthy();
   });
 });

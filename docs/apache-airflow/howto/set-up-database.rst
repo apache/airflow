@@ -167,6 +167,9 @@ In the example below, a database ``airflow_db`` and user  with username ``airflo
    CREATE DATABASE airflow_db;
    CREATE USER airflow_user WITH PASSWORD 'airflow_pass';
    GRANT ALL PRIVILEGES ON DATABASE airflow_db TO airflow_user;
+   -- PostgreSQL 15 requires additional privileges:
+   USE airflow_db;
+   GRANT ALL ON SCHEMA public TO airflow_user;
 
 .. note::
 
@@ -296,7 +299,13 @@ We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlche
     mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
 
 We also support the ``mysql-connector-python`` driver, which lets you connect through SSL
-without any cert options provided.
+without any cert options provided. If you wish to use ``mysql-connector-python`` driver, please install it with extras.
+
+.. code-block:: text
+
+   $ pip install mysql-connector-python
+
+The connection string in this case should look like:
 
 .. code-block:: text
 

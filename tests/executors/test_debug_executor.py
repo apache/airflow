@@ -38,7 +38,7 @@ class TestDebugExecutor:
         assert not executor.tasks_to_run
         run_task_mock.assert_has_calls([mock.call(ti1), mock.call(ti2)])
 
-    @mock.patch("airflow.executors.debug_executor.TaskInstance")
+    @mock.patch("airflow.models.taskinstance.TaskInstance")
     def test_run_task(self, task_instance_mock):
         ti_key = "key"
         job_id = " job_id"
@@ -67,9 +67,9 @@ class TestDebugExecutor:
         }
 
     def test_trigger_tasks(self):
-        execute_async_mock = MagicMock()
+        execute_mock = MagicMock()
         executor = DebugExecutor()
-        executor.execute_async = execute_async_mock
+        executor.execute_async = execute_mock
 
         executor.queued_tasks = {
             "t1": (None, 1, None, MagicMock(key="t1")),
@@ -80,7 +80,7 @@ class TestDebugExecutor:
         assert not executor.queued_tasks
         assert len(executor.running) == 2
         assert len(executor.tasks_to_run) == 2
-        assert not execute_async_mock.called
+        assert not execute_mock.called
 
     def test_end(self):
         ti = MagicMock(key="ti_key")
@@ -121,3 +121,6 @@ class TestDebugExecutor:
 
     def test_is_single_threaded(self):
         assert DebugExecutor.is_single_threaded
+
+    def test_is_production_default_value(self):
+        assert not DebugExecutor.is_production

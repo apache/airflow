@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Objects relating to sourcing connections & variables from Hashicorp Vault"""
+"""Objects relating to sourcing connections & variables from Hashicorp Vault."""
 from __future__ import annotations
 
 import warnings
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -168,22 +169,24 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_response(self, conn_id: str) -> dict | None:
         """
-        Get data from Vault
+        Get data from Vault.
 
         :return: The data from the Vault path if exists
         """
         mount_point, conn_key = self._parse_path(conn_id)
         if self.connections_path is None or conn_key is None:
             return None
-
-        secret_path = self.build_path(self.connections_path, conn_key)
+        if self.connections_path == "":
+            secret_path = conn_key
+        else:
+            secret_path = self.build_path(self.connections_path, conn_key)
         return self.vault_client.get_secret(
             secret_path=(mount_point + "/" if mount_point else "") + secret_path
         )
 
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
-        Get serialized representation of connection
+        Get serialized representation of connection.
 
         :param conn_id: The connection id
         :return: The connection uri retrieved from the secret
@@ -193,7 +196,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         warnings.warn(
             f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
             "in a future release.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         response = self.get_response(conn_id)
@@ -206,8 +209,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_connection(self, conn_id: str) -> Connection | None:
         """
-        Get connection from Vault as secret. Prioritize conn_uri if exists,
-        if not fall back to normal Connection creation.
+        Get connection from Vault as secret.
+
+        Prioritize conn_uri if exists, if not fall back to normal Connection creation.
 
         :return: A Connection object constructed from Vault data
         """
@@ -227,7 +231,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_variable(self, key: str) -> str | None:
         """
-        Get Airflow Variable
+        Get Airflow Variable.
 
         :param key: Variable Key
         :return: Variable Value retrieved from the vault
@@ -235,16 +239,18 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         mount_point, variable_key = self._parse_path(key)
         if self.variables_path is None or variable_key is None:
             return None
+        if self.variables_path == "":
+            secret_path = variable_key
         else:
             secret_path = self.build_path(self.variables_path, variable_key)
-            response = self.vault_client.get_secret(
-                secret_path=(mount_point + "/" if mount_point else "") + secret_path
-            )
-            return response.get("value") if response else None
+        response = self.vault_client.get_secret(
+            secret_path=(mount_point + "/" if mount_point else "") + secret_path
+        )
+        return response.get("value") if response else None
 
     def get_config(self, key: str) -> str | None:
         """
-        Get Airflow Configuration
+        Get Airflow Configuration.
 
         :param key: Configuration Option Key
         :return: Configuration Option Value retrieved from the vault
@@ -252,9 +258,11 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         mount_point, config_key = self._parse_path(key)
         if self.config_path is None or config_key is None:
             return None
+        if self.config_path == "":
+            secret_path = config_key
         else:
             secret_path = self.build_path(self.config_path, config_key)
-            response = self.vault_client.get_secret(
-                secret_path=(mount_point + "/" if mount_point else "") + secret_path
-            )
-            return response.get("value") if response else None
+        response = self.vault_client.get_secret(
+            secret_path=(mount_point + "/" if mount_point else "") + secret_path
+        )
+        return response.get("value") if response else None

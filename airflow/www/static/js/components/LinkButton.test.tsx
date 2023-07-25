@@ -19,20 +19,20 @@
 
 /* global describe, test, expect */
 
-import React from 'react';
-import { render } from '@testing-library/react';
+import React from "react";
+import { render } from "@testing-library/react";
 
-import LinkButton from './LinkButton';
+import LinkButton from "./LinkButton";
 
-describe('Test LinkButton Component.', () => {
-  test('LinkButton should be rendered as a link.', () => {
+describe("Test LinkButton Component.", () => {
+  test("LinkButton should be rendered as a link.", () => {
     const { getByText, container } = render(
       <LinkButton>
         <div>The link</div>
-      </LinkButton>,
+      </LinkButton>
     );
 
-    expect(getByText('The link')).toBeDefined();
-    expect(container.querySelector('a')).not.toBeNull();
+    expect(getByText("The link")).toBeDefined();
+    expect(container.querySelector("a")).not.toBeNull();
   });
 });

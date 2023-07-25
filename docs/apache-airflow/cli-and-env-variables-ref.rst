@@ -90,7 +90,7 @@ Environment Variables
   For example, if you want to create a connection named ``PROXY_POSTGRES_TCP``, you can create
   a key ``AIRFLOW_CONN_PROXY_POSTGRES_TCP`` with the connection URI as the value.
 
-  For more information, see: :ref:`environment_variables_secrets_backend`.
+  For more information, see: :ref:`environment_variables_connections`.
 
 .. envvar:: AIRFLOW_HOME
 

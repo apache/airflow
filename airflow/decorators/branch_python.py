@@ -16,13 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
-from textwrap import dedent
-from typing import Callable, Sequence
+from typing import Callable
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import BranchPythonOperator
-from airflow.utils.decorators import remove_task_decorator
 
 
 class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
@@ -39,13 +36,6 @@ class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
         Defaults to False.
     """
 
-    template_fields: Sequence[str] = ("op_args", "op_kwargs")
-    template_fields_renderers = {"op_args": "py", "op_kwargs": "py"}
-
-    # since we won't mutate the arguments, we should just do the shallow copy
-    # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ("python_callable",)
-
     custom_operator_name: str = "@task.branch"
 
     def __init__(
@@ -58,12 +48,6 @@ class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
             "op_kwargs": kwargs["op_kwargs"],
         }
         super().__init__(kwargs_to_upstream=kwargs_to_upstream, **kwargs)
-
-    def get_python_source(self):
-        raw_source = inspect.getsource(self.python_callable)
-        res = dedent(raw_source)
-        res = remove_task_decorator(res, "@task.branch")
-        return res
 
 
 def branch_task(

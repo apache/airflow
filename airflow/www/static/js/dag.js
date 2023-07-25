@@ -19,19 +19,19 @@
 
 /* global document, window, CustomEvent, $ */
 
-import { getMetaValue } from './utils';
-import { approxTimeFromNow, formatDateTime } from './datetime_utils';
-import { openDatasetModal, getDatasetTooltipInfo } from './datasetUtils';
+import { getMetaValue } from "./utils";
+import { approxTimeFromNow, formatDateTime } from "./datetime_utils";
+import { openDatasetModal, getDatasetTooltipInfo } from "./datasetUtils";
 
-const dagId = getMetaValue('dag_id');
-const pausedUrl = getMetaValue('paused_url');
+const dagId = getMetaValue("dag_id");
+const pausedUrl = getMetaValue("paused_url");
 // eslint-disable-next-line import/prefer-default-export
-export const dagTZ = getMetaValue('dag_timezone');
-const datasetsUrl = getMetaValue('datasets_url');
+export const dagTZ = getMetaValue("dag_timezone");
+const datasetsUrl = getMetaValue("datasets_url");
 const nextRun = {
-  createAfter: getMetaValue('next_dagrun_create_after'),
-  intervalStart: getMetaValue('next_dagrun_data_interval_start'),
-  intervalEnd: getMetaValue('next_dagrun_data_interval_end'),
+  createAfter: getMetaValue("next_dagrun_create_after"),
+  intervalStart: getMetaValue("next_dagrun_data_interval_start"),
+  intervalEnd: getMetaValue("next_dagrun_data_interval_end"),
 };
 let nextDatasets = [];
 let nextDatasetsError;
@@ -42,48 +42,52 @@ const setNextDatasets = (datasets, error) => {
 };
 
 // Pills highlighting
-$(window).on('load', function onLoad() {
-  $(`a[href*="${this.location.pathname}"]`).parent().addClass('active');
-  $('.never_active').removeClass('active');
-  const run = $('#next-dataset-tooltip');
-  const singleDatasetUri = $(run).data('uri');
+$(window).on("load", function onLoad() {
+  $(`a[href*="${this.location.pathname}"]`).parent().addClass("active");
+  $(".never_active").removeClass("active");
+  const run = $("#next-dataset-tooltip");
+  const singleDatasetUri = $(run).data("uri");
   if (!singleDatasetUri) {
     getDatasetTooltipInfo(dagId, run, setNextDatasets);
   }
 });
 
-$('#pause_resume').on('change', function onChange() {
+$("#pause_resume").on("change", function onChange() {
   const $input = $(this);
-  const id = $input.data('dag-id');
-  const isPaused = $input.is(':checked');
-  const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(id)}`;
+  const id = $input.data("dag-id");
+  const isPaused = $input.is(":checked");
+  const url = `${pausedUrl}?is_paused=${isPaused}&dag_id=${encodeURIComponent(
+    id
+  )}`;
   // Remove focus on element so the tooltip will go away
-  $input.trigger('blur');
-  $input.removeClass('switch-input--error');
+  $input.trigger("blur");
+  $input.removeClass("switch-input--error");
 
   // dispatch an event that React can listen for
-  const event = new CustomEvent('paused', { detail: isPaused });
+  const event = new CustomEvent("paused", { detail: isPaused });
   document.dispatchEvent(event);
 
   $.post(url).fail(() => {
     setTimeout(() => {
-      $input.prop('checked', !isPaused);
-      $input.addClass('switch-input--error');
+      $input.prop("checked", !isPaused);
+      $input.addClass("switch-input--error");
       event.value = !isPaused;
       document.dispatchEvent(event);
     }, 500);
   });
 });
 
-$('#next-run').on('mouseover', () => {
-  $('#next-run').attr('data-original-title', () => {
-    let newTitle = '';
+$("#next-run").on("mouseover", () => {
+  $("#next-run").attr("data-original-title", () => {
+    let newTitle = "";
     if (nextRun.createAfter) {
-      newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br>`;
+      newTitle += `<strong>Run After:</strong> ${formatDateTime(
+        nextRun.createAfter
+      )}<br>`;
       newTitle += `Next Run: ${approxTimeFromNow(nextRun.createAfter)}<br><br>`;
     }
     if (nextRun.intervalStart && nextRun.intervalEnd) {
-      newTitle += '<strong>Data Interval</strong><br>';
+      newTitle += "<strong>Data Interval</strong><br>";
       newTitle += `Start: ${formatDateTime(nextRun.intervalStart)}<br>`;
       newTitle += `End: ${formatDateTime(nextRun.intervalEnd)}`;
     }
@@ -91,13 +95,15 @@ $('#next-run').on('mouseover', () => {
   });
 });
 
-$('.next-dataset-triggered').on('click', (e) => {
-  const run = $('#next-dataset-tooltip');
-  const summary = $(e.target).data('summary');
-  const singleDatasetUri = $(run).data('uri');
+$(".next-dataset-triggered").on("click", (e) => {
+  const run = $("#next-dataset-tooltip");
+  const summary = $(e.target).data("summary");
+  const singleDatasetUri = $(run).data("uri");
   if (!singleDatasetUri) {
     openDatasetModal(dagId, summary, nextDatasets, nextDatasetsError);
   } else {
-    window.location.href = `${datasetsUrl}?uri=${encodeURIComponent(singleDatasetUri)}`;
+    window.location.href = `${datasetsUrl}?uri=${encodeURIComponent(
+      singleDatasetUri
+    )}`;
   }
 });

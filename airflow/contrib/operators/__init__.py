@@ -946,7 +946,7 @@ __deprecated_classes = {
     },
     'kubernetes_pod_operator': {
         'KubernetesPodOperator': (
-            'airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator'
+            'airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator'
         ),
     },
     'mlengine_operator': {

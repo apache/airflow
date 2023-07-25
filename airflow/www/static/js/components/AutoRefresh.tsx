@@ -17,22 +17,22 @@
  * under the License.
  */
 
-import React from 'react';
-import {
-  Switch,
-  FormControl,
-  FormLabel,
-  Spinner,
-} from '@chakra-ui/react';
+import React from "react";
+import { Switch, FormControl, FormLabel, Spinner } from "@chakra-ui/react";
 
-import { useAutoRefresh } from 'src/context/autorefresh';
+import { useAutoRefresh } from "src/context/autorefresh";
 
 const AutoRefresh = () => {
   const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
 
   return (
     <FormControl display="flex" width="auto" mr={2} alignItems="center">
-      <Spinner color="blue.500" speed="1s" mr="4px" visibility={isRefreshOn ? 'visible' : 'hidden'} />
+      <Spinner
+        color="blue.500"
+        speed="1s"
+        mr="4px"
+        visibility={isRefreshOn ? "visible" : "hidden"}
+      />
       <FormLabel
         htmlFor="auto-refresh"
         mb={0}
@@ -48,7 +48,9 @@ const AutoRefresh = () => {
         isDisabled={isPaused}
         isChecked={isRefreshOn}
         size="lg"
-        title={isPaused ? 'Autorefresh is disabled while the DAG is paused' : ''}
+        title={
+          isPaused ? "Autorefresh is disabled while the DAG is paused" : ""
+        }
       />
     </FormControl>
   );

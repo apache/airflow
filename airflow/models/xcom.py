@@ -26,7 +26,7 @@ import json
 import logging
 import pickle
 import warnings
-from functools import wraps
+from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, Generator, Iterable, cast, overload
 
 import attr
@@ -39,6 +39,7 @@ from sqlalchemy import (
     LargeBinary,
     PrimaryKeyConstraint,
     String,
+    delete,
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -47,7 +48,6 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
@@ -58,15 +58,17 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
+# XCom constants below are needed for providers backward compatibility,
+# which should import the constants directly after apache-airflow>=2.6.0
+from airflow.utils.xcom import (
+    MAX_XCOM_SIZE,  # noqa: F401
+    XCOM_RETURN_KEY,
+)
+
 log = logging.getLogger(__name__)
 
-# MAX XCOM Size is 48KB
-# https://github.com/apache/airflow/pull/1618#discussion_r68249677
-MAX_XCOM_SIZE = 49344
-XCOM_RETURN_KEY = "return_value"
-
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class BaseXCom(Base, LoggingMixin):
@@ -120,7 +122,8 @@ class BaseXCom(Base, LoggingMixin):
     @reconstructor
     def init_on_load(self):
         """
-        Called by the ORM after the instance has been loaded from the DB or otherwise reconstituted
+        Called by the ORM after the instance has been loaded from the DB or otherwise reconstituted.
+
         i.e automatically deserialize Xcom value when loading from DB.
         """
         self.value = self.orm_deserialize_value()
@@ -170,7 +173,10 @@ class BaseXCom(Base, LoggingMixin):
         execution_date: datetime.datetime,
         session: Session = NEW_SESSION,
     ) -> None:
-        """:sphinx-autoapi-skip:"""
+        """Store an XCom value.
+
+        :sphinx-autoapi-skip:
+        """
 
     @classmethod
     @provide_session
@@ -186,7 +192,10 @@ class BaseXCom(Base, LoggingMixin):
         run_id: str | None = None,
         map_index: int = -1,
     ) -> None:
-        """:sphinx-autoapi-skip:"""
+        """Store an XCom value.
+
+        :sphinx-autoapi-skip:
+        """
         from airflow.models.dagrun import DagRun
 
         if not exactly_one(execution_date is not None, run_id is not None):
@@ -242,13 +251,15 @@ class BaseXCom(Base, LoggingMixin):
         )
 
         # Remove duplicate XComs and insert a new one.
-        session.query(cls).filter(
-            cls.key == key,
-            cls.run_id == run_id,
-            cls.task_id == task_id,
-            cls.dag_id == dag_id,
-            cls.map_index == map_index,
-        ).delete()
+        session.execute(
+            delete(cls).where(
+                cls.key == key,
+                cls.run_id == run_id,
+                cls.task_id == task_id,
+                cls.dag_id == dag_id,
+                cls.map_index == map_index,
+            )
+        )
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             dag_run_id=dag_run_id,
             key=key,
@@ -348,7 +359,10 @@ class BaseXCom(Base, LoggingMixin):
         include_prior_dates: bool = False,
         session: Session = NEW_SESSION,
     ) -> Any | None:
-        """:sphinx-autoapi-skip:"""
+        """Retrieve an XCom value, optionally meeting certain criteria.
+
+        :sphinx-autoapi-skip:
+        """
 
     @staticmethod
     @provide_session
@@ -364,9 +378,12 @@ class BaseXCom(Base, LoggingMixin):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> Any | None:
-        """:sphinx-autoapi-skip:"""
+        """Retrieve an XCom value, optionally meeting certain criteria.
+
+        :sphinx-autoapi-skip:
+        """
         if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError("Exactly one of ti_key, run_id, or execution_date must be passed")
+            raise ValueError("Exactly one of run_id or execution_date must be passed")
 
         if run_id:
             query = BaseXCom.get_many(
@@ -454,7 +471,10 @@ class BaseXCom(Base, LoggingMixin):
         limit: int | None = None,
         session: Session = NEW_SESSION,
     ) -> Query:
-        """:sphinx-autoapi-skip:"""
+        """Composes a query to get one or more XCom entries.
+
+        :sphinx-autoapi-skip:
+        """
 
     @staticmethod
     @provide_session
@@ -471,7 +491,10 @@ class BaseXCom(Base, LoggingMixin):
         *,
         run_id: str | None = None,
     ) -> Query:
-        """:sphinx-autoapi-skip:"""
+        """Composes a query to get one or more XCom entries.
+
+        :sphinx-autoapi-skip:
+        """
         from airflow.models.dagrun import DagRun
 
         if not exactly_one(execution_date is not None, run_id is not None):
@@ -569,7 +592,10 @@ class BaseXCom(Base, LoggingMixin):
         task_id: str,
         session: Session = NEW_SESSION,
     ) -> None:
-        """:sphinx-autoapi-skip:"""
+        """Clear all XCom data from the database for the given task instance.
+
+        :sphinx-autoapi-skip:
+        """
 
     @staticmethod
     @provide_session
@@ -583,7 +609,10 @@ class BaseXCom(Base, LoggingMixin):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> None:
-        """:sphinx-autoapi-skip:"""
+        """Clear all XCom data from the database for the given task instance.
+
+        :sphinx-autoapi-skip:
+        """
         from airflow.models import DagRun
 
         # Given the historic order of this function (execution_date was first argument) to add a new optional
@@ -660,7 +689,7 @@ class BaseXCom(Base, LoggingMixin):
 
     @staticmethod
     def deserialize_value(result: XCom) -> Any:
-        """Deserialize XCom value from str or pickle object"""
+        """Deserialize XCom value from str or pickle object."""
         return BaseXCom._deserialize_value(result, False)
 
     def orm_deserialize_value(self) -> Any:
@@ -809,7 +838,7 @@ def _patch_outdated_serializer(clazz: type[BaseXCom], params: Iterable[str]) -> 
 
 def _get_function_params(function) -> list[str]:
     """
-    Returns the list of variables names of a function
+    Returns the list of variables names of a function.
 
     :param function: The function to inspect
     """
@@ -821,7 +850,7 @@ def _get_function_params(function) -> list[str]:
 
 
 def resolve_xcom_backend() -> type[BaseXCom]:
-    """Resolves custom XCom class
+    """Resolves custom XCom class.
 
     Confirms that custom XCom class extends the BaseXCom.
     Compares the function signature of the custom XCom serialize_value to the base XCom serialize_value.

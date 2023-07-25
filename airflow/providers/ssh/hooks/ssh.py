@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import warnings
 from base64 import decodebytes
+from functools import cached_property
 from io import StringIO
 from select import select
 from typing import Any, Sequence
@@ -30,8 +31,7 @@ from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.utils.platform import getuser
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -41,10 +41,11 @@ CMD_TIMEOUT = 10
 
 
 class SSHHook(BaseHook):
-    """
-    Hook for ssh remote execution using Paramiko.
-    ref: https://github.com/paramiko/paramiko
-    This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer
+    """Execute remote commands with Paramiko.
+
+    .. seealso:: https://github.com/paramiko/paramiko
+
+    This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer.
 
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>` from airflow
         Connections from where all the required parameters can be fetched like
@@ -94,7 +95,7 @@ class SSHHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema"],
             "relabeling": {
@@ -172,7 +173,7 @@ class SSHHook(BaseHook):
                         "Extra option `timeout` is deprecated."
                         "Please use `conn_timeout` instead."
                         "The old option `timeout` will be removed in a future version.",
-                        DeprecationWarning,
+                        AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
                     self.timeout = int(extra_options["timeout"])
@@ -232,7 +233,7 @@ class SSHHook(BaseHook):
                 "Parameter `timeout` is deprecated."
                 "Please use `conn_timeout` instead."
                 "The old option `timeout` will be removed in a future version.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=1,
             )
 
@@ -281,7 +282,7 @@ class SSHHook(BaseHook):
         return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
-        """Opens a ssh connection to the remote host."""
+        """Opens an SSH connection to the remote host."""
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
@@ -368,7 +369,7 @@ class SSHHook(BaseHook):
             "The contextmanager of SSHHook is deprecated."
             "Please use get_conn() as a contextmanager instead."
             "This method will be removed in Airflow 2.0",
-            category=DeprecationWarning,
+            category=AirflowProviderDeprecationWarning,
         )
         return self
 
@@ -380,8 +381,9 @@ class SSHHook(BaseHook):
     def get_tunnel(
         self, remote_port: int, remote_host: str = "localhost", local_port: int | None = None
     ) -> SSHTunnelForwarder:
-        """
-        Creates a tunnel between two hosts. Like ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>.
+        """Create a tunnel between two hosts.
+
+        This is conceptually similar to ``ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>``.
 
         :param remote_port: The remote port to create a tunnel to
         :param remote_host: The remote host to create a tunnel to (default localhost)
@@ -421,27 +423,24 @@ class SSHHook(BaseHook):
     def create_tunnel(
         self, local_port: int, remote_port: int, remote_host: str = "localhost"
     ) -> SSHTunnelForwarder:
-        """
-        Creates tunnel for SSH connection [Deprecated].
+        """Create a tunnel for SSH connection [Deprecated].
 
         :param local_port: local port number
         :param remote_port: remote port number
         :param remote_host: remote host
-        :return:
         """
         warnings.warn(
             "SSHHook.create_tunnel is deprecated, Please"
             "use get_tunnel() instead. But please note that the"
             "order of the parameters have changed"
             "This method will be removed in Airflow 2.0",
-            category=DeprecationWarning,
+            category=AirflowProviderDeprecationWarning,
         )
 
         return self.get_tunnel(remote_port, remote_host, local_port)
 
     def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:
-        """
-        Creates appropriate paramiko key for given private key
+        """Create an appropriate Paramiko key for a given private key.
 
         :param private_key: string containing private key
         :return: ``paramiko.PKey`` appropriate for given key
@@ -471,18 +470,24 @@ class SSHHook(BaseHook):
         command: str,
         get_pty: bool,
         environment: dict | None,
-        timeout: int | None = None,
+        timeout: int | ArgNotSet | None = NOTSET,
     ) -> tuple[int, bytes, bytes]:
         self.log.info("Running command: %s", command)
 
-        if timeout is None:
-            timeout = self.cmd_timeout  # type: ignore[assignment]
+        cmd_timeout: int | None
+        if not isinstance(timeout, ArgNotSet):
+            cmd_timeout = timeout
+        elif not isinstance(self.cmd_timeout, ArgNotSet):
+            cmd_timeout = self.cmd_timeout
+        else:
+            cmd_timeout = CMD_TIMEOUT
+        del timeout  # Too easy to confuse with "timedout" below.
 
         # set timeout taken as params
         stdin, stdout, stderr = ssh_client.exec_command(
             command=command,
             get_pty=get_pty,
-            timeout=timeout,
+            timeout=cmd_timeout,
             environment=environment,
         )
         # get channels
@@ -505,8 +510,8 @@ class SSHHook(BaseHook):
 
         # read from both stdout and stderr
         while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
-            readq, _, _ = select([channel], [], [], timeout)
-            if timeout is not None:
+            readq, _, _ = select([channel], [], [], cmd_timeout)
+            if cmd_timeout is not None:
                 timedout = len(readq) == 0
             for recv in readq:
                 if recv.recv_ready():
@@ -545,7 +550,7 @@ class SSHHook(BaseHook):
         return exit_status, agg_stdout, agg_stderr
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the ssh connection by execute remote bash commands"""
+        """Test the ssh connection by execute remote bash commands."""
         try:
             with self.get_conn() as conn:
                 conn.exec_command("pwd")

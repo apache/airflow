@@ -58,7 +58,7 @@ KNN_IMAGES_BY_REGION = {
 }
 
 # For an example of how to obtain the following train and test data, please see
-# https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+# https://github.com/apache/airflow/blob/main/tests/system/providers/amazon/aws/example_sagemaker.py
 TRAIN_DATA = "0,4.9,2.5,4.5,1.7\n1,7.0,3.2,4.7,1.4\n0,7.3,2.9,6.3,1.8\n2,5.1,3.5,1.4,0.2\n"
 SAMPLE_TEST_DATA = "6.4,3.2,4.5,1.5"
 

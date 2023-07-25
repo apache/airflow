@@ -29,7 +29,7 @@ Airflow provides operators to create and interact with SageMaker Jobs and Pipeli
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------

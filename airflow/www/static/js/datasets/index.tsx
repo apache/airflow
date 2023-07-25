@@ -19,34 +19,37 @@
 
 /* global document */
 
-import React, { useRef } from 'react';
-import { createRoot } from 'react-dom/client';
-import createCache from '@emotion/cache';
-import { useSearchParams } from 'react-router-dom';
-import { Flex, Box, useDimensions } from '@chakra-ui/react';
+import React, { useRef } from "react";
+import { createRoot } from "react-dom/client";
+import createCache from "@emotion/cache";
+import { useSearchParams } from "react-router-dom";
+import { Flex, Box } from "@chakra-ui/react";
+import reactFlowStyle from "reactflow/dist/style.css";
 
-import App from 'src/App';
+import App from "src/App";
+import { useOffsetTop } from "src/utils";
 
-import DatasetsList from './List';
-import DatasetDetails from './Details';
-import Graph from './Graph';
+import DatasetsList from "./List";
+import DatasetDetails from "./Details";
+import Graph from "./Graph";
 
 // create shadowRoot
-const root = document.querySelector('#root');
-const shadowRoot = root?.attachShadow({ mode: 'open' });
+const root = document.querySelector("#root");
+const shadowRoot = root?.attachShadow({ mode: "open" });
 const cache = createCache({
   container: shadowRoot,
-  key: 'c',
+  key: "c",
 });
-const mainElement = document.getElementById('react-container');
+const mainElement = document.getElementById("react-container");
 
-const DATASET_URI = 'uri';
+const DATASET_URI = "uri";
 
 const Datasets = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const contentRef = useRef<HTMLDivElement>(null);
-  const graphRef = useRef<HTMLDivElement>(null);
-  const dimensions = useDimensions(graphRef, true);
+  const offsetTop = useOffsetTop(contentRef);
+  // 60px for footer height
+  const height = `calc(100vh - ${offsetTop + 60}px)`;
 
   const onBack = () => {
     searchParams.delete(DATASET_URI);
@@ -58,22 +61,23 @@ const Datasets = () => {
     setSearchParams(searchParams);
   };
 
-  const datasetUri = decodeURIComponent(searchParams.get(DATASET_URI) || '');
+  const datasetUri = decodeURIComponent(searchParams.get(DATASET_URI) || "");
 
   return (
-    <Flex alignItems="flex-start" justifyContent="space-between" ref={contentRef}>
-      <Box minWidth="450px" height="100%" overflowY="auto">
-        {datasetUri
-          ? <DatasetDetails uri={datasetUri} onBack={onBack} />
-          : <DatasetsList onSelect={onSelect} />}
+    <Flex
+      alignItems="flex-start"
+      justifyContent="space-between"
+      ref={contentRef}
+    >
+      <Box minWidth="450px" height={height} overflowY="auto">
+        {datasetUri ? (
+          <DatasetDetails uri={datasetUri} onBack={onBack} />
+        ) : (
+          <DatasetsList onSelect={onSelect} />
+        )}
       </Box>
-      <Box flex={1} ref={graphRef} height="calc(100vh - 68px)" borderColor="gray.200" borderWidth={1}>
-        <Graph
-          selectedUri={datasetUri}
-          onSelect={onSelect}
-          height={dimensions?.contentBox.height || 0}
-          width={dimensions?.contentBox.width || 0}
-        />
+      <Box flex={1} height={height} borderColor="gray.200" borderWidth={1}>
+        <Graph selectedUri={datasetUri} onSelect={onSelect} />
       </Box>
     </Flex>
   );
@@ -81,10 +85,15 @@ const Datasets = () => {
 
 if (mainElement) {
   shadowRoot?.appendChild(mainElement);
+  const styleTag = document.createElement("style");
+  const style = reactFlowStyle.toString();
+  styleTag.innerHTML = style;
+  shadowRoot?.appendChild(styleTag);
+
   const reactRoot = createRoot(mainElement);
   reactRoot.render(
     <App cache={cache}>
       <Datasets />
-    </App>,
+    </App>
   );
 }

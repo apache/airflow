@@ -20,19 +20,24 @@ from __future__ import annotations
 import datetime
 import json
 import time
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import TYPE_CHECKING, Any, Sequence, cast
+
+from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
+from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.helpers import build_airflow_url_with_query
-from airflow.utils.state import State
+from airflow.utils.session import provide_session
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 XCOM_EXECUTION_DATE_ISO = "trigger_execution_date_iso"
@@ -40,12 +45,15 @@ XCOM_RUN_ID = "trigger_run_id"
 
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from sqlalchemy.orm.session import Session
+
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class TriggerDagRunLink(BaseOperatorLink):
     """
     Operator link for TriggerDagRunOperator.
+
     It allows users to access DAG triggered by task using TriggerDagRunOperator.
     """
 
@@ -79,9 +87,17 @@ class TriggerDagRunOperator(BaseOperator):
         (default: 60)
     :param allowed_states: List of allowed states, default is ``['success']``.
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
+    :param deferrable: If waiting for completion, whether or not to defer the task until done,
+        default is ``False``.
     """
 
-    template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
+    template_fields: Sequence[str] = (
+        "trigger_dag_id",
+        "trigger_run_id",
+        "execution_date",
+        "conf",
+        "wait_for_completion",
+    )
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
     operator_extra_links = [TriggerDagRunLink()]
@@ -96,8 +112,9 @@ class TriggerDagRunOperator(BaseOperator):
         reset_dag_run: bool = False,
         wait_for_completion: bool = False,
         poke_interval: int = 60,
-        allowed_states: list | None = None,
-        failed_states: list | None = None,
+        allowed_states: list[str] | None = None,
+        failed_states: list[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -107,8 +124,15 @@ class TriggerDagRunOperator(BaseOperator):
         self.reset_dag_run = reset_dag_run
         self.wait_for_completion = wait_for_completion
         self.poke_interval = poke_interval
-        self.allowed_states = allowed_states or [State.SUCCESS]
-        self.failed_states = failed_states or [State.FAILED]
+        if allowed_states:
+            self.allowed_states = [DagRunState(s) for s in allowed_states]
+        else:
+            self.allowed_states = [DagRunState.SUCCESS]
+        if failed_states:
+            self.failed_states = [DagRunState(s) for s in failed_states]
+        else:
+            self.failed_states = [DagRunState.FAILED]
+        self._defer = deferrable
 
         if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
             raise TypeError(
@@ -134,6 +158,7 @@ class TriggerDagRunOperator(BaseOperator):
             run_id = self.trigger_run_id
         else:
             run_id = DagRun.generate_run_id(DagRunType.MANUAL, parsed_execution_date)
+
         try:
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
@@ -168,6 +193,17 @@ class TriggerDagRunOperator(BaseOperator):
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:
+            # Kick off the deferral process
+            if self._defer:
+                self.defer(
+                    trigger=DagStateTrigger(
+                        dag_id=self.trigger_dag_id,
+                        states=self.allowed_states + self.failed_states,
+                        execution_dates=[parsed_execution_date],
+                        poll_interval=self.poke_interval,
+                    ),
+                    method_name="execute_complete",
+                )
             # wait for dag to complete
             while True:
                 self.log.info(
@@ -185,3 +221,34 @@ class TriggerDagRunOperator(BaseOperator):
                 if state in self.allowed_states:
                     self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
                     return
+
+    @provide_session
+    def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
+        # This execution date is parsed from the return trigger event
+        provided_execution_date = event[1]["execution_dates"][0]
+        try:
+            dag_run = (
+                session.query(DagRun)
+                .filter(
+                    DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_execution_date
+                )
+                .one()
+            )
+
+        except NoResultFound:
+            raise AirflowException(
+                f"No DAG run found for DAG {self.trigger_dag_id} and execution date {self.execution_date}"
+            )
+
+        state = dag_run.state
+
+        if state in self.failed_states:
+            raise AirflowException(f"{self.trigger_dag_id} failed with failed state {state}")
+        if state in self.allowed_states:
+            self.log.info("%s finished with allowed state %s", self.trigger_dag_id, state)
+            return
+
+        raise AirflowException(
+            f"{self.trigger_dag_id} return {state} which is not in {self.failed_states}"
+            f" or {self.allowed_states}"
+        )

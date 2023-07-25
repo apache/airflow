@@ -17,24 +17,38 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 import shutil
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from azure.core.exceptions import HttpResponseError
+from packaging.version import Version
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
+def get_default_delete_local_copy():
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
+
+    TODO: delete this function when min airflow version >= 2.6
+    """
+    from airflow.version import version
+
+    if Version(version) < Version("2.6"):
+        return False
+    return conf.getboolean("logging", "delete_local_logs")
+
+
 class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     """
-    WasbTaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
-    uploads to and reads from Wasb remote storage.
+    WasbTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It extends airflow FileTaskHandler and uploads to and reads from Wasb remote storage.
     """
 
     trigger_should_wrap = True
@@ -44,18 +58,21 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         base_log_folder: str,
         wasb_log_folder: str,
         wasb_container: str,
-        delete_local_copy: str,
         *,
         filename_template: str | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(base_log_folder, filename_template)
+        self.handler: logging.FileHandler | None = None
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
         self.log_relative_path = ""
         self._hook = None
         self.closed = False
         self.upload_on_close = True
-        self.delete_local_copy = delete_local_copy
+        self.delete_local_copy = (
+            kwargs["delete_local_copy"] if "delete_local_copy" in kwargs else get_default_delete_local_copy()
+        )
 
     @cached_property
     def hook(self):
@@ -107,14 +124,14 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             # read log and remove old logs to get just the latest additions
             with open(local_loc) as logfile:
                 log = logfile.read()
-            self.wasb_write(log, remote_loc, append=True)
+            wasb_write = self.wasb_write(log, remote_loc, append=True)
 
-            if self.delete_local_copy:
+            if wasb_write and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read_remote_logs(self, ti, try_number, metadata=None):
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
         messages = []
         logs = []
         worker_log_relative_path = self._render_filename(ti, try_number)
@@ -156,6 +173,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     ) -> tuple[str, dict[str, bool]]:
         """
         Read logs of given task instance and try_number from Wasb remote storage.
+
         If failed, read the log from task instance host machine.
 
         todo: when min airflow version >= 2.6, remove this method
@@ -178,7 +196,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def wasb_log_exists(self, remote_log_location: str) -> bool:
         """
-        Check if remote_log_location exists in remote storage
+        Check if remote_log_location exists in remote storage.
 
         :param remote_log_location: log's location in remote storage
         :return: True if location exists else False
@@ -192,8 +210,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def wasb_read(self, remote_log_location: str, return_error: bool = False):
         """
-        Returns the log found at the remote_log_location. Returns '' if no
-        logs are found or there is an error.
+        Return the log found at the remote_log_location. Returns '' if no logs are found or there is an error.
 
         :param remote_log_location: the log's location in remote storage
         :param return_error: if True, returns a string error message if an
@@ -209,10 +226,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
                 return msg
             return ""
 
-    def wasb_write(self, log: str, remote_log_location: str, append: bool = True) -> None:
+    def wasb_write(self, log: str, remote_log_location: str, append: bool = True) -> bool:
         """
-        Writes the log to the remote_log_location. Fails silently if no hook
-        was created.
+        Writes the log to the remote_log_location. Fails silently if no hook was created.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage
@@ -227,3 +243,5 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)
         except Exception:
             self.log.exception("Could not write logs to %s", remote_log_location)
+            return False
+        return True

@@ -101,6 +101,7 @@ Some directories in the container are mounted, which means that their contents a
 
 - ``./dags`` - you can put your DAG files here.
 - ``./logs`` - contains logs from task execution and scheduler.
+- ``./config`` - you can add custom log parser or add ``airflow_local_settings.py`` to configure cluster policy.
 - ``./plugins`` - you can put your :doc:`custom plugins </authoring-and-scheduling/plugins>` here.
 
 This file uses the latest Airflow image (`apache/airflow <https://hub.docker.com/r/apache/airflow>`__).
@@ -124,7 +125,7 @@ You have to make sure to configure them for the docker-compose:
 
 .. code-block:: bash
 
-    mkdir -p ./dags ./logs ./plugins
+    mkdir -p ./dags ./logs ./plugins ./config
     echo -e "AIRFLOW_UID=$(id -u)" > .env
 
 See :ref:`Docker Compose environment variables <docker-compose-env-variables>`
@@ -306,17 +307,22 @@ you should do those steps:
    to (use correct image tag):
 
 ```
-#image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.5.1}
+#image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.1}
 build: .
 ```
 
 2) Create ``Dockerfile`` in the same folder your ``docker-compose.yaml`` file is with content similar to:
 
 ```
-FROM apache/airflow:2.5.1
+FROM apache/airflow:2.6.1
 ADD requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install apache-airflow==${AIRFLOW_VERSION} -r requirements.txt
 ```
+
+It is the best practice to install apache-airflow in the same version as the one that comes from the
+original image. This way you can be sure that ``pip`` will not try to downgrade or upgrade apache
+airflow while installing other requirements, which might happen in case you try to add a dependency
+that conflicts with the version of apache-airflow that you are using.
 
 3) Place ``requirements.txt`` file in the same directory.
 
