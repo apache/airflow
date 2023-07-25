@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import ExternalPythonOperator
@@ -37,6 +37,9 @@ class _PythonExternalDecoratedOperator(DecoratedOperator, ExternalPythonOperator
     :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
         multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
     """
+
+    template_fields: Sequence[str] = ("templates_dict", "op_args", "op_kwargs")
+    template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
 
     custom_operator_name: str = "@task.external_python"
 
