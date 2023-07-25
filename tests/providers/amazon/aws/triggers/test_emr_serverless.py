@@ -14,13 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import pytest
 
 from airflow.providers.amazon.aws.triggers.emr import (
+    EmrServerlessCancelJobsTrigger,
+    EmrServerlessCreateApplicationTrigger,
+    EmrServerlessDeleteApplicationTrigger,
     EmrServerlessStartApplicationTrigger,
     EmrServerlessStartJobTrigger,
+    EmrServerlessStopApplicationTrigger,
 )
 
 TEST_APPLICATION_ID = "test-application-id"
@@ -35,7 +40,31 @@ class TestEmrTriggers:
     @pytest.mark.parametrize(
         "trigger",
         [
+            EmrServerlessCreateApplicationTrigger(
+                application_id=TEST_APPLICATION_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+            ),
             EmrServerlessStartApplicationTrigger(
+                application_id=TEST_APPLICATION_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+            ),
+            EmrServerlessStopApplicationTrigger(
+                application_id=TEST_APPLICATION_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+            ),
+            EmrServerlessDeleteApplicationTrigger(
+                application_id=TEST_APPLICATION_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+            ),
+            EmrServerlessCancelJobsTrigger(
                 application_id=TEST_APPLICATION_ID,
                 aws_conn_id=TEST_AWS_CONN_ID,
                 waiter_delay=TEST_WAITER_DELAY,

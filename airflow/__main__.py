@@ -54,8 +54,7 @@ def main():
         from airflow.configuration import write_default_airflow_configuration_if_needed
 
         conf = write_default_airflow_configuration_if_needed()
-
-        if args.subcommand == "webserver":
+        if args.subcommand in ["webserver", "internal-api", "worker"]:
             write_webserver_configuration_if_needed(conf)
 
     args.func(args)
