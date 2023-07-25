@@ -33,7 +33,7 @@ revision = "0646b768db47"
 down_revision = "788397e78828"
 branch_labels = None
 depends_on = None
-airflow_version = '2.7.0'
+airflow_version = "2.7.0"
 
 
 TABLE_NAME = "task_instance"
