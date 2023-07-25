@@ -379,7 +379,7 @@ class KubernetesExecutor(BaseExecutor):
         namespace = None
         with suppress(Exception):
             namespace = pod_override.metadata.namespace
-        return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
+        return namespace or conf.get("kubernetes_executor", "namespace")
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         messages = []

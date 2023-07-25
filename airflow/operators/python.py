@@ -766,6 +766,21 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return None
 
 
+class ExternalBranchPythonOperator(ExternalPythonOperator, SkipMixin):
+    """
+    A workflow can "branch" or follow a path after the execution of this task,
+    Extends ExternalPythonOperator, so expects to get Python:
+    virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path,
+    so it can run on separate virtualenv similarly to ExternalPythonOperator.
+    """
+
+    def execute(self, context: Context) -> Any:
+        branch = super().execute(context)
+        self.log.info("Branch callable return %s", branch)
+        self.skip_all_except(context["ti"], branch)
+        return branch
+
+
 def get_current_context() -> Context:
     """
     Retrieve the execution context dictionary without altering user method's signature.

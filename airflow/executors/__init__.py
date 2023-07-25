@@ -28,6 +28,9 @@ __deprecated_classes = {
         "CeleryKubernetesExecutor": "airflow.providers.celery.executors."
         "celery_kubernetes_executor.CeleryKubernetesExecutor",
     },
+    "dask_executor": {
+        "DaskExecutor": "airflow.providers.daskexecutor.executors.dask_executor.DaskExecutor",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)

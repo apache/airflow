@@ -127,3 +127,23 @@ connection-types:
 plugins:
   - name: hive
     plugin-class: airflow.providers.apache.hive.plugins.hive.HivePlugin
+
+config:
+  hive:
+    description: ~
+    options:
+      default_hive_mapred_queue:
+        description: |
+          Default mapreduce queue for HiveOperator tasks
+        version_added: ~
+        type: string
+        example: ~
+        default: ""
+      mapred_job_name_template:
+        description: |
+          Template for mapred_job_name in HiveOperator, supports the following named parameters
+          hostname, dag_id, task_id, execution_date
+        version_added: ~
+        type: string
+        example: ~
+        default: ~
