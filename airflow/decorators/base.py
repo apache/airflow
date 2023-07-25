@@ -382,7 +382,15 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         # Since the input is already checked at parse time, we can set strict
         # to False to skip the checks on execution.
-        return self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
+        if self.is_teardown:
+            if "trigger_rule" in self.kwargs:
+                raise ValueError("Trigger rule not configurable for teardown tasks.")
+            self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
+        obj = self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
+        obj.is_setup = self.is_setup
+        obj.is_teardown = self.is_teardown
+        obj.on_failure_fail_dagrun = self.on_failure_fail_dagrun
+        return obj
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
         if isinstance(kwargs, Sequence):
