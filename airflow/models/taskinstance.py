@@ -1973,6 +1973,7 @@ class TaskInstance(Base, LoggingMixin):
 
         if force_fail or not self.is_eligible_to_retry():
             self.state = TaskInstanceState.FAILED
+            self._try_number += 1
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
             callback_type = "on_failure"
