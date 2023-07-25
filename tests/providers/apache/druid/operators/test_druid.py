@@ -130,6 +130,6 @@ def test_execute_calls_druid_hook_with_the_right_parameters(mock_druid_hook):
         timeout=timeout,
         max_ingestion_time=max_ingestion_time,
     )
-    mock_druid_hook.submit_indexing_job.assert_called_once_with(
+    mock_druid_hook_instance.submit_indexing_job.assert_called_once_with(
         json_index_file, IngestionType.MSQ
     )
