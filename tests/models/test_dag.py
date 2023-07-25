@@ -1987,13 +1987,13 @@ class TestDag:
     # TODO: enable timeout
     # @pytest.mark.execution_timeout(120)
     def test_deferrable_operator(self, dag_maker, session):
-        from airflow.sensors.date_time import DateTimeSensorAsync
+        from airflow.sensors.date_time import DateTimeSensor
 
         # TODO: Set True
         with dag_maker(
             dag_id="test_deferrable", is_paused_upon_creation=False, start_date=DEFAULT_DATE, session=session
         ) as dag:
-            DateTimeSensorAsync(task_id="wait", target_time=datetime.datetime.now() + timedelta(seconds=1))
+            DateTimeSensor(task_id="wait", target_time=datetime.datetime.now() + timedelta(seconds=1))
         dag.test()
 
     def test_dag_connection_file(self):
