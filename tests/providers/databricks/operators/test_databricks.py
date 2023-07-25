@@ -905,7 +905,7 @@ class TestDatabricksRunNowDeferrableOperator:
             retry_limit=op.databricks_retry_limit,
             retry_delay=op.databricks_retry_delay,
             retry_args=None,
-            caller="DatabricksRunNowDeferrableOperator",
+            caller="DatabricksRunNowOperator",
         )
 
         db_mock.run_now.assert_called_once_with(expected)
