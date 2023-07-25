@@ -38,7 +38,6 @@ metastore_db
 .*md5
 .*zip
 .*lock
-unittests.cfg
 logs
 .bash_aliases
 venv

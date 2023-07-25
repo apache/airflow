@@ -39,6 +39,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, helpers, yaml
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
 
 
@@ -61,6 +62,7 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def connections_get(args):
     """Get a connection."""
     try:
@@ -75,6 +77,7 @@ def connections_get(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def connections_list(args):
     """Lists all connections at the command line."""
     with create_session() as session:
@@ -150,6 +153,7 @@ def _get_connection_types() -> list[str]:
     return _connection_types
 
 
+@providers_configuration_loaded
 def connections_export(args):
     """Exports all connections to a file."""
     file_formats = [".yaml", ".json", ".env"]
@@ -200,6 +204,7 @@ alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def connections_add(args):
     """Adds new connection."""
     has_uri = bool(args.conn_uri)
@@ -291,6 +296,7 @@ def connections_add(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def connections_delete(args):
     """Deletes connection from DB."""
     with create_session() as session:
@@ -306,6 +312,7 @@ def connections_delete(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def connections_import(args):
     """Imports connections from a file."""
     if os.path.exists(args.file):
@@ -343,6 +350,7 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def connections_test(args) -> None:
     """Test an Airflow connection."""
     console = AirflowConsole()

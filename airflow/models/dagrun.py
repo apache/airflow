@@ -575,8 +575,7 @@ class DagRun(Base, LoggingMixin):
         self, session: Session = NEW_SESSION, execute_callbacks: bool = True
     ) -> tuple[list[TI], DagCallbackRequest | None]:
         """
-        Determines the overall state of the DagRun based on the state
-        of its TaskInstances.
+        Determines the overall state of the DagRun based on the state of its TaskInstances.
 
         :param session: Sqlalchemy ORM Session
         :param execute_callbacks: Should dag callbacks (success/failure, SLA etc.) be invoked
@@ -974,8 +973,9 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
         """
-        Verifies the DagRun by checking for removed tasks or tasks that are not in the
-        database yet. It will set state to removed or add the task if required.
+        Verifies the DagRun by checking for removed tasks or tasks that are not in the database yet.
+
+        It will set state to removed or add the task if required.
 
         :missing_indexes: A dictionary of task vs indexes that are missing.
         :param session: Sqlalchemy ORM Session
