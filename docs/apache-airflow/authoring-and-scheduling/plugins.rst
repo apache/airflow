@@ -57,7 +57,6 @@ Examples:
 * An auditing tool, helping understand who accesses what
 * A config-driven SLA monitoring tool, allowing you to set monitored tables and at what time
   they should land, alert people, and expose visualizations of outages
-* ...
 
 Why build on top of Airflow?
 ----------------------------

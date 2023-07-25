@@ -63,7 +63,7 @@ class ExecutorLoader:
         CELERY_EXECUTOR: "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
         CELERY_KUBERNETES_EXECUTOR: "airflow.providers.celery."
         "executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
-        DASK_EXECUTOR: "airflow.executors.dask_executor.DaskExecutor",
+        DASK_EXECUTOR: "airflow.providers.daskexecutor.executors.dask_executor.DaskExecutor",
         KUBERNETES_EXECUTOR: "airflow.executors.kubernetes_executor.KubernetesExecutor",
         DEBUG_EXECUTOR: "airflow.executors.debug_executor.DebugExecutor",
     }
@@ -98,6 +98,9 @@ class ExecutorLoader:
 
         :return: an instance of executor class via executor_name
         """
+        from airflow.providers_manager import ProvidersManager
+
+        ProvidersManager().initialize_providers_configuration()
         if executor_name == CELERY_KUBERNETES_EXECUTOR:
             return cls.__load_celery_kubernetes_executor()
         elif executor_name == LOCAL_KUBERNETES_EXECUTOR:

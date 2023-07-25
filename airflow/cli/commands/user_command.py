@@ -32,6 +32,7 @@ from marshmallow.exceptions import ValidationError
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
 class UserSchema(Schema):
@@ -46,6 +47,7 @@ class UserSchema(Schema):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def users_list(args):
     """Lists users at the command line."""
     from airflow.utils.cli_app_builder import get_application_builder
@@ -60,6 +62,7 @@ def users_list(args):
 
 
 @cli_utils.action_cli(check_db=True)
+@providers_configuration_loaded
 def users_create(args):
     """Creates new user in the DB."""
     from airflow.utils.cli_app_builder import get_application_builder
@@ -108,6 +111,7 @@ def _find_user(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def users_delete(args):
     """Deletes user from DB."""
     user = _find_user(args)
@@ -125,6 +129,7 @@ def users_delete(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def users_manage_role(args, remove=False):
     """Deletes or appends user roles."""
     user = _find_user(args)
@@ -153,6 +158,7 @@ def users_manage_role(args, remove=False):
             print(f'User "{user.username}" added to role "{args.role}"')
 
 
+@providers_configuration_loaded
 def users_export(args):
     """Exports all users to the json file."""
     from airflow.utils.cli_app_builder import get_application_builder
@@ -182,6 +188,7 @@ def users_export(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def users_import(args):
     """Imports users from the json file."""
     json_file = getattr(args, "import")

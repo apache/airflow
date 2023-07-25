@@ -21,10 +21,12 @@ from sqlalchemy.orm import Session
 
 from airflow.jobs.job import Job
 from airflow.utils.net import get_hostname
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import JobState
 
 
+@providers_configuration_loaded
 @provide_session
 def check(args, session: Session = NEW_SESSION) -> None:
     """Checks if job(s) are still alive."""

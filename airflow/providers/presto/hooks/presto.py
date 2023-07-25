@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any, Iterable, Mapping, TypeVar
 
 import prestodb
 from prestodb.exceptions import DatabaseError
@@ -30,6 +30,8 @@ from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+
+T = TypeVar("T")
 
 
 def generate_presto_client_info() -> str:
@@ -136,7 +138,7 @@ class PrestoHook(DbApiHook):
     def get_records(
         self,
         sql: str | list[str] = "",
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
@@ -145,7 +147,9 @@ class PrestoHook(DbApiHook):
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_first(self, sql: str | list[str] = "", parameters: Iterable | Mapping | None = None) -> Any:
+    def get_first(
+        self, sql: str | list[str] = "", parameters: Iterable | Mapping[str, Any] | None = None
+    ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
         try:
@@ -169,24 +173,6 @@ class PrestoHook(DbApiHook):
         else:
             df = pandas.DataFrame(**kwargs)
         return df
-
-    def run(
-        self,
-        sql: str | Iterable[str],
-        autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
-        handler: Callable | None = None,
-        split_statements: bool = False,
-        return_last: bool = True,
-    ) -> Any | list[Any] | None:
-        return super().run(
-            sql=sql,
-            autocommit=autocommit,
-            parameters=parameters,
-            handler=handler,
-            split_statements=split_statements,
-            return_last=return_last,
-        )
 
     def insert_rows(
         self,

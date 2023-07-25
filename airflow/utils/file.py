@@ -41,8 +41,9 @@ class _IgnoreRule(Protocol):
     @staticmethod
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> _IgnoreRule | None:
         """
-        Build an ignore rule from the supplied pattern where base_dir
-        and definition_file should be absolute paths.
+        Build an ignore rule from the supplied pattern.
+
+        ``base_dir`` and ``definition_file`` should be absolute paths.
         """
 
     @staticmethod
@@ -134,8 +135,9 @@ def TemporaryDirectory(*args, **kwargs):
 
 def mkdirs(path, mode):
     """
-    Creates the directory specified by path, creating intermediate directories
-    as necessary. If directory already exists, this is a no-op.
+    Creates the directory specified by path, creating intermediate directories as necessary.
+
+    If directory already exists, this is a no-op.
 
     :param path: The directory to create
     :param mode: The mode to give to the directory e.g. 0o755, ignores umask
@@ -164,10 +166,7 @@ def correct_maybe_zipped(fileloc: str | Path) -> str | Path:
 
 
 def correct_maybe_zipped(fileloc: None | str | Path) -> None | str | Path:
-    """
-    If the path contains a folder with a .zip suffix, then
-    the folder is treated as a zip archive and path to zip is returned.
-    """
+    """If the path contains a folder with a .zip suffix, treat it as a zip archive and return path."""
     if not fileloc:
         return fileloc
     search_ = ZIP_REGEX.search(str(fileloc))
@@ -182,8 +181,10 @@ def correct_maybe_zipped(fileloc: None | str | Path) -> None | str | Path:
 
 def open_maybe_zipped(fileloc, mode="r"):
     """
-    Opens the given file. If the path contains a folder with a .zip suffix, then
-    the folder is treated as a zip archive, opening the file inside the archive.
+    Opens the given file.
+
+    If the path contains a folder with a .zip suffix, then the folder
+    is treated as a zip archive, opening the file inside the archive.
 
     :return: a file object, as in `open`, or as in `ZipFile.open`.
     """
@@ -332,6 +333,7 @@ COMMENT_PATTERN = re2.compile(r"\s*#.*")
 def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None) -> bool:
     """
     Check whether a Python file contains Airflow DAGs.
+
     When safe_mode is off (with False value), this function always returns True.
 
     If might_contain_dag_callable isn't specified, it uses airflow default heuristic

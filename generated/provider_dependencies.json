@@ -277,6 +277,16 @@
     ],
     "excluded-python-versions": []
   },
+  "daskexecutor": {
+    "deps": [
+      "apache-airflow>=2.4.0",
+      "cloudpickle>=1.4.1",
+      "dask>=2.9.0,!=2022.10.1,!=2023.5.0",
+      "distributed>=2.11.1,!=2023.5.0"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "databricks": {
     "deps": [
       "aiohttp>=3.6.3, <4",
@@ -440,7 +450,8 @@
       "pandas-gbq",
       "pandas>=0.17.1",
       "proto-plus>=1.19.6",
-      "sqlalchemy-bigquery>=1.2.1"
+      "sqlalchemy-bigquery>=1.2.1",
+      "sqlalchemy-spanner>=1.6.2"
     ],
     "cross-providers-deps": [
       "amazon",
@@ -601,6 +612,7 @@
     "cross-providers-deps": [
       "amazon",
       "common.sql",
+      "openlineage",
       "presto",
       "trino",
       "vertica"
@@ -773,6 +785,7 @@
       "apache-airflow>=2.4.0"
     ],
     "cross-providers-deps": [
+      "openlineage",
       "ssh"
     ],
     "excluded-python-versions": []
@@ -812,6 +825,7 @@
     ],
     "cross-providers-deps": [
       "common.sql",
+      "openlineage",
       "slack"
     ],
     "excluded-python-versions": []

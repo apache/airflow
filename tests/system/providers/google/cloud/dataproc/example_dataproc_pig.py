@@ -31,8 +31,8 @@ from airflow.providers.google.cloud.operators.dataproc import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_pig"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 CLUSTER_NAME = f"cluster-dataproc-pig-{ENV_ID}"
@@ -41,7 +41,6 @@ ZONE = "europe-west1-b"
 
 
 # Cluster definition
-
 CLUSTER_CONFIG = {
     "master_config": {
         "num_instances": 1,
@@ -72,7 +71,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "dataproc", "pig"],
 ) as dag:
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",
@@ -94,7 +93,14 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    create_cluster >> pig_task >> delete_cluster
+    (
+        # TEST SETUP
+        create_cluster
+        # TEST BODY
+        >> pig_task
+        # TEST TEARDOWN
+        >> delete_cluster
+    )
 
     from tests.system.utils.watcher import watcher
 

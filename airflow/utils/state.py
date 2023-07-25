@@ -82,10 +82,7 @@ class DagRunState(str, Enum):
 
 
 class State:
-    """
-    Static class with task instance state constants and color methods to
-    avoid hardcoding.
-    """
+    """Static class with task instance state constants and color methods to avoid hardcoding."""
 
     # Backwards-compat constants for code that does not yet use the enum
     # These first three are shared by DagState and TaskState

@@ -29,10 +29,10 @@ import pendulum
 from flask import after_this_request, g, request
 from pendulum.parsing.exceptions import ParserError
 
-from airflow.configuration import auth_manager
 from airflow.models import Log
 from airflow.utils.log import secrets_masker
 from airflow.utils.session import create_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 T = TypeVar("T", bound=Callable)
 
@@ -85,7 +85,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
             __tracebackhide__ = True  # Hide from pytest traceback.
 
             with create_session() as session:
-                if not auth_manager.is_logged_in():
+                if not get_auth_manager().is_logged_in():
                     user = "anonymous"
                 else:
                     user = f"{g.user.username} ({g.user.get_full_name()})"
