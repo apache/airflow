@@ -22,6 +22,7 @@ from datetime import datetime
 
 from airflow.exceptions import DagNotFound, DagRunNotFound, TaskNotFound
 from airflow.models import DagBag, DagModel
+from airflow.models.dagrun import DagRun
 
 
 def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DagModel:
@@ -41,7 +42,7 @@ def check_and_get_dag(dag_id: str, task_id: str | None = None) -> DagModel:
     return dag
 
 
-def check_and_get_dagrun(dag: DagModel, execution_date: datetime):
+def check_and_get_dagrun(dag: DagModel, execution_date: datetime) -> DagRun:
     """Get DagRun object and check that it exists."""
     dagrun = dag.get_dagrun(execution_date=execution_date)
     if not dagrun:
