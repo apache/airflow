@@ -4951,11 +4951,24 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
+    def fdeferred_slots(self):
+        """Deferred slots rendering."""
+        pool_id = self.get("pool")
+        deferred_slots = self.get("deferred_slots")
+        if pool_id is not None and deferred_slots is not None:
+            url = url_for("TaskInstanceModelView.list", _flt_3_pool=pool_id, _flt_3_state="deferred")
+            return Markup("<a href='{url}'>{deferred_slots}</a>").format(
+                url=url, deferred_slots=deferred_slots
+            )
+        else:
+            return Markup('<span class="label label-danger">Invalid</span>')
+
     formatters_columns = {
         "pool": pool_link,
         "running_slots": frunning_slots,
         "queued_slots": fqueued_slots,
         "scheduled_slots": fscheduled_slots,
+        "deferred_slots": fdeferred_slots,
     }
 
     validators_columns = {"pool": [validators.DataRequired()], "slots": [validators.NumberRange(min=-1)]}
