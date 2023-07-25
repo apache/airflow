@@ -37,7 +37,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.databricks.operators.databricks import (
-    DatabricksJobsCreateOperator,
+    DatabricksCreateJobsOperator,
     DatabricksRunNowOperator,
     DatabricksSubmitRunOperator,
 )
@@ -77,7 +77,7 @@ with DAG(
         ],
     }
 
-    jobs_create_json = DatabricksJobsCreateOperator(task_id="jobs_create_json", json=job)
+    jobs_create_json = DatabricksCreateJobsOperator(task_id="jobs_create_json", json=job)
     # [END howto_operator_databricks_jobs_create_json]
 
     # [START howto_operator_databricks_jobs_create_named]
@@ -102,13 +102,13 @@ with DAG(
         },
     ]
 
-    jobs_create_named = DatabricksJobsCreateOperator(
+    jobs_create_named = DatabricksCreateJobsOperator(
         task_id="jobs_create_named", tasks=tasks, job_clusters=job_clusters
     )
     # [END howto_operator_databricks_jobs_create_named]
 
     # [START howto_operator_databricks_run_now]
-    # Example of using the DatabricksRunNowOperator after creating a job with DatabricksJobsCreateOperator.
+    # Example of using the DatabricksRunNowOperator after creating a job with DatabricksCreateJobsOperator.
     run_now = DatabricksRunNowOperator(
         task_id="run_now", job_id="{{ ti.xcom_pull(task_ids='jobs_create_named') }}"
     )

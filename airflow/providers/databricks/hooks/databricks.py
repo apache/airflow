@@ -196,7 +196,7 @@ class DatabricksHook(BaseDatabricksHook):
     ) -> None:
         super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
 
-    def create(self, json: dict) -> int:
+    def create_job(self, json: dict) -> int:
         """
         Utility function to call the ``api/2.1/jobs/create`` endpoint.
 
@@ -206,7 +206,7 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(CREATE_ENDPOINT, json)
         return response["job_id"]
 
-    def reset(self, job_id: str, json: dict):
+    def reset_job(self, job_id: str, json: dict):
         """
         Utility function to call the ``api/2.1/jobs/reset`` endpoint.
 

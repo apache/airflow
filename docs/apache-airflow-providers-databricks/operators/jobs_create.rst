@@ -17,10 +17,10 @@
 
 
 
-DatabricksJobsCreateOperator
+DatabricksCreateJobsOperator
 ============================
 
-Use the :class:`~airflow.providers.databricks.operators.DatabricksJobsCreateOperator` to create
+Use the :class:`~airflow.providers.databricks.operators.DatabricksCreateJobsOperator` to create
 (or reset) a Databricks job. This operator relies on past XComs to remember the ``job_id`` that
 was created so that repeated calls with this operator will update the existing job rather than
 creating new ones. When paired with the DatabricksRunNowOperator all runs will fall under the same
@@ -31,18 +31,18 @@ Using the Operator
 ------------------
 
 There are three ways to instantiate this operator. In the first way, you can take the JSON payload that you typically use
-to call the ``api/2.1/jobs/create`` endpoint and pass it directly to our ``DatabricksJobsCreateOperator`` through the
+to call the ``api/2.1/jobs/create`` endpoint and pass it directly to our ``DatabricksCreateJobsOperator`` through the
 ``json`` parameter.  With this approach you get full control over the underlying payload to Jobs REST API, including
 execution of Databricks jobs with multiple tasks, but it's harder to detect errors because of the lack of the type checking.
 
-The second way to accomplish the same thing is to use the named parameters of the ``DatabricksJobsCreateOperator`` directly. Note that there is exactly
+The second way to accomplish the same thing is to use the named parameters of the ``DatabricksCreateJobsOperator`` directly. Note that there is exactly
 one named parameter for each top level parameter in the ``api/2.1/jobs/create`` endpoint.
 
 The third way is to use both the json parameter **AND** the named parameters. They will be merged
 together. If there are conflicts during the merge, the named parameters will take precedence and
 override the top level ``json`` keys.
 
-Currently the named parameters that ``DatabricksJobsCreateOperator`` supports are:
+Currently the named parameters that ``DatabricksCreateJobsOperator`` supports are:
   - ``name``
   - ``tags``
   - ``tasks``
@@ -62,7 +62,7 @@ Examples
 Specifying parameters as JSON
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-An example usage of the DatabricksJobsCreateOperator is as follows:
+An example usage of the DatabricksCreateJobsOperator is as follows:
 
 .. exampleinclude:: /../../tests/system/providers/databricks/example_databricks.py
     :language: python
@@ -82,7 +82,7 @@ You can also use named parameters to initialize the operator and run the job.
 Pairing with DatabricksRunNowOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-You can use the ``job_id`` that is returned by the DatabricksJobsCreateOperator in the
+You can use the ``job_id`` that is returned by the DatabricksCreateJobsOperator in the
 return_value XCom as an argument to the DatabricksRunNowOperator to run the job.
 
 .. exampleinclude:: /../../tests/system/providers/databricks/example_databricks.py

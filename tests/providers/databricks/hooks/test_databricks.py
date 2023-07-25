@@ -408,7 +408,7 @@ class TestDatabricksHook:
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
         json = {"name": "test"}
-        job_id = self.hook.create(json)
+        job_id = self.hook.create_job(json)
 
         assert job_id == JOB_ID
 
@@ -427,7 +427,7 @@ class TestDatabricksHook:
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
         json = {"name": "test"}
-        self.hook.reset(JOB_ID, json)
+        self.hook.reset_job(JOB_ID, json)
 
         mock_requests.post.assert_called_once_with(
             reset_endpoint(HOST),

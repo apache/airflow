@@ -24,7 +24,7 @@ from functools import cached_property
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Sequence
 
-from databricks.sdk.service import jobs as j
+from databricks.sdk.service import jobs
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -165,7 +165,7 @@ class DatabricksJobRunLink(BaseOperatorLink):
         return XCom.get_value(key=XCOM_RUN_PAGE_URL_KEY, ti_key=ti_key)
 
 
-class DatabricksJobsCreateOperator(BaseOperator):
+class DatabricksCreateJobsOperator(BaseOperator):
     """
     Creates (or resets) a Databricks job using the
     `api/2.1/jobs/create
@@ -229,15 +229,15 @@ class DatabricksJobsCreateOperator(BaseOperator):
         json: Any | None = None,
         name: str | None = None,
         tags: dict[str, str] | None = None,
-        tasks: list[j.JobTaskSettings] | None = None,
-        job_clusters: list[j.JobCluster] | None = None,
-        email_notifications: j.JobEmailNotifications | None = None,
-        webhook_notifications: j.JobWebhookNotifications | None = None,
+        tasks: list[jobs.JobTaskSettings] | None = None,
+        job_clusters: list[jobs.JobCluster] | None = None,
+        email_notifications: jobs.JobEmailNotifications | None = None,
+        webhook_notifications: jobs.JobWebhookNotifications | None = None,
         timeout_seconds: int | None = None,
-        schedule: j.CronSchedule | None = None,
+        schedule: jobs.CronSchedule | None = None,
         max_concurrent_runs: int | None = None,
-        git_source: j.GitSource | None = None,
-        access_control_list: list[j.AccessControlRequest] | None = None,
+        git_source: jobs.GitSource | None = None,
+        access_control_list: list[jobs.AccessControlRequest] | None = None,
         databricks_conn_id: str = "databricks_default",
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -245,7 +245,7 @@ class DatabricksJobsCreateOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksJobsCreateOperator``."""
+        """Creates a new ``DatabricksCreateJobsOperator``."""
         super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
@@ -280,15 +280,12 @@ class DatabricksJobsCreateOperator(BaseOperator):
 
     @cached_property
     def _hook(self):
-        return self._get_hook(caller="DatabricksJobsCreateOperator")
-
-    def _get_hook(self, caller: str) -> DatabricksHook:
         return DatabricksHook(
             self.databricks_conn_id,
             retry_limit=self.databricks_retry_limit,
             retry_delay=self.databricks_retry_delay,
             retry_args=self.databricks_retry_args,
-            caller=caller,
+            caller="DatabricksCreateJobsOperator",
         )
 
     def execute(self, context: Context) -> int:
@@ -296,8 +293,8 @@ class DatabricksJobsCreateOperator(BaseOperator):
             raise AirflowException("Missing required parameter: name")
         job_id = self._hook.find_job_id_by_name(self.json["name"])
         if job_id is None:
-            return self._hook.create(self.json)
-        self._hook.reset(str(job_id), self.json)
+            return self._hook.create_job(self.json)
+        self._hook.reset_job(str(job_id), self.json)
         return job_id
 
 
