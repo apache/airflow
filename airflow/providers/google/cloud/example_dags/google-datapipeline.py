@@ -35,7 +35,7 @@ from datetime import datetime
 
 from airflow import models
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
-from airflow.providers.google.cloud.operators.datapipeline import CreateDataPipelineOperator, RunDataPipelineOperator
+from airflow.providers.google.cloud.operators.datapipeline import RunDataPipelineOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -49,37 +49,8 @@ with models.DAG(
     catchup=False,
     tags=["example", "datapipeline"],
 ) as dag:
-    create_data_pipeline = CreateDataPipelineOperator(
-        task_id="create_data_pipeline",
-        project_id="dataflow-interns",
-        location="us-central1",
-        body = {
-            "name": "projects/dataflow-interns/locations/us-central1/pipelines/dp-create-1642676351302-mp--1675461000",
-            "type": "PIPELINE_TYPE_BATCH",
-            "workload": {
-                "dataflowFlexTemplateRequest": {
-                "launchParameter": {
-                    "containerSpecGcsPath": "gs://intern-bucket-1/templates/word-count.json",
-                    "jobName": "word-count-test-intern1",
-                    "environment": {
-                    "tempLocation": "gs://intern-bucket-1/temp"
-                    },
-                    "parameters": {
-                    "inputFile": "gs://intern-bucket-1/examples/kinglear.txt",
-                    "output": "gs://intern-bucket-1/results/hello"
-                    }
-                },
-                "projectId": "dataflow-interns",
-                "location": "us-central1"
-                }
-            }
-        }
-    )
-    print(create_data_pipeline)
     run_data_pipeline = RunDataPipelineOperator(
         task_id = "run_data_pipeline",
         data_pipeline_name = "dp-create-1642676351302-mp--1675461000"
         )
- 
-    create_data_pipeline 
     run_data_pipeline
