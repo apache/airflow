@@ -18,33 +18,18 @@
 """This module contains a Google Data Pipelines Hook."""
 from __future__ import annotations
 
-import functools
-import json
-import re
-import shlex
-import subprocess
-import time
-import uuid
-import warnings
-import urllib.parse
-from copy import deepcopy
-
 from googleapiclient.discovery import build
 
 from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
 )
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.timeout import timeout
 
-# This is the default location
-# https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 DEFAULT_DATAPIPELINE_LOCATION = "us-central1"
 
 
 class DataPipelineHook(GoogleBaseHook):
     """
-    Hook for Google DataPipeline.
+    Hook for Google Data Pipelines.
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
@@ -79,17 +64,20 @@ class DataPipelineHook(GoogleBaseHook):
             https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
         :param project_id: The ID of the GCP project that owns the job.
         :param location: The location to direct the Data Pipelines instance to (example_dags uses uscentral-1).
-        
+
         Returns the created Data Pipelines instance in JSON representation.
         """
-        
+
         parent = self.build_parent_name(project_id, location)
         service = self.get_conn()
         self.log.info(dir(service.projects().locations()))
         request = (
-            service.projects().locations().pipelines().create(
-                parent = parent,
-                body = body,
+            service.projects()
+            .locations()
+            .pipelines()
+            .create(
+                parent=parent,
+                body=body,
             )
         )
         response = request.execute(num_retries=self.num_retries)
@@ -98,7 +86,7 @@ class DataPipelineHook(GoogleBaseHook):
     @staticmethod
     def build_parent_name(project_id: str, location: str):
         return f"projects/{project_id}/locations/{location}"
-    
+
     @GoogleBaseHook.fallback_to_default_project_id
     def run_data_pipeline(
         self,
@@ -107,22 +95,25 @@ class DataPipelineHook(GoogleBaseHook):
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
         """
-        Runs a Data Pipelines Instance using the Data Pipelines API 
+        Runs a Data Pipelines Instance using the Data Pipelines API
 
-        :param data_pipeline_name:  The display name of the pipeline. In example 
+        :param data_pipeline_name:  The display name of the pipeline. In example
             projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
         :param project_id: The ID of the GCP project that owns the job.
         :param location: The location of the Data Pipelines instance to (example_dags uses uscentral-1).
-        
+
         Returns the created Job in JSON representation.
         """
         parent = self.build_parent_name(project_id, location)
         service = self.get_conn()
         self.log.info(dir(service.projects().locations()))
         request = (
-            service.projects().locations().pipelines().run(
-                name = f"{parent}/pipelines/{data_pipeline_name}",
-                body = {},
+            service.projects()
+            .locations()
+            .pipelines()
+            .run(
+                name=f"{parent}/pipelines/{data_pipeline_name}",
+                body={},
             )
         )
         response = request.execute(num_retries=self.num_retries)

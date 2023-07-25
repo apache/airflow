@@ -18,73 +18,67 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest as pytest
 
-import airflow
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.datapipeline import (
     CreateDataPipelineOperator,
     RunDataPipelineOperator,
 )
-from airflow.version import version
 
 TASK_ID = "test-datapipeline-operators"
 TEST_BODY = {
     "name": "projects/test-datapipeline-operators/locations/test-location/pipelines/test-pipeline",
-            "type": "PIPELINE_TYPE_BATCH",
-            "workload": {
-                "dataflowFlexTemplateRequest": {
-                "launchParameter": {
-                    "containerSpecGcsPath": "gs://dataflow-templates-us-central1/latest/Word_Count_metadata",
-                    "jobName": "test-job",
-                    "environment": {
-                    "tempLocation": "test-temp-location"
-                    },
-                    "parameters": {
+    "type": "PIPELINE_TYPE_BATCH",
+    "workload": {
+        "dataflowFlexTemplateRequest": {
+            "launchParameter": {
+                "containerSpecGcsPath": "gs://dataflow-templates-us-central1/latest/Word_Count_metadata",
+                "jobName": "test-job",
+                "environment": {"tempLocation": "test-temp-location"},
+                "parameters": {
                     "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
-                    "output": "gs://test/output/my_output"
-                    }
+                    "output": "gs://test/output/my_output",
                 },
-                "projectId": "test-project-id",
-                "location": "test-location"
-                }
-            }
+            },
+            "projectId": "test-project-id",
+            "location": "test-location",
+        }
+    },
 }
 TEST_LOCATION = "test-location"
 TEST_PROJECTID = "test-project-id"
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_DATA_PIPELINE_NAME = "test_data_pipeline_name"
 
+
 class TestCreateDataPipelineOperator:
     @pytest.fixture
     def create_operator(self):
-        """ 
+        """
         Creates a mock create datapipeline operator to be used in testing.
         """
         return CreateDataPipelineOperator(
-            task_id = "test_create_datapipeline",
-            body = TEST_BODY,
-            project_id = TEST_PROJECTID,
-            location = TEST_LOCATION,
-            gcp_conn_id = TEST_GCP_CONN_ID
+            task_id="test_create_datapipeline",
+            body=TEST_BODY,
+            project_id=TEST_PROJECTID,
+            location=TEST_LOCATION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
         )
-    
+
     @mock.patch("airflow.providers.google.cloud.operators.datapipeline.DataPipelineHook")
-    def test_execute(self, mock_datapipeline, create_operator):
-        """ 
+    def test_execute(self, mock_hook, create_operator):
+        """
         Test that the execute function creates and calls the DataPipeline hook with the correct parameters
         """
         create_operator.execute(mock.MagicMock())
-        mock_datapipeline.assert_called_once_with(
-            gcp_conn_id = "test_gcp_conn_id",
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="test_gcp_conn_id",
         )
-        
-        mock_datapipeline.return_value.create_data_pipeline.assert_called_once_with(
-            project_id = TEST_PROJECTID,
-            body = TEST_BODY,
-            location = TEST_LOCATION
+
+        mock_hook.return_value.create_data_pipeline.assert_called_once_with(
+            project_id=TEST_PROJECTID, body=TEST_BODY, location=TEST_LOCATION
         )
 
     def test_body_valid(self):
@@ -143,6 +137,7 @@ class TestCreateDataPipelineOperator:
         with pytest.raises(AirflowException):
             CreateDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
 
+
 class TestRunDataPipelineOperator:
     @pytest.fixture
     def run_operator(self):
@@ -166,7 +161,7 @@ class TestRunDataPipelineOperator:
         data_pipeline_hook_mock.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
         )
-        
+
         data_pipeline_hook_mock.return_value.run_data_pipeline.assert_called_once_with(
             data_pipeline_name=TEST_DATA_PIPELINE_NAME,
             project_id=TEST_PROJECTID,
@@ -227,4 +222,6 @@ class TestRunDataPipelineOperator:
             "gcp_conn_id": TEST_GCP_CONN_ID,
         }
         with pytest.raises(AirflowException):
-            RunDataPipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {"error":{"message":"example error"}}
+            RunDataPipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {
+                "error": {"message": "example error"}
+            }
