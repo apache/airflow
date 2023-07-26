@@ -41,6 +41,7 @@ from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFile
 from airflow.utils.trigger_rule import TriggerRule
 
 DAG_ID = "google-datapipeline"
+DATA_PIPELINE_NAME = os.environ.get("DATA_PIPELINE_NAME", "example-datapipeline")
 
 with models.DAG(
     DAG_ID,
@@ -51,6 +52,6 @@ with models.DAG(
 ) as dag:
     run_data_pipeline = RunDataPipelineOperator(
         task_id = "run_data_pipeline",
-        data_pipeline_name = "dp-create-1642676351302-mp--1675461000"
+        data_pipeline_name = DATA_PIPELINE_NAME
         )
     run_data_pipeline
