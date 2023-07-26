@@ -197,7 +197,9 @@
       "apache-airflow>=2.4.0",
       "pyspark"
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "cncf.kubernetes"
+    ],
     "excluded-python-versions": []
   },
   "apache.sqoop": {
@@ -245,7 +247,9 @@
       "celery>=5.2.3,<6",
       "flower>=1.0.0"
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "cncf.kubernetes"
+    ],
     "excluded-python-versions": []
   },
   "cloudant": {

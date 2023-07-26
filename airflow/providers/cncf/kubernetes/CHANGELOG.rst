@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+7.4.0
+.....
+
+.. note::
+  This provider release is the first release that has Kubernetes Executor and
+  Local Kubernetes Executor moved from the core ``apache-airflow`` package to the ``cncf.kubernetes``
+  provider package.
+
+
 7.3.0
 .....
 
@@ -310,10 +319,10 @@ Param ``node_selectors`` has been removed in ``KubernetesPodOperator``; use ``no
 The following backcompat modules for KubernetesPodOperator are removed and you must now use
 the corresponding objects from the kubernetes library:
 
-* ``airflow.providers.cncf.kubernetes.backcompat.pod``
-* ``airflow.providers.cncf.kubernetes.backcompat.pod_runtime_info_env``
-* ``airflow.providers.cncf.kubernetes.backcompat.volume``
-* ``airflow.providers.cncf.kubernetes.backcompat.volume_mount``
+* ``airflow.kubernetes.backcompat.pod``
+* ``airflow.kubernetes.backcompat.pod_runtime_info_env``
+* ``airflow.kubernetes.backcompat.volume``
+* ``airflow.kubernetes.backcompat.volume_mount``
 
 * ``Remove deprecated backcompat objects for KPO (#27518)``
 * ``Remove support for node_selectors param in KPO (#27515)``

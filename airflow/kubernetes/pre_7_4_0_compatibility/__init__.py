@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`kubernetes.client.models.V1Volume`."""
 from __future__ import annotations
 
+# All the classes in this module should only be kept for backwards-compatibility reasons.
+# old cncf.kubernetes providers will use those in their frozen version for pre-7.4.0 release
 import warnings
 
-from airflow.exceptions import RemovedInAirflow3Warning
-
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-    from airflow.providers.cncf.kubernetes.backcompat.volume import Volume  # noqa: autoflake
-
 warnings.warn(
-    "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
-    RemovedInAirflow3Warning,
+    "This module is deprecated. The `cncf.kubernetes` provider before version 7.4.0 uses this module - "
+    "you should migrate to a newer version of `cncf.kubernetes` to get rid of this warning. If you "
+    "import the module via `airflow.kubernetes` import, please use `cncf.kubernetes' "
+    "provider 7.4.0+ and switch all your imports to use `apache.airflow.providers.cncf.kubernetes` "
+    "to get rid of the warning.",
+    DeprecationWarning,
     stacklevel=2,
 )

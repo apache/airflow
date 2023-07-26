@@ -43,7 +43,6 @@ class KubeConfig:
         self.worker_pods_creation_batch_size = conf.getint(
             self.kubernetes_section, "worker_pods_creation_batch_size"
         )
-
         self.worker_container_repository = conf.get(self.kubernetes_section, "worker_container_repository")
         self.worker_container_tag = conf.get(self.kubernetes_section, "worker_container_tag")
         if self.worker_container_repository and self.worker_container_tag:

@@ -43,8 +43,14 @@ def rand_str(num):
     return "".join(secrets.choice(alphanum_lower) for _ in range(num))
 
 
-def add_pod_suffix(*, pod_name, rand_len=8, max_len=80):
-    """Add random string to pod name while staying under max len."""
+def add_pod_suffix(*, pod_name: str, rand_len: int = 8, max_len: int = 80) -> str:
+    """Add random string to pod name while staying under max length.
+
+    :param pod_name: name of the pod
+    :param rand_len: length of the random string to append
+    :param max_len: maximum length of the pod name
+    :meta private:
+    """
     suffix = "-" + rand_str(rand_len)
     return pod_name[: max_len - len(suffix)].strip("-.") + suffix
 
