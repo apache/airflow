@@ -29,3 +29,25 @@ Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
 .. include:: /operators/_partials/prerequisite_tasks.rst
+
+Creating a Data Pipeline
+^^^^^^^^^^^^^^^^^^
+
+To create a new Data Pipelines instance using a request body and parent name, use the create data pipeline operator. 
+The operator utilizes the following parameters:
+   **Request Body**: instance of the Pipeline,
+   **Project ID**: id of the GCP project that owns the job,
+   **Location**: destination for the Pipeline,
+   **Google Cloud Platform Connection ID**: id to connect to Google Cloud. 
+
+The request body and project id need to be passed each time, while the GCP connection id and location have default values.
+The project id and location will be used to build the parent name needed to create the operator. 
+
+Here is an example of how you can create a Data Pipelines instance by running the above parameters with CreateDataPipelineOperator:
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/google-datapipeline.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_create_data_pipeline]
+   :end-before: [END howto_operator_create_data_pipeline]
+   

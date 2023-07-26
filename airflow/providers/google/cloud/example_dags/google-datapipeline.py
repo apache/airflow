@@ -69,6 +69,7 @@ with models.DAG(
     catchup=False,
     tags=["example", "datapipeline"],
 ) as dag:
+    # [START howto_operator_create_data_pipeline]
     create_data_pipeline = CreateDataPipelineOperator(
         task_id="create_data_pipeline",
         project_id=GCP_PROJECT_ID,
@@ -93,5 +94,6 @@ with models.DAG(
             },
         },
     )
+    # [END howto_operator_create_data_pipeline]
 
     create_data_pipeline
