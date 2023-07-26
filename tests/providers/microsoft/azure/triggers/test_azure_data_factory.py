@@ -163,10 +163,14 @@ class TestADFPipelineRunStatusSensorTrigger:
         assert TriggerEvent({"status": "error", "message": mock_message}) == actual
 
     @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.refresh_conn")
     @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_adf_pipeline_run_status_sensors_trigger_exception(self, mock_data_factory):
+    async def test_adf_pipeline_run_status_sensors_trigger_exception(
+        self, mock_data_factory, mock_refresh_token
+    ):
         """Test EMR container sensors with raise exception"""
         mock_data_factory.side_effect = Exception("Test exception")
+        mock_refresh_token.side_effect = Exception("Test exception")
 
         task = [i async for i in self.TRIGGER.run()]
         assert len(task) == 1
@@ -316,8 +320,11 @@ class TestAzureDataFactoryTrigger:
         assert expected == actual
 
     @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.cancel_pipeline_run")
     @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_azure_data_factory_trigger_run_exception(self, mock_pipeline_run_status):
+    async def test_azure_data_factory_trigger_run_exception(
+        self, mock_pipeline_run_status, mock_cancel_pipeline_run
+    ):
         """Assert that run catch exception if Azure API throw exception"""
         mock_pipeline_run_status.side_effect = Exception("Test exception")
 
@@ -331,6 +338,7 @@ class TestAzureDataFactoryTrigger:
         )
         assert len(task) == 1
         assert response in task
+        mock_cancel_pipeline_run.assert_called_once()
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")

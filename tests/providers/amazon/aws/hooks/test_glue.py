@@ -353,8 +353,7 @@ class TestGlueJobHook:
 
     @mock.patch.object(GlueJobHook, "get_job_state")
     def test_job_completion_success(self, get_state_mock: MagicMock):
-        hook = GlueJobHook()
-        hook.JOB_POLL_INTERVAL = 0
+        hook = GlueJobHook(job_poll_interval=0)
         get_state_mock.side_effect = [
             "RUNNING",
             "RUNNING",
@@ -368,8 +367,7 @@ class TestGlueJobHook:
 
     @mock.patch.object(GlueJobHook, "get_job_state")
     def test_job_completion_failure(self, get_state_mock: MagicMock):
-        hook = GlueJobHook()
-        hook.JOB_POLL_INTERVAL = 0
+        hook = GlueJobHook(job_poll_interval=0)
         get_state_mock.side_effect = [
             "RUNNING",
             "RUNNING",
@@ -384,8 +382,7 @@ class TestGlueJobHook:
     @pytest.mark.asyncio
     @mock.patch.object(GlueJobHook, "async_get_job_state")
     async def test_async_job_completion_success(self, get_state_mock: MagicMock):
-        hook = GlueJobHook()
-        hook.JOB_POLL_INTERVAL = 0
+        hook = GlueJobHook(job_poll_interval=0)
         get_state_mock.side_effect = [
             "RUNNING",
             "RUNNING",
@@ -400,8 +397,7 @@ class TestGlueJobHook:
     @pytest.mark.asyncio
     @mock.patch.object(GlueJobHook, "async_get_job_state")
     async def test_async_job_completion_failure(self, get_state_mock: MagicMock):
-        hook = GlueJobHook()
-        hook.JOB_POLL_INTERVAL = 0
+        hook = GlueJobHook(job_poll_interval=0)
         get_state_mock.side_effect = [
             "RUNNING",
             "RUNNING",

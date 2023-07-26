@@ -20,8 +20,24 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-apache-impala``
+
+
 Changelog
 ---------
+
+1.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add kerberos dependency to Impala Provider (#32304)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 1.1.1
 .....

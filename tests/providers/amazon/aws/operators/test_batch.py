@@ -27,7 +27,10 @@ from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 
 # Use dummy AWS credentials
-from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
+from airflow.providers.amazon.aws.triggers.batch import (
+    BatchCreateComputeEnvironmentTrigger,
+    BatchJobTrigger,
+)
 
 AWS_REGION = "eu-west-1"
 AWS_ACCESS_KEY_ID = "airflow_dummy_key"
@@ -273,7 +276,7 @@ class TestBatchOperator:
 
         with pytest.raises(TaskDeferred) as exc:
             batch.execute(context=None)
-        assert isinstance(exc.value.trigger, BatchOperatorTrigger), "Trigger is not a BatchOperatorTrigger"
+        assert isinstance(exc.value.trigger, BatchJobTrigger)
 
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")
@@ -326,3 +329,25 @@ class TestBatchCreateComputeEnvironmentOperator:
             computeResources=compute_resources,
             tags=tags,
         )
+
+    @mock.patch.object(BatchClientHook, "client")
+    def test_defer(self, client_mock):
+        client_mock.create_compute_environment.return_value = {"computeEnvironmentArn": "my_arn"}
+
+        operator = BatchCreateComputeEnvironmentOperator(
+            task_id="task",
+            compute_environment_name="my_env_name",
+            environment_type="my_env_type",
+            state="my_state",
+            compute_resources={},
+            max_retries=123456,
+            poll_interval=456789,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as deferred:
+            operator.execute(None)
+
+        assert isinstance(deferred.value.trigger, BatchCreateComputeEnvironmentTrigger)
+        assert deferred.value.trigger.waiter_delay == 456789
+        assert deferred.value.trigger.attempts == 123456

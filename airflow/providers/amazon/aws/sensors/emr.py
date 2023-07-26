@@ -23,10 +23,15 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from deprecated import deprecated
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
-from airflow.providers.amazon.aws.triggers.emr import EmrContainerSensorTrigger
+from airflow.providers.amazon.aws.triggers.emr import (
+    EmrContainerTrigger,
+    EmrStepSensorTrigger,
+    EmrTerminateJobFlowTrigger,
+)
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -112,8 +117,7 @@ class EmrBaseSensor(BaseSensorOperator):
 
 class EmrServerlessJobSensor(BaseSensorOperator):
     """
-    Asks for the state of the job run until it reaches a failure state or success state.
-    If the job run fails, the task will fail.
+    Poll the state of the job run until it reaches a terminal state; fails if the job run fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -174,8 +178,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
 
 class EmrServerlessApplicationSensor(BaseSensorOperator):
     """
-    Asks for the state of the application until it reaches a failure state or success state.
-    If the application fails, the task will fail.
+    Poll the state of the application until it reaches a terminal state; fails if the application fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -230,8 +233,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
 class EmrContainerSensor(BaseSensorOperator):
     """
-    Asks for the state of the job run until it reaches a failure state or success state.
-    If the job run fails, the task will fail.
+    Poll the state of the job run until it reaches a terminal state; fail if the job run fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -270,7 +272,7 @@ class EmrContainerSensor(BaseSensorOperator):
         max_retries: int | None = None,
         aws_conn_id: str = "aws_default",
         poll_interval: int = 10,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -310,11 +312,11 @@ class EmrContainerSensor(BaseSensorOperator):
             )
             self.defer(
                 timeout=timeout,
-                trigger=EmrContainerSensorTrigger(
+                trigger=EmrContainerTrigger(
                     virtual_cluster_id=self.virtual_cluster_id,
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
-                    poll_interval=self.poll_interval,
+                    waiter_delay=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -328,9 +330,7 @@ class EmrContainerSensor(BaseSensorOperator):
 
 class EmrNotebookExecutionSensor(EmrBaseSensor):
     """
-    Polls the state of the EMR notebook execution until it reaches
-    any of the target states.
-    If a failure state is reached, the sensor throws an error, and fails the task.
+    Poll the EMR notebook until it reaches any of the target states; raise AirflowException on failure.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -392,9 +392,7 @@ class EmrNotebookExecutionSensor(EmrBaseSensor):
 
 class EmrJobFlowSensor(EmrBaseSensor):
     """
-    Asks for the state of the EMR JobFlow (Cluster) until it reaches
-    any of the target states.
-    If it fails the sensor errors, failing the task.
+    Poll the EMR JobFlow Cluster until it reaches any of the target states; raise AirflowException on failure.
 
     With the default target states, sensor waits cluster to be terminated.
     When target_states is set to ['RUNNING', 'WAITING'] sensor waits
@@ -406,9 +404,12 @@ class EmrJobFlowSensor(EmrBaseSensor):
 
     :param job_flow_id: job_flow_id to check the state of
     :param target_states: the target states, sensor waits until
-        job flow reaches any of these states
+        job flow reaches any of these states. In deferrable mode it would
+        run until reach the terminal state.
     :param failed_states: the failure states, sensor fails when
         job flow reaches any of these states
+    :param max_attempts: Maximum number of tries before failing
+    :param deferrable: Run sensor in the deferrable mode.
     """
 
     template_fields: Sequence[str] = ("job_flow_id", "target_states", "failed_states")
@@ -424,12 +425,16 @@ class EmrJobFlowSensor(EmrBaseSensor):
         job_flow_id: str,
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
+        max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.target_states = target_states or ["TERMINATED"]
         self.failed_states = failed_states or ["TERMINATED_WITH_ERRORS"]
+        self.max_attempts = max_attempts
+        self.deferrable = deferrable
 
     def get_emr_response(self, context: Context) -> dict[str, Any]:
         """
@@ -488,11 +493,30 @@ class EmrJobFlowSensor(EmrBaseSensor):
             )
         return None
 
+    def execute(self, context: Context) -> None:
+        if not self.deferrable:
+            super().execute(context=context)
+        elif not self.poke(context):
+            self.defer(
+                timeout=timedelta(seconds=self.poke_interval * self.max_attempts),
+                trigger=EmrTerminateJobFlowTrigger(
+                    job_flow_id=self.job_flow_id,
+                    waiter_max_attempts=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=int(self.poke_interval),
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        self.log.info("Job completed.")
+
 
 class EmrStepSensor(EmrBaseSensor):
     """
-    Asks for the state of the step until it reaches any of the target states.
-    If it fails the sensor errors, failing the task.
+    Poll the state of the step until it reaches any of the target states; raise AirflowException on failure.
 
     With the default target states, sensor waits step to be completed.
 
@@ -503,9 +527,12 @@ class EmrStepSensor(EmrBaseSensor):
     :param job_flow_id: job_flow_id which contains the step check the state of
     :param step_id: step to check the state of
     :param target_states: the target states, sensor waits until
-        step reaches any of these states
+        step reaches any of these states. In case of deferrable sensor it will
+        for reach to terminal state
     :param failed_states: the failure states, sensor fails when
         step reaches any of these states
+    :param max_attempts: Maximum number of tries before failing
+    :param deferrable: Run sensor in the deferrable mode.
     """
 
     template_fields: Sequence[str] = ("job_flow_id", "step_id", "target_states", "failed_states")
@@ -522,6 +549,8 @@ class EmrStepSensor(EmrBaseSensor):
         step_id: str,
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
+        max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -529,6 +558,8 @@ class EmrStepSensor(EmrBaseSensor):
         self.step_id = step_id
         self.target_states = target_states or ["COMPLETED"]
         self.failed_states = failed_states or ["CANCELLED", "FAILED", "INTERRUPTED"]
+        self.max_attempts = max_attempts
+        self.deferrable = deferrable
 
     def get_emr_response(self, context: Context) -> dict[str, Any]:
         """
@@ -587,3 +618,25 @@ class EmrStepSensor(EmrBaseSensor):
                 f"with message {fail_details.get('Message')} and log file {fail_details.get('LogFile')}"
             )
         return None
+
+    def execute(self, context: Context) -> None:
+        if not self.deferrable:
+            super().execute(context=context)
+        elif not self.poke(context):
+            self.defer(
+                timeout=timedelta(seconds=self.max_attempts * self.poke_interval),
+                trigger=EmrStepSensorTrigger(
+                    job_flow_id=self.job_flow_id,
+                    step_id=self.step_id,
+                    waiter_delay=int(self.poke_interval),
+                    waiter_max_attempts=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+
+        self.log.info("Job completed.")

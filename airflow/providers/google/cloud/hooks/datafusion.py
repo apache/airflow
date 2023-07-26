@@ -103,10 +103,7 @@ class DataFusionHook(GoogleBaseHook):
         failure_states: list[str] | None = None,
         timeout: int = 5 * 60,
     ) -> None:
-        """
-        Polls pipeline state and raises an exception if the state is one of
-        `failure_states` or the operation timed_out.
-        """
+        """Polls pipeline state and raises an exception if the state fails or times out."""
         failure_states = failure_states or FAILURE_STATES
         success_states = success_states or SUCCESS_STATES
         start_time = monotonic()
@@ -190,6 +187,7 @@ class DataFusionHook(GoogleBaseHook):
     def restart_instance(self, instance_name: str, location: str, project_id: str) -> Operation:
         """
         Restart a single Data Fusion instance.
+
         At the end of an operation instance is fully restarted.
 
         :param instance_name: The name of the instance to restart.
@@ -321,7 +319,7 @@ class DataFusionHook(GoogleBaseHook):
         namespace: str = "default",
     ) -> None:
         """
-        Creates a Cloud Data Fusion pipeline.
+        Creates a batch Cloud Data Fusion pipeline.
 
         :param pipeline_name: Your pipeline name.
         :param pipeline: The pipeline definition. For more information check:
@@ -345,12 +343,12 @@ class DataFusionHook(GoogleBaseHook):
         namespace: str = "default",
     ) -> None:
         """
-        Deletes a Cloud Data Fusion pipeline.
+        Deletes a batch Cloud Data Fusion pipeline.
 
         :param pipeline_name: Your pipeline name.
         :param version_id: Version of pipeline to delete
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
-        :param namespace: f your pipeline belongs to a Basic edition instance, the namespace ID
+        :param namespace: if your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
         """
@@ -359,9 +357,20 @@ class DataFusionHook(GoogleBaseHook):
             url = os.path.join(url, "versions", version_id)
 
         response = self._cdap_request(url=url, method="DELETE", body=None)
-        self._check_response_status_and_data(
-            response, f"Deleting a pipeline failed with code {response.status}"
-        )
+        # Check for 409 error: the previous step for starting/stopping pipeline could still be in progress.
+        # Waiting some time before retry.
+        for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+            try:
+                self._check_response_status_and_data(
+                    response, f"Deleting a pipeline failed with code {response.status}: {response.data}"
+                )
+                break
+            except AirflowException as exc:
+                if "409" in str(exc):
+                    sleep(time_to_wait)
+                    response = self._cdap_request(url=url, method="DELETE", body=None)
+                else:
+                    raise
 
     def list_pipelines(
         self,

@@ -63,6 +63,11 @@ hooks:
     python-modules:
       - airflow.providers.apache.beam.hooks.beam
 
+triggers:
+  - integration-name: Apache Beam
+    python-modules:
+      - airflow.providers.apache.beam.triggers.beam
+
 additional-extras:
   - name: google
     dependencies:

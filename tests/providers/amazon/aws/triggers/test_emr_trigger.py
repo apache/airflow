@@ -23,7 +23,13 @@ import pytest
 from botocore.exceptions import WaiterError
 
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
+from airflow.providers.amazon.aws.triggers.emr import (
+    EmrAddStepsTrigger,
+    EmrContainerTrigger,
+    EmrCreateJobFlowTrigger,
+    EmrStepSensorTrigger,
+    EmrTerminateJobFlowTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 TEST_JOB_FLOW_ID = "test_job_flow_id"
@@ -168,3 +174,48 @@ class TestEmrAddStepsTrigger:
         assert response == TriggerEvent(
             {"status": "failure", "message": f"Step {TEST_STEP_IDS[0]} failed: {error_failed}"}
         )
+
+
+class TestEmrTriggers:
+    @pytest.mark.parametrize(
+        "trigger",
+        [
+            EmrCreateJobFlowTrigger(
+                job_flow_id=TEST_JOB_FLOW_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_POLL_INTERVAL,
+                waiter_max_attempts=TEST_MAX_ATTEMPTS,
+            ),
+            EmrTerminateJobFlowTrigger(
+                job_flow_id=TEST_JOB_FLOW_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_POLL_INTERVAL,
+                waiter_max_attempts=TEST_MAX_ATTEMPTS,
+            ),
+            EmrContainerTrigger(
+                virtual_cluster_id="my_cluster_id",
+                job_id=TEST_JOB_FLOW_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_POLL_INTERVAL,
+                waiter_max_attempts=TEST_MAX_ATTEMPTS,
+            ),
+            EmrStepSensorTrigger(
+                job_flow_id=TEST_JOB_FLOW_ID,
+                step_id="my_step",
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_POLL_INTERVAL,
+                waiter_max_attempts=TEST_MAX_ATTEMPTS,
+            ),
+        ],
+    )
+    def test_serialize_recreate(self, trigger):
+        class_path, args = trigger.serialize()
+
+        class_name = class_path.split(".")[-1]
+        clazz = globals()[class_name]
+        instance = clazz(**args)
+
+        class_path2, args2 = instance.serialize()
+
+        assert class_path == class_path2
+        assert args == args2

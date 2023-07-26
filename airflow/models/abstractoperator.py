@@ -22,19 +22,23 @@ import inspect
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
+from sqlalchemy import select
+
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
-from airflow.models.taskmixin import DAGNode
+from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.template.templater import Templater
 from airflow.utils.context import Context
+from airflow.utils.db import exists_query
 from airflow.utils.log.secrets_masker import redact
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import skip_locked, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.weight_rule import WeightRule
 
 TaskStateChangeCallback = Callable[[Context], None]
@@ -48,6 +52,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.task_group import TaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
@@ -102,6 +107,11 @@ class AbstractOperator(Templater, DAGNode):
 
     outlets: list
     inlets: list
+    trigger_rule: TriggerRule
+
+    _is_setup = False
+    _is_teardown = False
+    _on_failure_fail_dagrun = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
         (
@@ -148,6 +158,92 @@ class AbstractOperator(Templater, DAGNode):
     @property
     def node_id(self) -> str:
         return self.task_id
+
+    @property
+    def is_setup(self):
+        """
+        Whether the operator is a setup task.
+
+        :meta private:
+        """
+        return self._is_setup
+
+    @is_setup.setter
+    def is_setup(self, value):
+        """
+        Setter for is_setup property.
+
+        :meta private:
+        """
+        if self.is_teardown is True and value is True:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
+        self._is_setup = value
+
+    @property
+    def is_teardown(self):
+        """
+        Whether the operator is a teardown task.
+
+        :meta private:
+        """
+        return self._is_teardown
+
+    @is_teardown.setter
+    def is_teardown(self, value):
+        """
+        Setter for is_teardown property.
+
+        :meta private:
+        """
+        if self.is_setup is True and value is True:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
+        self._is_teardown = value
+
+    @property
+    def on_failure_fail_dagrun(self):
+        """
+        Whether the operator should fail the dagrun on failure.
+
+        :meta private:
+        """
+        return self._on_failure_fail_dagrun
+
+    @on_failure_fail_dagrun.setter
+    def on_failure_fail_dagrun(self, value):
+        """
+        Setter for on_failure_fail_dagrun property.
+
+        :meta private:
+        """
+        if value is True and self.is_teardown is not True:
+            raise ValueError(
+                f"Cannot set task on_failure_fail_dagrun for "
+                f"'{self.task_id}' because it is not a teardown task."
+            )
+        self._on_failure_fail_dagrun = value
+
+    def as_setup(self):
+        self.is_setup = True
+        return self
+
+    def as_teardown(
+        self,
+        *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        on_failure_fail_dagrun=NOTSET,
+    ):
+        self.is_teardown = True
+        if TYPE_CHECKING:
+            assert isinstance(self, BaseOperator)  # is_teardown not supported for MappedOperator
+        self.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
+        if on_failure_fail_dagrun is not NOTSET:
+            self.on_failure_fail_dagrun = on_failure_fail_dagrun
+        if not isinstance(setups, ArgNotSet):
+            setups = [setups] if isinstance(setups, DependencyMixin) else setups
+            for s in setups:
+                s.is_setup = True
+                s >> self
+        return self
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
         """Get direct relative IDs to the current task, upstream or downstream."""
@@ -207,7 +303,8 @@ class AbstractOperator(Templater, DAGNode):
         This method is meant to be used when we are clearing the task (non-upstream) and we need
         to add in the *relevant* setups and their teardowns.
 
-        Relevant in this case means, the setup has a teardown that is downstream of ``self``.
+        Relevant in this case means, the setup has a teardown that is downstream of ``self``,
+        or the setup has no teardowns.
         """
         downstream_teardown_ids = {
             x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
@@ -215,7 +312,9 @@ class AbstractOperator(Templater, DAGNode):
         for task in self.get_flat_relatives(upstream=True):
             if not task.is_setup:
                 continue
-            if not task.downstream_task_ids.isdisjoint(downstream_teardown_ids):
+            has_no_teardowns = not any(True for x in task.downstream_list if x.is_teardown)
+            # if task has no teardowns or has teardowns downstream of self
+            if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
                 yield task
                 for t in task.downstream_list:
                     if t.is_teardown and not t == self:
@@ -287,6 +386,14 @@ class AbstractOperator(Templater, DAGNode):
             if isinstance(parent, MappedTaskGroup):
                 yield parent
             parent = parent.task_group
+
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """Add the task to the given task group.
+
+        :meta private:
+        """
+        if self.node_id not in task_group.children:
+            task_group.add(self)
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """Get the mapped task group "closest" to this task in the DAG.
@@ -363,7 +470,7 @@ class AbstractOperator(Templater, DAGNode):
 
     @cached_property
     def extra_links(self) -> list[str]:
-        return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
+        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
     def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.
@@ -457,17 +564,15 @@ class AbstractOperator(Templater, DAGNode):
             total_length = None
 
         state: TaskInstanceState | None = None
-        unmapped_ti: TaskInstance | None = (
-            session.query(TaskInstance)
-            .filter(
+        unmapped_ti: TaskInstance | None = session.scalars(
+            select(TaskInstance).where(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.map_index == -1,
                 or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
             )
-            .one_or_none()
-        )
+        ).one_or_none()
 
         all_expanded_tis: list[TaskInstance] = []
 
@@ -489,16 +594,12 @@ class AbstractOperator(Templater, DAGNode):
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
             else:
-                zero_index_ti_exists = (
-                    session.query(TaskInstance)
-                    .filter(
-                        TaskInstance.dag_id == self.dag_id,
-                        TaskInstance.task_id == self.task_id,
-                        TaskInstance.run_id == run_id,
-                        TaskInstance.map_index == 0,
-                    )
-                    .count()
-                    > 0
+                zero_index_ti_exists = exists_query(
+                    TaskInstance.dag_id == self.dag_id,
+                    TaskInstance.task_id == self.task_id,
+                    TaskInstance.run_id == run_id,
+                    TaskInstance.map_index == 0,
+                    session=session,
                 )
                 if not zero_index_ti_exists:
                     # Otherwise convert this into the first mapped index, and create
@@ -517,14 +618,12 @@ class AbstractOperator(Templater, DAGNode):
             indexes_to_map: Iterable[int] = ()
         else:
             # Only create "missing" ones.
-            current_max_mapping = (
-                session.query(func.max(TaskInstance.map_index))
-                .filter(
+            current_max_mapping = session.scalar(
+                select(func.max(TaskInstance.map_index)).where(
                     TaskInstance.dag_id == self.dag_id,
                     TaskInstance.task_id == self.task_id,
                     TaskInstance.run_id == run_id,
                 )
-                .scalar()
             )
             indexes_to_map = range(current_max_mapping + 1, total_length)
 
@@ -543,13 +642,14 @@ class AbstractOperator(Templater, DAGNode):
 
         # Any (old) task instances with inapplicable indexes (>= the total
         # number we need) are set to "REMOVED".
-        query = session.query(TaskInstance).filter(
+        query = select(TaskInstance).where(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        to_update = with_row_locks(query, of=TaskInstance, session=session, **skip_locked(session=session))
+        query = with_row_locks(query, of=TaskInstance, session=session, **skip_locked(session=session))
+        to_update = session.scalars(query)
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
         session.flush()

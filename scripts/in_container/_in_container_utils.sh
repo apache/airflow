@@ -163,7 +163,16 @@ function install_airflow_from_wheel() {
         exit 4
     fi
     if [[ ${constraints_reference} == "none" ]]; then
+        set +e
         pip install "${airflow_package}${extras}"
+        res=$?
+        set -e
+        if [[ ${res} != "0" ]]; then
+            >&2 echo
+            >&2 echo "WARNING! Could not install airflow without constraints, trying to install it without dependencies in case some of the required providers are not yet released"
+            >&2 echo
+            pip install "${airflow_package}${extras}" --no-deps
+        fi
     else
         set +e
         pip install "${airflow_package}${extras}" --constraint \

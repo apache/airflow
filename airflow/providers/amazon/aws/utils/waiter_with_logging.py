@@ -32,20 +32,22 @@ from airflow.exceptions import AirflowException
 def wait(
     waiter: Waiter,
     waiter_delay: int,
-    max_attempts: int,
+    waiter_max_attempts: int,
     args: dict[str, Any],
     failure_message: str,
     status_message: str,
     status_args: list[str],
 ) -> None:
     """
-    Use a boto waiter to poll an AWS service for the specified state. Although this function
-    uses boto waiters to poll the state of the service, it logs the response of the service
-    after every attempt, which is not currently supported by boto waiters.
+    Use a boto waiter to poll an AWS service for the specified state.
+
+    Although this function uses boto waiters to poll the state of the
+    service, it logs the response of the service after every attempt,
+    which is not currently supported by boto waiters.
 
     :param waiter: The boto waiter to use.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
-    :param max_attempts: The maximum number of attempts to be made.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
     :param args: The arguments to pass to the waiter.
     :param failure_message: The message to log if a failure state is reached.
     :param status_message: The message logged when printing the status of the service.
@@ -69,10 +71,11 @@ def wait(
             break
         except WaiterError as error:
             if "terminal failure" in str(error):
+                log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, error.last_response))
                 raise AirflowException(f"{failure_message}: {error}")
 
             log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
-            if attempt >= max_attempts:
+            if attempt >= waiter_max_attempts:
                 raise AirflowException("Waiter error: max attempts reached")
 
             time.sleep(waiter_delay)
@@ -81,20 +84,22 @@ def wait(
 async def async_wait(
     waiter: Waiter,
     waiter_delay: int,
-    max_attempts: int,
+    waiter_max_attempts: int,
     args: dict[str, Any],
     failure_message: str,
     status_message: str,
     status_args: list[str],
 ):
     """
-    Use an async boto waiter to poll an AWS service for the specified state. Although this function
-    uses boto waiters to poll the state of the service, it logs the response of the service
-    after every attempt, which is not currently supported by boto waiters.
+    Use an async boto waiter to poll an AWS service for the specified state.
+
+    Although this function uses boto waiters to poll the state of the
+    service, it logs the response of the service after every attempt,
+    which is not currently supported by boto waiters.
 
     :param waiter: The boto waiter to use.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
-    :param max_attempts: The maximum number of attempts to be made.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
     :param args: The arguments to pass to the waiter.
     :param failure_message: The message to log if a failure state is reached.
     :param status_message: The message logged when printing the status of the service.
@@ -118,10 +123,11 @@ async def async_wait(
             break
         except WaiterError as error:
             if "terminal failure" in str(error):
+                log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, error.last_response))
                 raise AirflowException(f"{failure_message}: {error}")
 
             log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
-            if attempt >= max_attempts:
+            if attempt >= waiter_max_attempts:
                 raise AirflowException("Waiter error: max attempts reached")
 
             await asyncio.sleep(waiter_delay)
@@ -129,8 +135,8 @@ async def async_wait(
 
 class _LazyStatusFormatter:
     """
-    a wrapper containing the info necessary to extract the status from a response,
-    that'll only compute the value when necessary.
+    Contains the info necessary to extract the status from a response; only computes the value when necessary.
+
     Used to avoid computations if the logs are disabled at the given level.
     """
 
@@ -139,10 +145,7 @@ class _LazyStatusFormatter:
         self.response = response
 
     def __str__(self):
-        """
-        Loops through the supplied args list and generates a string
-        which contains values from the waiter response.
-        """
+        """Loop through the args list and generate a string containing values from the waiter response."""
         values = []
         for query in self.jmespath_queries:
             value = jmespath.search(query, self.response)

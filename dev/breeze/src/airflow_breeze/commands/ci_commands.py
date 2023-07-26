@@ -81,9 +81,7 @@ def free_space():
         run_command(["docker", "system", "prune", "--all", "--force", "--volumes"])
         run_command(["df", "-h"])
         run_command(["docker", "logout", "ghcr.io"], check=False)
-        run_command(
-            ["sudo", "rm", "-f", os.fspath(Path.home() / MSSQL_TMP_DIR_NAME)],
-        )
+        run_command(["sudo", "rm", "-f", os.fspath(Path.home() / MSSQL_TMP_DIR_NAME)], check=False)
 
 
 @ci_group.command(name="resource-check", help="Check if available docker resources are enough.")

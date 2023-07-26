@@ -120,8 +120,9 @@ class LambdaCreateFunctionOperator(BaseOperator):
 
 class LambdaInvokeFunctionOperator(BaseOperator):
     """
-    Invokes an AWS Lambda function. You can invoke a function synchronously (and wait for the response),
-    or asynchronously.
+    Invokes an AWS Lambda function.
+
+    You can invoke a function synchronously (and wait for the response), or asynchronously.
     To invoke a function asynchronously, set `invocation_type` to `Event`. For more details,
     review the boto3 Lambda invoke docs.
 
@@ -149,7 +150,7 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         qualifier: str | None = None,
         invocation_type: str | None = None,
         client_context: str | None = None,
-        payload: str | None = None,
+        payload: bytes | str | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):

@@ -24,10 +24,13 @@ import pendulum
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.utils.setup_teardown import SetupTeardownContext
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from logging import Logger
 
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.utils.edgemodifier import EdgeModifier
@@ -69,22 +72,40 @@ class DependencyMixin:
         """Set a task or a task list to be directly downstream from the current task."""
         raise NotImplementedError()
 
+    def as_setup(self) -> DependencyMixin:
+        """Mark a task as setup task."""
+        raise NotImplementedError()
+
+    def as_teardown(
+        self,
+        *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        on_failure_fail_dagrun=NOTSET,
+    ) -> DependencyMixin:
+        """Mark a task as teardown and set its setups as direct relatives."""
+        raise NotImplementedError()
+
     def update_relative(
         self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
     ) -> None:
         """
         Update relationship information about another TaskMixin. Default is no-op.
+
         Override if necessary.
         """
 
     def __lshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task << Task."""
         self.set_upstream(other)
+        self.set_setup_teardown_ctx_dependencies(other)
+        self.set_taskgroup_ctx_dependencies(other)
         return other
 
     def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task >> Task."""
         self.set_downstream(other)
+        self.set_setup_teardown_ctx_dependencies(other)
+        self.set_taskgroup_ctx_dependencies(other)
         return other
 
     def __rrshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
@@ -96,6 +117,40 @@ class DependencyMixin:
         """Called for Task << [Task] because list don't have __lshift__ operators."""
         self.__rshift__(other)
         return self
+
+    @abstractmethod
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """Add the task to the given task group."""
+        raise NotImplementedError()
+
+    @classmethod
+    def _iter_references(cls, obj: Any) -> Iterable[tuple[DependencyMixin, str]]:
+        from airflow.models.baseoperator import AbstractOperator
+        from airflow.utils.mixins import ResolveMixin
+
+        if isinstance(obj, AbstractOperator):
+            yield obj, "operator"
+        elif isinstance(obj, ResolveMixin):
+            yield from obj.iter_references()
+        elif isinstance(obj, Sequence):
+            for o in obj:
+                yield from cls._iter_references(o)
+
+    def set_setup_teardown_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
+        if not SetupTeardownContext.active:
+            return
+        for op, _ in self._iter_references([self, other]):
+            SetupTeardownContext.update_context_map(op)
+
+    def set_taskgroup_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
+        from airflow.utils.task_group import TaskGroupContext
+
+        if not TaskGroupContext.active:
+            return
+        task_group = TaskGroupContext.get_current_task_group(None)
+        for op, _ in self._iter_references([self, other]):
+            if task_group:
+                op.add_to_taskgroup(task_group)
 
 
 class TaskMixin(DependencyMixin):
@@ -115,8 +170,9 @@ class TaskMixin(DependencyMixin):
 
 class DAGNode(DependencyMixin, metaclass=ABCMeta):
     """
-    A base class for a node in the graph of a workflow -- an Operator or a Task Group, either mapped or
-    unmapped.
+    A base class for a node in the graph of a workflow.
+
+    A node may be an Operator or a Task Group, either mapped or unmapped.
     """
 
     dag: DAG | None = None
@@ -253,20 +309,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
-        """
-        Get set of the direct relative ids to the current task, upstream or
-        downstream.
-        """
+        """Get set of the direct relative ids to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_task_ids
         else:
             return self.downstream_task_ids
 
     def get_direct_relatives(self, upstream: bool = False) -> Iterable[DAGNode]:
-        """
-        Get list of the direct relatives to the current task, upstream or
-        downstream.
-        """
+        """Get list of the direct relatives to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_list
         else:

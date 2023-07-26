@@ -143,6 +143,7 @@ export interface paths {
   "/dags/{dag_id}/dagRuns": {
     /** This endpoint allows specifying `~` as the dag_id to retrieve DAG runs for all DAGs. */
     get: operations["get_dag_runs"];
+    /** This will initiate a dagrun. If DAG is paused then dagrun state will remain queued, and the task won't run. */
     post: operations["post_dag_run"];
     parameters: {
       path: {
@@ -1076,7 +1077,6 @@ export interface components {
       /** @enum {string} */
       run_type?: "backfill" | "manual" | "scheduled" | "dataset_triggered";
       state?: components["schemas"]["DagState"];
-      /** @default true */
       external_trigger?: boolean;
       /**
        * @description JSON object describing additional configuration parameters.
@@ -1192,6 +1192,7 @@ export interface components {
       metadatabase?: components["schemas"]["MetadatabaseStatus"];
       scheduler?: components["schemas"]["SchedulerStatus"];
       triggerer?: components["schemas"]["TriggererStatus"];
+      dag_processor?: components["schemas"]["DagProcessorStatus"];
     };
     /** @description The status of the metadatabase. */
     MetadatabaseStatus: {
@@ -1218,6 +1219,19 @@ export interface components {
        * @description The time the triggerer last did a heartbeat.
        */
       latest_triggerer_heartbeat?: string | null;
+    };
+    /**
+     * @description The status and the latest dag processor heartbeat.
+     *
+     * *New in version 2.6.3*
+     */
+    DagProcessorStatus: {
+      status?: components["schemas"]["HealthStatus"];
+      /**
+       * Format: datetime
+       * @description The time the dag processor last did a heartbeat.
+       */
+      latest_dag_processor_heartbeat?: string | null;
     };
     /** @description The pool */
     Pool: {
@@ -1411,6 +1425,7 @@ export interface components {
       timestamp?: string;
       /** Format: datetime */
       execution_date?: string;
+      map_index?: number;
       task_id?: string;
       dag_id?: string;
     };
@@ -2376,6 +2391,8 @@ export interface components {
      * *New in version 2.6.0*
      */
     Paused: boolean;
+    /** @description Only filter the XCom records which have the provided key. */
+    FilterXcomKey: string;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -2915,6 +2932,7 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
     };
   };
+  /** This will initiate a dagrun. If DAG is paused then dagrun state will remain queued, and the task won't run. */
   post_dag_run: {
     parameters: {
       path: {
@@ -3825,6 +3843,10 @@ export interface operations {
         task_id: components["parameters"]["TaskID"];
       };
       query: {
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
+        /** Only filter the XCom records which have the provided key. */
+        xcom_key?: components["parameters"]["FilterXcomKey"];
         /** The numbers of items to return. */
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
@@ -3855,6 +3877,8 @@ export interface operations {
         xcom_key: components["parameters"]["XComKey"];
       };
       query: {
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
         /**
          * Whether to deserialize an XCom value when using a custom XCom backend.
          *
@@ -4666,6 +4690,9 @@ export type SchedulerStatus = CamelCasedPropertiesDeep<
 >;
 export type TriggererStatus = CamelCasedPropertiesDeep<
   components["schemas"]["TriggererStatus"]
+>;
+export type DagProcessorStatus = CamelCasedPropertiesDeep<
+  components["schemas"]["DagProcessorStatus"]
 >;
 export type Pool = CamelCasedPropertiesDeep<components["schemas"]["Pool"]>;
 export type PoolCollection = CamelCasedPropertiesDeep<

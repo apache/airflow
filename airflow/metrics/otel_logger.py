@@ -110,11 +110,10 @@ def _type_as_str(obj: Instrument) -> str:
 
 def _get_otel_safe_name(name: str) -> str:
     """
-    OpenTelemetry has a maximum length for metric names.  This method returns the
-    name, truncated if it is too long, and logs a warning so the user will know.
+    Verifies that the provided name does not exceed OpenTelemetry's maximum length for metric names.
 
     :param name: The original metric name
-    :returns: The name, truncated to an OTel-acceptable length if required
+    :returns: The name, truncated to an OTel-acceptable length if required.
     """
     otel_safe_name = name[:OTEL_NAME_MAX_LENGTH]
     if name != otel_safe_name:
@@ -134,6 +133,7 @@ def _skip_due_to_rate(rate: float) -> bool:
 class _OtelTimer(Timer):
     """
     An implementation of Stats.Timer() which records the result in the OTel Metrics Map.
+
     OpenTelemetry does not have a native timer, we will store the values as a Gauge.
 
     :param name: The name of the timer.
@@ -262,10 +262,7 @@ class SafeOtelLogger:
         *,
         tags: Attributes = None,
     ) -> None:
-        """
-        OpenTelemetry does not have a native timer, they are stored
-        as a Gauge whose value represents the seconds elapsed.
-        """
+        """OTel does not have a native timer, stored as a Gauge whose value is number of seconds elapsed."""
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds()
@@ -389,6 +386,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
     port = conf.getint("metrics", "otel_port")  # ex: 4318
     prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
+    ssl_active = conf.getboolean("metrics", "otel_ssl_active")
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
     interval = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
     debug = conf.getboolean("metrics", "otel_debugging_on")
@@ -397,8 +395,9 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     allow_list_validator = AllowListValidator(allow_list)
 
     resource = Resource(attributes={SERVICE_NAME: "Airflow"})
-    # TODO:  figure out https instead of http ??
-    endpoint = f"http://{host}:{port}/v1/metrics"
+
+    protocol = "https" if ssl_active else "http"
+    endpoint = f"{protocol}://{host}:{port}/v1/metrics"
 
     logging.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [

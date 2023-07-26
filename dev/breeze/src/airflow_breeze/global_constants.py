@@ -26,7 +26,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
 
 RUNS_ON_PUBLIC_RUNNER = "ubuntu-22.04"
 RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
@@ -87,7 +87,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.1.2"
+PIP_VERSION = "23.2.1"
 
 
 @lru_cache(maxsize=None)
@@ -120,8 +120,8 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "tests" / "charts").iterdir()
-            if candidate.is_dir()
+            for candidate in (AIRFLOW_SOURCES_ROOT / "helm_tests").iterdir()
+            if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )
 
@@ -146,7 +146,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 
 
 def get_available_documentation_packages(short_version=False) -> list[str]:
-    provider_names: list[str] = list(json.loads(DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
+    provider_names: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
     doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
     available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
     available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
@@ -225,6 +225,7 @@ COMMITTERS = [
     "ephraimbuddy",
     "feluelle",
     "feng-tao",
+    "ferruzzi",
     "houqp",
     "hussein-awala",
     "jedcunningham",
@@ -239,9 +240,11 @@ COMMITTERS = [
     "mik-laj",
     "milton0825",
     "mistercrunch",
+    "mobuchowski",
     "msumit",
     "o-nikolas",
     "pankajastro",
+    "phanikumv",
     "pierrejeambrun",
     "pingzh",
     "potiuk",
@@ -253,6 +256,7 @@ COMMITTERS = [
     "turbaszek",
     "uranusjr",
     "vikramkoka",
+    "vincbeck",
     "xinbinhuang",
     "yuqian90",
     "zhongjiajie",
@@ -337,7 +341,7 @@ DEFAULT_EXTRAS = [
     "async",
     "celery",
     "cncf.kubernetes",
-    "dask",
+    "daskexecutor",
     "docker",
     "elasticsearch",
     "ftp",

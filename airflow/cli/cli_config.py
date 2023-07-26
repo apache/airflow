@@ -37,7 +37,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.cli import ColorMode
 from airflow.utils.module_loading import import_string
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, JobState
 from airflow.utils.timezone import parse as parsedate
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -67,7 +67,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
                 executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
                 classes = ()
                 try:
-                    from airflow.executors.celery_executor import CeleryExecutor
+                    from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
                     classes += (CeleryExecutor,)
                 except ImportError:
@@ -77,7 +77,9 @@ class DefaultHelpParser(argparse.ArgumentParser):
                     )
                     raise ArgumentError(action, message)
                 try:
-                    from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
+                    from airflow.providers.celery.executors.celery_kubernetes_executor import (
+                        CeleryKubernetesExecutor,
+                    )
 
                     classes += (CeleryKubernetesExecutor,)
                 except ImportError:
@@ -279,9 +281,9 @@ ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
 dagrun_states = tuple(state.value for state in DagRunState)
-ARG_STATE = Arg(
+ARG_DR_STATE = Arg(
     ("--state",),
-    help="Only list the dag runs corresponding to the state",
+    help="Only list the DAG runs corresponding to the state",
     metavar=", ".join(dagrun_states),
     choices=dagrun_states,
 )
@@ -289,6 +291,13 @@ ARG_STATE = Arg(
 # list_jobs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
 ARG_LIMIT = Arg(("--limit",), help="Return a limited number of records")
+job_states = tuple(state.value for state in JobState)
+ARG_JOB_STATE = Arg(
+    ("--state",),
+    help="Only list the jobs corresponding to the state",
+    metavar=", ".join(job_states),
+    choices=job_states,
+)
 
 # next_execution
 ARG_NUM_EXECUTIONS = Arg(
@@ -301,6 +310,36 @@ ARG_NUM_EXECUTIONS = Arg(
 # backfill
 ARG_MARK_SUCCESS = Arg(
     ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
+)
+ARG_INCLUDE_DESCRIPTIONS = Arg(
+    ("-d", "--include-descriptions"),
+    help="Show descriptions for the configuration variables",
+    action="store_true",
+)
+ARG_INCLUDE_EXAMPLES = Arg(
+    ("-e", "--include-examples"), help="Show examples for the configuration variables", action="store_true"
+)
+ARG_INCLUDE_SOURCES = Arg(
+    ("-s", "--include-sources"), help="Show source of the configuration variable", action="store_true"
+)
+ARG_INCLUDE_ENV_VARS = Arg(
+    ("-V", "--include-env-vars"), help="Show environment variable for each option", action="store_true"
+)
+ARG_COMMENT_OUT_EVERYTHING = Arg(
+    ("-c", "--comment-out-everything"),
+    help="Comment out all configuration options. Useful as starting point for new installation",
+    action="store_true",
+)
+ARG_EXCLUDE_PROVIDERS = Arg(
+    ("-p", "--exclude-providers"),
+    help="Exclude provider configuration (they are included by default)",
+    action="store_true",
+)
+ARG_DEFAULTS = Arg(
+    ("-a", "--defaults"),
+    help="Show only defaults - do not include local configuration, sources,"
+    " includes descriptions, examples, variables. Comment out everything.",
+    action="store_true",
 )
 ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
@@ -604,6 +643,7 @@ ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entir
 ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
 ARG_MAP_INDEX = Arg(("--map-index",), type=int, default=-1, help="Mapped task index")
+ARG_READ_FROM_DB = Arg(("--read-from-db",), help="Read dag from DB instead of dag file", action="store_true")
 
 
 # database
@@ -783,7 +823,6 @@ ARG_DO_PICKLE = Arg(
     action="store_true",
 )
 
-# worker
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
@@ -793,7 +832,7 @@ ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
     type=int,
     help="The number of worker processes",
-    default=conf.get("celery", "worker_concurrency"),
+    default=conf.getint("celery", "worker_concurrency"),
 )
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
@@ -825,13 +864,15 @@ ARG_FLOWER_HOSTNAME = Arg(
 )
 ARG_FLOWER_PORT = Arg(
     ("-p", "--port"),
-    default=conf.get("celery", "FLOWER_PORT"),
+    default=conf.getint("celery", "FLOWER_PORT"),
     type=int,
     help="The port on which to run the server",
 )
 ARG_FLOWER_CONF = Arg(("-c", "--flower-conf"), help="Configuration file for flower")
 ARG_FLOWER_URL_PREFIX = Arg(
-    ("-u", "--url-prefix"), default=conf.get("celery", "FLOWER_URL_PREFIX"), help="URL prefix for Flower"
+    ("-u", "--url-prefix"),
+    default=conf.get("celery", "FLOWER_URL_PREFIX"),
+    help="URL prefix for Flower",
 )
 ARG_FLOWER_BASIC_AUTH = Arg(
     ("-A", "--basic-auth"),
@@ -1158,7 +1199,7 @@ DAGS_COMMANDS = (
         args=(
             ARG_DAG_ID_REQ_FLAG,
             ARG_NO_BACKFILL,
-            ARG_STATE,
+            ARG_DR_STATE,
             ARG_OUTPUT,
             ARG_VERBOSE,
             ARG_START_DATE,
@@ -1169,7 +1210,7 @@ DAGS_COMMANDS = (
         name="list-jobs",
         help="List the jobs",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_jobs"),
-        args=(ARG_DAG_ID_OPT, ARG_STATE, ARG_LIMIT, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_DAG_ID_OPT, ARG_JOB_STATE, ARG_LIMIT, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="state",
@@ -1201,7 +1242,10 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="trigger",
-        help="Trigger a DAG run",
+        help=(
+            "Trigger a new DAG run. If DAG is paused then dagrun state will remain queued, "
+            "and the task won't run."
+        ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_trigger"),
         args=(
             ARG_DAG_ID,
@@ -1453,6 +1497,7 @@ TASKS_COMMANDS = (
             ARG_SHUT_DOWN_LOGGING,
             ARG_MAP_INDEX,
             ARG_VERBOSE,
+            ARG_READ_FROM_DB,
         ),
     ),
     ActionCommand(
@@ -1803,7 +1848,26 @@ PROVIDERS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.provider_command.auth_backend_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
+    ActionCommand(
+        name="executors",
+        help="Get information about executors provided",
+        func=lazy_load_command("airflow.cli.commands.provider_command.executors_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="configs",
+        help="Get information about provider configuration",
+        func=lazy_load_command("airflow.cli.commands.provider_command.config_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="lazy-loaded",
+        help="Checks that provider configuration is lazy loaded",
+        func=lazy_load_command("airflow.cli.commands.provider_command.lazy_loaded"),
+        args=(ARG_VERBOSE,),
+    ),
 )
+
 
 USERS_COMMANDS = (
     ActionCommand(
@@ -1978,7 +2042,18 @@ CONFIG_COMMANDS = (
         name="list",
         help="List options for the configuration",
         func=lazy_load_command("airflow.cli.commands.config_command.show_config"),
-        args=(ARG_OPTIONAL_SECTION, ARG_COLOR, ARG_VERBOSE),
+        args=(
+            ARG_OPTIONAL_SECTION,
+            ARG_COLOR,
+            ARG_INCLUDE_DESCRIPTIONS,
+            ARG_INCLUDE_EXAMPLES,
+            ARG_INCLUDE_SOURCES,
+            ARG_INCLUDE_ENV_VARS,
+            ARG_COMMENT_OUT_EVERYTHING,
+            ARG_EXCLUDE_PROVIDERS,
+            ARG_DEFAULTS,
+            ARG_VERBOSE,
+        ),
     ),
 )
 

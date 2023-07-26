@@ -30,7 +30,7 @@ data.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include:: ../_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 Manage datasets
 ^^^^^^^^^^^^^^^

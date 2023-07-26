@@ -31,8 +31,7 @@ if TYPE_CHECKING:
 
 class LocalFilesystemToGCSOperator(BaseOperator):
     """
-    Uploads a file or list of files to Google Cloud Storage.
-    Optionally can compress the file for upload.
+    Uploads a file or list of files to Google Cloud Storage; optionally can compress the file for upload.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

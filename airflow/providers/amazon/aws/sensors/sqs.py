@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 class SqsSensor(BaseSensorOperator):
     """
     Get messages from an Amazon SQS queue and then delete the messages from the queue.
+
     If deletion of messages fails, an AirflowException is thrown. Otherwise, the messages
     are pushed through XCom with the key ``messages``.
 

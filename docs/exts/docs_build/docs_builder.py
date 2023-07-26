@@ -43,9 +43,8 @@ console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WI
 class AirflowDocsBuilder:
     """Documentation builder for Airflow."""
 
-    def __init__(self, package_name: str, for_production: bool):
+    def __init__(self, package_name: str):
         self.package_name = package_name
-        self.for_production = for_production
 
     @property
     def _doctree_dir(self) -> str:
@@ -65,7 +64,7 @@ class AirflowDocsBuilder:
     @property
     def _build_dir(self) -> str:
         if self.is_versioned:
-            version = "stable" if self.for_production else "latest"
+            version = "stable"
             return f"{DOCS_DIR}/_build/docs/{self.package_name}/{version}"
         else:
             return f"{DOCS_DIR}/_build/docs/{self.package_name}"
@@ -154,8 +153,6 @@ class AirflowDocsBuilder:
 
         env = os.environ.copy()
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
-        if self.for_production:
-            env["AIRFLOW_FOR_PRODUCTION"] = "true"
         if verbose:
             console.print(
                 f"[info]{self.package_name:60}:[/] Executing cmd: ",
@@ -229,8 +226,6 @@ class AirflowDocsBuilder:
         ]
         env = os.environ.copy()
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
-        if self.for_production:
-            env["AIRFLOW_FOR_PRODUCTION"] = "true"
         if verbose:
             console.print(
                 f"[info]{self.package_name:60}:[/] Executing cmd: ",

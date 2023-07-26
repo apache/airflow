@@ -412,8 +412,7 @@ class S3CreateObjectOperator(BaseOperator):
 
 class S3DeleteObjectsOperator(BaseOperator):
     """
-    To enable users to delete single object or multiple objects from
-    a bucket using a single HTTP request.
+    To enable users to delete single object or multiple objects from a bucket using a single HTTP request.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -482,10 +481,10 @@ class S3DeleteObjectsOperator(BaseOperator):
 
 class S3FileTransformOperator(BaseOperator):
     """
-    Copies data from a source S3 location to a temporary location on the
-    local filesystem. Runs a transformation on this file as specified by
-    the transformation script and uploads the output to a destination S3
-    location.
+    Copies data from a source S3 location to a temporary location on the local filesystem.
+
+    Runs a transformation on this file as specified by the transformation
+    script and uploads the output to a destination S3 location.
 
     The locations of the source and the destination files in the local
     filesystem is provided as a first and second arguments to the

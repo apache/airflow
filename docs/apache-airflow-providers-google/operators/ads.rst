@@ -23,7 +23,7 @@ businesses to advertise on Google Search, YouTube and other sites across the web
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:GoogleAdsToGcsOperator:
 

@@ -19,8 +19,7 @@
 
 import ELK, { ElkExtendedEdge, ElkShape } from "elkjs";
 
-import type { DepNode } from "src/types";
-import type { NodeType } from "src/datasets/Graph/Node";
+import type { NodeType, DepNode, WebserverEdge } from "src/types";
 import { useQuery } from "react-query";
 import useFilters from "src/dag/useFilters";
 
@@ -30,12 +29,6 @@ interface GenerateProps {
   font: string;
   openGroupIds?: string[];
   arrange: string;
-}
-
-interface WebserverEdge {
-  label?: string;
-  sourceId: string;
-  targetId: string;
 }
 
 interface Graph extends ElkShape {
@@ -83,14 +76,35 @@ const generateGraph = ({
   arrange,
 }: GenerateProps) => {
   const closedGroupIds: string[] = [];
+  let filteredEdges = unformattedEdges;
 
-  const formatChildNode = (node: any) => {
+  const getNestedChildIds = (children: DepNode[]) => {
+    let childIds: string[] = [];
+    children.forEach((c) => {
+      childIds.push(c.id);
+      if (c.children) {
+        const nestedChildIds = getNestedChildIds(c.children);
+        childIds = [...childIds, ...nestedChildIds];
+      }
+    });
+    return childIds;
+  };
+
+  const formatChildNode = (
+    node: DepNode
+  ): DepNode & {
+    label: string;
+    layoutOptions?: Record<string, string>;
+    width?: number;
+    height?: number;
+  } => {
     const { id, value, children } = node;
     const isOpen = openGroupIds?.includes(value.label);
     const childCount =
-      children?.filter((c: any) => !c.id.includes("join_id")).length || 0;
-    if (isOpen && children.length) {
+      children?.filter((c: DepNode) => !c.id.includes("join_id")).length || 0;
+    if (isOpen && children?.length) {
       return {
+        ...node,
         id,
         value: {
           ...value,
@@ -105,7 +119,25 @@ const generateGraph = ({
       };
     }
     const isJoinNode = id.includes("join_id");
-    if (children?.length) closedGroupIds.push(value.label);
+    if (!isOpen && children?.length) {
+      const childIds = getNestedChildIds(children);
+      filteredEdges = filteredEdges
+        // Filter out internal group edges
+        .filter(
+          (e) =>
+            !(
+              childIds.indexOf(e.sourceId) > -1 &&
+              childIds.indexOf(e.targetId) > -1
+            )
+        )
+        // For external group edges, point to the group itself instead of a child node
+        .map((e) => ({
+          ...e,
+          sourceId: childIds.indexOf(e.sourceId) > -1 ? node.id : e.sourceId,
+          targetId: childIds.indexOf(e.targetId) > -1 ? node.id : e.targetId,
+        }));
+      closedGroupIds.push(value.label);
+    }
     return {
       id,
       label: value.label,
@@ -118,29 +150,10 @@ const generateGraph = ({
       height: isJoinNode ? 10 : 60,
     };
   };
+
   const children = nodes.map(formatChildNode);
 
-  const edges = unformattedEdges
-    .map((edge) => {
-      let { sourceId, targetId } = edge;
-      const splitSource = sourceId.split(".");
-      const splitTarget = targetId.split(".");
-
-      if (closedGroupIds.includes(splitSource[splitSource.length - 2])) {
-        splitSource.pop();
-        sourceId = splitSource.join(".");
-      }
-      if (closedGroupIds.includes(splitTarget[splitTarget.length - 2])) {
-        splitTarget.pop();
-        targetId = splitTarget.join(".");
-      }
-      return {
-        ...edge,
-        targetId,
-        sourceId,
-      };
-    })
-    // Deduplicate edges
+  const edges = filteredEdges
     .filter(
       (value, index, self) =>
         index ===
@@ -148,26 +161,11 @@ const generateGraph = ({
           (t) => t.sourceId === value.sourceId && t.targetId === value.targetId
         )
     )
-    .filter((edge) => {
-      const splitSource = edge.sourceId.split(".");
-      const splitTarget = edge.targetId.split(".");
-      if (
-        splitSource
-          .slice(0, splitSource.length - 1)
-          .some((id) => closedGroupIds.includes(id)) ||
-        splitTarget
-          .slice(0, splitTarget.length - 1)
-          .some((id) => closedGroupIds.includes(id))
-      ) {
-        return false;
-      }
-      if (edge.sourceId === edge.targetId) return false;
-      return true;
-    })
     .map((e) => ({
       id: `${e.sourceId}-${e.targetId}`,
       sources: [e.sourceId],
       targets: [e.targetId],
+      isSetupTeardown: e.isSetupTeardown,
       labels: e.label
         ? [
             {

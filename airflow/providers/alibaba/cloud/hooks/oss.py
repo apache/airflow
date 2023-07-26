@@ -35,10 +35,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def provide_bucket_name(func: T) -> T:
-    """
-    Function decorator that unifies bucket name and key taken from the key
-    in case no bucket name and at least a key has been passed to the function.
-    """
+    """Function decorator that unifies bucket name and key  is a key is provided but not a bucket name."""
     function_signature = signature(func)
 
     @wraps(func)
@@ -56,10 +53,7 @@ def provide_bucket_name(func: T) -> T:
 
 
 def unify_bucket_name_and_key(func: T) -> T:
-    """
-    Function decorator that unifies bucket name and key taken from the key
-    in case no bucket name and at least a key has been passed to the function.
-    """
+    """Function decorator that unifies bucket name and key  is a key is provided but not a bucket name."""
     function_signature = signature(func)
 
     @wraps(func)

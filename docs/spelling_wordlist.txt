@@ -35,6 +35,7 @@ alibaba
 allAuthenticatedUsers
 allowinsert
 allUsers
+alphanumerics
 Alphasort
 amazonaws
 amqp
@@ -296,6 +297,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+CoreV
 coroutine
 coverals
 cp
@@ -344,6 +346,7 @@ DagRunState
 DAGs
 Dask
 dask
+daskexecutor
 dat
 Databricks
 databricks
@@ -481,11 +484,13 @@ Dont
 DOS'ing
 DownloadReportV
 downscaling
+downstreams
 Drillbit
 Drivy
 dropdown
 druidHook
 ds
+dsl
 Dsn
 dsn
 dttm
@@ -598,6 +603,7 @@ fn
 fo
 followsa
 formatter
+formatters
 Formaturas
 forwardability
 forwardable
@@ -674,6 +680,7 @@ Harenslak
 Hashable
 Hashicorp
 hashicorp
+hashlib
 hasn
 HCatalog
 hcatalog
@@ -861,6 +868,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Lakehouse
 LanguageServiceClient
 lastname
 latencies
@@ -1053,6 +1061,7 @@ ot
 otel
 overridable
 oversubscription
+PaaS
 Pagerduty
 pagerduty
 pageviews
@@ -1099,7 +1108,9 @@ pluggable
 pluggy
 plyvel
 png
+PodManager
 podName
+PodSpec
 podSpec
 podspec
 poller
@@ -1204,6 +1215,7 @@ RBAC
 rbac
 rc
 rdbms
+RDS
 readfp
 Readme
 readme
@@ -1356,6 +1368,7 @@ sourceArchiveUrl
 sourceRepository
 sourceUploadUrl
 Spark
+sparkappinfo
 sparkApplication
 sparkcmd
 SparkPi
@@ -1423,7 +1436,7 @@ Subdirectory
 subdirectory
 subfolder
 subfolders
-Submodules
+submodule
 submodules
 subnet
 subnets
@@ -1487,6 +1500,7 @@ tblproperties
 TCP
 tcp
 teardown
+teardowns
 templatable
 templateable
 Templated
@@ -1583,6 +1597,7 @@ unprocessable
 unqueued
 unterminated
 untransformed
+untrusted
 unutilized
 updateMask
 updateonly
@@ -1590,6 +1605,7 @@ Upsert
 upsert
 upserts
 Upsight
+upstreams
 Uptime
 uri
 uris

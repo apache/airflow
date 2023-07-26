@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.configuration import initialize_config
+from airflow.configuration import initialize_config, write_webserver_configuration_if_needed
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.utils.task_group import TaskGroup
 from airflow.www import views
@@ -68,7 +68,8 @@ def test_webserver_configuration_config_file(mock_webserver_config_global, admin
 
     config_file = str(tmp_path / "my_custom_webserver_config.py")
     with mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": config_file}):
-        initialize_config()
+        conf = initialize_config()
+        write_webserver_configuration_if_needed(conf)
         assert airflow.configuration.WEBSERVER_CONFIG == config_file
 
     assert os.path.isfile(config_file)
@@ -84,6 +85,7 @@ def test_redoc_should_render_template(capture_templates, admin_client):
     assert len(templates) == 1
     assert templates[0].name == "airflow/redoc.html"
     assert templates[0].local_context == {
+        "config_test_connection": "Disabled",
         "openapi_spec_url": "/api/v1/openapi.yaml",
         "rest_api_enabled": True,
         "get_docs_url": get_docs_url,

@@ -393,7 +393,7 @@ class TestMaskSecretAdapter:
     def reset_secrets_masker_and_skip_escape(self):
         self.secrets_masker = SecretsMasker()
         with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):
-            with patch("airflow.utils.log.secrets_masker.re.escape", lambda x: x):
+            with patch("airflow.utils.log.secrets_masker.re2.escape", lambda x: x):
                 yield
 
     def test_calling_mask_secret_adds_adaptations_for_returned_str(self):

@@ -23,7 +23,7 @@ from typing import Any, Callable, Container, TypeVar, cast
 
 from pendulum.parsing import ParserError
 from sqlalchemy import text
-from sqlalchemy.orm.query import Query
+from sqlalchemy.sql import Select
 
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.configuration import conf
@@ -106,11 +106,11 @@ def format_parameters(params_formatters: dict[str, Callable[[Any], Any]]) -> Cal
 
 
 def apply_sorting(
-    query: Query,
+    query: Select,
     order_by: str,
     to_replace: dict[str, str] | None = None,
     allowed_attrs: Container[str] | None = None,
-) -> Query:
+) -> Select:
     """Apply sorting to query."""
     lstriped_orderby = order_by.lstrip("-")
     if allowed_attrs and lstriped_orderby not in allowed_attrs:

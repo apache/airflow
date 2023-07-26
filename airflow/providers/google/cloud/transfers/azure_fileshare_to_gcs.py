@@ -31,8 +31,9 @@ if TYPE_CHECKING:
 
 class AzureFileShareToGCSOperator(BaseOperator):
     """
-    Synchronizes a Azure FileShare directory content (excluding subdirectories),
-    possibly filtered by a prefix, with a Google Cloud Storage destination path.
+    Sync an Azure FileShare directory with a Google Cloud Storage destination path.
+
+    Does not include subdirectories.  May be filtered by prefix.
 
     :param share_name: The Azure FileShare share where to find the objects. (templated)
     :param directory_name: (Optional) Path to Azure FileShare directory which content is to be transferred.

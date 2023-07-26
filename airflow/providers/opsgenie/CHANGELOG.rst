@@ -21,6 +21,9 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-opsgenie``
+
+
 Changelog
 ---------
 
@@ -69,7 +72,7 @@ Misc
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-Remove 'OpsgenieAlertOperator' also removed hooks.opsgenie_alert path
+Remove ``OpsgenieAlertOperator`` also removed hooks.opsgenie_alert path
 
 * ``Remove deprecated code from Opsgenie provider (#27252)``
 

@@ -18,10 +18,18 @@
 ``apache-airflow-providers-google``
 ===================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -33,19 +41,21 @@ Content
     Sensors <sensors/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/google/index>
-    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/google/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -57,6 +67,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -76,7 +87,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 10.2.0
+Release: 10.4.0
 
 Provider package
 ----------------
@@ -105,7 +116,7 @@ PIP package                              Version required
 ``gcloud-aio-auth``                      ``>=4.0.0,<5.0.0``
 ``gcloud-aio-bigquery``                  ``>=6.1.2``
 ``gcloud-aio-storage``
-``google-ads``                           ``>=20.0.0``
+``google-ads``                           ``>=21.2.0``
 ``google-api-core``                      ``>=2.11.0``
 ``google-api-python-client``             ``>=1.6.0``
 ``google-auth``                          ``>=1.0.0``
@@ -137,6 +148,7 @@ PIP package                              Version required
 ``google-cloud-spanner``                 ``>=3.11.1``
 ``google-cloud-speech``                  ``>=2.18.0``
 ``google-cloud-storage``                 ``>=2.7.0``
+``google-cloud-storage-transfer``        ``>=1.4.1``
 ``google-cloud-tasks``                   ``>=2.13.0``
 ``google-cloud-texttospeech``            ``>=2.14.1``
 ``google-cloud-translate``               ``>=3.11.0``
@@ -194,7 +206,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 10.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 10.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.2.0-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/google/CHANGELOG.rst
+* `The apache-airflow-providers-google 10.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.4.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 10.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.4.0-py3-none-any.whl.sha512>`__)

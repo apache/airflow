@@ -19,27 +19,31 @@ from __future__ import annotations
 
 import contextlib
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.utils.context import Context
+from airflow.utils.db import exists_query
 from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.utils.task_group import TaskGroup
 
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
@@ -205,11 +209,20 @@ class XComArg(ResolveMixin, DependencyMixin):
         """
         raise NotImplementedError()
 
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """Add the task to the given task group.
+
+        :meta private:
+        """
+        for op, _ in self.iter_references():
+            if op.node_id not in task_group.children:
+                task_group.add(op)
+
     def __enter__(self):
         if not self.operator.is_setup and not self.operator.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         SetupTeardownContext.push_setup_teardown_task(self.operator)
-        return self
+        return SetupTeardownContext
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
@@ -296,6 +309,55 @@ class PlainXComArg(XComArg):
     def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
         return cls(dag.get_task(data["task_id"]), data["key"])
 
+    @property
+    def is_setup(self) -> bool:
+        return self.operator.is_setup
+
+    @is_setup.setter
+    def is_setup(self, val: bool):
+        self.operator.is_setup = val
+
+    @property
+    def is_teardown(self) -> bool:
+        return self.operator.is_teardown
+
+    @is_teardown.setter
+    def is_teardown(self, val: bool):
+        self.operator.is_teardown = val
+
+    @property
+    def on_failure_fail_dagrun(self) -> bool:
+        return self.operator.on_failure_fail_dagrun
+
+    @on_failure_fail_dagrun.setter
+    def on_failure_fail_dagrun(self, val: bool):
+        self.operator.on_failure_fail_dagrun = val
+
+    def as_setup(self) -> DependencyMixin:
+        for operator, _ in self.iter_references():
+            operator.is_setup = True
+        return self
+
+    def as_teardown(
+        self,
+        *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        on_failure_fail_dagrun=NOTSET,
+    ):
+        for operator, _ in self.iter_references():
+            operator.is_teardown = True
+            if TYPE_CHECKING:
+                assert isinstance(operator, BaseOperator)  # Can't set MappedOperator as teardown
+            operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
+            if on_failure_fail_dagrun is not NOTSET:
+                operator.on_failure_fail_dagrun = on_failure_fail_dagrun
+            if not isinstance(setups, ArgNotSet):
+                setups = [setups] if isinstance(setups, DependencyMixin) else setups
+                for s in setups:
+                    s.is_setup = True
+                    s >> operator
+        return self
+
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         yield self.operator, self.key
 
@@ -316,7 +378,7 @@ class PlainXComArg(XComArg):
 
         task = self.operator
         if isinstance(task, MappedOperator):
-            unfinished_ti_count_query = session.query(func.count(TaskInstance.map_index)).filter(
+            unfinished_ti_exists = exists_query(
                 TaskInstance.dag_id == task.dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.task_id == task.task_id,
@@ -327,8 +389,9 @@ class PlainXComArg(XComArg):
                     TaskInstance.state.is_(None),
                     TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
                 ),
+                session=session,
             )
-            if unfinished_ti_count_query.scalar():
+            if unfinished_ti_exists:
                 return None  # Not all of the expanded tis are done yet.
             query = session.query(func.count(XCom.map_index)).filter(
                 XCom.dag_id == task.dag_id,

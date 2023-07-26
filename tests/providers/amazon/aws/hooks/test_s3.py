@@ -34,6 +34,7 @@ from moto import mock_s3
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.s3 import (
     S3Hook,
     provide_bucket_name,
@@ -93,6 +94,17 @@ class TestAwsS3Hook:
     def test_parse_s3_url_virtual_hosted_style(self):
         parsed = S3Hook.parse_s3_url("https://DOC-EXAMPLE-BUCKET1.s3.us-west-2.amazonaws.com/test.png")
         assert parsed == ("DOC-EXAMPLE-BUCKET1", "test.png"), "Incorrect parsing of the s3 url"
+
+    def test_parse_invalid_s3_url_virtual_hosted_style(self):
+        with pytest.raises(
+            S3HookUriParseFailure,
+            match=(
+                "Please provide a bucket name using a valid virtually hosted format which should "
+                "be of the form: https://bucket-name.s3.region-code.amazonaws.com/key-name but "
+                'provided: "https://DOC-EXAMPLE-BUCKET1.us-west-2.amazonaws.com/test.png"'
+            ),
+        ):
+            S3Hook.parse_s3_url("https://DOC-EXAMPLE-BUCKET1.us-west-2.amazonaws.com/test.png")
 
     def test_parse_s3_object_directory(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-s3-directory/")
@@ -679,6 +691,127 @@ class TestAwsS3Hook:
             mock_client.return_value, "test_bucket", True, "test/example_s3_test_file.txt"
         )
         assert response is False
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
+    async def test_s3_key_hook_is_keys_unchanged_false_async(self, mock_list_keys, mock_client):
+        """
+        Test is_key_unchanged gives False response when the key value is unchanged in specified period.
+        """
+
+        mock_list_keys.return_value = ["test"]
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+        response = await s3_hook_async.is_keys_unchanged_async(
+            client=mock_client.return_value,
+            bucket_name="test_bucket",
+            prefix="test",
+            inactivity_period=1,
+            min_objects=1,
+            previous_objects=set(),
+            inactivity_seconds=0,
+            allow_delete=True,
+            last_activity_time=None,
+        )
+
+        assert response.get("status") == "pending"
+
+        # test for the case when current_objects < previous_objects
+        mock_list_keys.return_value = []
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+        response = await s3_hook_async.is_keys_unchanged_async(
+            client=mock_client.return_value,
+            bucket_name="test_bucket",
+            prefix="test",
+            inactivity_period=1,
+            min_objects=1,
+            previous_objects=set("test"),
+            inactivity_seconds=0,
+            allow_delete=True,
+            last_activity_time=None,
+        )
+
+        assert response.get("status") == "pending"
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
+    async def test_s3_key_hook_is_keys_unchanged_exception_async(self, mock_list_keys, mock_client):
+        """
+        Test is_key_unchanged gives AirflowException.
+        """
+        mock_list_keys.return_value = []
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+
+        response = await s3_hook_async.is_keys_unchanged_async(
+            client=mock_client.return_value,
+            bucket_name="test_bucket",
+            prefix="test",
+            inactivity_period=1,
+            min_objects=1,
+            previous_objects=set("test"),
+            inactivity_seconds=0,
+            allow_delete=False,
+            last_activity_time=None,
+        )
+
+        assert response == {"message": "test_bucket/test between pokes.", "status": "error"}
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
+    async def test_s3_key_hook_is_keys_unchanged_pending_async(self, mock_list_keys, mock_client):
+        """
+        Test is_key_unchanged gives AirflowException.
+        """
+        mock_list_keys.return_value = []
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+
+        response = await s3_hook_async.is_keys_unchanged_async(
+            client=mock_client.return_value,
+            bucket_name="test_bucket",
+            prefix="test",
+            inactivity_period=1,
+            min_objects=0,
+            previous_objects=set(),
+            inactivity_seconds=0,
+            allow_delete=False,
+            last_activity_time=None,
+        )
+
+        assert response.get("status") == "pending"
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
+    async def test_s3_key_hook_is_keys_unchanged_inactivity_error_async(self, mock_list_keys, mock_client):
+        """
+        Test is_key_unchanged gives AirflowException.
+        """
+        mock_list_keys.return_value = []
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+
+        response = await s3_hook_async.is_keys_unchanged_async(
+            client=mock_client.return_value,
+            bucket_name="test_bucket",
+            prefix="test",
+            inactivity_period=0,
+            min_objects=5,
+            previous_objects=set(),
+            inactivity_seconds=5,
+            allow_delete=False,
+            last_activity_time=None,
+        )
+
+        assert response == {
+            "status": "error",
+            "message": "FAILURE: Inactivity Period passed, not enough objects found in test_bucket/test",
+        }
 
     def test_load_bytes(self, s3_bucket):
         hook = S3Hook()

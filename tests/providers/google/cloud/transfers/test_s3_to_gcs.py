@@ -18,11 +18,18 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import PropertyMock
 
 import pytest
+import time_machine
 
+from airflow import AirflowException
+from airflow.exceptions import TaskDeferred
+from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import CloudDataTransferServiceHook
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
+from airflow.utils.timezone import utcnow
 
+PROJECT_ID = "test-project-id"
 TASK_ID = "test-s3-gcs-operator"
 S3_BUCKET = "test-bucket"
 S3_PREFIX = "TEST"
@@ -30,14 +37,23 @@ S3_DELIMITER = "/"
 GCS_BUCKET = "gcs-bucket"
 GCS_BUCKET_URI = "gs://" + GCS_BUCKET
 GCS_PREFIX = "data/"
-GCS_PATH_PREFIX = GCS_BUCKET_URI + "/" + GCS_PREFIX
+GCS_BUCKET = "gcs-bucket"
+GCS_BLOB = "data/"
+GCS_PATH_PREFIX = f"gs://{GCS_BUCKET}/{GCS_BLOB}"
 MOCK_FILE_1 = "TEST1.csv"
 MOCK_FILE_2 = "TEST2.csv"
 MOCK_FILE_3 = "TEST3.csv"
 MOCK_FILES = [MOCK_FILE_1, MOCK_FILE_2, MOCK_FILE_3]
 AWS_CONN_ID = "aws_default"
+AWS_ACCESS_KEY_ID = "Mock AWS access key id"
+AWS_SECRET_ACCESS_KEY = "Mock AWS secret access key"
 GCS_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
+DEFERRABLE = False
+POLL_INTERVAL = 10
+TRANSFER_JOB_ID_0 = "test-transfer-job-0"
+TRANSFER_JOB_ID_1 = "test-transfer-job-1"
+TRANSFER_JOBS = [TRANSFER_JOB_ID_0, TRANSFER_JOB_ID_1]
 APPLY_GCS_PREFIX = False
 PARAMETRIZED_OBJECT_PATHS = (
     "apply_gcs_prefix, s3_prefix, s3_object, gcs_destination, gcs_object",
@@ -67,6 +83,8 @@ class TestS3ToGoogleCloudStorageOperator:
             dest_gcs=GCS_PATH_PREFIX,
             google_impersonation_chain=IMPERSONATION_CHAIN,
             apply_gcs_prefix=APPLY_GCS_PREFIX,
+            deferrable=DEFERRABLE,
+            poll_interval=POLL_INTERVAL,
         )
 
         assert operator.task_id == TASK_ID
@@ -77,6 +95,8 @@ class TestS3ToGoogleCloudStorageOperator:
         assert operator.dest_gcs == GCS_PATH_PREFIX
         assert operator.google_impersonation_chain == IMPERSONATION_CHAIN
         assert operator.apply_gcs_prefix == APPLY_GCS_PREFIX
+        assert operator.deferrable == DEFERRABLE
+        assert operator.poll_interval == POLL_INTERVAL
 
     @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
     @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
@@ -251,3 +271,228 @@ class TestS3ToGoogleCloudStorageOperator:
         )
 
         assert sorted([s3_prefix + s3_object]) == sorted(uploaded_files)
+
+
+class TestS3ToGoogleCloudStorageOperatorDeferrable:
+    @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.CloudDataTransferServiceHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
+    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
+    @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
+    def test_execute_deferrable(self, mock_gcs_hook, mock_s3_super_hook, mock_s3_hook, mock_transfer_hook):
+        mock_gcs_hook.return_value.project_id = PROJECT_ID
+
+        mock_list_keys = mock.MagicMock()
+        mock_list_keys.return_value = MOCK_FILES
+        mock_s3_super_hook.return_value.list_keys = mock_list_keys
+        mock_s3_hook.conn_config = mock.MagicMock(
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        )
+
+        mock_create_transfer_job = mock.MagicMock()
+        mock_create_transfer_job.return_value = dict(name=TRANSFER_JOB_ID_0)
+        mock_transfer_hook.return_value.create_transfer_job = mock_create_transfer_job
+
+        operator = S3ToGCSOperator(
+            task_id=TASK_ID,
+            bucket=S3_BUCKET,
+            prefix=S3_PREFIX,
+            delimiter=S3_DELIMITER,
+            gcp_conn_id=GCS_CONN_ID,
+            dest_gcs=GCS_PATH_PREFIX,
+            aws_conn_id=AWS_CONN_ID,
+            replace=True,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exception_info:
+            operator.execute(None)
+
+        mock_s3_super_hook.assert_called_once_with(aws_conn_id=AWS_CONN_ID, verify=operator.verify)
+        mock_list_keys.assert_called_once_with(
+            bucket_name=S3_BUCKET, prefix=S3_PREFIX, delimiter=S3_DELIMITER, apply_wildcard=False
+        )
+        mock_create_transfer_job.assert_called_once()
+        assert hasattr(exception_info.value, "trigger")
+        trigger = exception_info.value.trigger
+        assert trigger.project_id == PROJECT_ID
+        assert trigger.job_names == [TRANSFER_JOB_ID_0]
+        assert trigger.poll_interval == operator.poll_interval
+
+        assert hasattr(exception_info.value, "method_name")
+        assert exception_info.value.method_name == "execute_complete"
+
+    @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
+    @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
+    def test_transfer_files_async(
+        self,
+        mock_s3_hook,
+        mock_gcs_hook,
+    ):
+        mock_s3_hook.conn_config = mock.MagicMock(
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        )
+        mock_gcs_hook.project_id = PROJECT_ID
+        expected_job_names = [TRANSFER_JOB_ID_0]
+        expected_method_name = "execute_complete"
+
+        operator = S3ToGCSOperator(
+            task_id=TASK_ID,
+            bucket=S3_BUCKET,
+            prefix=S3_PREFIX,
+            delimiter=S3_DELIMITER,
+            gcp_conn_id=GCS_CONN_ID,
+            dest_gcs=GCS_PATH_PREFIX,
+        )
+
+        with mock.patch.object(operator, "submit_transfer_jobs") as mock_submit_transfer_jobs:
+            mock_submit_transfer_jobs.return_value = expected_job_names
+            with pytest.raises(TaskDeferred) as exception_info:
+                operator.transfer_files_async(files=MOCK_FILES, gcs_hook=mock_gcs_hook, s3_hook=mock_s3_hook)
+
+        mock_submit_transfer_jobs.assert_called_once_with(
+            files=MOCK_FILES, gcs_hook=mock_gcs_hook, s3_hook=mock_s3_hook
+        )
+
+        assert hasattr(exception_info.value, "trigger")
+        trigger = exception_info.value.trigger
+        assert trigger.project_id == PROJECT_ID
+        assert trigger.job_names == expected_job_names
+        assert trigger.poll_interval == operator.poll_interval
+
+        assert hasattr(exception_info.value, "method_name")
+        assert exception_info.value.method_name == expected_method_name
+
+    @pytest.mark.parametrize("invalid_poll_interval", [-5, 0])
+    def test_init_error_polling_interval(self, invalid_poll_interval):
+        operator = None
+        expected_error_message = "Invalid value for poll_interval. Expected value greater than 0"
+        with pytest.raises(ValueError, match=expected_error_message):
+            operator = S3ToGCSOperator(
+                task_id=TASK_ID,
+                bucket=S3_BUCKET,
+                prefix=S3_PREFIX,
+                delimiter=S3_DELIMITER,
+                gcp_conn_id=GCS_CONN_ID,
+                dest_gcs=GCS_PATH_PREFIX,
+                poll_interval=invalid_poll_interval,
+            )
+        assert operator is None
+
+    def test_transfer_files_async_error_no_files(self):
+        operator = S3ToGCSOperator(
+            task_id=TASK_ID,
+            bucket=S3_BUCKET,
+            prefix=S3_PREFIX,
+            delimiter=S3_DELIMITER,
+            gcp_conn_id=GCS_CONN_ID,
+            dest_gcs=GCS_PATH_PREFIX,
+        )
+        expected_error_message = "List of transferring files cannot be empty"
+        with pytest.raises(ValueError, match=expected_error_message):
+            operator.transfer_files_async(files=[], gcs_hook=mock.MagicMock(), s3_hook=mock.MagicMock())
+
+    @pytest.mark.parametrize(
+        "file_names, chunks, expected_job_names",
+        [
+            (MOCK_FILES, [MOCK_FILES], [TRANSFER_JOB_ID_0]),
+            (
+                [f"path/to/file{i}" for i in range(2000)],
+                [
+                    [f"path/to/file{i}" for i in range(1000)],
+                    [f"path/to/file{i}" for i in range(1000, 2000)],
+                ],
+                TRANSFER_JOBS,
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.S3Hook")
+    @mock.patch("airflow.providers.google.cloud.transfers.s3_to_gcs.GCSHook")
+    def test_submit_transfer_jobs(
+        self,
+        mock_s3_hook,
+        mock_gcs_hook,
+        file_names,
+        chunks,
+        expected_job_names,
+    ):
+        mock_s3_hook.conn_config = mock.MagicMock(
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        )
+        mock_gcs_hook.project_id = PROJECT_ID
+        operator = S3ToGCSOperator(
+            task_id=TASK_ID,
+            bucket=S3_BUCKET,
+            prefix=S3_PREFIX,
+            delimiter=S3_DELIMITER,
+            gcp_conn_id=GCS_CONN_ID,
+            dest_gcs=GCS_PATH_PREFIX,
+        )
+
+        now_time = utcnow()
+        with time_machine.travel(now_time):
+            with mock.patch.object(operator, "get_transfer_hook") as mock_get_transfer_hook:
+                mock_create_transfer_job = mock.MagicMock(
+                    side_effect=[dict(name=job_name) for job_name in expected_job_names]
+                )
+                mock_get_transfer_hook.return_value = mock.MagicMock(
+                    create_transfer_job=mock_create_transfer_job
+                )
+                job_names = operator.submit_transfer_jobs(
+                    files=file_names,
+                    gcs_hook=mock_gcs_hook,
+                    s3_hook=mock_s3_hook,
+                )
+
+        mock_get_transfer_hook.assert_called_once()
+        mock_create_transfer_job.assert_called()
+        assert job_names == expected_job_names
+
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator.log", new_callable=PropertyMock
+    )
+    def test_execute_complete_success(self, mock_log):
+        expected_event_message = "Event message (success)"
+        event = {
+            "status": "success",
+            "message": expected_event_message,
+        }
+        operator = S3ToGCSOperator(task_id=TASK_ID, bucket=S3_BUCKET)
+        operator.execute_complete(context=mock.MagicMock(), event=event)
+
+        mock_log.return_value.info.assert_called_once_with(
+            "%s completed with response %s ", TASK_ID, event["message"]
+        )
+
+    @mock.patch(
+        "airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator.log", new_callable=PropertyMock
+    )
+    def test_execute_complete_error(self, mock_log):
+        expected_event_message = "Event error message"
+        event = {
+            "status": "error",
+            "message": expected_event_message,
+        }
+        operator = S3ToGCSOperator(task_id=TASK_ID, bucket=S3_BUCKET)
+        with pytest.raises(AirflowException, match=expected_event_message):
+            operator.execute_complete(context=mock.MagicMock(), event=event)
+
+        mock_log.return_value.info.assert_not_called()
+
+    def test_get_transfer_hook(self):
+        operator = S3ToGCSOperator(
+            task_id=TASK_ID,
+            bucket=S3_BUCKET,
+            prefix=S3_PREFIX,
+            delimiter=S3_DELIMITER,
+            gcp_conn_id=GCS_CONN_ID,
+            dest_gcs=GCS_PATH_PREFIX,
+            google_impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        transfer_hook = operator.get_transfer_hook()
+
+        assert isinstance(transfer_hook, CloudDataTransferServiceHook)
+        assert transfer_hook.gcp_conn_id == GCS_CONN_ID
+        assert transfer_hook.impersonation_chain == IMPERSONATION_CHAIN

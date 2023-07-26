@@ -21,8 +21,25 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-trino``
+
+
 Changelog
 ---------
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Trino Hook: Add ability to read JWT from file (#31950)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
 
 5.1.1
 .....

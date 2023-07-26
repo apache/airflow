@@ -262,7 +262,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     unset AIRFLOW__CORE__UNIT_TEST_MODE
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
-    cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
     # Change the default worker_concurrency for tests
     export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
@@ -461,7 +460,7 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
-    HELM_CHART_TESTS=("tests/charts")
+    HELM_CHART_TESTS=("helm_tests")
     INTEGRATION_TESTS=("tests/integration")
     SYSTEM_TESTS=("tests/system")
     ALL_TESTS=("tests")
@@ -498,7 +497,7 @@ else
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
-            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+            SELECTED_TESTS=("helm_tests/${HELM_TEST_PACKAGE}")
         else
             SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
         fi

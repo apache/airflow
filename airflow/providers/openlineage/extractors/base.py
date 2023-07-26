@@ -22,6 +22,7 @@ from abc import ABC, abstractmethod
 from attrs import Factory, define
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import TaskInstanceState
 from openlineage.client.facet import BaseFacet
 from openlineage.client.run import Dataset
 
@@ -88,16 +89,30 @@ class DefaultExtractor(BaseExtractor):
             return None
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
+        if task_instance.state == TaskInstanceState.FAILED:
+            on_failed = getattr(self.operator, "get_openlineage_facets_on_failure", None)
+            if on_failed and callable(on_failed):
+                return self._get_openlineage_facets(on_failed, task_instance)
         on_complete = getattr(self.operator, "get_openlineage_facets_on_complete", None)
         if on_complete and callable(on_complete):
             return self._get_openlineage_facets(on_complete, task_instance)
         return self.extract()
 
     def _get_openlineage_facets(self, get_facets_method, *args) -> OperatorLineage | None:
-        facets: OperatorLineage = get_facets_method(*args)
-        return OperatorLineage(
-            inputs=facets.inputs,
-            outputs=facets.outputs,
-            run_facets=facets.run_facets,
-            job_facets=facets.job_facets,
-        )
+        try:
+            facets = get_facets_method(*args)
+        except ImportError:
+            self.log.exception(
+                "OpenLineage provider method failed to import OpenLineage integration. "
+                "This should not happen."
+            )
+        except Exception:
+            self.log.exception("OpenLineage provider method failed to extract data from provider. ")
+        else:
+            return OperatorLineage(
+                inputs=facets.inputs,
+                outputs=facets.outputs,
+                run_facets=facets.run_facets,
+                job_facets=facets.job_facets,
+            )
+        return None

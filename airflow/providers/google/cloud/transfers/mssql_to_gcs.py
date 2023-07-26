@@ -27,8 +27,8 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 
 class MSSQLToGCSOperator(BaseSQLToGCSOperator):
-    """Copy data from Microsoft SQL Server to Google Cloud Storage
-    in JSON, CSV or Parquet format.
+    """
+    Copy data from Microsoft SQL Server to Google Cloud Storage in JSON, CSV or Parquet format.
 
     :param bit_fields: Sequence of fields names of MSSQL "BIT" data type,
         to be interpreted in the schema as "BOOLEAN". "BIT" fields that won't
@@ -99,8 +99,8 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     @classmethod
     def convert_type(cls, value, schema_type, **kwargs):
         """
-        Takes a value from MSSQL, and converts it to a value that's safe for
-        JSON/Google Cloud Storage/BigQuery.
+        Take a value from MSSQL and convert it to a value safe for JSON/Google Cloud Storage/BigQuery.
+
         Datetime, Date and Time are converted to ISO formatted strings.
         """
         if isinstance(value, decimal.Decimal):
