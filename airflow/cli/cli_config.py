@@ -311,6 +311,36 @@ ARG_NUM_EXECUTIONS = Arg(
 ARG_MARK_SUCCESS = Arg(
     ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
 )
+ARG_INCLUDE_DESCRIPTIONS = Arg(
+    ("-d", "--include-descriptions"),
+    help="Show descriptions for the configuration variables",
+    action="store_true",
+)
+ARG_INCLUDE_EXAMPLES = Arg(
+    ("-e", "--include-examples"), help="Show examples for the configuration variables", action="store_true"
+)
+ARG_INCLUDE_SOURCES = Arg(
+    ("-s", "--include-sources"), help="Show source of the configuration variable", action="store_true"
+)
+ARG_INCLUDE_ENV_VARS = Arg(
+    ("-V", "--include-env-vars"), help="Show environment variable for each option", action="store_true"
+)
+ARG_COMMENT_OUT_EVERYTHING = Arg(
+    ("-c", "--comment-out-everything"),
+    help="Comment out all configuration options. Useful as starting point for new installation",
+    action="store_true",
+)
+ARG_EXCLUDE_PROVIDERS = Arg(
+    ("-p", "--exclude-providers"),
+    help="Exclude provider configuration (they are included by default)",
+    action="store_true",
+)
+ARG_DEFAULTS = Arg(
+    ("-a", "--defaults"),
+    help="Show only defaults - do not include local configuration, sources,"
+    " includes descriptions, examples, variables. Comment out everything.",
+    action="store_true",
+)
 ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
 ARG_DONOT_PICKLE = Arg(
@@ -793,7 +823,6 @@ ARG_DO_PICKLE = Arg(
     action="store_true",
 )
 
-# worker
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
@@ -803,7 +832,7 @@ ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
     type=int,
     help="The number of worker processes",
-    default=conf.get("celery", "worker_concurrency"),
+    default=conf.getint("celery", "worker_concurrency"),
 )
 ARG_CELERY_HOSTNAME = Arg(
     ("-H", "--celery-hostname"),
@@ -835,13 +864,15 @@ ARG_FLOWER_HOSTNAME = Arg(
 )
 ARG_FLOWER_PORT = Arg(
     ("-p", "--port"),
-    default=conf.get("celery", "FLOWER_PORT"),
+    default=conf.getint("celery", "FLOWER_PORT"),
     type=int,
     help="The port on which to run the server",
 )
 ARG_FLOWER_CONF = Arg(("-c", "--flower-conf"), help="Configuration file for flower")
 ARG_FLOWER_URL_PREFIX = Arg(
-    ("-u", "--url-prefix"), default=conf.get("celery", "FLOWER_URL_PREFIX"), help="URL prefix for Flower"
+    ("-u", "--url-prefix"),
+    default=conf.get("celery", "FLOWER_URL_PREFIX"),
+    help="URL prefix for Flower",
 )
 ARG_FLOWER_BASIC_AUTH = Arg(
     ("-A", "--basic-auth"),
@@ -1211,7 +1242,10 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="trigger",
-        help="Trigger a DAG run",
+        help=(
+            "Trigger a new DAG run. If DAG is paused then dagrun state will remain queued, "
+            "and the task won't run."
+        ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_trigger"),
         args=(
             ARG_DAG_ID,
@@ -1820,7 +1854,20 @@ PROVIDERS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.provider_command.executors_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
+    ActionCommand(
+        name="configs",
+        help="Get information about provider configuration",
+        func=lazy_load_command("airflow.cli.commands.provider_command.config_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="lazy-loaded",
+        help="Checks that provider configuration is lazy loaded",
+        func=lazy_load_command("airflow.cli.commands.provider_command.lazy_loaded"),
+        args=(ARG_VERBOSE,),
+    ),
 )
+
 
 USERS_COMMANDS = (
     ActionCommand(
@@ -1995,7 +2042,18 @@ CONFIG_COMMANDS = (
         name="list",
         help="List options for the configuration",
         func=lazy_load_command("airflow.cli.commands.config_command.show_config"),
-        args=(ARG_OPTIONAL_SECTION, ARG_COLOR, ARG_VERBOSE),
+        args=(
+            ARG_OPTIONAL_SECTION,
+            ARG_COLOR,
+            ARG_INCLUDE_DESCRIPTIONS,
+            ARG_INCLUDE_EXAMPLES,
+            ARG_INCLUDE_SOURCES,
+            ARG_INCLUDE_ENV_VARS,
+            ARG_COMMENT_OUT_EVERYTHING,
+            ARG_EXCLUDE_PROVIDERS,
+            ARG_DEFAULTS,
+            ARG_VERBOSE,
+        ),
     ),
 )
 

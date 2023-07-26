@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/celery/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-celery/>
     Installing from sources <installing-providers-from-sources>

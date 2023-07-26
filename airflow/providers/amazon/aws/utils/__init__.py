@@ -21,13 +21,28 @@ import re
 from datetime import datetime
 from enum import Enum
 
+from airflow.utils.helpers import prune_dict
 from airflow.version import version
 
 log = logging.getLogger(__name__)
 
 
 def trim_none_values(obj: dict):
-    return {key: val for key, val in obj.items() if val is not None}
+    from packaging.version import Version
+
+    from airflow.version import version
+
+    if Version(version) < Version("2.7"):
+        # before version 2.7, the behavior is not the same.
+        # Empty dict and lists are removed from the given dict.
+        return {key: val for key, val in obj.items() if val is not None}
+    else:
+        # once airflow 2.6 rolls out of compatibility support for provider packages,
+        # we can replace usages of this method with the core one in our code,
+        # and uncomment this warning for users who may use it.
+        # warnings.warn("use airflow.utils.helpers.prune_dict() instead",
+        #     AirflowProviderDeprecationWarning, stacklevel=2)
+        return prune_dict(obj)
 
 
 def datetime_to_epoch(date_time: datetime) -> int:

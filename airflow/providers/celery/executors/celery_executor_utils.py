@@ -39,11 +39,11 @@ from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
 
 import airflow.settings as settings
-from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstanceKey
+from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -57,13 +57,14 @@ if TYPE_CHECKING:
 
     TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
-OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout", fallback=1.0)
+OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
 if conf.has_option("celery", "celery_config_options"):
     celery_configuration = conf.getimport("celery", "celery_config_options")
+
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 

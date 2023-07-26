@@ -87,6 +87,7 @@ class EventBridgePutEventsOperator(BaseOperator):
             return [e["EventId"] for e in response["Entries"]]
 
 
+
 class EventBridgePutRuleOperator(BaseOperator):
     """Create or update a specified EventBridge rule.
 
@@ -158,3 +159,4 @@ class EventBridgePutRuleOperator(BaseOperator):
             state=self.state,
             tags=self.tags,
         )
+

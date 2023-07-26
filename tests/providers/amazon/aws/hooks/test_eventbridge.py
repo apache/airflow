@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+
 import pytest
 from moto import mock_events
 
@@ -38,3 +39,4 @@ class TestEventBridgeHook:
         hook = EventBridgeHook(aws_conn_id="aws_default")
         with pytest.raises(AirflowException):
             hook.put_rule(name="test", event_pattern='{"source"; ["aws.s3"]}', state="ENABLED")
+

@@ -23,6 +23,7 @@ import pytest
 
 from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.eventbridge import EventBridgeHook
+
 from airflow.providers.amazon.aws.operators.eventbridge import (
     EventBridgePutEventsOperator,
     EventBridgePutRuleOperator,
@@ -33,10 +34,13 @@ FAILED_ENTRIES_RESPONSE = [{"ErrorCode": "test_code"}, {"ErrorCode": "test_code"
 EVENT_PATTERN = '{"source": ["aws.s3"]}'
 
 
+
 class TestEventBridgePutEventsOperator:
     def test_init(self):
         operator = EventBridgePutEventsOperator(
+
             task_id="put_events_job",
+
             entries=ENTRIES,
         )
 
@@ -49,6 +53,7 @@ class TestEventBridgePutEventsOperator:
         mock_conn.put_events.return_value = hook_response
 
         operator = EventBridgePutEventsOperator(
+
             task_id="put_events_job",
             entries=ENTRIES,
         )
@@ -59,6 +64,7 @@ class TestEventBridgePutEventsOperator:
 
     @mock.patch.object(EventBridgeHook, "conn")
     def test_failed_to_send(self, mock_conn: MagicMock):
+
         hook_response = {
             "FailedEntryCount": 1,
             "Entries": FAILED_ENTRIES_RESPONSE,
@@ -67,12 +73,15 @@ class TestEventBridgePutEventsOperator:
         mock_conn.put_events.return_value = hook_response
 
         operator = EventBridgePutEventsOperator(
+
             task_id="failed_put_events_job",
+
             entries=ENTRIES,
         )
 
         with pytest.raises(AirflowException):
             operator.execute(None)
+
 
 
 class TestEventBridgePutRuleOperator:
@@ -103,3 +112,4 @@ class TestEventBridgePutRuleOperator:
 
         with pytest.raises(AirflowException):
             operator.execute(None)
+

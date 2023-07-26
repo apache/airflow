@@ -46,6 +46,7 @@ To send custom events to Amazon EventBridge, use
     :start-after: [START howto_operator_eventbridge_put_events]
     :end-before: [END howto_operator_eventbridge_put_events]
 
+
 Create or update a rule on Amazon EventBridge
 ======================================================
 

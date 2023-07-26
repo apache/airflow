@@ -42,9 +42,10 @@ BOLD_OFF = esc("22")
 
 class CustomTTYColoredFormatter(TTYColoredFormatter, TimezoneAware):
     """
-    Custom log formatter which extends `colored.TTYColoredFormatter`
-    by adding attributes to message arguments and coloring error
-    traceback.
+    Custom log formatter.
+
+    Extends `colored.TTYColoredFormatter` by adding attributes
+    to message arguments and coloring error traceback.
     """
 
     def __init__(self, *args, **kwargs):

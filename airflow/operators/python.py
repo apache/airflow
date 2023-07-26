@@ -257,7 +257,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         if not self.downstream_task_ids:
             self.log.info("No downstream tasks; nothing to do.")
-            return
+            return condition
 
         dag_run = context["dag_run"]
 
@@ -285,6 +285,8 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             map_index=context["ti"].map_index,
         )
         self.log.info("Done.")
+        # returns the result of the super execute method as it is instead of returning None
+        return condition
 
 
 class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
@@ -762,6 +764,21 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
                     f"Please Install Airflow {airflow_version} in your environment to access them."
                 )
             return None
+
+
+class ExternalBranchPythonOperator(ExternalPythonOperator, SkipMixin):
+    """
+    A workflow can "branch" or follow a path after the execution of this task,
+    Extends ExternalPythonOperator, so expects to get Python:
+    virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path,
+    so it can run on separate virtualenv similarly to ExternalPythonOperator.
+    """
+
+    def execute(self, context: Context) -> Any:
+        branch = super().execute(context)
+        self.log.info("Branch callable return %s", branch)
+        self.skip_all_except(context["ti"], branch)
+        return branch
 
 
 def get_current_context() -> Context:

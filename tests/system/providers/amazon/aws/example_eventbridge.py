@@ -24,6 +24,7 @@ from airflow.providers.amazon.aws.operators.eventbridge import (
     EventBridgePutRuleOperator,
 )
 
+
 DAG_ID = "example_eventbridge"
 ENTRIES = [
     {
@@ -48,6 +49,7 @@ with DAG(
 
     # [END howto_operator_eventbridge_put_events]
 
+
     # [START howto_operator_eventbridge_put_rule]
 
     put_rule = EventBridgePutRuleOperator(
@@ -58,6 +60,7 @@ with DAG(
     )
 
     # [END howto_operator_eventbridge_put_rule]
+
 
 
 from tests.system.utils import get_test_run  # noqa: E402

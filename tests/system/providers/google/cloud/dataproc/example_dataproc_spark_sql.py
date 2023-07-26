@@ -37,7 +37,6 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 CLUSTER_NAME = f"dataproc-spark-sql-{ENV_ID}"
 REGION = "europe-west1"
-ZONE = "europe-west1-b"
 
 # Cluster definition
 CLUSTER_CONFIG = {
@@ -52,8 +51,6 @@ CLUSTER_CONFIG = {
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
 }
-
-TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
 
 # Jobs definitions
 # [START how_to_cloud_dataproc_sparksql_config]
@@ -92,7 +89,14 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    create_cluster >> spark_sql_task >> delete_cluster
+    (
+        # TEST SETUP
+        create_cluster
+        # TEST BODY
+        >> spark_sql_task
+        # TEST TEARDOWN
+        >> delete_cluster
+    )
 
     from tests.system.utils.watcher import watcher
 

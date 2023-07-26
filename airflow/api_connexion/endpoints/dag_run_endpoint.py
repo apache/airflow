@@ -23,7 +23,7 @@ from connexion import NoContent
 from flask import g
 from flask_login import current_user
 from marshmallow import ValidationError
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Select
 
@@ -35,7 +35,12 @@ from airflow.api.common.mark_tasks import (
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import (
+    apply_sorting,
+    check_limit,
+    format_datetime,
+    format_parameters,
+)
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     clear_dagrun_form_schema,
@@ -57,6 +62,7 @@ from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.db import get_query_count
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
@@ -166,7 +172,7 @@ def _fetch_dag_runs(
     if updated_at_lte:
         query = query.where(DagRun.updated_at <= updated_at_lte)
 
-    total_entries = session.scalar(select(func.count()).select_from(query))
+    total_entries = get_query_count(query, session=session)
     to_replace = {"dag_run_id": "run_id"}
     allowed_filter_attrs = [
         "id",

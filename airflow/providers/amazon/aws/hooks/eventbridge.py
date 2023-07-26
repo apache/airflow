@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+
 import json
 
 from airflow import AirflowException
@@ -34,6 +35,7 @@ class EventBridgeHook(AwsBaseHook):
     """Amazon EventBridge Hook."""
 
     def __init__(self, *args, **kwargs):
+
         super().__init__(client_type="events", *args, **kwargs)
 
     def put_rule(

@@ -950,6 +950,8 @@ class DataprocHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        filter: str | None = None,
+        order_by: str | None = None,
     ):
         """List batch workloads.
 
@@ -966,6 +968,8 @@ class DataprocHook(GoogleBaseHook):
             to complete. If *retry* is specified, the timeout applies to each
             individual attempt.
         :param metadata: Additional metadata that is provided to the method.
+        :param filter: Result filters as specified in ListBatchesRequest
+        :param order_by: How to order results as specified in ListBatchesRequest
         """
         client = self.get_batch_client(region)
         parent = f"projects/{project_id}/regions/{region}"
@@ -975,6 +979,8 @@ class DataprocHook(GoogleBaseHook):
                 "parent": parent,
                 "page_size": page_size,
                 "page_token": page_token,
+                "filter": filter,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -1768,6 +1774,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        filter: str | None = None,
+        order_by: str | None = None,
     ):
         """List batch workloads.
 
@@ -1784,6 +1792,8 @@ class DataprocAsyncHook(GoogleBaseHook):
             to complete. If *retry* is specified, the timeout applies to each
             individual attempt.
         :param metadata: Additional metadata that is provided to the method.
+        :param filter: Result filters as specified in ListBatchesRequest
+        :param order_by: How to order results as specified in ListBatchesRequest
         """
         client = self.get_batch_client(region)
         parent = f"projects/{project_id}/regions/{region}"
@@ -1793,6 +1803,8 @@ class DataprocAsyncHook(GoogleBaseHook):
                 "parent": parent,
                 "page_size": page_size,
                 "page_token": page_token,
+                "filter": filter,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,

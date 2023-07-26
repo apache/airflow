@@ -209,7 +209,7 @@ class BatchJobTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         job_id: str | None,
-        region_name: str | None,
+        region_name: str | None = None,
         aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 5,
         waiter_max_attempts: int = 720,

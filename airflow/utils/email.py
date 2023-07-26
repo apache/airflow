@@ -321,9 +321,10 @@ def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> 
 
 def _get_email_list_from_str(addresses: str) -> list[str]:
     """
-    Extract a list of email addresses from a string. The string
-    can contain multiple email addresses separated by
-    any of the following delimiters: ',' or ';'.
+    Extract a list of email addresses from a string.
+
+    The string can contain multiple email addresses separated
+    by any of the following delimiters: ',' or ';'.
 
     :param addresses: A string containing one or more email addresses.
     :return: A list of email addresses.
