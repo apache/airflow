@@ -2738,11 +2738,6 @@ class DAG(LoggingMixin):
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == DagRunState.RUNNING:
             schedulable_tis, _ = dr.update_state(session=session)
-            session.commit()
-            for ti in dr.get_task_instances():
-                print(ti.task_id, ti.map_index, ti.state)
-            for ti in schedulable_tis:
-                print(ti.task_id, ti.map_index, ti.state)
             for ti in schedulable_tis:
                 try:
                     add_logger_if_needed(ti)
