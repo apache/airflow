@@ -785,6 +785,7 @@
       "apache-airflow>=2.4.0"
     ],
     "cross-providers-deps": [
+      "openlineage",
       "ssh"
     ],
     "excluded-python-versions": []
