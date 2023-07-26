@@ -694,7 +694,7 @@ def set_task_instance_note(
 
     ti, sla_miss = result
 
-    current_user_id = get_auth_manager().get_user().get_id()
+    current_user_id = get_auth_manager().get_user_id()
     if ti.task_instance_note is None:
         ti.note = (new_note, current_user_id)
     else:

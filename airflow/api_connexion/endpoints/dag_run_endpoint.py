@@ -357,7 +357,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
             )
             dag_run_note = post_body.get("note")
             if dag_run_note:
-                current_user_id = get_auth_manager().get_user().get_id()
+                current_user_id = get_auth_manager().get_user_id()
                 dag_run.note = (dag_run_note, current_user_id)
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
@@ -478,7 +478,7 @@ def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SES
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    current_user_id = get_auth_manager().get_user().get_id()
+    current_user_id = get_auth_manager().get_user_id()
     if dag_run.dag_run_note is None:
         dag_run.note = (new_note, current_user_id)
     else:

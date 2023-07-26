@@ -49,6 +49,11 @@ class BaseAuthManager(LoggingMixin):
         ...
 
     @abstractmethod
+    def get_user_id(self) -> str:
+        """Return the user ID associated to the user in session."""
+        ...
+
+    @abstractmethod
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
         ...

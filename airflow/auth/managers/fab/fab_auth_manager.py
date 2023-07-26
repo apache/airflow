@@ -49,10 +49,13 @@ class FabAuthManager(BaseAuthManager):
         """Return the user associated to the user in session."""
         return current_user
 
+    def get_user_id(self) -> str:
+        """Return the user ID associated to the user in session."""
+        return self.get_user().get_id()
+
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
-        user = self.get_user()
-        return user and not user.is_anonymous
+        return not self.get_user().is_anonymous
 
     def get_security_manager_override_class(self) -> type:
         """Return the security manager override."""
