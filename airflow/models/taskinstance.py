@@ -579,6 +579,7 @@ class TaskInstance(Base, LoggingMixin):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
+            "is_setup": task.is_setup,
         }
 
     @reconstructor

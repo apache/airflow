@@ -755,11 +755,11 @@ class TestMappedSetupTeardown:
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
-            "my_teardown": None,  # todo: why is this None?
-            "other_setup": "success",
-            "other_work": "success",
-            "other_teardown": "success",
             "my_setup": {0: "failed", 1: "failed", 2: "failed"},
+            "other_setup": "success",
+            "other_teardown": "success",
+            "other_work": "success",
+            "my_teardown": "success",
             "my_work": "upstream_failed",
         }
         assert states == expected
@@ -818,7 +818,7 @@ class TestMappedSetupTeardown:
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
-            "my_teardown": None,  # todo: why isn't this upstream_failed?
+            "my_teardown": "upstream_failed",
             "other_setup": "failed",
             "other_work": "upstream_failed",
             "other_teardown": "upstream_failed",
@@ -884,47 +884,7 @@ class TestMappedSetupTeardown:
             "other_setup": "success",
             "other_teardown": "success",
             "other_work": "success",
-            "my_teardown": None,  # todo: why is this not upstream failed
-            "my_work": "upstream_failed",
-        }
-        assert states == expected
-
-    def test_many_one(self, dag_maker, session):
-        with dag_maker(dag_id="many_one"):
-
-            @task
-            def my_setup(val):
-                print("setup")
-                raise ValueError("hi")
-
-            @task
-            def my_work():
-                print("work")
-
-            @task
-            def my_teardown():
-                print("teardown")
-
-            s = my_setup.expand(val=[1, 2])
-            t = my_teardown()
-            s >> my_work() >> t
-        dr = dag_maker.create_dagrun()
-        while True:
-            info = dr.task_instance_scheduling_decisions()
-            if not info.schedulable_tis:
-                break
-            for ti in info.schedulable_tis:
-                try:
-                    ti.run()
-                except Exception as e:
-                    print(e)
-        session.commit()
-        info.unfinished_tis
-        # dr = dag.test()
-        states = self.get_states(dr)
-        expected = {
-            "my_setup": {0: "failed", 1: "failed"},
-            "my_teardown": None,
+            "my_teardown": "success",
             "my_work": "upstream_failed",
         }
         assert states == expected
@@ -1044,9 +1004,10 @@ class TestMappedSetupTeardown:
         states = self.get_states(dr)
         expected = {
             "file_transforms.my_setup": {0: "success", 1: "failed", 2: "skipped"},
-            "file_transforms.my_teardown": {0: None, 1: None, 2: None},
             "file_transforms.my_work": {0: "success", 1: "upstream_failed", 2: "skipped"},
+            "file_transforms.my_teardown": {0: "success", 1: "upstream_failed", 2: "skipped"},
         }
+
         assert states == expected
 
     def test_mapped_task_group_work_fail_or_skip(self, dag_maker, session):
@@ -1085,7 +1046,7 @@ class TestMappedSetupTeardown:
         states = self.get_states(dr)
         expected = {
             "file_transforms.my_setup": {0: "success", 1: "success", 2: "success"},
-            "file_transforms.my_teardown": {0: None, 1: None, 2: None},
+            "file_transforms.my_teardown": {0: "success", 1: "success", 2: "success"},
             "file_transforms.my_work": {0: "success", 1: "failed", 2: "skipped"},
         }
         assert states == expected
@@ -1122,7 +1083,7 @@ class TestMappedSetupTeardown:
         states = self.get_states(dr)
         expected = {
             "my_setup": {0: "success", 1: "failed", 2: "skipped"},
-            "my_teardown": None,
+            "my_teardown": "success",
             "my_work": "upstream_failed",
         }
         assert states == expected
