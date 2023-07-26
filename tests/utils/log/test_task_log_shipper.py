@@ -23,6 +23,8 @@ import pytest
 
 from airflow.utils.log.task_log_shipper import TaskLogShipper
 
+logger = logging.getLogger(__name__)
+
 
 @pytest.fixture
 def mock_task_handler():
@@ -58,19 +60,26 @@ def test_task_handler_not_supports_task_log_shipping(task_log_shipper_does_not_s
 
 def test_ship_task_message_with_correct_arguments(task_log_shipper, mock_task_handler):
     ti = Mock()
-    task_log_shipper.ship_task_message(ti, "test message", logging.INFO)
+    task_log_shipper.info(ti, "test message", logger)
     mock_task_handler.set_context.assert_called_once_with(ti, identifier="test_component")
     mock_task_handler.emit.assert_called_once()
 
 
 def test_ship_task_message_closes_task_handler(task_log_shipper, mock_task_handler):
     ti = Mock()
-    task_log_shipper.ship_task_message(ti, "test message", logging.INFO)
+    task_log_shipper.info(ti, "test message", logger)
     mock_task_handler.close.assert_called_once()
 
 
 @patch("airflow.utils.log.task_log_shipper.TASK_LOG_SHIPPER_ENABLED", False)
 def test_ship_task_message_not_shipped_when_task_log_shipper_disabled(task_log_shipper, mock_task_handler):
     ti = Mock()
-    task_log_shipper.ship_task_message(ti, "test message", logging.INFO)
+    task_log_shipper.info(ti, "test message", logger)
     mock_task_handler.assert_not_called()
+
+
+def test_invalid_log_level_attribute_raises_exception(task_log_shipper):
+    ti = Mock()
+    logger = Mock()
+    with pytest.raises(AttributeError):
+        task_log_shipper.invalid_log_level(ti, "test", logger)

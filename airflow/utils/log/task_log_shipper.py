@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from copy import copy
+from functools import partial
 from typing import TYPE_CHECKING
 
 from airflow.config_templates.airflow_local_settings import TASK_LOG_SHIPPER_ENABLED
@@ -28,6 +29,14 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+logging_levels = {
+    "info": logging.INFO,
+    "warning": logging.WARNING,
+    "error": logging.ERROR,
+    "critical": logging.CRITICAL,
+    "debug": logging.DEBUG,
+}
 
 
 class TaskLogShipper:
@@ -51,7 +60,9 @@ class TaskLogShipper:
     def _can_ship_logs(self) -> bool:
         if not TASK_LOG_SHIPPER_ENABLED:
             return False
-        if self.task_handler is None or not self.task_handler.supports_task_log_ship:
+        if not hasattr(self.task_handler, "supports_task_log_ship") or not getattr(
+            self.task_handler, "supports_task_log_ship", False
+        ):
             logger.warning("Task handler does not support task log shipping")
             return False
         return True
@@ -66,14 +77,22 @@ class TaskLogShipper:
         ]
         return handlers[0] if handlers else None
 
-    def ship_task_message(self, ti: TaskInstance, message: str, level: int):
+    def _ship_task_message(
+        self, ti: TaskInstance, message: str, caller_logger: logging.Logger, level: str = "info"
+    ):
         """
         Ship task log message for the task instance to the task handler.
 
         :param ti: the task instance
         :param message: the message to ship
+        :param caller_logger: configured logging.Logger instance of the caller
         :param level: the log level
         """
+        caller_log_level_callable = getattr(caller_logger, level, None)
+        if callable(caller_log_level_callable):
+            # This logs the message using the calling method's configured logger
+            caller_log_level_callable(message)
+
         if not self.task_handler_can_ship_logs:
             return
 
@@ -84,8 +103,13 @@ class TaskLogShipper:
             task_handler.set_context(ti, identifier=self.component_name)
             filename, lineno, func, stackinfo = logger.findCaller()
             record = logging.LogRecord(
-                self.component_name, level, filename, lineno, message, None, None, func=func
+                self.component_name, logging_levels[level], filename, lineno, message, None, None, func=func
             )
             task_handler.emit(record)
         finally:
             task_handler.close()
+
+    def __getattr__(self, name: str):
+        if name not in logging_levels:
+            raise AttributeError(f"TaskLogShipper does not support attribute '{name}'")
+        return partial(self._ship_task_message, level=name)

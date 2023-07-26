@@ -750,7 +750,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 f"task finished with ti.state={ti.state} state={state} info={info} try={ti.try_number} "
                 f"_try={ti._try_number}"
             )
-            self._task_log_shipper.ship_task_message(ti, arbitrary_log_message, logging.INFO)
+            self._task_log_shipper.info(ti, arbitrary_log_message, self.log)
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
@@ -777,10 +777,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     "Executor reports task instance %s finished (%s) although the "
                     "task says it's %s. (Info: %s) Was the task killed externally?"
                 )
-                self.log.error(msg, ti, state, ti.state, info)
-                self._task_log_shipper.ship_task_message(
-                    ti, msg % (ti, state, ti.state, info), level=logging.ERROR
-                )
+                self._task_log_shipper.error(ti, msg % (ti, state, ti.state, info), self.log)
 
                 # Get task from the Serialized DAG
                 try:
@@ -788,9 +785,6 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     task = dag.get_task(ti.task_id)
                 except Exception:
                     self.log.exception("Marking task instance %s as %s", ti, state)
-                    self._task_log_shipper.ship_task_message(
-                        ti, msg % (ti, state, ti.state, info), level=logging.ERROR
-                    )
                     ti.set_state(state)
                     continue
                 ti.task = task
