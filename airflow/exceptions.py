@@ -375,12 +375,28 @@ class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
 
 
-class PodMutationHookException(AirflowException):
-    """Raised when exception happens during Pod Mutation Hook execution."""
+# The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider
+# These two exceptions are used internally by Kubernetes Executor but also by PodGenerator, so we need
+# to leave them here in case older version of cncf.kubernetes provider is used to run KubernetesPodOperator
+# and it raises one of those exceptions. The code should be backwards compatible even if you import
+# and try/except the exception using direct imports from airflow.exceptions.
+# 1) if you have old provider, both provider and pod generator will throw the "airflow.exceptions" exception.
+# 2) if you have new provider, both provider and pod generator will throw the
+#    "airflow.providers.cncf.kubernetes" as it will be imported here from the provider.
+try:
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodMutationHookException
+except ImportError:
+
+    class PodMutationHookException(AirflowException):  # type: ignore[no-redef]
+        """Raised when exception happens during Pod Mutation Hook execution."""
 
 
-class PodReconciliationError(AirflowException):
-    """Raised when an error is encountered while trying to merge pod configs."""
+try:
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
+except ImportError:
+
+    class PodReconciliationError(AirflowException):  # type: ignore[no-redef]
+        """Raised when an error is encountered while trying to merge pod configs."""
 
 
 class RemovedInAirflow3Warning(DeprecationWarning):

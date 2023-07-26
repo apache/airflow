@@ -164,9 +164,6 @@ labelPRBasedOnFilePath:
     - airflow/**/kubernetes_*.py
     - airflow/example_dags/example_kubernetes_executor.py
     - airflow/providers/cncf/kubernetes/**/*
-    - airflow/kubernetes/**/*
-    - airflow/kubernetes_executor_templates/**/*
-    - airflow/executors/kubernetes_executor.py
     - airflow/providers/celery/executors/celery_kubernetes_executor.py
     - docs/apache-airflow/core-concepts/executor/kubernetes.rst
     - docs/apache-airflow/core-concepts/executor/celery_kubernetes.rst
@@ -174,9 +171,6 @@ labelPRBasedOnFilePath:
     - kubernetes_tests/**/*
     - tests/providers/cncf/kubernetes/**/*
     - tests/system/providers/cncf/kubernetes/**/*
-    - tests/kubernetes/**/*
-    - tests/executors/kubernetes_executor_template_files/**/*
-    - tests/executors/*kubernetes*.py
 
   area:API:
     - airflow/api/**/*

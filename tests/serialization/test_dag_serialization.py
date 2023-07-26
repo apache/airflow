@@ -42,7 +42,6 @@ from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import AirflowException, SerializationError
 from airflow.hooks.base import BaseHook
-from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag, Operator
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
@@ -51,6 +50,7 @@ from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -1998,7 +1998,7 @@ def test_kubernetes_optional():
         spec.loader.exec_module(module)
 
         # if we got this far, the module did not try to load kubernetes, but
-        # did it try to access airflow.kubernetes.*?
+        # did it try to access airflow.providers.cncf.kubernetes.*?
         imported_airflow = {
             c.args[0].split(".", 2)[1] for c in import_mock.call_args_list if c.args[0].startswith("airflow.")
         }

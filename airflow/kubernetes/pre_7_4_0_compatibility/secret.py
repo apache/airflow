@@ -23,7 +23,7 @@ import uuid
 from kubernetes.client import models as k8s
 
 from airflow.exceptions import AirflowConfigException
-from airflow.kubernetes.k8s_model import K8SModel
+from airflow.kubernetes.pre_7_4_0_compatibility.k8s_model import K8SModel
 
 
 class Secret(K8SModel):

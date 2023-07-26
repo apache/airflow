@@ -33,7 +33,22 @@ Changelog
 .. note::
   This provider release is the first release that has Celery Executor and
   Celery Kubernetes Executor moved from the core ``apache-airflow`` package to a Celery
-  provider package.
+  provider package. It also expects ``apache-airflow-providers-cncf-kubernetes`` in version 7.4.0+ installed
+  in order to use ``CeleryKubernetesExecutor``. You can install the provider with ``cncf.kubernetes`` extra
+  with ``pip install apache-airflow-providers-celery[cncf.kubernetes]`` to get the right version of the
+  ``cncf.kubernetes`` provider installed.
+
+.. Review and move the new changes to one of the sections above:
+   * ``Introduce decorator to load providers configuration (#32765)``
+   * ``Allow configuration to be contributed by providers (#32604)``
+   * ``Move default_celery.py to inside the provider (#32628)``
+   * ``Add Executors discovery and documentation (#32532)``
+   * ``Move CeleryExecutor to the celery provider (#32526)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 3.2.1
 .....
