@@ -1679,10 +1679,9 @@ def list_providers_packages():
     # if provider needs to be not considered in release add it here
     # this is useful for cases where provider is WIP for a long period thus we don't want to release it yet.
     providers_to_remove_from_release = []
-    for provider in providers_to_remove_from_release:
-        if provider in providers:
-            providers.remove(provider)
     for provider in providers:
+        if provider in providers_to_remove_from_release:
+            continue
         console.print(provider)
 
 
