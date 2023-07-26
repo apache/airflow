@@ -42,12 +42,12 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "example_cloud_run"
 
 region = "us-central1"
-job_name_prefix = "cloudrun-system-test-jobn"
+job_name_prefix = "cloudrun-system-test-job"
 job1_name = f"{job_name_prefix}1"
 job2_name = f"{job_name_prefix}2"
 
-submit1_task_name = "submit-job1"
-submit2_task_name = "submit-job2"
+create1_task_name = "create-job1"
+create2_task_name = "create-job2"
 
 execute1_task_name = "execute-job1"
 execute2_task_name = "execute-job2"
@@ -65,52 +65,47 @@ clean2_task_name = "clean-job2"
 
 
 def _assert_updated_job(ti):
-    job_names = ti.xcom_pull(task_ids=[update_job1_task_name], key="return_value")
-    job_dict = job_names[0]
+    job_dicts = ti.xcom_pull(task_ids=[update_job1_task_name], key="return_value")
+    job_dict = job_dicts[0]
     assert job_dict["labels"]["somelabel"] == "label1"
 
 
 def _assert_jobs(ti):
-    job_names = ti.xcom_pull(task_ids=[list_jobs_task_name], key="return_value")
+    job_dicts = ti.xcom_pull(task_ids=[list_jobs_task_name], key="return_value")
 
     job1_exists = False
     job2_exists = False
 
-    for v in job_names[0]:
+    for job_dict in job_dicts[0]:
         if job1_exists and job2_exists:
             break
 
-        if job1_name in v["name"]:
+        if job1_name in job_dict["name"]:
             job1_exists = True
 
-        if job2_name in v["name"]:
+        if job2_name in job_dict["name"]:
             job2_exists = True
 
     assert job1_exists and job2_exists
 
 
 def _assert_one_job(ti):
-    job_names = ti.xcom_pull(task_ids=[list_jobs_limit_task_name], key="return_value")
+    job_dicts = ti.xcom_pull(task_ids=[list_jobs_limit_task_name], key="return_value")
 
-    assert len(job_names[0]) == 1
-
-
-def _create_job_with_label():
-    job = Job()
-    container = k8s_min.Container()
-    container.image = "us-docker.pkg.dev/cloudrun/container/job:latest"
-    job.template.template.containers.append(container)
-    job.labels = {"somelabel": "label1"}
-    return job
+    assert len(job_dicts[0]) == 1
 
 
 def _create_job():
     job = Job()
-
     container = k8s_min.Container()
     container.image = "us-docker.pkg.dev/cloudrun/container/job:latest"
     job.template.template.containers.append(container)
+    return job
 
+
+def _create_job_with_label():
+    job = _create_job()
+    job.labels = {"somelabel": "label1"}
     return job
 
 
@@ -122,8 +117,8 @@ with models.DAG(
     tags=["example"],
 ) as dag:
 
-    submit1 = CloudRunCreateJobOperator(
-        task_id=submit1_task_name,
+    create1 = CloudRunCreateJobOperator(
+        task_id=create1_task_name,
         project_id=PROJECT_ID,
         region=region,
         job_name=job1_name,
@@ -131,8 +126,8 @@ with models.DAG(
         dag=dag,
     )
 
-    submit2 = CloudRunCreateJobOperator(
-        task_id=submit2_task_name,
+    create2 = CloudRunCreateJobOperator(
+        task_id=create2_task_name,
         project_id=PROJECT_ID,
         region=region,
         job_name=job2_name,
@@ -140,7 +135,7 @@ with models.DAG(
         dag=dag,
     )
 
-    empty1 = EmptyOperator(task_id="empty1", dag=dag)
+    empty = EmptyOperator(task_id="empty", dag=dag)
 
     execute1 = CloudRunExecuteJobOperator(
         task_id=execute1_task_name,
@@ -204,8 +199,8 @@ with models.DAG(
     )
 
     (
-        (submit1, submit2)
-        >> empty1
+        (create1, create2)
+        >> empty
         >> (execute1, execute2)
         >> list_jobs_limit
         >> assert_jobs_limit
