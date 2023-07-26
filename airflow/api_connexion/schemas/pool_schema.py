@@ -39,6 +39,7 @@ class PoolSchema(SQLAlchemySchema):
     queued_slots = fields.Method("get_queued_slots", dump_only=True)
     scheduled_slots = fields.Method("get_scheduled_slots", dump_only=True)
     open_slots = fields.Method("get_open_slots", dump_only=True)
+    deferred_slots = fields.Method("get_deferred_slots", dump_only=True)
     description = auto_field()
     # we skip auto_field() here to be compatible with the manual validation in the pool_endpoint module
     include_deferred = fields.Boolean(load_default=False)
