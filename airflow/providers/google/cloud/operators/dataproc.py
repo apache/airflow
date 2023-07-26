@@ -1384,6 +1384,10 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
 class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     """Start a Spark Job on a Cloud DataProc cluster.
 
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
+
     :param main_jar: The HCFS URI of the jar file that contains the main class
         (use this or the main_class, not both together).
     :param main_class: Name of the job class. (use this or the main_jar, not both
