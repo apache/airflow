@@ -308,8 +308,13 @@ config:
           type is string, it is required to pass a string that conforms to the dictionary format.
           See:
           https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#configuration
-        version_added: 3.3.0
+        version_added: ~
         type: string
         sensitive: true
         example: '{"password": "password_for_redis_server"}'
         default: ~
+
+additional-extras:
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.4.0

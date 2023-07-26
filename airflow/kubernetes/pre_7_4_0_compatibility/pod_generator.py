@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Pod generator.
+Pod generator compatible with cncf-providers released before 2.7.0 of airflow (so pre-7.4.0 of
+the cncf.kubernetes provider).
 
 This module provides an interface between the previous Pod
 API and outputs a kubernetes.client.models.V1Pod.
@@ -28,6 +29,8 @@ import copy
 import datetime
 import logging
 import os
+import secrets
+import string
 import warnings
 from functools import reduce
 
@@ -42,8 +45,10 @@ from airflow.exceptions import (
     PodReconciliationError,
     RemovedInAirflow3Warning,
 )
-from airflow.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
-from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
+from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator_deprecated import (
+    PodDefaults,
+    PodGenerator as PodGeneratorDeprecated,
+)
 from airflow.utils import yaml
 from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
@@ -51,6 +56,28 @@ from airflow.version import version as airflow_version
 log = logging.getLogger(__name__)
 
 MAX_LABEL_LEN = 63
+
+alphanum_lower = string.ascii_lowercase + string.digits
+
+
+def rand_str(num):
+    """Generate random lowercase alphanumeric string of length num.
+
+    :meta private:
+    """
+    return "".join(secrets.choice(alphanum_lower) for _ in range(num))
+
+
+def add_pod_suffix(pod_name: str, rand_len: int = 8, max_len: int = 80) -> str:
+    """Add random string to pod name while staying under max length.
+
+    :param pod_name: name of the pod
+    :param rand_len: length of the random string to append
+    :max_len: maximum length of the pod name
+    :meta private:
+    """
+    suffix = "-" + rand_str(rand_len)
+    return pod_name[: max_len - len(suffix)].strip("-.") + suffix
 
 
 def make_safe_label_value(string: str) -> str:

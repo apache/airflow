@@ -730,9 +730,6 @@ EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
 PREINSTALLED_PROVIDERS = [
-    # TODO: When we release 3.3.0 version of celery provider we should change it to "celery>=3.3.0" here
-    #       In order to make sure executors are available in the celery provider
-    "celery",
     "common.sql",
     "ftp",
     "http",
