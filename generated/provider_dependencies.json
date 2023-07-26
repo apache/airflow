@@ -714,7 +714,8 @@
     ],
     "cross-providers-deps": [
       "amazon",
-      "common.sql"
+      "common.sql",
+      "openlineage"
     ],
     "excluded-python-versions": []
   },
