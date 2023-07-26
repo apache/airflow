@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example Airflow DAG that uses Google Cloud Batch Operators.
+Example Airflow DAG that uses Google Cloud Run Operators.
 """
 from __future__ import annotations
 
@@ -66,10 +66,8 @@ clean2_task_name = "clean-job2"
 
 def _assert_updated_job(ti):
     job_names = ti.xcom_pull(task_ids=[update_job1_task_name], key="return_value")
-
     job_dict = job_names[0]
-
-    print("FREDDY", job_dict["labels"])
+    assert job_dict["labels"]["somelabel"] == "label1"
 
 
 def _assert_jobs(ti):
