@@ -278,6 +278,12 @@ class AwsEcsExecutor(BaseExecutor):
         container_override = self.get_container(run_task_api["overrides"]["containerOverrides"])
         container_override["command"] = cmd
         container_override.update(exec_config)
+
+        # Inject the env variable to configure logging for containerized execution environment
+        if "environment" not in container_override:
+            container_override["environment"] = []
+        container_override["environment"].append({"name": "AIRFLOW_IS_EXECUTOR_CONTAINER", "value": "true"})
+
         return run_task_api
 
     def execute_async(self, key: TaskInstanceKey, command: CommandType, queue=None, executor_config=None):
