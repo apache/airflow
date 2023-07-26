@@ -51,7 +51,7 @@ class FabAuthManager(BaseAuthManager):
 
     def get_user_id(self) -> str:
         """Return the user ID associated to the user in session."""
-        return self.get_user().get_id()
+        return str(self.get_user().get_id())
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
