@@ -17,17 +17,25 @@
 # under the License.
 from __future__ import annotations
 
-from time import sleep
-from typing import Iterable, Optional, Sequence, Union
+from typing import Iterable, Sequence
 
+from google.api_core import operation
+from google.cloud.run_v2 import (
+    CreateJobRequest,
+    DeleteJobRequest,
+    GetJobRequest,
+    Job,
+    JobsAsyncClient,
+    JobsClient,
+    ListJobsRequest,
+    RunJobRequest,
+    UpdateJobRequest,
+)
+from google.cloud.run_v2.services.jobs import pagers
+from google.longrunning import operations_pb2
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import (
-    PROVIDE_PROJECT_ID, GoogleBaseHook)
-
-from google.cloud.run_v2 import Job, JobsClient, CreateJobRequest, ListJobsRequest
-
-from google.cloud.run_v2.services.jobs import pagers
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
 class CloudRunHook(GoogleBaseHook):
@@ -55,28 +63,29 @@ class CloudRunHook(GoogleBaseHook):
                 "The `delegate_to` parameter has been deprecated before and finally removed in this version"
                 " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
-        super().__init__(gcp_conn_id=gcp_conn_id,
-                         impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
         self._client: JobsClient | None = None
 
     def get_conn(self) -> JobsClient:
         """
         Retrieves connection to Cloud Run.
-        :return: JobsClient
+        :return: JobsClient.
         """
         if self._client is None:
             self._client = JobsClient()
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_job(
-            self,
-            job_name: str,
-            job: Job,
-            region: str,
-            project_id: str = PROVIDE_PROJECT_ID
+    def delete_job(self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
 
-    ) -> Job:
+        create_request = DeleteJobRequest()
+        create_request.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
+
+        operation = self.get_conn().delete_job(create_request)
+        return operation.result()
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_job(self, job_name: str, job: Job, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
 
         create_request = CreateJobRequest()
         create_request.job = job
@@ -84,27 +93,47 @@ class CloudRunHook(GoogleBaseHook):
         create_request.parent = f"projects/{project_id}/locations/{region}"
 
         operation = self.get_conn().create_job(create_request)
-        operation.result()
+        return operation.result()
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_job(self, job_name: str, job: Job, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
+
+        update_request = UpdateJobRequest()
+        job.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
+        update_request.job = job
+        operation = self.get_conn().update_job(update_request)
+        return operation.result()
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def execute_job(
+        self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> operation.Operation:
+        run_job_request = RunJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+        operation = self.get_conn().run_job(request=run_job_request)
+        return operation
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_job(self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID):
+        get_job_request = GetJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+        return self.get_conn().get_job(get_job_request)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def list_jobs(
-            self,
-            region: str,
-            project_id: str = PROVIDE_PROJECT_ID,
-            show_deleted: bool = False,
-            limit: Optional[int] = None) -> Iterable[Job]:
+        self,
+        region: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        show_deleted: bool = False,
+        limit: int | None = None,
+    ) -> Iterable[Job]:
 
         if limit is not None and limit < 0:
-            raise AirflowException(
-                "The limit for the list jobs request should be greater or equal to zero")
+            raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
 
         list_jobs_request: ListJobsRequest = ListJobsRequest(
-            parent=f"projects/{project_id}/locations/{region}",
-            show_deleted=show_deleted
+            parent=f"projects/{project_id}/locations/{region}", show_deleted=show_deleted
         )
 
-        jobs: pagers.ListJobsPager = self.get_conn().list_jobs(
-            request=list_jobs_request)
+        jobs: pagers.ListJobsPager = self.get_conn().list_jobs(request=list_jobs_request)
 
         return self._limit_list(jobs, limit)
 
@@ -117,3 +146,42 @@ class CloudRunHook(GoogleBaseHook):
             if limit is not None:
                 limit -= 1
         return result
+
+
+class CloudRunAsyncHook(GoogleBaseHook):
+    """
+    Async hook for the Google Cloud Run service.
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    """
+
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+
+        self._client: JobsAsyncClient = JobsAsyncClient()
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+
+    def get_conn(self):
+        if self._client is None:
+            self._client = JobsAsyncClient()
+
+        return self._client
+
+    async def get_operation(self, operation_name: str) -> operations_pb2.Operation:
+        return await self.get_conn().get_operation(operations_pb2.GetOperationRequest(name=operation_name))
