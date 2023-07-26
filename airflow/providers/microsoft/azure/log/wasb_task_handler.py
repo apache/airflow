@@ -93,7 +93,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             )
             return None
 
-    def set_context(self, ti: TaskInstance) -> None:  # type: ignore[override]
+    def set_context(self, ti: TaskInstance, **kwargs) -> None:
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to Wasb remote storage.
