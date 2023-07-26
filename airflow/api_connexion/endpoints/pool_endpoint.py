@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from http import HTTPStatus
 
 from flask import Response
@@ -125,6 +126,7 @@ def patch_pool(
     else:
         required_fields = {"name", "slots", "include_deferred"}
         fields_diff = required_fields.difference(get_json_request_dict())
+        _handle_missing_include_deferred(fields_diff)
         if fields_diff:
             raise BadRequest(detail=f"Missing required property(ies): {sorted(fields_diff)}")
 
@@ -144,6 +146,7 @@ def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
         "include_deferred",
     }  # Pool would require these fields in the post request
     fields_diff = required_fields.difference(get_json_request_dict())
+    _handle_missing_include_deferred(fields_diff)
     if fields_diff:
         raise BadRequest(detail=f"Missing required property(ies): {sorted(fields_diff)}")
 
@@ -159,3 +162,13 @@ def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
         return pool_schema.dump(pool)
     except IntegrityError:
         raise AlreadyExists(detail=f"Pool: {post_body['pool']} already exists")
+
+
+def _handle_missing_include_deferred(fields_diff: set) -> None:
+    if "include_deferred" not in fields_diff:
+        return
+    fields_diff.remove("include_deferred")
+    warnings.warn(
+        "Not including include_deferred is deprecated, please always set this field.",
+        DeprecationWarning,
+    )

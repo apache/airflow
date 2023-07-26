@@ -40,8 +40,8 @@ class PoolSchema(SQLAlchemySchema):
     scheduled_slots = fields.Method("get_scheduled_slots", dump_only=True)
     open_slots = fields.Method("get_open_slots", dump_only=True)
     description = auto_field()
-    # we are overriding kwargs to be compatible with the manual validation in the pool_endpoint module
-    include_deferred = auto_field(allow_none=True, required=False)
+    # we skip auto_field() here to be compatible with the manual validation in the pool_endpoint module
+    include_deferred = fields.Boolean(load_default=False)
 
     @staticmethod
     def get_occupied_slots(obj: Pool) -> int:

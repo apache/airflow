@@ -306,6 +306,26 @@ class TestPostPool(TestBasePoolEndpoints):
             "include_deferred": True,
         } == response.json
 
+    def test_response_200_with_deprecation_warning(self):
+        with pytest.warns(DeprecationWarning, match="Not including include_deferred"):
+            response = self.client.post(
+                "api/v1/pools",
+                json={"name": "test_pool_a", "slots": 3, "description": "test pool"},
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+        assert response.status_code == 200
+        assert {
+            "name": "test_pool_a",
+            "slots": 3,
+            "occupied_slots": 0,
+            "running_slots": 0,
+            "queued_slots": 0,
+            "scheduled_slots": 0,
+            "open_slots": 3,
+            "description": "test pool",
+            "include_deferred": False,
+        } == response.json
+
     def test_response_409(self, session):
         pool_name = "test_pool_a"
         pool_instance = Pool(pool=pool_name, slots=3, include_deferred=False)
@@ -328,27 +348,22 @@ class TestPostPool(TestBasePoolEndpoints):
         "request_json, error_detail",
         [
             pytest.param(
-                {"slots": 3, "include_deferred": False},
+                {"slots": 3},
                 "Missing required property(ies): ['name']",
                 id="for missing pool name",
             ),
             pytest.param(
-                {"name": "invalid_pool", "include_deferred": False},
+                {"name": "invalid_pool"},
                 "Missing required property(ies): ['slots']",
                 id="for missing slots",
             ),
             pytest.param(
-                {"name": "invalid_pool", "slots": 3},
-                "Missing required property(ies): ['include_deferred']",
-                id="for missing include_deferred",
-            ),
-            pytest.param(
                 {},
-                "Missing required property(ies): ['include_deferred', 'name', 'slots']",
+                "Missing required property(ies): ['name', 'slots']",
                 id="for missing pool name AND slots AND include_deferred",
             ),
             pytest.param(
-                {"name": "invalid_pool", "slots": 3, "include_deferred": False, "extra_field_1": "extra"},
+                {"name": "invalid_pool", "slots": 3, "extra_field_1": "extra"},
                 "{'extra_field_1': ['Unknown field.']}",
                 id="for extra fields",
             ),
@@ -395,14 +410,36 @@ class TestPatchPool(TestBasePoolEndpoints):
             "include_deferred": False,
         } == response.json
 
+    def test_response_200_with_deprecation_warning(self, session):
+        pool = Pool(pool="test_pool", slots=2, include_deferred=False)
+        session.add(pool)
+        session.commit()
+        with pytest.warns(DeprecationWarning, match="Not including include_deferred"):
+            response = self.client.patch(
+                "api/v1/pools/test_pool",
+                json={"name": "test_pool_a", "slots": 3},
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+        assert response.status_code == 200
+        assert {
+            "occupied_slots": 0,
+            "queued_slots": 0,
+            "name": "test_pool_a",
+            "open_slots": 3,
+            "running_slots": 0,
+            "scheduled_slots": 0,
+            "slots": 3,
+            "description": None,
+            "include_deferred": False,
+        } == response.json
+
     @pytest.mark.parametrize(
         "error_detail, request_json",
         [
             # Missing properties
-            ("Missing required property(ies): ['name']", {"slots": 3, "include_deferred": False}),
-            ("Missing required property(ies): ['slots']", {"name": "test_pool_a", "include_deferred": False}),
-            ("Missing required property(ies): ['include_deferred']", {"name": "test_pool_a", "slots": 3}),
-            ("Missing required property(ies): ['include_deferred', 'name', 'slots']", {}),
+            ("Missing required property(ies): ['name']", {"slots": 3}),
+            ("Missing required property(ies): ['slots']", {"name": "test_pool_a"}),
+            ("Missing required property(ies): ['name', 'slots']", {}),
             # Extra properties
             (
                 "{'extra_field': ['Unknown field.']}",
