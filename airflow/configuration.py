@@ -2011,9 +2011,6 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
             # there
             AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")  # type: ignore[assignment]
             warnings.warn(msg, category=DeprecationWarning)
-    # Set the WEBSERVER_CONFIG variable
-    global WEBSERVER_CONFIG
-    WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
 
 
 def initialize_config() -> AirflowConfigParser:
@@ -2032,7 +2029,9 @@ def initialize_config() -> AirflowConfigParser:
         # file on top of it.
         if airflow_config_parser.getboolean("core", "unit_test_mode"):
             airflow_config_parser.load_test_config()
-
+    # Set the WEBSERVER_CONFIG variable
+    global WEBSERVER_CONFIG
+    WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
     return airflow_config_parser
 
 
