@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import warnings
 from json import JSONDecodeError
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
@@ -35,12 +36,30 @@ from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
+_RE_COMPILED = re.compile("^[\w\@\#\$\%\&\!\(\)\*\-]{1,200}$")
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
     """This method is deprecated."""
     warnings.warn("This method is deprecated.", RemovedInAirflow3Warning)
     return _parse_netloc_to_hostname(*args, **kwargs)
+
+
+def sanitize_conn_id(conn_id: str | None) -> str | None:
+    """
+    Sanitises the connection id and allows only specific characters to be within.
+
+    The character selection prevents the injection of javascript or executable bits
+    in order to avoid any awkward behavior in the front-end.
+
+    :param conn_id: The connection id to sanitize.
+    :return: the sanitized string, `None` otherwise.
+    """
+    res = None
+    if conn_id is None or (res := re.match(_RE_COMPILED, conn_id)) is None:
+        log.warning("We failed to match the conn_id or it was None")
+
+    return res if res is None else conn_id
 
 
 # Python automatically converts all letters to lowercase in hostname
@@ -112,7 +131,7 @@ class Connection(Base, LoggingMixin):
         uri: str | None = None,
     ):
         super().__init__()
-        self.conn_id = conn_id
+        self.conn_id = sanitize_conn_id(conn_id)
         self.description = description
         if extra and not isinstance(extra, str):
             extra = json.dumps(extra)
