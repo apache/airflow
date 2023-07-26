@@ -2012,10 +2012,6 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
             AIRFLOW_HOME = airflow_config_parser.get("core", "airflow_home")  # type: ignore[assignment]
             warnings.warn(msg, category=DeprecationWarning)
     # Set the WEBSERVER_CONFIG variable
-    set_webserver_config(airflow_config_parser)
-
-
-def set_webserver_config(airflow_config_parser: AirflowConfigParser):
     global WEBSERVER_CONFIG
     WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
 
@@ -2042,14 +2038,13 @@ def initialize_config() -> AirflowConfigParser:
 
 @providers_configuration_loaded
 def write_webserver_configuration_if_needed(airflow_config_parser: AirflowConfigParser):
-    global WEBSERVER_CONFIG
-    WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
-    if not os.path.isfile(WEBSERVER_CONFIG):
+    webserver_config = airflow_config_parser.get("webserver", "config_file")
+    if not os.path.isfile(webserver_config):
         import shutil
 
-        pathlib.Path(WEBSERVER_CONFIG).parent.mkdir(parents=True, exist_ok=True)
-        log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
-        shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
+        pathlib.Path(webserver_config).parent.mkdir(parents=True, exist_ok=True)
+        log.info("Creating new FAB webserver config file in: %s", webserver_config)
+        shutil.copy(_default_config_file_path("default_webserver_config.py"), webserver_config)
 
 
 def make_group_other_inaccessible(file_path: str):
