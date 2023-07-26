@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import logging
-import re
+import re2
 import warnings
 from json import JSONDecodeError
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
@@ -38,7 +38,7 @@ from airflow.utils.module_loading import import_string
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
 # the symbols @,#,$,%,&,!,-,_, and () from 1 matches up to 200.
-_RE_SANITIZE_CONN_ID = re.compile("^[\w\@\#\$\%\&\!\(\)\*\-]{1,200}$")
+_RE_SANITIZE_CONN_ID = re2.compile("^[\w\@\#\$\%\&\!\(\)\*\-]{1,200}$")
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
