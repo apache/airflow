@@ -1239,7 +1239,7 @@ export interface components {
       name?: string;
       /** @description The maximum number of slots that can be assigned to tasks. One job may occupy one or more slots. */
       slots?: number;
-      /** @description The number of slots used by running/queued tasks at the moment. */
+      /** @description The number of slots used by running/queued tasks at the moment. May include deferred tasks if 'include_deferred' is set to true. */
       occupied_slots?: number;
       /** @description The number of slots used by running tasks at the moment. */
       running_slots?: number;
@@ -1250,11 +1250,23 @@ export interface components {
       /** @description The number of slots used by scheduled tasks at the moment. */
       scheduled_slots?: number;
       /**
+       * @description The number of slots used by deferred tasks at the moment. Relevant if 'include_deferred' is set to true.
+       *
+       * *New in version 2.7.0*
+       */
+      deferred_slots?: number;
+      /**
        * @description The description of the pool.
        *
        * *New in version 2.3.0*
        */
       description?: string | null;
+      /**
+       * @description If set to true, deferred tasks are considered when calculating open pool slots.
+       *
+       * *New in version 2.7.0*
+       */
+      include_deferred?: boolean;
     };
     /**
      * @description Collection of pools.
