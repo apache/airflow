@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 from airflow.providers.apache.druid.hooks.druid import IngestionType
 from airflow.providers.apache.druid.operators.druid import DruidOperator
@@ -108,7 +108,7 @@ def test_init_default_timeout():
     assert expected_default_timeout == operator.timeout
 
 
-@patch("airflow.providers.apache.druid.hooks.druid.DruidHook")
+@patch("airflow.providers.apache.druid.operators.druid.DruidHook")
 def test_execute_calls_druid_hook_with_the_right_parameters(mock_druid_hook):
     mock_druid_hook_instance = MagicMock()
     mock_druid_hook.return_value = mock_druid_hook_instance
@@ -130,6 +130,4 @@ def test_execute_calls_druid_hook_with_the_right_parameters(mock_druid_hook):
         timeout=timeout,
         max_ingestion_time=max_ingestion_time,
     )
-    mock_druid_hook_instance.submit_indexing_job.assert_called_once_with(
-        json_index_file, IngestionType.MSQ
-    )
+    mock_druid_hook_instance.submit_indexing_job.assert_called_once_with(json_index_file, IngestionType.MSQ)

@@ -30,6 +30,12 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class IngestionType(Enum):
+    """
+    Druid Ingestion Type. Could be Native batch ingestion or SQL-based ingestion.
+
+    https://druid.apache.org/docs/latest/ingestion/index.html
+    """
+
     BATCH = 1
     MSQ = 2
 
@@ -92,7 +98,7 @@ class DruidHook(BaseHook):
             return None
 
     def submit_indexing_job(
-            self, json_index_spec: dict[str, Any] | str, ingestion_type: IngestionType = IngestionType.BATCH
+        self, json_index_spec: dict[str, Any] | str, ingestion_type: IngestionType = IngestionType.BATCH
     ) -> None:
         """Submit Druid ingestion job."""
         url = self.get_conn_url(ingestion_type)
