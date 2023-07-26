@@ -23,6 +23,7 @@ import functools
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
 from sqlalchemy import Integer, and_, func, or_
+from sqlalchemy.sql.functions import coalesce
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.dep_context import DepContext
@@ -229,7 +230,9 @@ class TriggerRuleDep(BaseTIDep):
             upstream_setup = len([x for x in upstream_tasks.values() if x.is_setup])
         else:
             upstream, upstream_setup = (
-                session.query(func.count(), func.sum(TaskInstance.is_setup.cast(Integer)).cast(Integer))
+                session.query(
+                    func.count(), func.sum(coalesce(TaskInstance.is_setup, 0).cast(Integer)).cast(Integer)
+                )
                 .filter(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                 .filter(or_(*_iter_upstream_conditions()))
                 .one()
