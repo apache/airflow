@@ -29,11 +29,10 @@ from rich.console import Console
 from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.utils.docs_errors import DocBuildError, parse_sphinx_warnings
 from airflow_breeze.utils.helm_chart_utils import chart_version
-from airflow_breeze.utils.publish_docs_helpers import load_package_data, pretty_format_path
+from airflow_breeze.utils.publish_docs_helpers import CONSOLE_WIDTH, load_package_data, pretty_format_path
 from airflow_breeze.utils.spelling_checks import SpellingError, parse_spelling_warnings
 
 PROCESS_TIMEOUT = 15 * 60
-CONSOLE_WIDTH = 180
 
 ROOT_PROJECT_DIR = Path(__file__).parents[5].resolve()
 DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
@@ -44,9 +43,8 @@ console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WI
 class PublishDocsBuilder:
     """Documentation builder for Airflow Docs Publishing."""
 
-    def __init__(self, package_name: str, for_production: bool):
+    def __init__(self, package_name: str):
         self.package_name = package_name
-        self.for_production = for_production
 
     @property
     def _doctree_dir(self) -> str:
@@ -66,7 +64,7 @@ class PublishDocsBuilder:
     @property
     def _build_dir(self) -> str:
         if self.is_versioned:
-            version = "stable" if self.for_production else "latest"
+            version = "stable"
             return f"{DOCS_DIR}/_build/docs/{self.package_name}/{version}"
         else:
             return f"{DOCS_DIR}/_build/docs/{self.package_name}"
@@ -154,8 +152,6 @@ class PublishDocsBuilder:
 
         env = os.environ.copy()
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
-        if self.for_production:
-            env["AIRFLOW_FOR_PRODUCTION"] = "true"
         if verbose:
             console.print(
                 f"[info]{self.package_name:60}:[/] Executing cmd: ",
@@ -229,8 +225,6 @@ class PublishDocsBuilder:
         ]
         env = os.environ.copy()
         env["AIRFLOW_PACKAGE_NAME"] = self.package_name
-        if self.for_production:
-            env["AIRFLOW_FOR_PRODUCTION"] = "true"
         if verbose:
             console.print(
                 f"[info]{self.package_name:60}:[/] Executing cmd: ",

@@ -22,6 +22,7 @@ from typing import Any, AsyncIterator
 
 from botocore.exceptions import ClientError, WaiterError
 
+from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
@@ -48,7 +49,7 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -87,7 +88,7 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -170,7 +171,9 @@ class TaskDoneTrigger(BaseTrigger):
                     await waiter.wait(
                         cluster=self.cluster, tasks=[self.task_arn], WaiterConfig={"MaxAttempts": 1}
                     )
-                    break  # we reach this point only if the waiter met a success criteria
+                    # we reach this point only if the waiter met a success criteria
+                    yield TriggerEvent({"status": "success", "task_arn": self.task_arn})
+                    return
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         raise
@@ -179,8 +182,7 @@ class TaskDoneTrigger(BaseTrigger):
                 finally:
                     if self.log_group and self.log_stream:
                         logs_token = await self._forward_logs(logs_client, logs_token)
-
-        yield TriggerEvent({"status": "success", "task_arn": self.task_arn})
+        raise AirflowException("Waiter error: max attempts reached")
 
     async def _forward_logs(self, logs_client, next_token: str | None = None) -> str | None:
         """

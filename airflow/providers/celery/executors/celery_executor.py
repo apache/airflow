@@ -104,7 +104,7 @@ class CeleryExecutor(BaseExecutor):
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
         self.tasks = {}
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
-        self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries", fallback=3)
+        self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries")
 
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)

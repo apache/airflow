@@ -127,6 +127,12 @@ class AzureDataFactoryPipelineRunStatusAsyncSensor(AzureDataFactoryPipelineRunSt
     """
     Checks the status of a pipeline run asynchronously.
 
+    This class is deprecated and will be removed in a future release.
+
+    Please use
+    :class:`airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor`
+    and set *deferrable* attribute to *True* instead.
+
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
     :param run_id: The pipeline run identifier.
     :param resource_group_name: The resource group name.

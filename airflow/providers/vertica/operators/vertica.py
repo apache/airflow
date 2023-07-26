@@ -28,6 +28,10 @@ class VerticaOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Vertica database.
 
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+
     :param vertica_conn_id: reference to a specific Vertica database
     :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file.

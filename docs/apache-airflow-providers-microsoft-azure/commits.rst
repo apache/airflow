@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.2.1
+.....
+
+Latest change: 2023-07-12
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`fcbf15947f <https://github.com/apache/airflow/commit/fcbf15947f2f271d502bc6f4b9e3d0bada072d84>`_  2023-07-12   ``Fix breaking change when Active Directory ID is used as host in WASB (#32560)``
+`a67427af37 <https://github.com/apache/airflow/commit/a67427af3738218786f3745d9737f462c70d4233>`_  2023-07-12   ``Fix get_blobs_list_async method to return BlobProperties (#32545)``
+`c99c03135c <https://github.com/apache/airflow/commit/c99c03135ca7e7c41e1c6d338de9e41422ea84f0>`_  2023-07-08   ``D205 Support - Providers: Stragglers and new additions (#32447)``
+`257136786c <https://github.com/apache/airflow/commit/257136786c9a3eebbae717738637ab24fd6ab563>`_  2023-07-08   ``Moves 'AzureBlobStorageToGCSOperator' from Azure to Google provider (#32306)``
+=================================================================================================  ===========  =================================================================================
+
 6.2.0
 .....
 
-Latest change: 2023-07-05
+Latest change: 2023-07-06
 
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `1240dcc167 <https://github.com/apache/airflow/commit/1240dcc167c4b47331db81deff61fc688df118c2>`_  2023-07-05   ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``

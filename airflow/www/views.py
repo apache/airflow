@@ -83,7 +83,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.configuration import AIRFLOW_CONFIG, auth_manager, conf
+from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import (
     AirflowConfigException,
@@ -117,6 +117,7 @@ from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.dates import infer_time_unit, scale_time_units
+from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import alchemy_to_dict, exactly_one
 from airflow.utils.log import secrets_masker
@@ -130,6 +131,7 @@ from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import (
     DagRunEditForm,
     DateTimeForm,
@@ -383,6 +385,12 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             else:
                 instances = list(map(_get_summary, grouped_tis.get(item.task_id, [])))
 
+            setup_teardown_type = {}
+            if item.is_setup is True:
+                setup_teardown_type["setupTeardownType"] = "setup"
+            elif item.is_teardown is True:
+                setup_teardown_type["setupTeardownType"] = "teardown"
+
             return {
                 "id": item.task_id,
                 "instances": instances,
@@ -392,6 +400,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,
+                **setup_teardown_type,
             }
 
         # Task Group
@@ -614,16 +623,17 @@ def method_not_allowed(error):
 
 def show_traceback(error):
     """Show Traceback for a given error."""
+    is_logged_in = get_auth_manager().is_logged_in()
     return (
         render_template(
             "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0] if auth_manager.is_logged_in() else "redact",
-            airflow_version=version if auth_manager.is_logged_in() else "redact",
+            python_version=sys.version.split(" ")[0] if is_logged_in else "redact",
+            airflow_version=version if is_logged_in else "redact",
             hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and auth_manager.is_logged_in()
+            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
             else "redact",
             info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and auth_manager.is_logged_in()
+            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
             else "Error! Please contact server admin.",
         ),
         500,
@@ -752,7 +762,7 @@ class Airflow(AirflowBaseView):
                 dags_query = dags_query.where(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
 
             dags_query = dags_query.where(DagModel.dag_id.in_(filter_dag_ids))
-            filtered_dag_count = session.scalar(select(func.count()).select_from(dags_query))
+            filtered_dag_count = get_query_count(dags_query, session=session)
             if filtered_dag_count == 0 and len(arg_tags_filter):
                 flash(
                     "No matching DAG tags found.",
@@ -797,17 +807,15 @@ class Airflow(AirflowBaseView):
 
             is_paused_count = dict(
                 session.execute(
-                    select(DagModel.is_paused, func.count(DagModel.dag_id))
-                    .group_by(DagModel.is_paused)
-                    .select_from(all_dags)
+                    select(DagModel.is_paused, func.count(DagModel.dag_id)).group_by(DagModel.is_paused)
                 ).all()
             )
 
             status_count_active = is_paused_count.get(False, 0)
             status_count_paused = is_paused_count.get(True, 0)
 
-            status_count_running = session.scalar(select(func.count()).select_from(running_dags))
-            status_count_failed = session.scalar(select(func.count()).select_from(failed_dags))
+            status_count_running = get_query_count(running_dags, session=session)
+            status_count_failed = get_query_count(failed_dags, session=session)
 
             all_dags_count = status_count_active + status_count_paused
             if arg_status_filter == "active":
@@ -946,9 +954,7 @@ class Airflow(AirflowBaseView):
                 .where(Log.event == "robots")
                 .where(Log.dttm > (utcnow() - datetime.timedelta(days=7)))
             )
-            robots_file_access_count = session.scalar(
-                select(func.count()).select_from(robots_file_access_count)
-            )
+            robots_file_access_count = get_query_count(robots_file_access_count, session=session)
             if robots_file_access_count > 0:
                 flash(
                     Markup(
@@ -1535,6 +1541,10 @@ class Airflow(AirflowBaseView):
         """Get rendered k8s yaml."""
         if not settings.IS_K8S_OR_K8SCELERY_EXECUTOR:
             abort(404)
+        # This part is only used for k8s executor so providers.cncf.kubernetes must be installed
+        # with the get_rendered_k8s_spec method
+        from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec
+
         dag_id = request.args.get("dag_id")
         task_id = request.args.get("task_id")
         if task_id is None:
@@ -1554,7 +1564,7 @@ class Airflow(AirflowBaseView):
 
         pod_spec = None
         try:
-            pod_spec = ti.get_rendered_k8s_spec(session=session)
+            pod_spec = get_rendered_k8s_spec(ti, session=session)
         except AirflowException as e:
             if not e.__cause__:
                 flash(f"Error rendering Kubernetes POD Spec: {e}", "error")
@@ -2159,10 +2169,17 @@ class Airflow(AirflowBaseView):
                     recent_confs=recent_confs,
                 )
 
-        if unpause and dag.get_is_paused():
-            dag_model = models.DagModel.get_dagmodel(dag_id)
-            if dag_model is not None:
-                dag_model.set_is_paused(is_paused=False)
+        if dag.get_is_paused():
+            if unpause or not ui_fields_defined:
+                flash(f"Unpaused DAG {dag_id}.")
+                dag_model = models.DagModel.get_dagmodel(dag_id)
+                if dag_model is not None:
+                    dag_model.set_is_paused(is_paused=False)
+            else:
+                flash(
+                    f"DAG {dag_id} is paused, unpause if you want to have the triggered run being executed.",
+                    "warning",
+                )
 
         try:
             dag.create_dagrun(
@@ -2305,9 +2322,8 @@ class Airflow(AirflowBaseView):
 
             # Lock the related dag runs to prevent from possible dead lock.
             # https://github.com/apache/airflow/pull/26658
-            dag_runs_query = session.scalars(
-                select(DagRun.id).where(DagRun.dag_id == dag_id).with_for_update()
-            )
+            dag_runs_query = select(DagRun.id).where(DagRun.dag_id == dag_id).with_for_update()
+
             if start_date is None and end_date is None:
                 dag_runs_query = dag_runs_query.where(DagRun.execution_date == start_date)
             else:
@@ -2317,7 +2333,7 @@ class Airflow(AirflowBaseView):
                 if end_date is not None:
                     dag_runs_query = dag_runs_query.where(DagRun.execution_date <= end_date)
 
-            locked_dag_run_ids = dag_runs_query.all()
+            locked_dag_run_ids = session.scalars(dag_runs_query).all()
         elif task_id:
             if map_indexes is None:
                 task_ids = [task_id]
@@ -2384,7 +2400,7 @@ class Airflow(AirflowBaseView):
     @expose("/blocked", methods=["POST"])
     @auth.has_access(
         [
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         ]
     )
@@ -4159,7 +4175,7 @@ class Airflow(AirflowBaseView):
         arg_sorting_direction = request.args.get("sorting_direction", default="desc")
 
         logs_per_page = PAGE_SIZE
-        audit_logs_count = session.scalar(select(func.count()).select_from(query))
+        audit_logs_count = get_query_count(query, session=session)
         num_of_pages = int(math.ceil(audit_logs_count / float(logs_per_page)))
 
         start = current_page * logs_per_page

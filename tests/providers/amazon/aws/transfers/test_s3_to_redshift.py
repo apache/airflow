@@ -222,7 +222,7 @@ class TestS3ToRedshiftTransfer:
                         ;
                      """
         transaction = f"""
-                    CREATE TABLE #{table} (LIKE {schema}.{table});
+                    CREATE TABLE #{table} (LIKE {schema}.{table} INCLUDING DEFAULTS);
                     {copy_statement}
                     BEGIN;
                     DELETE FROM {schema}.{table} USING #{table} WHERE {table}.id = #{table}.id;

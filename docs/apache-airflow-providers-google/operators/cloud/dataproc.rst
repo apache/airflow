@@ -75,6 +75,18 @@ With this configuration we can create the cluster:
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator_in_gke]
 
+You can also create Dataproc cluster with optional component Presto.
+To do so, please use the following configuration.
+Note that default image might not support the chosen optional component.
+If this is your case, please specify correct ``image_version`` that you can find in the
+`documentation.  <https://cloud.google.com/dataproc/docs/concepts/components/overview#available_optional_components>`__
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_presto.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_create_cluster]
+    :end-before: [END how_to_cloud_dataproc_create_cluster]
+
 You can use deferrable mode for this action in order to run the operator asynchronously:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_deferrable.py
@@ -238,6 +250,14 @@ Example of the configuration for a SparkR:
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_sparkr_config]
     :end-before: [END how_to_cloud_dataproc_sparkr_config]
+
+Example of the configuration for a Presto Job:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_presto.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_presto_config]
+    :end-before: [END how_to_cloud_dataproc_presto_config]
 
 Working with workflows templates
 --------------------------------

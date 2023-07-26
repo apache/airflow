@@ -65,6 +65,7 @@ from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 
@@ -438,6 +439,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def task_failed_deps(args) -> None:
     """
     Get task instance dependencies that were not met.
@@ -468,6 +470,7 @@ def task_failed_deps(args) -> None:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def task_state(args) -> None:
     """
     Returns the state of a TaskInstance at the command line.
@@ -483,6 +486,7 @@ def task_state(args) -> None:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
     """Lists the tasks within a DAG at the command line."""
     dag = dag or get_dag(args.subdir, args.dag_id)
@@ -530,6 +534,7 @@ def _guess_debugger() -> _SupportedDebugger:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 @provide_session
 def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
@@ -631,6 +636,7 @@ def task_test(args, dag: DAG | None = None) -> None:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
     """Renders and displays templated fields for a given task."""
     if not dag:
@@ -653,6 +659,7 @@ def task_render(args, dag: DAG | None = None) -> None:
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def task_clear(args) -> None:
     """Clears all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)

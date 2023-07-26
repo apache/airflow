@@ -142,7 +142,7 @@ class ElasticsearchHook(ElasticsearchSQLHook):
     """
     This class is deprecated and was renamed to ElasticsearchSQLHook.
 
-    Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.
+    Please use :class:`airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.
     """
 
     def __init__(self, *args, **kwargs):
