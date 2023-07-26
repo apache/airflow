@@ -233,8 +233,6 @@ class AbstractOperator(Templater, DAGNode):
         on_failure_fail_dagrun=NOTSET,
     ):
         self.is_teardown = True
-        if TYPE_CHECKING:
-            assert isinstance(self, BaseOperator)  # is_teardown not supported for MappedOperator
         self.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
         if on_failure_fail_dagrun is not NOTSET:
             self.on_failure_fail_dagrun = on_failure_fail_dagrun

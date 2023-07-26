@@ -346,8 +346,6 @@ class PlainXComArg(XComArg):
     ):
         for operator, _ in self.iter_references():
             operator.is_teardown = True
-            if TYPE_CHECKING:
-                assert isinstance(operator, BaseOperator)  # Can't set MappedOperator as teardown
             operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
             if on_failure_fail_dagrun is not NOTSET:
                 operator.on_failure_fail_dagrun = on_failure_fail_dagrun
