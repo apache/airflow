@@ -40,11 +40,12 @@ TABLE_NAME = "task_instance"
 
 
 def upgrade():
-    """Apply is_setup column"""
+    """Apply is_setup column to task_instance"""
     with op.batch_alter_table(TABLE_NAME) as batch_op:
         batch_op.add_column(sa.Column("is_setup", sa.Boolean(), nullable=False, server_default=sa.false()))
 
 
 def downgrade():
-    """Unapply empty message"""
-    pass
+    """Remove is_setup column from task_instance"""
+    with op.batch_alter_table(TABLE_NAME) as batch_op:
+        batch_op.drop_column("is_setup")
