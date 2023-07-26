@@ -637,16 +637,14 @@ class MappedOperator(AbstractOperator):
             else:
                 raise RuntimeError("cannot unmap a non-serialized operator without context")
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
-            is_setup = kwargs.pop("is_setup", False)
-            is_teardown = kwargs.pop("is_teardown", False)
             op = self.operator_class(**kwargs, _airflow_from_mapped=True)
             # We need to overwrite task_id here because BaseOperator further
             # mangles the task_id based on the task hierarchy (namely, group_id
             # is prepended, and '__N' appended to deduplicate). This is hacky,
             # but better than duplicating the whole mangling logic.
             op.task_id = self.task_id
-            op.is_setup = is_setup
-            op.is_teardown = is_teardown
+            op.is_setup = kwargs.pop("is_setup", False)
+            op.is_teardown = kwargs.pop("is_teardown", False)
             return op
 
         # After a mapped operator is serialized, there's no real way to actually
