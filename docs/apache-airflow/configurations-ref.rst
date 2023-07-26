@@ -37,6 +37,7 @@ in the provider's documentation. The pre-installed providers that you may want t
 
 * :doc:`Configuration Reference for Celery Provider <apache-airflow-providers-celery:configurations-ref>`
 * :doc:`Configuration Reference for Apache Hive Provider <apache-airflow-providers-apache-hive:configurations-ref>`
+* :doc:`Configuration Reference for CNCF Kubernetes Provider <apache-airflow-providers-cncf-kubernetes:configurations-ref>`
 
 .. note::
     For more information see :doc:`/howto/set-config`.

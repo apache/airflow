@@ -65,3 +65,9 @@ class FabAuthManager(BaseAuthManager):
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
+
+    def get_url_user_profile(self) -> str:
+        """Return the url to a page displaying info about the current user."""
+        if not self.security_manager.user_view:
+            raise AirflowException("`user_view` not defined in the security manager.")
+        return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")

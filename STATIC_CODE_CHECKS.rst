@@ -146,6 +146,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-airflow-k8s-not-used                                | Check airflow.kubernetes imports are not used                |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                          |         |
@@ -162,6 +164,8 @@ require Breeze Docker image to be built locally.
 | check-builtin-literals                                    | Require literal syntax when initializing builtin types       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                       |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

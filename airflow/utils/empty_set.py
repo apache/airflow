@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,11 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated.
 
-Please use :mod:`kubernetes.client.models` for V1ResourceRequirements and Port.
-"""
 from __future__ import annotations
 
-from airflow.kubernetes.pod_launcher_deprecated import PodLauncher, PodStatus  # noqa: autoflake
+
+def _get_empty_set_for_configuration() -> set[tuple[str, str]]:
+    """
+    Retrieves an empty_set_for_configuration.
+
+    This method is only needed because configuration module has a deprecated method called set, and it
+    confuses mypy. This method will be removed when we remove the deprecated method.
+
+    :meta private:
+    :return: empty set
+    """
+    return set()

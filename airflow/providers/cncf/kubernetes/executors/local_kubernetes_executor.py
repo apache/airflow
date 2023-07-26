@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.executors.local_executor import LocalExecutor
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:

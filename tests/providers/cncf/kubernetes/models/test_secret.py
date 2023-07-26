@@ -22,9 +22,9 @@ from unittest import mock
 
 from kubernetes.client import ApiClient, models as k8s
 
-from airflow.kubernetes.k8s_model import append_to_pod
-from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.kubernetes.secret import Secret
+from airflow.providers.cncf.kubernetes.k8s_model import append_to_pod
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.secret import Secret
 
 
 class TestSecret:
@@ -63,13 +63,13 @@ class TestSecret:
         )
 
     @mock.patch("uuid.uuid4")
-    @mock.patch("airflow.kubernetes.pod_generator.rand_str")
+    @mock.patch("airflow.providers.cncf.kubernetes.pod_generator.rand_str")
     def test_attach_to_pod(self, mock_rand_str, mock_uuid):
         static_uuid = uuid.UUID("cf4a56d2-8101-4217-b027-2af6216feb48")
         mock_uuid.return_value = static_uuid
         rand_str = "abcd1234"
         mock_rand_str.return_value = rand_str
-        path = sys.path[0] + "/tests/kubernetes/pod_generator_base.yaml"
+        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base.yaml"
         pod = PodGenerator(pod_template_file=path).ud_pod
         secrets = [
             # This should be a secretRef
