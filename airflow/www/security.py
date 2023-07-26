@@ -24,6 +24,7 @@ from flask import g
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from airflow.auth.managers.fab.views.user_details import CustomUserDBModelView
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
@@ -37,7 +38,6 @@ from airflow.www.fab_security.views import (
     CustomResetMyPasswordView,
     CustomResetPasswordView,
     CustomRoleModelView,
-    CustomUserDBModelView,
     CustomUserInfoEditView,
     CustomUserLDAPModelView,
     CustomUserOAuthModelView,

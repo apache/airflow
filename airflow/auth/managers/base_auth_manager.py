@@ -52,6 +52,11 @@ class BaseAuthManager(LoggingMixin):
         """Return the login page url."""
         ...
 
+    @abstractmethod
+    def get_url_user_profile(self) -> str:
+        """Return the url to a page displaying info about the current user."""
+        ...
+
     def get_security_manager_override_class(self) -> type:
         """
         Return the security manager override class.
