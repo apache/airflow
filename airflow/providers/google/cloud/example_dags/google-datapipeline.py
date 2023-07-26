@@ -45,6 +45,23 @@ from airflow.utils.trigger_rule import TriggerRule
 
 DAG_ID = "google-datapipeline"
 
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCP_LOCATION = os.environ.get("location", "us-central1")
+PIPELINE_NAME = "defualt-pipeline-name"
+PIPELINE_TYPE = "PIPELINE_TYPE_BATCH"
+
+DATAPIPELINES_JOB_NAME = os.environ.get("GCP_DATA_PIPELINES_FLEX_TEMPLATE_JOB_NAME", "default-job-name")
+
+GCS_FLEX_TEMPLATE_TEMPLATE_PATH = os.environ.get(
+    "GCP_DATA_PIPELINES_GCS_FLEX_TEMPLATE_TEMPLATE_PATH",
+    "gs://INSERT BUCKET/templates/word-count.json",
+)
+
+TEMP_LOCATION = os.environ.get("GCP_DATA_PIPELINES_GCS_TEMP_LOCATION", "gs://INSERT BUCKET/temp")
+INPUT_FILE = os.environ.get("GCP_DATA_PIPELINES_INPUT_FILE", "gs://INSERT BUCKET/examples/kinglear.txt")
+OUTPUT = os.environ.get("GCP_DATA_PIPELINES_OUTPUT", "gs://INSERT BUCKET/results/hello")
+
+
 with models.DAG(
     DAG_ID,
     schedule="@once",
@@ -54,24 +71,24 @@ with models.DAG(
 ) as dag:
     create_data_pipeline = CreateDataPipelineOperator(
         task_id="create_data_pipeline",
-        project_id="dataflow-interns",
-        location="us-central1",
+        project_id=GCP_PROJECT_ID,
+        location=GCP_LOCATION,
         body={
-            "name": "projects/dataflow-interns/locations/us-central1/pipelines/dp-create-1642676351302-mp--1675461000",
-            "type": "PIPELINE_TYPE_BATCH",
+            "name": "projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/pipelines/{PIPELINE_NAME}",
+            "type": PIPELINE_TYPE,
             "workload": {
                 "dataflowFlexTemplateRequest": {
                     "launchParameter": {
-                        "containerSpecGcsPath": "gs://intern-bucket-1/templates/word-count.json",
-                        "jobName": "word-count-test-intern1",
-                        "environment": {"tempLocation": "gs://intern-bucket-1/temp"},
+                        "containerSpecGcsPath": GCS_FLEX_TEMPLATE_TEMPLATE_PATH,
+                        "jobName": DATAPIPELINES_JOB_NAME,
+                        "environment": {"tempLocation": TEMP_LOCATION},
                         "parameters": {
-                            "inputFile": "gs://intern-bucket-1/examples/kinglear.txt",
-                            "output": "gs://intern-bucket-1/results/hello",
+                            "inputFile": INPUT_FILE,
+                            "output": OUTPUT,
                         },
                     },
-                    "projectId": "dataflow-interns",
-                    "location": "us-central1",
+                    "projectId": GCP_PROJECT_ID,
+                    "location": GCP_LOCATION,
                 }
             },
         },
