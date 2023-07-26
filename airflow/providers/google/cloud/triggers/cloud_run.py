@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+from enum import Enum
 from typing import Any, AsyncIterator, Sequence
 
 from google.longrunning import operations_pb2
@@ -26,6 +27,14 @@ from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 DEFAULT_BATCH_LOCATION = "us-central1"
+
+
+class RunJobStatus(Enum):
+    """Enum to represent the status of a job run."""
+
+    SUCCESS = "Success"
+    FAIL = "Fail"
+    TIMEOUT = "Timeout"
 
 
 class CloudRunJobFinishedTrigger(BaseTrigger):
@@ -45,6 +54,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param poll_sleep: Polling period in seconds to check for the status.
+    :timeout: The time to wait before failing the operation.
     """
 
     def __init__(
@@ -86,27 +96,33 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """
-        Main loop of the class in where it is fetching the operation status and yields certain
+        Main loop of the class in where it is fetching the operation status and yields an
         Event when done.
-        TODO: rewrite the conditions of done, error code...
-        If the job has status success then it yields TriggerEvent with success status, if job has
-        status failed - with error status and if the job is being deleted - with deleted status.
-        In any other case Trigger will wait for specified amount of time
-        stored in self.polling_period_seconds variable.
+
         """
         timeout = self.timeout
         hook = self._get_async_hook()
         while timeout is None or timeout > 0:
             operation: operations_pb2.Operation = await hook.get_operation(self.operation_name)
             if operation.done:
-                yield TriggerEvent(
-                    {
-                        "operation_done": operation.done,
-                        "operation_error_code": operation.error.code,
-                        "operation_error_message": operation.error.message,
-                        "job_name": self.job_name,
-                    }
-                )
+                # An operation can only have one of those two combinations: if it is succeeded, then
+                # the response field will be populated, else, then the error field will be.
+                if operation.response is not None:
+                    yield TriggerEvent(
+                        {
+                            "status": RunJobStatus.SUCCESS,
+                            "job_name": self.job_name,
+                        }
+                    )
+                else:
+                    yield TriggerEvent(
+                        {
+                            "status": RunJobStatus.FAIL,
+                            "operation_error_code": operation.error.code,
+                            "operation_error_message": operation.error.message,
+                            "job_name": self.job_name,
+                        }
+                    )
             elif operation.error.message:
                 raise AirflowException(f"Cloud Run Job error: {operation.error.message}")
 
@@ -117,9 +133,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
 
         yield TriggerEvent(
             {
-                "operation_done": False,
-                "operation_error_code": None,
-                "operation_error_message": None,
+                "status": RunJobStatus.TIMEOUT,
                 "job_name": self.job_name,
             }
         )

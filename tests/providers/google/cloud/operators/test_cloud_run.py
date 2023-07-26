@@ -32,6 +32,7 @@ from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunListJobsOperator,
     CloudRunUpdateJobOperator,
 )
+from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
 
 CLOUD_RUN_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunHook"
 TASK_ID = "test"
@@ -123,6 +124,58 @@ class TestCloudRunExecuteJobOperator:
 
         with pytest.raises(TaskDeferred):
             operator.execute(mock.MagicMock())
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_timeout(self, hook_mock):
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        event = {"status": RunJobStatus.TIMEOUT, "job_name": JOB_NAME}
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert "Operation timed out" in str(e.value)
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_fail(self, hook_mock):
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        error_code = 10
+        error_message = "error message"
+
+        event = {
+            "status": RunJobStatus.FAIL,
+            "operation_error_code": error_code,
+            "operation_error_message": error_message,
+            "job_name": JOB_NAME,
+        }
+
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
+
+        assert f"Operation failed with error code [{error_code}] and error message [{error_message}]" in str(
+            e.value
+        )
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_success(self, hook_mock):
+
+        hook_mock.return_value.get_job.return_value = JOB
+
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
+
+        event = {"status": RunJobStatus.SUCCESS, "job_name": JOB_NAME}
+
+        result = operator.execute_complete(mock.MagicMock(), event)
+        assert result["name"] == JOB_NAME
 
     def _mock_operation(self, task_count, succeeded_count, failed_count):
         operation = mock.MagicMock()

@@ -27,7 +27,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger
+from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -48,8 +48,8 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
         If set as a string, the account must grant the originating account
         the Service Account Token Creator IAM role.
         If set as a sequence, the identities from the list must grant
-         Service Account Token Creator IAM role to the directly preceding identity, with first
-         account from the list granting this role to the originating account (templated).
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     def __init__(
@@ -98,8 +98,8 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
         If set as a string, the account must grant the originating account
         the Service Account Token Creator IAM role.
         If set as a sequence, the identities from the list must grant
-         Service Account Token Creator IAM role to the directly preceding identity, with first
-         account from the list granting this role to the originating account (templated).
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     def __init__(
@@ -146,8 +146,8 @@ class CloudRunDeleteJobOperator(GoogleCloudBaseOperator):
         If set as a string, the account must grant the originating account
         the Service Account Token Creator IAM role.
         If set as a sequence, the identities from the list must grant
-         Service Account Token Creator IAM role to the directly preceding identity, with first
-         account from the list granting this role to the originating account (templated).
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     def __init__(
@@ -182,6 +182,10 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
+    :param show_deleted: If true, returns deleted (but unexpired)
+        resources along with active ones.
+    :param limit: The number of jobs to list. If left empty,
+        all the jobs will be returned.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -189,18 +193,18 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
         If set as a string, the account must grant the originating account
         the Service Account Token Creator IAM role.
         If set as a sequence, the identities from the list must grant
-         Service Account Token Creator IAM role to the directly preceding identity, with first
-         account from the list granting this role to the originating account (templated).
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     def __init__(
         self,
         project_id: str,
         region: str,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
         show_deleted: bool = False,
         limit: int | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -234,14 +238,18 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param job: Required. The job descriptor containing the new configuration of the job to update.
         The name field will be replaced by job_name
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param polling_period_seconds: Optional: Control the rate of the poll for the result of deferrable run.
+        By default, the trigger will poll every 10 seconds.
+    :param timeout: The timeout for this request.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
         If set as a string, the account must grant the originating account
         the Service Account Token Creator IAM role.
         If set as a sequence, the identities from the list must grant
-         Service Account Token Creator IAM role to the directly preceding identity, with first
-         account from the list granting this role to the originating account (templated).
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode
     """
 
     def __init__(
@@ -249,10 +257,10 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         region: str,
         job_name: str,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
         polling_period_seconds: float = 10,
         timeout_seconds: float | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -293,14 +301,14 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             )
 
     def execute_complete(self, context: Context, event: dict):
-        done = event["operation_done"]
-        error_code = event["operation_error_code"]
-        error_message = event["operation_error_message"]
+        status = event["status"]
 
-        if not done:
-            raise AirflowException(f"Operation timed out: {error_message}")
+        if status == RunJobStatus.TIMEOUT:
+            raise AirflowException("Operation timed out")
 
-        if (error_message is not None) and (error_message != "") and (error_code != 0):
+        if status == RunJobStatus.FAIL:
+            error_code = event["operation_error_code"]
+            error_message = event["operation_error_message"]
             raise AirflowException(
                 f"Operation failed with error code [{error_code}] and error message [{error_message}]"
             )

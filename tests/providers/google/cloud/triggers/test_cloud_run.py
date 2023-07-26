@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger
+from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
 from airflow.triggers.base import TriggerEvent
 
 OPERATION_NAME = "operation"
@@ -86,9 +86,7 @@ class TestCloudBatchJobFinishedTrigger:
         assert (
             TriggerEvent(
                 {
-                    "operation_done": done,
-                    "operation_error_code": error_code,
-                    "operation_error_message": error_message,
+                    "status": RunJobStatus.SUCCESS,
                     "job_name": JOB_NAME,
                 }
             )
@@ -140,9 +138,7 @@ class TestCloudBatchJobFinishedTrigger:
         assert (
             TriggerEvent(
                 {
-                    "operation_done": False,
-                    "operation_error_code": None,
-                    "operation_error_message": None,
+                    "status": RunJobStatus.TIMEOUT,
                     "job_name": JOB_NAME,
                 }
             )
