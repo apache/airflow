@@ -53,7 +53,7 @@ class BaseAuthManager(LoggingMixin):
         ...
 
     @abstractmethod
-    def get_url_logout(self, **kwargs) -> str:
+    def get_url_logout(self) -> str:
         """Return the logout page url."""
         ...
 
