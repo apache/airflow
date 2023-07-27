@@ -47,6 +47,9 @@ airflow_commands = core_commands
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 
+# Hides the subcommands (list) for the given command (key)
+HIDE_SUBCOMMAND = {"db": ["init", "upgrade"]}
+
 
 class AirflowHelpFormatter(RichHelpFormatter):
     """
@@ -118,10 +121,14 @@ def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
     yield from sorted(optional, key=lambda x: get_long_option(x).lower())
 
 
-def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> None:
-    sub_proc = subparsers.add_parser(
-        sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
-    )
+def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand, **kwargs) -> None:
+    ignore = kwargs.pop("ignore", False)
+    if ignore:
+        sub_proc = subparsers.add_parser(sub.name, epilog=sub.epilog)
+    else:
+        sub_proc = subparsers.add_parser(
+            sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
+        )
     sub_proc.formatter_class = LazyRichHelpFormatter
 
     if isinstance(sub, GroupCommand):
@@ -142,6 +149,8 @@ def _add_group_command(sub: GroupCommand, sub_proc: argparse.ArgumentParser) -> 
     subcommands = sub.subcommands
     sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMAND")
     sub_subparsers.required = True
-
     for command in sorted(subcommands, key=lambda x: x.name):
-        _add_command(sub_subparsers, command)
+        if sub.name in HIDE_SUBCOMMAND.keys() and command.name in HIDE_SUBCOMMAND[sub.name]:
+            _add_command(sub_subparsers, command, ignore=True)
+        else:
+            _add_command(sub_subparsers, command)

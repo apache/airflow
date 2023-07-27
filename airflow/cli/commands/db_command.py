@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 def initdb(args):
     """Initializes the metadata database."""
     warnings.warn(
-        "ActionCommand `init` is deprecated.  Use `sync` instead for sync the db and/or "
+        "ActionCommand `init` is deprecated.  Use `migrate` instead to migrate the db and/or "
         "create-default-connections to create the default connections",
         DeprecationWarning,
     )
@@ -61,14 +61,14 @@ def resetdb(args):
 
 def upgradedb(args):
     """Upgrades the metadata database."""
-    warnings.warn("ActionCommand `updgrade` is deprecated. Use `sync` instead.", DeprecationWarning)
-    syncdb(args)
+    warnings.warn("ActionCommand `updgrade` is deprecated. Use `migrate` instead.", DeprecationWarning)
+    migratedb(args)
 
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
-def syncdb(args):
-    """Syncs the metadata database."""
+def migratedb(args):
+    """Migrates the metadata database."""
     print("DB: " + repr(settings.engine.url))
     if args.to_revision and args.to_version:
         raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
