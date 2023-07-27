@@ -33,6 +33,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.cli import cli_config, cli_parser
+from airflow.cli.cli_config import ActionCommand, GroupCommand, lazy_load_command
 from airflow.configuration import AIRFLOW_HOME
 from tests.test_utils.config import conf_vars
 
@@ -287,6 +288,50 @@ class TestCli:
             f"--export-format: invalid choice: '{export_format}' "
             "(choose from 'csv'), see help above.\n"
         )
+
+    @patch("airflow.cli.cli_parser.HIDE_SUBCOMMAND", {"cmd": ["hidden-action-cmd"]})
+    @pytest.mark.parametrize(
+        "action_cmd",
+        [
+            ActionCommand(name="name", help="help", func=lazy_load_command(""), args=()),
+            ActionCommand(name="hidden-action-cmd", help="help", func=lazy_load_command(""), args=()),
+        ],
+    )
+    @patch("airflow.cli.cli_parser._add_command")
+    @patch("argparse.ArgumentParser")
+    def test_add_group_command_with_HIDE_SUBCOMMAND(self, mock_argumentparser, mock_add_cmd, action_cmd):
+        GRP_CMD = GroupCommand(
+            name="cmd",
+            help="help",
+            subcommands=(action_cmd,),
+        )
+        cli_parser._add_group_command(GRP_CMD, mock_argumentparser)
+        if action_cmd.name == "hidden-action-cmd":
+            mock_add_cmd.assert_called_once_with(
+                mock_argumentparser.add_subparsers(), action_cmd, ignore=True
+            )
+        else:
+            mock_add_cmd.assert_called_once_with(mock_argumentparser.add_subparsers(), action_cmd)
+
+    @patch("airflow.cli.cli_parser.HIDE_SUBCOMMAND", {"cmd": ["hidden-action-cmd"]})
+    @pytest.mark.parametrize("kwargs", [{"ignore": True}, {"ignore": False}, {}])
+    @patch("argparse._SubParsersAction")
+    def test_add_command_with_HIDE_SUBCOMMAND(self, mock_subparser_actions, kwargs):
+        action_cmd = ActionCommand(
+            name="name",
+            help="help",
+            func=lazy_load_command(""),
+            args=(),
+        )
+        cli_parser._add_command(mock_subparser_actions, action_cmd, **kwargs)
+        if "ignore" in kwargs and kwargs["ignore"]:
+            mock_subparser_actions.add_parser.assert_called_once_with(
+                action_cmd.name, epilog=action_cmd.epilog
+            )
+        else:
+            mock_subparser_actions.add_parser.assert_called_once_with(
+                action_cmd.name, description=action_cmd.help, help=action_cmd.help, epilog=action_cmd.epilog
+            )
 
 
 # We need to run it from sources with PYTHONPATH, not command line tool,

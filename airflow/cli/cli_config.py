@@ -1619,7 +1619,7 @@ DB_COMMANDS = (
     ActionCommand(
         name="init",
         help=(
-            "Deprecated -- use `sync` instead. "
+            "Deprecated -- use `migrate` instead. "
             "To create default connections use `create-default-connections`. "
             "Initialize the metadata database"
         ),
@@ -1641,7 +1641,7 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name="upgrade",
-        help="Deprecated -- use `sync` instead. Upgrade the metadata database to latest version",
+        help="Deprecated -- use `migrate` instead. Upgrade the metadata database to latest version",
         description=(
             "Upgrade the schema of the metadata database. "
             "To print but not execute commands, use option ``--show-sql-only``. "
@@ -1661,16 +1661,17 @@ DB_COMMANDS = (
         ),
     ),
     ActionCommand(
-        name="sync",
+        name="migrate",
         help="Syncs the metadata database to the latest version",
         description=(
-            "Upgrade the schema of the metadata database. "
+            "Migrate the schema of the metadata database. "
+            "Create the database if it does not exist "
             "To print but not execute commands, use option ``--show-sql-only``. "
             "If using options ``--from-revision`` or ``--from-version``, you must also use "
             "``--show-sql-only``, because if actually *running* migrations, we should only "
             "migrate from the *current* Alembic revision."
         ),
-        func=lazy_load_command("airflow.cli.commands.db_command.syncdb"),
+        func=lazy_load_command("airflow.cli.commands.db_command.migratedb"),
         args=(
             ARG_DB_REVISION__UPGRADE,
             ARG_DB_VERSION__UPGRADE,
