@@ -62,7 +62,7 @@ def sanitize_conn_id(conn_id: str | None) -> str | None:
     # check if `conn_id` or our match group is `None`
     if conn_id is None or (res := re2.match(_RE_SANITIZE_CONN_ID, conn_id)) is None:
         log.warning("We failed to match `conn_id` to the allowed pattern or it was None")
-        return conn_id
+        return None
     # if we reach here, then we matched something, return the first match
     return res.group(0)
 
