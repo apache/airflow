@@ -94,7 +94,7 @@ def should_hide_value_for_key(name):
     return False
 
 
-def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
+def mask_secret(secret: str | dict | Iterable, name: str | None = None, escape_secret=True) -> None:
     """
     Mask a secret from appearing in the task logs.
 
@@ -103,13 +103,17 @@ def mask_secret(secret: str | dict | Iterable, name: str | None = None) -> None:
 
     If ``secret`` is a dict or a iterable (excluding str) then it will be
     recursively walked and keys with sensitive names will be hidden.
+
+    If ``escape_secret`` is set to True, any character in the secret
+    except for ASCII letters, numbers and '_' will be escaped.
+    Set to False if you wish to pass a wildcard pattern as a secret value.
     """
     # Filtering all log messages is not a free process, so we only do it when
     # running tasks
     if not secret:
         return
 
-    _secrets_masker().add_mask(secret, name)
+    _secrets_masker().add_mask(secret, name, escape_secret)
 
 
 def redact(value: Redactable, name: str | None = None, max_depth: int | None = None) -> Redacted:
@@ -322,7 +326,7 @@ class SecretsMasker(logging.Filter):
             else:
                 yield secret_or_secrets
 
-    def add_mask(self, secret: str | dict | Iterable, name: str | None = None):
+    def add_mask(self, secret: str | dict | Iterable, name: str | None = None, escape_secret=True):
         """Add a new secret to be masked to this filter instance."""
         if isinstance(secret, dict):
             for k, v in secret.items():
@@ -334,7 +338,7 @@ class SecretsMasker(logging.Filter):
             new_mask = False
             for s in self._adaptations(secret):
                 if s:
-                    pattern = re2.escape(s)
+                    pattern = re2.escape(s) if escape_secret else s
                     if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
                         new_mask = True
