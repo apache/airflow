@@ -20,11 +20,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 
 from attrs import Factory, define
+from openlineage.client.facet import BaseFacet
+from openlineage.client.run import Dataset
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-from openlineage.client.facet import BaseFacet
-from openlineage.client.run import Dataset
 
 
 @define
