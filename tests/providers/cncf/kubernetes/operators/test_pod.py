@@ -598,7 +598,6 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].termination_message_policy == "FallbackToLogsOnError"
 
-
     def test_termination_message_policy_default_value_correctly_set(self):
         k = KubernetesPodOperator(
             task_id="task",
@@ -606,7 +605,6 @@ class TestKubernetesPodOperator:
 
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].termination_message_policy == "File"
-
 
     @pytest.mark.parametrize(
         "task_kwargs, should_be_deleted",
