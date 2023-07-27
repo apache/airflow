@@ -34,6 +34,8 @@ Prerequisite Tasks
 Operators
 ---------
 
+.. _howto/operator: EventBridgePutEventsOperator:
+
 Send events to Amazon EventBridge
 ==========================================
 
@@ -45,6 +47,8 @@ To send custom events to Amazon EventBridge, use
     :dedent: 4
     :start-after: [START howto_operator_eventbridge_put_events]
     :end-before: [END howto_operator_eventbridge_put_events]
+
+.. _howto/operator: EventBridgePutRuleOperator:
 
 Create or update a rule on Amazon EventBridge
 ======================================================

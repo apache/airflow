@@ -101,5 +101,5 @@ class TestEventBridgePutRuleOperator:
             task_id="failed_put_rule_job", name="match_s3_events", event_pattern="invalid json"
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             operator.execute(None)

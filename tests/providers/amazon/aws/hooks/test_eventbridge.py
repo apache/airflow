@@ -19,7 +19,6 @@ from __future__ import annotations
 import pytest
 from moto import mock_events
 
-from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.eventbridge import EventBridgeHook
 
 
@@ -36,5 +35,5 @@ class TestEventBridgeHook:
 
     def test_put_rule_with_bad_json_fails(self):
         hook = EventBridgeHook(aws_conn_id="aws_default")
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             hook.put_rule(name="test", event_pattern="invalid json", state="ENABLED")

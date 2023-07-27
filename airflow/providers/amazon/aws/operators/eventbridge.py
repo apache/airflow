@@ -32,6 +32,10 @@ class EventBridgePutEventsOperator(BaseOperator):
     """
     Put Events onto Amazon EventBridge.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator: EventBridgePutEventsOperator`
+
     :param entries: the list of events to be put onto EventBridge, each event is a dict (required)
     :param endpoint_id: the URL subdomain of the endpoint
     :param aws_conn_id: the AWS connection to use
@@ -91,6 +95,10 @@ class EventBridgePutRuleOperator(BaseOperator):
     """
     Create or update a specified EventBridge rule.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator: EventBridgePutRuleOperator`
+
     :param name: name of the rule to create or update (required)
     :param description: description of the rule
     :param event_bus_name: name or ARN of the event bus to associate with this rule
@@ -119,7 +127,6 @@ class EventBridgePutRuleOperator(BaseOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str = "aws_default",
         name: str,
         description: str | None = None,
         event_bus_name: str | None = None,
@@ -129,6 +136,7 @@ class EventBridgePutRuleOperator(BaseOperator):
         state: str | None = None,
         tags: list | None = None,
         region_name: str | None = None,
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -143,13 +151,16 @@ class EventBridgePutRuleOperator(BaseOperator):
         self.tags = tags
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: Context):
+    @cached_property
+    def hook(self) -> EventBridgeHook:
+        """Create and return an EventBridgeHook."""
+        return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
-        hook = EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+    def execute(self, context: Context):
 
         self.log.info('Sending rule "%s" to EventBridge.', self.name)
 
-        return hook.put_rule(
+        return self.hook.put_rule(
             name=self.name,
             description=self.description,
             event_bus_name=self.event_bus_name,

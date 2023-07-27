@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 
-from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 
@@ -27,7 +26,7 @@ def validate_json(pattern: str) -> None:
     try:
         json.loads(pattern)
     except ValueError:
-        raise AirflowException("Event pattern must be a valid JSON string.")
+        raise ValueError("`event_pattern` must be a valid JSON string.")
 
 
 class EventBridgeHook(AwsBaseHook):
@@ -62,13 +61,13 @@ class EventBridgeHook(AwsBaseHook):
 
         """
         if not (event_pattern or schedule_expression):
-            raise AirflowException(
-                "One of event_pattern or schedule_expression are required in order to "
+            raise ValueError(
+                "One of `event_pattern` or `schedule_expression` are required in order to "
                 "put or update your rule."
             )
 
         if state and state not in ["ENABLED", "DISABLED"]:
-            raise AirflowException("State must be specified as ENABLED or DISABLED.")
+            raise ValueError("`state` must be specified as ENABLED or DISABLED.")
 
         if event_pattern:
             validate_json(event_pattern)
