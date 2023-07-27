@@ -3228,7 +3228,6 @@ components:
           items:
             $ref: '#/components/schemas/Provider'
 
-
     SLAMiss:
       type: object
       properties:
@@ -3254,6 +3253,11 @@ components:
           type: boolean
       nullable: true
 
+    NullableSLAMiss:
+      nullable: true
+      allOf:
+        - $ref: '#/components/schemas/SLAMiss'
+
     Trigger:
       type: object
       properties:
@@ -3269,6 +3273,11 @@ components:
         triggerer_id:
           type: integer
           nullable: true
+
+    NullableTrigger:
+      nullable: true
+      allOf:
+        - $ref: '#/components/schemas/Trigger'
 
     Job:
       type: object
@@ -3306,6 +3315,11 @@ components:
           type: string
           nullable: true
 
+    NullableJob:
+      nullable: true
+      allOf:
+        - $ref: '#/components/schemas/Job'
+
     TaskInstance:
       type: object
       properties:
@@ -3334,8 +3348,7 @@ components:
           type: number
           nullable: true
         state:
-          $ref: '#/components/schemas/TaskState'
-          nullable: true
+          $ref: '#/components/schemas/NullableTaskState'
         try_number:
           type: integer
         map_index:
@@ -3370,8 +3383,7 @@ components:
         executor_config:
           type: string
         sla_miss:
-          $ref: '#/components/schemas/SLAMiss'
-          nullable: true
+          $ref: '#/components/schemas/NullableSLAMiss'
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -3379,11 +3391,9 @@ components:
             *New in version 2.3.0*
           type: object
         trigger:
-          $ref: '#/components/schemas/Trigger'
-          nullable: true
+          $ref: '#/components/schemas/NullableTrigger'
         triggerer_job:
-          $ref: '#/components/schemas/Job'
-          nullable: true
+          $ref: '#/components/schemas/NullableJob'
         note:
           type: string
           description: |
@@ -3561,8 +3571,7 @@ components:
 
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
-              nullable: true
-              $ref: '#/components/schemas/TimeDelta'
+              $ref: '#/components/schemas/NullableTimeDelta'
             doc_md:
               type: string
               readOnly: true
@@ -3698,11 +3707,9 @@ components:
           type: number
           readOnly: true
         execution_timeout:
-          $ref: '#/components/schemas/TimeDelta'
-          nullable: true
+          $ref: '#/components/schemas/NullableTimeDelta'
         retry_delay:
-          $ref: '#/components/schemas/TimeDelta'
-          nullable: true
+          $ref: '#/components/schemas/NullableTimeDelta'
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -4517,6 +4524,11 @@ components:
         seconds: {type: integer}
         microseconds: {type: integer}
 
+    NullableTimeDelta:
+      nullable: true
+      allOf:
+        - $ref: '#/components/schemas/TimeDelta'
+
     RelativeDelta:
       description: Relative delta
       # TODO: Why we need these fields?
@@ -4661,6 +4673,11 @@ components:
         - deferred
         - removed
         - restarting
+
+    NullableTaskState:
+      nullable: true
+      allOf:
+        - $ref: '#/components/schemas/TaskState'
 
     DagState:
       description: |

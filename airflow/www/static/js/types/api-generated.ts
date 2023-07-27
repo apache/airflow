@@ -1298,6 +1298,7 @@ export interface components {
       description?: string | null;
       notification_sent?: boolean;
     } | null;
+    NullableSLAMiss: components["schemas"]["SLAMiss"] | null;
     Trigger: {
       id?: number;
       classpath?: string;
@@ -1306,6 +1307,7 @@ export interface components {
       created_date?: string;
       triggerer_id?: number | null;
     };
+    NullableTrigger: components["schemas"]["Trigger"] | null;
     Job: {
       id?: number;
       dag_id?: string | null;
@@ -1321,6 +1323,7 @@ export interface components {
       hostname?: string | null;
       unixname?: string | null;
     };
+    NullableJob: components["schemas"]["Job"] | null;
     TaskInstance: {
       task_id?: string;
       dag_id?: string;
@@ -1337,7 +1340,7 @@ export interface components {
       /** Format: datetime */
       end_date?: string | null;
       duration?: number | null;
-      state?: components["schemas"]["TaskState"] | null;
+      state?: components["schemas"]["NullableTaskState"];
       try_number?: number;
       map_index?: number;
       max_tries?: number;
@@ -1352,15 +1355,15 @@ export interface components {
       queued_when?: string | null;
       pid?: number | null;
       executor_config?: string;
-      sla_miss?: components["schemas"]["SLAMiss"] | null;
+      sla_miss?: components["schemas"]["NullableSLAMiss"];
       /**
        * @description JSON object describing rendered fields.
        *
        * *New in version 2.3.0*
        */
       rendered_fields?: { [key: string]: unknown };
-      trigger?: components["schemas"]["Trigger"] | null;
-      triggerer_job?: components["schemas"]["Job"] | null;
+      trigger?: components["schemas"]["NullableTrigger"];
+      triggerer_job?: components["schemas"]["NullableJob"];
       /**
        * @description Contains manually entered notes by the user about the TaskInstance.
        *
@@ -1460,7 +1463,7 @@ export interface components {
        * *Changed in version 2.0.1*&#58; Field becomes nullable.
        */
       start_date?: string | null;
-      dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
+      dag_run_timeout?: components["schemas"]["NullableTimeDelta"];
       doc_md?: string | null;
       default_view?: string;
       /**
@@ -1535,8 +1538,8 @@ export interface components {
       queue?: string | null;
       pool?: string;
       pool_slots?: number;
-      execution_timeout?: components["schemas"]["TimeDelta"] | null;
-      retry_delay?: components["schemas"]["TimeDelta"] | null;
+      execution_timeout?: components["schemas"]["NullableTimeDelta"];
+      retry_delay?: components["schemas"]["NullableTimeDelta"];
       retry_exponential_backoff?: boolean;
       priority_weight?: number;
       weight_rule?: components["schemas"]["WeightRule"];
@@ -2060,6 +2063,7 @@ export interface components {
       seconds: number;
       microseconds: number;
     };
+    NullableTimeDelta: components["schemas"]["TimeDelta"] | null;
     /** @description Relative delta */
     RelativeDelta: {
       __type: string;
@@ -2150,6 +2154,7 @@ export interface components {
       | "deferred"
       | "removed"
       | "restarting";
+    NullableTaskState: components["schemas"]["TaskState"] | null;
     /**
      * @description DAG State.
      *
@@ -4707,10 +4712,19 @@ export type ProviderCollection = CamelCasedPropertiesDeep<
 export type SLAMiss = CamelCasedPropertiesDeep<
   components["schemas"]["SLAMiss"]
 >;
+export type NullableSLAMiss = CamelCasedPropertiesDeep<
+  components["schemas"]["NullableSLAMiss"]
+>;
 export type Trigger = CamelCasedPropertiesDeep<
   components["schemas"]["Trigger"]
 >;
+export type NullableTrigger = CamelCasedPropertiesDeep<
+  components["schemas"]["NullableTrigger"]
+>;
 export type Job = CamelCasedPropertiesDeep<components["schemas"]["Job"]>;
+export type NullableJob = CamelCasedPropertiesDeep<
+  components["schemas"]["NullableJob"]
+>;
 export type TaskInstance = CamelCasedPropertiesDeep<
   components["schemas"]["TaskInstance"]
 >;
@@ -4830,6 +4844,9 @@ export type ScheduleInterval = CamelCasedPropertiesDeep<
 export type TimeDelta = CamelCasedPropertiesDeep<
   components["schemas"]["TimeDelta"]
 >;
+export type NullableTimeDelta = CamelCasedPropertiesDeep<
+  components["schemas"]["NullableTimeDelta"]
+>;
 export type RelativeDelta = CamelCasedPropertiesDeep<
   components["schemas"]["RelativeDelta"]
 >;
@@ -4850,6 +4867,9 @@ export type CollectionInfo = CamelCasedPropertiesDeep<
 >;
 export type TaskState = CamelCasedPropertiesDeep<
   components["schemas"]["TaskState"]
+>;
+export type NullableTaskState = CamelCasedPropertiesDeep<
+  components["schemas"]["NullableTaskState"]
 >;
 export type DagState = CamelCasedPropertiesDeep<
   components["schemas"]["DagState"]
