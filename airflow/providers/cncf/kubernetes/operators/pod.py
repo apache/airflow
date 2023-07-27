@@ -199,7 +199,7 @@ class KubernetesPodOperator(BaseOperator):
     :param hostnetwork: If True enable host networking on the pod.
     :param tolerations: A list of kubernetes tolerations.
     :param security_context: security options the pod should run with (PodSecurityContext).
-    :param container_security_context: security options the container should run with
+    :param container_security_context: security options the container should run with.
     :param dnspolicy: dnspolicy for the pod.
     :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
     :param hostname: hostname for the pod.
