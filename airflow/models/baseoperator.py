@@ -1556,9 +1556,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "template_fields",
                     "template_fields_renderers",
                     "params",
-                    "is_setup",
-                    "is_teardown",
-                    "on_failure_fail_dagrun",
+                    "_is_setup",
+                    "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
             )
             DagContext.pop_context_managed_dag()

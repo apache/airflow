@@ -336,6 +336,9 @@ class MappedOperator(AbstractOperator):
             "task_group",
             "upstream_task_ids",
             "supports_lineage",
+            "_is_setup",
+            "_is_teardown",
+            "_on_failure_fail_dagrun",
         }
 
     @staticmethod
