@@ -1170,7 +1170,7 @@ class TestSchedulerJob:
                 dict(),
                 5,
                 {"tg.dummy1"},
-                1,
+                2,
                 {"tg.dummy1"},
             ],
             [
@@ -1194,7 +1194,7 @@ class TestSchedulerJob:
                 {0: (State.SUCCESS, 30, 15), 1: (State.SUCCESS, 30, 15)},
                 5,
                 {"tg.dummy1", "tg.dummy2"},
-                1,
+                2,
                 {"tg.dummy2"},
             ],
         ],
@@ -1217,7 +1217,7 @@ class TestSchedulerJob:
 
             t1 = BashOperator(task_id="dummy", bash_command="sleep 300")
 
-            @task_group(max_active_groups_per_dagrun=1)
+            @task_group(max_active_groups_per_dagrun=concurrency_limit)
             def tg(what: str):
                 tgt1 = BashOperator(task_id="dummy1", bash_command="sleep 300")
                 tgt2 = BashOperator(task_id="dummy2", bash_command="echo done")
