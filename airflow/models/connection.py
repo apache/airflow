@@ -59,11 +59,10 @@ def sanitize_conn_id(conn_id: str | None) -> str | None:
     :param conn_id: The connection id to sanitize.
     :return: the sanitized string, `None` otherwise.
     """
-    res = None
     if conn_id is None or (res := re.match(_RE_SANITIZE_CONN_ID, conn_id)) is None:
         log.warning("We failed to match `conn_id` to the allowed pattern or it was None")
-
-    return res if res is None else conn_id
+        return conn_id
+    return res
 
 
 # Python automatically converts all letters to lowercase in hostname
