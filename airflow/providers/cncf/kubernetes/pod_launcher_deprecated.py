@@ -32,8 +32,8 @@ from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.kubernetes.kube_client import get_kube_client
-from airflow.kubernetes.pod_generator import PodDefaults
+from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
+from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State

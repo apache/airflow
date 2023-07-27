@@ -22,7 +22,9 @@ from unittest import mock
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.executors.local_executor import LocalExecutor
-from airflow.executors.local_kubernetes_executor import LocalKubernetesExecutor
+from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import (
+    LocalKubernetesExecutor,
+)
 
 
 class TestLocalKubernetesExecutor:

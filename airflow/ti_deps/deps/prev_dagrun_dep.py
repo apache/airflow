@@ -19,11 +19,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, literal, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.utils.db import exists_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 
@@ -57,13 +58,11 @@ class PrevDagrunDep(BaseTIDep):
 
         This function exists for easy mocking in tests.
         """
-        return (
-            session.scalar(
-                select(literal(True))
-                .where(TI.dag_id == dagrun.dag_id, TI.task_id == task_id, TI.run_id == dagrun.run_id)
-                .limit(1)
-            )
-            is not None
+        return exists_query(
+            TI.dag_id == dagrun.dag_id,
+            TI.task_id == task_id,
+            TI.run_id == dagrun.run_id,
+            session=session,
         )
 
     @staticmethod
@@ -72,17 +71,11 @@ class PrevDagrunDep(BaseTIDep):
 
         This function exists for easy mocking in tests.
         """
-        return (
-            session.scalar(
-                select(literal(True))
-                .where(
-                    TI.dag_id == ti.dag_id,
-                    TI.task_id == ti.task_id,
-                    TI.execution_date < ti.execution_date,
-                )
-                .limit(1)
-            )
-            is not None
+        return exists_query(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.execution_date < ti.execution_date,
+            session=session,
         )
 
     @staticmethod
@@ -116,18 +109,12 @@ class PrevDagrunDep(BaseTIDep):
         """
         if not task.downstream_task_ids:
             return False
-        return (
-            session.scalar(
-                select(literal(True))
-                .where(
-                    TI.dag_id == dagrun.dag_id,
-                    TI.task_id.in_(task.downstream_task_ids),
-                    TI.run_id == dagrun.run_id,
-                    or_(TI.state.is_(None), TI.state.not_in(_SUCCESSFUL_STATES)),
-                )
-                .limit(1)
-            )
-            is not None
+        return exists_query(
+            TI.dag_id == dagrun.dag_id,
+            TI.task_id.in_(task.downstream_task_ids),
+            TI.run_id == dagrun.run_id,
+            or_(TI.state.is_(None), TI.state.not_in(_SUCCESSFUL_STATES)),
+            session=session,
         )
 
     @provide_session

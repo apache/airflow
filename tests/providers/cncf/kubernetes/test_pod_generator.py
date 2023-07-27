@@ -29,15 +29,16 @@ from kubernetes.client import ApiClient, models as k8s
 from pytest import param
 
 from airflow import __version__
-from airflow.exceptions import AirflowConfigException, PodReconciliationError
-from airflow.kubernetes.pod_generator import (
+from airflow.exceptions import AirflowConfigException
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
+from airflow.providers.cncf.kubernetes.pod_generator import (
     PodDefaults,
     PodGenerator,
     datetime_to_label_safe_datestring,
     extend_object_field,
     merge_objects,
 )
-from airflow.kubernetes.secret import Secret
+from airflow.providers.cncf.kubernetes.secret import Secret
 
 now = pendulum.now("UTC")
 
@@ -162,14 +163,14 @@ class TestPodGenerator:
             ),
         )
 
-    @mock.patch("airflow.kubernetes.kubernetes_helper_functions.rand_str")
+    @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
     def test_gen_pod_extract_xcom(self, mock_rand_str):
         """
         Method gen_pod is used nowhere in codebase and is deprecated.
         This test is only retained for backcompat.
         """
         mock_rand_str.return_value = self.rand_str
-        path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
+        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
 
         pod_generator = PodGenerator(pod_template_file=path, extract_xcom=True)
         result = pod_generator.gen_pod()
@@ -327,7 +328,7 @@ class TestPodGenerator:
         } == result
 
     def test_reconcile_pods_empty_mutator_pod(self):
-        path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
+        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
         pod_generator = PodGenerator(pod_template_file=path, extract_xcom=True)
         base_pod = pod_generator.ud_pod
         mutator_pod = None
@@ -338,10 +339,10 @@ class TestPodGenerator:
         result = PodGenerator.reconcile_pods(base_pod, mutator_pod)
         assert base_pod == result
 
-    @mock.patch("airflow.kubernetes.kubernetes_helper_functions.rand_str")
+    @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
     def test_reconcile_pods(self, mock_rand_str):
         mock_rand_str.return_value = self.rand_str
-        path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
+        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
 
         base_pod = PodGenerator(pod_template_file=path, extract_xcom=False).ud_pod
 
@@ -402,7 +403,7 @@ class TestPodGenerator:
         ],
     )
     def test_construct_pod(self, config_image, expected_image):
-        template_file = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
+        template_file = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
         worker_config = PodGenerator.deserialize_model_file(template_file)
         executor_config = k8s.V1Pod(
             spec=k8s.V1PodSpec(
@@ -448,7 +449,7 @@ class TestPodGenerator:
         assert expected_dict == result_dict
 
     def test_construct_pod_mapped_task(self):
-        template_file = sys.path[0] + "/tests/kubernetes/pod_generator_base.yaml"
+        template_file = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base.yaml"
         worker_config = PodGenerator.deserialize_model_file(template_file)
         result = PodGenerator.construct_pod(
             dag_id=self.dag_id,
@@ -482,7 +483,7 @@ class TestPodGenerator:
         assert result_dict == expected_dict
 
     def test_construct_pod_empty_executor_config(self):
-        path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
+        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
         worker_config = PodGenerator.deserialize_model_file(path)
         executor_config = None
 
@@ -513,13 +514,13 @@ class TestPodGenerator:
         worker_config_result = self.k8s_client.sanitize_for_serialization(worker_config)
         assert sanitized_result == worker_config_result
 
-    @mock.patch("airflow.kubernetes.kubernetes_helper_functions.rand_str")
+    @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
     def test_construct_pod_attribute_error(self, mock_rand_str):
         """
         After upgrading k8s library we might get attribute error.
         In this case it should raise PodReconciliationError
         """
-        path = sys.path[0] + "/tests/kubernetes/pod_generator_base_with_secrets.yaml"
+        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
         worker_config = PodGenerator.deserialize_model_file(path)
         mock_rand_str.return_value = self.rand_str
         executor_config = MagicMock()
@@ -540,7 +541,7 @@ class TestPodGenerator:
                 scheduler_job_id="uuid",
             )
 
-    @mock.patch("airflow.kubernetes.kubernetes_helper_functions.rand_str")
+    @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
     def test_ensure_max_identifier_length(self, mock_rand_str):
         mock_rand_str.return_value = self.rand_str
         path = os.path.join(os.path.dirname(__file__), "pod_generator_base_with_secrets.yaml")
@@ -703,14 +704,14 @@ class TestPodGenerator:
         assert res.init_containers == base_spec.init_containers + client_spec.init_containers
 
     def test_deserialize_model_file(self, caplog):
-        path = sys.path[0] + "/tests/kubernetes/pod.yaml"
+        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod.yaml"
         result = PodGenerator.deserialize_model_file(path)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         assert sanitized_res == self.deserialize_result
         assert len(caplog.records) == 0
 
     def test_deserialize_non_existent_model_file(self, caplog):
-        path = sys.path[0] + "/tests/kubernetes/non_existent.yaml"
+        path = sys.path[0] + "/tests/providers/cncf/kubernetes/non_existent.yaml"
         result = PodGenerator.deserialize_model_file(path)
         sanitized_res = self.k8s_client.sanitize_for_serialization(result)
         assert sanitized_res == {}

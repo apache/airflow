@@ -23,6 +23,7 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tempfile
 import unittest
 from argparse import ArgumentParser
@@ -48,6 +49,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
@@ -747,9 +749,11 @@ class TestLogsfromTaskRunCommand:
         """
         import subprocess
 
-        with mock.patch.dict("os.environ", AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s):
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s, PYTHONPATH=os.fspath(AIRFLOW_SOURCES_ROOT)
+        ):
             with subprocess.Popen(
-                args=["airflow", *self.task_args, "-S", self.dag_path],
+                args=[sys.executable, "-m", "airflow", *self.task_args, "-S", self.dag_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             ) as process:
