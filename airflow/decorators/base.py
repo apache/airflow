@@ -302,9 +302,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     decorator_name: str = attr.ib(repr=False, default="task")
 
     _airflow_is_task_decorator: ClassVar[bool] = True
-    is_setup: ClassVar[bool] = False
-    is_teardown: ClassVar[bool] = False
-    on_failure_fail_dagrun: ClassVar[bool] = False
+    is_setup: bool = False
+    is_teardown: bool = False
+    on_failure_fail_dagrun: bool = False
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
