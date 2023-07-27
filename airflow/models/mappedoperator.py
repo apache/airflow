@@ -636,7 +636,7 @@ class MappedOperator(AbstractOperator):
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
             is_setup = kwargs.pop("is_setup", False)
             is_teardown = kwargs.pop("is_teardown", False)
-            on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun")
+            on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
             op = self.operator_class(**kwargs, _airflow_from_mapped=True)
             # We need to overwrite task_id here because BaseOperator further
             # mangles the task_id based on the task hierarchy (namely, group_id
