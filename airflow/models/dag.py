@@ -2744,10 +2744,7 @@ class DAG(LoggingMixin):
                     ti.task = tasks[ti.task_id]
                     _run_task(ti, session=session)
                 except Exception:
-                    self.log.info(
-                        "Task failed. DAG will continue to run until finished and be marked as failed.",
-                        exc_info=True,
-                    )
+                    self.log.exception("Task failed; ti=%s", ti)
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
