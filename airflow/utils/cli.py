@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 import re2
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -61,9 +62,10 @@ def _check_cli_args(args):
 def action_cli(func=None, check_db=True):
     def action_logging(f: T) -> T:
         """
-        Decorates function to execute function at the same time submitting action_logging
-        but in CLI context. It will call action logger callbacks twice,
-        one for pre-execution and the other one for post-execution.
+        Decorates function to execute function at the same time submitting action_logging but in CLI context.
+
+        It will call action logger callbacks twice, one for
+        pre-execution and the other one for post-execution.
 
         Action logger will be called with below keyword parameters:
             sub_command : name of sub-command
@@ -84,8 +86,7 @@ def action_cli(func=None, check_db=True):
         @functools.wraps(f)
         def wrapper(*args, **kwargs):
             """
-            An wrapper for cli functions. It assumes to have Namespace instance
-            at 1st positional argument.
+            A wrapper for cli functions; assumes Namespace instance as first positional argument.
 
             :param args: Positional argument. It assumes to have Namespace instance
                 at 1st positional argument
@@ -126,7 +127,8 @@ def action_cli(func=None, check_db=True):
 
 def _build_metrics(func_name, namespace):
     """
-    Builds metrics dict from function args
+    Builds metrics dict from function args.
+
     It assumes that function arguments is from airflow.bin.cli module's function
     and has Namespace instance where it optionally contains "dag_id", "task_id",
     and "execution_date".
@@ -266,7 +268,7 @@ def get_dag_by_pickle(pickle_id: int, session: Session = NEW_SESSION) -> DAG:
     """Fetch DAG from the database using pickling."""
     from airflow.models import DagPickle
 
-    dag_pickle = session.query(DagPickle).filter(DagPickle.id == pickle_id).first()
+    dag_pickle = session.scalar(select(DagPickle).where(DagPickle.id == pickle_id)).first()
     if not dag_pickle:
         raise AirflowException(f"pickle_id could not be found in DagPickle.id list: {pickle_id}")
     pickle_dag = dag_pickle.pickle
@@ -359,10 +361,7 @@ def should_ignore_depends_on_past(args) -> bool:
 
 
 def suppress_logs_and_warning(f: T) -> T:
-    """
-    Decorator to suppress logging and warning messages
-    in cli functions.
-    """
+    """Decorator to suppress logging and warning messages in cli functions."""
 
     @functools.wraps(f)
     def _wrapper(*args, **kwargs):

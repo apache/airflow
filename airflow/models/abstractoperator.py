@@ -31,6 +31,7 @@ from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.template.templater import Templater
 from airflow.utils.context import Context
+from airflow.utils.db import exists_query
 from airflow.utils.log.secrets_masker import redact
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import skip_locked, with_row_locks
@@ -302,7 +303,8 @@ class AbstractOperator(Templater, DAGNode):
         This method is meant to be used when we are clearing the task (non-upstream) and we need
         to add in the *relevant* setups and their teardowns.
 
-        Relevant in this case means, the setup has a teardown that is downstream of ``self``.
+        Relevant in this case means, the setup has a teardown that is downstream of ``self``,
+        or the setup has no teardowns.
         """
         downstream_teardown_ids = {
             x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
@@ -310,7 +312,9 @@ class AbstractOperator(Templater, DAGNode):
         for task in self.get_flat_relatives(upstream=True):
             if not task.is_setup:
                 continue
-            if not task.downstream_task_ids.isdisjoint(downstream_teardown_ids):
+            has_no_teardowns = not any(True for x in task.downstream_list if x.is_teardown)
+            # if task has no teardowns or has teardowns downstream of self
+            if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
                 yield task
                 for t in task.downstream_list:
                     if t.is_teardown and not t == self:
@@ -466,7 +470,7 @@ class AbstractOperator(Templater, DAGNode):
 
     @cached_property
     def extra_links(self) -> list[str]:
-        return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
+        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
     def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.
@@ -590,16 +594,12 @@ class AbstractOperator(Templater, DAGNode):
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
             else:
-                zero_index_ti_exists = (
-                    session.scalar(
-                        select(func.count(TaskInstance.task_id)).where(
-                            TaskInstance.dag_id == self.dag_id,
-                            TaskInstance.task_id == self.task_id,
-                            TaskInstance.run_id == run_id,
-                            TaskInstance.map_index == 0,
-                        )
-                    )
-                    > 0
+                zero_index_ti_exists = exists_query(
+                    TaskInstance.dag_id == self.dag_id,
+                    TaskInstance.task_id == self.task_id,
+                    TaskInstance.run_id == run_id,
+                    TaskInstance.map_index == 0,
+                    session=session,
                 )
                 if not zero_index_ti_exists:
                     # Otherwise convert this into the first mapped index, and create

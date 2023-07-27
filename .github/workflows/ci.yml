@@ -1308,15 +1308,13 @@ jobs:
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PARALLEL_TEST_TYPES: "Quarantined"
+      TEST_TYPE: "Quarantined"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      BACKEND: "sqlite"
-      BACKEND_VERSION: ""
       JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.runs-on == 'self-hosted'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1329,8 +1327,45 @@ jobs:
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze testing tests --run-in-parallel || true
+          Tests: postgres:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "postgres"
+          BACKEND_VERSION: "11"
+          POSTGRES_VERSION: "11"
+      - name: >
+          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze down
+      - name: >
+          Tests: mysql:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "mysql"
+          BACKEND_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
+          MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
+      - name: >
+          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze down
+      - name: >
+          Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "mssql"
+          BACKEND_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
+          MSSQL_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
+      - name: >
+          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze down
+      - name: >
+          Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "sqlite"
+          BACKEND_VERSION: ""
+          MSSQL_VERSION: ""
+      - name: >
+          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze down
       - name: >
           Post Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined"
         uses: ./.github/actions/post_tests

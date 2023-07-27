@@ -26,6 +26,7 @@ from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
+from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import nowait, with_row_locks
 from airflow.utils.state import TaskInstanceState
@@ -95,11 +96,10 @@ class Pool(Base):
         :param session: SQLAlchemy ORM Session
         :return: True if id is default_pool, otherwise False
         """
-        return (
-            session.scalar(
-                select(func.count(Pool.id)).where(Pool.id == id, Pool.pool == Pool.DEFAULT_POOL_NAME)
-            )
-            > 0
+        return exists_query(
+            Pool.id == id,
+            Pool.pool == Pool.DEFAULT_POOL_NAME,
+            session=session,
         )
 
     @staticmethod

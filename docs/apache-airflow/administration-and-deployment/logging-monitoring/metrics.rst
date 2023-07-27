@@ -73,7 +73,24 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     otel_port = 8889
     otel_prefix = airflow
     otel_interval_milliseconds = 30000  # The interval between exports, defaults to 60000
+    otel_ssl_active = False
 
+Enable Https
+-----------------
+
+To establish an HTTPS connection to the OpenTelemetry collector
+You need to configure the SSL certificate and key within the OpenTelemetry collector's ``config.yml`` file.
+
+.. code-block:: yaml
+
+   receivers:
+     otlp:
+       protocols:
+         http:
+           endpoint: 0.0.0.0:4318
+           tls:
+             cert_file: "/path/to/cert/cert.crt"
+             key_file: "/path/to/key/key.pem"
 
 Allow/Block Lists
 -----------------

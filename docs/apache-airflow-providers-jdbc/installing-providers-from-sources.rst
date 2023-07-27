@@ -15,4 +15,4 @@
     specific language governing permissions and limitations
     under the License.
 
-.. include:: ../installing-providers-from-sources.rst
+.. include:: ../exts/includes/installing-providers-from-sources.rst

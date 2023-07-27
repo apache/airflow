@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 from airflow.utils import cli as cli_utils
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def sync_perm(args):
     """Updates permissions for existing roles and DAGs."""
     from airflow.utils.cli_app_builder import get_application_builder

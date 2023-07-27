@@ -47,6 +47,7 @@ export interface CustomNodeProps {
   isOpen?: boolean;
   isActive?: boolean;
   setupTeardownType?: "setup" | "teardown";
+  fullParentNode?: string;
 }
 
 export const BaseNode = ({

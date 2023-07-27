@@ -54,6 +54,16 @@ CLUSTER_CONFIG = {
         "machine_type_uri": "n1-standard-4",
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
+    "secondary_worker_config": {
+        "num_instances": 1,
+        "machine_type_uri": "n1-standard-4",
+        "disk_config": {
+            "boot_disk_type": "pd-standard",
+            "boot_disk_size_gb": 1024,
+        },
+        "is_preemptible": True,
+        "preemptibility": "PREEMPTIBLE",
+    },
 }
 
 # [END how_to_cloud_dataproc_create_cluster]
@@ -74,7 +84,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "dataproc", "hive"],
 ) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator]
     create_cluster = DataprocCreateClusterOperator(
@@ -100,7 +110,14 @@ with models.DAG(
     # [END how_to_cloud_dataproc_delete_cluster_operator]
     delete_cluster.trigger_rule = TriggerRule.ALL_DONE
 
-    create_cluster >> hive_task >> delete_cluster
+    (
+        # TEST SETUP
+        create_cluster
+        # TEST BODY
+        >> hive_task
+        # TEST TEARDOWN
+        >> delete_cluster
+    )
 
     from tests.system.utils.watcher import watcher
 
