@@ -323,9 +323,6 @@ class MappedOperator(AbstractOperator):
                 f"SLAs are unsupported with mapped tasks. Please set `sla=None` for task "
                 f"{self.task_id!r}."
             )
-        is_setup: bool | None
-        is_teardown: bool | None
-        on_failure_fail_dagrun: bool | None
 
     @classmethod
     @cache

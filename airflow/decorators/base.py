@@ -386,11 +386,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             if "trigger_rule" in self.kwargs:
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        obj = self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
-        obj.is_setup = self.is_setup
-        obj.is_teardown = self.is_teardown
-        obj.on_failure_fail_dagrun = self.on_failure_fail_dagrun
-        return obj
+        return self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
         if isinstance(kwargs, Sequence):
@@ -414,7 +410,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             task_params=task_kwargs.pop("params", None),
             task_default_args=task_kwargs.pop("default_args", None),
         )
-        partial_kwargs.update(task_kwargs)
+        partial_kwargs.update(
+            task_kwargs,
+            is_setup=self.is_setup,
+            is_teardown=self.is_teardown,
+            on_failure_fail_dagrun=self.on_failure_fail_dagrun,
+        )
 
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         if task_group:
