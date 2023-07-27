@@ -48,4 +48,4 @@ def upgrade():
 def downgrade():
     """Remove is_setup column from task_instance"""
     with op.batch_alter_table(TABLE_NAME) as batch_op:
-        batch_op.drop_column("is_setup")
+        batch_op.drop_column("is_setup", mssql_drop_default=True)
