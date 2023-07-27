@@ -142,7 +142,7 @@ class RedshiftToS3Operator(BaseOperator):
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
     ) -> str:
         return f"""
-                    UNLOAD ('{select_query}')
+                    UNLOAD ($${select_query}$$)
                     TO 's3://{self.s3_bucket}/{s3_key}'
                     credentials
                     '{credentials_block}'

@@ -395,3 +395,51 @@ class TestRedshiftToS3Transfer:
         )
         # test sql arg
         assert_equal_ignore_multiple_spaces(mock_rs.execute_statement.call_args.kwargs["Sql"], unload_query)
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
+    def test_query_with_single_quotes(self, mock_run):
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
+        mock_connection.return_value = Connection()
+        mock_hook.return_value = Connection()
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+        unload_options = [
+            "HEADER",
+        ]
+
+        # Test a query with single quotes
+        select_query = "SELECT * FROM table WHERE column = 'value with single quotes'"
+
+        op = RedshiftToS3Operator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            unload_options=unload_options,
+            include_header=True,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            select_query=select_query,
+            dag=None,
+        )
+
+        op.execute(None)
+
+        # Assert that the query is wrapped with double dollar sign quotes
+        expected_unload_query = f"""
+            UNLOAD('SELECT * FROM table WHERE column = $$SELECT * FROM table WHERE column = 'value with single quotes'$$')
+            TO 's3://bucket/key'
+            IAM_ROLE 'arn:aws:iam::123456789012:role/MyRedshiftRole'
+            HEADER
+            ALLOWOVERWRITE;
+        """
+        expected_unload_query = expected_unload_query.strip().replace("\n", " ").replace("\t", " ")
+
+        mock_run.assert_called_once_with(expected_unload_query)
