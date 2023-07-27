@@ -380,25 +380,17 @@ Testing for DAG Import Errors
 The CLI can be used to check whether any discovered DAGs have import errors via the ``list-import-errors`` subcommand. It is possible to create an automation step which fails if any DAGs cannot be imported by checking the command output, particularly when used with ``--output`` to generate a standard file format. 
 For example, the default output when there are no errors is ``No data found``, and the json output is ``[]``. The check can then be run in CI or pre-commit to speed up the review process and testing.
 
-Example command that fails if there are any errors:
+Example command that fails if there are any errors, using `jq <https://jqlang.github.io/jq/>`__ to parse the output:
 
 .. code-block:: bash
 
-    airflow dags list-import-errors | grep -q "No data found"
-
-This can be done more reliably with `jq <https://jqlang.github.io/jq/>`__:
-
-.. code-block:: bash
-
-    airflow dags list-import-errors --output=json | jq -e \'select(type=="array" and length == 0)\'
+    airflow dags list-import-errors --output=json | jq -e 'select(type=="array" and length == 0)'
 
 The line can be added to automation as-is, or if you want to print the output you can use ``tee``:
 
 .. code-block:: bash
 
-    airflow dags list-import-errors | tee import_errors.txt && grep -q "No data found" import_errors.txt
-    # or
-    airflow dags list-import-errors | tee import_errors.txt && jq -e \'select(type=="array" and length == 0)\' import_errors.txt
+    airflow dags list-import-errors | tee import_errors.txt && jq -e 'select(type=="array" and length == 0)' import_errors.txt
 
 Example in a Jenkins pipeline:
 
@@ -406,8 +398,6 @@ Example in a Jenkins pipeline:
 
     stage('All DAGs are loadable') {
         steps {
-            sh 'airflow dags list-import-errors | tee import_errors.txt && grep -q "No data found" import_errors.txt'
-            // or
             sh 'airflow dags list-import-errors | tee import_errors.txt && jq -e \'select(type=="array" and length == 0)\' import_errors.txt'
         }
     }
