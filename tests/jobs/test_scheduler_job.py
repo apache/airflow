@@ -1205,6 +1205,22 @@ class TestSchedulerJob:
                 2,
                 {"tg.dummy2"},
             ],
+            [
+                2,
+                {0: (State.SUCCESS, 30, 15), 5: (State.SUCCESS, 30, 15), 1: (State.RUNNING, 30, None)},
+                3,
+                {"tg.dummy1"},
+                1,
+                {"tg.dummy1"},
+            ],
+            [
+                2,
+                {0: (State.SUCCESS, 30, 15), 5: (State.SUCCESS, 30, 15), 1: (State.SUCCESS, 30, 15)},
+                4,
+                {"tg.dummy1", "tg.dummy2"},
+                2,
+                {"tg.dummy1", "tg.dummy2"},
+            ],
         ],
     )
     def test_find_executable_task_instances_with_task_group_concurrency_limit(
