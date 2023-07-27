@@ -29,14 +29,13 @@ interface Props {
 }
 
 const GanttTooltip = ({ task, instance }: Props) => {
-  const hasQueuedDttm = !!instance?.queuedDttm;
   const isGroup = !!task.children;
   const isMappedOrGroupSummary = isGroup || task.isMapped;
 
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);
-  const queuedDuration = hasQueuedDttm
-    ? getDuration(instance?.queuedDttm, instance?.startDate)
+  const queuedDuration = instance?.queuedDttm
+    ? getDuration(instance.queuedDttm, instance?.startDate)
     : 0;
   return (
     <Box>
@@ -44,7 +43,7 @@ const GanttTooltip = ({ task, instance }: Props) => {
         Task{isGroup ? " Group" : ""}: {task.label}
       </Text>
       <br />
-      {hasQueuedDttm && (
+      {instance?.queuedDttm && (
         <Text>
           {isMappedOrGroupSummary && "Total "}Queued Duration:{" "}
           {formatDuration(queuedDuration)}
@@ -55,26 +54,24 @@ const GanttTooltip = ({ task, instance }: Props) => {
         {formatDuration(taskDuration)}
       </Text>
       <br />
-      {hasQueuedDttm && (
+      {instance?.queuedDttm && (
         <Text>
           {isMappedOrGroupSummary && "Earliest "}Queued At:{" "}
           <Time dateTime={instance?.queuedDttm} />
         </Text>
       )}
-      <Text>
-        {isMappedOrGroupSummary && "Earliest "}Start:{" "}
-        <Time dateTime={instance?.startDate} />
-      </Text>
-      <Text>
-        {instance?.endDate ? (
-          <>
-            {isMappedOrGroupSummary && "Latest "}End:{" "}
-            <Time dateTime={instance?.endDate} />
-          </>
-        ) : (
-          "Ongoing"
-        )}
-      </Text>
+      {instance?.startDate && (
+        <Text>
+          {isMappedOrGroupSummary && "Earliest "}Start:{" "}
+          <Time dateTime={instance?.startDate} />
+        </Text>
+      )}
+      {instance?.endDate && (
+        <Text>
+          {isMappedOrGroupSummary && "Latest "}End:{" "}
+          <Time dateTime={instance?.endDate} />
+        </Text>
+      )}
     </Box>
   );
 };
