@@ -1543,6 +1543,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "_BaseOperator__instantiated",
                     "_BaseOperator__init_kwargs",
                     "_BaseOperator__from_mapped",
+                    "_is_setup",
+                    "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
                 | {  # Class level defaults need to be added to this list
                     "start_date",
@@ -1556,9 +1559,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "template_fields",
                     "template_fields_renderers",
                     "params",
-                    "_is_setup",
-                    "_is_teardown",
-                    "_on_failure_fail_dagrun",
+                    "is_setup",
+                    "is_teardown",
+                    "on_failure_fail_dagrun",
                 }
             )
             DagContext.pop_context_managed_dag()
