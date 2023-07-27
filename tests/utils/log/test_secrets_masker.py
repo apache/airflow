@@ -228,32 +228,34 @@ class TestSecretsMasker:
             (None, "", set()),
         ],
     )
-    def test_mask_secret(self, name, value, expected_mask):
+    def test_mask_secret(self, name, value, escape_secret, expected_mask):
         filt = SecretsMasker()
-        filt.add_mask(value, name)
+        filt.add_mask(value, name, escape_secret)
 
         assert filt.patterns == expected_mask
 
     @pytest.mark.parametrize(
-        ("patterns", "name", "value", "expected"),
+        ("patterns", "name", "value", "escape_secret", "expected"),
         [
-            ({"secret"}, None, "secret", "***"),
+            ({"secret"}, None, "secret", True, "***"),
             (
                 {"secret", "foo"},
                 None,
                 {"apikey": "secret", "other": {"val": "innocent", "password": "foo"}},
+                True,
                 {"apikey": "***", "other": {"val": "innocent", "password": "***"}},
             ),
-            ({"secret", "other"}, None, ["secret", "other"], ["***", "***"]),
+            ({"secret", "other"}, None, ["secret", "other"], True, ["***", "***"]),
             # We don't mask dict _keys_.
-            ({"secret", "other"}, None, {"data": {"secret": "secret"}}, {"data": {"secret": "***"}}),
+            ({"secret", "other"}, None, {"data": {"secret": "secret"}}, True, {"data": {"secret": "***"}}),
             # Non string dict keys
-            ({"secret", "other"}, None, {1: {"secret": "secret"}}, {1: {"secret": "***"}}),
+            ({"secret", "other"}, None, {1: {"secret": "secret"}}, True, {1: {"secret": "***"}}),
             (
                 # Since this is a sensitive name, all the values should be redacted!
                 {"secret"},
                 "api_key",
                 {"other": "innoent", "nested": ["x", "y"]},
+                True,
                 {"other": "***", "nested": ["***", "***"]},
             ),
             (
@@ -261,8 +263,17 @@ class TestSecretsMasker:
                 set(),
                 "env",
                 {"api_key": "masked based on key name", "other": "foo"},
+                True,
                 {"api_key": "***", "other": "foo"},
             ),
+            (
+                # Test that a wildcard pattern can be passed and used as a proper REGEX
+                {"^.+$"},
+                None,
+                {"apiKey": "STUB_kEY_VAL"},
+                False,
+                {"apiKey": "***"},
+            )
         ],
     )
     def test_redact(self, patterns, name, value, expected):
