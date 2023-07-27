@@ -21,11 +21,7 @@ from abc import abstractmethod
 
 
 class BaseUser:
-    """
-    User model interface.
-
-    This is the base interface for all user models.
-    """
+    """User model interface."""
 
     @property
     def is_authenticated(self) -> bool:
