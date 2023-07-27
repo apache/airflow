@@ -467,6 +467,7 @@
       "microsoft.azure",
       "microsoft.mssql",
       "mysql",
+      "openlineage",
       "oracle",
       "postgres",
       "presto",
