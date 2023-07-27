@@ -37,4 +37,4 @@ class TestEventBridgeHook:
     def test_put_rule_with_bad_json_fails(self):
         hook = EventBridgeHook(aws_conn_id="aws_default")
         with pytest.raises(AirflowException):
-            hook.put_rule(name="test", event_pattern='{"source"; ["aws.s3"]}', state="ENABLED")
+            hook.put_rule(name="test", event_pattern="invalid json", state="ENABLED")

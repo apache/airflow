@@ -98,7 +98,7 @@ class TestEventBridgePutRuleOperator:
 
     def test_put_rule_with_bad_json_fails(self):
         operator = EventBridgePutRuleOperator(
-            task_id="failed_put_rule_job", name="match_s3_events", event_pattern='{"source"; ["aws.s3"]}'
+            task_id="failed_put_rule_job", name="match_s3_events", event_pattern="invalid json"
         )
 
         with pytest.raises(AirflowException):

@@ -48,7 +48,8 @@ class EventBridgeHook(AwsBaseHook):
         tags: list[dict] | None = None,
         **kwargs,
     ):
-        """Create or update an EventBridge rule.
+        """
+        Create or update an EventBridge rule.
 
         :param name: name of the rule to create or update (required)
         :param description: description of the rule

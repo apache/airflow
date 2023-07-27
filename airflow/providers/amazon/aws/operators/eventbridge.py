@@ -88,7 +88,8 @@ class EventBridgePutEventsOperator(BaseOperator):
 
 
 class EventBridgePutRuleOperator(BaseOperator):
-    """Create or update a specified EventBridge rule.
+    """
+    Create or update a specified EventBridge rule.
 
     :param name: name of the rule to create or update (required)
     :param description: description of the rule
