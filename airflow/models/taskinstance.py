@@ -420,7 +420,7 @@ class TaskInstance(Base, LoggingMixin):
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
-    is_setup = Column(Boolean)
+    is_setup = Column(Boolean, nullable=False, default=False, server_default=false())
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
