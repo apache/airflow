@@ -59,7 +59,7 @@ def sanitize_conn_id(conn_id: str | None) -> str | None:
     :param conn_id: The connection id to sanitize.
     :return: the sanitized string, `None` otherwise.
     """
-    # check if `conn_id` or our match group `None`
+    # check if `conn_id` or our match group is `None`
     if conn_id is None or (res := re2.match(_RE_SANITIZE_CONN_ID, conn_id)) is None:
         log.warning("We failed to match `conn_id` to the allowed pattern or it was None")
         return conn_id
