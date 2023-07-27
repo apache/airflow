@@ -305,6 +305,7 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       # Force more parallelism for build even on public images
       PARALLELISM: 6
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
