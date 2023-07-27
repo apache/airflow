@@ -253,6 +253,7 @@ jobs:
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
