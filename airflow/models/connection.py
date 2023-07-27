@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import json
 import logging
-import re2
 import warnings
 from json import JSONDecodeError
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
+import re2
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
@@ -59,10 +59,12 @@ def sanitize_conn_id(conn_id: str | None) -> str | None:
     :param conn_id: The connection id to sanitize.
     :return: the sanitized string, `None` otherwise.
     """
-    if conn_id is None or (res := re.match(_RE_SANITIZE_CONN_ID, conn_id)) is None:
+    # check if `conn_id` or our match group `None`
+    if conn_id is None or (res := re2.match(_RE_SANITIZE_CONN_ID, conn_id)) is None:
         log.warning("We failed to match `conn_id` to the allowed pattern or it was None")
         return conn_id
-    return res
+    # if we reach here, then we matched something, return the first match
+    return res.group(0)
 
 
 # Python automatically converts all letters to lowercase in hostname
