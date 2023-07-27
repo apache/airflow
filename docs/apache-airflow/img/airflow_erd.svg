@@ -823,6 +823,7 @@
 <polygon fill="none" stroke="black" points="855.5,-715 855.5,-740 1158.5,-740 1158.5,-715 855.5,-715"/>
 <text text-anchor="start" x="860.5" y="-724.8" font-family="Helvetica,sans-Serif" font-size="14.00">is_setup</text>
 <text text-anchor="start" x="918.5" y="-724.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
+<text text-anchor="start" x="1002.5" y="-724.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="855.5,-690 855.5,-715 1158.5,-715 1158.5,-690 855.5,-690"/>
 <text text-anchor="start" x="860.5" y="-699.8" font-family="Helvetica,sans-Serif" font-size="14.00">job_id</text>
 <text text-anchor="start" x="901.5" y="-699.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>

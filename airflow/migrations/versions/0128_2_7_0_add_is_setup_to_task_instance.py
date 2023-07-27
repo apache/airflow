@@ -42,7 +42,7 @@ TABLE_NAME = "task_instance"
 def upgrade():
     """Apply is_setup column to task_instance"""
     with op.batch_alter_table(TABLE_NAME) as batch_op:
-        batch_op.add_column(sa.Column("is_setup", sa.Boolean(), nullable=False, server_default=sa.false()))
+        batch_op.add_column(sa.Column("is_setup", sa.Boolean(), nullable=False, server_default="0"))
 
 
 def downgrade():
