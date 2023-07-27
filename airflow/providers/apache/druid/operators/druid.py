@@ -36,6 +36,7 @@ class DruidOperator(BaseOperator):
     :param timeout: The interval (in seconds) between polling the Druid job for the status
         of the ingestion job. Must be greater than or equal to 1
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
+    :param ingestion_type: The ingestion type of the job. Could be IngestionType.Batch or IngestionType.MSQ
     """
 
     template_fields: Sequence[str] = ("json_index_file",)
