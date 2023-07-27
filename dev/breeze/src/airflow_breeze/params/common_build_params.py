@@ -65,6 +65,7 @@ class CommonBuildParams:
     upgrade_to_newer_dependencies: bool = False
     upgrade_on_failure: bool = False
     dry_run: bool = False
+    version_suffix_for_pypi: str = ""
     verbose: bool = False
 
     @property
