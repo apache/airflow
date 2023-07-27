@@ -1191,6 +1191,14 @@ class TestSchedulerJob:
             ],
             [
                 2,
+                {0: (State.RUNNING, 30, None), 1: (State.SUCCESS, 30, 15)},
+                4,
+                {"tg.dummy1", "tg.dummy2"},
+                1,
+                {"tg.dummy2"},
+            ],
+            [
+                2,
                 {0: (State.SUCCESS, 30, 15), 1: (State.SUCCESS, 30, 15)},
                 5,
                 {"tg.dummy1", "tg.dummy2"},
