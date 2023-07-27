@@ -161,7 +161,7 @@ class OpenLineageListener:
             self.executor.shutdown(wait=True)
 
     @hookimpl
-    def on_dag_run_running(self, dag_run: DagRun, msg: str):
+    def on_dag_run_running(self, dag_run: DagRun, msg: str, session):
         if not self.executor:
             self.log.error("Executor have not started before `on_dag_run_running`")
             return
@@ -174,14 +174,14 @@ class OpenLineageListener:
         )
 
     @hookimpl
-    def on_dag_run_success(self, dag_run: DagRun, msg: str):
+    def on_dag_run_success(self, dag_run: DagRun, msg: str, session):
         if not self.executor:
             self.log.error("Executor have not started before `on_dag_run_success`")
             return
         self.executor.submit(self.adapter.dag_success, dag_run=dag_run, msg=msg)
 
     @hookimpl
-    def on_dag_run_failed(self, dag_run: DagRun, msg: str):
+    def on_dag_run_failed(self, dag_run: DagRun, msg: str, session):
         if not self.executor:
             self.log.error("Executor have not started before `on_dag_run_failed`")
             return

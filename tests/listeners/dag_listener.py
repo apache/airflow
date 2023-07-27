@@ -24,7 +24,7 @@ from airflow.listeners import hookimpl
 
 if typing.TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
-
+    from sqlalchemy.orm.session import Session
 
 running: list[DagRun] = []
 success: list[DagRun] = []
@@ -32,17 +32,17 @@ failure: list[DagRun] = []
 
 
 @hookimpl
-def on_dag_run_running(dag_run: DagRun, msg: str):
+def on_dag_run_running(dag_run: DagRun, msg: str, session):
     running.append(copy.deepcopy(dag_run))
 
 
 @hookimpl
-def on_dag_run_success(dag_run: DagRun, msg: str):
+def on_dag_run_success(dag_run: DagRun, msg: str, session):
     success.append(copy.deepcopy(dag_run))
 
 
 @hookimpl
-def on_dag_run_failed(dag_run: DagRun, msg: str):
+def on_dag_run_failed(dag_run: DagRun, msg: str, session):
     failure.append(dag_run)
 
 

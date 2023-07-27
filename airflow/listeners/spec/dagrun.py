@@ -23,20 +23,21 @@ from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+    from sqlalchemy.orm.session import Session
 
 hookspec = HookspecMarker("airflow")
 
 
 @hookspec
-def on_dag_run_running(dag_run: DagRun, msg: str):
+def on_dag_run_running(dag_run: DagRun, msg: str, session: Session | None):
     """Called when dag run state changes to RUNNING."""
 
 
 @hookspec
-def on_dag_run_success(dag_run: DagRun, msg: str):
+def on_dag_run_success(dag_run: DagRun, msg: str, session: Session | None):
     """Called when dag run state changes to SUCCESS."""
 
 
 @hookspec
-def on_dag_run_failed(dag_run: DagRun, msg: str):
+def on_dag_run_failed(dag_run: DagRun, msg: str, session: Session | None):
     """Called when dag run state changes to FAIL."""

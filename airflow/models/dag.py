@@ -2730,6 +2730,7 @@ class DAG(LoggingMixin):
             conf=run_conf,
             data_interval=data_interval,
         )
+        dr.notify_dagrun_state_changed(session=session)
 
         tasks = self.task_dict
         self.log.debug("starting dagrun")

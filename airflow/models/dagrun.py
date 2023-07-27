@@ -637,7 +637,7 @@ class DagRun(Base, LoggingMixin):
         if not unfinished.tis and any(x.state in State.failed_states for x in tis_for_dagrun_state):
             self.log.error("Marking run %s failed", self)
             self.set_state(DagRunState.FAILED)
-            self.notify_dagrun_state_changed(msg="task_failure")
+            self.notify_dagrun_state_changed(session=session, msg="task_failure")
 
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason="task_failure", session=session)
@@ -658,7 +658,7 @@ class DagRun(Base, LoggingMixin):
         elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
             self.log.info("Marking run %s successful", self)
             self.set_state(DagRunState.SUCCESS)
-            self.notify_dagrun_state_changed(msg="success")
+            self.notify_dagrun_state_changed(session=session, msg="success")
 
             if execute_callbacks:
                 dag.handle_callback(self, success=True, reason="success", session=session)
@@ -679,7 +679,7 @@ class DagRun(Base, LoggingMixin):
         elif unfinished.should_schedule and not are_runnable_tasks:
             self.log.error("Task deadlock (no runnable tasks); marking run %s failed", self)
             self.set_state(DagRunState.FAILED)
-            self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
+            self.notify_dagrun_state_changed(session=session, msg="all_tasks_deadlocked")
 
             if execute_callbacks:
                 dag.handle_callback(self, success=False, reason="all_tasks_deadlocked", session=session)
@@ -784,13 +784,13 @@ class DagRun(Base, LoggingMixin):
             finished_tis=finished_tis,
         )
 
-    def notify_dagrun_state_changed(self, msg: str = ""):
+    def notify_dagrun_state_changed(self, session: Session, msg: str = ""):
         if self.state == DagRunState.RUNNING:
-            get_listener_manager().hook.on_dag_run_running(dag_run=self, msg=msg)
+            get_listener_manager().hook.on_dag_run_running(dag_run=self, msg=msg, session=session)
         elif self.state == DagRunState.SUCCESS:
-            get_listener_manager().hook.on_dag_run_success(dag_run=self, msg=msg)
+            get_listener_manager().hook.on_dag_run_success(dag_run=self, msg=msg, session=session)
         elif self.state == DagRunState.FAILED:
-            get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
+            get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg, session=session)
         # deliberately not notifying on QUEUED
         # we can't get all the state changes on SchedulerJob, BackfillJob
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that

@@ -365,7 +365,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
         run.run_type = DagRunType.BACKFILL_JOB
         run.verify_integrity(session=session)
 
-        run.notify_dagrun_state_changed(msg="started")
+        run.notify_dagrun_state_changed(session=session, msg="started")
         return run
 
     @provide_session

@@ -1369,7 +1369,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             else:
                 active_runs_of_dags[dag_run.dag_id] += 1
                 _update_state(dag, dag_run)
-                dag_run.notify_dagrun_state_changed()
+                dag_run.notify_dagrun_state_changed(session=session)
 
     @retry_db_transaction
     def _schedule_all_dag_runs(
@@ -1433,7 +1433,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 msg="timed_out",
             )
 
-            dag_run.notify_dagrun_state_changed()
+            dag_run.notify_dagrun_state_changed(session=session)
             duration = dag_run.end_date - dag_run.start_date
             Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
             Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
