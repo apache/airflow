@@ -169,6 +169,6 @@ class SlackWebhookOperator(BaseOperator):
             username=self.username,
             icon_emoji=self.icon_emoji,
             icon_url=self.icon_url,
-            # Unused Parameters, if not None than warn user
-            link_names=self.link_names,
+            # Unused Parameters, warn user if not None
+            **({"link_names": self.link_names} if self.link_names else {}),
         )
