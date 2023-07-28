@@ -272,7 +272,9 @@ class TestFileTaskLogHandler:
                 ["file1 content", "file2 content"],
             )
 
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesExecutor.get_task_log")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_task_log"
+    )
     @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
     def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance, state):
         """Test for k8s executor, the log is read from get_task_log method"""
@@ -372,7 +374,7 @@ class TestFileTaskLogHandler:
         ],
     )
     @patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="KubernetesExecutor")
-    @patch("airflow.kubernetes.kube_client.get_kube_client")
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_read_from_k8s_under_multi_namespace_mode(
         self, mock_kube_client, pod_override, namespace_to_call
     ):

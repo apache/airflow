@@ -72,6 +72,7 @@ from airflow_breeze.utils.common_options import (
     option_upgrade_to_newer_dependencies,
     option_verbose,
     option_verify,
+    option_version_suffix_for_pypi,
     option_wait_for_image,
 )
 from airflow_breeze.utils.console import Output, get_console
@@ -223,6 +224,7 @@ def prod_image():
 @option_tag_as_latest
 @option_additional_pip_install_flags
 @option_github_repository
+@option_version_suffix_for_pypi
 @option_verbose
 @option_dry_run
 def build(

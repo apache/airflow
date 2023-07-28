@@ -269,6 +269,55 @@ class TestPostgresHookConn:
         hook = PostgresHook(schema=database)
         assert hook.database == database
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
+    @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
+    @pytest.mark.parametrize("port", [5432, 5439, None])
+    @pytest.mark.parametrize(
+        "host,conn_cluster_identifier,expected_host",
+        [
+            (
+                "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
+                NOTSET,
+                "cluster-identifier.us-east-1",
+            ),
+            (
+                "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
+                "different-identifier",
+                "different-identifier.us-east-1",
+            ),
+        ],
+    )
+    def test_openlineage_methods_with_redshift(
+        self,
+        mock_aws_hook_class,
+        aws_conn_id,
+        port,
+        host,
+        conn_cluster_identifier,
+        expected_host,
+    ):
+        mock_conn_extra = {
+            "iam": True,
+            "redshift": True,
+        }
+        if aws_conn_id is not NOTSET:
+            mock_conn_extra["aws_conn_id"] = aws_conn_id
+        if conn_cluster_identifier is not NOTSET:
+            mock_conn_extra["cluster-identifier"] = conn_cluster_identifier
+
+        self.connection.extra = json.dumps(mock_conn_extra)
+        self.connection.host = host
+        self.connection.port = port
+
+        # Mock AWS Connection
+        mock_aws_hook_instance = mock_aws_hook_class.return_value
+        mock_aws_hook_instance.region_name = "us-east-1"
+
+        assert (
+            self.db_hook._get_openlineage_redshift_authority_part(self.connection)
+            == f"{expected_host}:{port or 5439}"
+        )
+
 
 @pytest.mark.backend("postgres")
 class TestPostgresHook:

@@ -49,8 +49,7 @@ if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
 # very easily cause import cycles in the conf init/validate code (since downstream code from
 # those functions likely import settings).
 # configuration is therefore initted early here, simply by importing it.
-from airflow import configuration
-from airflow import settings
+from airflow import configuration, settings
 
 __all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "XComArg"]
 
@@ -125,7 +124,7 @@ if not settings.LAZY_LOAD_PLUGINS:
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.models.dag import DAG
-    from airflow.models.xcom_arg import XComArg
     from airflow.exceptions import AirflowException
+    from airflow.models.dag import DAG
     from airflow.models.dataset import Dataset
+    from airflow.models.xcom_arg import XComArg
