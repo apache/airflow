@@ -54,7 +54,11 @@ try:
 except Exception:
     executor_name = ExecutorLoader.get_default_executor_name()
     log.exception("Failed to load CLI commands from executor: %s", executor_name)
-    log.error("Ensure all dependencies are met and try again")
+    log.error(
+        "Ensure all dependencies are met and try again. If using a Celery based executor install "
+        "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
+        "7.4.0+ version of the CNCF provider"
+    )
     # Do no re-raise the exception since we want the CLI to still function for
     # other commands.
 
