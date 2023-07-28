@@ -59,6 +59,8 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     storage_bucket=BUCKET_NAME,
     init_actions_uris=[f"gs://{BUCKET_NAME}/{INIT_FILE}"],
     metadata={"PIP_PACKAGES": "pyyaml requests pandas openpyxl"},
+    num_preemptible_workers=1,
+    preemptibility="PREEMPTIBLE",
 ).make()
 
 # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]

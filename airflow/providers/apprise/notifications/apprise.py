@@ -29,8 +29,9 @@ except ImportError:
         "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
     )
 
-from airflow.providers.apprise.hooks.apprise import AppriseHook
 from apprise import AppriseConfig, NotifyFormat, NotifyType
+
+from airflow.providers.apprise.hooks.apprise import AppriseHook
 
 
 class AppriseNotifier(BaseNotifier):

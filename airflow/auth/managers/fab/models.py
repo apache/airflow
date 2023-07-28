@@ -40,6 +40,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import backref, declared_attr, relationship
 
+from airflow.auth.managers.model.base_user import BaseUser
 from airflow.models.base import Base
 
 """
@@ -139,7 +140,7 @@ assoc_user_role = Table(
 )
 
 
-class User(Model):
+class User(Model, BaseUser):
     """Represents an Airflow user which has roles assigned to it."""
 
     __tablename__ = "ab_user"
@@ -185,7 +186,7 @@ class User(Model):
     @classmethod
     def get_user_id(cls):
         try:
-            return g.user.id
+            return g.user.get_id()
         except Exception:
             return None
 
