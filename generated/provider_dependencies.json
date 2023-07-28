@@ -895,7 +895,8 @@
     ],
     "cross-providers-deps": [
       "common.sql",
-      "google"
+      "google",
+      "openlineage"
     ],
     "excluded-python-versions": []
   },
