@@ -1620,7 +1620,7 @@ DB_COMMANDS = (
         name="init",
         help=(
             "Deprecated -- use `migrate` instead. "
-            "To create default connections use `create-default-connections`. "
+            "To create default connections use `connections create-default-connections`. "
             "Initialize the metadata database"
         ),
         func=lazy_load_command("airflow.cli.commands.db_command.initdb"),
@@ -1662,7 +1662,7 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name="migrate",
-        help="Syncs the metadata database to the latest version",
+        help="Migrates the metadata database to the latest version",
         description=(
             "Migrate the schema of the metadata database. "
             "Create the database if it does not exist "
@@ -1747,12 +1747,6 @@ DB_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.db_command.drop_archived"),
         args=(ARG_DB_TABLES, ARG_YES),
     ),
-    ActionCommand(
-        name="create-default-connections",
-        help="Creates all the default connections from all the providers",
-        func=lazy_load_command("airflow.utils.db.create_default_connections"),
-        args=(ARG_VERBOSE,),
-    ),
 )
 CONNECTIONS_COMMANDS = (
     ActionCommand(
@@ -1825,6 +1819,13 @@ CONNECTIONS_COMMANDS = (
         help="Test a connection",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_test"),
         args=(ARG_CONN_ID, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="create-default-connections",
+        help="Creates all the default connections from all the providers",
+        func=lazy_load_command("airflow.cli.commands.connection_command.create_default_connections"),
+        # func=lazy_load_command("airflow.utils.db.create_default_connections"),
+        args=(ARG_VERBOSE,),
     ),
 )
 PROVIDERS_COMMANDS = (
