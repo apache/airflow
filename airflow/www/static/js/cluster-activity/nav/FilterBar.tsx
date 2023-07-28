@@ -35,7 +35,9 @@ const FilterBar = () => {
     useFilters();
 
   const { timezone } = useTimezone();
+  // @ts-ignore
   const startDate = moment(filters.startDate);
+  // @ts-ignore
   const endDate = moment(filters.endDate);
   const formattedStartDate = startDate.tz(timezone).format(isoFormatWithoutTZ);
   const formattedEndDate = endDate.tz(timezone).format(isoFormatWithoutTZ);
