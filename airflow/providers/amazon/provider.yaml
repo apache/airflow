@@ -76,9 +76,9 @@ dependencies:
   - sqlalchemy_redshift>=0.8.6
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
-  # exclude 1.28.12 as it causes strange typing inconsistency
+  # exclude 1.28.12 and 1.28.15 as it causes strange typing inconsistency
   # https://github.com/youtype/mypy_boto3_builder/issues/209
-  - mypy-boto3-appflow>=1.24.0,!=1.28.12
+  - mypy-boto3-appflow>=1.24.0,<1.28.12
   - asgiref
   - mypy-boto3-s3>=1.24.0
 
