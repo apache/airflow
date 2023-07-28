@@ -34,7 +34,7 @@ class EventBridgePutEventsOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator: EventBridgePutEventsOperator`
+        :ref:`howto/operator:EventBridgePutEventsOperator`
 
     :param entries: the list of events to be put onto EventBridge, each event is a dict (required)
     :param endpoint_id: the URL subdomain of the endpoint
@@ -97,7 +97,7 @@ class EventBridgePutRuleOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator: EventBridgePutRuleOperator`
+        :ref:`howto/operator:EventBridgePutRuleOperator`
 
     :param name: name of the rule to create or update (required)
     :param description: description of the rule

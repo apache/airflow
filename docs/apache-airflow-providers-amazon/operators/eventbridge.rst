@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-========================================
+==================
 Amazon EventBridge
-========================================
+==================
 
 `Amazon Eventbridge <https://docs.aws.amazon.com/eventbridge/>`__ is a serverless event bus service that makes it easy
 to connect your applications with data from a variety of sources. EventBridge delivers a stream of real-time data from
@@ -34,10 +34,11 @@ Prerequisite Tasks
 Operators
 ---------
 
-.. _howto/operator: EventBridgePutEventsOperator:
+.. _howto/operator:EventBridgePutEventsOperator:
+
 
 Send events to Amazon EventBridge
-==========================================
+=================================
 
 To send custom events to Amazon EventBridge, use
 :class:`~airflow.providers.amazon.aws.operators.eventbridge.EventBridgePutEventsOperator`.
@@ -48,7 +49,8 @@ To send custom events to Amazon EventBridge, use
     :start-after: [START howto_operator_eventbridge_put_events]
     :end-before: [END howto_operator_eventbridge_put_events]
 
-.. _howto/operator: EventBridgePutRuleOperator:
+.. _howto/operator:EventBridgePutRuleOperator:
+
 
 Create or update a rule on Amazon EventBridge
 ======================================================
