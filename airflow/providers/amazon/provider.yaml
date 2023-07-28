@@ -696,3 +696,6 @@ additional-extras:
   - name: cncf.kubernetes
     dependencies:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
+  - name: google
+    dependencies:
+      - apache-airflow-providers-google>=10.3.0
