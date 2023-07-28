@@ -42,6 +42,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 DAG_ID = "google-datapipeline"
 DATA_PIPELINE_NAME = os.environ.get("DATA_PIPELINE_NAME", "example-datapipeline")
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
 with models.DAG(
     DAG_ID,
@@ -50,8 +51,11 @@ with models.DAG(
     catchup=False,
     tags=["example", "datapipeline"],
 ) as dag:
+    # [START howto_operator_run_data_pipeline]
     run_data_pipeline = RunDataPipelineOperator(
         task_id = "run_data_pipeline",
-        data_pipeline_name = DATA_PIPELINE_NAME
+        data_pipeline_name = DATA_PIPELINE_NAME,
+        project_id=GCP_PROJECT_ID
         )
+    # [END howto_operator_run_data_pipeline]
     run_data_pipeline
