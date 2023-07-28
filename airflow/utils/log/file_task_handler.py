@@ -225,17 +225,15 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti_or_ti_key: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+    def _render_filename(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
         """Returns the worker log filename."""
         from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
         with create_session() as session:
-            if isinstance(ti_or_ti_key, TaskInstanceKey):
-                ti = TaskInstance.get_by_key(ti_or_ti_key, session)
+            if isinstance(ti, TaskInstanceKey):
+                ti = TaskInstance.get_by_key(ti, session)
                 if not ti:
                     raise AirflowException("TaskInstance not found")
-            else:
-                ti = ti_or_ti_key
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
             str_tpl, jinja_tpl = parse_template_string(template)

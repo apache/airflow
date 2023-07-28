@@ -879,7 +879,7 @@ class TaskInstance(Base, LoggingMixin):
             self.state = None
 
     @classmethod
-    def get_by_key(cls, ti_key, session) -> TaskInstance | None:
+    def get_by_key(cls, ti_key, session) -> TaskInstance:
         return (
             session.query(TaskInstance)
             .filter(
