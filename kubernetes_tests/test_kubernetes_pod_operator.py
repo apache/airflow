@@ -124,6 +124,7 @@ class TestKubernetesPodOperatorSystem:
                         "envFrom": [],
                         "name": "base",
                         "ports": [],
+                        "terminationMessagePolicy": "File",
                         "volumeMounts": [],
                     }
                 ],
