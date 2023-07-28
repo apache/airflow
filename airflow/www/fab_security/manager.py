@@ -67,12 +67,11 @@ from flask_appbuilder.security.views import (
 from flask_jwt_extended import current_user as current_user_jwt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_login import current_user
 from werkzeug.security import check_password_hash
 
+from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role, User
 from airflow.configuration import conf
 from airflow.www.extensions.init_auth_manager import get_auth_manager
-from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
@@ -1539,4 +1538,4 @@ class BaseSecurityManager:
     @staticmethod
     def before_request():
         """Hook runs before request."""
-        g.user = current_user
+        g.user = get_auth_manager().get_user()

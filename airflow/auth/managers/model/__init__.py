@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,30 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-openlineage
-name: OpenLineage Airflow
-description: |
-  `OpenLineage <https://openlineage.io/>`__
-
-suspended: false
-versions:
-  - 1.0.0
-
-dependencies:
-  - apache-airflow>=2.7.0
-  - apache-airflow-providers-common-sql>=1.6.0
-  - attrs>=22.2
-  - openlineage-integration-common>=0.28.0
-  - openlineage-python>=0.28.0
-
-integrations:
-  - integration-name: OpenLineage
-    external-doc-url: https://openlineage.io
-    logo: /integration-logos/openlineage/openlineage.svg
-    tags: [protocol]
-
-plugins:
-  - name: openlineage
-    plugin-class: airflow.providers.openlineage.plugins.openlineage.OpenLineageProviderPlugin
