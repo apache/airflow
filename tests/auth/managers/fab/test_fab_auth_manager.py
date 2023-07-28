@@ -81,3 +81,16 @@ class TestFabAuthManager:
         auth_manager.security_manager.auth_view.endpoint = "test_endpoint"
         auth_manager.get_url_login(next_url="next_url")
         mock_url_for.assert_called_once_with("test_endpoint.login", next="next_url")
+
+    def test_get_url_user_profile_when_auth_view_not_defined(self, auth_manager):
+        assert auth_manager.get_url_user_profile() is None
+
+    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
+    def test_get_url_user_profile(self, mock_url_for, auth_manager):
+        expected_url = "test_url"
+        mock_url_for.return_value = expected_url
+        auth_manager.security_manager.user_view = Mock()
+        auth_manager.security_manager.user_view.endpoint = "test_endpoint"
+        actual_url = auth_manager.get_url_user_profile()
+        mock_url_for.assert_called_once_with("test_endpoint.userinfo")
+        assert actual_url == expected_url

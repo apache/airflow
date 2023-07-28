@@ -53,7 +53,7 @@ class BaseAuthManager(LoggingMixin):
         ...
 
     @abstractmethod
-    def get_url_user_profile(self) -> str:
+    def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
         ...
 
