@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from googleapiclient.discovery import build
+from typing import Sequence
 
 from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
@@ -63,7 +64,7 @@ class DataPipelineHook(GoogleBaseHook):
         :param body: The request body (contains instance of Pipeline). See:
             https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
         :param project_id: The ID of the GCP project that owns the job.
-        :param location: The location to direct the Data Pipelines instance to (example_dags uses uscentral-1).
+        :param location: The location to direct the Data Pipelines instance to (for example us-central1).
 
         Returns the created Data Pipelines instance in JSON representation.
         """

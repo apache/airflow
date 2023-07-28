@@ -18,9 +18,14 @@
 """This module contains Google Data Pipelines operators."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Sequence
+
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.datapipeline import DEFAULT_DATAPIPELINE_LOCATION, DataPipelineHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CreateDataPipelineOperator(GoogleCloudBaseOperator):
@@ -30,9 +35,20 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
     :param body: The request body (contains instance of Pipeline). See:
         https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
     :param project_id: The ID of the GCP project that owns the job.
-    :param location: The location to direct the Data Pipelines instance to (example_dags uses uscentral-1).
+    :param location: The location to direct the Data Pipelines instance to (for example us-central1).
     :param gcp_conn_id: The connection ID to connect to the Google Cloud
         Platform.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+
+        .. warning::
+            This option requires Apache Beam 2.39.0 or newer.
 
     Returns the created Data Pipelines instance in JSON representation.
     """
@@ -44,6 +60,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         project_id: str | None = None,
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -52,6 +69,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
         self.datapipeline_hook: DataPipelineHook | None = None
         self.body["pipelineSources"] = {"airflow": "airflow"}
 
@@ -67,7 +85,10 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         if self.location is None:
             raise AirflowException("location not given; cannot create a Data Pipeline without the location.")
 
-        self.datapipeline_hook = DataPipelineHook(gcp_conn_id=self.gcp_conn_id)
+        self.datapipeline_hook = DataPipelineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
 
         self.data_pipeline = self.datapipeline_hook.create_data_pipeline(
             project_id=self.project_id,
