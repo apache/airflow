@@ -50,4 +50,7 @@ Here is an example of how you can create a Data Pipelines instance by running th
    :dedent: 4
    :start-after: [START howto_operator_create_data_pipeline]
    :end-before: [END howto_operator_create_data_pipeline]
-   
+
+For further information regarding the API usage, see 
+`Data Pipelines API REST Resource <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines#Pipeline>`__
+in the Google Cloud documentation.
