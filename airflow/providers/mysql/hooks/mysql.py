@@ -305,7 +305,7 @@ class MySqlHook(DbApiHook):
 
         return DatabaseInfo(
             scheme=self.get_openlineage_database_dialect(connection),
-            authority=DbApiHook.get_openlineage_authority_part(connection),
+            authority=DbApiHook.get_openlineage_authority_part(connection, default_port=3306),
             information_schema_columns=[
                 "table_schema",
                 "table_name",

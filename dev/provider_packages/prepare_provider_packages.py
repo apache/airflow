@@ -1676,11 +1676,12 @@ def verify_changelog_exists(package: str) -> str:
 def list_providers_packages():
     """List all provider packages."""
     providers = get_all_providers()
-    # For now we should exclude open-lineage from being consider for releasing until it is ready to
-    # be released
-    if "openlineage" in providers:
-        providers.remove("openlineage")
+    # if provider needs to be not considered in release add it here
+    # this is useful for cases where provider is WIP for a long period thus we don't want to release it yet.
+    providers_to_remove_from_release = []
     for provider in providers:
+        if provider in providers_to_remove_from_release:
+            continue
         console.print(provider)
 
 
