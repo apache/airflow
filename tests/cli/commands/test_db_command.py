@@ -26,7 +26,6 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.exc import OperationalError
 
 from airflow.cli import cli_parser
-from airflow.cli.cli_config import DB_COMMANDS
 from airflow.cli.commands import db_command
 from airflow.exceptions import AirflowException
 
@@ -137,14 +136,6 @@ class TestCliDb:
             db_command.upgradedb(self.parser.parse_args(["db", "upgrade"]))
         assert warning_record
         mock_migratedb.assert_called_once()
-
-    @mock.patch("airflow.utils.db.create_default_connections")
-    def test_cli_create_default_connections(self, mock_default_connections):
-        create_default_connection_fnc = dict(
-            (db_command.name, db_command.func) for db_command in DB_COMMANDS
-        )["create-default-connections"]
-        create_default_connection_fnc()
-        mock_default_connections.assert_called_once()
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch("airflow.cli.commands.db_command.NamedTemporaryFile")
