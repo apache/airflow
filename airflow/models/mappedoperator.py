@@ -393,19 +393,19 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["trigger_rule"] = value
 
     @property
-    def is_setup(self):
-        return self.partial_kwargs.get("is_setup", False)
+    def is_setup(self) -> bool:
+        return bool(self.partial_kwargs.get("is_setup"))
 
     @is_setup.setter
-    def is_setup(self, value):
+    def is_setup(self, value: bool) -> None:
         self.partial_kwargs["is_setup"] = value
 
     @property
-    def is_teardown(self):
-        return self.partial_kwargs.get("is_teardown", False)
+    def is_teardown(self) -> bool:
+        return bool(self.partial_kwargs.get("is_teardown"))
 
     @is_teardown.setter
-    def is_teardown(self, value):
+    def is_teardown(self, value: bool) -> None:
         self.partial_kwargs["is_teardown"] = value
 
     @property

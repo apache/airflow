@@ -158,19 +158,19 @@ class AbstractOperator(Templater, DAGNode):
         return self.task_id
 
     @property
-    def is_setup(self):
+    def is_setup(self) -> bool:
         raise NotImplementedError()
 
     @is_setup.setter
-    def is_setup(self, value):
+    def is_setup(self, value: bool) -> None:
         raise NotImplementedError()
 
     @property
-    def is_teardown(self):
+    def is_teardown(self) -> bool:
         raise NotImplementedError()
 
     @is_teardown.setter
-    def is_teardown(self, value):
+    def is_teardown(self, value: bool) -> None:
         raise NotImplementedError()
 
     @property

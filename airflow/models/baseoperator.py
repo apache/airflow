@@ -1418,42 +1418,39 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return XComArg(operator=self)
 
     @property
-    def is_setup(self):
-        """
-        Whether the operator is a setup task.
+    def is_setup(self) -> bool:
+        """Whether the operator is a setup task.
 
         :meta private:
         """
         return self._is_setup
 
     @is_setup.setter
-    def is_setup(self, value):
-        """
-        Setter for is_setup property.
+    def is_setup(self, value: bool) -> None:
+        """Setter for is_setup property.
 
         :meta private:
         """
-        if self.is_teardown is True and value is True:
+        if self.is_teardown and value:
             raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
         self._is_setup = value
 
     @property
-    def is_teardown(self):
-        """
-        Whether the operator is a teardown task.
+    def is_teardown(self) -> bool:
+        """Whether the operator is a teardown task.
 
         :meta private:
         """
         return self._is_teardown
 
     @is_teardown.setter
-    def is_teardown(self, value):
+    def is_teardown(self, value: bool) -> None:
         """
         Setter for is_teardown property.
 
         :meta private:
         """
-        if self.is_setup is True and value is True:
+        if self.is_setup and value:
             raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
         self._is_teardown = value
 
