@@ -23,8 +23,8 @@ import pytest
 
 from airflow import AirflowException
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
+from airflow.auth.managers.fab.models import User
 from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
-from airflow.www.fab_security.sqla.models import User
 from airflow.www.security import ApplessAirflowSecurityManager
 
 
@@ -44,20 +44,37 @@ class TestFabAuthManager:
             (None, "Last", "Last"),
         ],
     )
-    @mock.patch("flask_login.utils._get_user")
-    def test_get_user_name(self, mock_current_user, first_name, last_name, expected, auth_manager):
+    @mock.patch.object(FabAuthManager, "get_user")
+    def test_get_user_name(self, mock_get_user, first_name, last_name, expected, auth_manager):
         user = User()
         user.first_name = first_name
         user.last_name = last_name
-        mock_current_user.return_value = user
+        mock_get_user.return_value = user
 
         assert auth_manager.get_user_name() == expected
 
     @mock.patch("flask_login.utils._get_user")
-    def test_is_logged_in(self, mock_current_user, auth_manager):
+    def test_get_user(self, mock_current_user, auth_manager):
         user = Mock()
         user.is_anonymous.return_value = True
         mock_current_user.return_value = user
+
+        assert auth_manager.get_user() == user
+
+    @mock.patch.object(FabAuthManager, "get_user")
+    def test_get_user_id(self, mock_get_user, auth_manager):
+        user_id = "test"
+        user = Mock()
+        user.get_id.return_value = user_id
+        mock_get_user.return_value = user
+
+        assert auth_manager.get_user_id() == user_id
+
+    @mock.patch.object(FabAuthManager, "get_user")
+    def test_is_logged_in(self, mock_get_user, auth_manager):
+        user = Mock()
+        user.is_anonymous.return_value = True
+        mock_get_user.return_value = user
 
         assert auth_manager.is_logged_in() is False
 

@@ -31,13 +31,13 @@ from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.auth.managers.fab.auth.anonymous_user import AnonymousUser
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
+from airflow.auth.managers.fab.models import User, assoc_permission_role
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.base import Base
 from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
-from airflow.www.fab_security.sqla.models import User, assoc_permission_role
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils.api_connexion_utils import (
     create_user,

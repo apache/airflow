@@ -22,6 +22,7 @@ from flask_login import current_user
 
 from airflow import AirflowException
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.auth.managers.fab.models import User
 from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
 
 
@@ -39,13 +40,22 @@ class FabAuthManager(BaseAuthManager):
         For backward compatibility reasons, the username in FAB auth manager is the concatenation of the
         first name and the last name.
         """
-        first_name = current_user.first_name or ""
-        last_name = current_user.last_name or ""
+        user = self.get_user()
+        first_name = user.first_name or ""
+        last_name = user.last_name or ""
         return f"{first_name} {last_name}".strip()
+
+    def get_user(self) -> User:
+        """Return the user associated to the user in session."""
+        return current_user
+
+    def get_user_id(self) -> str:
+        """Return the user ID associated to the user in session."""
+        return str(self.get_user().get_id())
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
-        return current_user and not current_user.is_anonymous
+        return not self.get_user().is_anonymous
 
     def get_security_manager_override_class(self) -> type:
         """Return the security manager override."""
