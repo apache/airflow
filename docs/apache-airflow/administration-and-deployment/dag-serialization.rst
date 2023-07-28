@@ -88,7 +88,7 @@ Add the following settings in ``airflow.cfg``:
 *   ``compress_serialized_dags``: This option controls whether to compress the Serialized DAG to the Database.
     It is useful when there are very large DAGs in your cluster. When ``True``, this will disable the DAG dependencies view.
 
-If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
+If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db migrate``.
 
 
 Limitations
