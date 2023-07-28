@@ -26,6 +26,8 @@ from functools import reduce
 from itertools import filterfalse, tee
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
 
+from lazy_object_proxy import Proxy
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.utils.context import Context
@@ -116,6 +118,11 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
 
 def is_container(obj: Any) -> bool:
     """Test if an object is a container (iterable) but not a string."""
+    if isinstance(obj, Proxy):
+        # Proxy of any object is considered a container because it implements __iter__
+        # to forward the call to the lazily initialized object
+        # Unwrap Proxy before checking __iter__ to evaluate the proxied object
+        obj = obj.__wrapped__
     return hasattr(obj, "__iter__") and not isinstance(obj, str)
 
 

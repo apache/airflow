@@ -20,6 +20,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+from airflow.auth.managers.model.base_user import BaseUser
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -43,6 +44,16 @@ class BaseAuthManager(LoggingMixin):
         ...
 
     @abstractmethod
+    def get_user(self) -> BaseUser:
+        """Return the user associated to the user in session."""
+        ...
+
+    @abstractmethod
+    def get_user_id(self) -> str:
+        """Return the user ID associated to the user in session."""
+        ...
+
+    @abstractmethod
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
         ...
@@ -53,7 +64,7 @@ class BaseAuthManager(LoggingMixin):
         ...
 
     @abstractmethod
-    def get_url_user_profile(self) -> str:
+    def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
         ...
 

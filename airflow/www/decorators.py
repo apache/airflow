@@ -26,7 +26,7 @@ from itertools import chain
 from typing import Callable, TypeVar, cast
 
 import pendulum
-from flask import after_this_request, g, request
+from flask import after_this_request, request
 from pendulum.parsing.exceptions import ParserError
 
 from airflow.models import Log
@@ -88,7 +88,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                 if not get_auth_manager().is_logged_in():
                     user = "anonymous"
                 else:
-                    user = f"{g.user.username} ({g.user.get_full_name()})"
+                    user = get_auth_manager().get_user_name()
 
                 fields_skip_logging = {"csrf_token", "_csrf_token"}
                 extra_fields = [

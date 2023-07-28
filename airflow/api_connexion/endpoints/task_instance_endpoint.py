@@ -51,6 +51,7 @@ from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 T = TypeVar("T")
 
@@ -692,9 +693,8 @@ def set_task_instance_note(
         raise NotFound(error_message)
 
     ti, sla_miss = result
-    from flask_login import current_user
 
-    current_user_id = getattr(current_user, "id", None)
+    current_user_id = get_auth_manager().get_user_id()
     if ti.task_instance_note is None:
         ti.note = (new_note, current_user_id)
     else:
