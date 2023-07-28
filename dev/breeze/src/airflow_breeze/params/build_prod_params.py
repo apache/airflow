@@ -240,4 +240,5 @@ class BuildProdParams(CommonBuildParams):
             "dev_apt_deps",
             "runtime_apt_command",
             "runtime_apt_deps",
+            "version_suffix_for_pypi",
         ]
