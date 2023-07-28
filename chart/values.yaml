@@ -35,9 +35,8 @@ nameOverride: ""
 # this will recreate your deployment/statefulsets along with their persistent volume claims and data storage
 # migration may be needed to keep your old data
 #
-# Note:fernet-key, redis-password and broker-url secrets don't use this logic yet,
+# Note:fernet-key,redis-password and broker-url secrets don't use this logic yet,
 # as this may break existing installations due to how they get installed via pre-install hook.
-# We may need to think what is the best way to handle renaming for these resources in a graceful way
 useStandardNaming: false
 
 # Max number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit
