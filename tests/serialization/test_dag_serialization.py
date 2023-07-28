@@ -53,6 +53,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
+from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     DagDependency,
@@ -112,7 +113,8 @@ executor_config_pod = k8s.V1Pod(
         ]
     ),
 )
-
+TYPE = Encoding.TYPE
+VAR = Encoding.VAR
 serialized_simple_dag_ground_truth = {
     "__version": 1,
     "dag": {
@@ -383,7 +385,11 @@ class TestStringifiedDAGs:
             serialized_dags[v.dag_id] = dag
 
         # Compares with the ground truth of JSON string.
-        self.validate_serialized_dag(serialized_dags["simple_dag"], serialized_simple_dag_ground_truth)
+        actual, expected = self.prepare_ser_dags_for_comparison(
+            actual=serialized_dags["simple_dag"],
+            expected=serialized_simple_dag_ground_truth,
+        )
+        assert actual == expected
 
     @pytest.mark.parametrize(
         "timetable, serialized_timetable",
@@ -412,7 +418,14 @@ class TestStringifiedDAGs:
         del expected["dag"]["schedule_interval"]
         expected["dag"]["timetable"] = serialized_timetable
 
-        self.validate_serialized_dag(serialized_dag, expected)
+        actual, expected = self.prepare_ser_dags_for_comparison(
+            actual=serialized_dag,
+            expected=expected,
+        )
+        for task in actual["dag"]["tasks"]:
+            for k, v in task.items():
+                print(task["task_id"], k, v)
+        assert actual == expected
 
     def test_dag_serialization_unregistered_custom_timetable(self):
         """Verify serialization fails without timetable registration."""
@@ -429,10 +442,10 @@ class TestStringifiedDAGs:
         )
         assert str(ctx.value) == message
 
-    def validate_serialized_dag(self, json_dag, ground_truth_dag):
+    def prepare_ser_dags_for_comparison(self, actual, expected):
         """Verify serialized DAGs match the ground truth."""
-        assert json_dag["dag"]["fileloc"].split("/")[-1] == "test_dag_serialization.py"
-        json_dag["dag"]["fileloc"] = None
+        assert actual["dag"]["fileloc"].split("/")[-1] == "test_dag_serialization.py"
+        actual["dag"]["fileloc"] = None
 
         def sorted_serialized_dag(dag_dict: dict):
             """
@@ -447,7 +460,11 @@ class TestStringifiedDAGs:
             )
             return dag_dict
 
-        assert sorted_serialized_dag(ground_truth_dag) == sorted_serialized_dag(json_dag)
+        # by roundtripping to json we get a cleaner diff
+        # if not doing this, we get false alarms such as "__var" != VAR
+        actual = json.loads(json.dumps(sorted_serialized_dag(actual)))
+        expected = json.loads(json.dumps(sorted_serialized_dag(expected)))
+        return actual, expected
 
     def test_deserialization_across_process(self):
         """A serialized DAG can be deserialized in another process."""
@@ -2290,6 +2307,9 @@ def test_taskflow_expand_serde():
         "_operator_name": "@task",
         "downstream_task_ids": [],
         "partial_kwargs": {
+            "is_setup": False,
+            "is_teardown": False,
+            "on_failure_fail_dagrun": False,
             "op_args": [],
             "op_kwargs": {
                 "__type": "dict",
@@ -2329,6 +2349,9 @@ def test_taskflow_expand_serde():
         value={"arg2": {"a": 1, "b": 2}, "arg3": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})},
     )
     assert deserialized.partial_kwargs == {
+        "is_setup": False,
+        "is_teardown": False,
+        "on_failure_fail_dagrun": False,
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
@@ -2344,6 +2367,9 @@ def test_taskflow_expand_serde():
         value={"arg2": {"a": 1, "b": 2}, "arg3": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})},
     )
     assert pickled.partial_kwargs == {
+        "is_setup": False,
+        "is_teardown": False,
+        "on_failure_fail_dagrun": False,
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
@@ -2376,6 +2402,9 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_operator_name": "@task",
         "downstream_task_ids": [],
         "partial_kwargs": {
+            "is_setup": False,
+            "is_teardown": False,
+            "on_failure_fail_dagrun": False,
             "op_args": [],
             "op_kwargs": {
                 "__type": "dict",
@@ -2413,6 +2442,9 @@ def test_taskflow_expand_kwargs_serde(strict):
         value=_XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY}),
     )
     assert deserialized.partial_kwargs == {
+        "is_setup": False,
+        "is_teardown": False,
+        "on_failure_fail_dagrun": False,
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
@@ -2428,6 +2460,9 @@ def test_taskflow_expand_kwargs_serde(strict):
         _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY}),
     )
     assert pickled.partial_kwargs == {
+        "is_setup": False,
+        "is_teardown": False,
+        "on_failure_fail_dagrun": False,
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),
