@@ -2732,22 +2732,48 @@ class DAG(LoggingMixin):
         )
 
         tasks = self.task_dict
+
+        task_try_numbers: dict[tuple[str, int], int] = collections.defaultdict(int)
+
         self.log.debug("starting dagrun")
         # Instead of starting a scheduler, we run the minimal loop possible to check
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == DagRunState.RUNNING:
             schedulable_tis, _ = dr.update_state(session=session)
-            try:
-                for ti in schedulable_tis:
+
+            for ti in schedulable_tis:
+                try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
                     _run_task(ti, session=session)
-            except Exception:
-                self.log.info(
-                    "Task failed. DAG will continue to run until finished and be marked as failed.",
-                    exc_info=True,
-                )
+                except Exception:
+                    if ti.state == TaskInstanceState.UP_FOR_RETRY:
+                        try_number = task_try_numbers[ti.task_id, ti.map_index]
+                        if try_number > ti.max_tries:
+                            ti.set_state(TaskInstanceState.FAILED)
+                        else:
+                            task_try_numbers[ti.task_id, ti.map_index] = try_number + 1
+                    self.log.info(
+                        "Task failed. DAG will continue to run until finished and be marked as failed.",
+                        exc_info=True,
+                    )
+            for ti in dr.get_task_instances(session=session, state=TaskInstanceState.SCHEDULED):
+                if not ti.next_method:
+                    continue
+                # Special case: TI resumes from deferred state.
+                try:
+                    add_logger_if_needed(ti)
+                    ti.task = tasks[ti.task_id]
+                    _run_task(ti, session=session)
+                except Exception:
+                    try_number = task_try_numbers[ti.task_id, ti.map_index]
+                    if try_number > ti.max_tries:
+                        ti.set_state(TaskInstanceState.FAILED)
+                    else:
+                        ti.set_state(TaskInstanceState.UP_FOR_RETRY)
+                        task_try_numbers[ti.task_id, ti.map_index] = try_number + 1
+
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
@@ -3882,7 +3908,10 @@ def _run_task(ti: TaskInstance, session):
     try:
         ti._run_raw_task(session=session)
         session.flush()
-        log.info("%s ran successfully!", ti.task_id)
+        if ti.state == TaskInstanceState.DEFERRED:
+            log.info("%s has deferred", ti.task_id)
+        else:
+            log.info("%s ran successfully!", ti.task_id)
     except AirflowSkipException:
         log.info("Task Skipped, continuing")
     log.info("*****************************************************")

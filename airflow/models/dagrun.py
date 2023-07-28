@@ -22,7 +22,18 @@ import os
 import warnings
 from collections import defaultdict
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Collection,
+    Iterable,
+    Iterator,
+    NamedTuple,
+    Sequence,
+    TypeVar,
+    overload,
+)
 
 import re2
 from sqlalchemy import (
@@ -459,7 +470,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_task_instances(
         self,
-        state: Iterable[TaskInstanceState | None] | None = None,
+        state: TaskInstanceState | Collection[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """Returns the task instances for this dag run."""
