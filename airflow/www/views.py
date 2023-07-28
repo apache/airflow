@@ -119,7 +119,7 @@ from airflow.utils.dag_edges import dag_edges
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
-from airflow.utils.helpers import alchemy_to_dict, exactly_one
+from airflow.utils.helpers import exactly_one
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.net import get_hostname
@@ -3625,105 +3625,16 @@ class Airflow(AirflowBaseView):
     @action_logging
     @provide_session
     def gantt(self, dag_id: str, session: Session = NEW_SESSION):
-        """Show GANTT chart."""
+        """Redirect to the replacement - grid + gantt. Kept for backwards compatibility."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
-
-        wwwutils.check_import_errors(dag.fileloc, session)
-        wwwutils.check_dag_warnings(dag.dag_id, session)
-
-        root = request.args.get("root")
-        if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data["dttm"]
         dag_run = dag.get_dagrun(execution_date=dttm)
         dag_run_id = dag_run.run_id if dag_run else None
 
-        form = DateTimeWithNumRunsWithDagRunsForm(data=dt_nr_dr_data)
-        form.execution_date.choices = dt_nr_dr_data["dr_choices"]
+        kwargs = {**sanitize_args(request.args), "dag_id": dag_id, "tab": "gantt", "dag_run_id": dag_run_id}
 
-        tis = session.scalars(
-            select(TaskInstance)
-            .where(
-                TaskInstance.dag_id == dag_id,
-                TaskInstance.run_id == dag_run_id,
-                TaskInstance.start_date.is_not(None),
-                TaskInstance.state.is_not(None),
-            )
-            .order_by(TaskInstance.start_date)
-        ).all()
-
-        ti_fails = select(TaskFail).filter_by(run_id=dag_run_id, dag_id=dag_id)
-        if dag.partial:
-            ti_fails = ti_fails.where(TaskFail.task_id.in_([t.task_id for t in dag.tasks]))
-
-        ti_fails = session.scalars(ti_fails)
-        tasks = []
-        for ti in tis:
-            if not dag.has_task(ti.task_id):
-                continue
-            # prev_attempted_tries will reflect the currently running try_number
-            # or the try_number of the last complete run
-            # https://issues.apache.org/jira/browse/AIRFLOW-2143
-            try_count = ti.prev_attempted_tries if ti.prev_attempted_tries != 0 else ti.try_number
-            task_dict = alchemy_to_dict(ti) or {}
-            task_dict["end_date"] = task_dict["end_date"] or timezone.utcnow()
-            task_dict["extraLinks"] = dag.get_task(ti.task_id).extra_links
-            task_dict["try_number"] = try_count
-            task_dict["execution_date"] = dttm.isoformat()
-            task_dict["run_id"] = dag_run_id
-            tasks.append(task_dict)
-
-        tf_count = 0
-        try_count = 1
-        prev_task_id = ""
-        for failed_task_instance in ti_fails:
-            if not dag.has_task(failed_task_instance.task_id):
-                continue
-            if tf_count != 0 and failed_task_instance.task_id == prev_task_id:
-                try_count += 1
-            else:
-                try_count = 1
-            prev_task_id = failed_task_instance.task_id
-            tf_count += 1
-            task = dag.get_task(failed_task_instance.task_id)
-            task_dict = alchemy_to_dict(failed_task_instance) or {}
-            end_date = task_dict["end_date"] or timezone.utcnow()
-            task_dict["end_date"] = end_date
-            task_dict["start_date"] = task_dict["start_date"] or end_date
-            task_dict["state"] = TaskInstanceState.FAILED
-            task_dict["operator"] = task.operator_name
-            task_dict["try_number"] = try_count
-            task_dict["extraLinks"] = task.extra_links
-            task_dict["execution_date"] = dttm.isoformat()
-            task_dict["run_id"] = dag_run_id
-            tasks.append(task_dict)
-
-        task_names = [ti.task_id for ti in tis]
-        data = {
-            "taskNames": task_names,
-            "tasks": tasks,
-            "height": len(task_names) * 25 + 25,
-        }
-
-        session.commit()
-
-        return self.render_template(
-            "airflow/gantt.html",
-            dag=dag,
-            dag_run_id=dag_run_id,
-            execution_date=dttm.isoformat(),
-            form=form,
-            data=data,
-            base_date="",
-            root=root,
-            dag_model=dag_model,
-        )
+        return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/extra_links")
     @auth.has_access(
