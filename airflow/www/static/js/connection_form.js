@@ -213,8 +213,8 @@ $(document).ready(() => {
 
   // beautify JSON
   const jsonData = editor.getValue();
-  const data = JSON.parse(jsonData);
-  const formattedData = JSON.stringify(data, null, 2);
+  const parsedData = JSON.parse(jsonData);
+  const formattedData = JSON.stringify(parsedData, null, 2);
   editor.setValue(formattedData);
 
   /**
