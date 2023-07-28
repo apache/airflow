@@ -46,7 +46,7 @@ class TestLocalKubernetesExecutor:
     def test_is_single_threaded_default_value(self):
         assert not LocalKubernetesExecutor.is_single_threaded
 
-    def test_no_cli_commands_vended(self):
+    def test_cli_commands_vended(self):
         assert LocalKubernetesExecutor.get_cli_commands()
 
     def test_queued_tasks(self):

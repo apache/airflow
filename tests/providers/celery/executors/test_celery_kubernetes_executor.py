@@ -49,7 +49,7 @@ class TestCeleryKubernetesExecutor:
     def test_is_single_threaded_default_value(self):
         assert not CeleryKubernetesExecutor.is_single_threaded
 
-    def test_no_cli_commands_vended(self):
+    def test_cli_commands_vended(self):
         assert CeleryKubernetesExecutor.get_cli_commands()
 
     def test_queued_tasks(self):

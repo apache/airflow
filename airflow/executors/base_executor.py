@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 
+from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
@@ -481,7 +482,7 @@ class BaseExecutor(LoggingMixin):
         self.callback_sink.send(request)
 
     @staticmethod
-    def get_cli_commands() -> list:
+    def get_cli_commands() -> list[GroupCommand]:
         """Vends CLI commands to be included in Airflow CLI.
 
         Override this method to expose commands via Airflow CLI to manage this executor. This can
