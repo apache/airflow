@@ -232,11 +232,7 @@ class TestConnection:
             ),
         ],
     )
+    # Responsible for ensuring that the sanitized connection id
+    # string works as expected.
     def test_sanitize_conn_id(self, connection, expected_conn_id):
-        """
-        Ensures that the sanitized connection string works as expected.
-
-        :param connection: The connection instance
-        :param expected_conn_id: expected `conn_id` value.
-        """
         assert connection.conn_id == expected_conn_id
