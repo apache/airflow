@@ -17,50 +17,45 @@
 # under the License.
 
 """
-Example Airflow DAG for testing Google Dataflow Beam Pipeline Operator with Java.
-Important Note:
-    This test downloads Java JAR file from the public bucket. In case the JAR file cannot be downloaded
-    or is not compatible with the Java version used in the test, the source code for this test can be
-    downloaded from here (https://beam.apache.org/get-started/wordcount-example) and needs to be compiled
-    manually in order to work.
-    You can follow the instructions on how to pack a self-executing jar here:
-    https://beam.apache.org/documentation/runners/dataflow/
-Requirements:
-    These operators require the gcloud command and Java's JRE to run.
+Example Airflow DAG for testing Google DataPipelines Create Data Pipeline Operator.
 """
 from __future__ import annotations
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 from airflow import models
-from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.google.cloud.operators.datapipeline import (
     CreateDataPipelineOperator,
     RunDataPipelineOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
+from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 DAG_ID = "google-datapipeline"
-
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 GCP_LOCATION = os.environ.get("location", "us-central1")
+
 PIPELINE_NAME = "defualt-pipeline-name"
 PIPELINE_TYPE = "PIPELINE_TYPE_BATCH"
 
-DATAPIPELINES_JOB_NAME = os.environ.get("GCP_DATA_PIPELINES_FLEX_TEMPLATE_JOB_NAME", "default-job-name")
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
-GCS_FLEX_TEMPLATE_TEMPLATE_PATH = os.environ.get(
-    "GCP_DATA_PIPELINES_GCS_FLEX_TEMPLATE_TEMPLATE_PATH",
-    "gs://INSERT BUCKET/templates/word-count.json",
-)
+FILE_NAME = "kinglear.txt"
+TEMPLATE_FILE = "word-count.json"
+DATAPIPELINES_JOB_NAME = "test-job-name"
+TEMP_LOCATION = f"gs://{BUCKET_NAME}/temp"
 
-TEMP_LOCATION = os.environ.get("GCP_DATA_PIPELINES_GCS_TEMP_LOCATION", "gs://INSERT BUCKET/temp")
-INPUT_FILE = os.environ.get("GCP_DATA_PIPELINES_INPUT_FILE", "gs://INSERT BUCKET/examples/kinglear.txt")
-OUTPUT = os.environ.get("GCP_DATA_PIPELINES_OUTPUT", "gs://INSERT BUCKET/results/hello")
+GCS_PATH = f"gs://{BUCKET_NAME}/templates/{TEMPLATE_FILE}"
+INPUT_FILE = f"gs://{BUCKET_NAME}/examples/{FILE_NAME}"
+OUTPUT = f"gs://{BUCKET_NAME}/results/hello"
 
+FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
+TEMPLATE_LOCAL_PATH = str(Path(__file__).parent / "resources" / TEMPLATE_FILE)
 
 with models.DAG(
     DAG_ID,
@@ -69,18 +64,34 @@ with models.DAG(
     catchup=False,
     tags=["example", "datapipeline"],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+
+    upload_file = LocalFilesystemToGCSOperator(
+        task_id="upload_file_to_bucket",
+        src=FILE_LOCAL_PATH,
+        dst=FILE_NAME,
+        bucket=BUCKET_NAME,
+    )
+
+    upload_template = LocalFilesystemToGCSOperator(
+        task_id="upload_template_to_bucket",
+        src=TEMPLATE_LOCAL_PATH,
+        dst=TEMPLATE_FILE,
+        bucket=BUCKET_NAME,
+    )
+
     # [START howto_operator_create_data_pipeline]
     create_data_pipeline = CreateDataPipelineOperator(
         task_id="create_data_pipeline",
         project_id=GCP_PROJECT_ID,
         location=GCP_LOCATION,
         body={
-            "name": "projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/pipelines/{PIPELINE_NAME}",
+            "name": f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/pipelines/{PIPELINE_NAME}",
             "type": PIPELINE_TYPE,
             "workload": {
                 "dataflowFlexTemplateRequest": {
                     "launchParameter": {
-                        "containerSpecGcsPath": GCS_FLEX_TEMPLATE_TEMPLATE_PATH,
+                        "containerSpecGcsPath": GCS_PATH,
                         "jobName": DATAPIPELINES_JOB_NAME,
                         "environment": {"tempLocation": TEMP_LOCATION},
                         "parameters": {
@@ -96,4 +107,14 @@ with models.DAG(
     )
     # [END howto_operator_create_data_pipeline]
 
-    create_data_pipeline
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    (create_bucket >> upload_file >> upload_template >> create_data_pipeline >> delete_bucket)
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "teardown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
