@@ -34,9 +34,9 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
     role_schema,
 )
 from airflow.api_connexion.types import APIResponse, UpdateMask
+from airflow.auth.managers.fab.models import Action, Role
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
-from airflow.www.fab_security.sqla.models import Action, Role
 from airflow.www.security import AirflowSecurityManager
 
 

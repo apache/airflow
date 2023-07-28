@@ -36,9 +36,8 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_spark_async"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-CLUSTER_NAME = f"dataproc-spark-async-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 REGION = "europe-west1"
-ZONE = "europe-west1-b"
 
 # Cluster definition
 CLUSTER_CONFIG = {
@@ -53,8 +52,6 @@ CLUSTER_CONFIG = {
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
 }
-
-TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
 
 # Jobs definitions
 SPARK_JOB = {
@@ -72,7 +69,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "dataproc", "spark", "async"],
 ) as dag:
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",
@@ -104,7 +101,15 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    create_cluster >> spark_task_async >> spark_task_async_sensor >> delete_cluster
+    (
+        # TEST SETUP
+        create_cluster
+        # TEST BODY
+        >> spark_task_async
+        >> spark_task_async_sensor
+        # TEST TEARDOWN
+        >> delete_cluster
+    )
 
     from tests.system.utils.watcher import watcher
 

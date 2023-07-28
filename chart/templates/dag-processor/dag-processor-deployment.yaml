@@ -220,6 +220,11 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+        - name: webserver-config
+          configMap:
+            name: {{ template "airflow_webserver_config_configmap_name" . }}
+        {{- end }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:

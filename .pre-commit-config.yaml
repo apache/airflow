@@ -317,7 +317,7 @@ repos:
         name: Lint OpenAPI using openapi-spec-validator
         entry: openapi-spec-validator --schema 3.0.0
         language: python
-        additional_dependencies: ['openapi-spec-validator']
+        additional_dependencies: ['openapi-spec-validator>=0.6.0']
         files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint Dockerfile
@@ -332,6 +332,22 @@ repos:
         files: ^setup\.cfg$|^setup\.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
+        additional_dependencies: ['rich>=12.4.4']
+      - id: check-airflow-k8s-not-used
+        name: Check airflow.kubernetes imports are not used
+        language: python
+        files: ^airflow/.*\.py$
+        require_serial: true
+        exclude: ^airflow/kubernetes/
+        entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_k8s_not_used.py
+        additional_dependencies: ['rich>=12.4.4']
+      - id: check-cncf-k8s-only-for-executors
+        name: Check cncf.kubernetes imports used for executors only
+        language: python
+        files: ^airflow/.*\.py$
+        require_serial: true
+        exclude: ^airflow/kubernetes/|^airflow/providers/
+        entry: ./scripts/ci/pre_commit/pre_commit_check_cncf_k8s_used_for_k8s_executor_only.py
         additional_dependencies: ['rich>=12.4.4']
       - id: check-extra-packages-references
         name: Checks setup extra packages
@@ -618,14 +634,6 @@ repos:
         pass_filenames: true
         additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
-      - id: check-airflow-config-yaml-consistent
-        name: Check consistency between config.yml and default_config.cfg
-        language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_yaml_to_cfg.py
-        files: config\.yml$|default_airflow\.cfg$|default\.cfg$
-        pass_filenames: false
-        require_serial: true
-        additional_dependencies: ['pyyaml', 'packaging']
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python

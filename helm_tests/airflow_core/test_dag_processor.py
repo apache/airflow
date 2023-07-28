@@ -26,6 +26,30 @@ from tests.charts.log_groomer import LogGroomerTestBase
 class TestDagProcessor:
     """Tests DAG processor."""
 
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
     @pytest.mark.parametrize(
         "airflow_version, num_docs",
         [
@@ -339,6 +363,24 @@ class TestDagProcessor:
         )
 
     @pytest.mark.parametrize(
+        "airflow_version, probe_command",
+        [
+            ("2.4.9", "airflow jobs check --hostname $(hostname)"),
+            ("2.5.0", "airflow jobs check --local"),
+            ("2.5.2", "airflow jobs check --local --job-type DagProcessorJob"),
+        ],
+    )
+    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+        docs = render_chart(
+            values={"airflowVersion": f"{airflow_version}", "dagProcessor": {"enabled": True}},
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        assert (
+            probe_command
+            in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+        )
+
+    @pytest.mark.parametrize(
         "log_persistence_values, expected_volume",
         [
             ({"enabled": False}, {"emptyDir": {}}),
@@ -560,6 +602,45 @@ class TestDagProcessor:
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
+    @pytest.mark.parametrize(
+        "webserver_config, should_add_volume",
+        [
+            ("CSRF_ENABLED = True", True),
+            (None, False),
+        ],
+    )
+    def test_should_add_webserver_config_volume_and_volume_mount_when_exists(
+        self, webserver_config, should_add_volume
+    ):
+        expected_volume = {
+            "name": "webserver-config",
+            "configMap": {"name": "release-name-webserver-config"},
+        }
+        expected_volume_mount = {
+            "name": "webserver-config",
+            "mountPath": "/opt/airflow/webserver_config.py",
+            "subPath": "webserver_config.py",
+            "readOnly": True,
+        }
+
+        docs = render_chart(
+            values={
+                "dagProcessor": {"enabled": True},
+                "webserver": {"webserverConfig": webserver_config},
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        created_volumes = jmespath.search("spec.template.spec.volumes", docs[0])
+        created_volume_mounts = jmespath.search("spec.template.spec.containers[1].volumeMounts", docs[0])
+
+        if should_add_volume:
+            assert expected_volume in created_volumes
+            assert expected_volume_mount in created_volume_mounts
+        else:
+            assert expected_volume not in created_volumes
+            assert expected_volume_mount not in created_volume_mounts
 
 
 class TestDagProcessorLogGroomer(LogGroomerTestBase):

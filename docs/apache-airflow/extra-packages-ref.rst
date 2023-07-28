@@ -44,13 +44,9 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | async               | ``pip install 'apache-airflow[async]'``             | Async worker classes for Gunicorn                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| celery              | ``pip install 'apache-airflow[celery]'``            | CeleryExecutor (also installs the celery provider package!)                |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | cgroups             | ``pip install 'apache-airflow[cgroups]'``           | Needed To use CgroupTaskRunner                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| cncf.kubernetes     | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor (also installs the Kubernetes provider package)        |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| dask                | ``pip install 'apache-airflow[dask]'``              | DaskExecutor                                                               |
+| daskexecutor        | ``pip install 'apache-airflow[daskexecutor]'``      | DaskExecutor  ((also installs the Daskexecutor provider package)           |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | deprecated_api      | ``pip install 'apache-airflow[deprecated_api]'``    | Deprecated, experimental API that is replaced with the new REST API        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -188,6 +184,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | facebook            | ``pip install 'apache-airflow[facebook]'``          | Facebook Social                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| github              | ``pip install 'apache-airflow[github]'``            | GitHub operators and hook                           |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | google              | ``pip install 'apache-airflow[google]'``            | Google Cloud                                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | hashicorp           | ``pip install 'apache-airflow[hashicorp]'``         | Hashicorp Services (Vault)                          |
@@ -231,6 +229,10 @@ These are extras that add dependencies needed for integration with other softwar
 | extra               | install command                                     | enables                                   |
 +=====================+=====================================================+===========================================+
 | arangodb            | ``pip install 'apache-airflow[arangodb]'``          | ArangoDB operators, sensors and hook      |
++---------------------+-----------------------------------------------------+-------------------------------------------+
+| celery              | ``pip install 'apache-airflow[celery]'``            | CeleryExecutor                            |
++---------------------+-----------------------------------------------------+-------------------------------------------+
+| cncf.kubernetes     | ``pip install 'apache-airflow[cncf.kubernetes]'``   | Kubernetes Executor                       |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
@@ -370,6 +372,8 @@ so there is no replacement for ``crypto`` extra.
 | cassandra           | apache.cassandra            |
 +---------------------+-----------------------------+
 | crypto              |                             |
++---------------------+-----------------------------+
+| dask                | daskexecutor                |
 +---------------------+-----------------------------+
 | druid               | apache.druid                |
 +---------------------+-----------------------------+

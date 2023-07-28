@@ -300,6 +300,7 @@ def patch_environ(new_env_variables: dict[str, str]) -> Generator[None, None, No
 def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
     """
     Checks if a pidfile already exists and process is still running.
+
     If process is dead then pidfile is removed.
 
     :param pid_file: path to the pidfile

@@ -34,6 +34,9 @@ from airflow_breeze.commands.ci_image_commands import ci_image  # noqa
 from airflow_breeze.commands.kubernetes_commands import kubernetes_group  # noqa
 from airflow_breeze.commands.production_image_commands import prod_image  # noqa
 from airflow_breeze.commands.release_management_commands import release_management  # noqa
+from airflow_breeze.commands.minor_release_command import create_minor_version_branch  # noqa
+from airflow_breeze.commands.release_command import airflow_release  # noqa
+from airflow_breeze.commands.release_candidate_command import release_management  # noqa
 from airflow_breeze.commands.sbom_commands import sbom  # noqa
 from airflow_breeze.commands.setup_commands import setup  # noqa
 from airflow_breeze.commands.testing_commands import group_for_testing  # noqa

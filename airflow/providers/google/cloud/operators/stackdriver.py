@@ -36,11 +36,11 @@ if TYPE_CHECKING:
 
 class StackdriverListAlertPoliciesOperator(GoogleCloudBaseOperator):
     """
-    Fetches all the Alert Policies identified by the filter passed as
-    filter parameter. The desired return type can be specified by the
-    format parameter, the supported formats are "dict", "json" and None
-    which returns python dictionary, stringified JSON and protobuf
-    respectively.
+    Fetches all the Alert Policies identified by the filter passed as filter parameter.
+
+    The desired return type can be specified by the format parameter, the supported
+    formats are "dict", "json" and None which returns python dictionary, stringified
+    JSON and protobuf respectively.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -150,8 +150,9 @@ class StackdriverListAlertPoliciesOperator(GoogleCloudBaseOperator):
 
 class StackdriverEnableAlertPoliciesOperator(GoogleCloudBaseOperator):
     """
-    Enables one or more disabled alerting policies identified by filter
-    parameter. Inoperative in case the policy is already enabled.
+    Enables one or more disabled alerting policies identified by filter parameter.
+
+    Inoperative in case the policy is already enabled.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -232,8 +233,9 @@ class StackdriverEnableAlertPoliciesOperator(GoogleCloudBaseOperator):
 # Disable Alert Operator
 class StackdriverDisableAlertPoliciesOperator(GoogleCloudBaseOperator):
     """
-    Disables one or more enabled alerting policies identified by filter
-    parameter. Inoperative in case the policy is already disabled.
+    Disables one or more enabled alerting policies identified by filter parameter.
+
+    Inoperative in case the policy is already disabled.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -313,8 +315,7 @@ class StackdriverDisableAlertPoliciesOperator(GoogleCloudBaseOperator):
 
 class StackdriverUpsertAlertOperator(GoogleCloudBaseOperator):
     """
-    Creates a new alert or updates an existing policy identified
-    the name field in the alerts parameter.
+    Creates a new alert or updates an existing policy identified the name field in the alerts parameter.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -470,11 +471,11 @@ class StackdriverDeleteAlertOperator(GoogleCloudBaseOperator):
 
 class StackdriverListNotificationChannelsOperator(GoogleCloudBaseOperator):
     """
-    Fetches all the Notification Channels identified by the filter passed as
-    filter parameter. The desired return type can be specified by the
-    format parameter, the supported formats are "dict", "json" and None
-    which returns python dictionary, stringified JSON and protobuf
-    respectively.
+    Fetches all the Notification Channels identified by the filter passed as filter parameter.
+
+    The desired return type can be specified by the format parameter, the
+    supported formats are "dict", "json" and None which returns python
+    dictionary, stringified JSON and protobuf respectively.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -584,8 +585,9 @@ class StackdriverListNotificationChannelsOperator(GoogleCloudBaseOperator):
 
 class StackdriverEnableNotificationChannelsOperator(GoogleCloudBaseOperator):
     """
-    Enables one or more disabled alerting policies identified by filter
-    parameter. Inoperative in case the policy is already enabled.
+    Enables one or more disabled alerting policies identified by filter parameter.
+
+    Inoperative in case the policy is already enabled.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -668,8 +670,9 @@ class StackdriverEnableNotificationChannelsOperator(GoogleCloudBaseOperator):
 
 class StackdriverDisableNotificationChannelsOperator(GoogleCloudBaseOperator):
     """
-    Disables one or more enabled notification channels identified by filter
-    parameter. Inoperative in case the policy is already disabled.
+    Disables one or more enabled notification channels identified by filter parameter.
+
+    Inoperative in case the policy is already disabled.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -752,8 +755,9 @@ class StackdriverDisableNotificationChannelsOperator(GoogleCloudBaseOperator):
 
 class StackdriverUpsertNotificationChannelOperator(GoogleCloudBaseOperator):
     """
-    Creates a new notification or updates an existing notification channel
-    identified the name field in the alerts parameter.
+    Create a new notification or updates an existing notification channel.
+
+    Channel is identified by the name field in the alerts parameter.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

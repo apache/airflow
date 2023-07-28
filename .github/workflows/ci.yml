@@ -305,6 +305,7 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       # Force more parallelism for build even on public images
       PARALLELISM: 6
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -383,7 +384,10 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
-      - run: breeze setup version
+      - run: >
+          breeze setup version ||
+          (echo "\033[0;31mERROR: Breeze version check failed\033[0m" &&
+           echo "Please run 'breeze setup version' and commit the changes." && false)
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
       - run: breeze setup check-all-params-in-groups
@@ -591,7 +595,7 @@ jobs:
       - name: "Static checks: basic checks only"
         run: >
           breeze static-checks --show-diff-on-failure --color always --initialize-environment
-          --commit-ref "${{ github.sha }}"
+          --skip-image-check --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
           SKIP_IMAGE_PRE_COMMITS: "true"
@@ -630,7 +634,18 @@ jobs:
             docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
             docs-inventory-
       - name: "Build docs"
-        run: breeze build-docs ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+        run: >
+          breeze build-docs
+          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+      - name: "Clone airflow-site"
+        run: >
+          git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
+          echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
+      - name: "Publish docs"
+        run: >
+          breeze release-management publish-docs
+          --override-versioned
+          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >
@@ -1297,15 +1312,13 @@ jobs:
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PARALLEL_TEST_TYPES: "Quarantined"
+      TEST_TYPE: "Quarantined"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      BACKEND: "sqlite"
-      BACKEND_VERSION: ""
       JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.runs-on == 'self-hosted'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1318,8 +1331,45 @@ jobs:
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze testing tests --run-in-parallel || true
+          Tests: postgres:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "postgres"
+          BACKEND_VERSION: "11"
+          POSTGRES_VERSION: "11"
+      - name: >
+          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze down
+      - name: >
+          Tests: mysql:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "mysql"
+          BACKEND_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
+          MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
+      - name: >
+          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze down
+      - name: >
+          Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "mssql"
+          BACKEND_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
+          MSSQL_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
+      - name: >
+          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze down
+      - name: >
+          Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "sqlite"
+          BACKEND_VERSION: ""
+          MSSQL_VERSION: ""
+      - name: >
+          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze down
       - name: >
           Post Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined"
         uses: ./.github/actions/post_tests

@@ -31,17 +31,21 @@ For high-level changelog, see :doc:`package information including changelog <ind
 5.0.0
 .....
 
-Latest change: 2023-07-05
+Latest change: 2023-07-15
 
-=================================================================================================  ===========  =======================================================================
+=================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =======================================================================
+=================================================================================================  ===========  ================================================================================
+`acd51647a4 <https://github.com/apache/airflow/commit/acd51647a4f5a37c47af05d27e9783f95bcf3db3>`_  2023-07-15   ``Fix unsound type hint in ElasticsearchTaskHandler.es_read (#32509)``
+`41e611929e <https://github.com/apache/airflow/commit/41e611929eadcbbc746d956647967c82f40fae4a>`_  2023-07-15   ``Fix Failing ES Remote Logging (#32438)``
+`e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `d1aa509bbd <https://github.com/apache/airflow/commit/d1aa509bbd1941ceb3fe31789efeebbddd58d32f>`_  2023-06-28   ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
 `09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
 `b28c90354f <https://github.com/apache/airflow/commit/b28c90354f110bd598ddce193cf82cb1416adbc8>`_  2023-06-24   ``Deprecate the 2 non-official elasticsearch libraries (#31920)``
-=================================================================================================  ===========  =======================================================================
+=================================================================================================  ===========  ================================================================================
 
 4.5.1
 .....

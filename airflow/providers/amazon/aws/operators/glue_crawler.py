@@ -96,7 +96,7 @@ class GlueCrawlerOperator(BaseOperator):
             self.defer(
                 trigger=GlueCrawlerCompleteTrigger(
                     crawler_name=crawler_name,
-                    poll_interval=self.poll_interval,
+                    waiter_delay=self.poll_interval,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",

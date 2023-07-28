@@ -1002,6 +1002,9 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:MLEngineStartTrainingJobOperator`
 
+    For more information about used parameters, check:
+        https://cloud.google.com/sdk/gcloud/reference/ml-engine/jobs/submit/training
+
     :param job_id: A unique templated id for the submitted Google MLEngine
         training job. (templated)
     :param region: The Google Compute Engine region to run the MLEngine training
@@ -1296,8 +1299,8 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])

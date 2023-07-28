@@ -26,6 +26,28 @@ from tests.charts.helm_template_generator import render_chart
 class TestStatsd:
     """Tests statsd."""
 
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/statsd/statsd-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/statsd/statsd-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
     def test_should_create_statsd_default(self):
         docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
 

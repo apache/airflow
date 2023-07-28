@@ -521,8 +521,7 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
         self, hook: BigQueryTableAsyncHook, dataset: str, table_id: str, project_id: str
     ) -> bool:
         """
-        Create client session and make call to BigQueryTableAsyncHook and check for the table in
-        Google Big Query.
+        Create session, make call to BigQueryTableAsyncHook, and check for the table in Google Big Query.
 
         :param hook: BigQueryTableAsyncHook Hook class
         :param dataset:  The name of the dataset in which to look for the table storage bucket.

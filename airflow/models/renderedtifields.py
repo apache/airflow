@@ -101,7 +101,11 @@ class RenderedTaskInstanceFields(Base):
             ti.render_templates()
         self.task = ti.task
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
-            self.k8s_pod_yaml = ti.render_k8s_pod_yaml()
+            # we can safely import it here from provider. In Airflow 2.7.0+ you need to have new version
+            # of kubernetes provider installed to reach this place
+            from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
+
+            self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
         self.rendered_fields = {
             field: serialize_template_field(getattr(self.task, field)) for field in self.task.template_fields
         }
@@ -127,22 +131,19 @@ class RenderedTaskInstanceFields(Base):
     @provide_session
     def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
-        Get templated field for a TaskInstance from the RenderedTaskInstanceFields
-        table.
+        Get templated field for a TaskInstance from the RenderedTaskInstanceFields table.
 
         :param ti: Task Instance
         :param session: SqlAlchemy Session
         :return: Rendered Templated TI field
         """
-        result = (
-            session.query(cls.rendered_fields)
-            .filter(
+        result = session.scalar(
+            select(cls).where(
                 cls.dag_id == ti.dag_id,
                 cls.task_id == ti.task_id,
                 cls.run_id == ti.run_id,
                 cls.map_index == ti.map_index,
             )
-            .one_or_none()
         )
 
         if result:
@@ -155,22 +156,19 @@ class RenderedTaskInstanceFields(Base):
     @provide_session
     def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
-        Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields
-        table.
+        Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields table.
 
         :param ti: Task Instance
         :param session: SqlAlchemy Session
         :return: Kubernetes Pod Yaml
         """
-        result = (
-            session.query(cls.k8s_pod_yaml)
-            .filter(
+        result = session.scalar(
+            select(cls).where(
                 cls.dag_id == ti.dag_id,
                 cls.task_id == ti.task_id,
                 cls.run_id == ti.run_id,
                 cls.map_index == ti.map_index,
             )
-            .one_or_none()
         )
         return result.k8s_pod_yaml if result else None
 
@@ -243,7 +241,8 @@ class RenderedTaskInstanceFields(Base):
                 cls.task_id == task_id,
                 tuple_not_in_condition(
                     (cls.dag_id, cls.task_id, cls.run_id),
-                    session.query(ti_clause.c.dag_id, ti_clause.c.task_id, ti_clause.c.run_id),
+                    select(ti_clause.c.dag_id, ti_clause.c.task_id, ti_clause.c.run_id),
+                    session=session,
                 ),
             )
             .execution_options(synchronize_session=False)

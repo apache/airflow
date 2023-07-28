@@ -64,3 +64,6 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.redis.hooks.redis.RedisHook
     connection-type: redis
+
+logging:
+  - airflow.providers.redis.redis_task_handler.RedisTaskHandler

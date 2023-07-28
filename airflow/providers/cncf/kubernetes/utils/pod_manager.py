@@ -43,7 +43,7 @@ from urllib3.exceptions import HTTPError as BaseHTTPError
 from urllib3.response import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.kubernetes.pod_generator import PodDefaults
+from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
 from airflow.typing_compat import Literal, Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
@@ -89,7 +89,7 @@ class PodOperatorHookProtocol(Protocol):
 
     @property
     def core_v1_client(self) -> client.CoreV1Api:
-        """Get authenticated CoreV1Api object."""
+        """Get authenticated client object."""
 
     @property
     def is_in_cluster(self) -> bool:
@@ -129,6 +129,7 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
 def container_is_completed(pod: V1Pod, container_name: str) -> bool:
     """
     Examines V1Pod ``pod`` to determine whether ``container_name`` is completed.
+
     If that container is present and completed, returns True.  Returns False otherwise.
     """
     container_status = get_container_status(pod, container_name)
@@ -430,8 +431,9 @@ class PodManager(LoggingMixin):
         self, pod: V1Pod, container_logs: Iterable[str] | str | Literal[True], follow_logs=False
     ) -> list[PodLoggingStatus]:
         """
-        Follow the logs of containers in the pod specified by input parameter and publish
-        it to airflow logging. Returns when all the containers exit.
+        Follow the logs of containers in the specified pod and publish it to airflow logging.
+
+        Returns when all the containers exit.
         """
         pod_logging_statuses = []
         all_containers = self.get_container_names(pod)

@@ -32,9 +32,10 @@ if TYPE_CHECKING:
 
 class BigQueryToSqlBaseOperator(BaseOperator):
     """
-    Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
-    and insert that data into a SQL table. This is a BaseOperator; an abstract class. Refer
-    to children classes which are related to specific SQL databases (MySQL, MsSQL, Postgres...).
+    Fetch data from a BigQuery table (alternatively fetch selected columns) and insert it into an SQL table.
+
+    This is a BaseOperator; an abstract class. Refer to children classes
+    which are related to specific SQL databases (MySQL, MsSQL, Postgres...).
 
     .. note::
         If you pass fields to ``selected_fields`` which are in different order than the

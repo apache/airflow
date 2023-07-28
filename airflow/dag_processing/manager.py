@@ -167,11 +167,10 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
     def run_single_parsing_loop(self) -> None:
         """
         Should only be used when launched DAG file processor manager in sync mode.
-        Send agent heartbeat signal to the manager, requesting that it runs one
-        processing "loop".
 
-        Call wait_until_finished to ensure that any launched processors have
-        finished before continuing
+        Send agent heartbeat signal to the manager, requesting that it runs one processing "loop".
+
+        Call wait_until_finished to ensure that any launched processors have finished before continuing.
         """
         if not self._parent_signal_conn or not self._process:
             raise ValueError("Process not started.")
@@ -477,6 +476,7 @@ class DagFileProcessorManager(LoggingMixin):
     def start(self):
         """
         Use multiple processes to parse and generate tasks for the DAGs in parallel.
+
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
@@ -519,6 +519,7 @@ class DagFileProcessorManager(LoggingMixin):
     ):
         """
         Detects DAGs which are no longer present in files.
+
         Deactivate them and remove them in the serialized_dag table.
         """
         to_deactivate = set()
@@ -888,6 +889,7 @@ class DagFileProcessorManager(LoggingMixin):
     def get_pid(self, file_path) -> int | None:
         """
         Retrieve the PID of the process processing the given file or None if the file is not being processed.
+
         :param file_path: the path to the file that's being processed.
         """
         if file_path in self._processors:
@@ -905,6 +907,7 @@ class DagFileProcessorManager(LoggingMixin):
     def get_last_runtime(self, file_path) -> float | None:
         """
         Retrieve the last processing time of a specific path.
+
         :param file_path: the path to the file that was processed
         :return: the runtime (in seconds) of the process of the last run, or
             None if the file was never processed.
@@ -915,9 +918,9 @@ class DagFileProcessorManager(LoggingMixin):
     def get_last_dag_count(self, file_path) -> int | None:
         """
         Retrieve the total DAG count at a specific path.
+
         :param file_path: the path to the file that was processed
-        :return: the number of dags loaded from that file, or None if the file
-            was never processed.
+        :return: the number of dags loaded from that file, or None if the file was never processed.
         """
         stat = self._file_stats.get(file_path)
         return stat.num_dags if stat else None
@@ -925,9 +928,9 @@ class DagFileProcessorManager(LoggingMixin):
     def get_last_error_count(self, file_path) -> int | None:
         """
         Retrieve the total number of errors from processing a specific path.
+
         :param file_path: the path to the file that was processed
-        :return: the number of import errors from processing, or None if the file
-            was never processed.
+        :return: the number of import errors from processing, or None if the file was never processed.
         """
         stat = self._file_stats.get(file_path)
         return stat.import_errors if stat else None
@@ -935,9 +938,9 @@ class DagFileProcessorManager(LoggingMixin):
     def get_last_finish_time(self, file_path) -> datetime | None:
         """
         Retrieve the last completion time for processing a specific path.
+
         :param file_path: the path to the file that was processed
-        :return: the finish time of the process of the last run, or None if the
-            file was never processed.
+        :return: the finish time of the process of the last run, or None if the file was never processed.
         """
         stat = self._file_stats.get(file_path)
         return stat.last_finish_time if stat else None
@@ -945,6 +948,7 @@ class DagFileProcessorManager(LoggingMixin):
     def get_start_time(self, file_path) -> datetime | None:
         """
         Retrieve the last start time for processing a specific path.
+
         :param file_path: the path to the file that's being processed
         :return: the start time of the process that's processing the
             specified file or None if the file is not currently being processed.
@@ -956,6 +960,7 @@ class DagFileProcessorManager(LoggingMixin):
     def get_run_count(self, file_path) -> int:
         """
         The number of times the given file has been parsed.
+
         :param file_path: the path to the file that's being processed.
         """
         stat = self._file_stats.get(file_path)

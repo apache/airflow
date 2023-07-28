@@ -18,7 +18,7 @@
 """This module contains Google Cloud SQL operators."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from googleapiclient.errors import HttpError
 
@@ -1027,8 +1027,8 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
     def execute_complete(self, context, event=None) -> None:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "success":
             self.log.info("Operation %s completed successfully", event["operation_name"])
@@ -1189,7 +1189,7 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         *,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         gcp_conn_id: str = "google_cloud_default",
         gcp_cloudsql_conn_id: str = "google_cloud_sql_default",
         sql_proxy_binary_path: str | None = None,

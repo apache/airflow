@@ -74,7 +74,7 @@ def get_id_collation_args():
         return {}
 
 
-COLLATION_ARGS = get_id_collation_args()
+COLLATION_ARGS: dict[str, Any] = get_id_collation_args()
 
 
 def StringID(*, length=ID_LEN, **kwargs) -> String:

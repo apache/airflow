@@ -70,6 +70,7 @@ from airflow_breeze.utils.common_options import (
     option_upgrade_to_newer_dependencies,
     option_verbose,
     option_verify,
+    option_version_suffix_for_pypi,
     option_wait_for_image,
 )
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
@@ -195,6 +196,7 @@ def prepare_for_building_ci_image(params: BuildCiParams):
 @option_tag_as_latest
 @option_additional_pip_install_flags
 @option_github_repository
+@option_version_suffix_for_pypi
 @option_verbose
 @option_dry_run
 @option_answer
@@ -575,6 +577,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
     )
     ci_image_params = BuildCiParams(
         python=command_params.python,
+        builder=command_params.builder,
         github_repository=command_params.github_repository,
         upgrade_to_newer_dependencies=False,
         image_tag=command_params.image_tag,
@@ -597,8 +600,8 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
             get_console().print(f"[info]{command_params.image_type} image already built locally.[/]")
     else:
         get_console().print(
-            f"[warning]{command_params.image_type} image was never built locally or deleted. "
-            "Forcing build.[/]"
+            f"[warning]{command_params.image_type} image for Python {command_params.python} "
+            f"was never built locally or was deleted. Forcing build.[/]"
         )
         ci_image_params.force_build = True
     if check_if_image_building_is_needed(

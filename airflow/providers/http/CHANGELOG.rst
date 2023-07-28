@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to SimpleHttpOperator (#32448)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix headers passed into HttpAsyncHook (#32409)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 4.4.2
 .....
 

@@ -50,6 +50,7 @@ from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import WebEncoder
+from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
@@ -59,6 +60,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.operators import ColumnOperators
 
     from airflow.www.fab_security.sqla.manager import SecurityManager
+
+TI = TaskInstance
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
@@ -81,13 +84,18 @@ def get_mapped_instances(task_instance, session):
 
 def get_instance_with_map(task_instance, session):
     if task_instance.map_index == -1:
-        return alchemy_to_dict(task_instance)
+        data = alchemy_to_dict(task_instance)
+        # Fetch execution_date explicitly since it's not a column and a proxy
+        data["execution_date"] = task_instance.execution_date
+        return data
     mapped_instances = get_mapped_instances(task_instance, session)
     return get_mapped_summary(task_instance, mapped_instances)
 
 
 def get_try_count(try_number: int, state: State):
-    return try_number + 1 if state in [State.DEFERRED, State.UP_FOR_RESCHEDULE] else try_number
+    if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
+        return try_number + 1
+    return try_number
 
 
 priority: list[None | TaskInstanceState] = [
@@ -117,6 +125,10 @@ def get_mapped_summary(parent_instance, task_instances):
             group_state = state
             break
 
+    group_queued_dttm = datetime_to_string(
+        min((ti.queued_dttm for ti in task_instances if ti.queued_dttm), default=None)
+    )
+
     group_start_date = datetime_to_string(
         min((ti.start_date for ti in task_instances if ti.start_date), default=None)
     )
@@ -128,10 +140,12 @@ def get_mapped_summary(parent_instance, task_instances):
         "task_id": parent_instance.task_id,
         "run_id": parent_instance.run_id,
         "state": group_state,
+        "queued_dttm": group_queued_dttm,
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
         "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
+        "execution_date": parent_instance.execution_date,
     }
 
 
@@ -764,7 +778,7 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     def __init__(self, datamodel):
         super().__init__(datamodel)
 
-        for (method, filters) in self.conversion_table:
+        for method, filters in self.conversion_table:
             if FilterIsNull not in filters:
                 filters.append(FilterIsNull)
             if FilterIsNotNull not in filters:
@@ -842,12 +856,17 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
     """
 
     def delete(self, item: Model, raise_exception: bool = False) -> bool:
-        self.session.execute(delete(TaskInstance).where(TaskInstance.run_id == item.run_id))
+        self.session.execute(delete(TI).where(TI.dag_id == item.dag_id, TI.run_id == item.run_id))
         return super().delete(item, raise_exception=raise_exception)
 
     def delete_all(self, items: list[Model]) -> bool:
         self.session.execute(
-            delete(TaskInstance).where(TaskInstance.run_id.in_(item.run_id for item in items))
+            delete(TI).where(
+                tuple_in_condition(
+                    (TI.dag_id, TI.run_id),
+                    ((x.dag_id, x.run_id) for x in items),
+                )
+            )
         )
         return super().delete_all(items)
 
@@ -924,6 +943,6 @@ class UIAlert:
                 # Unable to obtain user role - default to not showing
                 return False
 
-            if not user_roles.intersection(set(self.roles)):
+            if user_roles.isdisjoint(self.roles):
                 return False
         return True
