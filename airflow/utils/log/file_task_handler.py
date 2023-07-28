@@ -184,7 +184,7 @@ class FileTaskHandler(logging.Handler):
 
         :param ti: task instance object
         :param identifier: if set, adds suffix to log file. For use when shipping exceptional messages
-            to task logs from context other than task or trigger run
+            to task logs from a context other than task or trigger run
         """
         local_loc = self._init_file(ti, identifier=identifier)
         self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")
