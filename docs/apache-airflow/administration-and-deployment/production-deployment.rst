@@ -43,14 +43,9 @@ Once that is done, you can run -
 
 .. code-block:: bash
 
-    airflow db upgrade
+    airflow db migrate
 
-``upgrade`` keeps track of migrations already applied, so it's safe to run as often as you need.
-
-.. note::
-
-    Do not use ``airflow db init`` as it can create a lot of default connections, charts, etc. which are not
-    required in production DB.
+``migrate`` keeps track of migrations already applied, so it's safe to run as often as you need.
 
 
 Multi-Node Cluster

@@ -21,7 +21,7 @@ Upgrading Airflow™ to a newer version
 Why you need to upgrade
 =======================
 
-Newer Airflow versions can contain database migrations so you must run ``airflow db upgrade``
+Newer Airflow versions can contain database migrations so you must run ``airflow db migrate``
 to upgrade your database with the schema changes in the Airflow version you are upgrading to.
 Don't worry, it's safe to run even if there are no migrations to perform.
 
@@ -41,7 +41,7 @@ When you need to upgrade
 ========================
 
 If you have a custom deployment based on virtualenv or Docker Containers, you usually need to run
-the DB upgrade manually as part of the upgrade process.
+the DB migrate manually as part of the upgrade process.
 
 In some cases the upgrade happens automatically - it depends if in your deployment, the upgrade is
 built-in as post-install action. For example when you are using :doc:`helm-chart:index` with
@@ -52,7 +52,7 @@ when you choose to upgrade airflow via their UI.
 How to upgrade
 ==============
 
-In order to manually upgrade the database you should run the ``airflow db upgrade`` command in your
+In order to manually upgrade the database you should run the ``airflow db migrate`` command in your
 environment. It can be run either in your virtual environment or in the containers that give
 you access to Airflow ``CLI`` :doc:`/howto/usage-cli` and the database.
 
@@ -63,8 +63,8 @@ to get the SQL statements that would be executed. This feature is supported in P
 from Airflow 2.0.0 onward and in MSSQL from Airflow 2.2.0 onward.
 
 Sample usage:
-   ``airflow db upgrade -r "2.0.0:2.2.0"``
-   ``airflow db upgrade --revision-range "e959f08ac86c:142555e44c17"``
+   ``airflow db migrate -r "2.0.0:2.2.0"``
+   ``airflow db migrate --revision-range "e959f08ac86c:142555e44c17"``
 
 
 Handling migration problems
@@ -208,7 +208,7 @@ Airflow version.
 Post-upgrade warnings
 .....................
 
-Typically you just need to successfully run ``airflow db upgrade`` command and this is all. However, in
+Typically you just need to successfully run ``airflow db migrate`` command and this is all. However, in
 some cases, the migration might find some old, stale and probably wrong data in your database and moves it
 aside to a separate table. In this case you might get warning in your webserver UI about the data found.
 

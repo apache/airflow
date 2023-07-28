@@ -25,13 +25,13 @@ runs:
       shell: bash
       run: >
         breeze shell "airflow db reset --skip-init -y &&
-        airflow db upgrade --to-revision heads &&
+        airflow db migrate --to-revision heads &&
         airflow db downgrade -r e959f08ac86c -y &&
-        airflow db upgrade"
+        airflow db migrate"
     - name: "Test downgrade ORM ${{env.BACKEND}}"
       shell: bash
       run: >
         breeze shell "airflow db reset -y &&
-        airflow db upgrade &&
+        airflow db migrate &&
         airflow db downgrade -r e959f08ac86c -y &&
-        airflow db upgrade"
+        airflow db migrate"
