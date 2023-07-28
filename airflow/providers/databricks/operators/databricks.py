@@ -340,6 +340,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
         if spark_submit_task is not None:
             self.json["spark_submit_task"] = spark_submit_task
         if pipeline_task is not None:
+            if "pipeline_name" in pipeline_task:
+                pipeline_id = DatabricksHook.get_pipeline_id_by_name(pipeline_task["pipeline_name"])
+                pipeline_task["pipeline_id"] = pipeline_id
+                del pipeline_task["pipeline_name"]
             self.json["pipeline_task"] = pipeline_task
         if dbt_task is not None:
             self.json["dbt_task"] = dbt_task
