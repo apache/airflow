@@ -43,9 +43,7 @@ securityContexts:
   pod: {}
   containers: {}
 
-# Default container level lifecycle hooks for every container
-# See:
-# https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
+# Default container lifecycle hooks for every service except for redis, statsd and pgbouncer.
 containerLifecycleHooks: {}
 
 # Airflow home directory
@@ -519,8 +517,6 @@ workers:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
   containerLifecycleHooks: {}
 
   # Create ServiceAccount
@@ -596,8 +592,6 @@ workers:
     securityContexts:
       container: {}
     # container level lifecycle hooks
-    # See:
-    # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
     containerLifecycleHooks: {}
 
   kerberosSidecar:
@@ -614,8 +608,6 @@ workers:
     securityContexts:
       container: {}
     # container level lifecycle hooks
-    # See:
-    # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
     containerLifecycleHooks: {}
 
   resources: {}
@@ -718,8 +710,6 @@ workers:
     securityContexts:
       container: {}
     # container level lifecycle hooks
-    # See:
-    # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
     containerLifecycleHooks: {}
 
   env: []
@@ -782,8 +772,6 @@ scheduler:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
   containerLifecycleHooks: {}
 
   # Create ServiceAccount
@@ -887,8 +875,6 @@ scheduler:
     securityContexts:
       container: {}
     # container level lifecycle hooks
-    # See:
-    # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
     containerLifecycleHooks: {}
 
   waitForMigrations:
@@ -899,8 +885,6 @@ scheduler:
     securityContexts:
       container: {}
     # container level lifecycle hooks
-    # See:
-    # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
     containerLifecycleHooks: {}
 
   env: []
@@ -953,8 +937,6 @@ createUserJob:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
   containerLifecycleHooks: {}
 
   # Create ServiceAccount
@@ -1041,8 +1023,6 @@ migrateDatabaseJob:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
   containerLifecycleHooks: {}
 
   # Create ServiceAccount
@@ -1175,8 +1155,6 @@ webserver:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
   containerLifecycleHooks: {}
 
   # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
@@ -1305,8 +1283,6 @@ webserver:
       container: {}
 
     # container level lifecycle hooks
-    # See:
-    # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
     containerLifecycleHooks: {}
 
   env: []
@@ -1367,8 +1343,6 @@ triggerer:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
   containerLifecycleHooks: {}
 
   persistence:
@@ -1466,8 +1440,6 @@ triggerer:
       container: {}
 
     # container level lifecycle hooks
-    # See:
-    # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
     containerLifecycleHooks: {}
 
   waitForMigrations:
@@ -1479,8 +1451,6 @@ triggerer:
       container: {}
 
     # container level lifecycle hooks
-    # See:
-    # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
     containerLifecycleHooks: {}
 
   env: []
@@ -1539,8 +1509,6 @@ dagProcessor:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
   containerLifecycleHooks: {}
 
   resources: {}
@@ -1673,8 +1641,6 @@ flower:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
   containerLifecycleHooks: {}
 
   # Create ServiceAccount
@@ -1789,6 +1755,9 @@ statsd:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Additional network policies as needed
   extraNetworkPolicies: []
@@ -1963,9 +1932,11 @@ pgbouncer:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
-  containerLifecycleHooks: {}
+  containerLifecycleHooks:
+    preStop:
+      exec:
+        # Allow existing queries clients to complete within 120 seconds
+        command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
 
   metricsExporterSidecar:
     resources: {}
@@ -1982,8 +1953,6 @@ pgbouncer:
       container: {}
 
     # container level lifecycle hooks
-    # See:
-    # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
     containerLifecycleHooks: {}
 
     livenessProbe:
@@ -2064,8 +2033,6 @@ redis:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
   containerLifecycleHooks: {}
 
   podAnnotations: {}
@@ -2177,8 +2144,6 @@ cleanup:
     container: {}
 
   # container level lifecycle hooks
-  # See:
-  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
   containerLifecycleHooks: {}
 
   # Specify history limit
@@ -2387,8 +2352,6 @@ dags:
       container: {}
 
     # container level lifecycle hooks
-    # See:
-    # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
     containerLifecycleHooks: {}
 
     # Mount additional volumes into git-sync. It can be templated like in the following example:

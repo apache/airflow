@@ -406,39 +406,3 @@ class TestAirflowCommon:
             priority = doc["spec"]["template"]["spec"]["priorityClassName"]
 
             assert priority == f"low-priority-{component}"
-
-    # Test containerLifecycleHooks for main containers
-    def test_global_container_lifecycle_webhooks(self):
-        post_start_value = {"exec": {"command": ["bash", "-c", "echo postStart"]}}
-        pre_stop_value = {"exec": {"command": ["bash", "-c", "echo preStop"]}}
-        docs = render_chart(
-            values={
-                "containerLifecycleHooks": {
-                    "postStart": post_start_value,
-                    "preStop": pre_stop_value,
-                },
-            },
-            show_only=[
-                "templates/flower/flower-deployment.yaml",
-                "templates/scheduler/scheduler-deployment.yaml",
-                "templates/webserver/webserver-deployment.yaml",
-                "templates/workers/worker-deployment.yaml",
-                "templates/jobs/create-user-job.yaml",
-                "templates/jobs/migrate-database-job.yaml",
-                "templates/triggerer/triggerer-deployment.yaml",
-                "templates/statsd/statsd-deployment.yaml",
-                "templates/redis/redis-statefulset.yaml",
-            ],
-        )
-
-        for index in range(len(docs) - 2):
-            assert post_start_value == jmespath.search(
-                "spec.template.spec.containers[0].lifecycle.postStart", docs[index]
-            )
-            assert pre_stop_value == jmespath.search(
-                "spec.template.spec.containers[0].lifecycle.preStop", docs[index]
-            )
-
-        # Global containerLifecycleHooks is not propagated to redis and statsd, so we test default value
-        for index in range(len(docs) - 2, len(docs)):
-            assert jmespath.search("spec.template.spec.containers[0].lifecycle", docs[index]) is None

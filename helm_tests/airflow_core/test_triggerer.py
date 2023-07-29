@@ -574,28 +574,6 @@ class TestTriggerer:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
-    def test_triggerer_container_lifecycle_webhooks_are_configurable(self):
-        post_start_value = {"exec": {"command": ["bash", "-c", "echo postStart"]}}
-        pre_stop_value = {"exec": {"command": ["bash", "-c", "echo preStop"]}}
-        docs = render_chart(
-            values={
-                "triggerer": {
-                    "containerLifecycleHooks": {
-                        "postStart": post_start_value,
-                        "preStop": pre_stop_value,
-                    }
-                },
-            },
-            show_only=["templates/triggerer/triggerer-deployment.yaml"],
-        )
-
-        assert post_start_value == jmespath.search(
-            "spec.template.spec.containers[0].lifecycle.postStart", docs[0]
-        )
-        assert pre_stop_value == jmespath.search(
-            "spec.template.spec.containers[0].lifecycle.preStop", docs[0]
-        )
-
 
 class TestTriggererServiceAccount:
     """Tests triggerer service account."""

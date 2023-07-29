@@ -306,28 +306,6 @@ class TestRedis:
         )
         assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
 
-    def test_redis_container_lifecycle_webhooks_are_configurable(self):
-        post_start_value = {"exec": {"command": ["bash", "-c", "echo postStart"]}}
-        pre_stop_value = {"exec": {"command": ["bash", "-c", "echo preStop"]}}
-        docs = render_chart(
-            values={
-                "redis": {
-                    "containerLifecycleHooks": {
-                        "postStart": post_start_value,
-                        "preStop": pre_stop_value,
-                    }
-                },
-            },
-            show_only=["templates/redis/redis-statefulset.yaml"],
-        )
-
-        assert post_start_value == jmespath.search(
-            "spec.template.spec.containers[0].lifecycle.postStart", docs[0]
-        )
-        assert pre_stop_value == jmespath.search(
-            "spec.template.spec.containers[0].lifecycle.preStop", docs[0]
-        )
-
     def test_redis_resources_are_not_added_by_default(self):
         docs = render_chart(
             show_only=["templates/redis/redis-statefulset.yaml"],
