@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import inspect
 import logging
 import os
 import pickle
-import shutil
 import subprocess
 import sys
 import types
@@ -540,7 +540,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 "major versions for PythonVirtualenvOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. Venv version: {python_version}"
             )
-        if not shutil.which("virtualenv"):
+        if importlib.util.find_spec("virtualenv") is None:
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if not requirements:
             self.requirements: list[str] | str = []
