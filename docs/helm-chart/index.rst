@@ -161,11 +161,11 @@ Naming Conventions
 ------------------
 
 For new installations it is highly recommended to start using standard naming conventions.
-It is not enabled by default as this may cause unexpected behaviours on existing installations. However you can enable it using ``--set useStandardNaming=true``
+It is not enabled by default as this may cause unexpected behaviours on existing installations. However you can enable it using ``useStandardNaming``:
 
-.. code-block:: bash
+.. code-block:: yaml
 
-    helm upgrade airflow -n airflow . --set useStandardNaming=true
+    useStandardNaming: true
 
 For existing installations, all your resources will be recreated with a new name and helm will delete previous resources.
 
