@@ -833,56 +833,90 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
-    def test_many_one_explicit_odd_setup_all_setups_fail(self, dag_maker):
+    @pytest.mark.parametrize("type_", ["taskflow", "classic"])
+    def test_many_one_explicit_odd_setup_all_setups_fail(self, type_, dag_maker):
         """
         one unmapped setup goes to two different teardowns
         one mapped setup goes to same teardown
         all setups fail
         teardowns should not run
         """
-        with dag_maker(
-            dag_id="many_one_explicit_odd_setup_all_setups_fail",
-        ) as dag:
+        if type_ == "taskflow":
+            with dag_maker() as dag:
 
-            @task
-            def other_setup():
-                print("other setup")
-                raise ValueError("fail")
-                return "other setup"
+                @task
+                def other_setup():
+                    print("other setup")
+                    raise ValueError("fail")
+                    return "other setup"
 
-            @task
-            def other_work():
-                print("other work")
-                return "other work"
+                @task
+                def other_work():
+                    print("other work")
+                    return "other work"
 
-            @task
-            def other_teardown():
-                print("other teardown")
-                return "other teardown"
+                @task
+                def other_teardown():
+                    print("other teardown")
+                    return "other teardown"
 
-            @task
-            def my_setup(val):
-                print(f"setup: {val}")
-                raise ValueError("fail")
-                return val
+                @task
+                def my_setup(val):
+                    print(f"setup: {val}")
+                    raise ValueError("fail")
+                    return val
 
-            @task
-            def my_work(val):
-                print(f"work: {val}")
+                @task
+                def my_work(val):
+                    print(f"work: {val}")
 
-            @task
-            def my_teardown(val):
-                print(f"teardown: {val}")
+                @task
+                def my_teardown(val):
+                    print(f"teardown: {val}")
 
-            s = my_setup.expand(val=["data1.json", "data2.json", "data3.json"])
-            o_setup = other_setup()
-            o_teardown = other_teardown()
-            with o_teardown.as_teardown(setups=o_setup):
-                other_work()
-            t = my_teardown(s).as_teardown(setups=s)
-            with t:
-                my_work(s)
-            o_setup >> t
+                s = my_setup.expand(val=["data1.json", "data2.json", "data3.json"])
+                o_setup = other_setup()
+                o_teardown = other_teardown()
+                with o_teardown.as_teardown(setups=o_setup):
+                    other_work()
+                t = my_teardown(s).as_teardown(setups=s)
+                with t:
+                    my_work(s)
+                o_setup >> t
+        else:
+            with dag_maker() as dag:
+
+                @task
+                def other_setup():
+                    print("other setup")
+                    raise ValueError("fail")
+                    return "other setup"
+
+                @task
+                def other_work():
+                    print("other work")
+                    return "other work"
+
+                @task
+                def other_teardown():
+                    print("other teardown")
+                    return "other teardown"
+
+                @task
+                def my_work(val):
+                    print(f"work: {val}")
+
+                my_setup = self.classic_operator("my_setup", partial=True, fail=True)
+                s = my_setup.expand(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
+                o_setup = other_setup()
+                o_teardown = other_teardown()
+                with o_teardown.as_teardown(setups=o_setup):
+                    other_work()
+                my_teardown = self.classic_operator("my_teardown")
+                t = my_teardown.as_teardown(setups=s)
+                with t:
+                    my_work(s.output)
+                o_setup >> t
 
         dr = dag.test()
         states = self.get_states(dr)
@@ -896,56 +930,106 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
-    def test_many_one_explicit_odd_setup_one_mapped_fails(self, dag_maker):
+    @pytest.mark.parametrize("type_", ["taskflow", "classic"])
+    def test_many_one_explicit_odd_setup_one_mapped_fails(self, type_, dag_maker):
         """
         one unmapped setup goes to two different teardowns
         one mapped setup goes to same teardown
         one of the mapped setup instances fails
         teardowns should all run
         """
-        with dag_maker(dag_id="many_one_explicit_odd_setup_one_mapped_fails") as dag:
+        if type_ == "taskflow":
+            with dag_maker() as dag:
 
-            @task
-            def other_setup():
-                print("other setup")
-                return "other setup"
+                @task
+                def other_setup():
+                    print("other setup")
+                    return "other setup"
 
-            @task
-            def other_work():
-                print("other work")
-                return "other work"
+                @task
+                def other_work():
+                    print("other work")
+                    return "other work"
 
-            @task
-            def other_teardown():
-                print("other teardown")
-                return "other teardown"
+                @task
+                def other_teardown():
+                    print("other teardown")
+                    return "other teardown"
 
-            @task
-            def my_setup(val):
-                if val == "data2.json":
-                    raise ValueError("fail!")
-                elif val == "data3.json":
-                    raise AirflowSkipException("skip!")
-                print(f"setup: {val}")
-                return val
+                @task
+                def my_setup(val):
+                    if val == "data2.json":
+                        raise ValueError("fail!")
+                    elif val == "data3.json":
+                        raise AirflowSkipException("skip!")
+                    print(f"setup: {val}")
+                    return val
 
-            @task
-            def my_work(val):
-                print(f"work: {val}")
+                @task
+                def my_work(val):
+                    print(f"work: {val}")
 
-            @task
-            def my_teardown(val):
-                print(f"teardown: {val}")
+                @task
+                def my_teardown(val):
+                    print(f"teardown: {val}")
 
-            s = my_setup.expand(val=["data1.json", "data2.json", "data3.json"])
-            o_setup = other_setup()
-            o_teardown = other_teardown()
-            with o_teardown.as_teardown(setups=o_setup):
-                other_work()
-            t = my_teardown(s).as_teardown(setups=s)
-            with t:
-                my_work(s)
-            o_setup >> t
+                s = my_setup.expand(val=["data1.json", "data2.json", "data3.json"])
+                o_setup = other_setup()
+                o_teardown = other_teardown()
+                with o_teardown.as_teardown(setups=o_setup):
+                    other_work()
+                t = my_teardown(s).as_teardown(setups=s)
+                with t:
+                    my_work(s)
+                o_setup >> t
+        else:
+            with dag_maker() as dag:
+
+                @task
+                def other_setup():
+                    print("other setup")
+                    return "other setup"
+
+                @task
+                def other_work():
+                    print("other work")
+                    return "other work"
+
+                @task
+                def other_teardown():
+                    print("other teardown")
+                    return "other teardown"
+
+                def my_setup_callable(val):
+                    if val == "data2.json":
+                        raise ValueError("fail!")
+                    elif val == "data3.json":
+                        raise AirflowSkipException("skip!")
+                    print(f"setup: {val}")
+                    return val
+
+                my_setup = PythonOperator.partial(task_id="my_setup", python_callable=my_setup_callable)
+
+                @task
+                def my_work(val):
+                    print(f"work: {val}")
+
+                def my_teardown_callable(val):
+                    print(f"teardown: {val}")
+
+                s = my_setup.expand(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
+                o_setup = other_setup()
+                o_teardown = other_teardown()
+                with o_teardown.as_teardown(setups=o_setup):
+                    other_work()
+                my_teardown = PythonOperator(
+                    task_id="my_teardown", op_args=[s.output], python_callable=my_teardown_callable
+                )
+                t = my_teardown.as_teardown(setups=s)
+                with t:
+                    my_work(s.output)
+                o_setup >> t
+
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
@@ -958,7 +1042,8 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
-    def test_one_to_many_as_teardown(self, dag_maker, session):
+    @pytest.mark.parametrize("type_", ["taskflow", "classic"])
+    def test_one_to_many_as_teardown(self, type_, dag_maker):
         """
         1 setup mapping to 3 teardowns
         1 work task
@@ -966,27 +1051,43 @@ class TestMappedSetupTeardown:
         teardowns succeed
         dagrun should be failure
         """
-        with dag_maker(dag_id="one_to_many_as_teardown") as dag:
+        if type_ == "taskflow":
+            with dag_maker() as dag:
 
-            @task
-            def my_setup():
-                print("setting up multiple things")
-                return [1, 2, 3]
+                @task
+                def my_setup():
+                    print("setting up multiple things")
+                    return [1, 2, 3]
 
-            @task
-            def my_work(val):
-                print(f"doing work with multiple things: {val}")
-                raise ValueError("this fails")
-                return val
+                @task
+                def my_work(val):
+                    print(f"doing work with multiple things: {val}")
+                    raise ValueError("this fails")
+                    return val
 
-            @task
-            def my_teardown(val):
-                print(f"teardown: {val}")
+                @task
+                def my_teardown(val):
+                    print(f"teardown: {val}")
 
-            s = my_setup()
-            t = my_teardown.expand(val=s).as_teardown(setups=s)
-            with t:
-                my_work(s)
+                s = my_setup()
+                t = my_teardown.expand(val=s).as_teardown(setups=s)
+                with t:
+                    my_work(s)
+        else:
+            with dag_maker() as dag:
+
+                @task
+                def my_work(val):
+                    print(f"doing work with multiple things: {val}")
+                    raise ValueError("this fails")
+                    return val
+
+                my_teardown = self.classic_operator(task_id="my_teardown", partial=True)
+
+                s = self.classic_operator(task_id="my_setup", ret=[[1], [2], [3]])
+                t = my_teardown.expand(op_args=s.output).as_teardown(setups=s)
+                with t:
+                    my_work(s)
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
@@ -996,38 +1097,61 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
-    def test_one_to_many_as_teardown_offd(self, dag_maker, session):
+    @pytest.mark.parametrize("type_", ["taskflow", "classic"])
+    def test_one_to_many_as_teardown_on_failure_fail_dagrun(self, type_, dag_maker):
         """
         1 setup mapping to 3 teardowns
         1 work task
         work succeeds
         all but one teardown succeed
-        offd=True
+        on_failure_fail_dagrun=True
         dagrun should be success
         """
-        with dag_maker(dag_id="one_to_many_as_teardown_offd") as dag:
+        if type_ == "taskflow":
+            with dag_maker() as dag:
 
-            @task
-            def my_setup():
-                print("setting up multiple things")
-                return [1, 2, 3]
+                @task
+                def my_setup():
+                    print("setting up multiple things")
+                    return [1, 2, 3]
 
-            @task
-            def my_work(val):
-                print(f"doing work with multiple things: {val}")
-                return val
+                @task
+                def my_work(val):
+                    print(f"doing work with multiple things: {val}")
+                    return val
 
-            @task
-            def my_teardown(val):
-                print(f"teardown: {val}")
-                if val == 2:
-                    raise ValueError("failure")
+                @task
+                def my_teardown(val):
+                    print(f"teardown: {val}")
+                    if val == 2:
+                        raise ValueError("failure")
 
-            s = my_setup()
-            t = my_teardown.expand(val=s).as_teardown(setups=s, on_failure_fail_dagrun=True)
-            with t:
-                my_work(s)
-            # todo: if on_failure_fail_dagrun=True, should we still regard the WORK task as a leaf?
+                s = my_setup()
+                t = my_teardown.expand(val=s).as_teardown(setups=s, on_failure_fail_dagrun=True)
+                with t:
+                    my_work(s)
+                # todo: if on_failure_fail_dagrun=True, should we still regard the WORK task as a leaf?
+        else:
+            with dag_maker() as dag:
+
+                @task
+                def my_work(val):
+                    print(f"doing work with multiple things: {val}")
+                    return val
+
+                def my_teardown_callable(val):
+                    print(f"teardown: {val}")
+                    if val == 2:
+                        raise ValueError("failure")
+
+                s = self.classic_operator(task_id="my_setup", ret=[[1], [2], [3]])
+                my_teardown = PythonOperator.partial(
+                    task_id="my_teardown", python_callable=my_teardown_callable
+                ).expand(op_args=s.output)
+                t = my_teardown.as_teardown(setups=s, on_failure_fail_dagrun=True)
+                with t:
+                    my_work(s.output)
+
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
@@ -1037,38 +1161,70 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
-    def test_mapped_task_group_simple(self, dag_maker, session):
+    @pytest.mark.parametrize("type_", ["taskflow", "classic"])
+    def test_mapped_task_group_simple(self, type_, dag_maker, session):
         """
         Mapped task group wherein there's a simple s >> w >> t pipeline.
         When s is skipped, all should be skipped
         When s is failed, all should be upstream failed
         """
-        with dag_maker(dag_id="mapped_task_group_simple") as dag:
+        if type_ == "taskflow":
+            with dag_maker() as dag:
 
-            @setup
-            def my_setup(val):
-                if val == "data2.json":
-                    raise ValueError("fail!")
-                elif val == "data3.json":
-                    raise AirflowSkipException("skip!")
-                print(f"setup: {val}")
+                @setup
+                def my_setup(val):
+                    if val == "data2.json":
+                        raise ValueError("fail!")
+                    elif val == "data3.json":
+                        raise AirflowSkipException("skip!")
+                    print(f"setup: {val}")
 
-            @task
-            def my_work(val):
-                print(f"work: {val}")
+                @task
+                def my_work(val):
+                    print(f"work: {val}")
 
-            @teardown
-            def my_teardown(val):
-                print(f"teardown: {val}")
+                @teardown
+                def my_teardown(val):
+                    print(f"teardown: {val}")
 
-            @task_group
-            def file_transforms(filename):
-                s = my_setup(filename)
-                t = my_teardown(filename).as_teardown(setups=s)
-                with t:
-                    my_work(filename)
+                @task_group
+                def file_transforms(filename):
+                    s = my_setup(filename)
+                    t = my_teardown(filename)
+                    s >> t
+                    with t:
+                        my_work(filename)
 
-            file_transforms.expand(filename=["data1.json", "data2.json", "data3.json"])
+                file_transforms.expand(filename=["data1.json", "data2.json", "data3.json"])
+        else:
+            with dag_maker() as dag:
+
+                def my_setup_callable(val):
+                    if val == "data2.json":
+                        raise ValueError("fail!")
+                    elif val == "data3.json":
+                        raise AirflowSkipException("skip!")
+                    print(f"setup: {val}")
+
+                @task
+                def my_work(val):
+                    print(f"work: {val}")
+
+                def my_teardown_callable(val):
+                    print(f"teardown: {val}")
+
+                @task_group
+                def file_transforms(filename):
+                    s = PythonOperator(
+                        task_id="my_setup", python_callable=my_setup_callable, op_args=filename
+                    )
+                    t = PythonOperator(
+                        task_id="my_teardown", python_callable=my_teardown_callable, op_args=filename
+                    )
+                    with t.as_teardown(setups=s):
+                        my_work(filename)
+
+                file_transforms.expand(filename=[["data1.json"], ["data2.json"], ["data3.json"]])
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
@@ -1079,38 +1235,68 @@ class TestMappedSetupTeardown:
 
         assert states == expected
 
-    def test_mapped_task_group_work_fail_or_skip(self, dag_maker, session):
+    @pytest.mark.parametrize("type_", ["taskflow", "classic"])
+    def test_mapped_task_group_work_fail_or_skip(self, type_, dag_maker):
         """
         Mapped task group wherein there's a simple s >> w >> t pipeline.
         When w is skipped, teardown should still run
         When w is failed, teardown should still run
         """
-        with dag_maker(dag_id="mapped_task_group_work_fail_or_skip") as dag:
+        if type_ == "taskflow":
+            with dag_maker() as dag:
 
-            @setup
-            def my_setup(val):
-                print(f"setup: {val}")
+                @setup
+                def my_setup(val):
+                    print(f"setup: {val}")
 
-            @task
-            def my_work(val):
-                if val == "data2.json":
-                    raise ValueError("fail!")
-                elif val == "data3.json":
-                    raise AirflowSkipException("skip!")
-                print(f"work: {val}")
+                @task
+                def my_work(val):
+                    if val == "data2.json":
+                        raise ValueError("fail!")
+                    elif val == "data3.json":
+                        raise AirflowSkipException("skip!")
+                    print(f"work: {val}")
 
-            @teardown
-            def my_teardown(val):
-                print(f"teardown: {val}")
+                @teardown
+                def my_teardown(val):
+                    print(f"teardown: {val}")
 
-            @task_group
-            def file_transforms(filename):
-                s = my_setup(filename)
-                t = my_teardown(filename).as_teardown(setups=s)
-                with t:
-                    my_work(filename)
+                @task_group
+                def file_transforms(filename):
+                    s = my_setup(filename)
+                    t = my_teardown(filename).as_teardown(setups=s)
+                    with t:
+                        my_work(filename)
 
-            file_transforms.expand(filename=["data1.json", "data2.json", "data3.json"])
+                file_transforms.expand(filename=["data1.json", "data2.json", "data3.json"])
+        else:
+            with dag_maker() as dag:
+
+                @task
+                def my_work(vals):
+                    val = vals[0]
+                    if val == "data2.json":
+                        raise ValueError("fail!")
+                    elif val == "data3.json":
+                        raise AirflowSkipException("skip!")
+                    print(f"work: {val}")
+
+                @teardown
+                def my_teardown(val):
+                    print(f"teardown: {val}")
+
+                def null_callable(val):
+                    pass
+
+                @task_group
+                def file_transforms(filename):
+                    s = PythonOperator(task_id="my_setup", python_callable=null_callable, op_args=filename)
+                    t = PythonOperator(task_id="my_teardown", python_callable=null_callable, op_args=filename)
+                    t = t.as_teardown(setups=s)
+                    with t:
+                        my_work(filename)
+
+                file_transforms.expand(filename=[["data1.json"], ["data2.json"], ["data3.json"]])
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
@@ -1120,34 +1306,57 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
-    def test_teardown_many_one_explicit(self, dag_maker, session):
+    @pytest.mark.parametrize("type_", ["taskflow", "classic"])
+    def test_teardown_many_one_explicit(self, type_, dag_maker):
         """-- passing
         one mapped setup going to one unmapped work
         3 diff states for setup: success / failed / skipped
         teardown still runs, and receives the xcom from the single successful setup
         """
-        with dag_maker(dag_id="teardown_many_one_explicit") as dag:
+        if type_ == "taskflow":
+            with dag_maker() as dag:
 
-            @task
-            def my_setup(val):
-                if val == "data2.json":
-                    raise ValueError("fail!")
-                elif val == "data3.json":
-                    raise AirflowSkipException("skip!")
-                print(f"setup: {val}")
-                return val
+                @task
+                def my_setup(val):
+                    if val == "data2.json":
+                        raise ValueError("fail!")
+                    elif val == "data3.json":
+                        raise AirflowSkipException("skip!")
+                    print(f"setup: {val}")
+                    return val
 
-            @task
-            def my_work(val):
-                print(f"work: {val}")
+                @task
+                def my_work(val):
+                    print(f"work: {val}")
 
-            @task
-            def my_teardown(val):
-                print(f"teardown: {val}")
+                @task
+                def my_teardown(val):
+                    print(f"teardown: {val}")
 
-            s = my_setup.expand(val=["data1.json", "data2.json", "data3.json"])
-            with my_teardown(s).as_teardown(setups=s):
-                my_work(s)
+                s = my_setup.expand(val=["data1.json", "data2.json", "data3.json"])
+                with my_teardown(s).as_teardown(setups=s):
+                    my_work(s)
+        else:
+            with dag_maker() as dag:
+
+                def my_setup_callable(val):
+                    if val == "data2.json":
+                        raise ValueError("fail!")
+                    elif val == "data3.json":
+                        raise AirflowSkipException("skip!")
+                    print(f"setup: {val}")
+                    return val
+
+                @task
+                def my_work(val):
+                    print(f"work: {val}")
+
+                s = PythonOperator.partial(task_id="my_setup", python_callable=my_setup_callable)
+                s = s.expand(op_args=[["data1.json"], ["data2.json"], ["data3.json"]])
+                t = self.classic_operator("my_teardown")
+                with t.as_teardown(setups=s):
+                    my_work(s.output)
+
         dr = dag.test()
         states = self.get_states(dr)
         expected = {
