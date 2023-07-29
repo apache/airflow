@@ -68,6 +68,8 @@ except ImportError:
             f"available in the 'airflow.executors' package. You should not use "
             f"the provider's executors in this version of Airflow."
         )
+    raise
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor

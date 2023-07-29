@@ -69,6 +69,7 @@ except ImportError:
             f"available in the 'airflow.executors' package. You should not use "
             f"the provider's executors in this version of Airflow."
         )
+    raise
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import POD_EXECUTOR_DONE_KEY
