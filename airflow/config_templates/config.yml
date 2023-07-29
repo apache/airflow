@@ -916,12 +916,12 @@ logging:
       type: boolean
       example: ~
       default: "False"
-    enable_task_log_shipper:
+    enable_task_context_logger:
       description: |
-        If enabled, Airflow will ship task logs for a task instance from components like the scheduler,
-        executor, etc. to the configured log store. These logs are then available in the UI and can be useful
+        If enabled, Airflow will relay logs for a task instance from components like the scheduler,
+        executor, etc. to the configured log store. These logs are then available in the UI and are useful
         for identifying task failures and other issues that might be caused by the scheduler or other
-        components that are not captured by the task logs shipped by the worker or triggerer.
+        components that are not captured by the task logs from the worker or triggerer.
         This is set to True by default. If you encounter issues with this feature
         (e.g. scheduler performance issues), you can set this to False.
       version_added: 2.7.0

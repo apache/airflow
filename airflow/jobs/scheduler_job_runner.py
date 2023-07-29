@@ -64,7 +64,7 @@ from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.task_log_shipper import TaskLogShipper
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
@@ -229,7 +229,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
         self._paused_dag_without_running_dagruns: set = set()
-        self._task_log_shipper: TaskLogShipper = TaskLogShipper(self.job_type)
+        self._task_context_logger: TaskContextLogger = TaskContextLogger(self.job_type)
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -746,11 +746,17 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 ti.queued_by_job_id,
                 ti.pid,
             )
-            arbitrary_log_message = (
-                f"task finished with ti.state={ti.state} state={state} info={info} try={ti.try_number} "
-                f"_try={ti._try_number}"
+
+            self._task_context_logger.info(
+                ti,
+                self.log,
+                "task finished with ti.state=%s state=%s info=%s try=%s _try=%s",
+                ti.state,
+                state,
+                info,
+                ti.try_number,
+                ti._try_number,
             )
-            self._task_log_shipper.info(ti, arbitrary_log_message, self.log)
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
@@ -777,7 +783,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     "Executor reports task instance %s finished (%s) although the "
                     "task says it's %s. (Info: %s) Was the task killed externally?"
                 )
-                self._task_log_shipper.error(ti, msg % (ti, state, ti.state, info), self.log)
+                self._task_context_logger.error(ti, self.log, msg, ti, state, ti.state, info)
 
                 # Get task from the Serialized DAG
                 try:

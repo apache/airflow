@@ -172,7 +172,7 @@ DEFAULT_DAG_PARSING_LOGGING_CONFIG: dict[str, dict[str, dict[str, Any]]] = {
 }
 
 # Task log shipping from Airflow components like scheduler, executor, etc.
-TASK_LOG_SHIPPER_ENABLED = conf.getboolean("logging", "enable_task_log_shipper")
+TASK_CONTEXT_LOGGER_ENABLED = conf.getboolean("logging", "enable_task_context_logger")
 
 # Only update the handlers and loggers when CONFIG_PROCESSOR_MANAGER_LOGGER is set.
 # This is to avoid exceptions when initializing RotatingFileHandler multiple times

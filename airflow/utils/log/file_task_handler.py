@@ -183,7 +183,7 @@ class FileTaskHandler(logging.Handler):
         functionality is only used in unit testing.
 
         :param ti: task instance object
-        :param identifier: if set, adds suffix to log file. For use when shipping exceptional messages
+        :param identifier: if set, adds suffix to log file. For use when relaying exceptional messages
             to task logs from a context other than task or trigger run
         """
         local_loc = self._init_file(ti, identifier=identifier)
@@ -194,7 +194,7 @@ class FileTaskHandler(logging.Handler):
         return SetContextPropagate.MAINTAIN_PROPAGATE if self.maintain_propagate else None
 
     @cached_property
-    def supports_task_log_ship(self) -> bool:
+    def supports_task_context_logging(self) -> bool:
         return "identifier" in inspect.signature(self.set_context).parameters
 
     @staticmethod
