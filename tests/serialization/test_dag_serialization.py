@@ -1414,6 +1414,29 @@ class TestStringifiedDAGs:
         assert task.is_teardown is True
         assert task.on_failure_fail_dagrun is True
 
+    def test_teardown_mapped_serialization(self, dag_maker):
+        with dag_maker() as dag:
+
+            @teardown(on_failure_fail_dagrun=True)
+            def mytask(val=None):
+                print(1)
+
+            mytask.expand(val=[1, 2, 3])
+
+        task = dag.task_group.children["mytask"]
+        assert task.partial_kwargs["is_teardown"] is True
+        assert task.partial_kwargs["on_failure_fail_dagrun"] is True
+
+        dag_dict = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(dag_dict)
+        json_dag = SerializedDAG.from_json(SerializedDAG.to_json(dag))
+        self.validate_deserialized_dag(json_dag, dag)
+
+        serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+        task = serialized_dag.task_group.children["mytask"]
+        assert task.partial_kwargs["is_teardown"] is True
+        assert task.partial_kwargs["on_failure_fail_dagrun"] is True
+
     def test_deps_sorted(self):
         """
         Tests serialize_operator, make sure the deps is in order

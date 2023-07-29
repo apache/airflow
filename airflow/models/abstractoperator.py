@@ -34,6 +34,7 @@ from airflow.utils.context import Context
 from airflow.utils.db import exists_query
 from airflow.utils.log.secrets_masker import redact
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.sqlalchemy import skip_locked, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
@@ -709,3 +710,12 @@ class AbstractOperator(Templater, DAGNode):
                 raise
             else:
                 setattr(parent, attr_name, rendered_content)
+
+    def __enter__(self):
+        if not self.is_setup and not self.is_teardown:
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        SetupTeardownContext.push_setup_teardown_task(self)
+        return SetupTeardownContext
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        SetupTeardownContext.set_work_task_roots_and_leaves()
