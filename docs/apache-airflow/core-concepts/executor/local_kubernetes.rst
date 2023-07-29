@@ -21,7 +21,14 @@
 LocalKubernetes Executor
 =========================
 
-The :class:`~airflow.executors.local_kubernetes_executor.LocalKubernetesExecutor` allows users
+.. note::
+
+    As of Airflow 2.7.0, you need to install the ``cncf.kubernetes`` provider package to use
+    this executor. This can be done by installing ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
+    or by installing Airflow with the ``cncf.kubernetes`` extras:
+    ``pip install 'apache-airflow[cncf.kubernetes]'``.
+
+The :class:`~airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor.LocalKubernetesExecutor` allows users
 to simultaneously run a ``LocalExecutor`` and a ``KubernetesExecutor``.
 An executor is chosen to run a task based on the task's queue.
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 from functools import wraps
 from typing import Callable, Sequence, TypeVar, cast
 
-from flask import current_app, flash, g, redirect, render_template, request, url_for
+from flask import current_app, flash, g, redirect, render_template, request
 
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
@@ -61,12 +61,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
             else:
                 access_denied = "Access is Denied"
                 flash(access_denied, "danger")
-            return redirect(
-                url_for(
-                    appbuilder.sm.auth_view.__class__.__name__ + ".login",
-                    next=request.url,
-                )
-            )
+            return redirect(get_auth_manager().get_url_login(next=request.url))
 
         return cast(T, decorated)
 

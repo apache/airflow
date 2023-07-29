@@ -33,6 +33,9 @@ How to write a good git commit message:
 http://chris.beams.io/posts/git-commit/
 -->
 
+
+
+<!-- Please keep an empty line above the dashes. -->
 ---
 **^ Add meaningful description above**
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from importlib import import_module
 
-from flask import g, redirect, url_for
+from flask import g, redirect
 from flask_login import logout_user
 
 from airflow.configuration import conf
@@ -71,4 +71,4 @@ def init_check_user_active(app):
     def check_user_active():
         if get_auth_manager().is_logged_in() and not g.user.is_active:
             logout_user()
-            return redirect(url_for(app.appbuilder.sm.auth_view.endpoint + ".login"))
+            return redirect(get_auth_manager().get_url_login())

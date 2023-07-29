@@ -24,6 +24,8 @@ from flask import g
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from airflow.auth.managers.fab.models import Permission, Resource, Role, User
+from airflow.auth.managers.fab.views.user_details import CustomUserDBModelView
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
@@ -31,13 +33,11 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.fab_security.sqla.manager import SecurityManager
-from airflow.www.fab_security.sqla.models import Permission, Resource, Role, User
 from airflow.www.fab_security.views import (
     ActionModelView,
     CustomResetMyPasswordView,
     CustomResetPasswordView,
     CustomRoleModelView,
-    CustomUserDBModelView,
     CustomUserInfoEditView,
     CustomUserLDAPModelView,
     CustomUserOAuthModelView,
@@ -216,6 +216,7 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
             resetmypasswordview=self.resetmypasswordview,
             resetpasswordview=self.resetpasswordview,
             rolemodelview=self.rolemodelview,
+            user_model=self.user_model,
             userinfoeditview=self.userinfoeditview,
             userdbmodelview=self.userdbmodelview,
             userldapmodelview=self.userldapmodelview,
