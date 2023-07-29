@@ -28,7 +28,7 @@ or migrate to the latest version if it does.
 .. note::
 
     Prior to Airflow version 2.7.0, ``airflow db init`` was used to create the db and ``airflow db upgrade`` to migrate it.
-    Now it has been replaced by one command ``airflow db migrate`` that does both and above two commands are now depracated.
+    Now it has been replaced by one command ``airflow db migrate`` that does both and above two commands are now deprecated.
 
 
 In some deployments, such as :doc:`helm-chart:index`, both initializing and running the database migration
