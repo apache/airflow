@@ -39,6 +39,10 @@ Changelog
     ``pip install apache-airflow-providers-spark[cncf.kubernetes]`` to get the right version of the
     ``cncf.kubernetes`` provider installed.
 
+Misc
+~~~~
+
+* ``Move all k8S classes to cncf.kubernetes provider (#32767)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

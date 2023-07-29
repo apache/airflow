@@ -35,6 +35,19 @@ Changelog
   Local Kubernetes Executor moved from the core ``apache-airflow`` package to the ``cncf.kubernetes``
   provider package.
 
+Features
+~~~~~~~~
+
+* ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+* ``[AIP-51] Executors vending CLI commands (#29055)``
+* ``Add 'termination_message_policy' parameter to 'KubernetesPodOperator' (#32885)``
+
+Misc
+~~~~
+
+* ``Update the watcher resource version in SparkK8SOp when it's too old (#32768)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+* ``Raise original import error in CLI vending of executors (#32931)``
 
 7.3.0
 .....
@@ -70,6 +83,7 @@ Bug Fixes
 
 Misc
 ~~~~
+
 * ``Add default_deferrable config (#31712)``
 
 .. Below changes are excluded from the changelog. Move them to
@@ -88,6 +102,7 @@ Misc
 
 Features
 ~~~~~~~~
+
 * ``KubernetesResourceOperator - KubernetesDeleteResourceOperator & KubernetesCreateResourceOperator (#29930)``
 * ``add a return when the event is yielded in a loop to stop the execution (#31985)``
 * ``Add possibility to disable logging the pod template in a case when task fails (#31595)``
