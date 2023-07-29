@@ -37,11 +37,91 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-amazon/**/*
     - tests/system/providers/amazon/aws/**/*
 
-  provider:Apache:
-    - airflow/providers/apache/**/*
-    - docs/apache-airflow-providers-apache-*/**/*
-    - tests/providers/apache/**/*
-    - tests/system/providers/apache/**/*
+  provider:apache-beam:
+    - airflow/providers/apache/beam/**/*
+    - docs/apache-airflow-providers-apache-beam/**/*
+    - tests/providers/apache/beam/**/*
+    - tests/system/providers/apache/beam/**/*
+
+  provider:apache-cassandra:
+    - airflow/providers/apache/cassandra/**/*
+    - docs/apache-airflow-providers-apache-cassandra/**/*
+    - tests/providers/apache/cassandra/**/*
+    - tests/system/providers/apache/cassandra/**/*
+
+  provider:apache-drill:
+    - airflow/providers/apache/drill/**/*
+    - docs/apache-airflow-providers-apache-drill/**/*
+    - tests/providers/apache/drill/**/*
+    - tests/system/providers/apache/drill/**/*
+
+  provider:apache-druid:
+    - airflow/providers/apache/druid/**/*
+    - docs/apache-airflow-providers-apache-druid/**/*
+    - tests/providers/apache/druid/**/*
+    - tests/system/providers/apache/druid/**/*
+
+  provider:apache-flink:
+    - airflow/providers/apache/flink/**/*
+    - docs/apache-airflow-providers-apache-flink/**/*
+    - tests/providers/apache/flink/**/*
+
+  provider:apache-hdfs:
+    - airflow/providers/apache/hdfs/**/*
+    - docs/apache-airflow-providers-apache-hdfs/**/*
+    - tests/providers/apache/hdfs/**/*
+
+  provider:apache-hive:
+    - airflow/providers/apache/hive/**/*
+    - docs/apache-airflow-providers-apache-hive/**/*
+    - tests/providers/apache/hive/**/*
+    - tests/system/providers/apache/hive/**/*
+
+  provider:apache-impala:
+    - airflow/providers/apache/impala/**/*
+    - docs/apache-airflow-providers-apache-impala/**/*
+    - tests/providers/apache/impala/**/*
+
+  provider:apache-kafka:
+    - airflow/providers/apache/kafka/**/*
+    - docs/apache-airflow-providers-apache-kafka/**/*
+    - tests/providers/apache/kafka/**/*
+    - tests/system/providers/apache/kafka/**/*
+
+  provider:apache-kylin:
+    - airflow/providers/apache/kylin/**/*
+    - docs/apache-airflow-providers-apache-kylin/**/*
+    - tests/providers/apache/kylin/**/*
+    - tests/system/providers/apache/kylin/**/*
+
+  provider:apache-livy:
+    - airflow/providers/apache/livy/**/*
+    - docs/apache-airflow-providers-apache-livy/**/*
+    - tests/providers/apache/livy/**/*
+    - tests/system/providers/apache/livy/**/*
+
+  provider:apache-pig:
+    - airflow/providers/apache/pig/**/*
+    - docs/apache-airflow-providers-apache-pig/**/*
+    - tests/providers/apache/pig/**/*
+    - tests/system/providers/apache/pig/**/*
+
+  provider:apache-pinot:
+    - airflow/providers/apache/pinot/**/*
+    - docs/apache-airflow-providers-apache-pinot/**/*
+    - tests/providers/apache/pinot/**/*
+    - tests/system/providers/apache/pinot/**/*
+
+  provider:apache-spark:
+    - airflow/providers/apache/spark/**/*
+    - docs/apache-airflow-providers-apache-spark/**/*
+    - tests/providers/apache/spark/**/*
+    - tests/system/providers/apache/spark/**/*
+
+  provider:apache-sqoop:
+    - airflow/providers/apache/sqoop/**/*
+    - docs/apache-airflow-providers-apache-sqoop/**/*
+    - tests/providers/apache/sqoop/**/*
 
   provider:apprise:
     - airflow/providers/apprise/**/*
