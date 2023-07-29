@@ -47,6 +47,11 @@ Once that is done, you can run -
 
 ``migrate`` keeps track of migrations already applied, so it's safe to run as often as you need.
 
+.. note::
+
+    Prior to Airflow version 2.7.0, ``airflow db upgrade`` was used to apply migrations.
+    But since 2.7.0, it has been depracated in favor of ``airflow db migrate``
+
 
 Multi-Node Cluster
 ==================
