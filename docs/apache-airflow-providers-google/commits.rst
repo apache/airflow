@@ -38,11 +38,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.5.0
 ......
 
-Latest change: 2023-07-27
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  =======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================
+`81b85ebcbd <https://github.com/apache/airflow/commit/81b85ebcbd241e1909793d7480aabc81777b225c>`_  2023-07-29   ``Fix 'BigQueryInsertJobOperator' not exiting deferred state (#31591)``
+`9d68492f87 <https://github.com/apache/airflow/commit/9d68492f875464f505afef2ecd81a28d8e4922b8>`_  2023-07-27   ``misc: update MLEngine system tests (#32881)``
 `b73366799d <https://github.com/apache/airflow/commit/b73366799d98195a5ccc49a2008932186c4763b5>`_  2023-07-27   ``openlineage, gcs: add openlineage methods for GcsToGcsOperator (#31350)``
 `583f407c54 <https://github.com/apache/airflow/commit/583f407c54a6683247a6b8a3aed75a184f8a92c6>`_  2023-07-26   ``Fixup docstring for deprecated DataprocSubmitSparkJobOperator and refactoring system tests (#32743)``
 `4c2ef99772 <https://github.com/apache/airflow/commit/4c2ef99772203936cdb6387f099a64ec9aa736f2>`_  2023-07-26   ``Add Spot Instances support with Dataproc Operators (#31644)``

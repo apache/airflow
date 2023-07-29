@@ -44,6 +44,7 @@ Bug Fixes
 * ``Fixup docstring for deprecated DataprocSubmitSparkJobOperator and refactoring system tests (#32743)``
 * ``Fix BigQueryGetDataOperator where project_id is not being respected in deferrable mode (#32488)``
 * ``Refresh GKE OAuth2 tokens (#32673)``
+* ``Fix 'BigQueryInsertJobOperator' not exiting deferred state (#31591)``
 
 Misc
 ~~~~
@@ -60,6 +61,7 @@ Misc
    * ``Fixup system test for DataprocSubmitJobOperator (SparkSQL job) (#32745)``
    * ``Fixup system test for DataprocSubmitJobOperator (PySpark job) (#32740)``
    * ``Migrate system test for PostgresToGCSOperator to new design AIP-47 (#32641)``
+   * ``misc: update MLEngine system tests (#32881)``
 
 10.4.0
 ......

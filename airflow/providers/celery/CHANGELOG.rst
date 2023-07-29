@@ -51,6 +51,7 @@ Misc
 * ``Move all k8S classes to cncf.kubernetes provider (#32767)``
 * ``Add Executors discovery and documentation (#32532)``
 * ``Move default_celery.py to inside the provider (#32628)``
+* ``Raise original import error in CLI vending of executors (#32931)``
 
 .. Review and move the new changes to one of the sections above:
    * ``Introduce decorator to load providers configuration (#32765)``

@@ -33,14 +33,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 Latest change: 2023-07-29
 
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
+`bcc7856b80 <https://github.com/apache/airflow/commit/bcc7856b80ee6f48de0395089b89424cf4b1c98a>`_  2023-07-29   ``Add 'termination_message_policy' parameter to 'KubernetesPodOperator' (#32885)``
+`f31af91dbd <https://github.com/apache/airflow/commit/f31af91dbd8b98cc4ddb98bed8bbc086ab4b65c9>`_  2023-07-29   ``Raise original import error in CLI vending of executors (#32931)``
 `fcbbf47864 <https://github.com/apache/airflow/commit/fcbbf47864c251046de108aafdad394d66e1df23>`_  2023-07-29   ``[AIP-51] Executors vending CLI commands (#29055)``
 `e93460383f <https://github.com/apache/airflow/commit/e93460383f287f9b2af4b6bda3ea6ba17ba3c08b>`_  2023-07-26   ``Move all k8S classes to cncf.kubernetes provider (#32767)``
 `fcc6f284c7 <https://github.com/apache/airflow/commit/fcc6f284c742bdc554edecc5a83d9eaa7d9d7ba4>`_  2023-07-22   ``Update the watcher resource version in SparkK8SOp when it's too old (#32768)``
 `e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 
 7.3.0
 .....

@@ -40,12 +40,14 @@ Features
 
 * ``Move all k8S classes to cncf.kubernetes provider (#32767)``
 * ``[AIP-51] Executors vending CLI commands (#29055)``
+* ``Add 'termination_message_policy' parameter to 'KubernetesPodOperator' (#32885)``
 
 Misc
 ~~~~
 
 * ``Update the watcher resource version in SparkK8SOp when it's too old (#32768)``
 * ``Add deprecation info to the providers modules and classes docstring (#32536)``
+* ``Raise original import error in CLI vending of executors (#32931)``
 
 7.3.0
 .....
