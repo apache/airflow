@@ -238,7 +238,8 @@ class KubernetesPodOperator(BaseOperator):
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
         Deprecated - use `on_finish_action` instead.
-    :param termination_message_policy: sets container termination message policy. Default value is "File"
+    :param termination_message_policy: The termination message policy of the base container.
+        Default value is "File"
     """
 
     # This field can be overloaded at the instance level via base_container_name
