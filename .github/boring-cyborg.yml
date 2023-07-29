@@ -86,6 +86,18 @@ labelPRBasedOnFilePath:
     - tests/providers/microsoft/mssql/**/*
     - tests/system/providers/microsoft/mssql/**/*
 
+  provider:kubernetes:
+    - airflow/**/kubernetes_*.py
+    - airflow/example_dags/example_kubernetes_executor.py
+    - airflow/providers/cncf/kubernetes/**/*
+    - airflow/providers/celery/executors/celery_kubernetes_executor.py
+    - docs/apache-airflow/core-concepts/executor/kubernetes.rst
+    - docs/apache-airflow/core-concepts/executor/celery_kubernetes.rst
+    - docs/apache-airflow-providers-cncf-kubernetes/**/*
+    - kubernetes_tests/**/*
+    - tests/providers/cncf/kubernetes/**/*
+    - tests/system/providers/cncf/kubernetes/**/*
+
   provider:Protocols:
     - airflow/providers/http/**/*
     - docs/apache-airflow-providers-http/**/*
@@ -159,18 +171,6 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-*/**/*
     - tests/providers/**/*
     - tests/system/providers/**/*
-
-  area:kubernetes:
-    - airflow/**/kubernetes_*.py
-    - airflow/example_dags/example_kubernetes_executor.py
-    - airflow/providers/cncf/kubernetes/**/*
-    - airflow/providers/celery/executors/celery_kubernetes_executor.py
-    - docs/apache-airflow/core-concepts/executor/kubernetes.rst
-    - docs/apache-airflow/core-concepts/executor/celery_kubernetes.rst
-    - docs/apache-airflow-providers-cncf-kubernetes/**/*
-    - kubernetes_tests/**/*
-    - tests/providers/cncf/kubernetes/**/*
-    - tests/system/providers/cncf/kubernetes/**/*
 
   area:API:
     - airflow/api/**/*

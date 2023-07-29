@@ -46,6 +46,9 @@ class TestLocalKubernetesExecutor:
     def test_is_single_threaded_default_value(self):
         assert not LocalKubernetesExecutor.is_single_threaded
 
+    def test_cli_commands_vended(self):
+        assert LocalKubernetesExecutor.get_cli_commands()
+
     def test_queued_tasks(self):
         local_executor_mock = mock.MagicMock()
         k8s_executor_mock = mock.MagicMock()

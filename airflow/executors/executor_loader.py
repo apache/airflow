@@ -119,18 +119,24 @@ class ExecutorLoader:
         return executor_cls()
 
     @classmethod
-    def import_executor_cls(cls, executor_name: str) -> tuple[type[BaseExecutor], ConnectorSource]:
+    def import_executor_cls(
+        cls, executor_name: str, validate: bool = True
+    ) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
         Imports the executor class.
 
         Supports the same formats as ExecutorLoader.load_executor.
+
+        :param executor_name: Name of core executor or module path to provider provided as a plugin.
+        :param validate: Whether or not to validate the executor before returning
 
         :return: executor class via executor_name and executor import source
         """
 
         def _import_and_validate(path: str) -> type[BaseExecutor]:
             executor = import_string(path)
-            cls.validate_database_executor_compatibility(executor)
+            if validate:
+                cls.validate_database_executor_compatibility(executor)
             return executor
 
         if executor_name in cls.executors:
@@ -151,14 +157,16 @@ class ExecutorLoader:
         return _import_and_validate(executor_name), ConnectorSource.CUSTOM_PATH
 
     @classmethod
-    def import_default_executor_cls(cls) -> tuple[type[BaseExecutor], ConnectorSource]:
+    def import_default_executor_cls(cls, validate: bool = True) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
         Imports the default executor class.
+
+        :param validate: Whether or not to validate the executor before returning
 
         :return: executor class and executor import source
         """
         executor_name = cls.get_default_executor_name()
-        executor, source = cls.import_executor_cls(executor_name)
+        executor, source = cls.import_executor_cls(executor_name, validate=validate)
         return executor, source
 
     @classmethod
