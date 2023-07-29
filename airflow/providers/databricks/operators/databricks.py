@@ -697,8 +697,3 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
             stacklevel=2,
         )
         super().__init__(deferrable=True, *args, **kwargs)
-
-    def execute(self, context):
-        hook = self._get_hook(caller="DatabricksRunNowDeferrableOperator")
-        self.run_id = hook.run_now(self.json)
-        _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)

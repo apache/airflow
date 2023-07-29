@@ -51,6 +51,9 @@ class RedshiftDataOperator(BaseOperator):
         if False (default) will return statement ID
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
+    :param workgroup_name: name of the Redshift Serverless workgroup. Mutually exclusive with
+        `cluster_identifier`. Specify this parameter to query Redshift Serverless. More info
+        https://docs.aws.amazon.com/redshift/latest/mgmt/working-with-serverless.html
     """
 
     template_fields = (
@@ -62,6 +65,7 @@ class RedshiftDataOperator(BaseOperator):
         "statement_name",
         "aws_conn_id",
         "region",
+        "workgroup_name",
     )
     template_ext = (".sql",)
     template_fields_renderers = {"sql": "sql"}
@@ -82,12 +86,14 @@ class RedshiftDataOperator(BaseOperator):
         return_sql_result: bool = False,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
+        workgroup_name: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.database = database
         self.sql = sql
         self.cluster_identifier = cluster_identifier
+        self.workgroup_name = workgroup_name
         self.db_user = db_user
         self.parameters = parameters
         self.secret_arn = secret_arn
@@ -119,6 +125,7 @@ class RedshiftDataOperator(BaseOperator):
             database=self.database,
             sql=self.sql,
             cluster_identifier=self.cluster_identifier,
+            workgroup_name=self.workgroup_name,
             db_user=self.db_user,
             parameters=self.parameters,
             secret_arn=self.secret_arn,
