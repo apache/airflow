@@ -207,6 +207,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       UPGRADE_TO_NEWER_DEPENDENCIES: false
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     continue-on-error: true
     steps:
       - name: Cleanup repo
@@ -1628,6 +1629,7 @@ jobs:
         platform: ["linux/amd64", "linux/arm64"]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
