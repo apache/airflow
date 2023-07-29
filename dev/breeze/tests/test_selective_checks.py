@@ -1110,6 +1110,30 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
 
 
 @pytest.mark.parametrize(
+    "files, expected_outputs,",
+    [
+        pytest.param(
+            ("helm_tests/random_helm_test.py",),
+            {
+                "image-build": "true",
+                "needs-helm-tests": "true",
+            },
+            id="Only helm test files changed",
+        )
+    ],
+)
+def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
     "files, labels, expected_outputs, should_fail",
     [
         pytest.param(
