@@ -596,10 +596,6 @@ class AirflowAppBuilder:
     def get_url_for_index(self):
         return url_for(f"{self.indexview.endpoint}.{self.indexview.default_view}")
 
-    @property
-    def get_url_for_userinfo(self):
-        return url_for(f"{self.sm.user_view.endpoint}.userinfo")
-
     def get_url_for_locale(self, lang):
         return url_for(
             f"{self.bm.locale_view.endpoint}.{self.bm.locale_view.default_view}",

@@ -27,6 +27,30 @@ from tests.charts.helm_template_generator import render_chart
 class TestPgbouncer:
     """Tests PgBouncer."""
 
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
     @pytest.mark.parametrize("yaml_filename", ["pgbouncer-deployment", "pgbouncer-service"])
     def test_pgbouncer_resources_not_created_by_default(self, yaml_filename):
         docs = render_chart(
