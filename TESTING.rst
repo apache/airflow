@@ -1446,7 +1446,7 @@ Manually testing release candidate packages
 ===========================================
 
 Breeze can be used to test new release candidates of packages - both Airflow and providers. You can easily
-turn the CI image of Breeze to install and start airflow for both Airflow and provider packages - both,
+turn the CI image of Breeze to install and start Airflow for both Airflow and provider packages - both,
 packages that are built from sources and packages that are downloaded from PyPI when they are released
 there as release candidates.
 
@@ -1457,13 +1457,13 @@ The way to test it is rather straightforward:
 
 2) You can run ```breeze shell`` or ``breeze start-airflow`` commands with adding the following flags -
    ``--mount-sources remove`` and ``--use-packages-from-dist``. The first one removes the ``airflow``
-   source tree from the container when starting it, the second one installs ``airflow`` and ``provider``
+   source tree from the container when starting it, the second one installs ``airflow`` and ``providers``
    packages from the ``dist`` folder when entering breeze.
 
 Testing pre-release packages
 ----------------------------
 
-There are two ways how you can get airflow packages in ``dist`` folder - by building them from sources or
+There are two ways how you can get Airflow packages in ``dist`` folder - by building them from sources or
 downloading them from PyPI.
 
 .. note ::
@@ -1501,7 +1501,7 @@ Few examples below explain how you can test pre-release packages, and combine th
 and released packages.
 
 The following example downloads ``apache-airflow`` and ``celery`` and ``kubernetes`` provider packages from PyPI and
-eventually starts Airflow with the Celery Executor. It also load example dags and default connections:
+eventually starts Airflow with the Celery Executor. It also loads example dags and default connections:
 
 .. code:: bash
 
@@ -1536,7 +1536,7 @@ for the backend chosen (no example dags, no default connections):
     breeze start-airflow --mount-sources remove --use-packages-from-dist
 
 You can mix and match packages from PyPI (final or pre-release candidates) with locally build packages. You
-can also choose which providers you install this way (the ``--remove-sources`` flag makes sure that airflow
+can also choose which providers to install this way since the ``--remove-sources`` flag makes sure that Airflow
 installed does not contain all the providers - only those that you explicitly downloaded or built in the
 ``dist`` folder. This way you can test all the combinations of Airflow + Providers you might need.
 
