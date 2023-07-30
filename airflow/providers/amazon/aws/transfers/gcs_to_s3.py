@@ -20,15 +20,21 @@ from __future__ import annotations
 
 import os
 import warnings
+from importlib.metadata import version
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from packaging.version import Version
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+google_provider_version = version("apache-airflow-providers-google")
 
 
 class GCSToS3Operator(BaseOperator):
@@ -113,13 +119,6 @@ class GCSToS3Operator(BaseOperator):
 
         self.bucket = bucket
         self.prefix = prefix
-        if delimiter:
-            warnings.warn(
-                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        self.delimiter = delimiter
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
         self.dest_s3_key = dest_s3_key
@@ -129,7 +128,20 @@ class GCSToS3Operator(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.s3_acl_policy = s3_acl_policy
         self.keep_directory_structure = keep_directory_structure
+        if Version(google_provider_version) < Version("10.3.0"):
+            if match_glob:
+                raise AirflowException(
+                    "The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'."
+                )
+        elif delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        self.delimiter = delimiter
         self.match_glob = match_glob
+        self.__google_provider_version = google_provider_version
 
     def execute(self, context: Context) -> list[str]:
         # list all files in an Google Cloud Storage bucket
@@ -145,9 +157,15 @@ class GCSToS3Operator(BaseOperator):
             self.prefix,
         )
 
-        files = hook.list(
-            bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter, match_glob=self.match_glob
-        )
+        list_kwargs = {
+            "bucket_name": self.bucket,
+            "prefix": self.prefix,
+            "delimiter": self.delimiter,
+        }
+        if Version(self.__google_provider_version) >= Version("10.3.0"):
+            list_kwargs["match_glob"] = self.match_glob
+
+        files = hook.list(**list_kwargs)  # type: ignore
 
         s3_hook = S3Hook(
             aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args
