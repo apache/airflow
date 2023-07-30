@@ -241,4 +241,5 @@ class BuildProdParams(CommonBuildParams):
             "runtime_apt_command",
             "runtime_apt_deps",
             "version_suffix_for_pypi",
+            "commit_sha",
         ]

@@ -40,6 +40,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference_build,
     option_answer,
     option_builder,
+    option_commit_sha,
     option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -186,6 +187,7 @@ def prepare_for_building_ci_image(params: BuildCiParams):
 @option_additional_dev_apt_command
 @option_additional_dev_apt_env
 @option_builder
+@option_commit_sha
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_force_build
