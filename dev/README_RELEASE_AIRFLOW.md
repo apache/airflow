@@ -29,13 +29,14 @@
   - [Build RC artifacts](#build-rc-artifacts)
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
-- [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
+- [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
   - [SVN check](#svn-check)
   - [Licence check](#licence-check)
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
   - [Source code check](#source-code-check)
-- [Verify release candidates by Contributors](#verify-release-candidates-by-contributors)
+- [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
+  - [Installing release candidate in your local virtual environment](#installing-release-candidate-in-your-local-virtual-environment)
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
@@ -376,8 +377,12 @@ Please vote accordingly:
 Only votes from PMC members are binding, but all members of the community
 are encouraged to test the release and vote with "(non-binding)".
 
-The test procedure for PMCs and Contributors who would like to test this RC are described in
-https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-pmcs
+The test procedure for PMC members is described in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-pmc-members
+
+The test procedure for and Contributors who would like to test this RC is described in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-contributors
+
 
 Please note that the version number excludes the \`rcX\` string, so it's now
 simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without modifying
@@ -416,9 +421,9 @@ EOF
 
 Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
 
-# Verify the release candidate by PMCs
+# Verify the release candidate by PMC members
 
-The PMCs should verify the releases in order to make sure the release is following the
+PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
 
 At least 3 (+1) votes should be recorded in accordance to
@@ -646,13 +651,17 @@ Only in /Users/jarek/code/airflow: .bash_history
 ...
 ```
 
-# Verify release candidates by Contributors
+# Verify the release candidate by Contributors
 
 This can be done (and we encourage to) by any of the Contributors. In fact, it's best if the
 actual users of Apache Airflow test it in their own staging/test installations. Each release candidate
 is available on PyPI apart from SVN packages, so everyone should be able to install
-the release candidate version of Airflow via simply (<VERSION> is 2.0.2 for example, and <X> is
-release candidate number 1,2,3,....).
+the release candidate version.
+
+But you can use any of the installation methods you prefer (you can even install it via the binary wheels
+downloaded from the SVN).
+
+## Installing release candidate in your local virtual environment
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X>
@@ -679,6 +688,9 @@ breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.8 --backend
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
 that the Airflow works as you expected.
+
+Breeze also allows you to easily build and install pre-release candidates including providers by following
+simple instructions described in [TESTING.rst](https://github.com/apache/airflow/blob/main/TESTING.rst#testing-pre-release-packages)
 
 # Publish the final Apache Airflow release
 
