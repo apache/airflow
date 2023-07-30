@@ -25,3 +25,16 @@ Package apache-airflow-providers-daskexecutor
 
 This is detailed commit list of changes for versions provider package: ``daskexecutor``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2023-07-25
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`0c798252ef <https://github.com/apache/airflow/commit/0c798252efb83844a2e0ba08d74b32eed2e317ad>`_  2023-07-25   ``Extract Dask executor to new daskexecutor provider (#32772)``
+=================================================================================================  ===========  ===============================================================
