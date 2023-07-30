@@ -416,6 +416,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 - Create the commit and push changes.
 
 ```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
 branch="add-documentation-$(date "+%Y-%m-%d%n")"
 git checkout -b "${branch}"
 git add .
