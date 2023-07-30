@@ -1460,7 +1460,7 @@ The way to test it is rather straightforward:
    source tree from the container when starting it, the second one installs ``airflow`` and ``provider``
    packages from the ``dist`` folder when entering breeze.
 
-Testing pre release packages
+Testing pre-release packages
 ----------------------------
 
 There are two ways how you can get airflow packages in ``dist`` folder - by building them from sources or
@@ -1510,7 +1510,7 @@ load example dags and default connections:
     breeze start-airflow --mount-sources remove --use-packages-from-dist --executor CeleryExecutor --load-default-connections --load-example-dags
 
 
-This one will download ``airflow`` and ``celery`` and ``kubernetes`` provider packages from PyPI but build
+This one will download ``celery`` and ``kubernetes`` provider packages from PyPI but build
 ``airflow`` package from the main sources and eventually start Airflow using the packages downloaded
 with the Celery Executor. It will also load example dags and default connections:
 
