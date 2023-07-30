@@ -423,7 +423,7 @@ Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [
 
 # Verify the release candidate by PMC members
 
-The PMC members should verify the releases in order to make sure the release is following the
+PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
 
 At least 3 (+1) votes should be recorded in accordance to
