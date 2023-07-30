@@ -690,7 +690,8 @@ Once you install and run Airflow, you should perform any verification you see as
 that the Airflow works as you expected.
 
 Breeze also allows you to easily build and install pre-release candidates including providers by following
-simple instructions described in [TESTING.rst](https://github.com/apache/airflow/blob/main/TESTING.rst#testing-pre-release-packages)
+simple instructions described in
+[Manually testing release candidate packages](https://github.com/apache/airflow/blob/main/TESTING.rst#manually-testing-release-candidate-packages)
 
 # Publish the final Apache Airflow release
 
