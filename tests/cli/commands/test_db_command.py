@@ -37,11 +37,8 @@ class TestCliDb:
 
     @mock.patch("airflow.cli.commands.db_command.db.initdb")
     def test_cli_initdb(self, mock_initdb):
-        with pytest.warns(
-            expected_warning=DeprecationWarning, match="ActionCommand `init` is deprecated"
-        ) as warning_record:
+        with pytest.warns(expected_warning=DeprecationWarning, match="`init` is deprecated"):
             db_command.initdb(self.parser.parse_args(["db", "init"]))
-        assert warning_record
         mock_initdb.assert_called_once_with()
 
     @mock.patch("airflow.cli.commands.db_command.db.resetdb")

@@ -1056,6 +1056,7 @@ class ActionCommand(NamedTuple):
     args: Iterable[Arg]
     description: str | None = None
     epilog: str | None = None
+    hide: bool = False
 
 
 class GroupCommand(NamedTuple):
@@ -1524,6 +1525,7 @@ DB_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.db_command.initdb"),
         args=(ARG_VERBOSE,),
+        hide=True,
     ),
     ActionCommand(
         name="check-migrations",
@@ -1558,6 +1560,7 @@ DB_COMMANDS = (
             ARG_DB_RESERIALIZE_DAGS,
             ARG_VERBOSE,
         ),
+        hide=True,
     ),
     ActionCommand(
         name="migrate",

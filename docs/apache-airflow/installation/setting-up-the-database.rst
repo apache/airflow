@@ -28,7 +28,7 @@ not running while the database migration is being executed.
 
 .. note::
 
-    Prior to Airflow version 2.7.0, ``airflow db upgrade`` was used to apply migrations, 
+    Prior to Airflow version 2.7.0, ``airflow db upgrade`` was used to apply migrations,
     however, it has been deprecated in favor of ``airflow db migrate``.
 
 
