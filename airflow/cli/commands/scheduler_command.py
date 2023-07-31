@@ -17,6 +17,7 @@
 """Scheduler command."""
 from __future__ import annotations
 
+import logging
 import signal
 from contextlib import contextmanager
 from multiprocessing import Process
@@ -32,17 +33,24 @@ from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
+
+log = logging.getLogger(__name__)
 
 
 def _run_scheduler_job(job_runner: SchedulerJobRunner, *, skip_serve_logs: bool) -> None:
     InternalApiConfig.force_database_direct_access()
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
     with _serve_logs(skip_serve_logs), _serve_health_check(enable_health_check):
-        run_job(job=job_runner.job, execute_callable=job_runner._execute)
+        try:
+            run_job(job=job_runner.job, execute_callable=job_runner._execute)
+        except Exception:
+            log.exception("Exception when running scheduler job")
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def scheduler(args):
     """Starts Airflow Scheduler."""
     print(settings.HEADER)

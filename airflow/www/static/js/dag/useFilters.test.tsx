@@ -73,6 +73,7 @@ describe("Test useFilters hook", () => {
     {
       fnName: "onBaseDateChange" as keyof UtilFunctions,
       paramName: "baseDate" as keyof Filters,
+      // @ts-ignore
       paramValue: moment.utc().format(),
     },
     {

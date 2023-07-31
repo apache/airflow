@@ -20,10 +20,12 @@ from __future__ import annotations
 
 import fnmatch
 import functools
+import inspect
 import json
 import logging
 import os
 import sys
+import traceback
 import warnings
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -130,12 +132,23 @@ class LazyDictWithCache(MutableMapping):
         return key in self._raw_dict
 
 
+def _read_schema_from_resources_or_local_file(filename: str) -> dict:
+    try:
+        with resource_files("airflow").joinpath(filename).open("rb") as f:
+            schema = json.load(f)
+    except (TypeError, FileNotFoundError):
+        import pathlib
+
+        with (pathlib.Path(__file__).parent / filename).open("rb") as f:
+            schema = json.load(f)
+    return schema
+
+
 def _create_provider_info_schema_validator():
     """Creates JSON schema validator from the provider_info.schema.json."""
     import jsonschema
 
-    with resource_files("airflow").joinpath("provider_info.schema.json").open("rb") as f:
-        schema = json.load(f)
+    schema = _read_schema_from_resources_or_local_file("provider_info.schema.json")
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -145,8 +158,7 @@ def _create_customized_form_field_behaviours_schema_validator():
     """Creates JSON schema validator from the customized_form_field_behaviours.schema.json."""
     import jsonschema
 
-    with resource_files("airflow").joinpath("customized_form_field_behaviours.schema.json").open("rb") as f:
-        schema = json.load(f)
+    schema = _read_schema_from_resources_or_local_file("customized_form_field_behaviours.schema.json")
     cls = jsonschema.validators.validator_for(schema)
     validator = cls(schema)
     return validator
@@ -203,6 +215,14 @@ class TriggerInfo(NamedTuple):
     trigger_class_name: str
     package_name: str
     integration_name: str
+
+
+class PluginInfo(NamedTuple):
+    """Plugin class, name and provider it comes from."""
+
+    name: str
+    plugin_class: str
+    provider_name: str
 
 
 class HookInfo(NamedTuple):
@@ -367,10 +387,22 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     """
 
     resource_version = "0"
+    _initialized: bool = False
+    _initialization_stack_trace = None
+
+    @staticmethod
+    def initialized() -> bool:
+        return ProvidersManager._initialized
+
+    @staticmethod
+    def initialization_stack_trace() -> str:
+        return ProvidersManager._initialization_stack_trace
 
     def __init__(self):
         """Initializes the manager."""
         super().__init__()
+        ProvidersManager._initialized = True
+        ProvidersManager._initialization_stack_trace = "".join(traceback.format_stack(inspect.currentframe()))
         self._initialized_cache: dict[str, bool] = {}
         # Keeps dict of providers keyed by module name
         self._provider_dict: dict[str, ProviderInfo] = {}
@@ -390,12 +422,15 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._logging_class_name_set: set[str] = set()
         self._secrets_backend_class_name_set: set[str] = set()
         self._executor_class_name_set: set[str] = set()
+        self._provider_configs: dict[str, dict[str, Any]] = {}
         self._api_auth_backend_module_names: set[str] = set()
         self._trigger_info_set: set[TriggerInfo] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._customized_form_fields_schema_validator = (
             _create_customized_form_field_behaviours_schema_validator()
         )
+        # Set of plugins contained in providers
+        self._plugins_set: set[PluginInfo] = set()
 
     @provider_info_cache("list")
     def initialize_providers_list(self):
@@ -462,11 +497,39 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_list()
         self._discover_executors()
 
+    @provider_info_cache("config")
+    def initialize_providers_configuration(self):
+        """Lazy initialization of providers configuration information."""
+        self._initialize_providers_configuration()
+
+    def _initialize_providers_configuration(self):
+        """
+        Internal method to initialize providers configuration information.
+
+        Should be used if we do not want to trigger caching for ``initialize_providers_configuration`` method.
+        In some cases we might want to make sure that the configuration is initialized, but we do not want
+        to cache the initialization method - for example when we just want to write configuration with
+        providers, but it is used in the context where no providers are loaded yet we will eventually
+        restore the original configuration and we want the subsequent ``initialize_providers_configuration``
+        method to be run in order to load the configuration for providers again.
+        """
+        self.initialize_providers_list()
+        self._discover_config()
+        # Now update conf with the new provider configuration from providers
+        from airflow.configuration import conf
+
+        conf.load_providers_configuration()
+
     @provider_info_cache("auth_backends")
     def initialize_providers_auth_backends(self):
         """Lazy initialization of providers API auth_backends information."""
         self.initialize_providers_list()
         self._discover_auth_backends()
+
+    @provider_info_cache("plugins")
+    def initialize_providers_plugins(self):
+        self.initialize_providers_list()
+        self._discover_plugins()
 
     def _discover_all_providers_from_packages(self) -> None:
         """
@@ -516,9 +579,10 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         except ImportError:
             log.info("You have no providers installed.")
             return
-        try:
-            seen = set()
-            for path in airflow.providers.__path__:  # type: ignore[attr-defined]
+
+        seen = set()
+        for path in airflow.providers.__path__:  # type: ignore[attr-defined]
+            try:
                 # The same path can appear in the __path__ twice, under non-normalized paths (ie.
                 # /path/to/repo/airflow/providers and /path/to/repo/./airflow/providers)
                 path = os.path.realpath(path)
@@ -526,8 +590,8 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     continue
                 seen.add(path)
                 self._add_provider_info_from_local_source_files_on_path(path)
-        except Exception as e:
-            log.warning("Error when loading 'provider.yaml' files from airflow sources: %s", e)
+            except Exception as e:
+                log.warning(f"Error when loading 'provider.yaml' files from {path} airflow sources: {e}")
 
     def _add_provider_info_from_local_source_files_on_path(self, path) -> None:
         """
@@ -538,9 +602,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         root_path = path
         for folder, subdirs, files in os.walk(path, topdown=True):
             for filename in fnmatch.filter(files, "provider.yaml"):
-                package_name = "apache-airflow-providers" + folder[len(root_path) :].replace(os.sep, "-")
-                self._add_provider_info_from_local_source_file(os.path.join(folder, filename), package_name)
-                subdirs[:] = []
+                try:
+                    package_name = "apache-airflow-providers" + folder[len(root_path) :].replace(os.sep, "-")
+                    self._add_provider_info_from_local_source_file(
+                        os.path.join(folder, filename), package_name
+                    )
+                    subdirs[:] = []
+                except Exception as e:
+                    log.warning("Error when loading 'provider.yaml' file from %s %e", folder, e)
 
     def _add_provider_info_from_local_source_file(self, path, package_name) -> None:
         """
@@ -554,7 +623,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             with open(path) as provider_yaml_file:
                 provider_info = yaml.safe_load(provider_yaml_file)
             self._provider_schema_validator.validate(provider_info)
-
             version = provider_info["versions"][0]
             if package_name not in self._provider_dict:
                 self._provider_dict[package_name] = ProviderInfo(version, provider_info, "source")
@@ -965,6 +1033,27 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     if _correctness_check(provider_package, executors_class_name, provider):
                         self._executor_class_name_set.add(executors_class_name)
 
+    def _discover_config(self) -> None:
+        """Retrieve all configs defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("config"):
+                self._provider_configs[provider_package] = provider.data.get("config")
+
+    def _discover_plugins(self) -> None:
+        """Retrieve all plugins defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            for plugin_dict in provider.data.get("plugins", ()):
+                if not _correctness_check(provider_package, plugin_dict["plugin-class"], provider):
+                    log.warning("Plugin not loaded due to above correctness check problem.")
+                    continue
+                self._plugins_set.add(
+                    PluginInfo(
+                        name=plugin_dict["name"],
+                        plugin_class=plugin_dict["plugin-class"],
+                        provider_name=provider_package,
+                    )
+                )
+
     @provider_info_cache("triggers")
     def initialize_providers_triggers(self):
         """Initialization of providers triggers."""
@@ -1002,6 +1091,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_hooks()
         # When we return hooks here it will only be used to retrieve hook information
         return self._hooks_lazy_dict
+
+    @property
+    def plugins(self) -> list[PluginInfo]:
+        """Returns information about plugins available in providers."""
+        self.initialize_providers_plugins()
+        return sorted(self._plugins_set, key=lambda x: x.plugin_class)
 
     @property
     def taskflow_decorators(self) -> dict[str, TaskDecorator]:
@@ -1053,3 +1148,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def executor_class_names(self) -> list[str]:
         self.initialize_providers_executors()
         return sorted(self._executor_class_name_set)
+
+    @property
+    def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        self.initialize_providers_configuration()
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])
+
+    @property
+    def already_initialized_provider_configs(self) -> list[tuple[str, dict[str, Any]]]:
+        return sorted(self._provider_configs.items(), key=lambda x: x[0])

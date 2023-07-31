@@ -26,6 +26,7 @@ import time
 import uuid
 import warnings
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core import operation  # type: ignore
@@ -62,6 +63,14 @@ from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+class PreemptibilityType(Enum):
+    """Contains possible Type values of Preemptibility applicable for every secondary worker of Cluster."""
+
+    PREEMPTIBLE = "PREEMPTIBLE"
+    SPOT = "SPOT"
+    PREEMPTIBILITY_UNSPECIFIED = "PREEMPTIBILITY_UNSPECIFIED"
 
 
 class ClusterGenerator:
@@ -109,7 +118,13 @@ class ClusterGenerator:
         Valid values: ``pd-ssd`` (Persistent Disk Solid State Drive) or
         ``pd-standard`` (Persistent Disk Hard Disk Drive).
     :param worker_disk_size: Disk size for the worker nodes
-    :param num_preemptible_workers: The # of preemptible worker nodes to spin up
+    :param num_preemptible_workers: The # of VM instances in the instance group as secondary workers
+        inside the cluster with Preemptibility enabled by default.
+        Note, that it is not possible to mix non-preemptible and preemptible secondary workers in
+        one cluster.
+    :param preemptibility: The type of Preemptibility applicable for every secondary worker, see
+        https://cloud.google.com/dataproc/docs/reference/rpc/ \
+        google.cloud.dataproc.v1#google.cloud.dataproc.v1.InstanceGroupConfig.Preemptibility
     :param zone: The zone where the cluster will be located. Set to None to auto-zone. (templated)
     :param network_uri: The network uri to be used for machine communication, cannot be
         specified with subnetwork_uri
@@ -164,6 +179,7 @@ class ClusterGenerator:
         worker_disk_type: str = "pd-standard",
         worker_disk_size: int = 1024,
         num_preemptible_workers: int = 0,
+        preemptibility: str = PreemptibilityType.PREEMPTIBLE.value,
         service_account: str | None = None,
         service_account_scopes: list[str] | None = None,
         idle_delete_ttl: int | None = None,
@@ -177,6 +193,7 @@ class ClusterGenerator:
         self.num_masters = num_masters
         self.num_workers = num_workers
         self.num_preemptible_workers = num_preemptible_workers
+        self.preemptibility = self._set_preemptibility_type(preemptibility)
         self.storage_bucket = storage_bucket
         self.init_actions_uris = init_actions_uris
         self.init_action_timeout = init_action_timeout
@@ -219,6 +236,9 @@ class ClusterGenerator:
 
         if self.single_node and self.num_preemptible_workers > 0:
             raise ValueError("Single node cannot have preemptible workers.")
+
+    def _set_preemptibility_type(self, preemptibility: str):
+        return PreemptibilityType(preemptibility.upper())
 
     def _get_init_action_timeout(self) -> dict:
         match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
@@ -328,6 +348,7 @@ class ClusterGenerator:
                     "boot_disk_size_gb": self.worker_disk_size,
                 },
                 "is_preemptible": True,
+                "preemptibility": self.preemptibility.value,
             }
 
         if self.storage_bucket:
@@ -1096,6 +1117,10 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     """Start a Pig query Job on a Cloud DataProc cluster.
 
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
+
     The parameters of the operation will be passed to the cluster.
 
     It's a good practice to define dataproc_* parameters in the default_args of the dag
@@ -1204,6 +1229,10 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     """Start a Hive query Job on a Cloud DataProc cluster.
 
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
+
     :param query: The query or reference to the query file (q extension).
     :param query_uri: The HCFS URI of the script that contains the Hive queries.
     :param variables: Map of named parameters for the query.
@@ -1278,6 +1307,10 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
 class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     """Start a Spark SQL query Job on a Cloud DataProc cluster.
 
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
+
     :param query: The query or reference to the query file (q extension). (templated)
     :param query_uri: The HCFS URI of the script that contains the SQL queries.
     :param variables: Map of named parameters for the query. (templated)
@@ -1350,6 +1383,10 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
 
 class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     """Start a Spark Job on a Cloud DataProc cluster.
+
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
 
     :param main_jar: The HCFS URI of the jar file that contains the main class
         (use this or the main_class, not both together).
@@ -1424,6 +1461,10 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
 class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     """Start a Hadoop Job on a Cloud DataProc cluster.
 
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
+
     :param main_jar: The HCFS URI of the jar file containing the main class
         (use this or the main_class, not both together).
     :param main_class: Name of the job class. (use this or the main_jar, not both
@@ -1495,6 +1536,10 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
 
 class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     """Start a PySpark Job on a Cloud DataProc cluster.
+
+    .. seealso::
+        This operator is deprecated, please use
+        :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`:
 
     :param main: [Required] The Hadoop Compatible Filesystem (HCFS) URI of the main
             Python file to use as the driver. Must be a .py file. (templated)
@@ -1931,7 +1976,9 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param job: Required. The job resource.
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.dataproc_v1.types.Job`
+        :class:`~google.cloud.dataproc_v1.types.Job`.
+        For the complete list of supported job types and their configurations please take a look here
+        https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.jobs
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``SubmitJobRequest`` requests with the same id, then the second request will be ignored and the first
         ``Job`` created and stored in the backend is returned.
@@ -2094,7 +2141,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         allowed timeout is 1 day.
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``UpdateClusterRequest`` requests with the same id, then the second request will be ignored and the
-        first ``google.longrunning.Operation`` created and stored in the backend is returned.
+        first ``google.long-running.Operation`` created and stored in the backend is returned.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
@@ -2572,6 +2619,8 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param filter: Result filters as specified in ListBatchesRequest
+    :param order_by: How to order results as specified in ListBatchesRequest
     """
 
     template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain")
@@ -2589,6 +2638,8 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        filter: str | None = None,
+        order_by: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -2601,6 +2652,8 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.filter = filter
+        self.order_by = order_by
 
     def execute(self, context: Context):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
@@ -2612,6 +2665,8 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+            filter=self.filter,
+            order_by=self.order_by,
         )
         DataprocListLink.persist(context=context, task_instance=self, url=DATAPROC_BATCHES_LINK)
         return [Batch.to_dict(result) for result in results]

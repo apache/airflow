@@ -99,7 +99,7 @@ def group_for_testing():
 )
 @click.option(
     "--wait-for-containers-timeout",
-    help="Timeout in seconds to wait for all containers to start",
+    help="Time to wait (in seconds) for all containers to start",
     envvar="WAIT_FOR_CONTAINERS_TIMEOUT",
     show_default=True,
     type=IntRange(0, 600),
@@ -331,12 +331,14 @@ def run_tests_in_parallel(
     "should be run: `Providers[airbyte,http]` or "
     "excluded from the full test suite: `Providers[-amazon,google]`",
     default="All",
+    envvar="TEST_TYPE",
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
 )
 @click.option(
     "--test-timeout",
     help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
     default=60,
+    envvar="TEST_TIMEOUT",
     type=IntRange(min=0),
     show_default=True,
 )
@@ -457,7 +459,7 @@ def command_for_tests(
 
 @group_for_testing.command(
     name="integration-tests",
-    help="Run the specified integratio tests.",
+    help="Run the specified integration tests.",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,

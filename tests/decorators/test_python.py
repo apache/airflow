@@ -267,6 +267,19 @@ class TestAirflowTaskDecorator(BasePythonTest):
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == {}
 
+    def test_multiple_outputs_return_none(self):
+        @task_decorator(multiple_outputs=True)
+        def test_func():
+            return
+
+        with self.dag:
+            ret = test_func()
+
+        dr = self.create_dag_run()
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        ti = dr.get_task_instances()[0]
+        assert ti.xcom_pull() is None
+
     def test_python_callable_arguments_are_templatized(self):
         """Test @task op_args are templatized"""
 

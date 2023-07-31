@@ -143,6 +143,7 @@ export interface paths {
   "/dags/{dag_id}/dagRuns": {
     /** This endpoint allows specifying `~` as the dag_id to retrieve DAG runs for all DAGs. */
     get: operations["get_dag_runs"];
+    /** This will initiate a dagrun. If DAG is paused then dagrun state will remain queued, and the task won't run. */
     post: operations["post_dag_run"];
     parameters: {
       path: {
@@ -2931,6 +2932,7 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
     };
   };
+  /** This will initiate a dagrun. If DAG is paused then dagrun state will remain queued, and the task won't run. */
   post_dag_run: {
     parameters: {
       path: {
