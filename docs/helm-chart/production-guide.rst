@@ -31,7 +31,7 @@ can be found at :doc:`Set up a Database Backend <apache-airflow:howto/set-up-dat
 
 .. note::
 
-    When using the helm chart, you do not need to initialize the db with ``airflow db init``
+    When using the helm chart, you do not need to initialize the db with ``airflow db migrate``
     as outlined in :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>`.
 
 First disable Postgres so the chart won't deploy its own Postgres container:
