@@ -23,7 +23,8 @@ default SQLite option. If you don't want to use SQLite, then take a look at
 :doc:`/howto/set-up-database` to setup a different database.
 
 Usually, you need to run ``airflow db migrate`` in order to create the database schema if it does not exist
-or migrate to the latest version if it does.
+or migrate to the latest version if it does. You should make sure that Airflow components are
+not running while the database migration is being executed.
 
 .. note::
 
