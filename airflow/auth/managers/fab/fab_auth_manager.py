@@ -23,7 +23,7 @@ from flask_login import current_user
 from airflow import AirflowException
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.fab.models import User
-from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
+from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 
 
 class FabAuthManager(BaseAuthManager):

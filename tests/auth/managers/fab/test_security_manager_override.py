@@ -21,7 +21,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
+from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 
 appbuilder = Mock()
 actionmodelview = Mock()
