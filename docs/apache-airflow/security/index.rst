@@ -21,11 +21,10 @@ Security
 This section of the documentation covers security-related topics.
 
 Make sure to get familiar with the `Airflow Security Model <security_model>`_ if you want to understand
-which users of Apache Airflow™ have access to what and what is the role of Deployment Managers in
-deciding how to deploy Airflow in a secure way.
+the different user types of Apache Airflow™, what they have access to, and the role Deployment Managers have in deploying Airflow in a secure way.
 
 Also, if you want to understand how Airflow releases security patches and what to expect from them,
-head over to the `Releasing security patches <releasing_security_patches>`_.
+head over to `Releasing security patches <releasing_security_patches>`_.
 
 Follow the below topics as well to understand other aspects of Airflow security:
 

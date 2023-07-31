@@ -21,6 +21,7 @@ Airflow Security Model
 This document describes Airflow's security model from the perspective of
 the Airflow user. It is intended to help users understand the security
 model and make informed decisions about how to deploy and manage Airflow.
+
 If you would like to know how to report security vulnerabilities and how
 security reports are handled by the security team of Airflow, head to
 `Airflow's Security Policy <https://github.com/apache/airflow/security/policy>`_.
@@ -32,7 +33,7 @@ The Airflow security model involves different types of users with
 varying access and capabilities:
 
 1. **Deployment Managers**: They have the highest level of access and
-   control. They install and configure Airflow, make decisions about
+   control. They install and configure Airflow, and make decisions about
    technologies and permissions. They can potentially delete the entire
    installation and have access to all credentials. Deployment Managers
    can also decide to keep audits, backups and copies of information
@@ -52,8 +53,8 @@ varying access and capabilities:
    is crucial to prevent abuse and Denial of Service attacks.
 
 4. **Non-authenticated UI users**: Airflow doesn't support
-   unauthenticated users by default. If allowed, vulnerabilities must be
-   addressed by the Deployment Manager.
+   unauthenticated users by default. If allowed, potential vulnerabilities
+   must be assessed and addressed by the Deployment Manager.
 
 Capabilities of authenticated UI users
 --------------------------------------
@@ -95,7 +96,7 @@ what roles have been configured by the Deployment Manager or Admin users as well
 Responsibilities of Deployment Managers
 ---------------------------------------
 
-Deployment Managers determine access levels and understand the potential
+Deployment Managers determine access levels and must understand the potential
 damage users can cause. Some Deployment Managers may further limit
 access through fine-grained privileges for the **Authenticated UI
 users**. However, these limitations are outside the basic Airflow's
@@ -117,13 +118,12 @@ to):
    security checks, and adherence to best practices before DAGs are
    deployed.
 
-These examples showcase ways in which administrators can refine and
+These examples showcase ways in which Deployment Managers can refine and
 limit user privileges within Airflow, providing tighter control and
 ensuring that users have access only to the necessary components and
-functionalities based on their roles and responsibilities, however the
+functionalities based on their roles and responsibilities. However,
 fine-grained access control does not provide full isolation and
-separation of access allowing isolation of different user groups in a
-multi-tenant fashion yet. In the future versions of Airflow some of the
-fine-grained access features might become part of the Airflow security
-model. The Airflow community is working on a multi-tenant model that might
-address some of the fine-grained access components.
+separation of access to allow isolation of different user groups in a
+multi-tenant fashion yet. In future versions of Airflow, some
+fine-grained access control features could become part of the Airflow security
+model, as the Airflow community is working on a multi-tenant model currently.

@@ -18,8 +18,8 @@
 Releasing security patches
 ==========================
 
-Apache Airflow™ uses consistent and predictable approach for releasing security patches - both for
-Apache Airflow package and for Apache Airflow providers (security patches in providers are treated
+Apache Airflow™ uses a consistent and predictable approach for releasing security patches - both for
+the Apache Airflow package and Apache Airflow providers (security patches in providers are treated
 separately from security patches in Airflow core package).
 
 Releasing Airflow with security patches
@@ -33,17 +33,17 @@ bugfixes) cherry-picked to the latest released ``MINOR`` line of Apache Airflow.
 release a new ``MINOR`` version, we stop releasing ``PATCHLEVEL`` releases for the previous ``MINOR`` version.
 
 For example, once we released ``2.6.0`` version on April 30, 2023 all the security patches will be cherry-picked and released in ``2.6.*`` versions until we release ``2.7.0`` version. There will be no
-``2.5.*`` versions  released after ``2.6.0`` has been released.
+``2.5.*`` versions released after ``2.6.0`` has been released.
 
-This means that in order to apply security fixes with Apache Airflow software released by us, you
-MUST upgrade to the latest ``MINOR`` version of Airflow.
+This means that in order to apply security fixes in Apache Airflow, you
+MUST upgrade to the latest ``MINOR`` and ``PATCHLEVEL`` version of Airflow.
 
 Releasing Airflow providers with security patches
 -------------------------------------------------
 
-Similarly to Airflow, providers use strict `SemVer <https://semver.org>`_ versioning policy, and the same
+Similarly to Airflow, providers uses a strict `SemVer <https://semver.org>`_ versioning policy, and the same
 policies apply for providers as for Airflow itself. This means that you need to upgrade to the latest
-``MINOR`` version of the provider to get the latest security fixes.
+``MINOR`` and ``PATCHLEVEL`` version of the provider to get the latest security fixes.
 Airflow providers are released independently from Airflow itself and the information about vulnerabilities
 is published separately. You can upgrade providers independently from Airflow itself, following the
 instructions found in :ref:`installing-from-pypi-managing-providers-separately-from-airflow-core`.
