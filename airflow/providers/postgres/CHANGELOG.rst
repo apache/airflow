@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+5.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, postgres: add OpenLineage support for Postgres (#31617)``
+
+Misc
+~~~~
+
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
 5.5.2
 .....
 
