@@ -3253,13 +3253,9 @@ components:
           type: boolean
       nullable: true
 
-    NullableSLAMiss:
-      nullable: true
-      allOf:
-        - $ref: '#/components/schemas/SLAMiss'
-
     Trigger:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3274,13 +3270,9 @@ components:
           type: integer
           nullable: true
 
-    NullableTrigger:
-      nullable: true
-      allOf:
-        - $ref: '#/components/schemas/Trigger'
-
     Job:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3315,11 +3307,6 @@ components:
           type: string
           nullable: true
 
-    NullableJob:
-      nullable: true
-      allOf:
-        - $ref: '#/components/schemas/Job'
-
     TaskInstance:
       type: object
       properties:
@@ -3348,7 +3335,7 @@ components:
           type: number
           nullable: true
         state:
-          $ref: '#/components/schemas/NullableTaskState'
+          $ref: '#/components/schemas/TaskState'
         try_number:
           type: integer
         map_index:
@@ -3383,7 +3370,7 @@ components:
         executor_config:
           type: string
         sla_miss:
-          $ref: '#/components/schemas/NullableSLAMiss'
+          $ref: '#/components/schemas/SLAMiss'
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -3391,9 +3378,9 @@ components:
             *New in version 2.3.0*
           type: object
         trigger:
-          $ref: '#/components/schemas/NullableTrigger'
+          $ref: '#/components/schemas/Trigger'
         triggerer_job:
-          $ref: '#/components/schemas/NullableJob'
+          $ref: '#/components/schemas/Job'
         note:
           type: string
           description: |
@@ -3571,7 +3558,7 @@ components:
 
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
-              $ref: '#/components/schemas/NullableTimeDelta'
+              $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
               readOnly: true
@@ -3707,9 +3694,9 @@ components:
           type: number
           readOnly: true
         execution_timeout:
-          $ref: '#/components/schemas/NullableTimeDelta'
+          $ref: '#/components/schemas/TimeDelta'
         retry_delay:
-          $ref: '#/components/schemas/NullableTimeDelta'
+          $ref: '#/components/schemas/TimeDelta'
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -4513,6 +4500,7 @@ components:
     TimeDelta:
       description: Time delta
       type: object
+      nullable: true
       required:
         - __type
         - days
@@ -4523,11 +4511,6 @@ components:
         days: {type: integer}
         seconds: {type: integer}
         microseconds: {type: integer}
-
-    NullableTimeDelta:
-      nullable: true
-      allOf:
-        - $ref: '#/components/schemas/TimeDelta'
 
     RelativeDelta:
       description: Relative delta
@@ -4659,7 +4642,9 @@ components:
         *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
         *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
       type: string
+      nullable: true
       enum:
+        - null
         - success
         - running
         - failed
@@ -4673,11 +4658,6 @@ components:
         - deferred
         - removed
         - restarting
-
-    NullableTaskState:
-      nullable: true
-      allOf:
-        - $ref: '#/components/schemas/TaskState'
 
     DagState:
       description: |
