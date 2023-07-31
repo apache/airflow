@@ -34,7 +34,7 @@ import pendulum
 from elasticsearch.exceptions import NotFoundError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
@@ -46,7 +46,8 @@ from airflow.utils.session import create_session
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
@@ -182,8 +183,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         return host
 
-    def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
+    def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+        from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
         with create_session() as session:
+            if isinstance(ti, TaskInstanceKey):
+                ti = TaskInstance.get_by_key(ti, session)
+                if not ti:
+                    raise AirflowException("TaskInstance not found")
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
@@ -377,11 +384,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             setattr(record, self.offset_field, int(time.time() * (10**9)))
             self.handler.emit(record)
 
-    def set_context(self, ti: TaskInstance, **kwargs) -> None:
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         """
         Provide task_instance context to airflow task handler.
 
         :param ti: task instance object
+        :param identifier: if set, identifies the Airflow component which is relaying logs from
+            exceptional scenarios related to the task instance
         """
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", None)
         is_ti_raw = getattr(ti, "raw", None)
@@ -410,7 +419,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             self.handler.setLevel(self.level)
             self.handler.setFormatter(self.formatter)
         else:
-            super().set_context(ti)
+            if getattr(self, "supports_task_context_logging", False):
+                super().set_context(ti, identifier=identifier)
+            else:
+                super().set_context(ti)
         self.context_set = True
 
     def close(self) -> None:
