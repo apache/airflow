@@ -34,6 +34,18 @@ custom_executor_module.CustomCeleryExecutor = type(  # type:  ignore
 custom_executor_module.CustomCeleryKubernetesExecutor = type(  # type: ignore
     "CustomCeleryKubernetesExecutor", (celery_kubernetes_executor.CeleryKubernetesExecutor,), {}
 )
+custom_executor_module.CustomCeleryExecutor = type(  # type:  ignore
+    "CustomLocalExecutor", (celery_executor.CeleryExecutor,), {}
+)
+custom_executor_module.CustomCeleryKubernetesExecutor = type(  # type: ignore
+    "CustomLocalKubernetesExecutor", (celery_kubernetes_executor.CeleryKubernetesExecutor,), {}
+)
+custom_executor_module.CustomCeleryExecutor = type(  # type:  ignore
+    "CustomKubernetesExecutor", (celery_executor.CeleryExecutor,), {}
+)
+custom_executor_module.CustomCeleryKubernetesExecutor = type(  # type: ignore
+    "CustomCeleryKubernetesExecutor", (celery_kubernetes_executor.CeleryKubernetesExecutor,), {}
+)
 sys.modules["custom_executor"] = custom_executor_module
 
 
