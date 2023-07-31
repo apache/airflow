@@ -121,8 +121,9 @@ class TestSnowflakeOperators:
             **kwargs)
         mock_base_op.assert_called_once_with(
             conn_id="snowflake_default",
+            database=None,
+            task_id="snowflake_params_check",
             hook_params={
-                "snowflake_conn_id":"snowflake_default", 
                 "warehouse": "test_warehouse",
                 "database": "test_database",
                 "role": "test_role",
@@ -130,8 +131,7 @@ class TestSnowflakeOperators:
                 "authenticator": "oath",
                 "session_parameters": {"QUERY_TAG": "test_tag"}
             },
-            default_args={},
-            task_id="snowflake_params_check",
+            default_args={}
         )
 
 def create_context(task, dag=None):
