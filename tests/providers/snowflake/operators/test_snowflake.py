@@ -101,6 +101,7 @@ class TestSnowflakeOperatorForParams:
             default_args={},
         )
 
+
 @pytest.mark.parametrize(
     "operator_class, kwargs",
     [
@@ -120,6 +121,7 @@ class TestSnowflakeCheckOperators:
         operator = operator_class(task_id="snowflake_check", snowflake_conn_id="snowflake_default", **kwargs)
         operator.get_db_hook()
         mock_get_db_hook.assert_called_once()
+
 
 @pytest.mark.parametrize(
     "operator_class, kwargs",
