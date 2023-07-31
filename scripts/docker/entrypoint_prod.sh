@@ -287,6 +287,10 @@ if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] || [[ -n "${_AIRFLOW_DB_MIGRATE=}" ]] ; th
     migrate_db
 fi
 
+if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] ; then
+    >&2 echo "WARNING: Environment variable '_AIRFLOW_DB_UPGRADE' is deprecated please use '_AIRFLOW_DB_MIGRATE' instead"
+fi
+
 if [[ -n "${_AIRFLOW_WWW_USER_CREATE=}" ]] ; then
     create_www_user
 fi
