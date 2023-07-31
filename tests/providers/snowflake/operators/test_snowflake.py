@@ -117,12 +117,12 @@ class TestSnowflakeOperators:
             role="test_role",
             schema="test_schema",
             authenticator="oath",
-            session_parameters={"QUERY_TAG": "test_tag"}
+            session_parameters={"QUERY_TAG": "test_tag"},
             **kwargs)
         mock_base_op.assert_called_once_with(
             conn_id="snowflake_default",
             hook_params={
-                snowflake_conn_id="snowflake_default", 
+                "snowflake_conn_id":"snowflake_default", 
                 "warehouse": "test_warehouse",
                 "database": "test_database",
                 "role": "test_role",
