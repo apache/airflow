@@ -22,7 +22,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 
-def validate_json(pattern: str) -> None:
+def _validate_json(pattern: str) -> None:
     try:
         json.loads(pattern)
     except ValueError:
