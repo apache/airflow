@@ -376,7 +376,7 @@ class HiveCliHook(BaseHook):
             }
 
             order_type = OrderedDict()
-            for col, dtype in df.dtypes.iteritems():
+            for col, dtype in df.dtypes.items():
                 order_type[col] = dtype_kind_hive_type[dtype.kind]
             return order_type
 
@@ -1014,7 +1014,7 @@ class HiveServer2Hook(DbApiHook):
         self.log.info("Done. Loaded a total of %s rows.", i)
 
     def get_records(
-        self, sql: str | list[str], parameters: Iterable | Mapping | None = None, **kwargs
+        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
     ) -> Any:
         """
         Get a set of records from a Hive query; optionally pass a 'schema' kwarg to specify target schema.

@@ -577,7 +577,7 @@ FROM {params.airflow_image_name_with_tag}
 
 COPY airflow/example_dags/ /opt/airflow/dags/
 
-COPY airflow/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+COPY airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
 
 ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
 """

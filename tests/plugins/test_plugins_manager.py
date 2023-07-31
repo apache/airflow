@@ -160,6 +160,13 @@ def test_flaskappbuilder_nomenu_views():
 
 
 class TestPluginsManager:
+    @pytest.fixture(autouse=True, scope="function")
+    def clean_plugins(self):
+        from airflow import plugins_manager
+
+        plugins_manager.loaded_plugins = set()
+        plugins_manager.plugins = []
+
     def test_no_log_when_no_plugins(self, caplog):
 
         with mock_plugin_manager(plugins=[]):
@@ -377,6 +384,32 @@ class TestPluginsManager:
 
             assert get_listener_manager().has_listeners
             assert get_listener_manager().pm.get_plugins().pop().__name__ == "tests.listeners.empty_listener"
+
+    def test_should_import_plugin_from_providers(self):
+        from airflow import plugins_manager
+
+        with mock.patch("airflow.plugins_manager.plugins", []):
+            assert len(plugins_manager.plugins) == 0
+            plugins_manager.load_providers_plugins()
+            assert len(plugins_manager.plugins) >= 2
+
+    def test_does_not_double_import_entrypoint_provider_plugins(self):
+        from airflow import plugins_manager
+
+        mock_entrypoint = mock.Mock()
+        mock_entrypoint.name = "test-entrypoint-plugin"
+        mock_entrypoint.module = "module_name_plugin"
+
+        mock_dist = mock.Mock()
+        mock_dist.metadata = {"Name": "test-entrypoint-plugin"}
+        mock_dist.version = "1.0.0"
+        mock_dist.entry_points = [mock_entrypoint]
+
+        with mock.patch("airflow.plugins_manager.plugins", []):
+            assert len(plugins_manager.plugins) == 0
+            plugins_manager.load_entrypoint_plugins()
+            plugins_manager.load_providers_plugins()
+            assert len(plugins_manager.plugins) == 2
 
 
 class TestPluginsDirectorySource:

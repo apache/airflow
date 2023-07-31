@@ -20,9 +20,9 @@ from __future__ import annotations
 import pytest
 from psycopg2 import ProgrammingError
 
-from airflow.providers.google.cloud.example_dags.example_postgres_to_gcs import GCS_BUCKET
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.system.providers.google.cloud.transfers.example_postgres_to_gcs import BUCKET_NAME as GCS_BUCKET
 from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 CREATE_QUERY = """
