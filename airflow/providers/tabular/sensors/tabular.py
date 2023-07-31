@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.providers.tabular.hooks.tabular import TabularHook
@@ -59,6 +60,11 @@ class TabularVttsSensor(BaseSensorOperator):
         self.tabular_conn_id = tabular_conn_id
         self.num_snapshots = num_snapshots
 
+    @cached_property
+    def hook(self) -> TabularHook:
+        """Create and return a TabularHook."""
+        return TabularHook(tabular_conn_id=self.tabular_conn_id)
+
     def poke(self, context: Context) -> bool:
         """
         Pokes until the job has successfully finished.
@@ -66,9 +72,7 @@ class TabularVttsSensor(BaseSensorOperator):
         :param context: The task context during execution.
         :return: True if it succeeded and False if not.
         """
-        hook = TabularHook(tabular_conn_id=self.tabular_conn_id)
-
-        catalog = hook.load_rest_catalog()
+        catalog = self.hook.load_rest_catalog()
         table = catalog.load_table(identifier=self.identifier)
 
         snapshot = table.current_snapshot()
