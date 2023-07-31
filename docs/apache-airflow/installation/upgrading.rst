@@ -41,7 +41,7 @@ When you need to upgrade
 ========================
 
 If you have a custom deployment based on virtualenv or Docker Containers, you usually need to run
-the DB migrate manually as part of the migration process.
+the DB migrate manually as part of the upgrade process.
 
 In some cases the upgrade happens automatically - it depends if in your deployment, the upgrade is
 built-in as post-install action. For example when you are using :doc:`helm-chart:index` with
