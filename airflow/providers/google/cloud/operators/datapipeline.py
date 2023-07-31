@@ -22,9 +22,10 @@ from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.datapipeline import DEFAULT_DATAPIPELINE_LOCATION, DataPipelineHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
+
 class RunDataPipelineOperator(GoogleCloudBaseOperator):
     """
-    Runs a Data Pipelines Instance using the Data Pipelines API
+    Runs a Data Pipelines Instance using the Data Pipelines API.
 
     :param data_pipeline_name:  The display name of the pipeline. In example
         projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.

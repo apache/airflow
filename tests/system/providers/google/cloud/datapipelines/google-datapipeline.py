@@ -17,16 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG for testing Google Dataflow Beam Pipeline Operator with Java.
-Important Note:
-    This test downloads Java JAR file from the public bucket. In case the JAR file cannot be downloaded
-    or is not compatible with the Java version used in the test, the source code for this test can be
-    downloaded from here (https://beam.apache.org/get-started/wordcount-example) and needs to be compiled
-    manually in order to work.
-    You can follow the instructions on how to pack a self-executing jar here:
-    https://beam.apache.org/documentation/runners/dataflow/
-Requirements:
-    These operators require the gcloud command and Java's JRE to run.
+Example Airflow DAG for testing Google DataPipelines Create Data Pipeline Operator.
 """
 from __future__ import annotations
 

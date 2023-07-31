@@ -62,7 +62,7 @@ class DataPipelineHook(GoogleBaseHook):
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
         """
-        Runs a Data Pipelines Instance using the Data Pipelines API
+        Runs a Data Pipelines Instance using the Data Pipelines API.
 
         :param data_pipeline_name:  The display name of the pipeline. In example
             projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
