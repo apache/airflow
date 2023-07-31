@@ -108,7 +108,7 @@ def migratedb(args):
         reserialize_dags=args.reserialize_dags,
     )
     if not args.show_sql_only:
-        print("Database syncing done!")
+        print("Database migrating done!")
 
 
 @cli_utils.action_cli(check_db=False)
