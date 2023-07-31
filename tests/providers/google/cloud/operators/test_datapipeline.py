@@ -52,6 +52,7 @@ TEST_PROJECTID = "test-project-id"
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_DATA_PIPELINE_NAME = "test_data_pipeline_name"
 
+
 class TestRunDataPipelineOperator:
     @pytest.fixture
     def run_operator(self):
