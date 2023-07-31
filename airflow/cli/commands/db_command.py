@@ -61,7 +61,7 @@ def resetdb(args):
 
 def upgradedb(args):
     """Upgrades the metadata database."""
-    warnings.warn("ActionCommand `updgrade` is deprecated. Use `migrate` instead.", DeprecationWarning)
+    warnings.warn("`db updgrade` is deprecated. Use `db migrate` instead.", DeprecationWarning)
     migratedb(args)
 
 
