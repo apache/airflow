@@ -41,7 +41,7 @@ log = logging.getLogger(__name__)
 def initdb(args):
     """Initializes the metadata database."""
     warnings.warn(
-        "ActionCommand `init` is deprecated.  Use `migrate` instead to migrate the db and/or "
+        "`db init` is deprecated.  Use `db migrate` instead to migrate the db and/or "
         "create-default-connections to create the default connections",
         DeprecationWarning,
     )
