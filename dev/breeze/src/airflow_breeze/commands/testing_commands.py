@@ -452,6 +452,7 @@ def command_for_tests(
             db_reset=db_reset,
             output=None,
             test_timeout=test_timeout,
+            output_outside_the_group=True,
             skip_docker_compose_down=skip_docker_compose_down,
         )
         sys.exit(returncode)
