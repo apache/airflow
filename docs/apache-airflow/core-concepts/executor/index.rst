@@ -77,4 +77,4 @@ There are two types of executor - those that run tasks *locally* (inside the ``s
 
 .. note::
 
-    Something that often confuses new users of Airflow is that they don't need to run a separate ``executor`` process. This is because the executor's logic runs *inside* the ``scheduler`` process - if you're running a scheduler, you're running the executor.
+    Something that often confuses new users of Airflow is that they don't need to run a separate ``executor`` process when using one of the Local Executors (because in this case the executor's logic runs *inside* the ``scheduler`` process).
