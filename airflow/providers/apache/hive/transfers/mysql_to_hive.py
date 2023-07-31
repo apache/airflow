@@ -151,7 +151,7 @@ class MySqlToHiveOperator(BaseOperator):
                     if cursor.description is not None:
                         for field in cursor.description:
                             field_dict[field[0]] = self.type_map(field[1])
-                    csv_writer.writerows(cursor)
+                    csv_writer.writerows(cursor)  # type: ignore[arg-type]
             f.flush()
             self.log.info("Loading file into Hive")
             hive.load_file(
