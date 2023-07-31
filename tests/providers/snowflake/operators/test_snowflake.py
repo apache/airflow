@@ -71,6 +71,7 @@ class TestSnowflakeOperator:
         # do_xcom_push=False because otherwise the XCom test will fail due to the mocking (it actually works)
         operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+
 class TestSnowflakeOperatorForParams:
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__")
     def test_overwrite_params(self, mock_base_op):
