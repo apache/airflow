@@ -25,7 +25,6 @@ from flask_appbuilder.security.views import (
     PermissionViewModelView,
     ResetMyPasswordView,
     ResetPasswordView,
-    RoleModelView,
     UserInfoEditView,
     UserLDAPModelView,
     UserOAuthModelView,
@@ -104,27 +103,6 @@ class CustomResetPasswordView(ResetPasswordView):
     }
 
     base_permissions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
-
-
-class CustomRoleModelView(RoleModelView):
-    """Customize permission names for FAB's builtin RoleModelView."""
-
-    class_permission_name = permissions.RESOURCE_ROLE
-    method_permission_name = {
-        "delete": "delete",
-        "download": "read",
-        "show": "read",
-        "list": "read",
-        "edit": "edit",
-        "add": "create",
-        "copy_role": "create",
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_CREATE,
-        permissions.ACTION_CAN_READ,
-        permissions.ACTION_CAN_EDIT,
-        permissions.ACTION_CAN_DELETE,
-    ]
 
 
 class ResourceModelView(ViewMenuModelView):
