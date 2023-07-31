@@ -70,7 +70,7 @@ class TestCloudBatchJobFinishedTrigger:
         self, mock_hook, trigger: CloudRunJobFinishedTrigger
     ):
         """
-        Tests the CloudBuildCreateBuildTrigger fires once the job execution reaches a successful state.
+        Tests the CloudRunJobFinishedTrigger fires once the job execution reaches a successful state.
         """
 
         done = True
@@ -99,7 +99,7 @@ class TestCloudBatchJobFinishedTrigger:
         self, mock_hook, trigger: CloudRunJobFinishedTrigger
     ):
         """
-        Tests the CloudBuildCreateBuildTrigger fires once the job execution reaches a successful state.
+        Tests the CloudRunJobFinishedTrigger raises an exception once the job execution fails.
         """
 
         done = False
@@ -119,7 +119,7 @@ class TestCloudBatchJobFinishedTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_run.CloudRunAsyncHook")
     async def test_trigger_timeout(self, mock_hook, trigger: CloudRunJobFinishedTrigger):
         """
-        Tests the CloudBuildCreateBuildTrigger fires once the job execution times out with an error message.
+        Tests the CloudRunJobFinishedTrigger fires once the job execution times out with an error message.
         """
 
         async def _mock_operation(name):

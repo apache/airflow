@@ -35,6 +35,7 @@ from google.cloud.run_v2.services.jobs import pagers
 from google.longrunning import operations_pb2
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
@@ -72,7 +73,7 @@ class CloudRunHook(GoogleBaseHook):
         :return: JobsClient.
         """
         if self._client is None:
-            self._client = JobsClient()
+            self._client = JobsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -179,7 +180,7 @@ class CloudRunAsyncHook(GoogleBaseHook):
 
     def get_conn(self):
         if self._client is None:
-            self._client = JobsAsyncClient()
+            self._client = JobsAsyncClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
         return self._client
 

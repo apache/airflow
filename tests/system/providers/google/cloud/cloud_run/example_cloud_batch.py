@@ -27,7 +27,6 @@ from google.cloud.run_v2 import Job
 from google.cloud.run_v2.types import k8s_min
 
 from airflow import models
-from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
@@ -62,6 +61,22 @@ list_jobs_task_name = "list-jobs"
 
 clean1_task_name = "clean-job1"
 clean2_task_name = "clean-job2"
+
+
+def _assert_executed_jobs_xcom(ti):
+    job1_dicts = ti.xcom_pull(task_ids=[execute1_task_name], key="return_value")
+    assert job1_name in job1_dicts[0]["name"]
+
+    job2_dicts = ti.xcom_pull(task_ids=[execute2_task_name], key="return_value")
+    assert job2_name in job2_dicts[0]["name"]
+
+
+def _assert_created_jobs_xcom(ti):
+    job1_dicts = ti.xcom_pull(task_ids=[create1_task_name], key="return_value")
+    assert job1_name in job1_dicts[0]["name"]
+
+    job2_dicts = ti.xcom_pull(task_ids=[create2_task_name], key="return_value")
+    assert job2_name in job2_dicts[0]["name"]
 
 
 def _assert_updated_job(ti):
@@ -135,7 +150,9 @@ with models.DAG(
         dag=dag,
     )
 
-    empty = EmptyOperator(task_id="empty", dag=dag)
+    assert_created_jobs = PythonOperator(
+        task_id="assert-created-jobs", python_callable=_assert_created_jobs_xcom, dag=dag
+    )
 
     execute1 = CloudRunExecuteJobOperator(
         task_id=execute1_task_name,
@@ -153,6 +170,10 @@ with models.DAG(
         job_name=job2_name,
         dag=dag,
         deferrable=True,
+    )
+
+    assert_executed_jobs = PythonOperator(
+        task_id="assert-executed-jobs", python_callable=_assert_executed_jobs_xcom, dag=dag
     )
 
     list_jobs_limit = CloudRunListJobsOperator(
@@ -200,8 +221,9 @@ with models.DAG(
 
     (
         (create1, create2)
-        >> empty
+        >> assert_created_jobs
         >> (execute1, execute2)
+        >> assert_executed_jobs
         >> list_jobs_limit
         >> assert_jobs_limit
         >> list_jobs

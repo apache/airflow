@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
     """
-    Create a job without executing it.
+    Creates a job without executing it. Pushes the created job to xcom.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -51,6 +51,8 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
+    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
 
     def __init__(
         self,
@@ -84,7 +86,7 @@ class CloudRunCreateJobOperator(GoogleCloudBaseOperator):
 
 class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
     """
-    Update a job and wait for the operation to be completed.
+    Updates a job and wait for the operation to be completed. Pushes the updated job to xcom.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -101,6 +103,8 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
+    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
 
     def __init__(
         self,
@@ -134,7 +138,7 @@ class CloudRunUpdateJobOperator(GoogleCloudBaseOperator):
 
 class CloudRunDeleteJobOperator(GoogleCloudBaseOperator):
     """
-    Delete a job and wait for the the operation to be completed.
+    Deletes a job and wait for the the operation to be completed. Pushes the deleted job to xcom.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -149,6 +153,8 @@ class CloudRunDeleteJobOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
+    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
 
     def __init__(
         self,
@@ -178,7 +184,7 @@ class CloudRunDeleteJobOperator(GoogleCloudBaseOperator):
 
 class CloudRunListJobsOperator(GoogleCloudBaseOperator):
     """
-    List jobs.
+    Lists jobs.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -196,6 +202,13 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
+    template_fields = (
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -230,7 +243,7 @@ class CloudRunListJobsOperator(GoogleCloudBaseOperator):
 
 class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     """
-    Execute a job and wait for the operation to be completed.
+    Executes a job and wait for the operation to be completed. Pushes the executed job to xcom.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -251,6 +264,8 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode
     """
+
+    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
 
     def __init__(
         self,
@@ -286,6 +301,8 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         if not self.deferrable:
             result: Execution = self._wait_for_operation(self.operation)
             self._fail_if_execution_failed(result)
+            job = hook.get_job(job_name=result.job, region=self.region)
+            return Job.to_dict(job)
         else:
             self.defer(
                 trigger=CloudRunJobFinishedTrigger(

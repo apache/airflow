@@ -27,6 +27,7 @@ from google.cloud.run_v2 import Job
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_run import (
+    CloudRunCreateJobOperator,
     CloudRunDeleteJobOperator,
     CloudRunExecuteJobOperator,
     CloudRunListJobsOperator,
@@ -43,10 +44,49 @@ JOB = Job()
 JOB.name = JOB_NAME
 
 
+def _assert_common_template_fields(template_fields):
+    assert "project_id" in template_fields
+    assert "region" in template_fields
+    assert "gcp_conn_id" in template_fields
+    assert "impersonation_chain" in template_fields
+
+
+class TestCloudRunCreateJobOperator:
+    def test_template_fields(self):
+        operator = CloudRunCreateJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+        )
+
+        _assert_common_template_fields(operator.template_fields)
+        assert "job_name" in operator.template_fields
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_create(self, hook_mock):
+        hook_mock.return_value.create_job.return_value = JOB
+
+        operator = CloudRunCreateJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.create_job.assert_called_once_with(
+            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, job=JOB
+        )
+
+
 class TestCloudRunExecuteJobOperator:
+    def test_template_fields(self):
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
+
+        _assert_common_template_fields(operator.template_fields)
+        assert "job_name" in operator.template_fields
+
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_success(self, hook_mock):
-
+        hook_mock.return_value.get_job.return_value = JOB
         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)
 
         operator = CloudRunExecuteJobOperator(
@@ -61,7 +101,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_fail_one_failed_task(self, hook_mock):
-
         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 2, 1)
 
         operator = CloudRunExecuteJobOperator(
@@ -89,7 +128,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_fail_incomplete_failed_tasks(self, hook_mock):
-
         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 2, 0)
 
         operator = CloudRunExecuteJobOperator(
@@ -103,7 +141,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_fail_incomplete_succeeded_tasks(self, hook_mock):
-
         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 0, 2)
 
         operator = CloudRunExecuteJobOperator(
@@ -191,6 +228,14 @@ class TestCloudRunExecuteJobOperator:
 
 
 class TestCloudRunDeleteJobOperator:
+    def test_template_fields(self):
+        operator = CloudRunDeleteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
+
+        _assert_common_template_fields(operator.template_fields)
+        assert "job_name" in operator.template_fields
+
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute(self, hook_mock):
         hook_mock.return_value.delete_job.return_value = JOB
@@ -209,6 +254,14 @@ class TestCloudRunDeleteJobOperator:
 
 
 class TestCloudRunUpdateJobOperator:
+    def test_template_fields(self):
+        operator = CloudRunUpdateJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+        )
+
+        _assert_common_template_fields(operator.template_fields)
+        assert "job_name" in operator.template_fields
+
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute(self, hook_mock):
         hook_mock.return_value.update_job.return_value = JOB
@@ -227,6 +280,13 @@ class TestCloudRunUpdateJobOperator:
 
 
 class TestCloudRunListJobsOperator:
+    def test_template_fields(self):
+        operator = CloudRunListJobsOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=2, show_deleted=False
+        )
+
+        _assert_common_template_fields(operator.template_fields)
+
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute(self, hook_mock):
         limit = 2
