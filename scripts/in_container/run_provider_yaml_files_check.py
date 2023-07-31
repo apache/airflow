@@ -37,6 +37,7 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow.cli.commands.info_command import Architecture
+from airflow.providers_manager import ProvidersManager
 
 # Those are deprecated modules that contain removed Hooks/Sensors/Operators that we left in the code
 # so that users can get a very specific error message when they try to use them.
@@ -489,6 +490,7 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
 
 
 if __name__ == "__main__":
+    ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
     provider_files_pattern = pathlib.Path(ROOT_DIR).glob("airflow/providers/**/provider.yaml")

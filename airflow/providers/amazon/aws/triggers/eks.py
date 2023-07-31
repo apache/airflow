@@ -47,7 +47,7 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_name": cluster_name, "region_name": region_name},
@@ -309,7 +309,7 @@ class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={
@@ -357,7 +357,7 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_name": cluster_name, "nodegroup_name": nodegroup_name},

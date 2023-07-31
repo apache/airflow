@@ -26,6 +26,8 @@ from typing import Any
 
 import yaml
 
+CONSOLE_WIDTH = 180
+
 ROOT_DIR = Path(__file__).parents[5].resolve()
 PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR / "airflow" / "provider.yaml.schema.json"
 

@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Redis task handler (#31855)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 3.2.1
 .....
 

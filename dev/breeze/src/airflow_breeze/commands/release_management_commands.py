@@ -57,6 +57,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
+    option_commit_sha,
     option_debug_resources,
     option_dry_run,
     option_github_repository,
@@ -889,6 +890,7 @@ def add_back_references(
     "This should only be used if you release image for previous branches. Automatically set when "
     "rc/alpha/beta images are built.",
 )
+@option_commit_sha
 @option_verbose
 @option_dry_run
 def release_prod_images(
@@ -897,6 +899,7 @@ def release_prod_images(
     slim_images: bool,
     limit_platform: str,
     limit_python: str | None,
+    commit_sha: str | None,
     skip_latest: bool,
 ):
     perform_environment_checks()
@@ -949,6 +952,8 @@ def release_prod_images(
                 "PYTHON_BASE_IMAGE": f"python:{python}-slim-bullseye",
                 "AIRFLOW_VERSION": airflow_version,
             }
+            if commit_sha:
+                slim_build_args["COMMIT_SHA"] = commit_sha
             get_console().print(f"[info]Building slim {airflow_version} image for Python {python}[/]")
             python_build_args = deepcopy(slim_build_args)
             slim_image_name = f"{dockerhub_repo}:slim-{airflow_version}-python{python}"
@@ -979,6 +984,8 @@ def release_prod_images(
                 "PYTHON_BASE_IMAGE": f"python:{python}-slim-bullseye",
                 "AIRFLOW_VERSION": airflow_version,
             }
+            if commit_sha:
+                regular_build_args["COMMIT_SHA"] = commit_sha
             docker_buildx_command = [
                 "docker",
                 "buildx",

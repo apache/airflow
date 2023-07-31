@@ -386,6 +386,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
     port = conf.getint("metrics", "otel_port")  # ex: 4318
     prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
+    ssl_active = conf.getboolean("metrics", "otel_ssl_active")
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
     interval = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
     debug = conf.getboolean("metrics", "otel_debugging_on")
@@ -394,8 +395,9 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     allow_list_validator = AllowListValidator(allow_list)
 
     resource = Resource(attributes={SERVICE_NAME: "Airflow"})
-    # TODO:  figure out https instead of http ??
-    endpoint = f"http://{host}:{port}/v1/metrics"
+
+    protocol = "https" if ssl_active else "http"
+    endpoint = f"{protocol}://{host}:{port}/v1/metrics"
 
     logging.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [

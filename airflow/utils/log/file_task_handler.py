@@ -147,7 +147,7 @@ class FileTaskHandler(logging.Handler):
 
     def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
-        self.handler: logging.FileHandler | None = None
+        self.handler: logging.Handler | None = None
         self.local_base = base_log_folder
         if filename_template is not None:
             warnings.warn(
@@ -356,7 +356,7 @@ class FileTaskHandler(logging.Handler):
         namespace = None
         with suppress(Exception):
             namespace = pod_override.metadata.namespace
-        return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
+        return namespace or conf.get("kubernetes_executor", "namespace")
 
     def _get_log_retrieval_url(
         self, ti: TaskInstance, log_relative_path: str, log_type: LogType | None = None

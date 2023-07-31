@@ -1014,3 +1014,25 @@ class TestWebserverServiceAccount:
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/webserver/webserver-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/webserver/webserver-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False

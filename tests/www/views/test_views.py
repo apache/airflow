@@ -24,7 +24,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.configuration import initialize_config
+from airflow.configuration import (
+    initialize_config,
+    write_default_airflow_configuration_if_needed,
+    write_webserver_configuration_if_needed,
+)
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.utils.task_group import TaskGroup
 from airflow.www import views
@@ -68,6 +72,8 @@ def test_webserver_configuration_config_file(mock_webserver_config_global, admin
 
     config_file = str(tmp_path / "my_custom_webserver_config.py")
     with mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": config_file}):
+        conf = write_default_airflow_configuration_if_needed()
+        write_webserver_configuration_if_needed(conf)
         initialize_config()
         assert airflow.configuration.WEBSERVER_CONFIG == config_file
 

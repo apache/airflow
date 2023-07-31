@@ -39,7 +39,7 @@ class TestWorkerPrecheck:
         by mocking validate_session method
         """
         mock_validate_session.return_value = False
-        with pytest.raises(SystemExit) as ctx:
+        with pytest.raises(SystemExit) as ctx, conf_vars({("core", "executor"): "CeleryExecutor"}):
             celery_command.worker(Namespace(queues=1, concurrency=1))
         assert str(ctx.value) == "Worker exiting, database connection precheck failed."
 

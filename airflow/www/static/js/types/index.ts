@@ -71,6 +71,7 @@ interface TaskInstance {
   mappedStates?: {
     [key: string]: number;
   };
+  queuedDttm?: string | null;
   mapIndex?: number;
   tryNumber?: number;
   triggererJob?: Job;

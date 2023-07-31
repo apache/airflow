@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock, PropertyMock
+from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
@@ -332,6 +332,24 @@ class TestEmrServerlessCreateApplicationOperator:
         assert operator.wait_for_completion is True
         assert operator.waiter_delay == expected[0]
         assert operator.waiter_max_attempts == expected[1]
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_create_application_deferrable(self, mock_conn):
+        mock_conn.create_application.return_value = {
+            "applicationId": application_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        operator = EmrServerlessCreateApplicationOperator(
+            task_id=task_id,
+            release_label=release_label,
+            job_type=job_type,
+            client_request_token=client_request_token,
+            config=config,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred):
+            operator.execute(None)
 
 
 class TestEmrServerlessStartJobOperator:
@@ -851,6 +869,18 @@ class TestEmrServerlessDeleteOperator:
         assert operator.waiter_delay == expected[0]
         assert operator.waiter_max_attempts == expected[1]
 
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_delete_application_deferrable(self, mock_conn):
+        mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+
+        operator = EmrServerlessDeleteApplicationOperator(
+            task_id=task_id,
+            application_id=application_id,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred):
+            operator.execute(None)
+
 
 class TestEmrServerlessStopOperator:
     @mock.patch.object(EmrServerlessHook, "get_waiter")
@@ -876,14 +906,45 @@ class TestEmrServerlessStopOperator:
         mock_get_waiter().wait.assert_not_called()
         mock_conn.stop_application.assert_called_once()
 
-    @mock.patch.object(EmrServerlessStopApplicationOperator, "hook", new_callable=PropertyMock)
-    def test_force_stop(self, mock_hook: MagicMock):
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    @mock.patch.object(EmrServerlessHook, "cancel_running_jobs")
+    def test_force_stop(self, mock_cancel_running_jobs, mock_conn, mock_get_waiter):
+        mock_cancel_running_jobs.return_value = 0
+        mock_conn.stop_application.return_value = {}
+        mock_get_waiter().wait.return_value = True
+
         operator = EmrServerlessStopApplicationOperator(
             task_id=task_id, application_id="test", force_stop=True
         )
 
         operator.execute(None)
 
-        mock_hook().cancel_running_jobs.assert_called_once()
-        mock_hook().conn.stop_application.assert_called_once()
-        mock_hook().get_waiter().wait.assert_called_once()
+        mock_cancel_running_jobs.assert_called_once()
+        mock_conn.stop_application.assert_called_once()
+        mock_get_waiter().wait.assert_called_once()
+
+    @mock.patch.object(EmrServerlessHook, "cancel_running_jobs")
+    def test_stop_application_deferrable_with_force_stop(self, mock_cancel_running_jobs, caplog):
+        mock_cancel_running_jobs.return_value = 2
+        operator = EmrServerlessStopApplicationOperator(
+            task_id=task_id, application_id="test", deferrable=True, force_stop=True
+        )
+        with pytest.raises(TaskDeferred):
+            operator.execute(None)
+        assert "now waiting for the 2 cancelled job(s) to terminate" in caplog.messages
+
+    @mock.patch.object(EmrServerlessHook, "conn")
+    @mock.patch.object(EmrServerlessHook, "cancel_running_jobs")
+    def test_stop_application_deferrable_without_force_stop(
+        self, mock_cancel_running_jobs, mock_conn, caplog
+    ):
+        mock_conn.stop_application.return_value = {}
+        mock_cancel_running_jobs.return_value = 0
+        operator = EmrServerlessStopApplicationOperator(
+            task_id=task_id, application_id="test", deferrable=True, force_stop=True
+        )
+        with pytest.raises(TaskDeferred):
+            operator.execute(None)
+
+        assert "no running jobs found with application ID test" in caplog.messages

@@ -19,10 +19,11 @@ from __future__ import annotations
 from functools import wraps
 from typing import Callable, Sequence, TypeVar, cast
 
-from flask import current_app, flash, g, redirect, render_template, request, url_for
+from flask import current_app, flash, g, redirect, render_template, request
 
-from airflow.configuration import auth_manager, conf
+from airflow.configuration import conf
 from airflow.utils.net import get_hostname
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 T = TypeVar("T", bound=Callable)
 
@@ -46,7 +47,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
             )
             if appbuilder.sm.check_authorization(permissions, dag_id):
                 return func(*args, **kwargs)
-            elif auth_manager.is_logged_in() and not g.user.perms:
+            elif get_auth_manager().is_logged_in() and not g.user.perms:
                 return (
                     render_template(
                         "airflow/no_roles_permissions.html",
@@ -60,12 +61,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
             else:
                 access_denied = "Access is Denied"
                 flash(access_denied, "danger")
-            return redirect(
-                url_for(
-                    appbuilder.sm.auth_view.__class__.__name__ + ".login",
-                    next=request.url,
-                )
-            )
+            return redirect(get_auth_manager().get_url_login(next=request.url))
 
         return cast(T, decorated)
 
