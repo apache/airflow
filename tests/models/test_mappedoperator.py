@@ -666,7 +666,7 @@ class TestMappedSetupTeardown:
                 ti_dict[ti.task_id] = ti.state
             else:
                 ti_dict[ti.task_id][ti.map_index] = ti.state
-        return ti_dict
+        return dict(ti_dict)
 
     def classic_operator(self, task_id, ret=None, partial=False, fail=False):
         def success_callable(ret=None):
@@ -1363,5 +1363,44 @@ class TestMappedSetupTeardown:
             "my_setup": {0: "success", 1: "failed", 2: "skipped"},
             "my_teardown": "success",
             "my_work": "upstream_failed",
+        }
+        assert states == expected
+
+    def test_one_to_many_with_teardown_and_fail_stop(self, dag_maker):
+        """
+        1 setup mapping to 3 teardowns
+        1 work task
+        work fails
+        teardowns succeed
+        dagrun should be failure
+        """
+        with dag_maker(fail_stop=True) as dag:
+
+            @task
+            def my_setup():
+                print("setting up multiple things")
+                return [1, 2, 3]
+
+            @task
+            def my_work(val):
+                print(f"doing work with multiple things: {val}")
+                raise ValueError("this fails")
+                return val
+
+            @task
+            def my_teardown(val):
+                print(f"teardown: {val}")
+
+            s = my_setup()
+            t = my_teardown.expand(val=s).as_teardown(setups=s)
+            with t:
+                my_work(s)
+
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "my_setup": "success",
+            "my_teardown": {0: "success", 1: "success", 2: "success"},
+            "my_work": "failed",
         }
         assert states == expected
