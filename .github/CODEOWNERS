@@ -11,7 +11,6 @@
 
 # Kubernetes
 /airflow/kubernetes/ @dstandish @jedcunningham
-/airflow/kubernetes_executor_templates/ @dstandish @jedcunningham
 /airflow/executors/celery_kubernetes_executor.py @dstandish @jedcunningham
 /airflow/executors/kubernetes_executor.py @dstandish @jedcunningham
 

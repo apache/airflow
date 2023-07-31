@@ -570,3 +570,10 @@ option_historical_python_version = click.option(
     envvar="PYTHON_VERSION",
     help="Python version to update sbom from. (defaults to all historical python versions)",
 )
+option_commit_sha = click.option(
+    "--commit-sha",
+    default=None,
+    show_default=True,
+    envvar="COMMIT_SHA",
+    help="Commit SHA that is used to build the images.",
+)

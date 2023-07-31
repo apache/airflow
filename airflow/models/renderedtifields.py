@@ -101,7 +101,11 @@ class RenderedTaskInstanceFields(Base):
             ti.render_templates()
         self.task = ti.task
         if os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", None):
-            self.k8s_pod_yaml = ti.render_k8s_pod_yaml()
+            # we can safely import it here from provider. In Airflow 2.7.0+ you need to have new version
+            # of kubernetes provider installed to reach this place
+            from airflow.providers.cncf.kubernetes.template_rendering import render_k8s_pod_yaml
+
+            self.k8s_pod_yaml = render_k8s_pod_yaml(ti)
         self.rendered_fields = {
             field: serialize_template_field(getattr(self.task, field)) for field in self.task.template_fields
         }

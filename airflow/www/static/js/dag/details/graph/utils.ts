@@ -125,14 +125,14 @@ export const flattenNodes = ({
 };
 
 export const nodeColor = ({
-  data: { height, width, instance, childCount, isActive },
+  data: { height, width, instance, isActive, isOpen },
 }: ReactFlowNode<CustomNodeProps>) => {
   let opacity = "90";
   let color = "#cccccc";
   if (!height || !width) return "";
-  if (instance?.state && !childCount)
+  if (instance?.state && !isOpen)
     color = Color(stateColors[instance.state]).hex();
-  if (childCount) opacity = "50";
+  if (isOpen) opacity = "50";
   if (!isActive) opacity = "21";
 
   return `${color}${opacity}`;
