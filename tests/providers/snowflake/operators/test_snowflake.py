@@ -74,7 +74,7 @@ class TestSnowflakeOperator:
 class TestSnowflakeOperatorForParams:
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__")
     def test_overwrite_params(self, mock_base_op):
-        sql="Select * from test_table"
+        sql = "Select * from test_table"
         SnowflakeOperator(
             sql=sql,
             task_id="snowflake_params_check",
@@ -131,7 +131,7 @@ class TestSnowflakeCheckOperators:
 class TestSnowflakeCheckOperatorsForParams:
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__")
     def test_overwrite_params(
-        self, 
+        self,
         mock_base_op,
         operator_class,
         kwargs,
