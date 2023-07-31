@@ -70,7 +70,7 @@ class EventBridgeHook(AwsBaseHook):
             raise ValueError("`state` must be specified as ENABLED or DISABLED.")
 
         if event_pattern:
-            validate_json(event_pattern)
+            _validate_json(event_pattern)
 
         put_rule_kwargs: dict[str, str | list] = {
             **trim_none_values(
