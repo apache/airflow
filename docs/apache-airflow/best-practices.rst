@@ -201,9 +201,10 @@ Airflow Variables
 -----------------
 
 Using Airflow Variables yields network calls and database access, so their usage in top-level Python code for DAGs
-should be avoided, as mentioned in the previous chapter, :ref:`best_practices/top_level_code`.
-Their impact on DAG parsing can be mitigated though, by :ref:`enabling caching<config:secrets__use_cache>`
-with a sensible :ref:`ttl<config:secrets__cache_ttl_seconds>`.
+should be avoided as much as possible, as mentioned in the previous chapter, :ref:`best_practices/top_level_code`.
+If Airflow Variables must be used in top-level DAG code, then their impact on DAG parsing can be mitigated by
+:ref:`enabling the experimental cache<config:secrets__use_cache>`, configured with a sensible :ref:`ttl<config:secrets__cache_ttl_seconds>`.
+
 You can use the Airflow Variables freely inside the ``execute()`` methods of the operators, but you can also pass the
 Airflow Variables to the existing operators via Jinja template, which will delay reading the value until the task execution.
 
