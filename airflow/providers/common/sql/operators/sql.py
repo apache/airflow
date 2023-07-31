@@ -204,6 +204,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
         to the default value in the ``run`` method of the configured hook.
+    :param conn_id: the connection ID used to connect to the database
+    :param database: name of database which overwrite the defined one in connection
     :param return_last: (optional) return the result of only last statement (default: True).
     :param show_return_value_in_logs: (optional) if true operator output will be printed to the task log.
         Use with caution. It's not recommended to dump large datasets to the log. (default: False).
@@ -225,12 +227,14 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
         handler: Callable[[Any], Any] = fetch_all_handler,
+        conn_id: str | None = None,
+        database: str | None = None,
         split_statements: bool | None = None,
         return_last: bool = True,
         show_return_value_in_logs: bool = False,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
         self.autocommit = autocommit
         self.parameters = parameters
