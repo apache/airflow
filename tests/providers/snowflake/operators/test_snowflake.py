@@ -73,21 +73,18 @@ class TestSnowflakeOperator:
 
 class TestSnowflakeOperatorForParams:
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__")
-    def test_overwrite_params(
-        self, 
-        mock_base_op
-    ):
+    def test_overwrite_params(self, mock_base_op):
         sql="Select * from test_table"
         SnowflakeOperator(
             sql=sql,
-            task_id="snowflake_params_check", 
-            snowflake_conn_id="snowflake_default", 
+            task_id="snowflake_params_check",
+            snowflake_conn_id="snowflake_default",
             warehouse="test_warehouse",
             database="test_database",
             role="test_role",
             schema="test_schema",
             authenticator="oath",
-            session_parameters={"QUERY_TAG": "test_tag"}
+            session_parameters={"QUERY_TAG": "test_tag"},
         )
         mock_base_op.assert_called_once_with(
             conn_id="snowflake_default",
@@ -98,9 +95,9 @@ class TestSnowflakeOperatorForParams:
                 "role": "test_role",
                 "schema": "test_schema",
                 "authenticator": "oath",
-                "session_parameters": {"QUERY_TAG": "test_tag"}
+                "session_parameters": {"QUERY_TAG": "test_tag"},
             },
-            default_args={}
+            default_args={},
         )
 
 @pytest.mark.parametrize(
@@ -140,15 +137,16 @@ class TestSnowflakeCheckOperatorsForParams:
         kwargs,
     ):
         operator_class(
-            task_id="snowflake_params_check", 
-            snowflake_conn_id="snowflake_default", 
+            task_id="snowflake_params_check",
+            snowflake_conn_id="snowflake_default",
             warehouse="test_warehouse",
             database="test_database",
             role="test_role",
             schema="test_schema",
             authenticator="oath",
             session_parameters={"QUERY_TAG": "test_tag"},
-            **kwargs)
+            **kwargs,
+        )
         mock_base_op.assert_called_once_with(
             conn_id="snowflake_default",
             database=None,
@@ -159,10 +157,11 @@ class TestSnowflakeCheckOperatorsForParams:
                 "role": "test_role",
                 "schema": "test_schema",
                 "authenticator": "oath",
-                "session_parameters": {"QUERY_TAG": "test_tag"}
+                "session_parameters": {"QUERY_TAG": "test_tag"},
             },
-            default_args={}
+            default_args={},
         )
+
 
 def create_context(task, dag=None):
     if dag is None:
