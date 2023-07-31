@@ -25,13 +25,14 @@ from airflow.providers.openlineage.plugins.facets import (
     UnknownOperatorInstance,
 )
 from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys, is_source_enabled
+from airflow.utils.openlineage_mixin import OpenLineageMixin
 
 """
 :meta private:
 """
 
 
-class BashExtractor(BaseExtractor):
+class BashExtractor(BaseExtractor, OpenLineageMixin):
     """
     Extract executed bash command and put it into SourceCodeJobFacet.
 

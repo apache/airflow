@@ -30,6 +30,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+from airflow.utils.openlineage_mixin import OpenLineageMixin
 
 
 class SFTPOperation:
@@ -39,7 +40,7 @@ class SFTPOperation:
     GET = "get"
 
 
-class SFTPOperator(BaseOperator):
+class SFTPOperator(BaseOperator, OpenLineageMixin):
     """
     SFTPOperator for transferring files from remote host to local or vice a versa.
 

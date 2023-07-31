@@ -31,6 +31,7 @@ from airflow.providers.openlineage.extractors.base import (
 )
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.extractors.python import PythonExtractor
+from airflow.utils.openlineage_mixin import OpenLineageMixin
 
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
@@ -48,7 +49,7 @@ class CompleteRunFacet(BaseFacet):
 FINISHED_FACETS = {"complete": CompleteRunFacet(True)}
 
 
-class ExampleOperator(BaseOperator):
+class ExampleOperator(BaseOperator, OpenLineageMixin):
     def execute(self, context) -> Any:
         pass
 
@@ -69,7 +70,7 @@ class ExampleOperator(BaseOperator):
         )
 
 
-class OperatorWithoutComplete(BaseOperator):
+class OperatorWithoutComplete(BaseOperator, OpenLineageMixin):
     def execute(self, context) -> Any:
         pass
 
@@ -82,7 +83,7 @@ class OperatorWithoutComplete(BaseOperator):
         )
 
 
-class OperatorWithoutStart(BaseOperator):
+class OperatorWithoutStart(BaseOperator, OpenLineageMixin):
     def execute(self, context) -> Any:
         pass
 
@@ -95,7 +96,7 @@ class OperatorWithoutStart(BaseOperator):
         )
 
 
-class OperatorDifferentOperatorLineageClass(BaseOperator):
+class OperatorDifferentOperatorLineageClass(BaseOperator, OpenLineageMixin):
     def execute(self, context) -> Any:
         pass
 
@@ -119,7 +120,7 @@ class OperatorDifferentOperatorLineageClass(BaseOperator):
         )
 
 
-class OperatorWrongOperatorLineageClass(BaseOperator):
+class OperatorWrongOperatorLineageClass(BaseOperator, OpenLineageMixin):
     def execute(self, context) -> Any:
         pass
 
@@ -137,15 +138,28 @@ class OperatorWrongOperatorLineageClass(BaseOperator):
         )
 
 
-class BrokenOperator(BaseOperator):
+class BrokenOperator:
     get_openlineage_facets = []
 
     def execute(self, context) -> Any:
         pass
 
 
+class OperatorWithoutMixinButProperClass(BaseOperator):
+    def execute(self, context) -> Any:
+        pass
+
+    def get_openlineage_facets_on_start(self) -> OperatorLineage:
+        return OperatorLineage(
+            inputs=INPUTS,
+            outputs=OUTPUTS,
+            run_facets=RUN_FACETS,
+            job_facets=JOB_FACETS,
+        )
+
+
 def test_default_extraction():
-    extractor = ExtractorManager().get_extractor_class(ExampleOperator)
+    extractor = ExtractorManager().get_extractor_class(ExampleOperator(task_id="test"))
     assert extractor is DefaultExtractor
 
     metadata = extractor(ExampleOperator(task_id="test")).extract()
@@ -172,7 +186,7 @@ def test_default_extraction():
 
 
 def test_extraction_without_on_complete():
-    extractor = ExtractorManager().get_extractor_class(OperatorWithoutComplete)
+    extractor = ExtractorManager().get_extractor_class(OperatorWithoutComplete(task_id="test"))
     assert extractor is DefaultExtractor
 
     metadata = extractor(OperatorWithoutComplete(task_id="test")).extract()
@@ -196,7 +210,7 @@ def test_extraction_without_on_complete():
 
 
 def test_extraction_without_on_start():
-    extractor = ExtractorManager().get_extractor_class(OperatorWithoutStart)
+    extractor = ExtractorManager().get_extractor_class(OperatorWithoutStart(task_id="test"))
     assert extractor is DefaultExtractor
 
     metadata = extractor(OperatorWithoutStart(task_id="test")).extract()
@@ -215,16 +229,6 @@ def test_extraction_without_on_start():
         run_facets=RUN_FACETS,
         job_facets=FINISHED_FACETS,
     )
-
-
-def test_does_not_use_default_extractor_when_not_a_method():
-    extractor_class = ExtractorManager().get_extractor_class(BrokenOperator(task_id="a"))
-    assert extractor_class is None
-
-
-def test_does_not_use_default_extractor_when_no_get_openlineage_facets():
-    extractor_class = ExtractorManager().get_extractor_class(BaseOperator(task_id="b"))
-    assert extractor_class is None
 
 
 def test_does_not_use_default_extractor_when_explicite_extractor():
@@ -253,4 +257,17 @@ def test_default_extractor_uses_wrong_operatorlineage_class():
     # empty OperatorLineage
     assert (
         ExtractorManager().extract_metadata(mock.MagicMock(), operator, complete=False) == OperatorLineage()
+    )
+
+
+def test_default_extractor_works_without_mixin():
+    operator = OperatorWithoutMixinButProperClass(task_id="task_id")
+    extractor_class = ExtractorManager().get_extractor_class(operator)
+    assert extractor_class is DefaultExtractor
+    extractor = extractor_class(operator)
+    assert extractor.extract() == OperatorLineage(
+        inputs=INPUTS,
+        outputs=OUTPUTS,
+        run_facets=RUN_FACETS,
+        job_facets=JOB_FACETS,
     )

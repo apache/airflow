@@ -27,6 +27,7 @@ from typing import Any, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
+from airflow.utils.openlineage_mixin import OpenLineageMixin
 
 
 class FTPOperation:
@@ -36,7 +37,7 @@ class FTPOperation:
     GET = "get"
 
 
-class FTPFileTransmitOperator(BaseOperator):
+class FTPFileTransmitOperator(BaseOperator, OpenLineageMixin):
     """
     FTPFileTransmitOperator for transferring files from remote host to local or vice a versa.
 

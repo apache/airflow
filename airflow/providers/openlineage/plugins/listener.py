@@ -42,9 +42,15 @@ class OpenLineageListener:
 
     def __init__(self):
         self.log = logging.getLogger(__name__)
-        self.executor: Executor = None  # type: ignore
         self.extractor_manager = ExtractorManager()
         self.adapter = OpenLineageAdapter()
+        self._executor: Executor | None = None
+
+    @property
+    def executor(self) -> Executor:
+        if self._executor is None:
+            self._executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="openlineage_")
+        return self._executor
 
     @hookimpl
     def on_task_instance_running(
@@ -151,7 +157,7 @@ class OpenLineageListener:
     @hookimpl
     def on_starting(self, component):
         self.log.debug("on_starting: %s", component.__class__.__name__)
-        self.executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="openlineage_")
+        self.executor
 
     @hookimpl
     def before_stopping(self, component):

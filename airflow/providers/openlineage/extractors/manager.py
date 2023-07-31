@@ -32,6 +32,7 @@ from airflow.providers.openlineage.plugins.facets import (
 from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
+from airflow.utils.openlineage_mixin import OpenLineageMixin
 
 if TYPE_CHECKING:
     from airflow.models import Operator
@@ -135,13 +136,9 @@ class ExtractorManager(LoggingMixin):
         if task.task_type in self.extractors:
             return self.extractors[task.task_type]
 
-        def method_exists(method_name):
-            method = getattr(task, method_name, None)
-            if method:
-                return callable(method)
-
-        if method_exists("get_openlineage_facets_on_start") or method_exists(
-            "get_openlineage_facets_on_complete"
+        # We need to handle older OpenLineage implementations that do not implement OpenLineageMixin
+        if isinstance(task, OpenLineageMixin) or self._is_backwards_compatible_openlineage_implementation(
+            task
         ):
             return self.default_extractor
         return None
@@ -199,3 +196,12 @@ class ExtractorManager(LoggingMixin):
         except AttributeError:
             self.log.error("Extractor returns non-valid metadata: %s", task_metadata)
             return None
+
+    @staticmethod
+    def _is_backwards_compatible_openlineage_implementation(task) -> bool:
+        # Existence of those methods is a valid OL implementation.
+        return (
+            hasattr(task, "get_openlineage_facets_on_start")
+            or hasattr(task, "get_openlineage_facets_on_complete")
+            or hasattr(task, "get_openlineage_facets_on_failure")
+        )

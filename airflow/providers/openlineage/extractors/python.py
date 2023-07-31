@@ -28,13 +28,14 @@ from airflow.providers.openlineage.plugins.facets import (
     UnknownOperatorInstance,
 )
 from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys, is_source_enabled
+from airflow.utils.openlineage_mixin import OpenLineageMixin
 
 """
 :meta private:
 """
 
 
-class PythonExtractor(BaseExtractor):
+class PythonExtractor(BaseExtractor, OpenLineageMixin):
     """
     Extract executed source code and put it into SourceCodeJobFacet.
 

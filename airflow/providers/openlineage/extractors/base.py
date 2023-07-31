@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from contextlib import suppress
 
 from attrs import Factory, define
 from openlineage.client.facet import BaseFacet
@@ -84,20 +85,28 @@ class DefaultExtractor(BaseExtractor):
 
     def extract(self) -> OperatorLineage | None:
         # OpenLineage methods are optional - if there's no method, return None
-        try:
+        with suppress(AttributeError):
             return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
-        except AttributeError:
-            return None
+        return None
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
+        """
+        For complete method, we want to handle on_failure and on_complete methods as priority.
+        If they are not implemented - which happens in older, pre-OpenLineageMixin
+        classes, we're falling back to on_start method.
+        """
         if task_instance.state == TaskInstanceState.FAILED:
-            on_failed = getattr(self.operator, "get_openlineage_facets_on_failure", None)
-            if on_failed and callable(on_failed):
-                return self._get_openlineage_facets(on_failed, task_instance)
-        on_complete = getattr(self.operator, "get_openlineage_facets_on_complete", None)
-        if on_complete and callable(on_complete):
-            return self._get_openlineage_facets(on_complete, task_instance)
-        return self.extract()
+            with suppress(AttributeError):
+                return self._get_openlineage_facets(
+                    self.operator.get_openlineage_facets_on_failure, task_instance
+                )
+        with suppress(AttributeError):
+            return self._get_openlineage_facets(
+                self.operator.get_openlineage_facets_on_complete, task_instance
+            )
+        with suppress(AttributeError):
+            return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start, task_instance)
+        return None
 
     def _get_openlineage_facets(self, get_facets_method, *args) -> OperatorLineage | None:
         try:

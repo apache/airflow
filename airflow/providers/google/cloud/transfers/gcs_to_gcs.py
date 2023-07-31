@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.utils.openlineage_mixin import OpenLineageMixin
 
 WILDCARD = "*"
 
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class GCSToGCSOperator(BaseOperator):
+class GCSToGCSOperator(BaseOperator, OpenLineageMixin):
     """
     Copies objects from a bucket to another, with renaming if requested.
 

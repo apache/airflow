@@ -27,6 +27,7 @@ from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, return_single_query_results
 from airflow.utils.helpers import merge_dicts
+from airflow.utils.openlineage_mixin import OpenLineageMixin
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -188,7 +189,7 @@ class BaseSQLOperator(BaseOperator):
         raise AirflowFailException(exception_string)
 
 
-class SQLExecuteQueryOperator(BaseSQLOperator):
+class SQLExecuteQueryOperator(BaseSQLOperator, OpenLineageMixin):
     """
     Executes SQL code in a specific database.
 
