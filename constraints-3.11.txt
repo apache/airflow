@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-30T20:19:40Z
+# This constraints file was automatically generated on 2023-07-31T02:34:50Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -398,7 +398,7 @@ mongomock==4.1.2
 monotonic==1.6
 more-itertools==10.0.0
 moreorless==0.4.0
-moto==4.1.13
+moto==4.1.14
 mpmath==1.3.0
 msal-extensions==1.0.0
 msal==1.23.0
@@ -477,7 +477,7 @@ psycopg2-binary==2.9.6
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
-py-partiql-parser==0.3.3
+py-partiql-parser==0.3.6
 py4j==0.10.9.7
 pyOpenSSL==23.2.0
 pyarrow==11.0.0
@@ -498,7 +498,7 @@ pygraphviz==1.11
 pyhcl==0.4.4
 pykerberos==1.2.4
 pymongo==4.4.1
-pymssql==2.2.7
+pymssql==2.2.8
 pyodbc==4.0.39
 pyparsing==3.1.1
 pypsrp==0.8.1
