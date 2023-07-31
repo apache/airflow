@@ -211,61 +211,6 @@ def test_cannot_set_on_failure_fail_dagrun_unless_teardown_taskflow(dag_maker):
             m.operator.is_setup = True
 
 
-def test_no_setup_or_teardown_for_mapped_operator(dag_maker):
-    @task
-    def add_one(x):
-        return x + 1
-
-    @task
-    def print_task(values):
-        print(sum(values))
-
-    # vanilla mapped task
-    with dag_maker():
-        added_vals = add_one.expand(x=[1, 2, 3])
-        print_task(added_vals)
-
-    # combining setup and teardown with vanilla mapped task is fine
-    with dag_maker():
-        s1 = BaseOperator(task_id="s1").as_setup()
-        t1 = BaseOperator(task_id="t1").as_teardown(setups=s1)
-        added_vals = add_one.expand(x=[1, 2, 3])
-        print_task_task = print_task(added_vals)
-        s1 >> added_vals
-        print_task_task >> t1
-    # confirm structure
-    assert s1.downstream_task_ids == {"add_one", "t1"}
-    assert t1.upstream_task_ids == {"print_task", "s1"}
-    assert added_vals.operator.upstream_task_ids == {"s1"}
-    assert added_vals.operator.downstream_task_ids == {"print_task"}
-    assert print_task_task.operator.upstream_task_ids == {"add_one"}
-    assert print_task_task.operator.downstream_task_ids == {"t1"}
-
-    # but you can't use a mapped task as setup or teardown
-    with dag_maker():
-        added_vals = add_one.expand(x=[1, 2, 3])
-        with pytest.raises(ValueError, match="Cannot set is_teardown for mapped operator"):
-            added_vals.as_teardown()
-
-    # ... no matter how hard you try
-    with dag_maker():
-        added_vals = add_one.expand(x=[1, 2, 3])
-        with pytest.raises(ValueError, match="Cannot set is_teardown for mapped operator"):
-            added_vals.is_teardown = True
-
-    # same with setup
-    with dag_maker():
-        added_vals = add_one.expand(x=[1, 2, 3])
-        with pytest.raises(ValueError, match="Cannot set is_setup for mapped operator"):
-            added_vals.as_setup()
-
-    # and again, trying harder...
-    with dag_maker():
-        added_vals = add_one.expand(x=[1, 2, 3])
-        with pytest.raises(ValueError, match="Cannot set is_setup for mapped operator"):
-            added_vals.is_setup = True
-
-
 def test_set_setup_teardown_ctx_dependencies_using_decorated_tasks(dag_maker):
 
     with dag_maker():

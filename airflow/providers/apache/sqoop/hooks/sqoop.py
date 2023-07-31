@@ -113,6 +113,9 @@ class SqoopHook(BaseHook):
                 raise AirflowException(f"Sqoop command failed: {masked_cmd}")
 
     def _prepare_command(self, export: bool = False) -> list[str]:
+        if "?" in self.conn.host:
+            raise ValueError("The sqoop connection host should not contain a '?' character")
+
         sqoop_cmd_type = "export" if export else "import"
         connection_cmd = ["sqoop", sqoop_cmd_type]
 

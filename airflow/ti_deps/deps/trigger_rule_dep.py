@@ -22,9 +22,8 @@ import collections.abc
 import functools
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, case, func, or_, true
 
-from airflow.models import MappedOperator
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep, TIDepStatus
@@ -69,7 +68,7 @@ class _UpstreamTIStates(NamedTuple):
             curr_state = {ti.state: 1}
             counter.update(curr_state)
             # setup task cannot be mapped
-            if not isinstance(ti.task, MappedOperator) and ti.task.is_setup:
+            if ti.task.is_setup:
                 setup_counter.update(curr_state)
         return _UpstreamTIStates(
             success=counter.get(TaskInstanceState.SUCCESS, 0),
@@ -227,18 +226,15 @@ class TriggerRuleDep(BaseTIDep):
         # "simple" tasks (no task or task group mapping involved).
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
-            upstream_setup = len(
-                [x for x in upstream_tasks.values() if not isinstance(x, MappedOperator) and x.is_setup]
-            )
+            upstream_setup = len([x for x in upstream_tasks.values() if x.is_setup])
         else:
-            upstream = (
-                session.query(func.count())
+            upstream, upstream_setup = (
+                session.query(func.count(), func.sum(case((TaskInstance.is_setup == true(), 1), else_=0)))
                 .filter(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
                 .filter(or_(*_iter_upstream_conditions()))
-                .scalar()
+                .one()
             )
-            # todo: add support for mapped setup?
-            upstream_setup = None
+
         upstream_done = done >= upstream
 
         changed = False
