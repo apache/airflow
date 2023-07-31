@@ -646,8 +646,7 @@ class S3Hook(AwsBaseHook):
         last_activity_time: datetime | None = None,
     ) -> dict[str, Any]:
         """
-        Checks whether new objects have been uploaded and the inactivity_period
-        has passed and updates the state of the sensor accordingly.
+        Check if new objects have been uploaded and the period has passed; update sensor state accordingly.
 
         :param client: aiobotocore client
         :param bucket_name: the name of the bucket

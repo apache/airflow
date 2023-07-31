@@ -26,6 +26,8 @@ from functools import reduce
 from itertools import filterfalse, tee
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
 
+from lazy_object_proxy import Proxy
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.utils.context import Context
@@ -116,14 +118,16 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
 
 def is_container(obj: Any) -> bool:
     """Test if an object is a container (iterable) but not a string."""
+    if isinstance(obj, Proxy):
+        # Proxy of any object is considered a container because it implements __iter__
+        # to forward the call to the lazily initialized object
+        # Unwrap Proxy before checking __iter__ to evaluate the proxied object
+        obj = obj.__wrapped__
     return hasattr(obj, "__iter__") and not isinstance(obj, str)
 
 
 def as_tuple(obj: Any) -> tuple:
-    """
-    If obj is a container, returns obj as a tuple.
-    Otherwise, returns a tuple containing obj.
-    """
+    """Return obj as a tuple if obj is a container, otherwise return a tuple containing obj."""
     if is_container(obj):
         return tuple(obj)
     else:
@@ -139,10 +143,7 @@ def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
 
 
 def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0):
-    """
-    Reduce the given list of items by splitting it into chunks
-    of the given size and passing each chunk through the reducer.
-    """
+    """Split the list of items into chunks of a given size and pass each chunk through the reducer."""
     if len(iterable) == 0:
         return initializer
     if chunk_size == 0:
@@ -172,8 +173,7 @@ def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Temp
 
 def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     """
-    Given task instance, try_number, filename_template, return the rendered log
-    filename.
+    Given task instance, try_number, filename_template, return the rendered log filename.
 
     :param ti: task instance
     :param try_number: try_number of the task
@@ -327,8 +327,7 @@ def at_most_one(*args) -> bool:
 
 def prune_dict(val: Any, mode="strict"):
     """
-    Given dict ``val``, returns new dict based on ``val`` with all
-    empty elements removed.
+    Given dict ``val``, returns new dict based on ``val`` with all empty elements removed.
 
     What constitutes "empty" is controlled by the ``mode`` parameter.  If mode is 'strict'
     then only ``None`` elements will be removed.  If mode is ``truthy``, then element ``x``
@@ -349,7 +348,7 @@ def prune_dict(val: Any, mode="strict"):
                 continue
             elif isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
-                if new_val:
+                if not is_empty(new_val):
                     new_dict[k] = new_val
             else:
                 new_dict[k] = v
@@ -361,7 +360,7 @@ def prune_dict(val: Any, mode="strict"):
                 continue
             elif isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
-                if new_val:
+                if not is_empty(new_val):
                     new_list.append(new_val)
             else:
                 new_list.append(v)

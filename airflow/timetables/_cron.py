@@ -65,10 +65,10 @@ class CronMixin:
             # as Croniter has inconsistent evaluation with other libraries
             if len(croniter(self._expression).expanded) > 5:
                 raise FormatException()
-            interval_description = descriptor.get_description()
+            interval_description: str = descriptor.get_description()
         except (CroniterBadCronError, FormatException, MissingFieldException):
             interval_description = ""
-        self.description = interval_description
+        self.description: str = interval_description
 
     def __eq__(self, other: Any) -> bool:
         """Both expression and timezone should match.

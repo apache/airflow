@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This package is deprecated. Please use `airflow.secrets` or `airflow.providers.*.secrets`."""
+"""This package is deprecated. Please use :mod:`airflow.secrets` or `airflow.providers.*.secrets`."""
 from __future__ import annotations
 
 import warnings

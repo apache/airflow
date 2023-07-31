@@ -289,6 +289,7 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
 class DataprocWorkflowTrigger(DataprocBaseTrigger):
     """
     Trigger that periodically polls information from Dataproc API to verify status.
+
     Implementation leverages asynchronous transport.
     """
 

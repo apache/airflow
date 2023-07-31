@@ -78,6 +78,7 @@ class ShellParams:
     airflow_extras: str = ""
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
+    builder: str = "autodetect"
     ci: bool = False
     collect_only: bool = False
     db_reset: bool = False

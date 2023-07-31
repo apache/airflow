@@ -587,7 +587,8 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
 
     async def _get_subscriber_client(self) -> SubscriberAsyncClient:
         """
-        Returns async connection to the Google PubSub
+        Returns async connection to the Google PubSub.
+
         :return: Google Pub/Sub asynchronous client.
         """
         if not self._client:

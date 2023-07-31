@@ -47,3 +47,11 @@ Arguably, :class:`~airflow.executors.sequential_executor.SequentialExecutor` cou
 parallelism of just 1 worker, i.e. ``self.parallelism = 1``.
 This option could lead to the unification of the executor implementations, running
 locally, into just one :class:`~airflow.executors.local_executor.LocalExecutor` with multiple modes.
+
+.. note::
+
+   When multiple Schedulers are configured with ``executor = LocalExecutor`` in the ``[core]`` section of your ``airflow.cfg``, each Scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the Schedulers.
+
+   One consideration should be taken into account:
+
+   - Restarting a Scheduler: If a Scheduler is restarted, it may take some time for other Schedulers to recognize the orphaned tasks and restart or fail them.

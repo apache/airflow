@@ -17,12 +17,15 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-opsgenie``
----------------------------------------------------
+``apache-airflow-providers-opsgenie``
+
+
+Changelog
+---------
 
 5.1.1
 .....
@@ -69,7 +72,7 @@ Misc
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-Remove 'OpsgenieAlertOperator' also removed hooks.opsgenie_alert path
+Remove ``OpsgenieAlertOperator`` also removed hooks.opsgenie_alert path
 
 * ``Remove deprecated code from Opsgenie provider (#27252)``
 

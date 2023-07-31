@@ -23,6 +23,7 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tempfile
 import unittest
 from argparse import ArgumentParser
@@ -33,6 +34,7 @@ from unittest.mock import sentinel
 
 import pendulum
 import pytest
+import sqlalchemy.exc
 
 from airflow import DAG
 from airflow.cli import cli_parser
@@ -47,6 +49,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
@@ -499,6 +502,20 @@ class TestCliTasks:
         assert 'echo "2022-01-01"' in output
         assert 'echo "2022-01-08"' in output
 
+    @mock.patch("airflow.cli.commands.task_command.select")
+    @mock.patch("airflow.cli.commands.task_command.Session.scalars")
+    @mock.patch("airflow.cli.commands.task_command.DagRun")
+    def test_task_render_with_custom_timetable(self, mock_dagrun, mock_scalars, mock_select):
+        """
+        when calling `tasks render` on dag with custom timetable, the DagRun object should be created with
+         data_intervals.
+        """
+        mock_scalars.side_effect = sqlalchemy.exc.NoResultFound
+        task_command.task_render(
+            self.parser.parse_args(["tasks", "render", "example_workday_timetable", "run_this", "2022-01-01"])
+        )
+        assert "data_interval" in mock_dagrun.call_args.kwargs
+
     def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
         """
         tasks run should return an AirflowException when invalid pickle_id is passed
@@ -732,9 +749,11 @@ class TestLogsfromTaskRunCommand:
         """
         import subprocess
 
-        with mock.patch.dict("os.environ", AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s):
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s, PYTHONPATH=os.fspath(AIRFLOW_SOURCES_ROOT)
+        ):
             with subprocess.Popen(
-                args=["airflow", *self.task_args, "-S", self.dag_path],
+                args=[sys.executable, "-m", "airflow", *self.task_args, "-S", self.dag_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             ) as process:

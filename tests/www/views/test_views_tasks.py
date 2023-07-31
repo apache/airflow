@@ -29,10 +29,10 @@ import time_machine
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.executors.celery_executor import CeleryExecutor
 from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
 from airflow.operators.bash import BashOperator
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
@@ -86,6 +86,14 @@ def init_dagruns(app, reset_dagruns):
             state=State.RUNNING,
         )
         app.dag_bag.get_dag("latest_only").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
+        app.dag_bag.get_dag("example_task_group").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -323,6 +331,15 @@ def test_views_get(admin_client, url, contents):
         check_content_in_response(content, resp)
 
 
+def test_rendered_task_view(admin_client):
+    url = f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
+    resp = admin_client.get(url, follow_redirects=True)
+    resp_html = resp.data.decode("utf-8")
+    assert resp.status_code == 200
+    assert "<td>_try_number</td>" not in resp_html
+    assert "<td>try_number</td>" in resp_html
+
+
 def test_rendered_k8s(admin_client):
     url = f"rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
     with unittest.mock.patch.object(settings, "IS_K8S_OR_K8SCELERY_EXECUTOR", True):
@@ -497,12 +514,27 @@ def test_code_from_db_all_example_dags(admin_client):
             ),
             "example_bash_operator",
         ),
+        (
+            "clear",
+            dict(
+                group_id="section_1",
+                dag_id="example_task_group",
+                execution_date=DEFAULT_DATE,
+                upstream="false",
+                downstream="false",
+                future="false",
+                past="false",
+                only_failed="false",
+            ),
+            "example_task_group",
+        ),
     ],
     ids=[
         "paused",
         "failed-flash-hint",
         "success-flash-hint",
         "clear",
+        "clear-task-group",
     ],
 )
 def test_views_post(admin_client, url, data, content):
@@ -977,12 +1009,15 @@ def test_task_instances(admin_client):
     assert resp.status_code == 200
     assert resp.json == {
         "also_run_this": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
+            "execution_date": DEFAULT_DATE.isoformat(),
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "is_setup": False,
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1007,12 +1042,15 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_after_loop": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
+            "execution_date": DEFAULT_DATE.isoformat(),
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "is_setup": False,
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1037,12 +1075,15 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_this_last": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
+            "execution_date": DEFAULT_DATE.isoformat(),
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "is_setup": False,
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1067,12 +1108,15 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_0": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
+            "execution_date": DEFAULT_DATE.isoformat(),
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "is_setup": False,
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1097,12 +1141,15 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_1": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
+            "execution_date": DEFAULT_DATE.isoformat(),
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "is_setup": False,
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1127,12 +1174,15 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_2": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
+            "execution_date": DEFAULT_DATE.isoformat(),
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "is_setup": False,
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,
@@ -1157,12 +1207,15 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "this_will_skip": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
+            "execution_date": DEFAULT_DATE.isoformat(),
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
+            "is_setup": False,
             "job_id": None,
             "map_index": -1,
             "max_tries": 0,

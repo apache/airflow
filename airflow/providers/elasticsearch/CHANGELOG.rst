@@ -17,19 +17,44 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-elasticsearch``
---------------------------------------------------------
+``apache-airflow-providers-elasticsearch``
+
+
+Changelog
+---------
 
 5.0.0
 .....
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
 .. note::
   Deprecate non-official elasticsearch libraries. Only the official elasticsearch library was used
 
+* ``Deprecate the 2 non-official elasticsearch libraries (#31920)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix unsound type hint in ElasticsearchTaskHandler.es_read (#32509)``
+
+Misc
+~~~~
+
+* ``Fix Failing ES Remote Logging (#32438)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Add deprecation info to the providers modules and classes docstring (#32536)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 
 4.5.1
 .....

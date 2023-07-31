@@ -126,7 +126,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^airflow/kubernetes",
             r"^tests/kubernetes",
-            r"^tests/charts",
+            r"^helm_tests",
         ],
         FileGroupForCi.SETUP_FILES: [
             r"^pyproject.toml",
@@ -554,7 +554,7 @@ class SelectiveChecks:
 
     @cached_property
     def image_build(self) -> bool:
-        return self.run_tests or self.docs_build or self.run_kubernetes_tests
+        return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveUnitTestTypes

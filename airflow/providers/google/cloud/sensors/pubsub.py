@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
@@ -33,7 +34,9 @@ if TYPE_CHECKING:
 
 
 class PubSubPullSensor(BaseSensorOperator):
-    """Pulls messages from a PubSub subscription and passes them through XCom.
+    """
+    Pulls messages from a PubSub subscription and passes them through XCom.
+
     Always waits for at least one message to be returned from the subscription.
 
     .. seealso::
@@ -103,10 +106,9 @@ class PubSubPullSensor(BaseSensorOperator):
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         poke_interval: float = 10.0,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
@@ -146,10 +148,7 @@ class PubSubPullSensor(BaseSensorOperator):
         return bool(pulled_messages)
 
     def execute(self, context: Context) -> None:
-        """
-        Airflow runs this method on the worker and defers using the triggers
-        if deferrable is set to True.
-        """
+        """Airflow runs this method on the worker and defers using the triggers if deferrable is True."""
         if not self.deferrable:
             super().execute(context)
             return self._return_value
@@ -170,10 +169,7 @@ class PubSubPullSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
-        """
-        Callback for when the trigger fires; returns immediately.
-        Relies on trigger to throw a success event.
-        """
+        """Callback for the trigger; returns immediately and relies on trigger to throw a success event."""
         if event["status"] == "success":
             self.log.info("Sensor pulls messages: %s", event["message"])
             return event["message"]
@@ -187,6 +183,7 @@ class PubSubPullSensor(BaseSensorOperator):
     ):
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
+
         This default implementation converts `ReceivedMessage` objects into JSON-serializable dicts.
 
         :param pulled_messages: messages received from the topic.

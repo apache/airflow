@@ -41,6 +41,7 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -57,6 +58,7 @@ from sqlalchemy import (
     inspect,
     or_,
     text,
+    update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
@@ -123,7 +125,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.timeout import timeout
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -169,6 +171,7 @@ class TaskReturnCode(Enum):
 def set_current_context(context: Context) -> Generator[Context, None, None]:
     """
     Sets the current execution context to the provided context object.
+
     This method should be called once per Task execution, before calling operator.execute.
     """
     _CURRENT_CONTEXT.append(context)
@@ -207,9 +210,10 @@ def clear_task_instances(
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
 ) -> None:
     """
-    Clears a set of task instances, but makes sure the running ones
-    get killed. Also sets Dagrun's `state` to QUEUED and `start_date`
-    to the time of execution. But only for finished DRs (SUCCESS and FAILED).
+    Clears a set of task instances, but makes sure the running ones get killed.
+
+    Also sets Dagrun's `state` to QUEUED and `start_date` to the time of execution.
+    But only for finished DRs (SUCCESS and FAILED).
     Doesn't clear DR's `state` and `start_date`for running
     DRs (QUEUED and RUNNING) because clearing the state for already
     running DR is redundant and clearing `start_date` affects DR's duration.
@@ -292,8 +296,7 @@ def clear_task_instances(
     if job_ids:
         from airflow.jobs.job import Job
 
-        for job in session.query(Job).filter(Job.id.in_(job_ids)).all():
-            job.state = TaskInstanceState.RESTARTING
+        session.execute(update(Job).where(Job.id.in_(job_ids)).values(state=JobState.RESTARTING))
 
     if activate_dag_runs is not None:
         warnings.warn(
@@ -358,9 +361,10 @@ def _creator_note(val):
 
 class TaskInstance(Base, LoggingMixin):
     """
-    Task instances store the state of a task instance. This table is the
-    authority and single source of truth around what tasks have run and the
-    state they are in.
+    Task instances store the state of a task instance.
+
+    This table is the authority and single source of truth around what tasks
+    have run and the state they are in.
 
     The SqlAlchemy model doesn't have a SqlAlchemy foreign key to the task or
     dag model deliberately to have more control over transactions.
@@ -394,6 +398,7 @@ class TaskInstance(Base, LoggingMixin):
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
+    custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
@@ -415,6 +420,7 @@ class TaskInstance(Base, LoggingMixin):
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
+    is_setup = Column(Boolean, nullable=False, default=False, server_default="0")
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
@@ -571,7 +577,9 @@ class TaskInstance(Base, LoggingMixin):
             "max_tries": task.retries,
             "executor_config": task.executor_config,
             "operator": task.task_type,
+            "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
+            "is_setup": task.is_setup,
         }
 
     @reconstructor
@@ -584,14 +592,13 @@ class TaskInstance(Base, LoggingMixin):
     @hybrid_property
     def try_number(self):
         """
-        Return the try number that this task number will be when it is actually
-        run.
+        Return the try number that this task number will be when it is actually run.
 
         If the TaskInstance is currently running, this will match the column in the
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
-        if self.state == State.RUNNING:
+        if self.state == TaskInstanceState.RUNNING:
             return self._try_number
         return self._try_number + 1
 
@@ -602,20 +609,23 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def prev_attempted_tries(self) -> int:
         """
-        Based on this instance's try_number, this will calculate
-        the number of previously attempted tries, defaulting to 0.
-        """
-        # Expose this for the Task Tries and Gantt graph views.
-        # Using `try_number` throws off the counts for non-running tasks.
-        # Also useful in error logging contexts to get
-        # the try number for the last try that was attempted.
-        # https://issues.apache.org/jira/browse/AIRFLOW-2143
+        Calculate the number of previously attempted tries, defaulting to 0.
 
+        Expose this for the Task Tries and Gantt graph views.
+        Using `try_number` throws off the counts for non-running tasks.
+        Also useful in error logging contexts to get the try number for the last try that was attempted.
+        https://issues.apache.org/jira/browse/AIRFLOW-2143
+        """
         return self._try_number
 
     @property
     def next_try_number(self) -> int:
         return self._try_number + 1
+
+    @property
+    def operator_name(self) -> str | None:
+        """@property: use a more friendly display name for the operator, if set."""
+        return self.custom_operator_name or self.operator
 
     def command_as_list(
         self,
@@ -633,9 +643,9 @@ class TaskInstance(Base, LoggingMixin):
         cfg_path=None,
     ) -> list[str]:
         """
-        Returns a command that can be executed anywhere where airflow is
-        installed. This command is part of the message sent to executors by
-        the orchestrator.
+        Returns a command that can be executed anywhere where airflow is installed.
+
+        This command is part of the message sent to executors by the orchestrator.
         """
         dag: DAG | DagModel
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
@@ -784,9 +794,10 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def current_state(self, session: Session = NEW_SESSION) -> str:
         """
-        Get the very latest state from the database, if a session is passed,
-        we use and looking up the state becomes part of the session, otherwise
-        a new session is used.
+        Get the very latest state from the database.
+
+        If a session is passed, we use and looking up the state becomes part of the session,
+        otherwise a new session is used.
 
         sqlalchemy.inspect is used here to get the primary keys ensuring that if they change
         it will not regress
@@ -804,7 +815,7 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         self.log.error("Recording the task instance as FAILED")
-        self.state = State.FAILED
+        self.state = TaskInstanceState.FAILED
         session.merge(self)
         session.commit()
 
@@ -858,6 +869,7 @@ class TaskInstance(Base, LoggingMixin):
             self.queue = ti.queue
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
+            self.custom_operator_name = ti.custom_operator_name
             self.queued_dttm = ti.queued_dttm
             self.queued_by_job_id = ti.queued_by_job_id
             self.pid = ti.pid
@@ -866,6 +878,7 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
+            self.is_setup = ti.is_setup
         else:
             self.state = None
 
@@ -886,6 +899,8 @@ class TaskInstance(Base, LoggingMixin):
         # value that needs to be stored in the db.
         self.executor_config = task.executor_config
         self.operator = task.task_type
+        self.custom_operator_name = getattr(task, "custom_operator_name", None)
+        self.is_setup = task.is_setup
 
     @provide_session
     def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
@@ -931,7 +946,7 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
         self.start_date = self.start_date or current_time
-        if self.state in State.finished or self.state == State.UP_FOR_RETRY:
+        if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
             self.end_date = self.end_date or current_time
             self.duration = (self.end_date - self.start_date).total_seconds()
         session.merge(self)
@@ -939,17 +954,15 @@ class TaskInstance(Base, LoggingMixin):
 
     @property
     def is_premature(self) -> bool:
-        """
-        Returns whether a task is in UP_FOR_RETRY state and its retry interval
-        has elapsed.
-        """
+        """Returns whether a task is in UP_FOR_RETRY state and its retry interval has elapsed."""
         # is the task still in the retry waiting period?
-        return self.state == State.UP_FOR_RETRY and not self.ready_for_retry()
+        return self.state == TaskInstanceState.UP_FOR_RETRY and not self.ready_for_retry()
 
     @provide_session
     def are_dependents_done(self, session: Session = NEW_SESSION) -> bool:
         """
         Checks whether the immediate dependents of this task instance have succeeded or have been skipped.
+
         This is meant to be used by wait_for_downstream.
 
         This is useful when you do not want to start processing the next
@@ -967,7 +980,7 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.run_id == self.run_id,
-            TaskInstance.state.in_([State.SKIPPED, State.SUCCESS]),
+            TaskInstance.state.in_((TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)),
         )
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
@@ -1026,7 +1039,8 @@ class TaskInstance(Base, LoggingMixin):
     def previous_ti(self) -> TaskInstance | None:
         """
         This attribute is deprecated.
-        Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
+
+        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_ti`.
         """
         warnings.warn(
             """
@@ -1042,7 +1056,8 @@ class TaskInstance(Base, LoggingMixin):
     def previous_ti_success(self) -> TaskInstance | None:
         """
         This attribute is deprecated.
-        Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
+
+        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_ti`.
         """
         warnings.warn(
             """
@@ -1089,7 +1104,8 @@ class TaskInstance(Base, LoggingMixin):
     def previous_start_date_success(self) -> pendulum.DateTime | None:
         """
         This attribute is deprecated.
-        Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
+
+        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_start_date`.
         """
         warnings.warn(
             """
@@ -1106,15 +1122,13 @@ class TaskInstance(Base, LoggingMixin):
         self, dep_context: DepContext | None = None, session: Session = NEW_SESSION, verbose: bool = False
     ) -> bool:
         """
-        Returns whether or not all the conditions are met for this task instance to be run
-        given the context for the dependencies (e.g. a task instance being force run from
-        the UI will ignore some dependencies).
+        Are all conditions met for this task instance to be run given the context for the dependencies.
 
-        :param dep_context: The execution context that determines the dependencies that
-            should be evaluated.
+        (e.g. a task instance being force run from the UI will ignore some dependencies).
+
+        :param dep_context: The execution context that determines the dependencies that should be evaluated.
         :param session: database session
-        :param verbose: whether log details on failed dependencies on
-            info or debug log level
+        :param verbose: whether log details on failed dependencies on info or debug log level
         """
         dep_context = dep_context or DepContext()
         failed = False
@@ -1160,8 +1174,9 @@ class TaskInstance(Base, LoggingMixin):
 
     def next_retry_datetime(self):
         """
-        Get datetime of the next retry if the task instance fails. For exponential
-        backoff, retry_delay is used as base and will be converted to seconds.
+        Get datetime of the next retry if the task instance fails.
+
+        For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
         from airflow.models.abstractoperator import MAX_RETRY_DELAY
 
@@ -1200,11 +1215,8 @@ class TaskInstance(Base, LoggingMixin):
         return self.end_date + delay
 
     def ready_for_retry(self) -> bool:
-        """
-        Checks on whether the task instance is in the right state and timeframe
-        to be retried.
-        """
-        return self.state == State.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
+        """Checks on whether the task instance is in the right state and timeframe to be retried."""
+        return self.state == TaskInstanceState.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
     @provide_session
     def get_dagrun(self, session: Session = NEW_SESSION) -> DagRun:
@@ -1247,8 +1259,9 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> bool:
         """
-        Checks dependencies and then sets state to RUNNING if they are met. Returns
-        True if and only if state is set to RUNNING, which implies that task should be
+        Checks dependencies and then sets state to RUNNING if they are met.
+
+        Returns True if and only if state is set to RUNNING, which implies that task should be
         executed, in preparation for _run_raw_task.
 
         :param verbose: whether to turn on more verbose logging
@@ -1273,7 +1286,7 @@ class TaskInstance(Base, LoggingMixin):
         self.hostname = get_hostname()
         self.pid = None
 
-        if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
+        if not ignore_all_deps and not ignore_ti_state and self.state == TaskInstanceState.SUCCESS:
             Stats.incr("previously_succeeded", tags=self.stats_tags)
 
         if not mark_success:
@@ -1301,7 +1314,7 @@ class TaskInstance(Base, LoggingMixin):
             # start date that is recorded in task_reschedule table
             # If the task continues after being deferred (next_method is set), use the original start_date
             self.start_date = self.start_date if self.next_method else timezone.utcnow()
-            if self.state == State.UP_FOR_RESCHEDULE:
+            if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
                 task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
                 if task_reschedule:
                     self.start_date = task_reschedule.start_date
@@ -1319,7 +1332,7 @@ class TaskInstance(Base, LoggingMixin):
                 description="requeueable deps",
             )
             if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
-                self.state = State.NONE
+                self.state = None
                 self.log.warning(
                     "Rescheduling due to concurrency limits reached "
                     "at task runtime. Attempt %s of "
@@ -1339,10 +1352,10 @@ class TaskInstance(Base, LoggingMixin):
         self._try_number += 1
 
         if not test_mode:
-            session.add(Log(State.RUNNING, self))
+            session.add(Log(TaskInstanceState.RUNNING.value, self))
 
-        self.state = State.RUNNING
-        self.emit_state_change_metric(State.RUNNING)
+        self.state = TaskInstanceState.RUNNING
+        self.emit_state_change_metric(TaskInstanceState.RUNNING)
         self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
@@ -1382,9 +1395,10 @@ class TaskInstance(Base, LoggingMixin):
             self._date_or_empty("end_date"),
         )
 
-    def emit_state_change_metric(self, new_state: TaskInstanceState):
+    def emit_state_change_metric(self, new_state: TaskInstanceState) -> None:
         """
         Sends a time metric representing how much time a given state transition took.
+
         The previous state and metric name is deduced from the state the task was put in.
 
         :param new_state: The state that has just been set for this task.
@@ -1398,7 +1412,7 @@ class TaskInstance(Base, LoggingMixin):
             return
 
         # switch on state and deduce which metric to send
-        if new_state == State.RUNNING:
+        if new_state == TaskInstanceState.RUNNING:
             metric_name = "queued_duration"
             if self.queued_dttm is None:
                 # this should not really happen except in tests or rare cases,
@@ -1410,7 +1424,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
                 return
             timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
-        elif new_state == State.QUEUED:
+        elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
                 # same comment as above
@@ -1447,6 +1461,8 @@ class TaskInstance(Base, LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> TaskReturnCode | None:
         """
+        Run a task, update the state upon completion, and run any appropriate callbacks.
+
         Immediately runs the task (without checking or changing db state
         before execution) and then sets the appropriate final state after
         completion and runs any post-execute callbacks. Meant to be called
@@ -1487,17 +1503,12 @@ class TaskInstance(Base, LoggingMixin):
         self.task = self.task.prepare_for_execution()
         context = self.get_template_context(ignore_param_exceptions=False)
 
-        # We lose previous state because it's changed in other process in LocalTaskJob.
-        # We could probably pass it through here though...
-        get_listener_manager().hook.on_task_instance_running(
-            previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
-        )
         try:
             if not mark_success:
-                self._execute_task_with_callbacks(context, test_mode)
+                self._execute_task_with_callbacks(context, test_mode, session=session)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
-            self.state = State.SUCCESS
+            self.state = TaskInstanceState.SUCCESS
         except TaskDeferred as defer:
             # The task has signalled it wants to defer execution based on
             # a trigger.
@@ -1521,7 +1532,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.info(e)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
-            self.state = State.SKIPPED
+            self.state = TaskInstanceState.SKIPPED
         except AirflowRescheduleException as reschedule_exception:
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             session.commit()
@@ -1590,7 +1601,7 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
 
-    def _execute_task_with_callbacks(self, context, test_mode=False):
+    def _execute_task_with_callbacks(self, context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
@@ -1640,16 +1651,23 @@ class TaskInstance(Base, LoggingMixin):
                 )
 
             # Run pre_execute callback
-            self.task.pre_execute(context=context)
+            # Is never MappedOperator at this point
+            self.task.pre_execute(context=context)  # type: ignore[union-attr]
 
             # Run on_execute callback
             self._run_execute_callback(context, self.task)
+
+            # Run on_task_instance_running event
+            get_listener_manager().hook.on_task_instance_running(
+                previous_state=TaskInstanceState.QUEUED, task_instance=self, session=session
+            )
 
             # Execute the task
             with set_current_context(context):
                 result = self._execute_task(context, task_orig)
             # Run post_execute callback
-            self.task.post_execute(context=context, result=result)
+            # Is never MappedOperator at this point
+            self.task.post_execute(context=context, result=result)  # type: ignore[union-attr]
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
         # Same metric with tagging
@@ -1730,10 +1748,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def _defer_task(self, session: Session, defer: TaskDeferred) -> None:
-        """
-        Marks the task as deferred and sets up the trigger that is needed
-        to resume it.
-        """
+        """Marks the task as deferred and sets up the trigger that is needed to resume it."""
         from airflow.models.trigger import Trigger
 
         # First, make the trigger entry
@@ -1744,7 +1759,7 @@ class TaskInstance(Base, LoggingMixin):
         # Then, update ourselves so it matches the deferral request
         # Keep an eye on the logic in `check_and_change_state_before_execution()`
         # depending on self.next_method semantics
-        self.state = State.DEFERRED
+        self.state = TaskInstanceState.DEFERRED
         self.trigger_id = trigger_row.id
         self.next_method = defer.method_name
         self.next_kwargs = defer.kwargs or {}
@@ -1863,7 +1878,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         # set state
-        self.state = State.UP_FOR_RESCHEDULE
+        self.state = TaskInstanceState.UP_FOR_RESCHEDULE
 
         # Decrement try_number so subsequent runs will use the same try number and write
         # to same log file.
@@ -1928,7 +1943,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr("ti_failures", tags=self.stats_tags)
 
         if not test_mode:
-            session.add(Log(State.FAILED, self))
+            session.add(Log(TaskInstanceState.FAILED.value, self))
 
             # Log failure duration
             session.add(TaskFail(ti=self))
@@ -1962,7 +1977,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.error("Unable to unmap task to determine if we need to send an alert email")
 
         if force_fail or not self.is_eligible_to_retry():
-            self.state = State.FAILED
+            self.state = TaskInstanceState.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
             callback_type = "on_failure"
@@ -1971,10 +1986,10 @@ class TaskInstance(Base, LoggingMixin):
                 tis = self.get_dagrun(session).get_task_instances()
                 stop_all_tasks_in_dag(tis, session, self.task_id)
         else:
-            if self.state == State.QUEUED:
+            if self.state == TaskInstanceState.QUEUED:
                 # We increase the try_number so as to fail the task if it fails to start after sometime
                 self._try_number += 1
-            self.state = State.UP_FOR_RETRY
+            self.state = TaskInstanceState.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
             callback_type = "on_retry"
@@ -1995,7 +2010,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry."""
-        if self.state == State.RESTARTING:
+        if self.state == TaskInstanceState.RESTARTING:
             # If a task is cleared when running, it goes into RESTARTING state and is always
             # eligible for retry
             return True
@@ -2213,6 +2228,7 @@ class TaskInstance(Base, LoggingMixin):
     def get_rendered_template_fields(self, session: Session = NEW_SESSION) -> None:
         """
         Update task with rendered template fields for presentation in UI.
+
         If task has already run, will fetch from DB; otherwise will render.
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
@@ -2240,19 +2256,6 @@ class TaskInstance(Base, LoggingMixin):
                 "rendering of template_fields."
             ) from e
 
-    @provide_session
-    def get_rendered_k8s_spec(self, session: Session = NEW_SESSION):
-        """Fetch rendered template fields from DB."""
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
-        rendered_k8s_spec = RenderedTaskInstanceFields.get_k8s_pod_yaml(self, session=session)
-        if not rendered_k8s_spec:
-            try:
-                rendered_k8s_spec = self.render_k8s_pod_yaml()
-            except (TemplateAssertionError, UndefinedError) as e:
-                raise AirflowException(f"Unable to render a k8s spec for this taskinstance: {e}") from e
-        return rendered_k8s_spec
-
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         """Overwrite Task Params with DagRun.conf."""
         if dag_run and dag_run.conf:
@@ -2279,32 +2282,51 @@ class TaskInstance(Base, LoggingMixin):
         return original_task
 
     def render_k8s_pod_yaml(self) -> dict | None:
-        """Render k8s pod yaml."""
-        from kubernetes.client.api_client import ApiClient
-
-        from airflow.kubernetes.kube_config import KubeConfig
-        from airflow.kubernetes.kubernetes_helper_functions import create_pod_id  # Circular import
-        from airflow.kubernetes.pod_generator import PodGenerator
-
-        kube_config = KubeConfig()
-        pod = PodGenerator.construct_pod(
-            dag_id=self.dag_id,
-            run_id=self.run_id,
-            task_id=self.task_id,
-            map_index=self.map_index,
-            date=None,
-            pod_id=create_pod_id(self.dag_id, self.task_id),
-            try_number=self.try_number,
-            kube_image=kube_config.kube_image,
-            args=self.command_as_list(),
-            pod_override_object=PodGenerator.from_obj(self.executor_config),
-            scheduler_job_id="0",
-            namespace=kube_config.executor_namespace,
-            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
-            with_mutation_hook=True,
+        """Render the k8s pod yaml."""
+        try:
+            from airflow.providers.cncf.kubernetes.template_rendering import (
+                render_k8s_pod_yaml as render_k8s_pod_yaml_from_provider,
+            )
+        except ImportError:
+            raise RuntimeError(
+                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
+                "Also rather than calling it directly you should import "
+                "render_k8s_pod_yaml from airflow.providers.cncf.kubernetes.template_rendering "
+                "and call it with TaskInstance as the first argument."
+            )
+        warnings.warn(
+            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
+            "in Airflow 3. Rather than calling it directly you should import "
+            "`render_k8s_pod_yaml` from `airflow.providers.cncf.kubernetes.template_rendering` "
+            "and call it with `TaskInstance` as the first argument.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-        sanitized_pod = ApiClient().sanitize_for_serialization(pod)
-        return sanitized_pod
+        return render_k8s_pod_yaml_from_provider(self)
+
+    @provide_session
+    def get_rendered_k8s_spec(self, session: Session = NEW_SESSION):
+        """Render the k8s pod yaml."""
+        try:
+            from airflow.providers.cncf.kubernetes.template_rendering import (
+                get_rendered_k8s_spec as get_rendered_k8s_spec_from_provider,
+            )
+        except ImportError:
+            raise RuntimeError(
+                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
+                "Also rather than calling it directly you should import "
+                "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
+                "and call it with `TaskInstance` as the first argument."
+            )
+        warnings.warn(
+            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
+            "in Airflow 3. Rather than calling it directly you should import "
+            "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
+            "and call it with `TaskInstance` as the first argument.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return get_rendered_k8s_spec_from_provider(self, session=session)
 
     def get_email_subject_content(
         self, exception: BaseException, task: BaseOperator | None = None
@@ -2336,7 +2358,7 @@ class TaskInstance(Base, LoggingMixin):
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
-        # This function is called after changing the state from State.RUNNING,
+        # This function is called after changing the state from RUNNING,
         # so we need to subtract 1 from self.try_number here.
         current_try_number = self.try_number - 1
         additional_context: dict[str, Any] = {
@@ -2563,7 +2585,7 @@ class TaskInstance(Base, LoggingMixin):
         num_running_task_instances_query = session.query(func.count()).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
-            TaskInstance.state == State.RUNNING,
+            TaskInstance.state == TaskInstanceState.RUNNING,
         )
         if same_dagrun:
             num_running_task_instances_query = num_running_task_instances_query.filter(
@@ -2668,8 +2690,7 @@ class TaskInstance(Base, LoggingMixin):
     @classmethod
     def ti_selector_condition(cls, vals: Collection[str | tuple[str, int]]) -> ColumnOperators:
         """
-        Build an SQLAlchemy filter for a list where each element can contain
-        whether a task_id, or a tuple of (task_id,map_index).
+        Build an SQLAlchemy filter for a list of task_ids or tuples of (task_id,map_index).
 
         :meta private:
         """
@@ -2885,7 +2906,7 @@ def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
 
 # State of the task instance.
 # Stores string version of the task state.
-TaskInstanceStateType = Tuple[TaskInstanceKey, str]
+TaskInstanceStateType = Tuple[TaskInstanceKey, TaskInstanceState]
 
 
 class SimpleTaskInstance:

@@ -16,12 +16,37 @@
     under the License.
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-mysql``
-------------------------------------------------
+``apache-airflow-providers-mysql``
+
+
+Changelog
+---------
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for MySQL. (#31609)``
+
+Misc
+~~~~
+
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+* ``Add default port to Openlineage authority method. (#32828)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 5.1.1
 .....

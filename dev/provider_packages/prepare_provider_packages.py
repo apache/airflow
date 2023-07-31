@@ -59,7 +59,7 @@ MIN_AIRFLOW_VERSION = "2.4.0"
 # In case you have some providers that you want to have different min-airflow version for,
 # Add them as exceptions here. Make sure to remove it once the min-airflow version is bumped
 # to the same version that is required by the exceptional provider
-MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.6.0"}
+MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.7.0"}
 
 INITIAL_CHANGELOG_CONTENT = """
  .. Licensed to the Apache Software Foundation (ASF) under one
@@ -80,13 +80,14 @@ INITIAL_CHANGELOG_CONTENT = """
     under the License.
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there
+   Please, only add notes to the Changelog just below the "Changelog" header when there
    are some breaking changes and you want to add an explanation to the users on how they are supposed
    to deal with them. The changelog is updated and maintained semi-automatically by release manager.
 
+``{{ package_name }}``
 
-Changelog for ``{{ package_name }}``
-{{ '-' * (18 + package_name | length) }}
+Changelog
+---------
 
 1.0.0
 .....
@@ -1675,11 +1676,12 @@ def verify_changelog_exists(package: str) -> str:
 def list_providers_packages():
     """List all provider packages."""
     providers = get_all_providers()
-    # For now we should exclude open-lineage from being consider for releasing until it is ready to
-    # be released
-    if "openlineage" in providers:
-        providers.remove("openlineage")
+    # if provider needs to be not considered in release add it here
+    # this is useful for cases where provider is WIP for a long period thus we don't want to release it yet.
+    providers_to_remove_from_release = []
     for provider in providers:
+        if provider in providers_to_remove_from_release:
+            continue
         console.print(provider)
 
 
@@ -2014,7 +2016,12 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
             template_name="UPDATE_CHANGELOG", context=context, extension=".rst"
         )
     else:
-        classified_changes = get_changes_classified(changes[0])
+        if changes:
+            classified_changes = get_changes_classified(changes[0])
+        else:
+            # change log exist but without version 1.0.0 entry
+            classified_changes = None
+
         context = {
             "version": latest_version,
             "version_header": "." * len(latest_version),

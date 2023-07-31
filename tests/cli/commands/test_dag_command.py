@@ -384,6 +384,31 @@ class TestCliDags:
             disable_retry=False,
         )
 
+    @mock.patch("workday.AfterWorkdayTimetable")
+    @mock.patch("airflow.models.taskinstance.TaskInstance.dry_run")
+    @mock.patch("airflow.cli.commands.dag_command.DagRun")
+    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run, mock_AfterWorkdayTimetable):
+        """
+        when calling `dags backfill` on dag with custom timetable, the DagRun object should be created with
+         data_intervals.
+        """
+        start_date = DEFAULT_DATE + timedelta(days=1)
+        end_date = start_date + timedelta(days=1)
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "backfill",
+                "example_workday_timetable",
+                "--start-date",
+                start_date.isoformat(),
+                "--end-date",
+                end_date.isoformat(),
+                "--dry-run",
+            ]
+        )
+        dag_command.dag_backfill(cli_args)
+        assert "data_interval" in mock_dagrun.call_args.kwargs
+
     def test_next_execution(self, tmp_path):
         dag_test_list = [
             ("future_schedule_daily", "timedelta(days=5)", "'0 0 * * *'", "True"),
@@ -778,3 +803,16 @@ class TestCliDags:
         )
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
+
+    @mock.patch("workday.AfterWorkdayTimetable")
+    @mock.patch("airflow.models.dag._get_or_create_dagrun")
+    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun, _):
+        """
+        when calling `dags test` on dag with custom timetable, the DagRun object should be created with
+         data_intervals.
+        """
+        cli_args = self.parser.parse_args(
+            ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
+        )
+        dag_command.dag_test(cli_args)
+        assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs

@@ -73,7 +73,7 @@ if TYPE_CHECKING:
     try:
         from kubernetes.client import models as k8s
 
-        from airflow.kubernetes.pod_generator import PodGenerator
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
     except ImportError:
         pass
 
@@ -287,7 +287,7 @@ class BaseSerialization:
     _datetime_types = (datetime.datetime,)
 
     # Object types that are always excluded in serialization.
-    _excluded_types = (logging.Logger, Connection, type)
+    _excluded_types = (logging.Logger, Connection, type, property)
 
     _json_schema: Validator | None = None
 
@@ -822,7 +822,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
-                op.operator_extra_links
+                op.operator_extra_links.__get__(op)
+                if isinstance(op.operator_extra_links, property)
+                else op.operator_extra_links
             )
 
         if include_deps:
@@ -1480,7 +1482,12 @@ def _has_kubernetes() -> bool:
     try:
         from kubernetes.client import models as k8s
 
-        from airflow.kubernetes.pod_generator import PodGenerator
+        try:
+            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        except ImportError:
+            from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator import (  # type: ignore[assignment]
+                PodGenerator,
+            )
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator

@@ -502,7 +502,8 @@ option_builder = click.option(
     "--builder",
     help="Buildx builder used to perform `docker buildx build` commands.",
     envvar="BUILDER",
-    default="default",
+    show_default=True,
+    default="autodetect",
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
@@ -568,4 +569,11 @@ option_historical_python_version = click.option(
     required=False,
     envvar="PYTHON_VERSION",
     help="Python version to update sbom from. (defaults to all historical python versions)",
+)
+option_commit_sha = click.option(
+    "--commit-sha",
+    default=None,
+    show_default=True,
+    envvar="COMMIT_SHA",
+    help="Commit SHA that is used to build the images.",
 )

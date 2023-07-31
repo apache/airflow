@@ -17,12 +17,40 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-apache-spark``
--------------------------------------------------------
+
+``apache-airflow-providers-apache-spark``
+
+
+
+Changelog
+---------
+
+4.1.2
+.....
+
+.. note::
+
+    The provider now expects ``apache-airflow-providers-cncf-kubernetes`` in version 7.4.0+ installed
+    in order to run Spark on Kubernetes jobs. You can install the provider with ``cncf.kubernetes`` extra with
+    ``pip install apache-airflow-providers-spark[cncf.kubernetes]`` to get the right version of the
+    ``cncf.kubernetes`` provider installed.
+
+Misc
+~~~~
+
+* ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 4.1.1
 .....

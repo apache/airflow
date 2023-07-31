@@ -124,6 +124,7 @@ class TestKubernetesPodOperatorSystem:
                         "envFrom": [],
                         "name": "base",
                         "ports": [],
+                        "terminationMessagePolicy": "File",
                         "volumeMounts": [],
                     }
                 ],
@@ -500,7 +501,7 @@ class TestKubernetesPodOperatorSystem:
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call("retrieved from mount")
+            mock_logger.info.assert_any_call("[%s] %s", "base", "retrieved from mount")
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             self.expected_pod["spec"]["containers"][0]["args"] = args
             self.expected_pod["spec"]["containers"][0]["volumeMounts"] = [
@@ -691,7 +692,7 @@ class TestKubernetesPodOperatorSystem:
 
     def test_pod_template_file_system(self, mock_get_connection):
         """Note: this test requires that you have a namespace ``mem-example`` in your cluster."""
-        fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
+        fixture = sys.path[0] + "/tests/providers/cncf/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             in_cluster=False,
@@ -713,7 +714,7 @@ class TestKubernetesPodOperatorSystem:
         ],
     )
     def test_pod_template_file_with_overrides_system(self, env_vars, test_label, mock_get_connection):
-        fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
+        fixture = sys.path[0] + "/tests/providers/cncf/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             labels=self.labels,
@@ -740,7 +741,7 @@ class TestKubernetesPodOperatorSystem:
         assert result == {"hello": "world"}
 
     def test_pod_template_file_with_full_pod_spec(self, test_label, mock_get_connection):
-        fixture = sys.path[0] + "/tests/kubernetes/basic_pod.yaml"
+        fixture = sys.path[0] + "/tests/providers/cncf/kubernetes/basic_pod.yaml"
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 labels={"test_label": test_label, "fizz": "buzz"},
@@ -898,7 +899,7 @@ class TestKubernetesPodOperatorSystem:
         hook_mock.return_value.is_in_cluster = False
         hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
         extract_xcom_mock.return_value = "{}"
-        path = sys.path[0] + "/tests/kubernetes/pod.yaml"
+        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             labels=self.labels,
@@ -957,6 +958,7 @@ class TestKubernetesPodOperatorSystem:
                         "name": "base",
                         "ports": [],
                         "resources": {"limits": {"memory": "200Mi"}, "requests": {"memory": "100Mi"}},
+                        "terminationMessagePolicy": "File",
                         "volumeMounts": [{"mountPath": "/airflow/xcom", "name": "xcom"}],
                     },
                     {

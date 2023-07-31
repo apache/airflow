@@ -320,18 +320,22 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             return None
 
         operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
-            sql=self.sql, hook=hook, database_info=database_info, database=self.database
+            sql=self.sql,
+            hook=hook,
+            database_info=database_info,
+            database=self.database,
+            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
         )
 
         return operator_lineage
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
-        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
-
         try:
             from airflow.providers.openlineage.extractors import OperatorLineage
         except ImportError:
-            return operator_lineage
+            return None
+
+        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
 
         hook = self.get_db_hook()
         try:
@@ -758,7 +762,7 @@ class SQLCheckOperator(BaseSQLOperator):
         sql: str,
         conn_id: str | None = None,
         database: str | None = None,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -1125,7 +1129,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         follow_task_ids_if_false: list[str],
         conn_id: str = "default_conn_id",
         database: str | None = None,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
