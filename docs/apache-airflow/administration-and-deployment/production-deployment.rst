@@ -49,8 +49,8 @@ Once that is done, you can run -
 
 .. note::
 
-    Prior to Airflow version 2.7.0, ``airflow db upgrade`` was used to apply migrations.
-    But since 2.7.0, it has been deprecated in favor of ``airflow db migrate``
+    Prior to Airflow version 2.7.0, ``airflow db upgrade`` was used to apply migrations, 
+    however, it has been deprecated in favor of ``airflow db migrate``.
 
 
 Multi-Node Cluster
