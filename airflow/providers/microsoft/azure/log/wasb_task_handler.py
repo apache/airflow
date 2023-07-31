@@ -95,7 +95,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             )
             return None
 
-    def set_context(self, ti: TaskInstance, identifier=None) -> None:
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         if getattr(self, "supports_task_context_logging", False):
             super().set_context(ti, identifier=identifier)
         else:

@@ -54,6 +54,7 @@ runs:
       run: breeze ci-image build --push --empty-image --run-in-parallel
       env:
         IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        COMMIT_SHA: ${{ github.sha }}
     - name: "Fix ownership"
       shell: bash
       run: breeze ci fix-ownership

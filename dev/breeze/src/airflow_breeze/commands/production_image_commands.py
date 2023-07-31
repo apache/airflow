@@ -41,6 +41,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_mode_prod,
     option_airflow_constraints_reference_build,
     option_builder,
+    option_commit_sha,
     option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -225,6 +226,7 @@ def prod_image():
 @option_additional_pip_install_flags
 @option_github_repository
 @option_version_suffix_for_pypi
+@option_commit_sha
 @option_verbose
 @option_dry_run
 def build(
