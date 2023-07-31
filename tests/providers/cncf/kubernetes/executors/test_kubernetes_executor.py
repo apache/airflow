@@ -1192,6 +1192,9 @@ class TestKubernetesExecutor:
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
 
+    def test_cli_commands_vended(self):
+        assert KubernetesExecutor.get_cli_commands()
+
     def test_annotations_for_logging_task_metadata(self):
         annotations_test = {
             "dag_id": "dag",

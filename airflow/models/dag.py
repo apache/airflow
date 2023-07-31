@@ -2674,7 +2674,7 @@ class DAG(LoggingMixin):
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> DagRun:
         """
         Execute one single DagRun for a given DAG and execution date.
 
@@ -2738,19 +2738,17 @@ class DAG(LoggingMixin):
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == DagRunState.RUNNING:
             schedulable_tis, _ = dr.update_state(session=session)
-            try:
-                for ti in schedulable_tis:
+            for ti in schedulable_tis:
+                try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
                     _run_task(ti, session=session)
-            except Exception:
-                self.log.info(
-                    "Task failed. DAG will continue to run until finished and be marked as failed.",
-                    exc_info=True,
-                )
+                except Exception:
+                    self.log.exception("Task failed; ti=%s", ti)
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
+        return dr
 
     @provide_session
     def create_dagrun(

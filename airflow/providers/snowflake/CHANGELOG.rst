@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, snowflake: add OpenLineage support for Snowflake (#31696)``
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
 4.3.1
 .....
 

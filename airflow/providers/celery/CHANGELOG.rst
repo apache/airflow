@@ -38,12 +38,24 @@ Changelog
   with ``pip install apache-airflow-providers-celery[cncf.kubernetes]`` to get the right version of the
   ``cncf.kubernetes`` provider installed.
 
+Features
+~~~~~~~~
+
+* ``Move CeleryExecutor to the celery provider (#32526)``
+* ``Add pre-Airflow-2-7 hardcoded defaults for config for older providers  (#32775)``
+* ``[AIP-51] Executors vending CLI commands (#29055)``
+
+Misc
+~~~~
+
+* ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+* ``Add Executors discovery and documentation (#32532)``
+* ``Move default_celery.py to inside the provider (#32628)``
+* ``Raise original import error in CLI vending of executors (#32931)``
+
 .. Review and move the new changes to one of the sections above:
    * ``Introduce decorator to load providers configuration (#32765)``
    * ``Allow configuration to be contributed by providers (#32604)``
-   * ``Move default_celery.py to inside the provider (#32628)``
-   * ``Add Executors discovery and documentation (#32532)``
-   * ``Move CeleryExecutor to the celery provider (#32526)``
    * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
    * ``Remove spurious headers for provider changelogs (#32373)``
    * ``Prepare docs for July 2023 wave of Providers (#32298)``

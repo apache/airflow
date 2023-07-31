@@ -257,3 +257,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
+
+    @staticmethod
+    def get_cli_commands() -> list:
+        return CeleryExecutor.get_cli_commands() + KubernetesExecutor.get_cli_commands()

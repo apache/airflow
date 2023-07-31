@@ -34,6 +34,7 @@ from airflow.utils.context import Context
 from airflow.utils.db import exists_query
 from airflow.utils.log.secrets_masker import redact
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.sqlalchemy import skip_locked, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
@@ -109,8 +110,6 @@ class AbstractOperator(Templater, DAGNode):
     inlets: list
     trigger_rule: TriggerRule
 
-    _is_setup = False
-    _is_teardown = False
     _on_failure_fail_dagrun = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
@@ -160,44 +159,20 @@ class AbstractOperator(Templater, DAGNode):
         return self.task_id
 
     @property
-    def is_setup(self):
-        """
-        Whether the operator is a setup task.
-
-        :meta private:
-        """
-        return self._is_setup
+    def is_setup(self) -> bool:
+        raise NotImplementedError()
 
     @is_setup.setter
-    def is_setup(self, value):
-        """
-        Setter for is_setup property.
-
-        :meta private:
-        """
-        if self.is_teardown is True and value is True:
-            raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
-        self._is_setup = value
+    def is_setup(self, value: bool) -> None:
+        raise NotImplementedError()
 
     @property
-    def is_teardown(self):
-        """
-        Whether the operator is a teardown task.
-
-        :meta private:
-        """
-        return self._is_teardown
+    def is_teardown(self) -> bool:
+        raise NotImplementedError()
 
     @is_teardown.setter
-    def is_teardown(self, value):
-        """
-        Setter for is_teardown property.
-
-        :meta private:
-        """
-        if self.is_setup is True and value is True:
-            raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
-        self._is_teardown = value
+    def is_teardown(self, value: bool) -> None:
+        raise NotImplementedError()
 
     @property
     def on_failure_fail_dagrun(self):
@@ -233,8 +208,6 @@ class AbstractOperator(Templater, DAGNode):
         on_failure_fail_dagrun=NOTSET,
     ):
         self.is_teardown = True
-        if TYPE_CHECKING:
-            assert isinstance(self, BaseOperator)  # is_teardown not supported for MappedOperator
         self.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
         if on_failure_fail_dagrun is not NOTSET:
             self.on_failure_fail_dagrun = on_failure_fail_dagrun
@@ -737,3 +710,12 @@ class AbstractOperator(Templater, DAGNode):
                 raise
             else:
                 setattr(parent, attr_name, rendered_content)
+
+    def __enter__(self):
+        if not self.is_setup and not self.is_teardown:
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        SetupTeardownContext.push_setup_teardown_task(self)
+        return SetupTeardownContext
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        SetupTeardownContext.set_work_task_roots_and_leaves()

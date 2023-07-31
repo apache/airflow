@@ -720,8 +720,8 @@ def _get_flask_db(sql_database_uri):
 def _create_db_from_orm(session):
     from alembic import command
 
+    from airflow.auth.managers.fab.models import Model
     from airflow.models.base import Base
-    from airflow.www.fab_security.sqla.models import Model
 
     def _create_flask_session_tbl(sql_database_uri):
         db = _get_flask_db(sql_database_uri)
@@ -998,7 +998,7 @@ def check_username_duplicates(session: Session) -> Iterable[str]:
     :param session:  session of the sqlalchemy
     :rtype: str
     """
-    from airflow.www.fab_security.sqla.models import RegisterUser, User
+    from airflow.auth.managers.fab.models import RegisterUser, User
 
     for model in [User, RegisterUser]:
         dups = []
@@ -1730,8 +1730,8 @@ def drop_airflow_models(connection):
     :param connection: SQLAlchemy Connection
     :return: None
     """
+    from airflow.auth.managers.fab.models import Model
     from airflow.models.base import Base
-    from airflow.www.fab_security.sqla.models import Model
 
     Base.metadata.drop_all(connection)
     Model.metadata.drop_all(connection)

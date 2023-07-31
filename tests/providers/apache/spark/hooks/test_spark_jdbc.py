@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
 from airflow.models import Connection
@@ -108,6 +110,18 @@ class TestSparkJDBCHook:
                 extra='{"conn_prefix":"jdbc:postgresql://"}',
             )
         )
+        db.merge_conn(
+            Connection(
+                conn_id="jdbc-invalid-extra-conn-prefix",
+                conn_type="postgres",
+                host="localhost",
+                schema="default",
+                port=5432,
+                login="user",
+                password="supersecret",
+                extra='{"conn_prefix":"jdbc:mysql://some_host:8085/test?some_query_param=true#"}',
+            )
+        )
 
     def test_resolve_jdbc_connection(self):
         # Given
@@ -184,3 +198,9 @@ class TestSparkJDBCHook:
     def test_invalid_schema(self):
         with pytest.raises(ValueError, match="schema should not contain a"):
             SparkJDBCHook(jdbc_conn_id="jdbc-invalid-schema", **self._config)
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook.submit")
+    def test_invalid_extra_conn_prefix(self, mock_submit):
+        hook = SparkJDBCHook(jdbc_conn_id="jdbc-invalid-extra-conn-prefix", **self._config)
+        with pytest.raises(ValueError, match="extra conn_prefix should not contain a"):
+            hook.submit_jdbc_job()
