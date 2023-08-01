@@ -70,6 +70,10 @@ Extra (optional)
 
     * ``token``: Specify PAT to use. Consider to switch to specification of PAT in the Password field as it's more secure.
 
+    Following parameters are necessary if using Service Principal with Oauth token:
+
+    * ``service_principal_oauth``: Specify as 'true', and use Client ID and Client Secret as the Username and Password.
+
     Following parameters are necessary if using authentication with AAD token:
 
     * ``azure_tenant_id``: ID of the Azure Active Directory tenant

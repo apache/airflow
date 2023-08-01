@@ -62,6 +62,7 @@ AZURE_METADATA_SERVICE_INSTANCE_URL = "http://169.254.169.254/metadata/instance"
 TOKEN_REFRESH_LEAD_TIME = 120
 AZURE_MANAGEMENT_ENDPOINT = "https://management.core.windows.net/"
 DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
+OIDC_TOKEN_SERVICE_URL = "{}/oidc/v1/token"
 
 
 class BaseDatabricksHook(BaseHook):
@@ -89,6 +90,7 @@ class BaseDatabricksHook(BaseHook):
         "azure_ad_endpoint",
         "azure_resource_id",
         "azure_tenant_id",
+        "service_principal_oauth",
     ]
 
     def __init__(
@@ -108,7 +110,8 @@ class BaseDatabricksHook(BaseHook):
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
         self.aad_tokens: dict[str, dict] = {}
-        self.aad_timeout_seconds = 10
+        self.sp_token: dict[str, Any] = {}
+        self.token_timeout_seconds = 10
         self.caller = caller
 
         def my_after_func(retry_state):
@@ -210,6 +213,100 @@ class BaseDatabricksHook(BaseHook):
         """
         return AsyncRetrying(**self.retry_args)
 
+    def _get_sp_token(self) -> str:
+        """Function to get Service Principal token."""
+        if self.sp_token and self._is_sp_token_valid(self.sp_token):
+            return self.sp_token["token"]
+
+        self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
+        try:
+            for attempt in self._get_retry_object():
+                with attempt:
+                    resp = requests.post(
+                        OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host),
+                        auth=HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password),
+                        data="grant_type=client_credentials&scope=all-apis",
+                        headers={
+                            **self.user_agent_header,
+                            "Content-Type": "application/x-www-form-urlencoded",
+                        },
+                        timeout=self.token_timeout_seconds,
+                    )
+
+                    resp.raise_for_status()
+                    jsn = resp.json()
+                    if (
+                        "access_token" not in jsn
+                        or jsn.get("token_type") != "Bearer"
+                        or "expires_in" not in jsn
+                    ):
+                        raise AirflowException(
+                            f"Can't get necessary data from Service Principal token: {jsn}"
+                        )
+
+                    token = jsn["access_token"]
+                    self.sp_token = {"token": token, "expires_on": int(time.time() + jsn["expires_in"])}
+                    break
+        except RetryError:
+            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+        except requests_exceptions.HTTPError as e:
+            raise AirflowException(f"Response: {e.response.content}, Status Code: {e.response.status_code}")
+
+        return token
+
+    async def _a_get_sp_token(self) -> str:
+        """Async version of `_get_sp_token()`."""
+        if self.sp_token and self._is_sp_token_valid(self.sp_token):
+            return self.sp_token["token"]
+
+        self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
+        try:
+            async for attempt in self._a_get_retry_object():
+                with attempt:
+                    async with self._session.post(
+                        OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host),
+                        auth=HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password),
+                        data="grant_type=client_credentials&scope=all-apis",
+                        headers={
+                            **self.user_agent_header,
+                            "Content-Type": "application/x-www-form-urlencoded",
+                        },
+                        timeout=self.token_timeout_seconds,
+                    ) as resp:
+                        resp.raise_for_status()
+                        jsn = await resp.json()
+                    if (
+                        "access_token" not in jsn
+                        or jsn.get("token_type") != "Bearer"
+                        or "expires_in" not in jsn
+                    ):
+                        raise AirflowException(
+                            f"Can't get necessary data from Service Principal token: {jsn}"
+                        )
+
+                    token = jsn["access_token"]
+                    self.sp_token = {"token": token, "expires_on": int(time.time() + jsn["expires_in"])}
+                    break
+        except RetryError:
+            raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
+        except requests_exceptions.HTTPError as e:
+            raise AirflowException(f"Response: {e.response.content}, Status Code: {e.response.status_code}")
+
+        return token
+
+    @staticmethod
+    def _is_sp_token_valid(sp_token: dict) -> bool:
+        """
+        Utility function to check Service Principal token hasn't expired yet.
+
+        :param aad_token: dict with properties of AAD token
+        :return: true if token is valid, false otherwise
+        """
+        now = int(time.time())
+        if sp_token["expires_on"] > (now + TOKEN_REFRESH_LEAD_TIME):
+            return True
+        return False
+
     def _get_aad_token(self, resource: str) -> str:
         """
         Function to get AAD token for given resource.
@@ -235,7 +332,7 @@ class BaseDatabricksHook(BaseHook):
                             AZURE_METADATA_SERVICE_TOKEN_URL,
                             params=params,
                             headers={**self.user_agent_header, "Metadata": "true"},
-                            timeout=self.aad_timeout_seconds,
+                            timeout=self.token_timeout_seconds,
                         )
                     else:
                         tenant_id = self.databricks_conn.extra_dejson["azure_tenant_id"]
@@ -255,7 +352,7 @@ class BaseDatabricksHook(BaseHook):
                                 **self.user_agent_header,
                                 "Content-Type": "application/x-www-form-urlencoded",
                             },
-                            timeout=self.aad_timeout_seconds,
+                            timeout=self.token_timeout_seconds,
                         )
 
                     resp.raise_for_status()
@@ -301,7 +398,7 @@ class BaseDatabricksHook(BaseHook):
                             url=AZURE_METADATA_SERVICE_TOKEN_URL,
                             params=params,
                             headers={**self.user_agent_header, "Metadata": "true"},
-                            timeout=self.aad_timeout_seconds,
+                            timeout=self.token_timeout_seconds,
                         ) as resp:
                             resp.raise_for_status()
                             jsn = await resp.json()
@@ -323,7 +420,7 @@ class BaseDatabricksHook(BaseHook):
                                 **self.user_agent_header,
                                 "Content-Type": "application/x-www-form-urlencoded",
                             },
-                            timeout=self.aad_timeout_seconds,
+                            timeout=self.token_timeout_seconds,
                         ) as resp:
                             resp.raise_for_status()
                             jsn = await resp.json()
@@ -443,6 +540,11 @@ class BaseDatabricksHook(BaseHook):
             self.log.info("Using AAD Token for managed identity.")
             self._check_azure_metadata_service()
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
+        elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
+            if self.databricks_conn.login == "" or self.databricks_conn.password == "":
+                raise AirflowException("Service Principal credentials aren't provided")
+            self.log.info("Using Service Principal Token.")
+            return self._get_sp_token()
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")
 
@@ -466,6 +568,11 @@ class BaseDatabricksHook(BaseHook):
             self.log.info("Using AAD Token for managed identity.")
             await self._a_check_azure_metadata_service()
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
+        elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
+            if self.databricks_conn.login == "" or self.databricks_conn.password == "":
+                raise AirflowException("Service Principal credentials aren't provided")
+            self.log.info("Using Service Principal Token.")
+            return await self._a_get_sp_token()
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")
 

@@ -697,6 +697,14 @@ class TestDatabricksHook:
         aad_token = {"token": "my_token", "expires_on": int(time.time())}
         assert not self.hook._is_aad_token_valid(aad_token)
 
+    def test_is_sp_token_valid_returns_true(self):
+        sp_token = {"token": "my_token", "expires_on": int(time.time()) + TOKEN_REFRESH_LEAD_TIME + 10}
+        assert self.hook._is_sp_token_valid(sp_token)
+
+    def test_is_sp_token_valid_returns_false(self):
+        sp_token = {"token": "my_token", "expires_on": int(time.time())}
+        assert not self.hook._is_sp_token_valid(sp_token)
+
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_list_jobs_success_single_page(self, mock_requests):
         mock_requests.codes.ok = 200
@@ -1448,3 +1456,80 @@ class TestDatabricksHookAsyncAadTokenManagedIdentity:
         assert ad_call_args[1]["url"] == AZURE_METADATA_SERVICE_INSTANCE_URL
         assert ad_call_args[1]["params"]["api-version"] > "2018-02-01"
         assert ad_call_args[1]["headers"]["Metadata"] == "true"
+
+
+def create_sp_token_for_resource() -> dict:
+    return {
+        "token_type": "Bearer",
+        "expires_in": "3600",
+        "access_token": TOKEN,
+    }
+
+
+class TestDatabricksHookSpToken:
+    """
+    Tests for DatabricksHook when auth is done with Service Principal Oauth token.
+    """
+
+    @provide_session
+    def setup_method(self, method, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.login = "c64f6d12-f6e4-45a4-846e-032b42b27758"
+        conn.password = "secret"
+        conn.extra = json.dumps({"service_principal_oauth": True})
+        session.commit()
+        self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.side_effect = [
+            create_successful_response_mock(create_sp_token_for_resource()),
+            create_successful_response_mock({"run_id": "1"}),
+        ]
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        data = {"notebook_task": NOTEBOOK_TASK, "new_cluster": NEW_CLUSTER}
+        run_id = self.hook.submit_run(data)
+
+        assert run_id == "1"
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        assert kwargs["auth"].token == TOKEN
+
+
+class TestDatabricksHookAsyncSpToken:
+    """
+    Tests for DatabricksHook using async methods when auth is done with Service
+    Principal Oauth token.
+    """
+
+    @provide_session
+    def setup_method(self, method, session=None):
+        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
+        conn.login = "c64f6d12-f6e4-45a4-846e-032b42b27758"
+        conn.password = "secret"
+        conn.extra = json.dumps({"service_principal_oauth": True})
+        session.commit()
+        self.hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.post")
+    async def test_get_run_state(self, mock_post, mock_get):
+        mock_post.return_value.__aenter__.return_value.json = AsyncMock(
+            return_value=create_sp_token_for_resource(DEFAULT_DATABRICKS_SCOPE)
+        )
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
+
+        async with self.hook:
+            run_state = await self.hook.a_get_run_state(RUN_ID)
+
+        assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
+        mock_get.assert_called_once_with(
+            get_run_endpoint(HOST),
+            json={"run_id": RUN_ID},
+            auth=BearerAuth(TOKEN),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
