@@ -184,9 +184,11 @@ class WasbHook(BaseHook):
             # connection_string auth takes priority
             return BlobServiceClient.from_connection_string(connection_string, **extra)
 
-        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
-        if not account_url.startswith("https://"):
-            account_url = f"https://{conn.login}.blob.core.windows.net/"
+        account_url = (
+            conn.host
+            if conn.host and conn.host.startswith("https://")
+            else f"https://{conn.login}.blob.core.windows.net/"
+        )
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
@@ -585,9 +587,11 @@ class WasbAsyncHook(WasbHook):
             )
             return self.blob_service_client
 
-        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
-        if not account_url.startswith("https://"):
-            account_url = f"https://{conn.login}.blob.core.windows.net/"
+        account_url = (
+            conn.host
+            if conn.host and conn.host.startswith("https://")
+            else f"https://{conn.login}.blob.core.windows.net/"
+        )
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
