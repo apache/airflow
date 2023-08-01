@@ -45,7 +45,7 @@ from airflow.exceptions import (
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
-from airflow.models.taskinstance import _CURRENT_CONTEXT
+from airflow.models.taskinstance import get_current_context as get_current_context_from_task_instance
 from airflow.utils.context import Context, context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
@@ -833,9 +833,4 @@ def get_current_context() -> Context:
     Current context will only have value if this method was called after an operator
     was starting to execute.
     """
-    if not _CURRENT_CONTEXT:
-        raise AirflowException(
-            "Current context was requested but no context was found! "
-            "Are you running within an airflow task?"
-        )
-    return _CURRENT_CONTEXT[-1]
+    return get_current_context_from_task_instance()

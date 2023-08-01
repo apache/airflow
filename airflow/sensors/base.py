@@ -199,16 +199,34 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     f"mode since it will take reschedule time over MySQL's TIMESTAMP limit."
                 )
 
-    def __trigger_timeout__(self) -> datetime.datetime | None:
-        """Trigger timeout for the sensor."""
-        # TODO: implement trigger timeout for the sensor based on min(execution_timeout, timeout)
-        pass
+    def _trigger_timeout(self, context: Context) -> tuple[datetime.datetime | None, str | None]:
+        """Trigger timeout for the sensor and its reason."""
+        execution_timeout_at, execution_reason = super()._trigger_timeout(context)
+        sensor_timeout_at = None
+        if self.timeout:
+            started_at, _ = self._get_started_at_and_run_duration(context)
+            if isinstance(started_at, datetime.datetime):
+                sensor_timeout_at = started_at + datetime.timedelta(seconds=self.timeout)
+            else:
+                elapsed_time = time.monotonic() - started_at
+                sensor_timeout_at = timezone.utcnow() + datetime.timedelta(
+                    seconds=self.timeout - elapsed_time
+                )
+        if sensor_timeout_at is None:
+            return execution_timeout_at, execution_reason
+        elif execution_timeout_at is None:
+            return None, None
+        if execution_timeout_at < sensor_timeout_at:
+            return execution_timeout_at, execution_reason
+        return sensor_timeout_at, "sensor_timeout"
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
         """Override when deriving this class."""
         raise AirflowException("Override me.")
 
-    def execute(self, context: Context) -> Any:
+    def _get_started_at_and_run_duration(
+        self, context: Context
+    ) -> tuple[datetime.datetime | float, Callable]:
         started_at: datetime.datetime | float
 
         if self.reschedule:
@@ -234,6 +252,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
 
             def run_duration() -> float:
                 return time.monotonic() - start_monotonic
+
+        return started_at, run_duration
+
+    def execute(self, context: Context) -> Any:
+        started_at, run_duration = self._get_started_at_and_run_duration(context)
 
         try_number = 1
         log_dag_id = self.dag.dag_id if self.has_dag() else ""

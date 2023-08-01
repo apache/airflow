@@ -1575,11 +1575,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
 
-    def __trigger_timeout__(self) -> datetime | None:
-        """Returns the timeout for the trigger."""
+    def _trigger_timeout(self, context: Context) -> tuple[datetime | None, str | None]:
+        """Returns the timeout for the trigger and its reason."""
         if self.execution_timeout is not None:
-            return (self.start_date or timezone.utcnow()) + self.execution_timeout
-        return None
+            return ((self.start_date or timezone.utcnow()) + self.execution_timeout, "execution_timeout")
+        return None, None
 
     def defer(
         self,
@@ -1605,7 +1605,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             trigger_timeout = timezone.utcnow() + timeout
         else:
-            trigger_timeout = self.__trigger_timeout__()
+            from airflow.models.taskinstance import get_current_context
+
+            trigger_timeout, _ = self._trigger_timeout(get_current_context())
 
         raise TaskDeferred(
             trigger=trigger, method_name=method_name, kwargs=kwargs, trigger_timeout=trigger_timeout

@@ -164,6 +164,16 @@ class TaskReturnCode(Enum):
     """When task exits with deferral to trigger."""
 
 
+def get_current_context() -> Context:
+    """Retrieve the execution context dictionary without altering user method's signature."""
+    if not _CURRENT_CONTEXT:
+        raise AirflowException(
+            "Current context was requested but no context was found! "
+            "Are you running within an airflow task?"
+        )
+    return _CURRENT_CONTEXT[-1]
+
+
 @contextlib.contextmanager
 def set_current_context(context: Context) -> Generator[Context, None, None]:
     """
