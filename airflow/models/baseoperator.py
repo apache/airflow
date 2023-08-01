@@ -957,17 +957,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             self.template_fields = [self.template_fields]
 
+        self._is_setup = False
+        self._is_teardown = False
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
-
-    def __enter__(self):
-        if not self.is_setup and not self.is_teardown:
-            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
-        SetupTeardownContext.push_setup_teardown_task(self)
-        return SetupTeardownContext
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        SetupTeardownContext.set_work_task_roots_and_leaves()
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1415,6 +1408,43 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         return XComArg(operator=self)
 
+    @property
+    def is_setup(self) -> bool:
+        """Whether the operator is a setup task.
+
+        :meta private:
+        """
+        return self._is_setup
+
+    @is_setup.setter
+    def is_setup(self, value: bool) -> None:
+        """Setter for is_setup property.
+
+        :meta private:
+        """
+        if self.is_teardown and value:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
+        self._is_setup = value
+
+    @property
+    def is_teardown(self) -> bool:
+        """Whether the operator is a teardown task.
+
+        :meta private:
+        """
+        return self._is_teardown
+
+    @is_teardown.setter
+    def is_teardown(self, value: bool) -> None:
+        """
+        Setter for is_teardown property.
+
+        :meta private:
+        """
+        if self.is_setup and value:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
+        self._is_teardown = value
+
     @staticmethod
     def xcom_push(
         context: Any,
@@ -1501,6 +1531,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "_BaseOperator__instantiated",
                     "_BaseOperator__init_kwargs",
                     "_BaseOperator__from_mapped",
+                    "_is_setup",
+                    "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
                 | {  # Class level defaults need to be added to this list
                     "start_date",

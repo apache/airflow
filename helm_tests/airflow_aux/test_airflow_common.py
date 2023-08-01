@@ -106,23 +106,22 @@ class TestAirflowCommon:
                 "templates/workers/worker-deployment.yaml",
             ],
         )
-        for index in range(len(docs)):
-            print(docs[index])
+        for doc in docs:
             assert "webserver-config" in [
                 c["name"]
                 for r in jmespath.search(
                     "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'].volumeMounts",
-                    docs[index],
+                    doc,
                 )
                 for c in r
             ]
-            for container in jmespath.search("spec.template.spec.containers", docs[index]):
+            for container in jmespath.search("spec.template.spec.containers", doc):
                 assert "webserver-config" in [c["name"] for c in jmespath.search("volumeMounts", container)]
             assert "webserver-config" in [
-                c["name"] for c in jmespath.search("spec.template.spec.volumes", docs[index])
+                c["name"] for c in jmespath.search("spec.template.spec.volumes", doc)
             ]
             assert configmap_name == jmespath.search(
-                "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]", docs[index]
+                "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]", doc
             )
 
     def test_annotations(self):

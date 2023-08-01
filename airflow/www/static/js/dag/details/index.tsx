@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import {
   Flex,
   Divider,
@@ -33,7 +33,13 @@ import { useSearchParams } from "react-router-dom";
 import useSelection from "src/dag/useSelection";
 import { getTask, getMetaValue } from "src/utils";
 import { useGridData, useTaskInstance } from "src/api";
-import { MdDetails, MdAccountTree, MdReorder, MdCode } from "react-icons/md";
+import {
+  MdDetails,
+  MdAccountTree,
+  MdReorder,
+  MdCode,
+  MdOutlineViewTimeline,
+} from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
@@ -42,6 +48,7 @@ import TaskInstanceContent from "./taskInstance";
 import DagRunContent from "./dagRun";
 import DagContent from "./Dag";
 import Graph from "./graph";
+import Gantt from "./gantt";
 import DagCode from "./dagCode";
 import MappedInstances from "./taskInstance/MappedInstances";
 import Logs from "./taskInstance/Logs";
@@ -58,16 +65,20 @@ interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  gridScrollRef: React.RefObject<HTMLDivElement>;
+  ganttScrollRef: React.RefObject<HTMLDivElement>;
 }
 
 const tabToIndex = (tab?: string) => {
   switch (tab) {
     case "graph":
       return 1;
+    case "gantt":
+      return 2;
     case "code":
     case "logs":
     case "mapped_tasks":
-      return 2;
+      return 3;
     case "details":
     default:
       return 0;
@@ -84,6 +95,8 @@ const indexToTab = (
     case 1:
       return "graph";
     case 2:
+      return "gantt";
+    case 3:
       if (!taskId) return "code";
       if (showMappedTasks) return "mapped_tasks";
       if (showLogs) return "logs";
@@ -96,7 +109,13 @@ const indexToTab = (
 
 const TAB_PARAM = "tab";
 
-const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
+const Details = ({
+  openGroupIds,
+  onToggleGroups,
+  hoveredTaskState,
+  gridScrollRef,
+  ganttScrollRef,
+}: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
     onSelect,
@@ -133,6 +152,15 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     },
     [setSearchParams, searchParams, showLogs, showMappedTasks, taskId]
   );
+
+  useEffect(() => {
+    // We only have 3 tabs for when nothing or a task group are selected
+    const tabCount =
+      (runId && !taskId) || (runId && taskId && !isGroup) ? 4 : 3;
+    if (tabCount === 3 && tabIndex > 2) {
+      onChangeTab(1);
+    }
+  }, [taskId, runId, tabIndex, isGroup, onChangeTab]);
 
   const run = dagRuns.find((r) => r.runId === runId);
   const { data: mappedTaskInstance } = useTaskInstance({
@@ -212,6 +240,14 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               Graph
             </Text>
           </Tab>
+          {run && (
+            <Tab>
+              <MdOutlineViewTimeline size={16} />
+              <Text as="strong" ml={1}>
+                Gantt
+              </Text>
+            </Tab>
+          )}
           {showDagCode && (
             <Tab>
               <MdCode size={16} />
@@ -262,6 +298,15 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               hoveredTaskState={hoveredTaskState}
             />
           </TabPanel>
+          {run && (
+            <TabPanel p={0} height="100%">
+              <Gantt
+                openGroupIds={openGroupIds}
+                gridScrollRef={gridScrollRef}
+                ganttScrollRef={ganttScrollRef}
+              />
+            </TabPanel>
+          )}
           {showDagCode && (
             <TabPanel height="100%">
               <DagCode />

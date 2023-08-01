@@ -834,6 +834,13 @@ When running ``breeze start-airflow``, the following output might be observed:
 
     Error 1 returned
 
+This timeout can be increased by setting ``ASSET_COMPILATION_WAIT_MULTIPLIER`` a reasonable number
+could be 3-4.
+
+.. code-block:: bash
+
+  export ASSET_COMPILATION_WAIT_MULTIPLIER=3
+
 This error is actually caused by the following error during the asset compilation which resulted in
 ETIMEOUT when ``npm`` command is trying to install required packages:
 

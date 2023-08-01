@@ -41,6 +41,7 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -419,6 +420,7 @@ class TaskInstance(Base, LoggingMixin):
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
+    is_setup = Column(Boolean, nullable=False, default=False, server_default="0")
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
@@ -577,6 +579,7 @@ class TaskInstance(Base, LoggingMixin):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
+            "is_setup": task.is_setup,
         }
 
     @reconstructor
@@ -875,6 +878,7 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
+            self.is_setup = ti.is_setup
         else:
             self.state = None
 
@@ -896,6 +900,7 @@ class TaskInstance(Base, LoggingMixin):
         self.executor_config = task.executor_config
         self.operator = task.task_type
         self.custom_operator_name = getattr(task, "custom_operator_name", None)
+        self.is_setup = task.is_setup
 
     @provide_session
     def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
@@ -2251,19 +2256,6 @@ class TaskInstance(Base, LoggingMixin):
                 "rendering of template_fields."
             ) from e
 
-    @provide_session
-    def get_rendered_k8s_spec(self, session: Session = NEW_SESSION):
-        """Fetch rendered template fields from DB."""
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields
-
-        rendered_k8s_spec = RenderedTaskInstanceFields.get_k8s_pod_yaml(self, session=session)
-        if not rendered_k8s_spec:
-            try:
-                rendered_k8s_spec = self.render_k8s_pod_yaml()
-            except (TemplateAssertionError, UndefinedError) as e:
-                raise AirflowException(f"Unable to render a k8s spec for this taskinstance: {e}") from e
-        return rendered_k8s_spec
-
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         """Overwrite Task Params with DagRun.conf."""
         if dag_run and dag_run.conf:
@@ -2290,32 +2282,51 @@ class TaskInstance(Base, LoggingMixin):
         return original_task
 
     def render_k8s_pod_yaml(self) -> dict | None:
-        """Render k8s pod yaml."""
-        from kubernetes.client.api_client import ApiClient
-
-        from airflow.kubernetes.kube_config import KubeConfig
-        from airflow.kubernetes.kubernetes_helper_functions import create_pod_id  # Circular import
-        from airflow.kubernetes.pod_generator import PodGenerator
-
-        kube_config = KubeConfig()
-        pod = PodGenerator.construct_pod(
-            dag_id=self.dag_id,
-            run_id=self.run_id,
-            task_id=self.task_id,
-            map_index=self.map_index,
-            date=None,
-            pod_id=create_pod_id(self.dag_id, self.task_id),
-            try_number=self.try_number,
-            kube_image=kube_config.kube_image,
-            args=self.command_as_list(),
-            pod_override_object=PodGenerator.from_obj(self.executor_config),
-            scheduler_job_id="0",
-            namespace=kube_config.executor_namespace,
-            base_worker_pod=PodGenerator.deserialize_model_file(kube_config.pod_template_file),
-            with_mutation_hook=True,
+        """Render the k8s pod yaml."""
+        try:
+            from airflow.providers.cncf.kubernetes.template_rendering import (
+                render_k8s_pod_yaml as render_k8s_pod_yaml_from_provider,
+            )
+        except ImportError:
+            raise RuntimeError(
+                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
+                "Also rather than calling it directly you should import "
+                "render_k8s_pod_yaml from airflow.providers.cncf.kubernetes.template_rendering "
+                "and call it with TaskInstance as the first argument."
+            )
+        warnings.warn(
+            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
+            "in Airflow 3. Rather than calling it directly you should import "
+            "`render_k8s_pod_yaml` from `airflow.providers.cncf.kubernetes.template_rendering` "
+            "and call it with `TaskInstance` as the first argument.",
+            DeprecationWarning,
+            stacklevel=2,
         )
-        sanitized_pod = ApiClient().sanitize_for_serialization(pod)
-        return sanitized_pod
+        return render_k8s_pod_yaml_from_provider(self)
+
+    @provide_session
+    def get_rendered_k8s_spec(self, session: Session = NEW_SESSION):
+        """Render the k8s pod yaml."""
+        try:
+            from airflow.providers.cncf.kubernetes.template_rendering import (
+                get_rendered_k8s_spec as get_rendered_k8s_spec_from_provider,
+            )
+        except ImportError:
+            raise RuntimeError(
+                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
+                "Also rather than calling it directly you should import "
+                "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
+                "and call it with `TaskInstance` as the first argument."
+            )
+        warnings.warn(
+            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
+            "in Airflow 3. Rather than calling it directly you should import "
+            "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
+            "and call it with `TaskInstance` as the first argument.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return get_rendered_k8s_spec_from_provider(self, session=session)
 
     def get_email_subject_content(
         self, exception: BaseException, task: BaseOperator | None = None

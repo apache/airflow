@@ -40,6 +40,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference_build,
     option_answer,
     option_builder,
+    option_commit_sha,
     option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -70,6 +71,7 @@ from airflow_breeze.utils.common_options import (
     option_upgrade_to_newer_dependencies,
     option_verbose,
     option_verify,
+    option_version_suffix_for_pypi,
     option_wait_for_image,
 )
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
@@ -185,6 +187,7 @@ def prepare_for_building_ci_image(params: BuildCiParams):
 @option_additional_dev_apt_command
 @option_additional_dev_apt_env
 @option_builder
+@option_commit_sha
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_force_build
@@ -195,6 +198,7 @@ def prepare_for_building_ci_image(params: BuildCiParams):
 @option_tag_as_latest
 @option_additional_pip_install_flags
 @option_github_repository
+@option_version_suffix_for_pypi
 @option_verbose
 @option_dry_run
 @option_answer
@@ -458,11 +462,16 @@ def run_build_ci_image(
       * update cached information that the build completed and saves checksums of all files
         for quick future check if the build is needed
 
-
-
     :param ci_image_params: CI image parameters
     :param output: output redirection
     """
+    if not ci_image_params.version_suffix_for_pypi:
+        # We need that to handle the >= 2.7.0 limit we have for openlineage provider at least until
+        # Airflow 2.7.0 release is out, in order to avoid conflicting dependencies while building the image
+        # We are setting version_suffix_for_pypi to dev0 for CI builds where cache is prepared, so in
+        # order to have the cache used effectively, we should also locally force the version_suffix_for_pypi
+        # to dev0. We might evan leave it as default value in the future (to be decided after 2.7.0 release)
+        ci_image_params.version_suffix_for_pypi = "dev0"
     if (
         ci_image_params.is_multi_platform()
         and not ci_image_params.push

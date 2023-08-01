@@ -68,6 +68,8 @@ const Main = () => {
   const [isGridCollapsed, setIsGridCollapsed] = useState(false);
   const resizeRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const gridScrollRef = useRef<HTMLDivElement>(null);
+  const ganttScrollRef = useRef<HTMLDivElement>(null);
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== "true";
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const [hoveredTaskState, setHoveredTaskState] = useState<
@@ -207,6 +209,8 @@ const Main = () => {
                 onToggleGroups={onToggleGroups}
                 isGridCollapsed={isGridCollapsed}
                 setIsGridCollapsed={onToggleGridCollapse}
+                gridScrollRef={gridScrollRef}
+                ganttScrollRef={ganttScrollRef}
               />
             </Box>
             {isOpen && (
@@ -229,6 +233,8 @@ const Main = () => {
                     openGroupIds={openGroupIds}
                     onToggleGroups={onToggleGroups}
                     hoveredTaskState={hoveredTaskState}
+                    gridScrollRef={gridScrollRef}
+                    ganttScrollRef={ganttScrollRef}
                   />
                 </Box>
               </>

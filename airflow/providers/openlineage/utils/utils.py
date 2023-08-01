@@ -29,6 +29,9 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 import attrs
 from attrs import asdict
 
+# TODO: move this maybe to Airflow's logic?
+from openlineage.client.utils import RedactMixin
+
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.providers.openlineage.plugins.facets import (
@@ -36,9 +39,6 @@ from airflow.providers.openlineage.plugins.facets import (
     AirflowRunFacet,
 )
 from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker, should_hide_value_for_key
-
-# TODO: move this maybe to Airflow's logic?
-from openlineage.client.utils import RedactMixin
 
 if TYPE_CHECKING:
     from airflow.models import DAG, BaseOperator, Connection, DagRun, TaskInstance
