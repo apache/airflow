@@ -20,7 +20,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from airflow.auth.managers.model.base_user import BaseUser
+from airflow.auth.managers.models.base_user import BaseUser
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
