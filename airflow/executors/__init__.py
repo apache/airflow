@@ -20,14 +20,6 @@ from __future__ import annotations
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 __deprecated_classes = {
-    "celery_executor": {
-        "app": "airflow.providers.celery.executors.celery_executor_utils.app",
-        "CeleryExecutor": "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-    },
-    "celery_kubernetes_executor": {
-        "CeleryKubernetesExecutor": "airflow.providers.celery.executors."
-        "celery_kubernetes_executor.CeleryKubernetesExecutor",
-    },
     "dask_executor": {
         "DaskExecutor": "airflow.providers.daskexecutor.executors.dask_executor.DaskExecutor",
     },

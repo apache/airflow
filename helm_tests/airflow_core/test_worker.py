@@ -391,7 +391,7 @@ class TestWorker:
     @pytest.mark.parametrize(
         "airflow_version, default_cmd",
         [
-            ("2.7.0", "airflow.providers.celery.executors.celery_executor.app"),
+            ("2.7.0", "airflow.executors.celery_executor.app"),
             ("2.6.3", "airflow.executors.celery_executor.app"),
         ],
     )

@@ -15,14 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.utils.deprecation_tools import add_deprecated_classes
-
-__deprecated_classes = {
-    "default_celery": {
-        "DEFAULT_CELERY_CONFIG": "airflow.providers.celery.executors.default_celery.DEFAULT_CELERY_CONFIG",
-    },
-}
-
-add_deprecated_classes(__deprecated_classes, __name__, {}, "The `celery` provider must be >= 3.3.0 for that.")

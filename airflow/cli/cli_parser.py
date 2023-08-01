@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import logging
 from argparse import Action
+from copy import deepcopy
 from functools import lru_cache
 from typing import Iterable
 
@@ -45,7 +46,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
 
-airflow_commands = core_commands
+airflow_commands = deepcopy(core_commands)
 
 log = logging.getLogger(__name__)
 try:

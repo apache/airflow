@@ -14,23 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import packaging.version
-
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-try:
-    from airflow import __version__ as airflow_version
-except ImportError:
-    from airflow.version import version as airflow_version
-
-base_version = packaging.version.parse(airflow_version).base_version
-
-if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):
-    raise AirflowOptionalProviderFeatureException(
-        "Celery Executor from Celery Provider should only be used with Airflow 2.7.0+.\n"
-        f"This is Airflow {airflow_version} and Celery and CeleryKubernetesExecutor are "
-        f"available in the 'airflow.executors' package. You should not use "
-        f"the provider's executors in this version of Airflow."
-    )

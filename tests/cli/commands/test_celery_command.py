@@ -32,6 +32,7 @@ from tests.test_utils.config import conf_vars
 
 
 class TestWorkerPrecheck:
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     @mock.patch("airflow.settings.validate_session")
     def test_error(self, mock_validate_session):
         """
@@ -43,6 +44,7 @@ class TestWorkerPrecheck:
             celery_command.worker(Namespace(queues=1, concurrency=1))
         assert str(ctx.value) == "Worker exiting, database connection precheck failed."
 
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     @conf_vars({("celery", "worker_precheck"): "False"})
     def test_worker_precheck_exception(self):
         """
@@ -52,6 +54,7 @@ class TestWorkerPrecheck:
         assert airflow.settings.validate_session()
 
     @mock.patch("sqlalchemy.orm.session.Session.execute")
+    @conf_vars({("core", "executor"): "CeleryExecutor"})
     @conf_vars({("celery", "worker_precheck"): "True"})
     def test_validate_session_dbapi_exception(self, mock_session):
         """
@@ -88,7 +91,7 @@ class TestCeleryStopCommand:
                 mock_process.return_value.terminate.assert_called_once_with()
 
     @mock.patch("airflow.cli.commands.celery_command.read_pid_from_pidfile")
-    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @mock.patch("airflow.executors.celery_executor.app")
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_same_pid_file_is_used_in_start_and_stop(
@@ -113,7 +116,7 @@ class TestCeleryStopCommand:
 
     @mock.patch("airflow.cli.commands.celery_command.remove_existing_pidfile")
     @mock.patch("airflow.cli.commands.celery_command.read_pid_from_pidfile")
-    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @mock.patch("airflow.executors.celery_executor.app")
     @mock.patch("airflow.cli.commands.celery_command.psutil.Process")
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
@@ -151,7 +154,7 @@ class TestWorkerStart:
 
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch("airflow.cli.commands.celery_command.Process")
-    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @mock.patch("airflow.executors.celery_executor.app")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_worker_started_with_required_arguments(self, mock_celery_app, mock_popen, mock_locations):
         pid_file = "pid_file"
@@ -211,7 +214,7 @@ class TestWorkerFailure:
         cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.commands.celery_command.Process")
-    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @mock.patch("airflow.executors.celery_executor.app")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_worker_failure_gracefull_shutdown(self, mock_celery_app, mock_popen):
         args = self.parser.parse_args(["celery", "worker"])
@@ -222,16 +225,29 @@ class TestWorkerFailure:
             mock_popen().terminate.assert_called()
 
 
-@pytest.mark.backend("mysql", "postgres")
-class TestFlowerCommand:
-    @classmethod
-    def setup_class(cls):
-        cls.parser = cli_parser.get_parser()
+@pytest.fixture(scope="module", autouse=True)
+def add_celery_commands():
+    from airflow.executors.executor_loader import ExecutorLoader
 
-    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    executor, _ = ExecutorLoader.import_executor_cls("CeleryExecutor", validate=False)
+    from airflow.cli.cli_parser import ALL_COMMANDS_DICT, airflow_commands
+
+    airflow_commands.extend(executor.get_cli_commands())
+    ALL_COMMANDS_DICT.clear()
+    ALL_COMMANDS_DICT.update({sp.name: sp for sp in airflow_commands})
+    yield
+    from airflow.cli.cli_config import core_commands
+
+    airflow_commands.clear()
+    airflow_commands.extend(core_commands)
+
+
+class TestFlowerCommand:
+    @mock.patch("airflow.executors.celery_executor.app")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command(self, mock_celery_app):
-        args = self.parser.parse_args(
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(
             [
                 "celery",
                 "flower",
@@ -267,7 +283,7 @@ class TestFlowerCommand:
     @mock.patch("airflow.cli.commands.celery_command.TimeoutPIDLockFile")
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch("airflow.cli.commands.celery_command.daemon")
-    @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @mock.patch("airflow.executors.celery_executor.app")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_run_command_daemon(self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file):
         mock_setup_locations.return_value = (
@@ -276,7 +292,8 @@ class TestFlowerCommand:
             mock.MagicMock(name="stderr"),
             mock.MagicMock(name="INVALID"),
         )
-        args = self.parser.parse_args(
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(
             [
                 "celery",
                 "flower",

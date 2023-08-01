@@ -47,7 +47,7 @@ WORKER_PROCESS_NAME = "worker"
 def flower(args):
     """Starts Flower, Celery monitoring tool."""
     # This needs to be imported locally to not trigger Providers Manager initialization
-    from airflow.providers.celery.executors.celery_executor import app as celery_app
+    from airflow.executors.celery_executor import app as celery_app
 
     options = [
         "flower",
@@ -139,7 +139,7 @@ def logger_setup_handler(logger, **kwargs):
 def worker(args):
     """Starts Airflow Celery worker."""
     # This needs to be imported locally to not trigger Providers Manager initialization
-    from airflow.providers.celery.executors.celery_executor import app as celery_app
+    from airflow.executors.celery_executor import app as celery_app
 
     # Disable connection pool so that celery worker does not hold an unnecessary db connection
     settings.reconfigure_orm(disable_connection_pool=True)

@@ -247,9 +247,7 @@
       "celery>=5.2.3,<6",
       "flower>=1.0.0"
     ],
-    "cross-providers-deps": [
-      "cncf.kubernetes"
-    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": []
   },
   "cloudant": {

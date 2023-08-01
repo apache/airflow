@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+from airflow.executors.celery_executor import CeleryExecutor
 
 try:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor

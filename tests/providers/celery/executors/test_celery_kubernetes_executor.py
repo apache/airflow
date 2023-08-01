@@ -23,8 +23,8 @@ import pytest
 
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
+from airflow.executors.celery_executor import CeleryExecutor
+from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 
 KUBERNETES_QUEUE = "kubernetes"

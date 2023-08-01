@@ -86,16 +86,11 @@ DEFAULT_CELERY_CONFIG = {
     "worker_enable_remote_control": conf.getboolean("celery", "worker_enable_remote_control", fallback=True),
 }
 
-
-def _get_celery_ssl_active() -> bool:
-    try:
-        return conf.getboolean("celery", "SSL_ACTIVE")
-    except AirflowConfigException:
-        log.warning("Celery Executor will run without SSL")
-        return False
-
-
-celery_ssl_active = _get_celery_ssl_active()
+celery_ssl_active = False
+try:
+    celery_ssl_active = conf.getboolean("celery", "SSL_ACTIVE")
+except AirflowConfigException:
+    log.warning("Celery Executor will run without SSL")
 
 try:
     if celery_ssl_active:

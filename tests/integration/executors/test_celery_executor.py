@@ -60,7 +60,7 @@ class FakeCeleryResult:
 
 @contextlib.contextmanager
 def _prepare_app(broker_url=None, execute=None):
-    from airflow.providers.celery.executors import celery_executor_utils
+    from airflow.executors import celery_executor_utils
 
     broker_url = broker_url or conf.get("celery", "BROKER_URL")
     execute = execute or celery_executor_utils.execute_command.__wrapped__
@@ -69,10 +69,8 @@ def _prepare_app(broker_url=None, execute=None):
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
-    patch_app = mock.patch("airflow.providers.celery.executors.celery_executor.app", test_app)
-    patch_execute = mock.patch(
-        "airflow.providers.celery.executors.celery_executor_utils.execute_command", test_execute
-    )
+    patch_app = mock.patch("airflow.executors.celery_executor.app", test_app)
+    patch_execute = mock.patch("airflow.executors.celery_executor_utils.execute_command", test_execute)
 
     backend = test_app.backend
 
@@ -107,7 +105,7 @@ class TestCeleryExecutor:
     @pytest.mark.flaky(reruns=3)
     @pytest.mark.parametrize("broker_url", _prepare_test_bodies())
     def test_celery_integration(self, broker_url):
-        from airflow.providers.celery.executors import celery_executor, celery_executor_utils
+        from airflow.executors import celery_executor, celery_executor_utils
 
         success_command = ["airflow", "tasks", "run", "true", "some_parameter"]
         fail_command = ["airflow", "version"]
@@ -166,7 +164,7 @@ class TestCeleryExecutor:
         assert executor.queued_tasks == {}
 
     def test_error_sending_task(self):
-        from airflow.providers.celery.executors import celery_executor
+        from airflow.executors import celery_executor
 
         def fake_execute_command():
             pass
@@ -194,7 +192,7 @@ class TestCeleryExecutor:
 
     def test_retry_on_error_sending_task(self, caplog):
         """Test that Airflow retries publishing tasks to Celery Broker at least 3 times"""
-        from airflow.providers.celery.executors import celery_executor, celery_executor_utils
+        from airflow.executors import celery_executor, celery_executor_utils
 
         with _prepare_app(), caplog.at_level(logging.INFO), mock.patch.object(
             # Mock `with timeout()` to _instantly_ fail.
@@ -267,21 +265,19 @@ class ClassWithCustomAttributes:
 @pytest.mark.integration("celery")
 @pytest.mark.backend("mysql", "postgres")
 class TestBulkStateFetcher:
-    bulk_state_fetcher_logger = "airflow.providers.celery.executors.celery_executor_utils.BulkStateFetcher"
+    bulk_state_fetcher_logger = "airflow.executors.celery_executor_utils.BulkStateFetcher"
 
     @mock.patch(
         "celery.backends.base.BaseKeyValueStoreBackend.mget",
         return_value=[json.dumps({"status": "SUCCESS", "task_id": "123"})],
     )
     def test_should_support_kv_backend(self, mock_mget, caplog):
-        from airflow.providers.celery.executors import celery_executor, celery_executor_utils
+        from airflow.executors import celery_executor, celery_executor_utils
 
         caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
         with _prepare_app():
             mock_backend = BaseKeyValueStoreBackend(app=celery_executor.app)
-            with mock.patch(
-                "airflow.providers.celery.executors.celery_executor_utils.Celery.backend", mock_backend
-            ):
+            with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
                 caplog.clear()
                 fetcher = celery_executor_utils.BulkStateFetcher()
                 result = fetcher.get_many(
@@ -301,14 +297,12 @@ class TestBulkStateFetcher:
 
     @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
     def test_should_support_db_backend(self, mock_session, caplog):
-        from airflow.providers.celery.executors import celery_executor, celery_executor_utils
+        from airflow.executors import celery_executor, celery_executor_utils
 
         caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
         with _prepare_app():
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
-            with mock.patch(
-                "airflow.providers.celery.executors.celery_executor_utils.Celery.backend", mock_backend
-            ):
+            with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
                 caplog.clear()
                 mock_session = mock_backend.ResultSession.return_value
                 mock_session.query.return_value.filter.return_value.all.return_value = [
@@ -328,16 +322,14 @@ class TestBulkStateFetcher:
 
     @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
     def test_should_retry_db_backend(self, mock_session, caplog):
-        from airflow.providers.celery.executors import celery_executor, celery_executor_utils
+        from airflow.executors import celery_executor, celery_executor_utils
 
         caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
         from sqlalchemy.exc import DatabaseError
 
         with _prepare_app():
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
-            with mock.patch(
-                "airflow.providers.celery.executors.celery_executor_utils.Celery.backend", mock_backend
-            ):
+            with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
                 caplog.clear()
                 mock_session = mock_backend.ResultSession.return_value
                 mock_retry_db_result = mock_session.query.return_value.filter.return_value.all
@@ -364,15 +356,13 @@ class TestBulkStateFetcher:
         ]
 
     def test_should_support_base_backend(self, caplog):
-        from airflow.providers.celery.executors import celery_executor_utils
+        from airflow.executors import celery_executor_utils
 
         caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
         with _prepare_app():
             mock_backend = mock.MagicMock(autospec=BaseBackend)
 
-            with mock.patch(
-                "airflow.providers.celery.executors.celery_executor_utils.Celery.backend", mock_backend
-            ):
+            with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
                 caplog.clear()
                 fetcher = celery_executor_utils.BulkStateFetcher(1)
                 result = fetcher.get_many(

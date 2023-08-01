@@ -1051,8 +1051,7 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
             ("airflow/providers/celery/file.py",),
             {
                 "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-celery "
-                "--package-filter apache-airflow-providers-cncf-kubernetes"
+                "--package-filter apache-airflow-providers-celery"
             },
             id="Celery python files changed",
         ),
