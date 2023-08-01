@@ -183,6 +183,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
     tags: [google]
+  - integration-name: Google Cloud Batch
+    external-doc-url: https://cloud.google.com/batch
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_batch.rst
+    tags: [google]
   - integration-name: Google Cloud Dataform
     external-doc-url: https://cloud.google.com/dataform/
     how-to-guide:
@@ -612,6 +617,10 @@ operators:
   - integration-name: Google Cloud Dataform
     python-modules:
       - airflow.providers.google.cloud.operators.dataform
+  - integration-name: Google Cloud Batch
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_batch
+
 
 sensors:
   - integration-name: Google BigQuery
@@ -851,6 +860,9 @@ hooks:
   - integration-name: Google Cloud Dataform
     python-modules:
       - airflow.providers.google.cloud.hooks.dataform
+  - integration-name: Google Cloud Batch
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_batch
 
 triggers:
   - integration-name: Google BigQuery Data Transfer Service
@@ -892,6 +904,9 @@ triggers:
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.triggers.pubsub
+  - integration-name: Google Cloud
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_batch
 
 transfers:
   - source-integration-name: Presto

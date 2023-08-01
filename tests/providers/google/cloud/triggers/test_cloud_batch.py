@@ -22,17 +22,16 @@ from unittest import mock
 import pytest
 from google.cloud.batch_v1 import Job, JobStatus
 
-from airflow.providers.google.cloud.triggers.cloud_batch import \
-    CloudBatchJobFinishedTrigger
+from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
 from airflow.triggers.base import TriggerEvent
 
-JOB_NAME = 'jobName'
-PROJECT_ID = 'projectId'
-LOCATION = 'us-central1'
-GCP_CONNECTION_ID = 'gcp_connection_id'
+JOB_NAME = "jobName"
+PROJECT_ID = "projectId"
+LOCATION = "us-central1"
+GCP_CONNECTION_ID = "gcp_connection_id"
 POLL_SLEEP = 0.01
 TIMEOUT = 0.02
-IMPERSONATION_CHAIN = 'impersonation_chain'
+IMPERSONATION_CHAIN = "impersonation_chain"
 
 
 @pytest.fixture
@@ -44,7 +43,7 @@ def trigger():
         gcp_conn_id=GCP_CONNECTION_ID,
         polling_period_seconds=POLL_SLEEP,
         timeout=TIMEOUT,
-        impersonation_chain=IMPERSONATION_CHAIN
+        impersonation_chain=IMPERSONATION_CHAIN,
     )
 
 
@@ -64,13 +63,14 @@ class TestCloudBatchJobFinishedTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
-    async def test_trigger_on_success_yield_successfully(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
+    async def test_trigger_on_success_yield_successfully(
+        self, mock_hook, trigger: CloudBatchJobFinishedTrigger
+    ):
         """
-        Tests the CloudBuildCreateBuildTrigger fires once the job execution reaches a successful state.
+        Tests the CloudBatchJobFinishedTrigger fires once the job execution reaches a successful state.
         """
         state = JobStatus.State.SUCCEEDED
-        mock_hook.return_value.get_build_job.return_value = self._mock_job_with_state(
-            state)
+        mock_hook.return_value.get_batch_job.return_value = self._mock_job_with_state(state)
         generator = trigger.run()
         actual = await generator.asend(None)
         assert (
@@ -86,13 +86,14 @@ class TestCloudBatchJobFinishedTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
-    async def test_trigger_on_deleted_yield_successfully(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
+    async def test_trigger_on_deleted_yield_successfully(
+        self, mock_hook, trigger: CloudBatchJobFinishedTrigger
+    ):
         """
-        Tests the CloudBuildCreateBuildTrigger fires once the job execution reaches a successful state.
+        Tests the CloudBatchJobFinishedTrigger fires once the job execution reaches a successful state.
         """
         state = JobStatus.State.DELETION_IN_PROGRESS
-        mock_hook.return_value.get_build_job.return_value = self._mock_job_with_state(
-            state)
+        mock_hook.return_value.get_batch_job.return_value = self._mock_job_with_state(state)
         generator = trigger.run()
         actual = await generator.asend(None)
         assert (
@@ -110,11 +111,10 @@ class TestCloudBatchJobFinishedTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
     async def test_trigger_on_deleted_yield_exception(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
         """
-        Tests the CloudBuildCreateBuildTrigger fires once the job execution
+        Tests the CloudBatchJobFinishedTrigger fires once the job execution
         reaches an state with an error message.
         """
-        mock_hook.return_value.get_build_job.side_effect = Exception(
-            "Test Exception")
+        mock_hook.return_value.get_batch_job.side_effect = Exception("Test Exception")
         generator = trigger.run()
         actual = await generator.asend(None)
         assert (
@@ -131,14 +131,15 @@ class TestCloudBatchJobFinishedTrigger:
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
     async def test_trigger_timeout(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
         """
-        Tests the CloudBuildCreateBuildTrigger fires once the job execution times out with an error message.
+        Tests the CloudBatchJobFinishedTrigger fires once the job execution times out with an error message.
         """
+
         async def _mock_job(job_name):
             job = mock.MagicMock()
             job.status.state = JobStatus.State.RUNNING
             return job
 
-        mock_hook.return_value.get_build_job = _mock_job
+        mock_hook.return_value.get_batch_job = _mock_job
 
         generator = trigger.run()
         actual = await generator.asend(None)

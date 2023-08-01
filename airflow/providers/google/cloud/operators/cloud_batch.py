@@ -15,20 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import Sequence
 
 from google.api_core import operation  # type: ignore
 from google.cloud.batch_v1 import Job, Task
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models.baseoperator import BaseOperator
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchHook
-from airflow.providers.google.cloud.triggers.cloud_batch import \
-    CloudBatchJobFinishedTrigger
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
 from airflow.utils.context import Context
 
 
-class CloudBatchSubmitJobOperator(BaseOperator):
+class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
     """
     Submit a job and wait for its completion.
 
@@ -52,13 +54,7 @@ class CloudBatchSubmitJobOperator(BaseOperator):
 
     """
 
-    template_fields = (
-        'project_id',
-        'region',
-        'gcp_conn_id',
-        'impersonation_chain',
-        'job_name'
-    )
+    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
 
     def __init__(
         self,
@@ -67,11 +63,11 @@ class CloudBatchSubmitJobOperator(BaseOperator):
         job_name: str,
         job: Job,
         polling_period_seconds: float = 10,
-        timeout_seconds: Union[float, None] = None,
+        timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        deferrable: bool = False,
-        **kwargs
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.project_id = project_id
@@ -86,16 +82,15 @@ class CloudBatchSubmitJobOperator(BaseOperator):
         self.polling_period_seconds = polling_period_seconds
 
     def execute(self, context):
-        hook: CloudBatchHook = CloudBatchHook(
-            self.gcp_conn_id, self.impersonation_chain)
-        job = hook.submit_build_job(
-            job_name=self.job_name, job=self.job, region=self.region)
+        hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
+        job = hook.submit_build_job(job_name=self.job_name, job=self.job, region=self.region)
 
         if not self.deferrable:
             completed_job = hook.wait_for_job(
                 job_name=job.name,
                 polling_period_seconds=self.polling_period_seconds,
-                timeout=self.timeout_seconds)
+                timeout=self.timeout_seconds,
+            )
 
             return Job.to_dict(completed_job)
 
@@ -107,8 +102,8 @@ class CloudBatchSubmitJobOperator(BaseOperator):
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
                     location=self.region,
-                    polling_period_seconds=self.polling_period_seconds
-
+                    polling_period_seconds=self.polling_period_seconds,
+                    timeout=self.timeout_seconds,
                 ),
                 method_name="execute_complete",
             )
@@ -116,16 +111,14 @@ class CloudBatchSubmitJobOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict):
         job_status = event["status"]
         if job_status == "success":
-            hook: CloudBatchHook = CloudBatchHook(
-                self.gcp_conn_id, self.impersonation_chain)
+            hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
             job = hook.get_job(job_name=event["job_name"])
             return Job.to_dict(job)
         else:
-            raise AirflowException(
-                f"Unexpected error in the operation: {event['message']}")
+            raise AirflowException(f"Unexpected error in the operation: {event['message']}")
 
 
-class CloudBatchDeleteJobOperator(BaseOperator):
+class CloudBatchDeleteJobOperator(GoogleCloudBaseOperator):
     """
     Deletes a job and wait for the operation to be completed.
 
@@ -145,25 +138,19 @@ class CloudBatchDeleteJobOperator(BaseOperator):
 
     """
 
-    template_fields = (
-        'project_id',
-        'region',
-        'gcp_conn_id',
-        'impersonation_chain',
-        'job_name'
-    )
+    template_fields = ("project_id", "region", "gcp_conn_id", "impersonation_chain", "job_name")
 
     def __init__(
         self,
         project_id: str,
         region: str,
         job_name: str,
-        timeout: Union[float, None] = None,
+        timeout: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-      
+
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
@@ -173,13 +160,9 @@ class CloudBatchDeleteJobOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context):
-        hook: CloudBatchHook = CloudBatchHook(
-            self.gcp_conn_id, self.impersonation_chain)
+        hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
 
-        operation = hook.delete_job(
-            job_name=self.job_name,
-            region=self.region,
-            project_id=self.project_id)
+        operation = hook.delete_job(job_name=self.job_name, region=self.region, project_id=self.project_id)
 
         self._wait_for_operation(operation)
 
@@ -191,7 +174,7 @@ class CloudBatchDeleteJobOperator(BaseOperator):
             raise AirflowException(error)
 
 
-class CloudBatchListJobsOperator(BaseOperator):
+class CloudBatchListJobsOperator(GoogleCloudBaseOperator):
     """
     List Cloud Batch jobs.
 
@@ -213,10 +196,10 @@ class CloudBatchListJobsOperator(BaseOperator):
     """
 
     template_fields = (
-        'project_id',
-        'region',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "project_id",
+        "region",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -224,12 +207,12 @@ class CloudBatchListJobsOperator(BaseOperator):
         project_id: str,
         region: str,
         gcp_conn_id: str = "google_cloud_default",
-        filter: Optional[str] = None,
-        limit: Optional[int] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs
+        filter: str | None = None,
+        limit: int | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-       
+
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
@@ -238,23 +221,19 @@ class CloudBatchListJobsOperator(BaseOperator):
         self.filter = filter
         self.limit = limit
         if limit is not None and limit < 0:
-            raise AirflowException(
-                "The limit for the list jobs request should be greater or equal to zero")
+            raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
 
     def execute(self, context):
-        hook: CloudBatchHook = CloudBatchHook(
-            self.gcp_conn_id, self.impersonation_chain)
+        hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
 
         jobs_list = hook.list_jobs(
-            region=self.region,
-            project_id=self.project_id,
-            filter=self.filter,
-            limit=self.limit)
+            region=self.region, project_id=self.project_id, filter=self.filter, limit=self.limit
+        )
 
         return [Job.to_dict(job) for job in jobs_list]
 
 
-class CloudBatchListTasksOperator(BaseOperator):
+class CloudBatchListTasksOperator(GoogleCloudBaseOperator):
     """
     List Cloud Batch tasks for a given job.
 
@@ -277,14 +256,7 @@ class CloudBatchListTasksOperator(BaseOperator):
 
     """
 
-    template_fields = (
-        'project_id',
-        'region',
-        'job_name'
-        'gcp_conn_id',
-        'impersonation_chain',
-        'group_name'
-    )
+    template_fields = ("project_id", "region", "job_name", "gcp_conn_id", "impersonation_chain", "group_name")
 
     def __init__(
         self,
@@ -292,11 +264,11 @@ class CloudBatchListTasksOperator(BaseOperator):
         region: str,
         job_name: str,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        group_name: str = 'group0',
-        filter: Optional[str] = None,
-        limit: Optional[int] = None,
-        **kwargs
+        impersonation_chain: str | Sequence[str] | None = None,
+        group_name: str = "group0",
+        filter: str | None = None,
+        limit: int | None = None,
+        **kwargs,
     ) -> None:
 
         super().__init__(**kwargs)
@@ -309,12 +281,10 @@ class CloudBatchListTasksOperator(BaseOperator):
         self.filter = filter
         self.limit = limit
         if limit is not None and limit < 0:
-            raise AirflowException(
-                "The limit for the list jobs request should be greater or equal to zero")
+            raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
 
     def execute(self, context):
-        hook: CloudBatchHook = CloudBatchHook(
-            self.gcp_conn_id, self.impersonation_chain)
+        hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
 
         tasks_list = hook.list_tasks(
             region=self.region,
@@ -322,6 +292,7 @@ class CloudBatchListTasksOperator(BaseOperator):
             job_name=self.job_name,
             group_name=self.group_name,
             filter=self.filter,
-            limit=self.limit)
+            limit=self.limit,
+        )
 
         return [Task.to_dict(task) for task in tasks_list]
