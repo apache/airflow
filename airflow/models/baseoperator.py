@@ -806,8 +806,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
-        FailStopDagInvalidTriggerRule.check(dag=dag, trigger_rule=TriggerRule(trigger_rule))
-
         self.task_id = task_group.child_id(task_id) if task_group else task_id
         if not self.__from_mapped and task_group:
             task_group.add(self)
@@ -871,6 +869,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"The trigger_rule must be one of {TriggerRule.all_triggers()},"
                 f"'{dag.dag_id if dag else ''}.{task_id}'; received '{trigger_rule}'."
             )
+
+        FailStopDagInvalidTriggerRule.check(dag=dag, trigger_rule=TriggerRule(trigger_rule))
 
         self.trigger_rule: TriggerRule = TriggerRule(trigger_rule)
         self.depends_on_past: bool = depends_on_past
