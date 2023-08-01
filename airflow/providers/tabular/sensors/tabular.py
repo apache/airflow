@@ -80,14 +80,14 @@ class TabularVttsSensor(BaseSensorOperator):
         for _ in range(self.num_snapshots):
             if vtts := snapshot.summary.additional_properties.get(PROPERTY_KEY_VTTS):
                 dt = datetime.fromtimestamp(int(vtts) / 1000.0)
-                self.log.info(f"Found VTTS: {dt}")
+                self.log.info("Found VTTS: %s", dt)
                 diff = int((dt - datetime.now()).total_seconds())
 
                 if diff < 0:
-                    self.log.info(f"VTTS passed {abs(diff)} seconds ago")
+                    self.log.info("VTTS passed %s seconds ago", abs(diff))
                     return True
                 else:
-                    self.log.info(f"Waiting on VTTS, lagging {diff} seconds behind")
+                    self.log.info("Waiting on VTTS, lagging %s seconds behind", diff)
                     return False
             else:
                 self.log.warning(

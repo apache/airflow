@@ -43,6 +43,8 @@ hooks:
   - integration-name: Tabular
     python-modules:
       - airflow.providers.tabular.hooks.tabular
+      - airflow.providers.tabular.sensors.tabular
+
 
 connection-types:
   - hook-class-name: airflow.providers.tabular.hooks.tabular.TabularHook
