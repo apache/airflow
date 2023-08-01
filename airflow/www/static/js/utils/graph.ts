@@ -54,7 +54,7 @@ export function getTextWidth(text: string, font: string) {
   return text.length * 9;
 }
 
-const getDirection = (arrange: string) => {
+export const getDirection = (arrange: string) => {
   switch (arrange) {
     case "RL":
       return "LEFT";

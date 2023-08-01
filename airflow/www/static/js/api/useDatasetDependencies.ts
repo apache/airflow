@@ -22,22 +22,21 @@ import { useQuery } from "react-query";
 import ELK, { ElkShape, ElkExtendedEdge } from "elkjs";
 
 import { getMetaValue } from "src/utils";
-import { getTextWidth } from "src/utils/graph";
+import { getDirection, getTextWidth } from "src/utils/graph";
 
 import type { NodeType, DepEdge, DepNode } from "src/types";
 
 interface DatasetDependencies {
   edges: DepEdge[];
   nodes: DepNode[];
+  arrange?: string;
 }
 
 interface EdgeGroup {
   edges: DepEdge[];
 }
 
-interface GenerateProps {
-  nodes: DepNode[];
-  edges: DepEdge[];
+interface GenerateProps extends DatasetDependencies {
   font: string;
 }
 
@@ -51,7 +50,7 @@ interface Data {
   subGraphs: Graph[];
 }
 
-const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
+const generateGraph = ({ nodes, edges, font, arrange }: GenerateProps) => ({
   id: "root",
   layoutOptions: {
     "spacing.nodeNodeBetweenLayers": "40.0",
@@ -63,7 +62,8 @@ const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
     "spacing.edgeNode": "10.0",
     "spacing.edgeEdge": "10.0",
     "spacing.nodeNode": "20.0",
-    "elk.direction": "DOWN",
+    "elk.direction": arrange ? getDirection(arrange) : "DOWN",
+    "elk.padding": "[top=65, left=10]",
   },
   children: nodes.map(({ id, value }) => ({
     id,

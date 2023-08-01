@@ -19,7 +19,7 @@
 
 import React from "react";
 import { Flex, Box, Text } from "@chakra-ui/react";
-import { MdOutlineAccountTree } from "react-icons/md";
+import { MdOutlineAccountTree, MdPlayArrow, MdSensors } from "react-icons/md";
 import { HiDatabase } from "react-icons/hi";
 
 const Legend = () => (
@@ -29,15 +29,24 @@ const Legend = () => (
     borderColor="gray.200"
     borderWidth={1}
     fontSize={14}
+    boxShadow="base"
   >
     <Flex>
       <Flex mr={2} alignItems="center">
         <MdOutlineAccountTree size="14px" />
         <Text ml={1}>DAG</Text>
       </Flex>
-      <Flex alignItems="center">
+      <Flex mr={2} alignItems="center">
         <HiDatabase size="14px" />
         <Text ml={1}>Dataset</Text>
+      </Flex>
+      <Flex mr={2} alignItems="center">
+        <MdSensors size="14px" />
+        <Text ml={1}>Sensor</Text>
+      </Flex>
+      <Flex alignItems="center">
+        <MdPlayArrow size="14px" />
+        <Text ml={1}>Trigger</Text>
       </Flex>
     </Flex>
   </Box>

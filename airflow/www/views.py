@@ -1029,10 +1029,10 @@ class Airflow(AirflowBaseView):
             dataset_triggered_next_run_info=dataset_triggered_next_run_info,
         )
 
-    @expose("/datasets")
-    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
+    @expose("/dag-dependencies")
+    @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES)])
     def datasets(self):
-        """Datasets view."""
+        """DAG Dependencies view."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(
@@ -3937,25 +3937,30 @@ class Airflow(AirflowBaseView):
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
             if dag_node_id not in nodes_dict and len(dependencies) > 0:
+                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
                 for dep in dependencies:
-                    if dep.dependency_type == "dag" or dep.dependency_type == "dataset":
-                        nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
-                        if dep.node_id not in nodes_dict:
-                            nodes_dict[dep.node_id] = node_dict(
-                                dep.node_id, dep.dependency_id, dep.dependency_type
+                    if dep.dependency_type != "dataset":
+                        if f"dag:{dep.source}" not in nodes_dict:
+                            nodes_dict[f"dag:{dep.source}"] = node_dict(
+                                f"dag:{dep.source}", dep.source, "dag"
                             )
-                        if dep.source != "dataset":
-                            edge_tuples.add((f"dag:{dep.source}", dep.node_id))
-                        if dep.target != "dataset":
-                            edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
+                        if f"dag:{dep.target}" not in nodes_dict:
+                            nodes_dict[f"dag:{dep.target}"] = node_dict(
+                                f"dag:{dep.target}", dep.target, "dag"
+                            )
+                    if dep.node_id not in nodes_dict:
+                        nodes_dict[dep.node_id] = node_dict(
+                            dep.node_id, dep.dependency_id, dep.dependency_type
+                        )
+                    if dep.source != "dataset":
+                        edge_tuples.add((f"dag:{dep.source}", dep.node_id))
+                    if dep.target != "dataset":
+                        edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
 
         nodes = list(nodes_dict.values())
         edges = [{"source": source, "target": target} for source, target in edge_tuples]
 
-        data = {
-            "nodes": nodes,
-            "edges": edges,
-        }
+        data = {"nodes": nodes, "edges": edges, "arrange": conf.get("webserver", "dag_orientation")}
 
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
@@ -4141,6 +4146,17 @@ class Airflow(AirflowBaseView):
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
         )
+
+    @expose("/datasets")
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        ]
+    )
+    @gzipped
+    @action_logging
+    def list(self):
+        return redirect(url_for("Airflow.datasets", **sanitize_args(request.args)))
 
 
 class ConfigurationView(AirflowBaseView):
@@ -5925,71 +5941,6 @@ class AutocompleteView(AirflowBaseView):
             for row in session.execute(dag_ids_query.union(owners_query).order_by("name").limit(10))
         ]
         return flask.json.jsonify(payload)
-
-
-class DagDependenciesView(AirflowBaseView):
-    """View to show dependencies between DAGs."""
-
-    refresh_interval = datetime.timedelta(
-        seconds=conf.getint(
-            "webserver",
-            "dag_dependencies_refresh_interval",
-            fallback=conf.getint("scheduler", "dag_dir_list_interval"),
-        )
-    )
-    last_refresh = timezone.utcnow() - refresh_interval
-    nodes: list[dict[str, Any]] = []
-    edges: list[dict[str, str]] = []
-
-    @expose("/dag-dependencies")
-    @auth.has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
-        ]
-    )
-    @gzipped
-    @action_logging
-    def list(self):
-        """Display DAG dependencies."""
-        title = "DAG Dependencies"
-
-        if not self.nodes or not self.edges:
-            self._calculate_graph()
-            self.last_refresh = timezone.utcnow()
-        elif timezone.utcnow() > self.last_refresh + self.refresh_interval:
-            max_last_updated = SerializedDagModel.get_max_last_updated_datetime()
-            if max_last_updated is None or max_last_updated > self.last_refresh:
-                self._calculate_graph()
-            self.last_refresh = timezone.utcnow()
-
-        return self.render_template(
-            "airflow/dag_dependencies.html",
-            title=title,
-            nodes=self.nodes,
-            edges=self.edges,
-            last_refresh=self.last_refresh,
-            arrange=conf.get("webserver", "dag_orientation"),
-            width=request.args.get("width", "100%"),
-            height=request.args.get("height", "800"),
-        )
-
-    def _calculate_graph(self):
-        nodes_dict: dict[str, Any] = {}
-        edge_tuples: set[dict[str, str]] = set()
-
-        for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
-            dag_node_id = f"dag:{dag}"
-            if dag_node_id not in nodes_dict:
-                nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
-
-            for dep in dependencies:
-                if dep.node_id not in nodes_dict:
-                    nodes_dict[dep.node_id] = node_dict(dep.node_id, dep.dependency_id, dep.dependency_type)
-                edge_tuples.add((f"dag:{dep.source}", dep.node_id))
-                edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
-
-        self.nodes = list(nodes_dict.values())
-        self.edges = [{"u": u, "v": v} for u, v in edge_tuples]
 
 
 def add_user_permissions_to_dag(sender, template, context, **extra):
