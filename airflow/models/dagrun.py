@@ -696,7 +696,7 @@ class DagRun(Base, LoggingMixin):
                     msg="all_tasks_deadlocked",
                 )
 
-        # finally, if the roots aren't done, the dag is still running
+        # finally, if the leaves aren't done, the dag is still running
         else:
             self.set_state(DagRunState.RUNNING)
 

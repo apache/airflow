@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,37 +16,36 @@
 # specific language governing permissions and limitations
 # under the License.
 
----
-package-name: apache-airflow-providers-apprise
+"""Add is_setup to task_instance
 
-name: Apprise
+Revision ID: 0646b768db47
+Revises: 788397e78828
+Create Date: 2023-07-24 10:12:07.630608
 
-description: |
-    `Apprise <https://github.com/caronc/apprise>`__
+"""
 
-suspended: false
+import sqlalchemy as sa
+from alembic import op
 
-versions:
-  - 1.0.1
-  - 1.0.0
 
-integrations:
-  - integration-name: Apprise
-    external-doc-url: https://github.com/caronc/apprise
-    tags: [software]
+# revision identifiers, used by Alembic.
+revision = "0646b768db47"
+down_revision = "788397e78828"
+branch_labels = None
+depends_on = None
+airflow_version = "2.7.0"
 
-dependencies:
-  - apache-airflow>=2.4.0
-  - apprise
 
-hooks:
-  - integration-name: Apprise
-    python-modules:
-      - airflow.providers.apprise.hooks.apprise
+TABLE_NAME = "task_instance"
 
-connection-types:
-  - hook-class-name: airflow.providers.apprise.hooks.apprise.AppriseHook
-    connection-type: apprise
 
-notifications:
-  - airflow.providers.apprise.notifications.apprise.AppriseNotifier
+def upgrade():
+    """Apply is_setup column to task_instance"""
+    with op.batch_alter_table(TABLE_NAME) as batch_op:
+        batch_op.add_column(sa.Column("is_setup", sa.Boolean(), nullable=False, server_default="0"))
+
+
+def downgrade():
+    """Remove is_setup column from task_instance"""
+    with op.batch_alter_table(TABLE_NAME) as batch_op:
+        batch_op.drop_column("is_setup", mssql_drop_default=True)

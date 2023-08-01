@@ -41,6 +41,7 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -419,6 +420,7 @@ class TaskInstance(Base, LoggingMixin):
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
+    is_setup = Column(Boolean, nullable=False, default=False, server_default="0")
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
@@ -577,6 +579,7 @@ class TaskInstance(Base, LoggingMixin):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
+            "is_setup": task.is_setup,
         }
 
     @reconstructor
@@ -875,6 +878,7 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
+            self.is_setup = ti.is_setup
         else:
             self.state = None
 
@@ -896,6 +900,7 @@ class TaskInstance(Base, LoggingMixin):
         self.executor_config = task.executor_config
         self.operator = task.task_type
         self.custom_operator_name = getattr(task, "custom_operator_name", None)
+        self.is_setup = task.is_setup
 
     @provide_session
     def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
@@ -1578,11 +1583,13 @@ class TaskInstance(Base, LoggingMixin):
             session.merge(self).task = self.task
             if self.state == TaskInstanceState.SUCCESS:
                 self._register_dataset_changes(session=session)
+
+            session.commit()
+            if self.state == TaskInstanceState.SUCCESS:
                 get_listener_manager().hook.on_task_instance_success(
                     previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
                 )
 
-            session.commit()
         return None
 
     def _register_dataset_changes(self, *, session: Session) -> None:

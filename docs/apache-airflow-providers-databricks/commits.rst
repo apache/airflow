@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.2
+.....
+
+Latest change: 2023-07-25
+
+=================================================================================================  ===========  ==========================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================================================
+`58e21c66fd <https://github.com/apache/airflow/commit/58e21c66fdcc8a416a697b4efa852473ad8bd6fc>`_  2023-07-25   ``fix(providers/databricks): remove the execute method from to-be-deprecated DatabricksRunNowDeferrableOperator (#32806)``
+`6313e52932 <https://github.com/apache/airflow/commit/6313e5293280773aed7598e1befb8d371e8f5614>`_  2023-07-24   ``Add missing execute_complete method for 'DatabricksRunNowOperator' (#32689)``
+`60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
+=================================================================================================  ===========  ==========================================================================================================================
+
 4.3.1
 .....
 
-Latest change: 2023-07-05
+Latest change: 2023-07-06
 
 =================================================================================================  ===========  ===============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``

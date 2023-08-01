@@ -65,7 +65,6 @@ const config = {
     dagDependencies: `${JS_DIR}/dag_dependencies.js`,
     dags: [`${CSS_DIR}/dags.css`, `${JS_DIR}/dags.js`],
     flash: `${CSS_DIR}/flash.css`,
-    gantt: [`${CSS_DIR}/gantt.css`, `${JS_DIR}/gantt.js`],
     graph: [`${CSS_DIR}/graph.css`, `${JS_DIR}/graph.js`],
     loadingDots: `${CSS_DIR}/loading-dots.css`,
     main: [`${CSS_DIR}/main.css`, `${JS_DIR}/main.js`],

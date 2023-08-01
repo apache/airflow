@@ -59,7 +59,7 @@ MIN_AIRFLOW_VERSION = "2.4.0"
 # In case you have some providers that you want to have different min-airflow version for,
 # Add them as exceptions here. Make sure to remove it once the min-airflow version is bumped
 # to the same version that is required by the exceptional provider
-MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.6.0"}
+MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.7.0"}
 
 INITIAL_CHANGELOG_CONTENT = """
  .. Licensed to the Apache Software Foundation (ASF) under one

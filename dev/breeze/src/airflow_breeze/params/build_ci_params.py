@@ -99,6 +99,7 @@ class BuildCiParams(CommonBuildParams):
             "additional_pip_install_flags",
             "additional_python_deps",
             "version_suffix_for_pypi",
+            "commit_sha",
         ]
 
     def __post_init__(self):

@@ -240,3 +240,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
+
+    @staticmethod
+    def get_cli_commands() -> list:
+        return KubernetesExecutor.get_cli_commands()

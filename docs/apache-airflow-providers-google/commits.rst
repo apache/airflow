@@ -35,14 +35,43 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.5.0
+......
+
+Latest change: 2023-07-29
+
+=================================================================================================  ===========  =======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================
+`81b85ebcbd <https://github.com/apache/airflow/commit/81b85ebcbd241e1909793d7480aabc81777b225c>`_  2023-07-29   ``Fix 'BigQueryInsertJobOperator' not exiting deferred state (#31591)``
+`9d68492f87 <https://github.com/apache/airflow/commit/9d68492f875464f505afef2ecd81a28d8e4922b8>`_  2023-07-27   ``misc: update MLEngine system tests (#32881)``
+`b73366799d <https://github.com/apache/airflow/commit/b73366799d98195a5ccc49a2008932186c4763b5>`_  2023-07-27   ``openlineage, gcs: add openlineage methods for GcsToGcsOperator (#31350)``
+`583f407c54 <https://github.com/apache/airflow/commit/583f407c54a6683247a6b8a3aed75a184f8a92c6>`_  2023-07-26   ``Fixup docstring for deprecated DataprocSubmitSparkJobOperator and refactoring system tests (#32743)``
+`4c2ef99772 <https://github.com/apache/airflow/commit/4c2ef99772203936cdb6387f099a64ec9aa736f2>`_  2023-07-26   ``Add Spot Instances support with Dataproc Operators (#31644)``
+`82e6226738 <https://github.com/apache/airflow/commit/82e6226738bcf7f3981c5b8db714a849c26a6962>`_  2023-07-23   ``Fix Datafusion system tests (#32749)``
+`0fbb05a459 <https://github.com/apache/airflow/commit/0fbb05a459f62a14896aa5d863685b449ab3e442>`_  2023-07-21   ``Fixup system test for DataprocSubmitJobOperator (SparkSQL job) (#32745)``
+`fbeddc3017 <https://github.com/apache/airflow/commit/fbeddc30178eec7bddbafc1d560ff1eb812ae37a>`_  2023-07-21   ``Fixup docstring for deprecated DataprocSubmitPigJobOperator (#32739)``
+`440c9eb2b4 <https://github.com/apache/airflow/commit/440c9eb2b4c834d040584a492e23ff4f1212f7f0>`_  2023-07-21   ``Fixup system test for DataprocSubmitJobOperator (PySpark job) (#32740)``
+`49921763eb <https://github.com/apache/airflow/commit/49921763eb15f68f91da826a86690ba4c4155c35>`_  2023-07-21   ``Migrate system test for PostgresToGCSOperator to new design AIP-47 (#32641)``
+`978adb309a <https://github.com/apache/airflow/commit/978adb309aee755df02aadab72fdafb61bec5c80>`_  2023-07-21   ``Install sqlalchemy-spanner package into Google provider (#31925)``
+`99b8a90346 <https://github.com/apache/airflow/commit/99b8a90346b8826756ac165b73464a701e2c33aa>`_  2023-07-20   ``Filtering and ordering results of DataprocListBatchesOperator (#32500)``
+`3c14753b03 <https://github.com/apache/airflow/commit/3c14753b03872b259ce2248eda92f7fb6f4d751b>`_  2023-07-20   ``Fix BigQueryGetDataOperator where project_id is not being respected in deferrable mode (#32488)``
+`e8287734cb <https://github.com/apache/airflow/commit/e8287734cbc29d45eeab565936afe8c9eb2e5340>`_  2023-07-20   ``Fixup docstring for deprecated DataprocSubmitHiveJobOperator (#32723)``
+`8b7ae76026 <https://github.com/apache/airflow/commit/8b7ae760261109f1bfa6c60abbbc9803bd93bb74>`_  2023-07-20   ``Fixup docs and optimize system test for DataprocSubmitJobOperator (Hadoop job) (#32722)``
+`848c69a194 <https://github.com/apache/airflow/commit/848c69a194c03ed3a5badc909e26b5c1bda03050>`_  2023-07-20   ``Refresh GKE OAuth2 tokens (#32673)``
+`60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
+`e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
+=================================================================================================  ===========  =======================================================================================================
+
 10.4.0
 ......
 
-Latest change: 2023-07-11
+Latest change: 2023-07-12
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`e7f59a913e <https://github.com/apache/airflow/commit/e7f59a913e1fcf9052e69f62af9fe23901f1a358>`_  2023-07-12   ``Prepare docs for July 2023 2nd wave of Providers (#32566)``
 `2ad91a7808 <https://github.com/apache/airflow/commit/2ad91a7808e97a70386513e016bdc08dbb8b72d0>`_  2023-07-11   ``Bugfix GCSToGCSOperator when copy files to folder without wildcard (#32486)``
 `86c6cc9a9a <https://github.com/apache/airflow/commit/86c6cc9a9aea58dce5c7691717382d6c6911d1e1>`_  2023-07-11   ``Combine 8 into 1 (#29462)``
 `3a8da4b55b <https://github.com/apache/airflow/commit/3a8da4b55b363b5b74d78b7d481dc7544afd36cb>`_  2023-07-11   ``Allow a destination folder to be provided (#31885)``

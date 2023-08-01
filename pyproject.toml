@@ -103,6 +103,7 @@ filterwarnings = [
 ]
 python_files = [
     "test_*.py",
+    "example_*.py",
 ]
 testpaths = [
     "tests",
