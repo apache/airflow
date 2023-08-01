@@ -32,6 +32,10 @@ class EventBridgePutEventsOperator(BaseOperator):
     """
     Put Events onto Amazon EventBridge.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EventBridgePutEventsOperator`
+
     :param entries: the list of events to be put onto EventBridge, each event is a dict (required)
     :param endpoint_id: the URL subdomain of the endpoint
     :param aws_conn_id: the AWS connection to use
@@ -85,3 +89,84 @@ class EventBridgePutEventsOperator(BaseOperator):
 
         if self.do_xcom_push:
             return [e["EventId"] for e in response["Entries"]]
+
+
+class EventBridgePutRuleOperator(BaseOperator):
+    """
+    Create or update a specified EventBridge rule.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EventBridgePutRuleOperator`
+
+    :param name: name of the rule to create or update (required)
+    :param description: description of the rule
+    :param event_bus_name: name or ARN of the event bus to associate with this rule
+    :param event_pattern: pattern of events to be matched to this rule
+    :param role_arn: the Amazon Resource Name of the IAM role associated with the rule
+    :param schedule_expression: the scheduling expression (for example, a cron or rate expression)
+    :param state: indicates whether rule is set to be "ENABLED" or "DISABLED"
+    :param tags: list of key-value pairs to associate with the rule
+    :param region: the region where rule is to be created or updated
+
+    """
+
+    template_fields: Sequence[str] = (
+        "aws_conn_id",
+        "name",
+        "description",
+        "event_bus_name",
+        "event_pattern",
+        "role_arn",
+        "schedule_expression",
+        "state",
+        "tags",
+        "region_name",
+    )
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        description: str | None = None,
+        event_bus_name: str | None = None,
+        event_pattern: str | None = None,
+        role_arn: str | None = None,
+        schedule_expression: str | None = None,
+        state: str | None = None,
+        tags: list | None = None,
+        region_name: str | None = None,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.name = name
+        self.description = description
+        self.event_bus_name = event_bus_name
+        self.event_pattern = event_pattern
+        self.role_arn = role_arn
+        self.region_name = region_name
+        self.schedule_expression = schedule_expression
+        self.state = state
+        self.tags = tags
+        self.aws_conn_id = aws_conn_id
+
+    @cached_property
+    def hook(self) -> EventBridgeHook:
+        """Create and return an EventBridgeHook."""
+        return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
+    def execute(self, context: Context):
+
+        self.log.info('Sending rule "%s" to EventBridge.', self.name)
+
+        return self.hook.put_rule(
+            name=self.name,
+            description=self.description,
+            event_bus_name=self.event_bus_name,
+            event_pattern=self.event_pattern,
+            role_arn=self.role_arn,
+            schedule_expression=self.schedule_expression,
+            state=self.state,
+            tags=self.tags,
+        )

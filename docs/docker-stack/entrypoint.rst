@@ -315,8 +315,8 @@ either as maintenance operations on the database or should be embedded in the cu
 Upgrading Airflow DB
 ....................
 
-If you set :envvar:`_AIRFLOW_DB_UPGRADE` variable to a non-empty value, the entrypoint will run
-the ``airflow db upgrade`` command right after verifying the connection. You can also use this
+If you set :envvar:`_AIRFLOW_DB_MIGRATE` variable to a non-empty value, the entrypoint will run
+the ``airflow db migrate`` command right after verifying the connection. You can also use this
 when you are running airflow with internal SQLite database (default) to upgrade the db and create
 admin users at entrypoint, so that you can start the webserver immediately. Note - using SQLite is
 intended only for testing purpose, never use SQLite in production as it has severe limitations when it
@@ -360,7 +360,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
 .. code-block:: bash
 
   docker run -it -p 8080:8080 \
-    --env "_AIRFLOW_DB_UPGRADE=true" \
+    --env "_AIRFLOW_DB_MIGRATE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
       apache/airflow:2.7.0.dev0-python3.8 webserver
@@ -369,7 +369,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
 .. code-block:: bash
 
   docker run -it -p 8080:8080 \
-    --env "_AIRFLOW_DB_UPGRADE=true" \
+    --env "_AIRFLOW_DB_MIGRATE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
       apache/airflow:2.7.0.dev0-python3.8 webserver
@@ -409,7 +409,7 @@ Example:
 
   docker run -it -p 8080:8080 \
     --env "_PIP_ADDITIONAL_REQUIREMENTS=lxml==4.6.3 charset-normalizer==1.4.1" \
-    --env "_AIRFLOW_DB_UPGRADE=true" \
+    --env "_AIRFLOW_DB_MIGRATE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
       apache/airflow:2.7.0.dev0-python3.8 webserver

@@ -228,7 +228,7 @@
   "asana": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "asana>=0.10"
+      "asana>=0.10,<4.0.0"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []
