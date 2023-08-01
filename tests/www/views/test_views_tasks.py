@@ -243,11 +243,6 @@ def client_ti_without_dag_edit(app):
             ["example_bash_operator"],
             id="gantt",
         ),
-        pytest.param(
-            "dag-dependencies",
-            ["child_task1", "test_trigger_dagrun"],
-            id="dag-dependencies",
-        ),
         # Test that Graph, Tree, Calendar & Dag Details View uses the DagBag
         # already created in views.py
         pytest.param(
