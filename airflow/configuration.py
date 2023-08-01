@@ -46,7 +46,9 @@ from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
+from airflow.utils.empty_set import _get_empty_set_for_configuration
 from airflow.utils.module_loading import import_string
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.weight_rule import WeightRule
 
 log = logging.getLogger(__name__)
@@ -64,8 +66,6 @@ ConfigSectionSourcesType = Dict[str, Union[str, Tuple[str, str]]]
 ConfigSourcesType = Dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
-
-EMPTY_SET: Set[tuple[str, str]] = set()  # noqa: UP006
 
 
 def _parse_sqlite_version(s: str) -> tuple[int, ...]:
@@ -162,7 +162,6 @@ def retrieve_configuration_description(
     :param include_airflow: Include Airflow configs
     :param include_providers: Include provider configs
     :param selected_provider: If specified, include selected provider only
-    :param config_file_name: name of the file in "config_templates" directory to read default config from
     :return: Python dictionary containing configs & their info
     """
     base_configuration_description: dict[str, dict[str, Any]] = {}
@@ -207,6 +206,7 @@ class AirflowConfigParser(ConfigParser):
         # interpolation placeholders. The _default_values config parser will interpolate them
         # properly when we call get() on it.
         self._default_values = create_default_config_parser(self.configuration_description)
+        self._pre_2_7_default_values = create_pre_2_7_defaults()
         if default_config is not None:
             self._update_defaults_from_string(default_config)
         self._update_logging_deprecated_template_to_one_from_defaults()
@@ -286,6 +286,10 @@ class AirflowConfigParser(ConfigParser):
             return value.replace("%", "%%")
         return value
 
+    def get_default_pre_2_7_value(self, section: str, key: str, **kwargs) -> Any:
+        """Get pre 2.7 default config values."""
+        return self._pre_2_7_default_values.get(section, key, fallback=None, **kwargs)
+
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}_cmd" pattern, the idea behind this
     # is to not store password on boxes in text files.
@@ -294,7 +298,9 @@ class AirflowConfigParser(ConfigParser):
     @functools.cached_property
     def sensitive_config_values(self) -> Set[tuple[str, str]]:  # noqa: UP006
         if self.configuration_description is None:
-            return EMPTY_SET.copy()  # we can't use set() here because set is defined below # ¯\_(ツ)_/¯
+            return (
+                _get_empty_set_for_configuration()
+            )  # we can't use set() here because set is defined below # ¯\_(ツ)_/¯
         flattened = {
             (s, k): item
             for s, s_c in self.configuration_description.items()
@@ -1042,6 +1048,11 @@ class AirflowConfigParser(ConfigParser):
         # ...then the default config
         if self.get_default_value(section, key) is not None or "fallback" in kwargs:
             return expand_env_var(self.get_default_value(section, key, **kwargs))
+
+        if self.get_default_pre_2_7_value(section, key) is not None:
+            # no expansion needed
+            return self.get_default_pre_2_7_value(section, key, **kwargs)
+
         if not suppress_warnings:
             log.warning("section/key [%s/%s] not found in config", section, key)
 
@@ -1401,7 +1412,10 @@ class AirflowConfigParser(ConfigParser):
                 )
 
         config_sources: ConfigSourcesType = {}
+
+        # We check sequentially all those sources and the last one we saw it in will "win"
         configs: Iterable[tuple[str, ConfigParser]] = [
+            ("default-pre-2-7", self._pre_2_7_default_values),
             ("default", self._default_values),
             ("airflow.cfg", self),
         ]
@@ -1734,6 +1748,7 @@ class AirflowConfigParser(ConfigParser):
             if display_source:
                 updated_source_name = source_name
                 if source_name == "default":
+                    # defaults can come from other sources (default-<PROVIDER>) that should be used here
                     source_description_section = configuration_description.get(section, {})
                     source_description_key = source_description_section.get("options", {}).get(k, {})
                     if source_description_key is not None:
@@ -1928,7 +1943,19 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     return parser
 
 
-def write_default_airflow_configuration_if_needed():
+def create_pre_2_7_defaults() -> ConfigParser:
+    """
+    Creates parser using the old defaults from Airflow < 2.7.0, in order to be able to fall-back to those
+    defaults when old version of provider, not supporting "config contribution" is installed with Airflow
+    2.7.0+. This "default" configuration does not support variable expansion, those are pretty much
+    hard-coded defaults we want to fall-back to in such case.
+    """
+    config_parser = ConfigParser()
+    config_parser.read(_default_config_file_path("pre_2_7_defaults.cfg"))
+    return config_parser
+
+
+def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
     if not os.path.isfile(AIRFLOW_CONFIG):
         log.debug("Creating new Airflow config file in: %s", AIRFLOW_CONFIG)
         pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
@@ -1949,6 +1976,7 @@ def write_default_airflow_configuration_if_needed():
                 only_defaults=True,
             )
         make_group_other_inaccessible(AIRFLOW_CONFIG)
+    return conf
 
 
 def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigParser):
@@ -1992,7 +2020,6 @@ def initialize_config() -> AirflowConfigParser:
 
     Called for you automatically as part of the Airflow boot process.
     """
-    global WEBSERVER_CONFIG
     airflow_config_parser = AirflowConfigParser()
     if airflow_config_parser.getboolean("core", "unit_test_mode"):
         airflow_config_parser.load_test_config()
@@ -2003,15 +2030,21 @@ def initialize_config() -> AirflowConfigParser:
         # file on top of it.
         if airflow_config_parser.getboolean("core", "unit_test_mode"):
             airflow_config_parser.load_test_config()
-
+    # Set the WEBSERVER_CONFIG variable
+    global WEBSERVER_CONFIG
     WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
-    if not os.path.isfile(WEBSERVER_CONFIG):
+    return airflow_config_parser
+
+
+@providers_configuration_loaded
+def write_webserver_configuration_if_needed(airflow_config_parser: AirflowConfigParser):
+    webserver_config = airflow_config_parser.get("webserver", "config_file")
+    if not os.path.isfile(webserver_config):
         import shutil
 
-        pathlib.Path(WEBSERVER_CONFIG).parent.mkdir(parents=True, exist_ok=True)
-        log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
-        shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
-    return airflow_config_parser
+        pathlib.Path(webserver_config).parent.mkdir(parents=True, exist_ok=True)
+        log.info("Creating new FAB webserver config file in: %s", webserver_config)
+        shutil.copy(_default_config_file_path("default_webserver_config.py"), webserver_config)
 
 
 def make_group_other_inaccessible(file_path: str):
@@ -2203,6 +2236,39 @@ def initialize_secrets_backends() -> list[BaseSecretsBackend]:
     return backend_list
 
 
+@functools.lru_cache(maxsize=None)
+def _DEFAULT_CONFIG() -> str:
+    path = _default_config_file_path("default_airflow.cfg")
+    with open(path) as fh:
+        return fh.read()
+
+
+@functools.lru_cache(maxsize=None)
+def _TEST_CONFIG() -> str:
+    path = _default_config_file_path("default_test.cfg")
+    with open(path) as fh:
+        return fh.read()
+
+
+_deprecated = {
+    "DEFAULT_CONFIG": _DEFAULT_CONFIG,
+    "TEST_CONFIG": _TEST_CONFIG,
+    "TEST_CONFIG_FILE_PATH": functools.partial(_default_config_file_path, "default_test.cfg"),
+    "DEFAULT_CONFIG_FILE_PATH": functools.partial(_default_config_file_path, "default_airflow.cfg"),
+}
+
+
+def __getattr__(name):
+    if name in _deprecated:
+        warnings.warn(
+            f"{__name__}.{name} is deprecated and will be removed in future",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return _deprecated[name]()
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
 def initialize_auth_manager() -> BaseAuthManager:
     """
     Initialize auth manager.
@@ -2249,7 +2315,6 @@ SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 FERNET_KEY = ""  # Set only if needed when generating a new file
 WEBSERVER_CONFIG = ""  # Set by initialize_config
 
-conf = initialize_config()
+conf: AirflowConfigParser = initialize_config()
 secrets_backend_list = initialize_secrets_backends()
-auth_manager = initialize_auth_manager()
 conf.validate()

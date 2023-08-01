@@ -58,6 +58,7 @@ export default function useDatasets({
       const updatedAfterParam =
         updatedAfter && updatedAfter.count && updatedAfter.unit
           ? {
+              // @ts-ignore
               updated_after: moment()
                 .subtract(updatedAfter.count, updatedAfter.unit)
                 .toISOString(),

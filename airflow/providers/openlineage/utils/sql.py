@@ -23,10 +23,9 @@ from enum import IntEnum
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from attrs import define
-from sqlalchemy import Column, MetaData, Table, and_, union_all
-
 from openlineage.client.facet import SchemaDatasetFacet, SchemaField
 from openlineage.client.run import Dataset
+from sqlalchemy import Column, MetaData, Table, and_, union_all
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine

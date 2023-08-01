@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 from functools import cached_property
@@ -62,6 +63,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         **kwargs,
     ) -> None:
         super().__init__(base_log_folder, filename_template)
+        self.handler: logging.FileHandler | None = None
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
         self.log_relative_path = ""

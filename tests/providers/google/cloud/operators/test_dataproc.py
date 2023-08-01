@@ -114,6 +114,7 @@ CONFIG = {
         "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
         "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
         "is_preemptible": True,
+        "preemptibility": "SPOT",
     },
     "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
     "lifecycle_config": {
@@ -174,6 +175,7 @@ CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
         "machine_type_uri": "projects/project_id/zones/zone/machineTypes/worker_machine_type",
         "disk_config": {"boot_disk_type": "worker_disk_type", "boot_disk_size_gb": 256},
         "is_preemptible": True,
+        "preemptibility": "SPOT",
     },
     "software_config": {"properties": {"properties": "data"}, "optional_components": ["optional_components"]},
     "lifecycle_config": {
@@ -372,6 +374,7 @@ class TestsClusterGenerator:
             worker_disk_type="worker_disk_type",
             worker_disk_size=256,
             num_preemptible_workers=4,
+            preemptibility="Spot",
             region="region",
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],
@@ -409,6 +412,7 @@ class TestsClusterGenerator:
             worker_disk_type="worker_disk_type",
             worker_disk_size=256,
             num_preemptible_workers=4,
+            preemptibility="Spot",
             region="region",
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],

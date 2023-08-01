@@ -89,6 +89,14 @@ class TestSQLParser:
             is_cross_db=True,
         ) == {"db": {"schema1": ["Table2"]}, "db2": {"schema1": ["Table1"]}}
 
+        # cross db, no db & schema parsed
+        assert SQLParser._get_tables_hierarchy(
+            [DbTableMeta("Table1"), DbTableMeta("Table2")],
+            normalize_name_lower,
+            database="Db",
+            is_cross_db=True,
+        ) == {"db": {None: ["Table1", "Table2"]}}
+
     def test_normalize_sql(self):
         assert SQLParser.normalize_sql("select * from asdf") == "select * from asdf"
 

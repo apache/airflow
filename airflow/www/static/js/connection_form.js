@@ -202,6 +202,21 @@ $(document).ready(() => {
     $("form#model_form div.well.well-sm button:submit")
   );
 
+  // Change conn.extra TextArea widget to CodeMirror
+  const textArea = document.getElementById("extra");
+  const editor = CodeMirror.fromTextArea(textArea, {
+    mode: { name: "javascript", json: true },
+    gutters: ["CodeMirror-lint-markers"],
+    lineWrapping: true,
+    lint: true,
+  });
+
+  // beautify JSON
+  const jsonData = editor.getValue();
+  const parsedData = JSON.parse(jsonData);
+  const formattedData = JSON.stringify(parsedData, null, 2);
+  editor.setValue(formattedData);
+
   /**
    * Changes the connection type.
    * @param {string} connType The connection type to change to.
@@ -296,6 +311,8 @@ $(document).ready(() => {
         // payload.
         if (this.name === "extra") {
           let extra;
+          // save the contents of the CodeMirror editor to the textArea
+          editor.save();
           try {
             extra = JSON.parse(this.value);
           } catch (e) {
@@ -353,19 +370,4 @@ $(document).ready(() => {
 
   // Initialize the form by setting a connection type.
   changeConnType(connTypeElem.value);
-
-  // Change conn.extra TextArea widget to CodeMirror
-  const textArea = document.getElementById("extra");
-  const editor = CodeMirror.fromTextArea(textArea, {
-    mode: { name: "javascript", json: true },
-    gutters: ["CodeMirror-lint-markers"],
-    lineWrapping: true,
-    lint: true,
-  });
-
-  // beautify JSON
-  const jsonData = editor.getValue();
-  const data = JSON.parse(jsonData);
-  const formattedData = JSON.stringify(data, null, 2);
-  editor.setValue(formattedData);
 });

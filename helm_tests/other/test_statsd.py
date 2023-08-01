@@ -295,3 +295,29 @@ class TestStatsd:
             jmespath.search("spec.template.metadata.annotations", docs[0])["test_pod_annotation"]
             == "test_pod_annotation_value"
         )
+
+
+class TestStatsdServiceAccount:
+    """Tests statsd service account."""
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/statsd/statsd-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/statsd/statsd-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False

@@ -22,12 +22,6 @@ from typing import TYPE_CHECKING
 
 import requests.exceptions
 import yaml
-
-from airflow.configuration import conf
-from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
-from airflow.providers.openlineage.extractors import OperatorLineage
-from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
-from airflow.utils.log.logging_mixin import LoggingMixin
 from openlineage.client import OpenLineageClient, set_producer
 from openlineage.client.facet import (
     BaseFacet,
@@ -41,6 +35,12 @@ from openlineage.client.facet import (
     SourceCodeLocationJobFacet,
 )
 from openlineage.client.run import Job, Run, RunEvent, RunState
+
+from airflow.configuration import conf
+from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
+from airflow.providers.openlineage.extractors import OperatorLineage
+from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun

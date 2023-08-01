@@ -28,6 +28,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.2.2
+.....
+
+Latest change: 2023-07-23
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`42b4b43c4c <https://github.com/apache/airflow/commit/42b4b43c4c2ccf0b6e7eaa105c982df495768d01>`_  2023-07-23   ``Add Redis task handler (#31855)``
+`e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
+=================================================================================================  ===========  ================================================================================
+
 6.2.1
 .....
 
@@ -36,6 +48,7 @@ Latest change: 2023-07-12
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`e7f59a913e <https://github.com/apache/airflow/commit/e7f59a913e1fcf9052e69f62af9fe23901f1a358>`_  2023-07-12   ``Prepare docs for July 2023 2nd wave of Providers (#32566)``
 `fcbf15947f <https://github.com/apache/airflow/commit/fcbf15947f2f271d502bc6f4b9e3d0bada072d84>`_  2023-07-12   ``Fix breaking change when Active Directory ID is used as host in WASB (#32560)``
 `a67427af37 <https://github.com/apache/airflow/commit/a67427af3738218786f3745d9737f462c70d4233>`_  2023-07-12   ``Fix get_blobs_list_async method to return BlobProperties (#32545)``
 `c99c03135c <https://github.com/apache/airflow/commit/c99c03135ca7e7c41e1c6d338de9e41422ea84f0>`_  2023-07-08   ``D205 Support - Providers: Stragglers and new additions (#32447)``

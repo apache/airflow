@@ -137,7 +137,8 @@ class TestMySql:
             assert len(lineage_on_complete.outputs) == 1
 
 
-def test_execute_openlineage_events():
+@pytest.mark.parametrize("connection_port", [None, 1234])
+def test_execute_openlineage_events(connection_port):
     class MySqlHookForTests(MySqlHook):
         conn_name_attr = "sql_default"
         get_conn = MagicMock(name="conn")
@@ -163,7 +164,7 @@ FORGOT TO COMMENT"""
         (DB_SCHEMA_NAME, "popular_orders_day_of_week", "orders_placed", 3, "int4"),
     ]
     dbapi_hook.get_connection.return_value = Connection(
-        conn_id="mysql_default", conn_type="mysql", host="host", port=1234
+        conn_id="mysql_default", conn_type="mysql", host="host", port=connection_port
     )
     dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
 
@@ -171,7 +172,7 @@ FORGOT TO COMMENT"""
     assert len(lineage.inputs) == 0
     assert lineage.outputs == [
         Dataset(
-            namespace="mysql://host:1234",
+            namespace=f"mysql://host:{connection_port or 3306}",
             name="PUBLIC.popular_orders_day_of_week",
             facets={
                 "schema": SchemaDatasetFacet(

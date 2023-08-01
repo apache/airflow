@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Misc
+~~~~
+
+* ``Replace Ruff setting known-third-party with namespace-packages (#32873)``
+
 1.0.0
 .....
 

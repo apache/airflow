@@ -173,6 +173,7 @@ class TaskDoneTrigger(BaseTrigger):
                     )
                     # we reach this point only if the waiter met a success criteria
                     yield TriggerEvent({"status": "success", "task_arn": self.task_arn})
+                    return
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         raise

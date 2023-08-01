@@ -46,6 +46,8 @@ export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
 : "${AIRFLOW_SOURCES:?"ERROR: AIRFLOW_SOURCES not set !!!!"}"
 
+ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
+
 function wait_for_asset_compilation() {
     if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
         echo
@@ -58,7 +60,7 @@ function wait_for_asset_compilation() {
             fi
             sleep 1
             ((counter=counter+1))
-            if [[ ${counter} == "30" ]]; then
+            if [[ ${counter} == 30*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
                 echo
                 echo "${COLOR_YELLOW}The asset compilation is taking too long.${COLOR_YELLOW}"
                 echo """
@@ -67,9 +69,10 @@ If it does not complete soon, you might want to stop it and remove file lock:
    * run 'rm ${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock'
 """
             fi
-            if [[ ${counter} == "60" ]]; then
+            if [[ ${counter} == 60*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
                 echo
                 echo "${COLOR_RED}The asset compilation is taking too long. Exiting.${COLOR_RED}"
+                echo "${COLOR_RED}refer to BREEZE.rst for resolution steps.${COLOR_RED}"
                 echo
                 exit 1
             fi
