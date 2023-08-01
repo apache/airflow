@@ -40,7 +40,7 @@ from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -4493,8 +4493,13 @@ class TestSchedulerJob:
         session.refresh(ti1)
         session.refresh(ti2)
         assert ti1.state == State.SCHEDULED
-        assert ti1.next_method == "__fail__"
+        assert ti1.next_method == "__timeout__"
         assert ti2.state == State.DEFERRED
+
+        # Make sure that TI1 will fail because of the timeout and not other reasons
+        with pytest.raises(AirflowTaskTimeout):
+            ti1._run_raw_task()
+        assert ti1.state == State.FAILED
 
     def test_find_zombies_nothing(self):
         executor = MockExecutor(do_update=False)
