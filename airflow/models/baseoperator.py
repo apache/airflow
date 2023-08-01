@@ -59,7 +59,7 @@ from airflow.exceptions import (
     FailStopDagInvalidTriggerRule,
     RemovedInAirflow3Warning,
     TaskDeferralError,
-    TaskDeferred,
+    TaskDeferred, AirflowTaskTimeout,
 )
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
@@ -1575,6 +1575,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         # of its subclasses (which don't inherit from anything but BaseOperator).
         return getattr(self, "_is_empty", False)
 
+    def __trigger_timeout__(self) -> datetime | None:
+        """Returns the timeout for the trigger."""
+        if self.execution_timeout is not None:
+            return (self.start_date or timezone.utcnow()) + self.execution_timeout
+        return None
+
     def defer(
         self,
         *,
@@ -1589,18 +1595,38 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         This is achieved by raising a special exception (TaskDeferred)
         which is caught in the main _execute_task wrapper.
         """
-        raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
+        trigger_timeout: datetime | None
+
+        if timeout is not None:
+            warnings.warn(
+                "timeout parameter is deprecated, the trigger timeout is calculated automatically",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
+            trigger_timeout = timezone.utcnow() + timeout
+        else:
+            trigger_timeout = self.__trigger_timeout__()
+
+        raise TaskDeferred(
+            trigger=trigger, method_name=method_name, kwargs=kwargs, trigger_timeout=trigger_timeout
+        )
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         """This method is called when a deferred task is resumed."""
-        # __fail__ is a special signal value for next_method that indicates
-        # this task was scheduled specifically to fail.
-        if next_method == "__fail__":
+        # __fail__ and __timeout__ are special signals values for next_method
+        # that indicate this task was scheduled specifically to fail or timeout.
+        if next_method in ["__fail__", "__timeout__"]:
             next_kwargs = next_kwargs or {}
             traceback = next_kwargs.get("traceback")
-            if traceback is not None:
-                self.log.error("Trigger failed:\n%s", "\n".join(traceback))
-            raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+            error_msg = next_kwargs.get("error", "Unknown")
+            if next_method == "__fail__":
+                if traceback is not None:
+                    self.log.error("Trigger failed:\n%s", "\n".join(traceback))
+                raise TaskDeferralError(error_msg)
+            else:
+                # TODO: handle AirflowSensorTimeout exceptions
+                self.on_kill()
+                raise AirflowTaskTimeout(error_msg)
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         if next_kwargs:

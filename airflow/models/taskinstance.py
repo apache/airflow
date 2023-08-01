@@ -1765,24 +1765,10 @@ class TaskInstance(Base, LoggingMixin):
         self.trigger_id = trigger_row.id
         self.next_method = defer.method_name
         self.next_kwargs = defer.kwargs or {}
+        self.trigger_timeout = defer.trigger_timeout
 
         # Decrement try number so the next one is the same try
         self._try_number -= 1
-
-        # Calculate timeout too if it was passed
-        if defer.timeout is not None:
-            self.trigger_timeout = timezone.utcnow() + defer.timeout
-        else:
-            self.trigger_timeout = None
-
-        # If an execution_timeout is set, set the timeout to the minimum of
-        # it and the trigger timeout
-        execution_timeout = self.task.execution_timeout
-        if execution_timeout:
-            if self.trigger_timeout:
-                self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
-            else:
-                self.trigger_timeout = self.start_date + execution_timeout
 
     def _run_execute_callback(self, context: Context, task: Operator) -> None:
         """Functions that need to be run before a Task is executed."""

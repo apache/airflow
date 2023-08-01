@@ -199,6 +199,11 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                     f"mode since it will take reschedule time over MySQL's TIMESTAMP limit."
                 )
 
+    def __trigger_timeout__(self) -> datetime.datetime | None:
+        """Trigger timeout for the sensor."""
+        # TODO: implement trigger timeout for the sensor based on min(execution_timeout, timeout)
+        pass
+
     def poke(self, context: Context) -> bool | PokeReturnValue:
         """Override when deriving this class."""
         raise AirflowException("Override me.")

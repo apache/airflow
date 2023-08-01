@@ -1674,7 +1674,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             )
             .values(
                 state=TaskInstanceState.SCHEDULED,
-                next_method="__fail__",
+                next_method="__timeout__",
                 next_kwargs={"error": "Trigger/execution timeout"},
                 trigger_id=None,
             )
