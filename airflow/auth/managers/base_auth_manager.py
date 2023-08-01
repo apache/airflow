@@ -41,32 +41,30 @@ class BaseAuthManager(LoggingMixin):
     @abstractmethod
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
-        ...
 
     @abstractmethod
     def get_user(self) -> BaseUser:
         """Return the user associated to the user in session."""
-        ...
 
     @abstractmethod
     def get_user_id(self) -> str:
         """Return the user ID associated to the user in session."""
-        ...
 
     @abstractmethod
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
-        ...
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        ...
+
+    @abstractmethod
+    def get_url_logout(self) -> str:
+        """Return the logout page url."""
 
     @abstractmethod
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
-        ...
 
     def get_security_manager_override_class(self) -> type:
         """

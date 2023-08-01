@@ -1056,6 +1056,7 @@ class ActionCommand(NamedTuple):
     args: Iterable[Arg]
     description: str | None = None
     epilog: str | None = None
+    hide: bool = False
 
 
 class GroupCommand(NamedTuple):
@@ -1517,9 +1518,14 @@ VARIABLES_COMMANDS = (
 DB_COMMANDS = (
     ActionCommand(
         name="init",
-        help="Initialize the metadata database",
+        help=(
+            "Deprecated -- use `migrate` instead. "
+            "To create default connections use `connections create-default-connections`. "
+            "Initialize the metadata database"
+        ),
         func=lazy_load_command("airflow.cli.commands.db_command.initdb"),
         args=(ARG_VERBOSE,),
+        hide=True,
     ),
     ActionCommand(
         name="check-migrations",
@@ -1536,7 +1542,7 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name="upgrade",
-        help="Upgrade the metadata database to latest version",
+        help="Deprecated -- use `migrate` instead. Upgrade the metadata database to latest version",
         description=(
             "Upgrade the schema of the metadata database. "
             "To print but not execute commands, use option ``--show-sql-only``. "
@@ -1545,6 +1551,29 @@ DB_COMMANDS = (
             "migrate from the *current* Alembic revision."
         ),
         func=lazy_load_command("airflow.cli.commands.db_command.upgradedb"),
+        args=(
+            ARG_DB_REVISION__UPGRADE,
+            ARG_DB_VERSION__UPGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_DB_RESERIALIZE_DAGS,
+            ARG_VERBOSE,
+        ),
+        hide=True,
+    ),
+    ActionCommand(
+        name="migrate",
+        help="Migrates the metadata database to the latest version",
+        description=(
+            "Migrate the schema of the metadata database. "
+            "Create the database if it does not exist "
+            "To print but not execute commands, use option ``--show-sql-only``. "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use "
+            "``--show-sql-only``, because if actually *running* migrations, we should only "
+            "migrate from the *current* Alembic revision."
+        ),
+        func=lazy_load_command("airflow.cli.commands.db_command.migratedb"),
         args=(
             ARG_DB_REVISION__UPGRADE,
             ARG_DB_VERSION__UPGRADE,
@@ -1692,6 +1721,13 @@ CONNECTIONS_COMMANDS = (
         help="Test a connection",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_test"),
         args=(ARG_CONN_ID, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="create-default-connections",
+        help="Creates all the default connections from all the providers",
+        func=lazy_load_command("airflow.cli.commands.connection_command.create_default_connections"),
+        # func=lazy_load_command("airflow.utils.db.create_default_connections"),
+        args=(ARG_VERBOSE,),
     ),
 )
 PROVIDERS_COMMANDS = (

@@ -67,7 +67,6 @@ class _UpstreamTIStates(NamedTuple):
         for ti in finished_upstreams:
             curr_state = {ti.state: 1}
             counter.update(curr_state)
-            # setup task cannot be mapped
             if ti.task.is_setup:
                 setup_counter.update(curr_state)
         return _UpstreamTIStates(
