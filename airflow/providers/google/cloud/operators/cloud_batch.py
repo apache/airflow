@@ -48,8 +48,8 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
         If set as a string, the account must grant the originating account
         the Service Account Token Creator IAM role.
         If set as a sequence, the identities from the list must grant
-         Service Account Token Creator IAM role to the directly preceding identity, with first
-         account from the list granting this role to the originating account (templated).
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode
 
     """

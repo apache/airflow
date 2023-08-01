@@ -29,13 +29,21 @@ from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_
 
 
 class TestCloudBathHook:
+    def dummy_get_credentials(self):
+        pass
+
+    @pytest.fixture
+    def cloud_batch_hook(self):
+        cloud_batch_hook = CloudBatchHook()
+        cloud_batch_hook.get_credentials = self.dummy_get_credentials
+        return cloud_batch_hook
+
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_submit(self, mock_batch_service_client):
-        cloud_batch_hook = CloudBatchHook()
+    def test_submit(self, mock_batch_service_client, cloud_batch_hook):
         job = Job()
         job_name = "jobname"
         project_id = "test_project_id"
@@ -55,8 +63,7 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_get_job(self, mock_batch_service_client):
-        cloud_batch_hook = CloudBatchHook()
+    def test_get_job(self, mock_batch_service_client, cloud_batch_hook):
         cloud_batch_hook.get_job("job1")
         cloud_batch_hook._client.get_job.assert_called_once_with(name="job1")
 
@@ -65,11 +72,10 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_delete_job(self, mock_batch_service_client):
+    def test_delete_job(self, mock_batch_service_client, cloud_batch_hook):
         job_name = "job1"
         region = "us-east1"
         project_id = "test_project_id"
-        cloud_batch_hook = CloudBatchHook()
         cloud_batch_hook.delete_job(job_name=job_name, region=region, project_id=project_id)
         cloud_batch_hook._client.delete_job.assert_called_once_with(
             name=f"projects/{project_id}/locations/{region}/jobs/{job_name}"
@@ -83,10 +89,9 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_wait_job_succeeded(self, mock_batch_service_client, state):
+    def test_wait_job_succeeded(self, mock_batch_service_client, state, cloud_batch_hook):
         mock_job = self._mock_job_with_status(state)
         mock_batch_service_client.return_value.get_job.return_value = mock_job
-        cloud_batch_hook = CloudBatchHook()
         actual_job = cloud_batch_hook.wait_for_job("job1")
         assert actual_job == mock_job
 
@@ -95,10 +100,9 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_wait_job_timeout(self, mock_batch_service_client):
+    def test_wait_job_timeout(self, mock_batch_service_client, cloud_batch_hook):
         mock_job = self._mock_job_with_status(JobStatus.State.RUNNING)
         mock_batch_service_client.return_value.get_job.return_value = mock_job
-        cloud_batch_hook = CloudBatchHook()
 
         exception_caught = False
         try:
@@ -113,7 +117,7 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_list_jobs(self, mock_batch_service_client):
+    def test_list_jobs(self, mock_batch_service_client, cloud_batch_hook):
 
         number_of_jobs = 3
         region = "us-central1"
@@ -122,7 +126,6 @@ class TestCloudBathHook:
 
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
-        cloud_batch_hook = CloudBatchHook()
 
         jobs_list = cloud_batch_hook.list_jobs(region=region, project_id=project_id, filter=filter)
 
@@ -141,7 +144,7 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_list_jobs_with_limit(self, mock_batch_service_client):
+    def test_list_jobs_with_limit(self, mock_batch_service_client, cloud_batch_hook):
 
         number_of_jobs = 3
         limit = 2
@@ -151,7 +154,6 @@ class TestCloudBathHook:
 
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
-        cloud_batch_hook = CloudBatchHook()
 
         jobs_list = cloud_batch_hook.list_jobs(
             region=region, project_id=project_id, filter=filter, limit=limit
@@ -166,7 +168,7 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_list_jobs_with_limit_zero(self, mock_batch_service_client):
+    def test_list_jobs_with_limit_zero(self, mock_batch_service_client, cloud_batch_hook):
 
         number_of_jobs = 3
         limit = 0
@@ -176,7 +178,6 @@ class TestCloudBathHook:
 
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
-        cloud_batch_hook = CloudBatchHook()
 
         jobs_list = cloud_batch_hook.list_jobs(
             region=region, project_id=project_id, filter=filter, limit=limit
@@ -189,7 +190,7 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_list_jobs_with_limit_greater_then_range(self, mock_batch_service_client):
+    def test_list_jobs_with_limit_greater_then_range(self, mock_batch_service_client, cloud_batch_hook):
 
         number_of_jobs = 3
         limit = 5
@@ -199,7 +200,6 @@ class TestCloudBathHook:
 
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
-        cloud_batch_hook = CloudBatchHook()
 
         jobs_list = cloud_batch_hook.list_jobs(
             region=region, project_id=project_id, filter=filter, limit=limit
@@ -214,7 +214,7 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_list_jobs_with_limit_less_than_zero(self, mock_batch_service_client):
+    def test_list_jobs_with_limit_less_than_zero(self, mock_batch_service_client, cloud_batch_hook):
 
         number_of_jobs = 3
         limit = -1
@@ -224,7 +224,6 @@ class TestCloudBathHook:
 
         page = self._mock_pager(number_of_jobs)
         mock_batch_service_client.return_value.list_jobs.return_value = page
-        cloud_batch_hook = CloudBatchHook()
 
         with pytest.raises(expected_exception=AirflowException):
             cloud_batch_hook.list_jobs(region=region, project_id=project_id, filter=filter, limit=limit)
@@ -234,7 +233,7 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_list_tasks_with_limit(self, mock_batch_service_client):
+    def test_list_tasks_with_limit(self, mock_batch_service_client, cloud_batch_hook):
 
         number_of_tasks = 3
         limit = 2
@@ -245,7 +244,6 @@ class TestCloudBathHook:
 
         page = self._mock_pager(number_of_tasks)
         mock_batch_service_client.return_value.list_tasks.return_value = page
-        cloud_batch_hook = CloudBatchHook()
 
         tasks_list = cloud_batch_hook.list_tasks(
             region=region, project_id=project_id, job_name=job_name, filter=filter, limit=limit
@@ -260,7 +258,7 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_list_tasks_with_limit_greater_then_range(self, mock_batch_service_client):
+    def test_list_tasks_with_limit_greater_then_range(self, mock_batch_service_client, cloud_batch_hook):
 
         number_of_tasks = 3
         limit = 5
@@ -271,7 +269,6 @@ class TestCloudBathHook:
 
         page = self._mock_pager(number_of_tasks)
         mock_batch_service_client.return_value.list_tasks.return_value = page
-        cloud_batch_hook = CloudBatchHook()
 
         tasks_list = cloud_batch_hook.list_tasks(
             region=region, project_id=project_id, filter=filter, job_name=job_name, limit=limit
@@ -286,7 +283,7 @@ class TestCloudBathHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
-    def test_list_tasks_with_limit_less_than_zero(self, mock_batch_service_client):
+    def test_list_tasks_with_limit_less_than_zero(self, mock_batch_service_client, cloud_batch_hook):
 
         number_of_tasks = 3
         limit = -1
@@ -297,7 +294,6 @@ class TestCloudBathHook:
 
         page = self._mock_pager(number_of_tasks)
         mock_batch_service_client.return_value.list_tasks.return_value = page
-        cloud_batch_hook = CloudBatchHook()
 
         with pytest.raises(expected_exception=AirflowException):
             cloud_batch_hook.list_tasks(
@@ -333,8 +329,13 @@ class TestCloudBatchAsyncHook:
         job_name = "jobname"
         mock_client.return_value = mock.MagicMock()
         mock_client.return_value.get_job = _get_job
+
         hook = CloudBatchAsyncHook()
+        hook.get_credentials = self._dummy_get_credentials
 
         returned_operation = await hook.get_batch_job(job_name=job_name)
 
         assert returned_operation == expected_job
+
+    def _dummy_get_credentials(self):
+        pass
