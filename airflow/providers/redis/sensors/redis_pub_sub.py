@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.redis.hooks.redis import RedisHook
@@ -41,8 +42,10 @@ class RedisPubSubSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id
-        self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
-        self.pubsub.subscribe(self.channels)
+
+    @cached_property
+    def pubsub(self):
+        return RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
 
     def poke(self, context: Context) -> bool:
         """
@@ -54,7 +57,7 @@ class RedisPubSubSensor(BaseSensorOperator):
         :return: ``True`` if message (with type 'message') is available or ``False`` if not
         """
         self.log.info("RedisPubSubSensor checking for message on channels: %s", self.channels)
-
+        self.pubsub.subscribe(self.channels)
         message = self.pubsub.get_message()
         self.log.info("Message %s from channel %s", message, self.channels)
 
