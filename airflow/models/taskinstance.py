@@ -186,19 +186,23 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
-def _stop_remaining_tasks(*, dag: DAG, tis: list[TaskInstance], task_id_to_ignore: str, session: Session):
+def _stop_remaining_tasks(*, self, session: Session):
     """
     Stop non-teardown tasks in dag.
 
     :meta private:
     """
+    tis = self.dag_run.get_task_instances(session=session)
+    if TYPE_CHECKING:
+        assert isinstance(self.task.dag, DAG)
+
     for ti in tis:
-        if ti.task_id == task_id_to_ignore or ti.state in (
+        if ti.task_id == self.task_id or ti.state in (
             TaskInstanceState.SUCCESS,
             TaskInstanceState.FAILED,
         ):
             continue
-        task = dag.task_dict[ti.task_id]
+        task = self.task.dag.task_dict[ti.task_id]
         if not task.is_teardown:
             if ti.state == TaskInstanceState.RUNNING:
                 log.info("Forcing task %s to fail due to dag's `fail_stop` setting", ti.task_id)
@@ -1989,12 +1993,7 @@ class TaskInstance(Base, LoggingMixin):
             callback_type = "on_failure"
 
             if task and task.dag and task.dag.fail_stop:
-                tis = self.dag_run.get_task_instances(session=session)
-                if TYPE_CHECKING:
-                    assert isinstance(self.task.dag, DAG)
-                _stop_remaining_tasks(
-                    dag=self.task.dag, tis=tis, task_id_to_ignore=self.task_id, session=session
-                )
+                _stop_remaining_tasks(self=self, session=session)
         else:
             if self.state == TaskInstanceState.QUEUED:
                 # We increase the try_number so as to fail the task if it fails to start after sometime
