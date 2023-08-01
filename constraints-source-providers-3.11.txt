@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-31T12:27:45Z
+# This constraints file was automatically generated on 2023-08-01T11:04:26Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -150,7 +150,7 @@ coverage==7.2.7
 crcmod==1.7
 cron-descriptor==1.4.0
 croniter==1.4.1
-cryptography==40.0.2
+cryptography==41.0.2
 curlify==2.2.1
 dask==2023.7.1
 databricks-sql-connector==2.8.0
@@ -233,14 +233,14 @@ google-cloud-storage-transfer==1.9.1
 google-cloud-storage==2.10.0
 google-cloud-tasks==2.14.0
 google-cloud-texttospeech==2.14.1
-google-cloud-translate==3.11.2
+google-cloud-translate==3.11.3
 google-cloud-videointelligence==2.11.3
 google-cloud-vision==3.4.4
 google-cloud-workflows==1.10.2
 google-crc32c==1.5.0
-google-re2==1.0
+google-re2==1.1
 google-resumable-media==2.5.0
-googleapis-common-protos==1.59.1
+googleapis-common-protos==1.60.0
 graphql-core==3.2.3
 graphviz==0.20.1
 greenlet==2.0.2
@@ -326,15 +326,15 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.28.0
-mypy-boto3-rds==1.28.15.post1
+mypy-boto3-rds==1.28.16
 mypy-boto3-redshift-data==1.28.15.post1
 mypy-boto3-s3==1.28.15.post1
 mypy-extensions==1.0.0
 mypy==1.2.0
 mysqlclient==2.2.0
 nbclient==0.8.0
-nbformat==5.9.1
-neo4j==5.10.0
+nbformat==5.9.2
+neo4j==5.11.0
 networkx==3.1
 nodeenv==1.8.0
 numpy==1.24.4
@@ -378,7 +378,7 @@ pinotdb==0.5.0
 pipdeptree==2.12.0
 pipx==1.2.0
 pkginfo==1.9.6
-platformdirs==3.10.0
+platformdirs==3.8.1
 pluggy==1.2.0
 ply==3.11
 plyvel==1.5.0
@@ -465,10 +465,10 @@ rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-argparse==1.2.0
 rich-click==1.6.1
-rich==13.5.0
+rich==13.5.1
 rpds-py==0.9.2
 rsa==4.9
-ruff==0.0.280
+ruff==0.0.281
 s3transfer==0.6.1
 sarif-om==1.0.4
 scramp==1.4.4
@@ -476,7 +476,7 @@ scrapbook==0.5.0
 semver==3.0.1
 sendgrid==6.10.0
 sentinels==1.0.0
-sentry-sdk==1.28.1
+sentry-sdk==1.29.0
 setproctitle==1.3.2
 simple-salesforce==1.12.4
 six==1.16.0
@@ -485,7 +485,7 @@ smbprotocol==1.10.1
 smmap==5.0.0
 sniffio==1.3.0
 snowballstemmer==2.2.0
-snowflake-connector-python==3.0.4
+snowflake-connector-python==3.1.0
 snowflake-sqlalchemy==1.4.7
 sortedcontainers==2.4.0
 soupsieve==2.4.1
@@ -527,6 +527,7 @@ textwrap3==0.9.2
 thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.11.0
+tomlkit==0.12.1
 toolz==0.12.0
 tornado==6.3.2
 towncrier==23.6.0
@@ -542,7 +543,7 @@ types-boto==2.49.18.9
 types-certifi==2021.10.8.3
 types-croniter==1.4.0.1
 types-docutils==0.20.0.1
-types-paramiko==3.2.0.1
+types-paramiko==3.3.0.0
 types-protobuf==4.23.0.2
 types-pyOpenSSL==23.2.0.2
 types-python-dateutil==2.8.19.14
@@ -563,9 +564,9 @@ unicodecsv==0.14.1
 uritemplate==4.1.1
 urllib3==1.26.16
 userpath==1.9.0
-vertica-python==1.3.2
+vertica-python==1.3.3
 vine==5.0.0
-virtualenv==20.24.2
+virtualenv==20.24.1
 volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.6

@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-31T12:32:57Z
+# This constraints file was automatically generated on 2023-08-01T11:09:31Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -87,8 +87,8 @@ frozenlist==1.4.0
 fsspec==2023.6.0
 gevent==23.7.0
 google-auth==2.22.0
-google-re2==1.0
-googleapis-common-protos==1.59.1
+google-re2==1.1
+googleapis-common-protos==1.60.0
 graphviz==0.20.1
 greenlet==2.0.2
 grpcio==1.56.2
@@ -124,7 +124,7 @@ mdit-py-plugins==0.4.0
 mdurl==0.1.2
 msgpack==1.0.5
 multidict==6.0.4
-numpy==1.25.1
+numpy==1.25.2
 oauthlib==3.2.2
 opentelemetry-api==1.15.0
 opentelemetry-exporter-otlp-proto-grpc==1.15.0
