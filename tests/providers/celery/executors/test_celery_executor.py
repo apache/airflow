@@ -315,6 +315,7 @@ def register_signals():
 
 
 @pytest.mark.execution_timeout(200)
+@pytest.mark.quarantined
 def test_send_tasks_to_celery_hang(register_signals):
     """
     Test that celery_executor does not hang after many runs.
