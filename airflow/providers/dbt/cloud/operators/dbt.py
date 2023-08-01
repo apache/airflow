@@ -161,7 +161,6 @@ class DbtCloudRunJobOperator(BaseOperator):
                 job_run_status = self.hook.get_job_run_status(**job_run_info)
                 if not DbtCloudJobRunStatus.is_terminal(job_run_status):
                     self.defer(
-                        timeout=self.execution_timeout,
                         trigger=DbtCloudRunJobTrigger(
                             conn_id=self.dbt_cloud_conn_id,
                             run_id=self.run_id,

@@ -512,7 +512,6 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
 
         if self.deferrable:
             self.defer(
-                timeout=self.execution_timeout,
                 trigger=SnowflakeSqlApiTrigger(
                     poll_interval=self.poll_interval,
                     query_ids=self.query_ids,

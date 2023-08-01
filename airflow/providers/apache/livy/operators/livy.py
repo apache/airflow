@@ -155,7 +155,6 @@ class LivyOperator(BaseOperator):
         self.log.debug("Batch with id %s is in state: %s", self._batch_id, state.value)
         if state not in hook.TERMINAL_STATES:
             self.defer(
-                timeout=self.execution_timeout,
                 trigger=LivyTrigger(
                     batch_id=self._batch_id,
                     spark_params=self.spark_params,

@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import warnings
-from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
@@ -116,7 +115,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         else:
             if not self.poke(context=context):
                 self.defer(
-                    timeout=timedelta(seconds=self.timeout),
                     trigger=BigQueryTableExistenceTrigger(
                         dataset_id=self.dataset_id,
                         table_id=self.table_id,
@@ -222,7 +220,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         else:
             if not self.poke(context=context):
                 self.defer(
-                    timeout=timedelta(seconds=self.timeout),
                     trigger=BigQueryTablePartitionExistenceTrigger(
                         dataset_id=self.dataset_id,
                         table_id=self.table_id,

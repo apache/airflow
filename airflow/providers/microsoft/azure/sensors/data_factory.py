@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import warnings
-from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
@@ -99,7 +98,6 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         else:
             if not self.poke(context=context):
                 self.defer(
-                    timeout=timedelta(seconds=self.timeout),
                     trigger=ADFPipelineRunStatusSensorTrigger(
                         run_id=self.run_id,
                         azure_data_factory_conn_id=self.azure_data_factory_conn_id,

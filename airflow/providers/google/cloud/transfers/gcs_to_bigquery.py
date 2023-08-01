@@ -426,7 +426,6 @@ class GCSToBigQueryOperator(BaseOperator):
             context["ti"].xcom_push(key="job_id", value=self.job_id)
             if self.deferrable:
                 self.defer(
-                    timeout=self.execution_timeout,
                     trigger=BigQueryInsertJobTrigger(
                         conn_id=self.gcp_conn_id,
                         job_id=self.job_id,

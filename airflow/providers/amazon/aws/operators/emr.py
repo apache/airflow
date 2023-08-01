@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import ast
 import warnings
-from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
@@ -572,13 +571,7 @@ class EmrContainerOperator(BaseOperator):
             self.check_failure(query_status)
             if query_status in EmrContainerHook.SUCCESS_STATES:
                 return self.job_id
-            timeout = (
-                timedelta(seconds=self.max_polling_attempts * self.poll_interval)
-                if self.max_polling_attempts
-                else self.execution_timeout
-            )
             self.defer(
-                timeout=timeout,
                 trigger=EmrContainerTrigger(
                     virtual_cluster_id=self.virtual_cluster_id,
                     job_id=self.job_id,
@@ -779,9 +772,6 @@ class EmrCreateJobFlowOperator(BaseOperator):
                         max_attempts=self.waiter_max_attempts,
                     ),
                     method_name="execute_complete",
-                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
                 )
             if self.wait_for_completion:
                 self._emr_hook.get_waiter("job_flow_waiting").wait(
@@ -954,9 +944,6 @@ class EmrTerminateJobFlowOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
-                # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
 
     def execute_complete(self, context, event=None):
@@ -1071,7 +1058,6 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 method_name="start_application_deferred",
             )
 
@@ -1116,7 +1102,6 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                 waiter_delay=self.waiter_delay,
                 waiter_max_attempts=self.waiter_max_attempts,
             ),
-            timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
             method_name="execute_complete",
         )
 
@@ -1250,7 +1235,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
                         aws_conn_id=self.aws_conn_id,
                     ),
                     method_name="execute",
-                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 )
             wait(
                 waiter=waiter,
@@ -1287,7 +1271,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
             )
         if self.wait_for_completion:
             waiter = self.hook.get_waiter("serverless_job_completed")
@@ -1443,7 +1426,6 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                             waiter_delay=self.waiter_delay,
                             waiter_max_attempts=self.waiter_max_attempts,
                         ),
-                        timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                         method_name="stop_application",
                     )
                 self.hook.get_waiter("no_job_running").wait(
@@ -1466,7 +1448,6 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 method_name="execute_complete",
             )
         if self.wait_for_completion:
@@ -1495,7 +1476,6 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 method_name="execute_complete",
             )
 
@@ -1605,7 +1585,6 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 method_name="execute_complete",
             )
 

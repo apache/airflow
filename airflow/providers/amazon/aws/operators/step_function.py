@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
@@ -98,7 +97,6 @@ class StepFunctionStartExecutionOperator(BaseOperator):
                     region_name=self.region_name,
                 ),
                 method_name="execute_complete",
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
             )
         return execution_arn
 

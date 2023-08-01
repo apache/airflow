@@ -18,7 +18,6 @@
 """This module contains a Google PubSub sensor."""
 from __future__ import annotations
 
-from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
@@ -154,7 +153,6 @@ class PubSubPullSensor(BaseSensorOperator):
             return self._return_value
         else:
             self.defer(
-                timeout=timedelta(seconds=self.timeout),
                 trigger=PubsubPullTrigger(
                     project_id=self.project_id,
                     subscription=self.subscription,
