@@ -198,16 +198,16 @@ def _stop_remaining_tasks(*, dag: DAG, tis: list[TaskInstance], task_id_to_ignor
             TaskInstanceState.FAILED,
         ):
             continue
-        if ti.state == TaskInstanceState.RUNNING:
-            log.info("Forcing task %s to fail due to dag's `fail_stop` setting", ti.task_id)
-            ti.error(session)
-        else:
-            task = dag.task_dict[ti.task_id]
-            if not task.is_teardown:
+        task = dag.task_dict[ti.task_id]
+        if not task.is_teardown:
+            if ti.state == TaskInstanceState.RUNNING:
+                log.info("Forcing task %s to fail due to dag's `fail_stop` setting", ti.task_id)
+                ti.error(session)
+            else:
                 log.info("Setting task %s to SKIPPED due to dag's `fail_stop` setting.", ti.task_id)
                 ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
-            else:
-                log.info("Not skipping teardown task '%s'", ti.task_id)
+        else:
+            log.info("Not skipping teardown task '%s'", ti.task_id)
 
 
 def clear_task_instances(
