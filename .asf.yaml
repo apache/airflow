@@ -79,6 +79,7 @@ github:
     - amoghrajesh
     - jens-scheffler-bosch
     - nathadfield
+    - RNHTTR
 
 notifications:
   jobs: jobs@airflow.apache.org
