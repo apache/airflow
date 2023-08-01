@@ -21,7 +21,7 @@ import os
 import warnings
 from contextlib import closing
 from copy import deepcopy
-from typing import Any, Iterable, Union
+from typing import TYPE_CHECKING, Any, Iterable, Union
 
 import psycopg2
 import psycopg2.extensions
@@ -32,6 +32,9 @@ from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
 
@@ -317,3 +320,46 @@ class PostgresHook(DbApiHook):
                 sql += f"{on_conflict_str} DO NOTHING"
 
         return sql
+
+    def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+        """Returns Postgres/Redshift specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        is_redshift = connection.extra_dejson.get("redshift", False)
+
+        if is_redshift:
+            authority = self._get_openlineage_redshift_authority_part(connection)
+        else:
+            authority = DbApiHook.get_openlineage_authority_part(connection, default_port=5432)
+
+        return DatabaseInfo(
+            scheme="postgres" if not is_redshift else "redshift",
+            authority=authority,
+            database=self.database or connection.schema,
+        )
+
+    def _get_openlineage_redshift_authority_part(self, connection) -> str:
+        try:
+            from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+        except ImportError:
+            from airflow.exceptions import AirflowException
+
+            raise AirflowException(
+                "apache-airflow-providers-amazon not installed, run: "
+                "pip install 'apache-airflow-providers-postgres[amazon]'."
+            )
+        aws_conn_id = connection.extra_dejson.get("aws_conn_id", "aws_default")
+
+        port = connection.port or 5439
+        cluster_identifier = connection.extra_dejson.get("cluster-identifier", connection.host.split(".")[0])
+        region_name = AwsBaseHook(aws_conn_id=aws_conn_id).region_name
+
+        return f"{cluster_identifier}.{region_name}:{port}"
+
+    def get_openlineage_database_dialect(self, connection) -> str:
+        """Returns postgres/redshift dialect."""
+        return "redshift" if connection.extra_dejson.get("redshift", False) else "postgres"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
+        return self.get_first("SELECT CURRENT_SCHEMA;")[0]

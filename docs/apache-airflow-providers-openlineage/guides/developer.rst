@@ -81,7 +81,7 @@ Here's example of properly implemented ``get_openlineage_facets_on_complete`` me
 
 .. code-block::
 
-    def get_openlineage_events_on_complete(self, task_instance):
+    def get_openlineage_facets_on_complete(self, task_instance):
         """
         Implementing _on_complete because execute method does preprocessing on internals.
         This means we won't have to normalize self.source_object and self.source_objects,

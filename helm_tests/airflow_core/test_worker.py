@@ -802,3 +802,25 @@ class TestWorkerServiceAccount:
             assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
         else:
             assert docs == []
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
