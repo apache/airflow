@@ -37,7 +37,9 @@ def process_response(
     :param response: The response from SQS
     :return: The processed response
     """
-    if "Messages" not in response:
+    if not isinstance(response, dict):
+        return []
+    elif "Messages" not in response:
         return []
 
     messages = response["Messages"]
@@ -53,7 +55,9 @@ def process_response(
     return messages
 
 
-def filter_messages(messages, message_filtering, message_filtering_match_values, message_filtering_config):
+def filter_messages(
+    messages, message_filtering, message_filtering_match_values, message_filtering_config
+) -> list[Any]:
     if message_filtering == "literal":
         return filter_messages_literal(messages, message_filtering_match_values)
     if message_filtering == "jsonpath":
@@ -62,15 +66,11 @@ def filter_messages(messages, message_filtering, message_filtering_match_values,
         raise NotImplementedError("Override this method to define custom filters")
 
 
-def filter_messages_literal(messages, message_filtering_match_values):
-    filtered_messages = []
-    for message in messages:
-        if message["Body"] in message_filtering_match_values:
-            filtered_messages.append(message)
-    return filtered_messages
+def filter_messages_literal(messages, message_filtering_match_values) -> list[Any]:
+    return [message for message in messages if message["Body"] in message_filtering_match_values]
 
 
-def filter_messages_jsonpath(messages, message_filtering_match_values, message_filtering_config):
+def filter_messages_jsonpath(messages, message_filtering_match_values, message_filtering_config) -> list[Any]:
     jsonpath_expr = parse(message_filtering_config)
     filtered_messages = []
     for message in messages:

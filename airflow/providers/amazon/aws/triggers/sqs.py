@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Collection, Literal
+from typing import Any, AsyncIterator, Collection, Literal
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
@@ -56,7 +56,7 @@ class SqsSensorTrigger(BaseTrigger):
 
     def __init__(
         self,
-        sqs_queue,
+        sqs_queue: str,
         aws_conn_id: str = "aws_default",
         max_messages: int = 5,
         num_batches: int = 1,
@@ -122,7 +122,7 @@ class SqsSensorTrigger(BaseTrigger):
         response = await client.receive_message(**receive_message_kwargs)
         return response
 
-    async def poke(self, client):
+    async def poke(self, client: Any):
         message_batch: list[Any] = []
 
         for _ in range(self.num_batches):
@@ -135,13 +135,12 @@ class SqsSensorTrigger(BaseTrigger):
                 self.message_filtering_config,
             )
 
-            if not len(messages):
+            if not messages:
                 continue
 
             message_batch.extend(messages)
 
             if self.delete_message_on_reception:
-
                 self.log.info("Deleting %d messages", len(messages))
 
                 entries = [
@@ -154,18 +153,18 @@ class SqsSensorTrigger(BaseTrigger):
                     raise AirflowException(
                         "Delete SQS Messages failed " + str(response) + " for messages " + str(messages)
                     )
-        if not len(message_batch):
-            return (False, None)
-        return (True, message_batch)
+        if not message_batch:
+            return None
+        return message_batch
 
-    async def run(self):
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         while True:
             # This loop will run indefinitely until the timeout, which is set in the self.defer
             # method, is reached.
             async with self.hook.async_conn as client:
                 result = await self.poke(client=client)
-                if result[0]:
-                    yield TriggerEvent({"status": "success", "message_batch": result[1]})
+                if result:
+                    yield TriggerEvent({"status": "success", "message_batch": result})
                     break
                 else:
                     await asyncio.sleep(self.waiter_delay)
