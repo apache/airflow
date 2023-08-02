@@ -28,6 +28,17 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``extra_import_options`` parameter in the ``import_table`` & ``import_query`` methods
+and the ``extra_export_options`` in the ``export_table`` methods of the ``SqoopHook``
+are no longer accepted as arguments for those methods. These should instead be passed
+as ``extra_options`` while initializing the Hook or via ``hook_params`` dictionary
+(with ``extra_options`` key) when instantiating the hook from operators.
 
 3.2.1
 .....
