@@ -137,9 +137,12 @@ def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
 
 
 def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> None:
-    sub_proc = subparsers.add_parser(
-        sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
-    )
+    if isinstance(sub, ActionCommand) and sub.hide:
+        sub_proc = subparsers.add_parser(sub.name, epilog=sub.epilog)
+    else:
+        sub_proc = subparsers.add_parser(
+            sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
+        )
     sub_proc.formatter_class = LazyRichHelpFormatter
 
     if isinstance(sub, GroupCommand):
@@ -160,6 +163,5 @@ def _add_group_command(sub: GroupCommand, sub_proc: argparse.ArgumentParser) -> 
     subcommands = sub.subcommands
     sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMAND")
     sub_subparsers.required = True
-
     for command in sorted(subcommands, key=lambda x: x.name):
         _add_command(sub_subparsers, command)
