@@ -214,11 +214,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 )
         if sensor_timeout_at is None:
             return execution_timeout_at, execution_reason
-        elif execution_timeout_at is None:
-            return None, None
-        if execution_timeout_at < sensor_timeout_at:
-            return execution_timeout_at, execution_reason
-        return sensor_timeout_at, "sensor_timeout"
+        if execution_timeout_at is None or sensor_timeout_at < execution_timeout_at:
+            return sensor_timeout_at, "sensor_timeout"
+        return execution_timeout_at, execution_reason
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
         """Override when deriving this class."""
