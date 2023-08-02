@@ -247,7 +247,7 @@ if REMOTE_LOGGING:
         DEFAULT_LOGGING_CONFIG["handlers"].update(GCS_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith("wasb"):
         wasb_log_container = conf.get_mandatory_value(
-            "logging", "remote_wasb_log_container", fallback="airflow-logs"
+            "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
         )
         WASB_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
             "task": {
