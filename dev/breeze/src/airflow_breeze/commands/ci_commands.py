@@ -298,6 +298,9 @@ class WorkflowInfo(NamedTuple):
             print(output, file=sys.stderr)
 
     def get_runs_on(self) -> str:
+        # We temporary switch everyone to public runners
+        return RUNS_ON_PUBLIC_RUNNER
+
         for label in self.pull_request_labels:
             if "use public runners" in label:
                 get_console().print("[info]Force running on public runners")

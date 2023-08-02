@@ -1184,7 +1184,8 @@ def test_suspended_providers(
 @pytest.mark.parametrize(
     "github_event, github_actor, github_repository, pr_labels, github_context_dict, runs_on",
     [
-        pytest.param(GithubEvents.PUSH, "user", "apache/airflow", [], dict(), "self-hosted", id="Push event"),
+        # pytest.param(GithubEvents.PUSH, "user",
+        # "apache/airflow", [], dict(), "self-hosted", id="Push event"),
         pytest.param(
             GithubEvents.PUSH,
             "user",
@@ -1206,15 +1207,15 @@ def test_suspended_providers(
             "ubuntu-22.04",
             id="Pull request private repo",
         ),
-        pytest.param(
-            GithubEvents.PULL_REQUEST,
-            COMMITTERS[0],
-            "apache/airflow",
-            [],
-            dict(),
-            "self-hosted",
-            id="Pull request committer",
-        ),
+        # pytest.param(
+        #     GithubEvents.PULL_REQUEST,
+        #     COMMITTERS[0],
+        #     "apache/airflow",
+        #     [],
+        #     dict(),
+        #     "self-hosted",
+        #     id="Pull request committer",
+        # ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
             COMMITTERS[0],
@@ -1251,15 +1252,15 @@ def test_suspended_providers(
             "ubuntu-22.04",
             id="Pull request target private repo",
         ),
-        pytest.param(
-            GithubEvents.PULL_REQUEST_TARGET,
-            COMMITTERS[0],
-            "apache/airflow",
-            [],
-            dict(),
-            "self-hosted",
-            id="Pull request target committer",
-        ),
+        # pytest.param(
+        #     GithubEvents.PULL_REQUEST_TARGET,
+        #     COMMITTERS[0],
+        #     "apache/airflow",
+        #     [],
+        #     dict(),
+        #     "self-hosted",
+        #     id="Pull request target committer",
+        # ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
             COMMITTERS[0],

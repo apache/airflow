@@ -788,6 +788,8 @@ class SelectiveChecks:
 
     @cached_property
     def runs_on(self) -> str:
+        # We temporary switch everyone to public runners
+        return RUNS_ON_PUBLIC_RUNNER
         if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
             if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
                 return RUNS_ON_SELF_HOSTED_RUNNER
