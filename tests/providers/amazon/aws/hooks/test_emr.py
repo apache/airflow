@@ -122,7 +122,7 @@ class TestEmrHook:
             "Step": {
                 "Status": {
                     "State": "FAILED",
-                    "StateChangeReason": "test state change reason",
+                    "FailureDetails": "test failure details",
                 }
             }
         }
@@ -148,8 +148,7 @@ class TestEmrHook:
 
         with pytest.raises(AirflowException):
             hook.add_job_flow_steps(job_flow_id="job_flow_id", steps=steps, wait_for_completion=True)
-
-        assert "test state change reason" in caplog.messages[-1]
+        assert "test failure details" in caplog.messages[-1]
         mock_conn.get_waiter.assert_called_with("step_complete")
 
     @mock_emr
