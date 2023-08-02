@@ -21,7 +21,7 @@ import datetime
 import sys
 from unittest.mock import ANY, Mock, patch
 
-from pytest import raises
+import pytest
 from sqlalchemy.exc import OperationalError
 
 from airflow.executors.sequential_executor import SequentialExecutor
@@ -32,7 +32,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.listeners import lifecycle_listener
 from tests.test_utils.config import conf_vars
-from tests.utils.test_helpers import MockJobRunner
+from tests.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
 
 
 class TestJob:
@@ -84,11 +84,30 @@ class TestJob:
 
         job = Job()
         job_runner = MockJobRunner(job=job, func=abort)
-        with raises(RuntimeError):
+        with pytest.raises(RuntimeError):
             run_job(job=job, execute_callable=job_runner._execute)
 
         assert job.state == State.FAILED
         assert job.end_date is not None
+
+    @pytest.mark.parametrize(
+        "job_runner, job_type,job_heartbeat_sec",
+        [(SchedulerJobRunner, "scheduler", "11"), (TriggererJobRunner, "triggerer", "9")],
+    )
+    def test_heart_rate_after_fetched_from_db(self, job_runner, job_type, job_heartbeat_sec):
+        """Ensure heartrate is set correctly after jobs are queried from the DB"""
+        with create_session() as session, conf_vars(
+            {(job_type.lower(), "job_heartbeat_sec"): job_heartbeat_sec}
+        ):
+            job = Job()
+            job_runner(job=job)
+            session.add(job)
+            session.flush()
+
+            most_recent = most_recent_job(job_runner.job_type, session=session)
+            assert most_recent.heartrate == float(job_heartbeat_sec)
+
+            session.rollback()
 
     def test_most_recent_job(self):
         with create_session() as session:
