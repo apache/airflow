@@ -183,6 +183,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
     tags: [google]
+  - integration-name: Google Cloud Run
+    external-doc-url: https://cloud.google.com/run
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_run.rst
+    tags: [google]
   - integration-name: Google Cloud Dataform
     external-doc-url: https://cloud.google.com/dataform/
     how-to-guide:
@@ -484,6 +489,9 @@ operators:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_run
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_memorystore
@@ -700,6 +708,9 @@ hooks:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_run
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_memorystore
@@ -865,6 +876,9 @@ triggers:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_run
   - integration-name: Google Cloud Storage Transfer Service
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_storage_transfer_service

@@ -110,12 +110,16 @@ def _assert_one_job(ti):
     assert len(job_dicts[0]) == 1
 
 
+# [START howto_operator_cloud_run_job_creation]
 def _create_job():
     job = Job()
     container = k8s_min.Container()
     container.image = "us-docker.pkg.dev/cloudrun/container/job:latest"
     job.template.template.containers.append(container)
     return job
+
+
+# [END howto_operator_cloud_run_job_creation]
 
 
 def _create_job_with_label():
@@ -132,6 +136,7 @@ with models.DAG(
     tags=["example"],
 ) as dag:
 
+    # [START howto_operator_cloud_run_create_job]
     create1 = CloudRunCreateJobOperator(
         task_id=create1_task_name,
         project_id=PROJECT_ID,
@@ -140,6 +145,7 @@ with models.DAG(
         job=_create_job(),
         dag=dag,
     )
+    # [END howto_operator_cloud_run_create_job]
 
     create2 = CloudRunCreateJobOperator(
         task_id=create2_task_name,
@@ -154,6 +160,7 @@ with models.DAG(
         task_id="assert-created-jobs", python_callable=_assert_created_jobs_xcom, dag=dag
     )
 
+    # [START howto_operator_cloud_run_execute_job]
     execute1 = CloudRunExecuteJobOperator(
         task_id=execute1_task_name,
         project_id=PROJECT_ID,
@@ -162,7 +169,9 @@ with models.DAG(
         dag=dag,
         deferrable=False,
     )
+    # [END howto_operator_cloud_run_execute_job]
 
+    # [START howto_operator_cloud_run_execute_job_deferrable_mode]
     execute2 = CloudRunExecuteJobOperator(
         task_id=execute2_task_name,
         project_id=PROJECT_ID,
@@ -171,6 +180,7 @@ with models.DAG(
         dag=dag,
         deferrable=True,
     )
+    # [END howto_operator_cloud_run_execute_job_deferrable_mode]
 
     assert_executed_jobs = PythonOperator(
         task_id="assert-executed-jobs", python_callable=_assert_executed_jobs_xcom, dag=dag
@@ -182,12 +192,15 @@ with models.DAG(
 
     assert_jobs_limit = PythonOperator(task_id="assert-jobs-limit", python_callable=_assert_one_job, dag=dag)
 
+    # [START howto_operator_cloud_run_list_jobs]
     list_jobs = CloudRunListJobsOperator(
         task_id=list_jobs_task_name, project_id=PROJECT_ID, region=region, dag=dag
     )
+    # [END howto_operator_cloud_run_list_jobs]
 
     assert_jobs = PythonOperator(task_id="assert-jobs", python_callable=_assert_jobs, dag=dag)
 
+    # [START howto_operator_cloud_update_job]
     update_job1 = CloudRunUpdateJobOperator(
         task_id=update_job1_task_name,
         project_id=PROJECT_ID,
@@ -196,11 +209,13 @@ with models.DAG(
         job=_create_job_with_label(),
         dag=dag,
     )
+    # [END howto_operator_cloud_update_job]
 
     assert_job_updated = PythonOperator(
         task_id="assert-job-updated", python_callable=_assert_updated_job, dag=dag
     )
 
+    # [START howto_operator_cloud_delete_job]
     delete_job1 = CloudRunDeleteJobOperator(
         task_id="delete-job1",
         project_id=PROJECT_ID,
@@ -209,6 +224,7 @@ with models.DAG(
         dag=dag,
         trigger_rule=TriggerRule.ALL_DONE,
     )
+    # [END howto_operator_cloud_delete_job]
 
     delete_job2 = CloudRunDeleteJobOperator(
         task_id="delete-job2",
