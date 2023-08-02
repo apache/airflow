@@ -132,7 +132,7 @@ class WasbHook(BaseHook):
             "relabeling": {
                 "login": "Blob Storage Login (optional)",
                 "password": "Blob Storage Key (optional)",
-                "host": "Account Name (Active Directory Auth)",
+                "host": "Account URL (Active Directory Auth)",
             },
             "placeholders": {
                 "login": "account name",
@@ -154,7 +154,7 @@ class WasbHook(BaseHook):
         super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.blob_service_client = self.get_conn()
+        self.blob_service_client: BlobServiceClient = self.get_conn()
 
         logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
         try:
@@ -184,15 +184,19 @@ class WasbHook(BaseHook):
             # connection_string auth takes priority
             return BlobServiceClient.from_connection_string(connection_string, **extra)
 
+        account_url = (
+            conn.host
+            if conn.host and conn.host.startswith("https://")
+            else f"https://{conn.login}.blob.core.windows.net/"
+        )
+
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
             token_credential = ClientSecretCredential(tenant, app_id, app_secret, **client_secret_auth_config)
-            return BlobServiceClient(account_url=conn.host, credential=token_credential, **extra)
-
-        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
+            return BlobServiceClient(account_url=account_url, credential=token_credential, **extra)
 
         if self.public_read:
             # Here we use anonymous public read
@@ -210,9 +214,6 @@ class WasbHook(BaseHook):
             if sas_token.startswith("https"):
                 return BlobServiceClient(account_url=sas_token, **extra)
             else:
-                if not account_url.startswith("https://"):
-                    # TODO: require url in the host field in the next major version?
-                    account_url = f"https://{conn.login}.blob.core.windows.net"
                 return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
@@ -220,9 +221,6 @@ class WasbHook(BaseHook):
         if not credential:
             credential = DefaultAzureCredential()
             self.log.info("Using DefaultAzureCredential as credential")
-        if not account_url.startswith("https://"):
-            # TODO: require url in the host field in the next major version?
-            account_url = f"https://{conn.login}.blob.core.windows.net/"
         return BlobServiceClient(
             account_url=account_url,
             credential=credential,
@@ -589,6 +587,12 @@ class WasbAsyncHook(WasbHook):
             )
             return self.blob_service_client
 
+        account_url = (
+            conn.host
+            if conn.host and conn.host.startswith("https://")
+            else f"https://{conn.login}.blob.core.windows.net/"
+        )
+
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
@@ -598,11 +602,9 @@ class WasbAsyncHook(WasbHook):
                 tenant, app_id, app_secret, **client_secret_auth_config
             )
             self.blob_service_client = AsyncBlobServiceClient(
-                account_url=conn.host, credential=token_credential, **extra  # type:ignore[arg-type]
+                account_url=account_url, credential=token_credential, **extra  # type:ignore[arg-type]
             )
             return self.blob_service_client
-
-        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
 
         if self.public_read:
             # Here we use anonymous public read
@@ -625,7 +627,7 @@ class WasbAsyncHook(WasbHook):
                 self.blob_service_client = AsyncBlobServiceClient(account_url=sas_token, **extra)
             else:
                 self.blob_service_client = AsyncBlobServiceClient(
-                    account_url=f"{account_url}/{sas_token}", **extra
+                    account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra
                 )
             return self.blob_service_client
 

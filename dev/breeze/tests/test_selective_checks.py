@@ -312,7 +312,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.sql exasol ftp google http imap microsoft.azure "
-                "mongo mysql postgres salesforce ssh",
+                "mongo mysql openlineage postgres salesforce ssh",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "python-versions": "['3.8']",
@@ -326,7 +326,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "true",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always "
                 "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,imap,microsoft.azure,"
-                "mongo,mysql,postgres,salesforce,ssh] Providers[google]",
+                "mongo,mysql,openlineage,postgres,salesforce,ssh] Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
@@ -354,7 +354,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.sql exasol ftp google http imap microsoft.azure "
-                "mongo mysql postgres salesforce ssh",
+                "mongo mysql openlineage postgres salesforce ssh",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "python-versions": "['3.8']",
@@ -368,7 +368,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always "
                 "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,"
-                "http,imap,microsoft.azure,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
+                "http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh] "
+                "Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),

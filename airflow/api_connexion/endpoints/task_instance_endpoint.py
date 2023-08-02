@@ -269,7 +269,7 @@ def get_mapped_task_instances(
 def _convert_ti_states(states: Iterable[str] | None) -> list[TaskInstanceState | None] | None:
     if not states:
         return None
-    return [None if s == "none" else TaskInstanceState(s) for s in states]
+    return [None if s in ("none", None) else TaskInstanceState(s) for s in states]
 
 
 def _apply_array_filter(query: Select, key: ClauseElement, values: Iterable[Any] | None) -> Select:

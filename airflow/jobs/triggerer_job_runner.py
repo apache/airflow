@@ -569,7 +569,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             # be a busy event loop.
             time_elapsed = time.monotonic() - last_run
             if time_elapsed > 0.2:
-                self.log.error(
+                self.log.info(
                     "Triggerer's async thread was blocked for %.2f seconds, "
                     "likely by a badly-written trigger. Set PYTHONASYNCIODEBUG=1 "
                     "to get more information on overrunning coroutines.",
