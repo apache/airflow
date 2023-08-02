@@ -903,8 +903,8 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     ui_color = "#fff7e6"
 
     ratio_formulas = {
-        "max_over_min": lambda cur, ref: float(max(cur, ref)) / min(cur, ref),
-        "relative_diff": lambda cur, ref: float(abs(cur - ref)) / ref,
+        "max_over_min": lambda cur, ref: max(cur, ref) / min(cur, ref),
+        "relative_diff": lambda cur, ref: abs(cur - ref) / ref,
     }
 
     def __init__(

@@ -939,7 +939,7 @@ class Airflow(AirflowBaseView):
                 "error",
             )
 
-        num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
+        num_of_pages = math.ceil(num_of_all_dags / dags_per_page)
 
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
@@ -4003,7 +4003,7 @@ class Airflow(AirflowBaseView):
 
         logs_per_page = PAGE_SIZE
         audit_logs_count = get_query_count(query, session=session)
-        num_of_pages = int(math.ceil(audit_logs_count / float(logs_per_page)))
+        num_of_pages = math.ceil(audit_logs_count / logs_per_page)
 
         start = current_page * logs_per_page
         end = start + logs_per_page

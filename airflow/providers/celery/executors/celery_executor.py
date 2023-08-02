@@ -264,7 +264,7 @@ class CeleryExecutor(BaseExecutor):
 
         :return: Number of tasks that should be sent per process
         """
-        return max(1, int(math.ceil(1.0 * to_send_count / self._sync_parallelism)))
+        return max(1, math.ceil(to_send_count / self._sync_parallelism))
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         from airflow.providers.celery.executors.celery_executor_utils import execute_command
