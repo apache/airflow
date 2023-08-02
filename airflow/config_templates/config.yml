@@ -1445,8 +1445,8 @@ webserver:
     reload_on_plugin_change:
       description: |
         If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
-        then reload the gunicorn. If set to True, gunicorn starts without ``--preload`` setting and uses
-        more memory.
+        then reload the gunicorn. If set to True, gunicorn starts without ``--preload``, which
+        is slower and uses more memory.
       version_added: 1.10.11
       type: boolean
       example: ~
