@@ -27,7 +27,10 @@ Airflow 2.6.3 (2023-07-10)
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
-No significant changes.
+Default allowed pattern of a run_id has been changed to ``^[A-Za-z0-9_.~:+-]+$`` (#32293).
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Previously, there was no validation on the run_id string. There is now a validation regex that
+can be set by configuring ``allowed_run_id_pattern`` in ``scheduler`` section.
 
 Bug Fixes
 """""""""
