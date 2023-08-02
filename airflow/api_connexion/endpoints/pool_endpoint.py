@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from http import HTTPStatus
 
 from flask import Response
@@ -156,13 +155,3 @@ def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
         return pool_schema.dump(pool)
     except IntegrityError:
         raise AlreadyExists(detail=f"Pool: {post_body['pool']} already exists")
-
-
-def _handle_missing_include_deferred(fields_diff: set) -> None:
-    if "include_deferred" not in fields_diff:
-        return
-    fields_diff.remove("include_deferred")
-    warnings.warn(
-        "Not including include_deferred is deprecated, please always set this field.",
-        DeprecationWarning,
-    )
