@@ -1,0 +1,183 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+svg {
+  overflow: hidden;
+}
+
+.node rect {
+  stroke: #51504f;
+  stroke-width: 1px;
+  fill: #fff;
+  transition: stroke 0.2s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+.node rect[data-highlight="highlight"] {
+  stroke: #017cee !important;
+}
+
+.edgeLabel {
+  transition: opacity 0.2s ease-in-out;
+}
+
+.edgeLabel > .label {
+  font-weight: normal;
+  font-size: 10px;
+}
+
+.edgeLabel text {
+  transform: translate(16px, 0);
+}
+
+.edgeLabel rect {
+  fill: #fff;
+}
+
+.edgePath {
+  stroke: #51504f;
+  stroke-width: 1px;
+  fill: none;
+  transition: stroke 0.2s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+.edgePath[data-highlight="fade"],
+.edgePaths[data-highlight="fade"] > .edgePath,
+.edgeLabel[data-highlight="fade"] {
+  opacity: 0.2 !important;
+}
+
+.edgePath[data-highlight="highlight"] {
+  stroke: #017cee;
+}
+
+.edgePath .arrowhead {
+  stroke: none !important;
+  fill: #51504f;
+  stroke-width: 0 !important;
+  transition: fill 0.2s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+.edgePath[data-highlight="highlight"] .arrowhead {
+  stroke: #017cee;
+  fill: #017cee;
+}
+
+.not-allowed rect,
+.not-allowed text {
+  cursor: not-allowed !important;
+}
+
+g.cluster rect {
+  stroke: #fff;
+  stroke-dasharray: 5;
+  rx: 5;
+  ry: 5;
+  opacity: 0.5;
+}
+
+g.node {
+  transition: opacity 0.2s ease-in-out;
+}
+
+g.node[data-highlight="fade"] {
+  opacity: 0.2 !important;
+}
+
+g.node rect {
+  stroke: #fff;
+  stroke-width: 1.5px;
+  cursor: pointer;
+}
+
+g.node circle {
+  stroke: #51504f;
+  stroke-width: 1.5px;
+  cursor: pointer;
+}
+
+g.node .label {
+  font-size: 0.7em;
+  font-weight: normal;
+  pointer-events: none;
+}
+
+g.node text {
+  cursor: pointer;
+}
+
+.svg-wrapper {
+  border-radius: 4px;
+  background-color: #f0f0f0;
+  cursor: move;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+#graph-svg {
+  overflow: visible;
+}
+
+.refresh-actions {
+  justify-content: flex-end;
+  min-width: 225px;
+  display: inline-flex;
+  align-items: center;
+  right: 20px;
+  margin-top: 10px;
+  margin-bottom: 15px;
+  position: absolute;
+  background-color: #f0f0f0ee; /* the last two chars apply an opacity to the background color */
+}
+
+.legend-item.dag {
+  float: left;
+  background-color: #e8f7e4;
+}
+
+.legend-item.trigger {
+  float: left;
+  background-color: #ffefeb;
+}
+
+.legend-item.sensor {
+  float: left;
+  background-color: #e6f1f2;
+}
+
+.legend-item.dataset {
+  float: left;
+  background-color: #fcecd4;
+}
+
+g.node.dag rect {
+  fill: #e8f7e4;
+}
+
+g.node.trigger rect {
+  fill: #ffefeb;
+}
+
+g.node.sensor rect {
+  fill: #e6f1f2;
+}
+
+g.node.dataset rect {
+  fill: #fcecd4;
+}
