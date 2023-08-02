@@ -1731,7 +1731,7 @@ class TestDag:
 
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
-        from airflow.exceptions import DagInvalidTriggerRule
+        from airflow.exceptions import FailStopDagInvalidTriggerRule
         from airflow.utils.trigger_rule import TriggerRule
 
         task_with_non_default_trigger_rule = EmptyOperator(
@@ -1742,8 +1742,10 @@ class TestDag:
         )
         try:
             non_fail_stop_dag.add_task(task_with_non_default_trigger_rule)
-        except DagInvalidTriggerRule as exception:
-            assert False, f"dag add_task() raises DagInvalidTriggerRule for non fail stop dag: {exception}"
+        except FailStopDagInvalidTriggerRule as exception:
+            assert (
+                False
+            ), f"dag add_task() raises FailStopDagInvalidTriggerRule for non fail stop dag: {exception}"
 
         # a fail stop dag should allow default trigger rule
         from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
@@ -1756,13 +1758,13 @@ class TestDag:
         )
         try:
             fail_stop_dag.add_task(task_with_default_trigger_rule)
-        except DagInvalidTriggerRule as exception:
+        except FailStopDagInvalidTriggerRule as exception:
             assert (
                 False
             ), f"dag.add_task() raises exception for fail-stop dag & default trigger rule: {exception}"
 
         # a fail stop dag should not allow a non-default trigger rule
-        with pytest.raises(DagInvalidTriggerRule):
+        with pytest.raises(FailStopDagInvalidTriggerRule):
             fail_stop_dag.add_task(task_with_non_default_trigger_rule)
 
     def test_dag_add_task_sets_default_task_group(self):

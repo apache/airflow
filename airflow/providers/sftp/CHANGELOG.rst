@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, sftp: add OpenLineage support for sftp provider (#31360)``
+
 4.4.0
 .....
 

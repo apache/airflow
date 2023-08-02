@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 
+from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
@@ -479,3 +480,12 @@ class BaseExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
+
+    @staticmethod
+    def get_cli_commands() -> list[GroupCommand]:
+        """Vends CLI commands to be included in Airflow CLI.
+
+        Override this method to expose commands via Airflow CLI to manage this executor. This can
+        be commands to setup/teardown the executor, inspect state, etc.
+        """
+        return []

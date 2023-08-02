@@ -131,6 +131,7 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
               ml={-9}
             >
               <Time
+                // @ts-ignore
                 dateTime={moment(startDate)
                   .add(i * intervals, "milliseconds")
                   .format()}

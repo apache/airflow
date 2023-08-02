@@ -101,6 +101,16 @@ class TestSqoopHook:
                 extra=None,
             )
         )
+        db.merge_conn(
+            Connection(
+                conn_id="invalid_host_conn",
+                conn_type="mssql",
+                schema="schema",
+                host="rmdbs?query_param1=value1",
+                port=5050,
+                extra=None,
+            )
+        )
 
     @patch("subprocess.Popen")
     def test_popen(self, mock_popen):
@@ -370,3 +380,8 @@ class TestSqoopHook:
         # Case no mssql
         hook = SqoopHook(conn_id="sqoop_test")
         assert f"{hook.conn.host}:{hook.conn.port}/{hook.conn.schema}" in hook._prepare_command()
+
+    def test_invalid_host(self):
+        hook = SqoopHook(conn_id="invalid_host_conn")
+        with pytest.raises(ValueError, match="host should not contain a"):
+            hook._prepare_command()

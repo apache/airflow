@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+10.5.0
+......
+
+Features
+~~~~~~~~
+
+* ``openlineage, gcs: add openlineage methods for GcsToGcsOperator (#31350)``
+* ``Add Spot Instances support with Dataproc Operators (#31644)``
+* ``Install sqlalchemy-spanner package into Google provider (#31925)``
+* ``Filtering and ordering results of DataprocListBatchesOperator (#32500)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixup docstring for deprecated DataprocSubmitSparkJobOperator and refactoring system tests (#32743)``
+* ``Fix BigQueryGetDataOperator where project_id is not being respected in deferrable mode (#32488)``
+* ``Refresh GKE OAuth2 tokens (#32673)``
+* ``Fix 'BigQueryInsertJobOperator' not exiting deferred state (#31591)``
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+* ``Fixup docstring for deprecated DataprocSubmitHiveJobOperator (#32723)``
+* ``Fixup docs and optimize system test for DataprocSubmitJobOperator (Hadoop job) (#32722)``
+* ``Fixup docstring for deprecated DataprocSubmitPigJobOperator (#32739)``
+* ``Fix Datafusion system tests (#32749)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixup system test for DataprocSubmitJobOperator (SparkSQL job) (#32745)``
+   * ``Fixup system test for DataprocSubmitJobOperator (PySpark job) (#32740)``
+   * ``Migrate system test for PostgresToGCSOperator to new design AIP-47 (#32641)``
+   * ``misc: update MLEngine system tests (#32881)``
+
 10.4.0
 ......
 

@@ -73,6 +73,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--dev-apt-deps",
                 "--dev-apt-command",
                 "--version-suffix-for-pypi",
+                "--commit-sha",
             ],
         },
         {

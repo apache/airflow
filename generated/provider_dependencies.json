@@ -28,7 +28,7 @@
       "asgiref",
       "boto3>=1.24.0",
       "jsonpath_ng>=1.5.3",
-      "mypy-boto3-appflow>=1.24.0,!=1.28.12",
+      "mypy-boto3-appflow>=1.24.0,<1.28.12",
       "mypy-boto3-rds>=1.24.0",
       "mypy-boto3-redshift-data>=1.24.0",
       "mypy-boto3-s3>=1.24.0",
@@ -228,7 +228,7 @@
   "asana": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "asana>=0.10"
+      "asana>=0.10,<4.0.0"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []
@@ -388,7 +388,9 @@
     "deps": [
       "apache-airflow>=2.4.0"
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "openlineage"
+    ],
     "excluded-python-versions": []
   },
   "github": {
@@ -424,7 +426,7 @@
       "google-cloud-dataflow-client>=0.8.2",
       "google-cloud-dataform>=0.5.0",
       "google-cloud-dataplex>=1.4.2",
-      "google-cloud-dataproc-metastore>=1.10.0",
+      "google-cloud-dataproc-metastore>=1.12.0",
       "google-cloud-dataproc>=5.4.0",
       "google-cloud-dlp>=3.12.0",
       "google-cloud-kms>=2.15.0",

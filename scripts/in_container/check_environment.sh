@@ -115,7 +115,7 @@ function startairflow_if_requested() {
 
         . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
 
-        airflow db init
+        airflow db migrate
         airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain
 
         . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"

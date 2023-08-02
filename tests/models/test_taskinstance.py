@@ -3026,7 +3026,6 @@ class TestTaskInstance:
             "_try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
-            "is_setup": False,
             "unixname": "some_unique_unixname",
             "job_id": 1234,
             "pool": "some_fake_pool_id",

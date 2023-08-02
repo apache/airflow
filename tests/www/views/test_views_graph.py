@@ -41,7 +41,6 @@ VERY_CLOSE_RUNS_DATE = timezone.datetime(2020, 1, 1, 0, 0, 0)
 
 ENDPOINTS = [
     "/graph?dag_id=dag_for_testing_dt_nr_dr_form",
-    "/gantt?dag_id=dag_for_testing_dt_nr_dr_form",
 ]
 
 
