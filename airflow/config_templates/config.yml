@@ -1351,7 +1351,7 @@ webserver:
   options:
     access_denied_message:
       description: |
-        The message displayed when an user tries to perform operations outside their rights.
+        The message displayed when a user attempts to execute actions beyond their authorised privileges.
       version_added: 2.7.0
       type: string
       example: ~
