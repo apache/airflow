@@ -28,7 +28,7 @@ from tests.test_utils.config import conf_vars
 def test_cache_disabled_by_default():
     SecretCache.init()
     SecretCache.save_variable("test", "not saved")
-    with pytest.raises(SecretCache.NotPresent):
+    with pytest.raises(SecretCache.NotPresentException):
         SecretCache.get_variable("test")
     assert SecretCache._cache is None
 
@@ -71,7 +71,7 @@ class TestSecretCache:
         assert val == "secret_val"
 
     def test_returns_none_when_not_init(self):
-        with pytest.raises(SecretCache.NotPresent):
+        with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_variable("whatever")
 
     def test_cache_saves_none_as_sentinel(self):
@@ -89,7 +89,7 @@ class TestSecretCache:
         SecretCache.invalidate_variable("key")
 
         # cannot get the value for that key anymore because we invalidated it
-        with pytest.raises(SecretCache.NotPresent):
+        with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_variable("key")
 
     def test_invalidate_key_not_present(self):
@@ -103,7 +103,7 @@ class TestSecretCache:
         SecretCache._ttl = datetime.timedelta(0)  # I don't want to sleep()
 
         # value is now seen as expired
-        with pytest.raises(SecretCache.NotPresent):
+        with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_variable("key")
 
     @conf_vars({("secrets", "use_cache"): "0"})
@@ -115,7 +115,7 @@ class TestSecretCache:
         SecretCache.save_variable("key", "some_value")  # will be ignored
 
         # cache is disabled, gets will always "fail"
-        with pytest.raises(SecretCache.NotPresent):
+        with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_variable("key")
 
     def test_independence_variable_connection(self):
@@ -129,14 +129,14 @@ class TestSecretCache:
         SecretCache.save_connection_uri("conn", "some_other_value")
 
         # getting the wrong type of thing with a key that exists in the other will not work
-        with pytest.raises(SecretCache.NotPresent):
+        with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_connection_uri("var")
-        with pytest.raises(SecretCache.NotPresent):
+        with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_variable("conn")
 
     def test_connections_do_not_save_none(self):
         # noinspection PyTypeChecker
         SecretCache.save_connection_uri("key", None)
 
-        with pytest.raises(SecretCache.NotPresent):
+        with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_connection_uri("key")

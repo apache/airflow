@@ -457,7 +457,7 @@ class Connection(Base, LoggingMixin):
         try:
             uri = SecretCache.get_connection_uri(conn_id)
             return Connection(conn_id=conn_id, uri=uri)
-        except SecretCache.NotPresent:
+        except SecretCache.NotPresentException:
             pass  # continue business
 
         # iterate over backends if not in cache (or expired)

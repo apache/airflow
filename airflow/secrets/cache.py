@@ -30,7 +30,7 @@ class SecretCache:
     _cache: dict[str, _CacheValue] | None = None
     _ttl: datetime.timedelta
 
-    class NotPresent(Exception):
+    class NotPresentException(Exception):
         """Raised when a key is not present in the cache."""
 
         ...
@@ -88,18 +88,18 @@ class SecretCache:
         val = cls._get(conn_id, cls._CONNECTION_PREFIX)
         if val:  # there shouldn't be any empty entries in the connections cache, but we enforce it here.
             return val
-        raise cls.NotPresent
+        raise cls.NotPresentException
 
     @classmethod
     def _get(cls, key: str, prefix: str) -> str | None:
         if cls._cache is None:
             # using an exception for misses allow to meaningfully cache None values
-            raise cls.NotPresent
+            raise cls.NotPresentException
 
         val = cls._cache.get(f"{prefix}{key}")
         if val and not val.is_expired(cls._ttl):
             return val.value
-        raise cls.NotPresent
+        raise cls.NotPresentException
 
     @classmethod
     def save_variable(cls, key: str, value: str | None):

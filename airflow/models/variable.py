@@ -267,7 +267,7 @@ class Variable(Base, LoggingMixin):
         # enabled only if SecretCache.init() has been called first
         try:
             return SecretCache.get_variable(key)
-        except SecretCache.NotPresent:
+        except SecretCache.NotPresentException:
             pass  # continue business
 
         var_val = None
