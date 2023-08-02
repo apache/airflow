@@ -21,7 +21,6 @@ from flask_appbuilder.security.views import (
     PermissionModelView,
     PermissionViewModelView,
     RoleModelView,
-    UserStatsChartView,
     ViewMenuModelView,
 )
 from flask_babel import lazy_gettext
@@ -112,15 +111,3 @@ class ResourceModelView(ViewMenuModelView):
     edit_title = lazy_gettext("Edit Resource")
 
     label_columns = {"name": lazy_gettext("Name")}
-
-
-class CustomUserStatsChartView(UserStatsChartView):
-    """Customize permission names for FAB's builtin UserStatsChartView."""
-
-    class_permission_name = permissions.RESOURCE_USER_STATS_CHART
-    route_base = "/userstatschartview"
-    method_permission_name = {
-        "chart": "read",
-        "list": "read",
-    }
-    base_permissions = [permissions.ACTION_CAN_READ]
