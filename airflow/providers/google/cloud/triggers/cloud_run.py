@@ -42,17 +42,17 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
     :param operation_name: Required. Name of the operation.
     :param job_name: Required. Name of the job.
     :param project_id: Required. the Google Cloud project ID in which the job was started.
-    :param location: Optional. the location where job is executed. If set to None then
-        the value of DEFAULT_BATCH_LOCATION will be used
+    :param location: Optional. the location where job is executed.
+    If set to None then the value of DEFAULT_BATCH_LOCATION will be used.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional. Service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
+    credentials, or chained list of accounts required to get the access_token of the last account in the list,
+    which will be impersonated in the request.
+    If set as a string, the account must grant the originating account
+    the Service Account Token Creator IAM role.
+    If set as a sequence, the identities from the list must grant
+    Service Account Token Creator IAM role to the directly preceding identity, with first
+    account from the list granting this role to the originating account (templated).
     :param poll_sleep: Polling period in seconds to check for the status.
     :timeout: The time to wait before failing the operation.
     """

@@ -20,7 +20,7 @@ Google Cloud Run Operators
 
 Cloud Run is used to build and deploy scalable containerized apps written in any language (including Go, Python, Java, Node.js, .NET, and Ruby) on a fully managed platform.
 
-For more information about the service visit `Google Cloud Run documentation <https://cloud.google.com/run>`__.
+For more information about the service visit `Google Cloud Run documentation <https://cloud.google.com/run/docs/>`__.
 
 Create a job
 ---------------------
