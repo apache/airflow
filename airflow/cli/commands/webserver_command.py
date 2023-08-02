@@ -431,8 +431,8 @@ def webserver(args):
             log.warning(
                 "reload_on_plugin_change prevent running gunicorn with --preload option. "
                 "With the preload option, the app is loaded before the workers are forked, and each worker "
-                "will then have a copy of the app. It may cause IntegrityError during webserver startup, so "
-                "avoid using reload_on_plugin_change in production."
+                "will then have a copy of the app. reload_on_plugin_change may cause IntegrityErrors during "
+                "webserver startup, so avoid using it in production."
             )
 
         gunicorn_master_proc: psutil.Process | subprocess.Popen
