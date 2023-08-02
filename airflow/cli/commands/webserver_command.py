@@ -429,7 +429,7 @@ def webserver(args):
             run_args += ["--preload"]
         if reload_on_plugin_change:
             log.warning(
-                "reload_on_plugin_change prevent running gunicorn with --preload option. "
+                "reload_on_plugin_change prevents running gunicorn with the --preload option. "
                 "With the preload option, the app is loaded before the workers are forked, and each worker "
                 "will then have a copy of the app. reload_on_plugin_change may cause IntegrityErrors during "
                 "webserver startup, so avoid using it in production."
