@@ -107,6 +107,21 @@ class TestCliPools:
         with pytest.raises(SystemExit):
             pool_command.pool_import(self.parser.parse_args(["pools", "import", "pools_import_invalid.json"]))
 
+    def test_pool_import_backwards_compatibility(self):
+        try:
+            pool_config_input = {
+                # JSON before version 2.7.0 does not contain `include_deferred`
+                "foo": {"description": "foo_test", "slots": 1},
+            }
+            with open("pools_import.json", mode="w") as file:
+                json.dump(pool_config_input, file)
+
+            pool_command.pool_import(self.parser.parse_args(["pools", "import", "pools_import.json"]))
+
+            assert self.session.query(Pool).filter(Pool.pool == "foo").first().include_deferred is False
+        finally:
+            os.remove("pools_import.json")
+
     def test_pool_import_export(self):
         # Create two pools first
         pool_config_input = {

@@ -122,13 +122,13 @@ def pool_import_helper(filepath):
     pools = []
     failed = []
     for k, v in pools_json.items():
-        if isinstance(v, dict) and len(v) == 3:
+        if isinstance(v, dict) and "slots" in v and "description" in v:
             pools.append(
                 api_client.create_pool(
                     name=k,
                     slots=v["slots"],
                     description=v["description"],
-                    include_deferred=v["include_deferred"],
+                    include_deferred=v.get("include_deferred", False),
                 )
             )
         else:

@@ -124,6 +124,7 @@ class Client(api_client.Client):
             "name": name,
             "slots": slots,
             "description": description,
+            "include_deferred": include_deferred,
         }
         response = self._request(urljoin(self._api_base_url, endpoint), method="POST", json=data)
         return response["pool"], response["slots"], response["description"], response["include_deferred"]
