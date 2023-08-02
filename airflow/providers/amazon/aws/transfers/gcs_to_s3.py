@@ -157,13 +157,13 @@ class GCSToS3Operator(BaseOperator):
 
         self.log.info(
             "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s",
-            self.bucket,
+            self.gcs_bucket,
             self.delimiter,
             self.prefix,
         )
 
         gcs_files = gcs_hook.list(
-            bucket_name=self.bucket,
+            bucket_name=self.gcs_bucket,
             prefix=self.prefix,
             delimiter=self.delimiter,
             match_glob=self.match_glob,
@@ -199,7 +199,7 @@ class GCSToS3Operator(BaseOperator):
         if gcs_files:
             for file in gcs_files:
                 with gcs_hook.provide_file(
-                    object_name=file, bucket_name=self.bucket, user_project=self.gcp_user_project
+                    object_name=file, bucket_name=self.gcs_bucket, user_project=self.gcp_user_project
                 ) as local_tmp_file:
                     dest_key = os.path.join(self.dest_s3_key, file)
                     self.log.info("Saving file to %s", dest_key)
