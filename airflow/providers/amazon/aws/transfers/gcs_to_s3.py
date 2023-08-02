@@ -121,7 +121,7 @@ class GCSToS3Operator(BaseOperator):
         if bucket:
             warnings.warn(
                 "The 'bucket' parameter is deprecated, please use 'gcs_bucket' instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             self.gcs_bucket = bucket
