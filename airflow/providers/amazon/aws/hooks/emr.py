@@ -175,7 +175,7 @@ class EmrHook(AwsBaseHook):
                 try:
                     wait(
                         waiter=waiter,
-                        max_attempts=waiter_max_attempts,
+                        waiter_max_attempts=waiter_max_attempts,
                         waiter_delay=waiter_delay,
                         args={"ClusterId": job_flow_id, "StepId": step_id},
                         failure_message=f"EMR Steps failed: {step_id}",
@@ -185,7 +185,9 @@ class EmrHook(AwsBaseHook):
                 except AirflowException as ex:
                     if "EMR Steps failed" in str(ex):
                         resp = self.get_conn().describe_step(ClusterId=job_flow_id, StepId=step_id)
-                        self.log.error("EMR Steps failed: %s", resp["Step"]["Status"]["StateChangeReason"])
+                        self.log.error(
+                            "EMR Steps failed: %s", resp["Step"]["Status"].get("FailureDetails", None)
+                        )
                         raise
         return response["StepIds"]
 
