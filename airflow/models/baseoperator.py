@@ -1611,7 +1611,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 # get context in a try/except block for unit tests
                 context = get_current_context()
             except AirflowException:
-                context = {}
+                context = Context()
 
             trigger_timeout, _ = self._trigger_timeout(context)
 
