@@ -223,7 +223,7 @@ class BatchOperator(BaseOperator):
                 timeout=self.execution_timeout,
                 trigger=BatchJobTrigger(
                     job_id=self.job_id,
-                    waiter_max_attempts=self.max_retries or 10,
+                    waiter_max_attempts=self.max_retries or 4200,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     waiter_delay=self.poll_interval,
