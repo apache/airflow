@@ -76,9 +76,10 @@ const tabToIndex = (tab?: string) => {
     case "gantt":
       return 2;
     case "code":
+      return 3;
     case "logs":
     case "mapped_tasks":
-      return 3;
+      return 4;
     case "details":
     default:
       return 0;
@@ -97,7 +98,8 @@ const indexToTab = (
     case 2:
       return "gantt";
     case 3:
-      if (!taskId) return "code";
+      return "code";
+    case 4:
       if (showMappedTasks) return "mapped_tasks";
       if (showLogs) return "logs";
       return undefined;
@@ -135,7 +137,6 @@ const Details = ({
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
   const showLogs = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
-  const showDagCode = !taskId;
   const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -155,7 +156,7 @@ const Details = ({
 
   useEffect(() => {
     // We only have 3 tabs for when a task group are selected
-    if (isGroup && taskId && tabIndex > 2) {
+    if (isGroup && taskId && tabIndex > 3) {
       onChangeTab(1);
     }
   }, [taskId, tabIndex, isGroup, onChangeTab]);
@@ -244,14 +245,12 @@ const Details = ({
               Gantt
             </Text>
           </Tab>
-          {showDagCode && (
-            <Tab>
-              <MdCode size={16} />
-              <Text as="strong" ml={1}>
-                Code
-              </Text>
-            </Tab>
-          )}
+          <Tab>
+            <MdCode size={16} />
+            <Text as="strong" ml={1}>
+              Code
+            </Text>
+          </Tab>
           {showLogs && (
             <Tab>
               <MdReorder size={16} />
@@ -301,11 +300,9 @@ const Details = ({
               ganttScrollRef={ganttScrollRef}
             />
           </TabPanel>
-          {showDagCode && (
-            <TabPanel height="100%">
-              <DagCode />
-            </TabPanel>
-          )}
+          <TabPanel height="100%">
+            <DagCode />
+          </TabPanel>
           {showLogs && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}
