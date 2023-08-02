@@ -39,7 +39,8 @@ class GCSToS3Operator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GCSToS3Operator`
 
-    :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
+    :param gcs_bucket: The Google Cloud Storage bucket to find the objects. (templated)
+    :param bucket: (Deprecated) Use gcs_bucket instead.
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)
     :param delimiter: (Deprecated) The delimiter by which you want to filter the objects. (templated)
@@ -85,6 +86,7 @@ class GCSToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
+        "gcs_bucket",
         "bucket",
         "prefix",
         "delimiter",
@@ -97,7 +99,8 @@ class GCSToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        bucket: str,
+        gcs_bucket: str,
+        bucket: str | None = None,
         prefix: str | None = None,
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -115,11 +118,20 @@ class GCSToS3Operator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        self.bucket = bucket
+        if bucket:
+            warnings.warn(
+                "The 'bucket' parameter is deprecated, please use 'gcs_bucket' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self.gcs_bucket = bucket
+        else:
+            self.gcs_bucket = gcs_bucket
+
         self.prefix = prefix
         if delimiter:
             warnings.warn(
-                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
