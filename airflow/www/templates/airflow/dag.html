@@ -184,11 +184,11 @@
     <div class="row">
       <div class="col-md-10">
         <ul class="nav nav-pills">
-          <li><a href="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
+          <li id="grid-nav"><a href="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">grid_on</span>
             Grid
           </a></li>
-          <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+          <li id="graph-nav"><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">account_tree</span>
             Graph</a></li>
           <li><a href="{{ url_for('Airflow.calendar', dag_id=dag.dag_id) }}">
@@ -204,7 +204,7 @@
           <li><a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">flight_land</span>
             Landing Times</a></li>
-          <li><a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+          <li id="gantt-nav"><a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">vertical_distribute</span>
             Gantt</a></li>
           <li><a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
