@@ -24,12 +24,12 @@ core UI using the Plugin manager
 
 This is an example plugin for Airflow that displays absolutely nothing.
 
-In this plugin, two objects reference are derived from the base class
+In this plugin, two object references are derived from the base class
 ``airflow.plugins_manager.AirflowPlugin``. They are flask_blueprints and
 appbuilder_views
 
 Using flask_blueprints in Airflow plugin, the core application can be extended
-to support the customized application to view the Empty Plugin.
+to support the customized application to view Empty Plugin.
 In this object reference, the list of Blueprint object with the static template for
 rendering the information.
 
