@@ -33,8 +33,6 @@ class SecretCache:
     class NotPresentException(Exception):
         """Raised when a key is not present in the cache."""
 
-        ...
-
     class _CacheValue:
         def __init__(self, value: str | None) -> None:
             self.value = value
