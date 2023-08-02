@@ -41,7 +41,6 @@ import lazy_object_proxy
 import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
-    Boolean,
     Column,
     DateTime,
     Float,
@@ -187,19 +186,32 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
-def stop_all_tasks_in_dag(tis: list[TaskInstance], session: Session, task_id_to_ignore: int):
+def _stop_remaining_tasks(*, self, session: Session):
+    """
+    Stop non-teardown tasks in dag.
+
+    :meta private:
+    """
+    tis = self.dag_run.get_task_instances(session=session)
+    if TYPE_CHECKING:
+        assert isinstance(self.task.dag, DAG)
+
     for ti in tis:
-        if ti.task_id == task_id_to_ignore or ti.state in (
+        if ti.task_id == self.task_id or ti.state in (
             TaskInstanceState.SUCCESS,
             TaskInstanceState.FAILED,
         ):
             continue
-        if ti.state == TaskInstanceState.RUNNING:
-            log.info("Forcing task %s to fail", ti.task_id)
-            ti.error(session)
+        task = self.task.dag.task_dict[ti.task_id]
+        if not task.is_teardown:
+            if ti.state == TaskInstanceState.RUNNING:
+                log.info("Forcing task %s to fail due to dag's `fail_stop` setting", ti.task_id)
+                ti.error(session)
+            else:
+                log.info("Setting task %s to SKIPPED due to dag's `fail_stop` setting.", ti.task_id)
+                ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
         else:
-            log.info("Setting task %s to SKIPPED", ti.task_id)
-            ti.set_state(state=TaskInstanceState.SKIPPED, session=session)
+            log.info("Not skipping teardown task '%s'", ti.task_id)
 
 
 def clear_task_instances(
@@ -420,7 +432,6 @@ class TaskInstance(Base, LoggingMixin):
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
-    is_setup = Column(Boolean, nullable=False, default=False, server_default="0")
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly
@@ -579,7 +590,6 @@ class TaskInstance(Base, LoggingMixin):
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
-            "is_setup": task.is_setup,
         }
 
     @reconstructor
@@ -878,7 +888,6 @@ class TaskInstance(Base, LoggingMixin):
             self.trigger_id = ti.trigger_id
             self.next_method = ti.next_method
             self.next_kwargs = ti.next_kwargs
-            self.is_setup = ti.is_setup
         else:
             self.state = None
 
@@ -900,7 +909,6 @@ class TaskInstance(Base, LoggingMixin):
         self.executor_config = task.executor_config
         self.operator = task.task_type
         self.custom_operator_name = getattr(task, "custom_operator_name", None)
-        self.is_setup = task.is_setup
 
     @provide_session
     def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
@@ -1583,11 +1591,13 @@ class TaskInstance(Base, LoggingMixin):
             session.merge(self).task = self.task
             if self.state == TaskInstanceState.SUCCESS:
                 self._register_dataset_changes(session=session)
+
+            session.commit()
+            if self.state == TaskInstanceState.SUCCESS:
                 get_listener_manager().hook.on_task_instance_success(
                     previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
                 )
 
-            session.commit()
         return None
 
     def _register_dataset_changes(self, *, session: Session) -> None:
@@ -1983,8 +1993,7 @@ class TaskInstance(Base, LoggingMixin):
             callback_type = "on_failure"
 
             if task and task.dag and task.dag.fail_stop:
-                tis = self.get_dagrun(session).get_task_instances()
-                stop_all_tasks_in_dag(tis, session, self.task_id)
+                _stop_remaining_tasks(self=self, session=session)
         else:
             if self.state == TaskInstanceState.QUEUED:
                 # We increase the try_number so as to fail the task if it fails to start after sometime

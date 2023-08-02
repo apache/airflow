@@ -511,17 +511,25 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
         return urljoin(f"{instance_url}/", f"v3/namespaces/{quote(namespace)}/apps/")
 
     async def _get_link(self, url: str, session):
-        async with Token(scopes=self.scopes) as token:
-            session_aio = AioSession(session)
-            headers = {
-                "Authorization": f"Bearer {await token.get()}",
-            }
-            try:
-                pipeline = await session_aio.get(url=url, headers=headers)
-            except AirflowException:
-                pass  # Because the pipeline may not be visible in system yet
-
-        return pipeline
+        # Adding sleep generator to catch 404 in case if pipeline was not retrieved during first attempt.
+        for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+            async with Token(scopes=self.scopes) as token:
+                session_aio = AioSession(session)
+                headers = {
+                    "Authorization": f"Bearer {await token.get()}",
+                }
+                try:
+                    pipeline = await session_aio.get(url=url, headers=headers)
+                    break
+                except Exception as exc:
+                    if "404" in str(exc):
+                        sleep(time_to_wait)
+                    else:
+                        raise
+        if pipeline:
+            return pipeline
+        else:
+            raise AirflowException("Could not retrieve pipeline. Aborting.")
 
     async def get_pipeline(
         self,
@@ -567,7 +575,6 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                     pipeline_id=pipeline_id,
                     session=session,
                 )
-                self.log.info("Response pipeline: %s", pipeline)
                 pipeline = await pipeline.json(content_type=None)
                 current_pipeline_state = pipeline["status"]
 
