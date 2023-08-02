@@ -567,3 +567,31 @@ class TestPgbouncerExporter:
             "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@127.0.0.1:1111"
             "/pgbouncer?sslmode=require" == connection
         )
+
+
+class TestPgBouncerServiceAccount:
+    """Tests PgBouncer Service Account."""
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False

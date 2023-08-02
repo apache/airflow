@@ -28,6 +28,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.4.0
+.....
+
+Latest change: 2023-07-28
+
+=================================================================================================  ===========  ====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================
+`ddb685cf26 <https://github.com/apache/airflow/commit/ddb685cf2669f9debf1a8ed8c6b5204be7071893>`_  2023-07-28   ``Further limit mypy-boto3-appflow as the fix is not in sight (#32927)``
+`25124dfd8b <https://github.com/apache/airflow/commit/25124dfd8bccad2385f72cff332fe9deb8d921bc>`_  2023-07-28   ``Limit Appflow mypy to 1.28.12 as it introduces strange typing issue (#32901)``
+`e93460383f <https://github.com/apache/airflow/commit/e93460383f287f9b2af4b6bda3ea6ba17ba3c08b>`_  2023-07-26   ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+`9570cb1482 <https://github.com/apache/airflow/commit/9570cb1482d25f288e607aaa1210b2457bc5ed12>`_  2023-07-25   ``Make Start and Stop SageMaker Pipelines operators deferrable (#32683)``
+`1706f05858 <https://github.com/apache/airflow/commit/1706f058582a0668555eee874bcf4ccdc248acbb>`_  2023-07-24   ``EMR serverless Create/Start/Stop/Delete Application deferrable mode (#32513)``
+`282854b55f <https://github.com/apache/airflow/commit/282854b55fd8b0ef46ae0b9032b67654b4789249>`_  2023-07-24   ``Add endpoint_url in test_connection (#32664)``
+`8012c9fce6 <https://github.com/apache/airflow/commit/8012c9fce64f152b006f88497d65ea81d29571b8>`_  2023-07-24   ``Add support for querying Redshift Serverless clusters (#32785)``
+`57f203251b <https://github.com/apache/airflow/commit/57f203251b223550d6e7bb717910109af9aeed29>`_  2023-07-22   ``FIX AWS deferrable operators by using AioCredentials when using 'assume_role' (#32733)``
+`815655101b <https://github.com/apache/airflow/commit/815655101b7457d60be08648e6cd02af30e0d695>`_  2023-07-21   ``Add Deferrable mode to StepFunctionStartExecutionOperator (#32563)``
+`75ed3bc3f8 <https://github.com/apache/airflow/commit/75ed3bc3f80ac03c301535f38544a4923ee6d43f>`_  2023-07-20   ``[bugfix] fix AWS triggers where deserialization would crash if region was not specified (#32729)``
+`27b5f696a4 <https://github.com/apache/airflow/commit/27b5f696a48a088a23294c542acb46bd6e544809>`_  2023-07-20   ``Add Deferrable mode for EMR Serverless Start Job Operator (#32534)``
+`eea53a22c9 <https://github.com/apache/airflow/commit/eea53a22c92bdcb8ef532e41d3a912f05b5736c0>`_  2023-07-20   ``Add Eventbridge PutEvents operator and hook (#32498)``
+`bbd290266c <https://github.com/apache/airflow/commit/bbd290266c0aba07a9e4c4fc24e1eb9b6b4c61d8>`_  2023-07-19   ``Fix bug in prune_dict where empty dict and list would be removed even in strict mode (#32573)``
+`b9c84eb663 <https://github.com/apache/airflow/commit/b9c84eb6639e825ed951c08e477411bf52dfc437>`_  2023-07-19   ``add deferrable mode to rds start & stop DB (#32437)``
+`7ed791dab7 <https://github.com/apache/airflow/commit/7ed791dab72709fbc5c9c27687a8b014c3e9906d>`_  2023-07-19   ``Do not return success from AWS ECS trigger after max_attempts (#32589)``
+`113018ec99 <https://github.com/apache/airflow/commit/113018ec99e5d414ac0abf5bc29431bfa8f070bb>`_  2023-07-17   ``Deferrable mode for EKS Create/Delete Operator (#32355)``
+`145b16caaa <https://github.com/apache/airflow/commit/145b16caaa43f0c42bffd97344df916c602cddde>`_  2023-07-13   ``Fix S3ToRedshiftOperator does not support default values on UPSERT (#32558)``
+=================================================================================================  ===========  ====================================================================================================
+
 8.3.1
 .....
 
@@ -36,6 +63,7 @@ Latest change: 2023-07-12
 =================================================================================================  ===========  =================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================
+`e7f59a913e <https://github.com/apache/airflow/commit/e7f59a913e1fcf9052e69f62af9fe23901f1a358>`_  2023-07-12   ``Prepare docs for July 2023 2nd wave of Providers (#32566)``
 `50a68c6c4e <https://github.com/apache/airflow/commit/50a68c6c4ecb0a45272be7df7939ded6f28cf2f9>`_  2023-07-12   ``Append region info to S3ToRedshitOperator if present (#32328)``
 =================================================================================================  ===========  =================================================================
 

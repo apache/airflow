@@ -41,6 +41,7 @@ from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
@@ -208,17 +209,12 @@ class AirflowAppBuilder:
 
         if self.update_perms:  # default is True, if False takes precedence from config
             self.update_perms = app.config.get("FAB_UPDATE_PERMS", True)
-        _security_manager_class_name = app.config.get("FAB_SECURITY_MANAGER_CLASS", None)
-        if _security_manager_class_name is not None:
-            self.security_manager_class = dynamic_class_import(_security_manager_class_name)
-        if self.security_manager_class is None:
-            from flask_appbuilder.security.sqla.manager import SecurityManager
-
-            self.security_manager_class = SecurityManager
 
         self._addon_managers = app.config["ADDON_MANAGERS"]
         self.session = session
         self.sm = self.security_manager_class(self)
+        auth_manager = get_auth_manager()
+        auth_manager.security_manager = self.sm
         self.bm = BabelManager(self)
         self._add_global_static()
         self._add_global_filters()
@@ -590,25 +586,11 @@ class AirflowAppBuilder:
         return self.sm.security_converge(self.baseviews, self.menu, dry)
 
     def get_url_for_login_with(self, next_url: str | None = None) -> str:
-        if self.sm.auth_view is None:
-            return ""
-        return url_for(f"{self.sm.auth_view.endpoint}.{'login'}", next=next_url)
-
-    @property
-    def get_url_for_login(self):
-        return url_for(f"{self.sm.auth_view.endpoint}.login")
-
-    @property
-    def get_url_for_logout(self):
-        return url_for(f"{self.sm.auth_view.endpoint}.logout")
+        return get_auth_manager().get_url_login(next_url=next_url)
 
     @property
     def get_url_for_index(self):
         return url_for(f"{self.indexview.endpoint}.{self.indexview.default_view}")
-
-    @property
-    def get_url_for_userinfo(self):
-        return url_for(f"{self.sm.user_view.endpoint}.userinfo")
 
     def get_url_for_locale(self, lang):
         return url_for(

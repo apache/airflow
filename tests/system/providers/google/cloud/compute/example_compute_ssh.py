@@ -74,7 +74,7 @@ with models.DAG(
     schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "compute-ssh"],
 ) as dag:
     # [START howto_operator_gce_insert]
     gce_instance_insert = ComputeEngineInsertInstanceOperator(
@@ -95,7 +95,7 @@ with models.DAG(
             project_id=PROJECT_ID,
             use_oslogin=False,
             use_iap_tunnel=False,
-            cmd_timeout=100,
+            cmd_timeout=1,
         ),
         command="echo metadata_without_iap_tunnel1",
     )

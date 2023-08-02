@@ -173,8 +173,9 @@ class ExtractorManager(LoggingMixin):
 
     @staticmethod
     def convert_to_ol_dataset(obj):
-        from airflow.lineage.entities import Table
         from openlineage.client.run import Dataset
+
+        from airflow.lineage.entities import Table
 
         if isinstance(obj, Dataset):
             return obj

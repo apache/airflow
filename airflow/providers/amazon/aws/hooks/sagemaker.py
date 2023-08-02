@@ -23,6 +23,7 @@ import re
 import tarfile
 import tempfile
 import time
+import warnings
 from collections import Counter
 from datetime import datetime
 from functools import partial
@@ -30,7 +31,7 @@ from typing import Any, Callable, Generator, cast
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -1061,7 +1062,7 @@ class SageMakerHook(AwsBaseHook):
         display_name: str = "airflow-triggered-execution",
         pipeline_params: dict | None = None,
         wait_for_completion: bool = False,
-        check_interval: int = 30,
+        check_interval: int | None = None,
         verbose: bool = True,
     ) -> str:
         """Start a new execution for a SageMaker pipeline.
@@ -1073,14 +1074,19 @@ class SageMakerHook(AwsBaseHook):
         :param display_name: The name this pipeline execution will have in the UI. Doesn't need to be unique.
         :param pipeline_params: Optional parameters for the pipeline.
             All parameters supplied need to already be present in the pipeline definition.
-        :param wait_for_completion: Will only return once the pipeline is complete if true.
-        :param check_interval: How long to wait between checks for pipeline status when waiting for
-            completion.
-        :param verbose: Whether to print steps details when waiting for completion.
-            Defaults to true, consider turning off for pipelines that have thousands of steps.
 
         :return: the ARN of the pipeline execution launched.
         """
+        if wait_for_completion or check_interval is not None:
+            warnings.warn(
+                "parameter `wait_for_completion` and `check_interval` are deprecated, "
+                "remove them and call check_status yourself if you want to wait for completion",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        if check_interval is None:
+            check_interval = 30
+
         formatted_params = format_tags(pipeline_params, key_label="Name")
 
         try:
@@ -1108,7 +1114,7 @@ class SageMakerHook(AwsBaseHook):
         self,
         pipeline_exec_arn: str,
         wait_for_completion: bool = False,
-        check_interval: int = 10,
+        check_interval: int | None = None,
         verbose: bool = True,
         fail_if_not_running: bool = False,
     ) -> str:
@@ -1119,12 +1125,6 @@ class SageMakerHook(AwsBaseHook):
 
         :param pipeline_exec_arn: Amazon Resource Name (ARN) of the pipeline execution.
             It's the ARN of the pipeline itself followed by "/execution/" and an id.
-        :param wait_for_completion: Whether to wait for the pipeline to reach a final state.
-            (i.e. either 'Stopped' or 'Failed')
-        :param check_interval: How long to wait between checks for pipeline status when waiting for
-            completion.
-        :param verbose: Whether to print steps details when waiting for completion.
-            Defaults to true, consider turning off for pipelines that have thousands of steps.
         :param fail_if_not_running: This method will raise an exception if the pipeline we're trying to stop
             is not in an "Executing" state when the call is sent (which would mean that the pipeline is
             already either stopping or stopped).
@@ -1133,6 +1133,16 @@ class SageMakerHook(AwsBaseHook):
         :return: Status of the pipeline execution after the operation.
             One of 'Executing'|'Stopping'|'Stopped'|'Failed'|'Succeeded'.
         """
+        if wait_for_completion or check_interval is not None:
+            warnings.warn(
+                "parameter `wait_for_completion` and `check_interval` are deprecated, "
+                "remove them and call check_status yourself if you want to wait for completion",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        if check_interval is None:
+            check_interval = 10
+
         retries = 2  # i.e. 3 calls max, 1 initial + 2 retries
         while True:
             try:

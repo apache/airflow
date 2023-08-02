@@ -87,7 +87,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 10.4.0
+Release: 10.5.0
 
 Provider package
 ----------------
@@ -164,6 +164,7 @@ PIP package                              Version required
 ``proto-plus``                           ``>=1.19.6``
 ``PyOpenSSL``
 ``sqlalchemy-bigquery``                  ``>=1.2.1``
+``sqlalchemy-spanner``                   ``>=1.6.2``
 =======================================  ==================
 
 Cross provider package dependencies
@@ -191,6 +192,7 @@ Dependent package                                                               
 `apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_    ``microsoft.azure``
 `apache-airflow-providers-microsoft-mssql <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql>`_    ``microsoft.mssql``
 `apache-airflow-providers-mysql <https://airflow.apache.org/docs/apache-airflow-providers-mysql>`_                        ``mysql``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_            ``openlineage``
 `apache-airflow-providers-oracle <https://airflow.apache.org/docs/apache-airflow-providers-oracle>`_                      ``oracle``
 `apache-airflow-providers-postgres <https://airflow.apache.org/docs/apache-airflow-providers-postgres>`_                  ``postgres``
 `apache-airflow-providers-presto <https://airflow.apache.org/docs/apache-airflow-providers-presto>`_                      ``presto``
@@ -206,5 +208,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 10.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.4.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 10.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.4.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 10.5.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.5.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.5.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.5.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 10.5.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.5.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.5.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.5.0-py3-none-any.whl.sha512>`__)
