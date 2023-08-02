@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.utils.helpers import prune_dict
 
 
 def _validate_json(pattern: str) -> None:
@@ -73,7 +73,7 @@ class EventBridgeHook(AwsBaseHook):
             _validate_json(event_pattern)
 
         put_rule_kwargs: dict[str, str | list] = {
-            **trim_none_values(
+            **prune_dict(
                 {
                     "Name": name,
                     "Description": description,
