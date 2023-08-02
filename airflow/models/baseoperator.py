@@ -1607,7 +1607,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         else:
             from airflow.models.taskinstance import get_current_context
 
-            trigger_timeout, _ = self._trigger_timeout(get_current_context())
+            try:
+                # get context in a try/except block for unit tests
+                context = get_current_context()
+            except AirflowException:
+                context = {}
+
+            trigger_timeout, _ = self._trigger_timeout(context)
 
         raise TaskDeferred(
             trigger=trigger, method_name=method_name, kwargs=kwargs, trigger_timeout=trigger_timeout
