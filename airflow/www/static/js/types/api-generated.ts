@@ -2134,6 +2134,9 @@ export interface components {
      * *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
      * *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
      *
+     * *Changed in version 2.7.0*&#58; Field becomes nullable and null primitive is added as a possible value.
+     * *Changed in version 2.7.0*&#58; 'none' state is deprecated in favor of null.
+     *
      * @enum {string|null}
      */
     TaskState:
