@@ -74,7 +74,7 @@ class TestBaseAzureHook:
             tenant=mock_connection.return_value.extra_dejson["tenantId"],
         )
         mock_sdk_client.assert_called_once_with(
-            credentials=mock_spc.return_value,
+            credential=mock_spc.return_value,
             subscription_id=mock_connection.return_value.extra_dejson["subscriptionId"],
         )
         assert auth_sdk_client == mock_sdk_client.return_value

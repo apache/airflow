@@ -115,8 +115,6 @@ class AzureBaseHook(BaseHook):
 
         self.log.info("Getting connection using specific credentials and subscription_id.")
         return self.sdk_client(
-            credentials=ServicePrincipalCredentials(
-                client_id=conn.login, secret=conn.password, tenant=tenant
-            ),
+            credential=ServicePrincipalCredentials(client_id=conn.login, secret=conn.password, tenant=tenant),
             subscription_id=subscription_id,
         )
