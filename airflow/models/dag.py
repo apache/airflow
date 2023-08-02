@@ -717,11 +717,6 @@ class DAG(LoggingMixin):
         :meta private:
         """
         for task in self.tasks:
-            if task.is_teardown and all(x.is_setup for x in task.upstream_list):
-                raise AirflowDagInconsistent(
-                    f"Dag has teardown task without an upstream work task: dag='{self.dag_id}',"
-                    f" task='{task.task_id}'"
-                )
             FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
     def __repr__(self):
