@@ -33,7 +33,10 @@ PREFIX = "TEST"
 S3_BUCKET = "s3://bucket/"
 MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 S3_ACL_POLICY = "private-read"
-deprecated_call_match = "Usage of 'delimiter' is deprecated, please use 'match_glob' instead"
+deprecated_call_match = (
+    "The 'delimiter' parameter is deprecated and will be removed in a future version. "
+    "Please use 'match_glob' instead."
+)
 
 
 def _create_test_bucket():

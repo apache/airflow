@@ -86,8 +86,8 @@ class GCSToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        "gcs_bucket",
         "bucket",
+        "gcs_bucket",
         "prefix",
         "delimiter",
         "dest_s3_key",
@@ -99,7 +99,7 @@ class GCSToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        gcs_bucket: str,
+        gcs_bucket: str | None = None,
         bucket: str | None = None,
         prefix: str | None = None,
         delimiter: str | None = None,
@@ -118,9 +118,12 @@ class GCSToS3Operator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        if bucket:
+        if bucket and gcs_bucket:
+            raise ValueError("You must pass either bucket or gcs_bucket, but not both.")
+        elif bucket:
             warnings.warn(
-                "The 'bucket' parameter is deprecated, please use 'gcs_bucket' instead.",
+                "The 'bucket' parameter is deprecated and will be removed in a future version. "
+                "Please use 'gcs_bucket' instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
@@ -131,7 +134,8 @@ class GCSToS3Operator(BaseOperator):
         self.prefix = prefix
         if delimiter:
             warnings.warn(
-                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead.",
+                "The 'delimiter' parameter is deprecated and will be removed in a future version. "
+                "Please use 'match_glob' instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
