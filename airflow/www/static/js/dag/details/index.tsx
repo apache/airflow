@@ -155,11 +155,12 @@ const Details = ({
   );
 
   useEffect(() => {
-    // We only have 3 tabs for when a task group are selected
-    if (isGroup && taskId && tabIndex > 3) {
+    // Default to graph tab when navigating from a task instance to a group/dag/dagrun
+    const tabCount = runId && taskId && !isGroup ? 5 : 4;
+    if (tabCount === 4 && tabIndex > 3) {
       onChangeTab(1);
     }
-  }, [taskId, tabIndex, isGroup, onChangeTab]);
+  }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
 
   const run = dagRuns.find((r) => r.runId === runId);
   const { data: mappedTaskInstance } = useTaskInstance({
