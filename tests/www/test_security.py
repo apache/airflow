@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import datetime
 import logging
+import os
 from unittest import mock
 from unittest.mock import patch
 
@@ -32,12 +33,14 @@ from sqlalchemy import Column, Date, Float, Integer, String
 from airflow.auth.managers.fab.auth.anonymous_user import AnonymousUser
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User, assoc_permission_role
+from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.base import Base
 from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
+from airflow.www.auth import get_access_denied_message
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils.api_connexion_utils import (
     create_user,
@@ -969,3 +972,18 @@ def test_users_can_be_found(app, security_manager, session, caplog):
     assert len(users) == 1
     delete_user(app, "Test")
     assert "Error adding new user to database" in caplog.text
+
+
+def test_default_access_denied_message():
+    initialize_config()
+    assert get_access_denied_message() == "Access is Denied"
+
+
+def test_custom_access_denied_message():
+    with mock.patch.dict(
+        os.environ,
+        {"AIRFLOW__WEBSERVER__ACCESS_DENIED_MESSAGE": "My custom access denied message"},
+        clear=True,
+    ):
+        initialize_config()
+        assert get_access_denied_message() == "My custom access denied message"
