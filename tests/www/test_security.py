@@ -30,9 +30,9 @@ from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
-from airflow.auth.managers.fab.auth.anonymous_user import AnonymousUser
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User, assoc_permission_role
+from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
 from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
