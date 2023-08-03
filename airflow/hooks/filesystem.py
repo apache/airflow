@@ -47,13 +47,8 @@ class FSHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
-        from wtforms.validators import InputRequired
 
-        return {
-            "path": StringField(
-                lazy_gettext("Path"), validators=[InputRequired()], widget=BS3TextFieldWidget()
-            ),
-        }
+        return {"path": StringField(lazy_gettext("Path"), widget=BS3TextFieldWidget())}
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
