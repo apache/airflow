@@ -76,7 +76,8 @@ dependencies:
   - azure-synapse-spark
   - adal>=1.2.7
   - azure-storage-file-datalake>=12.9.1
-  # TODO: upgrade to newer versions of all the below libraries
+  # TODO: upgrade to newer versions of all the below libraries.
+  #   See issue https://github.com/apache/airflow/issues/30199
   - azure-mgmt-containerinstance>=1.5.0,<2.0
   - azure-mgmt-datafactory>=1.0.0,<2.0
   - azure-kusto-data>=0.0.43,<0.1

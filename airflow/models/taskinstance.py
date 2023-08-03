@@ -33,7 +33,7 @@ from functools import partial
 from pathlib import PurePath
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 
 import dill
 import jinja2
@@ -779,26 +779,28 @@ class TaskInstance(Base, LoggingMixin):
         """Log URL for TaskInstance."""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return urljoin(
-            base_url,
-            f"log?execution_date={iso}"
+        return (
+            f"{base_url}"
+            "/log"
+            f"?execution_date={iso}"
             f"&task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
-            f"&map_index={self.map_index}",
+            f"&map_index={self.map_index}"
         )
 
     @property
     def mark_success_url(self) -> str:
         """URL to mark TI success."""
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return urljoin(
-            base_url,
-            f"confirm?task_id={self.task_id}"
+        return (
+            f"{base_url}"
+            "/confirm"
+            f"?task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
             f"&dag_run_id={quote(self.run_id)}"
             "&upstream=false"
             "&downstream=false"
-            "&state=success",
+            "&state=success"
         )
 
     @provide_session

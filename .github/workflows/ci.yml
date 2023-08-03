@@ -907,8 +907,14 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
         run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
-      - name: "Post Helm Tests"
-        uses: ./.github/actions/post_tests
+      - name: >
+          Post Tests success: Helm"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Helm"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-postgres:
     timeout-minutes: 130
@@ -957,9 +963,13 @@ jobs:
         run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
         if: matrix.postgres-version == needs.build-info.outputs.default-postgres-version
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: Postgres"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Postgres"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-postgres-boto:
     timeout-minutes: 130
@@ -1002,9 +1012,13 @@ jobs:
           ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Boto"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:Boto"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-postgres-in-progress-features-disabled:
     timeout-minutes: 130
@@ -1047,9 +1061,13 @@ jobs:
           ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:FeaturesDisabled"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:FeaturesDisabled"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-mysql:
     timeout-minutes: 130
@@ -1094,9 +1112,14 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: MySQL"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: MySQL"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
 
   tests-mssql:
     timeout-minutes: 130
@@ -1149,9 +1172,13 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: MsSQL"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: MsSQL"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-sqlite:
     timeout-minutes: 130
@@ -1194,9 +1221,13 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: Sqlite"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Sqlite"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-integration-postgres:
     timeout-minutes: 130
@@ -1261,9 +1292,14 @@ jobs:
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: Integration Postgres"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Integration Postgres"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
 
   tests-integration-mysql:
     timeout-minutes: 130
@@ -1301,10 +1337,13 @@ jobs:
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
-        if: needs.build-info.outputs.runs-on == 'self-hosted'
+          Post Tests success: Integration MySQL"
+        uses: ./.github/actions/post_tests_success
+        if: success() && needs.build-info.outputs.runs-on == 'self-hosted'
+      - name: >
+          Post Tests failure: Integration MySQL"
+        uses: ./.github/actions/post_tests_failure
+        if: failure() && needs.build-info.outputs.runs-on == 'self-hosted'
 
 
   tests-quarantined:
@@ -1341,18 +1380,12 @@ jobs:
           BACKEND_VERSION: "11"
           POSTGRES_VERSION: "11"
       - name: >
-          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze down
-      - name: >
           Tests: mysql:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
         env:
           BACKEND: "mysql"
           BACKEND_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
           MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
-      - name: >
-          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze down
       - name: >
           Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
@@ -1361,21 +1394,21 @@ jobs:
           BACKEND_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
           MSSQL_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
       - name: >
-          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze down
-      - name: >
-          Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
+          Tests: sqlite:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
         env:
           BACKEND: "sqlite"
           BACKEND_VERSION: ""
           MSSQL_VERSION: ""
       - name: >
-          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze down
+          Post Tests success: Quarantined"
+        uses: ./.github/actions/post_tests_success
+        if: success()
       - name: >
-          Post Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined"
-        uses: ./.github/actions/post_tests
+          Post Tests failure: Quarantined"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
 
   summarize-warnings:
     timeout-minutes: 15
