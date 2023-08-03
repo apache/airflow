@@ -210,7 +210,7 @@
           <li><a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
             <span class="material-icons" aria-hidden="true">details</span>
             Details</a></li>
-          <li><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
+          <li id="code-nav"><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
             <span class="material-icons" aria-hidden="true">code</span>
             Code</a></li>
           <li><a href="{{ url_for('Airflow.audit_log', dag_id=dag.dag_id, root=root) }}">

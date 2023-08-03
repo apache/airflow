@@ -49,18 +49,27 @@ const onTabChange = () => {
   const gridNav = document.getElementById("grid-nav");
   const graphNav = document.getElementById("graph-nav");
   const ganttNav = document.getElementById("gantt-nav");
+  const codeNav = document.getElementById("code-nav");
   if (isGrid) {
     if (tab === "graph") {
       gridNav.classList.remove("active");
       ganttNav.classList.remove("active");
+      codeNav.classList.remove("active");
       graphNav.classList.add("active");
     } else if (tab === "gantt") {
       gridNav.classList.remove("active");
       graphNav.classList.remove("active");
+      codeNav.classList.remove("active");
       ganttNav.classList.add("active");
+    } else if (tab === "code") {
+      gridNav.classList.remove("active");
+      graphNav.classList.remove("active");
+      ganttNav.classList.remove("active");
+      codeNav.classList.add("active");
     } else {
       graphNav.classList.remove("active");
       ganttNav.classList.remove("active");
+      codeNav.classList.remove("active");
       gridNav.classList.add("active");
     }
   }
