@@ -121,12 +121,6 @@ class DateTimeWithNumRunsForm(FlaskForm):
     )
 
 
-class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
-    """Date time and number of runs and dag runs form for graph and gantt view."""
-
-    execution_date = SelectField("DAG run")
-
-
 class DagRunEditForm(DynamicForm):
     """Form for editing DAG Run.
 
