@@ -30,8 +30,8 @@ class SqsSensorTrigger(BaseTrigger):
     """
     Asynchronously get messages from an Amazon SQS queue and then delete the messages from the queue.
 
-    :param aws_conn_id: AWS connection id
     :param sqs_queue: The SQS queue url
+    :param aws_conn_id: AWS connection id
     :param max_messages: The maximum number of messages to retrieve for each poke (templated)
     :param num_batches: The number of times the sensor will call the SQS API to receive messages (default: 1)
     :param wait_time_seconds: The time in seconds to wait for receiving messages (default: 1 second)
@@ -124,7 +124,6 @@ class SqsSensorTrigger(BaseTrigger):
 
     async def poke(self, client: Any):
         message_batch: list[Any] = []
-
         for _ in range(self.num_batches):
             self.log.info("starting call to poll sqs")
             response = await self.poll_sqs(client=client)
@@ -151,10 +150,9 @@ class SqsSensorTrigger(BaseTrigger):
 
                 if "Successful" not in response:
                     raise AirflowException(
-                        "Delete SQS Messages failed " + str(response) + " for messages " + str(messages)
+                        f"Delete SQS Messages failed {str(response)} for messages {str(messages)}"
                     )
-        if not message_batch:
-            return None
+
         return message_batch
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
