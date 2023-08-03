@@ -133,7 +133,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^setup.cfg",
             r"^setup.py",
             r"^generated/provider_dependencies.json$",
-            r"^airflow/providers/.*/provider.yaml$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
