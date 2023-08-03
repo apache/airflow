@@ -20,6 +20,7 @@ from __future__ import annotations
 import collections.abc
 import logging
 import sys
+from enum import Enum
 from functools import cached_property
 from typing import (
     TYPE_CHECKING,
@@ -42,7 +43,6 @@ import re2
 from airflow import settings
 from airflow.compat.functools import cache
 from airflow.typing_compat import TypeGuard
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes.client import V1EnvVar
@@ -144,10 +144,6 @@ def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
     return isinstance(v, _get_v1_env_var_type())
 
 
-def _is_state_enum(v: Any) -> bool:
-    return isinstance(v, (TaskInstanceState, DagRunState, JobState, State))
-
-
 class SecretsMasker(logging.Filter):
     """Redact secrets from logs."""
 
@@ -247,8 +243,8 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
-            elif _is_state_enum(item):
-                return self._redact(item=str(item), name=name, depth=depth, max_depth=max_depth)
+            elif isinstance(item, Enum):
+                return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
             elif _is_v1_env_var(item):
                 tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
