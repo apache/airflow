@@ -373,6 +373,8 @@ datapoint
 Dataprep
 Dataproc
 dataproc
+DataScan
+dataScans
 Dataset
 dataset
 datasetId
@@ -485,6 +487,7 @@ DOS'ing
 DownloadReportV
 downscaling
 downstreams
+dq
 Drillbit
 Drivy
 dropdown
