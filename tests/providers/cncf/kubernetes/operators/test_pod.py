@@ -327,7 +327,7 @@ class TestKubernetesPodOperator:
         self.run_pod(k)
         _, kwargs = k.client.list_namespaced_pod.call_args
         assert kwargs["label_selector"] == (
-            "dag_id=dag,kubernetes_pod_operator=True,run_id=test,task_id=task,"
+            "dag_id=dag,foo=bar,kubernetes_pod_operator=True,run_id=test,task_id=task,"
             "already_checked!=True,!airflow-worker"
         )
 
