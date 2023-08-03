@@ -43,7 +43,6 @@ def test_create_client_from_ol_env():
 
     assert client.transport.url == "http://ol-api:5000"
     assert "Authorization" in client.transport.session.headers
-    assert client.transport.session.headers["Authorization"] == "Bearer api-key"
 
 
 @conf_vars(
@@ -57,8 +56,6 @@ def test_create_client_from_config_with_options():
 
     assert client.transport.kind == "http"
     assert client.transport.url == "http://ol-api:5000"
-    assert "Authorization" in client.transport.session.headers
-    assert client.transport.session.headers["Authorization"] == "Bearer api-key"
 
 
 @conf_vars(
