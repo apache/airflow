@@ -29,7 +29,7 @@ Changelog
 
 In case of SMTP SSL connection, the default context now uses "default" context
 
-The "default" context is Python's ``default_ssl_contest`` instead of previously used "none". The
+The "default" context is Python's ``default_ssl_context`` instead of previously used "none". The
 ``default_ssl_context`` provides a balance between security and compatibility but in some cases,
 when certificates are old, self-signed or misconfigured, it might not work. This can be configured
 by setting "ssl_context" in "smtp_provider" configuration of the provider. If it is not explicitly set,
