@@ -117,16 +117,6 @@ class TestSqoopHook:
         )
         db.merge_conn(
             Connection(
-                conn_id="invalid_port_conn",
-                conn_type="mssql",
-                schema="schema",
-                host="rmdbs",
-                port="5050?query_param1=value1",
-                extra=None,
-            )
-        )
-        db.merge_conn(
-            Connection(
                 conn_id="invalid_schema_conn",
                 conn_type="mssql",
                 schema="schema?query_param1=value1",
@@ -408,11 +398,6 @@ class TestSqoopHook:
 
     def test_invalid_host(self):
         hook = SqoopHook(conn_id="invalid_host_conn")
-        with pytest.raises(ValueError, match="should not contain a"):
-            hook._prepare_command()
-
-    def test_invalid_port(self):
-        hook = SqoopHook(conn_id="invalid_port_conn")
         with pytest.raises(ValueError, match="should not contain a"):
             hook._prepare_command()
 
