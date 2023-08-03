@@ -925,7 +925,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
         pytest.param(
             ("airflow/providers/microsoft/azure/provider.yaml",),
             {
-                "upgrade-to-newer-dependencies": "true",
+                "upgrade-to-newer-dependencies": "false",
             },
             id="Provider.yaml changed",
         ),
