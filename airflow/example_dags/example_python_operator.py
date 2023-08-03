@@ -81,7 +81,7 @@ with DAG(
             """This is a function that will run within the DAG execution"""
             time.sleep(random_base)
 
-        sleeping_task = my_sleeping_function(random_base=float(i) / 10)
+        sleeping_task = my_sleeping_function(random_base=i / 10)
 
         run_this >> log_the_sql >> sleeping_task
     # [END howto_operator_python_kwargs]
