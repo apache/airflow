@@ -1579,7 +1579,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Returns the timeout for the trigger and its reason."""
         if self.execution_timeout is not None:
             return (
-                context["ti"].start_date or timezone.utcnow() + self.execution_timeout,
+                (context["ti"].start_date or timezone.utcnow()) + self.execution_timeout,
                 "execution_timeout",
             )
         return None, None
