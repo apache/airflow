@@ -1285,16 +1285,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Get task instances related to this task for a specific date range."""
         from airflow.models import DagRun
 
-        end_date = end_date or timezone.utcnow()
-        return session.scalars(
+        query = (
             select(TaskInstance)
             .join(TaskInstance.dag_run)
             .where(TaskInstance.dag_id == self.dag_id)
             .where(TaskInstance.task_id == self.task_id)
-            .where(DagRun.execution_date >= start_date)
-            .where(DagRun.execution_date <= end_date)
-            .order_by(DagRun.execution_date)
-        ).all()
+        )
+        if start_date:
+            query = query.where(DagRun.execution_date >= start_date)
+        if end_date:
+            query = query.where(DagRun.execution_date <= end_date)
+        return session.scalars(query.order_by(DagRun.execution_date)).all()
 
     @provide_session
     def run(
