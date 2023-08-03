@@ -33,7 +33,7 @@ from functools import partial
 from pathlib import PurePath
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 
 import dill
 import jinja2
@@ -112,7 +112,7 @@ from airflow.utils.email import send_email
 from airflow.utils.helpers import prune_dict, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import qualname
-from airflow.utils.net import get_hostname
+from airflow.utils.net import get_hostname, safe_urljoin
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
@@ -779,7 +779,7 @@ class TaskInstance(Base, LoggingMixin):
         """Log URL for TaskInstance."""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return urljoin(
+        return safe_urljoin(
             base_url,
             f"log?execution_date={iso}"
             f"&task_id={self.task_id}"
@@ -791,7 +791,7 @@ class TaskInstance(Base, LoggingMixin):
     def mark_success_url(self) -> str:
         """URL to mark TI success."""
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return urljoin(
+        return safe_urljoin(
             base_url,
             f"confirm?task_id={self.task_id}"
             f"&dag_id={self.dag_id}"

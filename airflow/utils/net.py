@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import socket
 from functools import lru_cache
+from urllib.parse import urljoin
 
 from airflow.configuration import conf
 
@@ -54,3 +55,20 @@ def get_host_ip_address():
 def get_hostname():
     """Fetch the hostname using the callable from config or use `airflow.utils.net.getfqdn` as a fallback."""
     return conf.getimport("core", "hostname_callable", fallback="airflow.utils.net.getfqdn")()
+
+
+def safe_urljoin(base_url: str, relative_url: str, **kwargs) -> str:
+    """Safely join the given URLs."""
+    # Since 'urljoin' strips everything after the last trailing slash, the last part of the path in the
+    # base URL would be skipped if it does not end with a slash. Hence, we ensure here and update the
+    # base_url so that it has a trailing slash.
+    if not base_url.endswith("/"):
+        base_url += "/"
+
+    # Ensure relative_url does not have a leading slash and if it has one remove it. This is because if
+    # the relative URL has a leading slash, urljoin skips the base URL altogether and just returns the
+    # relative URL as the output.
+    if relative_url.startswith("/"):
+        relative_url = relative_url[1:]
+
+    return urljoin(base_url, relative_url, **kwargs)
