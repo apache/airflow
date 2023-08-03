@@ -209,7 +209,7 @@ def bytes2human(n):
         prefix[s] = 1 << (i + 1) * 10
     for s in reversed(symbols):
         if n >= prefix[s]:
-            value = float(n) / prefix[s]
+            value = n / prefix[s]
             return f"{value:.1f}{s}"
     return f"{n}B"
 
