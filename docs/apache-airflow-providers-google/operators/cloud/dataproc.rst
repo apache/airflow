@@ -37,8 +37,21 @@ Prerequisite Tasks
 Create a Cluster
 ----------------
 
-Before you create a dataproc cluster you need to define the cluster.
-It describes the identifying information, config, and status of a cluster of Compute Engine instances.
+When you create a Dataproc cluster, you have the option to choose Compute Engine as the deployment platform.
+In this configuration, Dataproc automatically provisions the required Compute Engine VM instances to run the cluster.
+The VM instances are used for the main node, primary worker and secondary worker nodes (if specified).
+These VM instances are created and managed by Compute Engine, while Dataproc takes care of configuring the software and
+orchestration required for the big data processing tasks.
+By providing the configuration for your nodes, you describe the configuration of primary and
+secondary nodes, and status of a cluster of Compute Engine instances.
+Configuring secondary worker nodes, you can specify the number of workers and their types. By
+enabling the Preemptible option to use Preemptible VMs (equivalent to Spot instances) for those nodes, you
+can take advantage of the cost savings provided by these instances for your Dataproc workloads.
+The primary node, which typically hosts the cluster main and various control services, does not have the Preemptible
+option because it's crucial for the primary node to maintain stability and availability.
+Once a cluster is created, the configuration settings, including the preemptibility of secondary worker nodes,
+cannot be modified directly.
+
 For more information about the available fields to pass when creating a cluster, visit `Dataproc create cluster API. <https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters#Cluster>`__
 
 A cluster configuration can look as followed:
@@ -58,7 +71,18 @@ With this configuration we can create the cluster:
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
 
-For create Dataproc cluster in Google Kubernetes Engine you should use this cluster configuration:
+Dataproc on GKE deploys Dataproc virtual clusters on a GKE cluster. Unlike Dataproc on Compute Engine clusters,
+Dataproc on GKE virtual clusters do not include separate main and worker VMs. Instead, when you create a Dataproc on
+GKE virtual cluster, Dataproc on GKE creates node pools within a GKE cluster. Dataproc on GKE jobs are run as pods on
+these node pools. The node pools and scheduling of pods on the node pools are managed by GKE.
+
+When creating a GKE Dataproc cluster, you can specify the usage of Preemptible VMs for the underlying compute resources.
+GKE supports the use of Preemptible VMs as a cost-saving measure.
+By enabling Preemptible VMs, GKE will provision the cluster nodes using Preemptible VMs. Or you can create nodes as
+Spot VM instances, which are the latest update to legacy preemptible VMs.
+This can be beneficial for running Dataproc workloads on GKE while optimizing costs.
+
+To create Dataproc cluster in Google Kubernetes Engine you could pass cluster configuration:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py
     :language: python
@@ -74,6 +98,31 @@ With this configuration we can create the cluster:
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator_in_gke]
+
+You can also create Dataproc cluster with optional component Presto.
+To do so, please use the following configuration.
+Note that default image might not support the chosen optional component.
+If this is your case, please specify correct ``image_version`` that you can find in the
+`documentation.  <https://cloud.google.com/dataproc/docs/concepts/components/overview#available_optional_components>`__
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_presto.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_create_cluster]
+    :end-before: [END how_to_cloud_dataproc_create_cluster]
+
+You can also create Dataproc cluster with optional component Trino.
+To do so, please use the following configuration.
+Note that default image might not support the chosen optional component.
+If this is your case, please specify correct ``image_version`` that you can find in the
+`documentation.  <https://cloud.google.com/dataproc/docs/concepts/components/overview#available_optional_components>`__
+
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_trino.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_create_cluster]
+    :end-before: [END how_to_cloud_dataproc_create_cluster]
 
 You can use deferrable mode for this action in order to run the operator asynchronously:
 
@@ -230,14 +279,29 @@ Example of the configuration for a Pig Job:
     :start-after: [START how_to_cloud_dataproc_pig_config]
     :end-before: [END how_to_cloud_dataproc_pig_config]
 
-
-Example of the configuration for a SparkR:
+Example of the configuration for a SparkR Job:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_sparkr.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_sparkr_config]
     :end-before: [END how_to_cloud_dataproc_sparkr_config]
+
+Example of the configuration for a Presto Job:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_presto.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_presto_config]
+    :end-before: [END how_to_cloud_dataproc_presto_config]
+
+Example of the configuration for a Trino Job:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_trino.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_trino_config]
+    :end-before: [END how_to_cloud_dataproc_trino_config]
 
 Working with workflows templates
 --------------------------------

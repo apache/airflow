@@ -27,6 +27,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import PoolNotFound
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
 def _show_pools(pools, output):
@@ -42,6 +43,7 @@ def _show_pools(pools, output):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def pool_list(args):
     """Displays info of all the pools."""
     api_client = get_current_api_client()
@@ -50,6 +52,7 @@ def pool_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def pool_get(args):
     """Displays pool info by a given name."""
     api_client = get_current_api_client()
@@ -62,6 +65,7 @@ def pool_get(args):
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def pool_set(args):
     """Creates new pool with a given name and slots."""
     api_client = get_current_api_client()
@@ -71,6 +75,7 @@ def pool_set(args):
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def pool_delete(args):
     """Deletes pool by a given name."""
     api_client = get_current_api_client()
@@ -83,6 +88,7 @@ def pool_delete(args):
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def pool_import(args):
     """Imports pools from the file."""
     if not os.path.exists(args.file):
@@ -93,6 +99,7 @@ def pool_import(args):
     print(f"Uploaded {len(pools)} pool(s)")
 
 
+@providers_configuration_loaded
 def pool_export(args):
     """Exports all the pools to the file."""
     pools = pool_export_helper(args.file)

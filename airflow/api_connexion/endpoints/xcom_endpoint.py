@@ -19,7 +19,7 @@ from __future__ import annotations
 import copy
 
 from flask import g
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
@@ -31,6 +31,7 @@ from airflow.models import DagRun as DR, XCom
 from airflow.security import permissions
 from airflow.settings import conf
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
 
@@ -75,7 +76,7 @@ def get_xcom_entries(
     if xcom_key is not None:
         query = query.where(XCom.key == xcom_key)
     query = query.order_by(DR.execution_date, XCom.task_id, XCom.dag_id, XCom.key)
-    total_entries = session.execute(select(func.count()).select_from(query)).scalar()
+    total_entries = get_query_count(query, session=session)
     query = session.scalars(query.offset(offset).limit(limit))
     return xcom_collection_schema.dump(XComCollection(xcom_entries=query, total_entries=total_entries))
 

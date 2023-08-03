@@ -331,12 +331,14 @@ def run_tests_in_parallel(
     "should be run: `Providers[airbyte,http]` or "
     "excluded from the full test suite: `Providers[-amazon,google]`",
     default="All",
+    envvar="TEST_TYPE",
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
 )
 @click.option(
     "--test-timeout",
     help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
     default=60,
+    envvar="TEST_TIMEOUT",
     type=IntRange(min=0),
     show_default=True,
 )
@@ -450,6 +452,7 @@ def command_for_tests(
             db_reset=db_reset,
             output=None,
             test_timeout=test_timeout,
+            output_outside_the_group=True,
             skip_docker_compose_down=skip_docker_compose_down,
         )
         sys.exit(returncode)

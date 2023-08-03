@@ -620,3 +620,30 @@ class TestPgbouncerExporter:
             "name": "existing-stats-secret",
             "key": "exisiting-stats-secret-key",
         } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+
+class TestPgBouncerServiceAccount:
+    """Tests PgBouncer Service Account."""
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
