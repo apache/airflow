@@ -67,8 +67,6 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from pygments import highlight, lexers
-from pygments.formatters import HtmlFormatter
 from sqlalchemy import Date, and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -100,7 +98,6 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, Trigger, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
-from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.mappedoperator import MappedOperator
@@ -1320,31 +1317,13 @@ class Airflow(AirflowBaseView):
     @provide_session
     def code(self, dag_id, session: Session = NEW_SESSION):
         """Dag Code."""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag or not dag_model:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
+        kwargs = {
+            **sanitize_args(request.args),
+            "dag_id": dag_id,
+            "tab": "code",
+        }
 
-        wwwutils.check_import_errors(dag_model.fileloc, session)
-        wwwutils.check_dag_warnings(dag_model.dag_id, session)
-
-        try:
-            code = DagCode.get_code_by_fileloc(dag_model.fileloc)
-            html_code = Markup(highlight(code, lexers.PythonLexer(), HtmlFormatter(linenos=True)))
-        except Exception as e:
-            error = f"Exception encountered during dag code retrieval/code highlighting:\n\n{e}\n"
-            html_code = Markup("<p>Failed to load DAG file Code.</p><p>Details: {}</p>").format(escape(error))
-
-        return self.render_template(
-            "airflow/dag_code.html",
-            html_code=html_code,
-            dag=dag,
-            dag_model=dag_model,
-            title=dag_id,
-            root=request.args.get("root"),
-            wrapped=conf.getboolean("webserver", "default_wrap"),
-        )
+        return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/dag_details")
     @auth.has_access(
