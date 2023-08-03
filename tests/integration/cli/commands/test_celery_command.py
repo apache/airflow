@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from importlib import reload
 from unittest import mock
 
 import pytest
@@ -31,7 +32,11 @@ from tests.test_utils.config import conf_vars
 class TestWorkerServeLogs:
     @classmethod
     def setup_class(cls):
-        cls.parser = cli_parser.get_parser()
+        with conf_vars({("core", "executor"): "CeleryExecutor"}):
+            # The cli_parser module is loaded during test collection. Reload it here with the
+            # executor overridden so that we get the expected commands loaded.
+            reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
 
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_serve_logs_on_worker_start(self):

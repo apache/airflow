@@ -41,21 +41,22 @@ from airflow.utils.trigger_rule import TriggerRule
 # [START howto_data_fusion_env_variables]
 SERVICE_ACCOUNT = os.environ.get("GCP_DATAFUSION_SERVICE_ACCOUNT")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
-DAG_ID = "example_data_fusion_async"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_datafusion_async"
 LOCATION = "europe-north1"
-INSTANCE_NAME = "test-instance-async"
+INSTANCE_NAME = f"async-df-{ENV_ID}".replace("_", "-")
 INSTANCE = {
     "type": "BASIC",
     "displayName": INSTANCE_NAME,
     "dataprocServiceAccount": SERVICE_ACCOUNT,
 }
 
-BUCKET_NAME_1 = "test-datafusion-async-1"
-BUCKET_NAME_2 = "test-datafusion-async-2"
+BUCKET_NAME_1 = f"a-bucket1-{DAG_ID}-{ENV_ID}".replace("_", "-")
+BUCKET_NAME_2 = f"a-bucket2-{DAG_ID}-{ENV_ID}".replace("_", "-")
 BUCKET_NAME_1_URI = f"gs://{BUCKET_NAME_1}"
 BUCKET_NAME_2_URI = f"gs://{BUCKET_NAME_2}"
 
-PIPELINE_NAME = "test-pipe"
+PIPELINE_NAME = f"pipe-{ENV_ID}".replace("_", "-")
 PIPELINE = {
     "artifact": {
         "name": "cdap-data-pipeline",

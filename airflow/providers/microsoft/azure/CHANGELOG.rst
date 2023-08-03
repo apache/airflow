@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+6.2.2
+.....
+
+Misc
+~~~~
+
+* ``Add Redis task handler (#31855)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
 6.2.1
 .....
 

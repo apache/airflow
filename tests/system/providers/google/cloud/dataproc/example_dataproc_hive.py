@@ -35,10 +35,8 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_hive"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-CLUSTER_NAME = f"cluster-dataproc-hive-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 REGION = "europe-west1"
-ZONE = "europe-west1-b"
-
 
 # Cluster definition
 # [START how_to_cloud_dataproc_create_cluster]
@@ -54,11 +52,19 @@ CLUSTER_CONFIG = {
         "machine_type_uri": "n1-standard-4",
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
+    "secondary_worker_config": {
+        "num_instances": 1,
+        "machine_type_uri": "n1-standard-4",
+        "disk_config": {
+            "boot_disk_type": "pd-standard",
+            "boot_disk_size_gb": 1024,
+        },
+        "is_preemptible": True,
+        "preemptibility": "PREEMPTIBLE",
+    },
 }
 
 # [END how_to_cloud_dataproc_create_cluster]
-
-TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
 
 # [START how_to_cloud_dataproc_hive_config]
 HIVE_JOB = {

@@ -52,6 +52,7 @@ const useFilters = (): FilterHookReturn => {
   const endDate = searchParams.get(END_DATE_PARAM) || now;
   const startDate =
     searchParams.get(START_DATE_PARAM) ||
+    // @ts-ignore
     moment(endDate).subtract(1, "d").toISOString();
 
   const makeOnChangeFn =
@@ -68,10 +69,12 @@ const useFilters = (): FilterHookReturn => {
 
   const onStartDateChange = makeOnChangeFn(
     START_DATE_PARAM,
+    // @ts-ignore
     (localDate: string) => moment(localDate).utc().format()
   );
 
   const onEndDateChange = makeOnChangeFn(END_DATE_PARAM, (localDate: string) =>
+    // @ts-ignore
     moment(localDate).utc().format()
   );
 
