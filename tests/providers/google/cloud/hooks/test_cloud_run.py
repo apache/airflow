@@ -50,15 +50,14 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
     def test_get_job(self, mock_batch_service_client, cloud_run_hook):
-        cloud_batch_hook = CloudRunHook()
         job_name = "job1"
         region = "region1"
         project_id = "projectid"
 
         get_job_request = GetJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
 
-        cloud_batch_hook.get_job(job_name=job_name, region=region, project_id=project_id)
-        cloud_batch_hook._client.get_job.assert_called_once_with(get_job_request)
+        cloud_run_hook.get_job(job_name=job_name, region=region, project_id=project_id)
+        cloud_run_hook._client.get_job.assert_called_once_with(get_job_request)
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
