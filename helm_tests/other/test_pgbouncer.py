@@ -621,6 +621,7 @@ class TestPgbouncerExporter:
             "key": "exisiting-stats-secret-key",
         } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
 
+
 class TestPgBouncerServiceAccount:
     """Tests PgBouncer Service Account."""
 
