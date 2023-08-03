@@ -48,6 +48,8 @@ export interface CustomNodeProps {
   isActive?: boolean;
   setupTeardownType?: "setup" | "teardown";
   fullParentNode?: string;
+  labelStyle?: string;
+  style?: string;
 }
 
 export const BaseNode = ({
@@ -65,6 +67,8 @@ export const BaseNode = ({
     isOpen,
     isActive,
     setupTeardownType,
+    labelStyle,
+    style,
   },
 }: NodeProps<CustomNodeProps>) => {
   const { colors } = useTheme();
@@ -73,6 +77,7 @@ export const BaseNode = ({
 
   if (!task) return null;
 
+  const bg = isOpen ? "blackAlpha.50" : "white";
   const { isMapped } = task;
   const mappedStates = instance?.mappedStates;
 
@@ -82,7 +87,15 @@ export const BaseNode = ({
     ? `${label} [${instance ? totalTasks : " "}]`
     : label;
 
-  const bg = isOpen ? "blackAlpha.50" : "white";
+  let operatorTextColor = "";
+  let operatorBG = "";
+  if (style) {
+    [, operatorBG] = style.split(":");
+  }
+
+  if (labelStyle) {
+    [, operatorTextColor] = labelStyle.split(":");
+  }
 
   return (
     <Tooltip
@@ -141,13 +154,21 @@ export const BaseNode = ({
             {!!instance && instance.state && (
               <Flex alignItems="center">
                 <SimpleStatus state={instance.state} />
-                <Text ml={2} color="gray.500" fontSize="sm">
+                <Text ml={2} color="gray.500" fontSize="md">
                   {instance.state}
                 </Text>
               </Flex>
             )}
             {task?.operator && (
-              <Text color="gray.500" fontWeight={400} fontSize="md">
+              <Text
+                fontWeight={400}
+                fontSize="md"
+                width="fit-content"
+                borderRadius={5}
+                bg={operatorBG}
+                color={operatorTextColor || "gray.500"}
+                px={1}
+              >
                 {task.operator}
               </Text>
             )}

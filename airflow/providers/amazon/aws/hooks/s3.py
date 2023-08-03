@@ -57,7 +57,7 @@ from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import chunks
 
 if TYPE_CHECKING:
-    from mypy_boto3_s3.service_resource import Object as S3ResourceObject
+    from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
 
 T = TypeVar("T", bound=Callable)
 
@@ -298,7 +298,7 @@ class S3Hook(AwsBaseHook):
             return False
 
     @provide_bucket_name
-    def get_bucket(self, bucket_name: str | None = None) -> object:
+    def get_bucket(self, bucket_name: str | None = None) -> S3Bucket:
         """
         Returns a :py:class:`S3.Bucket` object.
 
