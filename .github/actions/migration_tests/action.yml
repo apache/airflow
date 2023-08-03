@@ -28,6 +28,13 @@ runs:
         airflow db migrate --to-revision heads &&
         airflow db downgrade -r e959f08ac86c -y &&
         airflow db migrate"
+      env:
+        COMPOSE_PROJECT_NAME: "docker-compose"
+    - name: "Bring composer down"
+      shell: bash
+      run: breeze down
+      env:
+        COMPOSE_PROJECT_NAME: "docker-compose"
     - name: "Test downgrade ORM ${{env.BACKEND}}"
       shell: bash
       run: >
@@ -35,3 +42,15 @@ runs:
         airflow db migrate &&
         airflow db downgrade -r e959f08ac86c -y &&
         airflow db migrate"
+        COMPOSE_PROJECT_NAME: "docker-compose"
+      env:
+        COMPOSE_PROJECT_NAME: "docker-compose"
+    - name: "Bring any containers left down"
+      shell: bash
+      run: breeze down
+      env:
+        COMPOSE_PROJECT_NAME: "docker-compose"
+    - name: "Dump logs on failure ${{env.BACKEND}}"
+      shell: bash
+      run: docker ps -q | xargs docker logs
+      if: failure()
