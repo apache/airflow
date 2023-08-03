@@ -1578,7 +1578,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def _trigger_timeout(self, context: Context) -> tuple[datetime | None, str | None]:
         """Returns the timeout for the trigger and its reason."""
         if self.execution_timeout is not None:
-            return ((self.start_date or timezone.utcnow()) + self.execution_timeout, "execution_timeout")
+            return (
+                context["ti"].start_date or timezone.utcnow() + self.execution_timeout,
+                "execution_timeout",
+            )
         return None, None
 
     def defer(
