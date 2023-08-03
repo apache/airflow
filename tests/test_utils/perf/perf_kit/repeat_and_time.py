@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import math
 import random
 import signal
 import time
@@ -119,7 +120,7 @@ if __name__ == "__main__":
         for _ in range(0, total):
             x_val = random.random() ** 2
             y_val = random.random() ** 2
-            if x_val + y_val < 1:
+            if math.sqrt(x_val + y_val) < 1:
                 inside += 1
 
         return (inside / total) * 4
