@@ -77,8 +77,7 @@ export const BaseNode = ({
 
   if (!task) return null;
 
-  let bg = isOpen ? "blackAlpha.50" : "white";
-  let textColor = "";
+  const bg = isOpen ? "blackAlpha.50" : "white";
   const { isMapped } = task;
   const mappedStates = instance?.mappedStates;
 
@@ -88,12 +87,14 @@ export const BaseNode = ({
     ? `${label} [${instance ? totalTasks : " "}]`
     : label;
 
+  let operatorTextColor = "";
+  let operatorBG = "";
   if (style) {
-    [, bg] = style.split(":");
+    [, operatorBG] = style.split(":");
   }
 
   if (labelStyle) {
-    [, textColor] = labelStyle.split(":");
+    [, operatorTextColor] = labelStyle.split(":");
   }
 
   return (
@@ -140,11 +141,7 @@ export const BaseNode = ({
               alignItems="center"
               width="100%"
             >
-              <Text
-                noOfLines={1}
-                maxWidth={`calc(${width}px - 8px)`}
-                color={isSelected ? "black" : textColor}
-              >
+              <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
                 {taskName}
               </Text>
               {setupTeardownType === "setup" && (
@@ -157,13 +154,21 @@ export const BaseNode = ({
             {!!instance && instance.state && (
               <Flex alignItems="center">
                 <SimpleStatus state={instance.state} />
-                <Text ml={2} color="gray.500" fontSize="sm">
+                <Text ml={2} color="gray.500" fontSize="md">
                   {instance.state}
                 </Text>
               </Flex>
             )}
             {task?.operator && (
-              <Text color="gray.500" fontWeight={400} fontSize="md">
+              <Text
+                fontWeight={400}
+                fontSize="md"
+                width="fit-content"
+                borderRadius={5}
+                bg={operatorBG}
+                color={operatorTextColor || "gray.500"}
+                px={1}
+              >
                 {task.operator}
               </Text>
             )}
