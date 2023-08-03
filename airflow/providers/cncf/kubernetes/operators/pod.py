@@ -592,10 +592,7 @@ class KubernetesPodOperator(BaseOperator):
                     container_logs=self.container_logs,
                     follow_logs=True,
                 )
-            else:
-                self.pod_manager.await_container_completion(
-                    pod=self.pod, container_name=self.base_container_name
-                )
+            self.pod_manager.await_container_completion(pod=self.pod, container_name=self.base_container_name)
 
             if self.do_xcom_push:
                 self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
