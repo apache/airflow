@@ -24,6 +24,7 @@ import logging.config
 import os
 import sys
 import textwrap
+from enum import Enum
 from unittest.mock import patch
 
 import pytest
@@ -42,6 +43,10 @@ from tests.test_utils.config import conf_vars
 settings.MASK_SECRETS_IN_LOGS = True
 
 p = "password"
+
+
+class MyEnum(str, Enum):
+    testname = "testvalue"
 
 
 @pytest.fixture
@@ -309,6 +314,7 @@ class TestSecretsMasker:
             ([DagRunState.SUCCESS, DagRunState.RUNNING], ["success", "running"]),
             ([TaskInstanceState.FAILED, TaskInstanceState.SUCCESS], ["failed", "success"]),
             (State.failed_states, frozenset([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])),
+            (MyEnum.testname, "testvalue"),
         ],
     )
     def test_redact_state_enum(self, logger, caplog, state, expected):
