@@ -314,6 +314,7 @@ class TestSecretsMasker:
     def test_redact_state_enum(self, logger, caplog, state, expected):
         logger.info("State: %s", state)
         assert caplog.text == f"INFO State: {expected}\n"
+        assert "TypeError" not in caplog.text
 
 
 class TestShouldHideValueForKey:
