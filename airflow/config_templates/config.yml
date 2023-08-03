@@ -1862,6 +1862,22 @@ email:
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~
+    ssl_context:
+      description: |
+        ssl context to use when using SMTP and IMAP SSL connections. By default, the context is "default"
+        which sets it to ``ssl.create_default_context()`` which provides the right balance between
+        compatibility and security, it however requires that certificates in your operating system are
+        updated and that SMTP/IMAP servers of yours have valid certificates that have corresponding public
+        keys installed on your machines. You can switch it to "none" if you want to disable checking
+        of the certificates, but it is not recommended as it allows MITM (man-in-the-middle) attacks
+        if your infrastructure is not sufficiently secured. It should only be set temporarily while you
+        are fixing your certificate configuration. This can be typically done by upgrading to newer
+        version of the operating system you run Airflow components on,by upgrading/refreshing proper
+        certificates in the OS or by updating certificates for your mail servers.
+      type: string
+      version_added: 2.7.0
+      example: "default"
+      default: "default"
 smtp:
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
