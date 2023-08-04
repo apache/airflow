@@ -109,6 +109,18 @@ class TestJob:
 
             session.rollback()
 
+    @pytest.mark.parametrize(
+        "job_runner, job_type,job_heartbeat_sec",
+        [(SchedulerJobRunner, "scheduler", "11"), (TriggererJobRunner, "triggerer", "9")],
+    )
+    def test_heart_rate_via_constructor_persists(self, job_runner, job_type, job_heartbeat_sec):
+        """Ensure heartrate passed via constructor is set correctly"""
+        with conf_vars({(job_type.lower(), "job_heartbeat_sec"): job_heartbeat_sec}):
+            job = Job(heartrate=12)
+            job_runner(job)
+            # heartrate should be 12 since we passed that to the constructor directly
+            assert job.heartrate == 12
+
     def test_most_recent_job(self):
         with create_session() as session:
             old_job = Job(heartrate=10)
