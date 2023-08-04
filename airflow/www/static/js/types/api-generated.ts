@@ -1305,7 +1305,7 @@ export interface components {
       /** Format: datetime */
       created_date?: string;
       triggerer_id?: number | null;
-    };
+    } | null;
     Job: {
       id?: number;
       dag_id?: string | null;
@@ -1320,7 +1320,7 @@ export interface components {
       executor_class?: string | null;
       hostname?: string | null;
       unixname?: string | null;
-    };
+    } | null;
     TaskInstance: {
       task_id?: string;
       dag_id?: string;
@@ -1337,7 +1337,7 @@ export interface components {
       /** Format: datetime */
       end_date?: string | null;
       duration?: number | null;
-      state?: components["schemas"]["TaskState"] | null;
+      state?: components["schemas"]["TaskState"];
       try_number?: number;
       map_index?: number;
       max_tries?: number;
@@ -1352,15 +1352,15 @@ export interface components {
       queued_when?: string | null;
       pid?: number | null;
       executor_config?: string;
-      sla_miss?: components["schemas"]["SLAMiss"] | null;
+      sla_miss?: components["schemas"]["SLAMiss"];
       /**
        * @description JSON object describing rendered fields.
        *
        * *New in version 2.3.0*
        */
       rendered_fields?: { [key: string]: unknown };
-      trigger?: components["schemas"]["Trigger"] | null;
-      triggerer_job?: components["schemas"]["Job"] | null;
+      trigger?: components["schemas"]["Trigger"];
+      triggerer_job?: components["schemas"]["Job"];
       /**
        * @description Contains manually entered notes by the user about the TaskInstance.
        *
@@ -1460,7 +1460,7 @@ export interface components {
        * *Changed in version 2.0.1*&#58; Field becomes nullable.
        */
       start_date?: string | null;
-      dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
+      dag_run_timeout?: components["schemas"]["TimeDelta"];
       doc_md?: string | null;
       default_view?: string;
       /**
@@ -1535,8 +1535,8 @@ export interface components {
       queue?: string | null;
       pool?: string;
       pool_slots?: number;
-      execution_timeout?: components["schemas"]["TimeDelta"] | null;
-      retry_delay?: components["schemas"]["TimeDelta"] | null;
+      execution_timeout?: components["schemas"]["TimeDelta"];
+      retry_delay?: components["schemas"]["TimeDelta"];
       retry_exponential_backoff?: boolean;
       priority_weight?: number;
       weight_rule?: components["schemas"]["WeightRule"];
@@ -2059,7 +2059,7 @@ export interface components {
       days: number;
       seconds: number;
       microseconds: number;
-    };
+    } | null;
     /** @description Relative delta */
     RelativeDelta: {
       __type: string;
@@ -2134,22 +2134,29 @@ export interface components {
      * *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
      * *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
      *
-     * @enum {string}
+     * *Changed in version 2.7.0*&#58; Field becomes nullable and null primitive is added as a possible value.
+     * *Changed in version 2.7.0*&#58; 'none' state is deprecated in favor of null.
+     *
+     * @enum {string|null}
      */
     TaskState:
-      | "success"
-      | "running"
-      | "failed"
-      | "upstream_failed"
-      | "skipped"
-      | "up_for_retry"
-      | "up_for_reschedule"
-      | "queued"
-      | "none"
-      | "scheduled"
-      | "deferred"
-      | "removed"
-      | "restarting";
+      | (
+          | null
+          | "success"
+          | "running"
+          | "failed"
+          | "upstream_failed"
+          | "skipped"
+          | "up_for_retry"
+          | "up_for_reschedule"
+          | "queued"
+          | "none"
+          | "scheduled"
+          | "deferred"
+          | "removed"
+          | "restarting"
+        )
+      | null;
     /**
      * @description DAG State.
      *

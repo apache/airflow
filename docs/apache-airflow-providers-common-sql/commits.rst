@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.6.1
+.....
+
+Latest change: 2023-07-25
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ce2841bf6a <https://github.com/apache/airflow/commit/ce2841bf6ab609f31cb04aea9a39473de281bf24>`_  2023-07-25   ``Add default port to Openlineage authority method. (#32828)``
+`60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
+`ef0ed1aacc <https://github.com/apache/airflow/commit/ef0ed1aacc208be9e52a35211d2beaefb735173a>`_  2023-07-06   ``Fix local OpenLineage import in 'SQLExecuteQueryOperator'. (#32400)``
+=================================================================================================  ===========  =======================================================================
+
 1.6.0
 .....
 
-Latest change: 2023-07-05
+Latest change: 2023-07-06
 
 =================================================================================================  ===========  =================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `ee4a838d49 <https://github.com/apache/airflow/commit/ee4a838d49461b3b053a9cbe660dbff06a17fff5>`_  2023-07-05   ``Pass SQLAlchemy engine to construct information schema query. (#32371)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``

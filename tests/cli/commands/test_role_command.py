@@ -23,10 +23,10 @@ from contextlib import redirect_stdout
 
 import pytest
 
+from airflow.auth.managers.fab.models import Role
 from airflow.cli.commands import role_command
 from airflow.security import permissions
 from airflow.utils.cli_app_builder import get_application_builder
-from airflow.www.fab_security.sqla.models import Role
 
 TEST_USER1_EMAIL = "test-user1@example.com"
 TEST_USER2_EMAIL = "test-user2@example.com"

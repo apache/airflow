@@ -42,6 +42,9 @@ __deprecated_classes: dict[str, dict[str, str]] = {
     "pod_launcher_deprecated": {
         "PodLauncher": "airflow.providers.cncf.kubernetes.pod_launcher_deprecated.PodLauncher",
         "PodStatus": "airflow.providers.cncf.kubernetes.pod_launcher_deprecated.PodStatus",
+        # imports of imports from other kubernetes modules (in case they are imported from here)
+        "get_kube_client": "airflow.providers.cncf.kubernetes.kube_client.get_kube_client",
+        "PodDefaults": "airflow.providers.cncf.kubernetes.pod_generator_deprecated.PodDefaults",
     },
     "pod_runtime_info_env": {
         "PodRuntimeInfoEnv": "airflow.providers.cncf.kubernetes.backcompat."
@@ -75,6 +78,14 @@ __deprecated_classes: dict[str, dict[str, str]] = {
         "make_safe_label_value",
         "merge_objects": "airflow.kubernetes.pre_7_4_0_compatibility.pod_generator.merge_objects",
         "PodGenerator": "airflow.kubernetes.pre_7_4_0_compatibility.pod_generator.PodGenerator",
+        # imports of imports from other kubernetes modules (in case they are imported from here)
+        "PodGeneratorDeprecated": "airflow.kubernetes.pre_7_4_0_compatibility."
+        "pod_generator_deprecated.PodGenerator",
+        "PodDefaults": "airflow.kubernetes.pre_7_4_0_compatibility.pod_generator_deprecated.PodDefaults",
+        # those two are inlined in kubernetes.pre_7_4_0_compatibility.pod_generator even if
+        # originally they were imported in airflow.kubernetes.pod_generator
+        "add_pod_suffix": "airflow.kubernetes.pre_7_4_0_compatibility.pod_generator.add_pod_suffix",
+        "rand_str": "airflow.kubernetes.pre_7_4_0_compatibility.pod_generator.rand_str",
     },
     "pod_generator_deprecated": {
         "make_safe_label_value": "airflow.kubernetes.pre_7_4_0_compatibility.pod_generator_deprecated."
@@ -84,6 +95,8 @@ __deprecated_classes: dict[str, dict[str, str]] = {
     },
     "secret": {
         "Secret": "airflow.kubernetes.pre_7_4_0_compatibility.secret.Secret",
+        # imports of imports from other kubernetes modules (in case they are imported from here)
+        "K8SModel": "airflow.kubernetes.pre_7_4_0_compatibility.k8s_model.K8SModel",
     },
 }
 

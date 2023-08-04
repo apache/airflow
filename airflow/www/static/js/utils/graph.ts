@@ -147,7 +147,7 @@ const generateGraph = ({
         childCount,
       },
       width: isJoinNode ? 10 : 200,
-      height: isJoinNode ? 10 : 60,
+      height: isJoinNode ? 10 : 70,
     };
   };
 

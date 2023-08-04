@@ -67,12 +67,10 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from pygments import highlight, lexers
-from pygments.formatters import HtmlFormatter
 from sqlalchemy import Date, and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
-from wtforms import SelectField, validators
+from wtforms import validators
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -100,7 +98,6 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, Trigger, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
-from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.mappedoperator import MappedOperator
@@ -119,7 +116,7 @@ from airflow.utils.dag_edges import dag_edges
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
-from airflow.utils.helpers import alchemy_to_dict, exactly_one
+from airflow.utils.helpers import exactly_one
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.net import get_hostname
@@ -136,7 +133,6 @@ from airflow.www.forms import (
     DagRunEditForm,
     DateTimeForm,
     DateTimeWithNumRunsForm,
-    DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
     create_connection_form_class,
 )
@@ -304,6 +300,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             TaskInstance._try_number,
             func.min(TaskInstanceNote.content).label("note"),
             func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
+            func.min(TaskInstance.queued_dttm).label("queued_dttm"),
             func.min(TaskInstance.start_date).label("start_date"),
             func.max(TaskInstance.end_date).label("end_date"),
         )
@@ -334,6 +331,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     "task_id": task_instance.task_id,
                     "run_id": task_instance.run_id,
                     "state": task_instance.state,
+                    "queued_dttm": task_instance.queued_dttm,
                     "start_date": task_instance.start_date,
                     "end_date": task_instance.end_date,
                     "try_number": wwwutils.get_try_count(task_instance._try_number, task_instance.state),
@@ -363,15 +361,26 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                         record = {
                             "task_id": ti_summary.task_id,
                             "run_id": run_id,
+                            "queued_dttm": ti_summary.queued_dttm,
                             "start_date": ti_summary.start_date,
                             "end_date": ti_summary.end_date,
                             "mapped_states": {ti_summary.state: ti_summary.state_count},
                             "state": None,  # We change this before yielding
                         }
                         continue
+                    record["queued_dttm"] = min(
+                        filter(None, [record["queued_dttm"], ti_summary.queued_dttm]), default=None
+                    )
                     record["start_date"] = min(
                         filter(None, [record["start_date"], ti_summary.start_date]), default=None
                     )
+                    # Sometimes the start date of a group might be before the queued date of the group
+                    if (
+                        record["queued_dttm"]
+                        and record["start_date"]
+                        and record["queued_dttm"] > record["start_date"]
+                    ):
+                        record["queued_dttm"] = None
                     record["end_date"] = max(
                         filter(None, [record["end_date"], ti_summary.end_date]), default=None
                     )
@@ -421,18 +430,24 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 if item
             ]
 
+            children_queued_dttms = (item["queued_dttm"] for item in child_instances)
             children_start_dates = (item["start_date"] for item in child_instances)
             children_end_dates = (item["end_date"] for item in child_instances)
             children_states = {item["state"] for item in child_instances}
 
             group_state = next((state for state in wwwutils.priority if state in children_states), None)
+            group_queued_dttm = min(filter(None, children_queued_dttms), default=None)
             group_start_date = min(filter(None, children_start_dates), default=None)
             group_end_date = max(filter(None, children_end_dates), default=None)
+            # Sometimes the start date of a group might be before the queued date of the group
+            if group_queued_dttm and group_start_date and group_queued_dttm > group_start_date:
+                group_queued_dttm = None
 
             return {
                 "task_id": task_group.group_id,
                 "run_id": dag_run.run_id,
                 "state": group_state,
+                "queued_dttm": group_queued_dttm,
                 "start_date": group_start_date,
                 "end_date": group_end_date,
             }
@@ -462,6 +477,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     if item and item["run_id"] == run_id
                 ]
 
+                children_queued_dttms = (item["queued_dttm"] for item in child_instances)
                 children_start_dates = (item["start_date"] for item in child_instances)
                 children_end_dates = (item["end_date"] for item in child_instances)
                 children_states = {item["state"] for item in child_instances}
@@ -477,6 +493,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     mapped_states[value] += 1
 
                 group_state = next((state for state in wwwutils.priority if state in children_states), None)
+                group_queued_dttm = min(filter(None, children_queued_dttms), default=None)
                 group_start_date = min(filter(None, children_start_dates), default=None)
                 group_end_date = max(filter(None, children_end_dates), default=None)
 
@@ -484,6 +501,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     "task_id": task_group.group_id,
                     "run_id": run_id,
                     "state": group_state,
+                    "queued_dttm": group_queued_dttm,
                     "start_date": group_start_date,
                     "end_date": group_end_date,
                     "mapped_states": mapped_states,
@@ -921,7 +939,7 @@ class Airflow(AirflowBaseView):
                 "error",
             )
 
-        num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
+        num_of_pages = math.ceil(num_of_all_dags / dags_per_page)
 
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
@@ -1299,31 +1317,13 @@ class Airflow(AirflowBaseView):
     @provide_session
     def code(self, dag_id, session: Session = NEW_SESSION):
         """Dag Code."""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag or not dag_model:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
+        kwargs = {
+            **sanitize_args(request.args),
+            "dag_id": dag_id,
+            "tab": "code",
+        }
 
-        wwwutils.check_import_errors(dag_model.fileloc, session)
-        wwwutils.check_dag_warnings(dag_model.dag_id, session)
-
-        try:
-            code = DagCode.get_code_by_fileloc(dag_model.fileloc)
-            html_code = Markup(highlight(code, lexers.PythonLexer(), HtmlFormatter(linenos=True)))
-        except Exception as e:
-            error = f"Exception encountered during dag code retrieval/code highlighting:\n\n{e}\n"
-            html_code = Markup("<p>Failed to load DAG file Code.</p><p>Details: {}</p>").format(escape(error))
-
-        return self.render_template(
-            "airflow/dag_code.html",
-            html_code=html_code,
-            dag=dag,
-            dag_model=dag_model,
-            title=dag_id,
-            root=request.args.get("root"),
-            wrapped=conf.getboolean("webserver", "default_wrap"),
-        )
+        return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/dag_details")
     @auth.has_access(
@@ -3103,105 +3103,21 @@ class Airflow(AirflowBaseView):
     @action_logging
     @provide_session
     def graph(self, dag_id: str, session: Session = NEW_SESSION):
-        """Get DAG as Graph."""
+        """Redirect to the replacement - grid + graph. Kept for backwards compatibility."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
-
-        wwwutils.check_import_errors(dag.fileloc, session)
-        wwwutils.check_dag_warnings(dag.dag_id, session)
-
-        root = request.args.get("root")
-        if root:
-            filter_upstream = request.args.get("filter_upstream") == "true"
-            filter_downstream = request.args.get("filter_downstream") == "true"
-            dag = dag.partial_subset(
-                task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
-            )
-        arrange = request.args.get("arrange", dag.orientation)
-
-        nodes = task_group_to_dict(dag.task_group)
-        edges = dag_edges(dag)
-
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
-
-        dt_nr_dr_data["arrange"] = arrange
         dttm = dt_nr_dr_data["dttm"]
         dag_run = dag.get_dagrun(execution_date=dttm)
         dag_run_id = dag_run.run_id if dag_run else None
 
-        class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
-            """Graph Form class."""
-
-            arrange = SelectField(
-                "Layout",
-                choices=(
-                    ("LR", "Left > Right"),
-                    ("RL", "Right > Left"),
-                    ("TB", "Top > Bottom"),
-                    ("BT", "Bottom > Top"),
-                ),
-            )
-
-        form = GraphForm(data=dt_nr_dr_data)
-        form.execution_date.choices = dt_nr_dr_data["dr_choices"]
-
-        task_instances = {}
-        for ti in dag.get_task_instances(dttm, dttm):
-            if ti.task_id not in task_instances:
-                task_instances[ti.task_id] = wwwutils.get_instance_with_map(ti, session)
-                # Need to add operator_name explicitly because it's not a column in task_instances model.
-                task_instances[ti.task_id]["operator_name"] = ti.operator_name
-        tasks = {
-            t.task_id: {
-                "dag_id": t.dag_id,
-                "task_type": t.task_type,
-                "operator_name": t.operator_name,
-                "extra_links": t.extra_links,
-                "is_mapped": isinstance(t, MappedOperator),
-                "trigger_rule": t.trigger_rule,
-            }
-            for t in dag.tasks
+        kwargs = {
+            **sanitize_args(request.args),
+            "dag_id": dag_id,
+            "tab": "graph",
+            "dag_run_id": dag_run_id,
         }
-        if not tasks:
-            flash("No tasks found", "error")
-        session.commit()
-        doc_md = wwwutils.wrapped_markdown(getattr(dag, "doc_md", None))
 
-        task_log_reader = TaskLogReader()
-        if task_log_reader.supports_external_link:
-            external_log_name = task_log_reader.log_handler.log_name
-        else:
-            external_log_name = None
-
-        state_priority = ["no_status" if p is None else p for p in wwwutils.priority]
-
-        return self.render_template(
-            "airflow/graph.html",
-            dag=dag,
-            form=form,
-            dag_run_id=dag_run_id,
-            execution_date=dttm.isoformat(),
-            state_token=wwwutils.state_token(dt_nr_dr_data["dr_state"]),
-            doc_md=doc_md,
-            arrange=arrange,
-            operators=sorted(
-                {op.operator_name: op for op in dag.tasks}.values(), key=lambda x: x.operator_name
-            ),
-            root=root or "",
-            task_instances=task_instances,
-            tasks=tasks,
-            nodes=nodes,
-            edges=edges,
-            show_external_log_redirect=task_log_reader.supports_external_link,
-            external_log_name=external_log_name,
-            dag_run_state=dt_nr_dr_data["dr_state"],
-            dag_model=dag_model,
-            auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
-            state_priority=state_priority,
-        )
+        return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/duration")
     @auth.has_access(
@@ -3603,105 +3519,16 @@ class Airflow(AirflowBaseView):
     @action_logging
     @provide_session
     def gantt(self, dag_id: str, session: Session = NEW_SESSION):
-        """Show GANTT chart."""
+        """Redirect to the replacement - grid + gantt. Kept for backwards compatibility."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
-
-        wwwutils.check_import_errors(dag.fileloc, session)
-        wwwutils.check_dag_warnings(dag.dag_id, session)
-
-        root = request.args.get("root")
-        if root:
-            dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
-
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data["dttm"]
         dag_run = dag.get_dagrun(execution_date=dttm)
         dag_run_id = dag_run.run_id if dag_run else None
 
-        form = DateTimeWithNumRunsWithDagRunsForm(data=dt_nr_dr_data)
-        form.execution_date.choices = dt_nr_dr_data["dr_choices"]
+        kwargs = {**sanitize_args(request.args), "dag_id": dag_id, "tab": "gantt", "dag_run_id": dag_run_id}
 
-        tis = session.scalars(
-            select(TaskInstance)
-            .where(
-                TaskInstance.dag_id == dag_id,
-                TaskInstance.run_id == dag_run_id,
-                TaskInstance.start_date.is_not(None),
-                TaskInstance.state.is_not(None),
-            )
-            .order_by(TaskInstance.start_date)
-        ).all()
-
-        ti_fails = select(TaskFail).filter_by(run_id=dag_run_id, dag_id=dag_id)
-        if dag.partial:
-            ti_fails = ti_fails.where(TaskFail.task_id.in_([t.task_id for t in dag.tasks]))
-
-        ti_fails = session.scalars(ti_fails)
-        tasks = []
-        for ti in tis:
-            if not dag.has_task(ti.task_id):
-                continue
-            # prev_attempted_tries will reflect the currently running try_number
-            # or the try_number of the last complete run
-            # https://issues.apache.org/jira/browse/AIRFLOW-2143
-            try_count = ti.prev_attempted_tries if ti.prev_attempted_tries != 0 else ti.try_number
-            task_dict = alchemy_to_dict(ti) or {}
-            task_dict["end_date"] = task_dict["end_date"] or timezone.utcnow()
-            task_dict["extraLinks"] = dag.get_task(ti.task_id).extra_links
-            task_dict["try_number"] = try_count
-            task_dict["execution_date"] = dttm.isoformat()
-            task_dict["run_id"] = dag_run_id
-            tasks.append(task_dict)
-
-        tf_count = 0
-        try_count = 1
-        prev_task_id = ""
-        for failed_task_instance in ti_fails:
-            if not dag.has_task(failed_task_instance.task_id):
-                continue
-            if tf_count != 0 and failed_task_instance.task_id == prev_task_id:
-                try_count += 1
-            else:
-                try_count = 1
-            prev_task_id = failed_task_instance.task_id
-            tf_count += 1
-            task = dag.get_task(failed_task_instance.task_id)
-            task_dict = alchemy_to_dict(failed_task_instance) or {}
-            end_date = task_dict["end_date"] or timezone.utcnow()
-            task_dict["end_date"] = end_date
-            task_dict["start_date"] = task_dict["start_date"] or end_date
-            task_dict["state"] = TaskInstanceState.FAILED
-            task_dict["operator"] = task.operator_name
-            task_dict["try_number"] = try_count
-            task_dict["extraLinks"] = task.extra_links
-            task_dict["execution_date"] = dttm.isoformat()
-            task_dict["run_id"] = dag_run_id
-            tasks.append(task_dict)
-
-        task_names = [ti.task_id for ti in tis]
-        data = {
-            "taskNames": task_names,
-            "tasks": tasks,
-            "height": len(task_names) * 25 + 25,
-        }
-
-        session.commit()
-
-        return self.render_template(
-            "airflow/gantt.html",
-            dag=dag,
-            dag_run_id=dag_run_id,
-            execution_date=dttm.isoformat(),
-            form=form,
-            data=data,
-            base_date="",
-            root=root,
-            dag_model=dag_model,
-        )
+        return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/extra_links")
     @auth.has_access(
@@ -4176,7 +4003,7 @@ class Airflow(AirflowBaseView):
 
         logs_per_page = PAGE_SIZE
         audit_logs_count = get_query_count(query, session=session)
-        num_of_pages = int(math.ceil(audit_logs_count / float(logs_per_page)))
+        num_of_pages = math.ceil(audit_logs_count / logs_per_page)
 
         start = current_page * logs_per_page
         end = start + logs_per_page

@@ -847,6 +847,16 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         kwargs["python_version"] = python_version
         return kwargs
 
+    @mock.patch("airflow.operators.python.importlib")
+    def test_virtuenv_not_installed(self, importlib):
+        importlib.util.find_spec.return_value = None
+        with pytest.raises(AirflowException, match="requires virtualenv"):
+
+            def f():
+                pass
+
+            self.run_as_task(f)
+
     def test_add_dill(self):
         def f():
             """Ensure dill is correctly installed."""

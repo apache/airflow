@@ -257,17 +257,17 @@ Considerations for backfillable DAGs
 
 Not all DAGs are designed for use with Airflow's backfill command.  But for those which are, special care is warranted.  If you delete DAG runs, and if you run backfill over a range of dates that includes the deleted DAG runs, those runs will be recreated and run again.  For this reason, if you have DAGs that fall into this category you may want to refrain from deleting DAG runs and only clean other large tables such as task instance and log etc.
 
-.. _cli-db-upgrade:
+.. _cli-db-migrate:
 
 Upgrading Airflow
 -----------------
 
-Run ``airflow db upgrade --help`` for usage details.
+Run ``airflow db migrate --help`` for usage details.
 
 Running migrations manually
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If desired, you can generate the sql statements for an upgrade and apply each upgrade migration manually, one at a time.  To do so you may use either the ``--range`` (for Airflow version) or ``--revision-range`` (for Alembic revision) option with ``db upgrade``.  Do *not* skip running the Alembic revision id update commands; this is how Airflow will know where you are upgrading from the next time you need to.  See :doc:`/migrations-ref` for a mapping between revision and version.
+If desired, you can generate the sql statements for an upgrade and apply each upgrade migration manually, one at a time.  To do so you may use either the ``--range`` (for Airflow version) or ``--revision-range`` (for Alembic revision) option with ``db migrate``.  Do *not* skip running the Alembic revision id update commands; this is how Airflow will know where you are upgrading from the next time you need to.  See :doc:`/migrations-ref` for a mapping between revision and version.
 
 
 .. _cli-db-downgrade:

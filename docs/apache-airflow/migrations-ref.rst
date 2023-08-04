@@ -18,7 +18,7 @@
 Reference for Database Migrations
 '''''''''''''''''''''''''''''''''
 
-Here's the list of all the Database Migrations that are executed via when you run ``airflow db upgrade``.
+Here's the list of all the Database Migrations that are executed via when you run ``airflow db migrate``.
 
 .. warning::
 

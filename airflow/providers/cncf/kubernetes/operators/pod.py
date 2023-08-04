@@ -238,6 +238,8 @@ class KubernetesPodOperator(BaseOperator):
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
         Deprecated - use `on_finish_action` instead.
+    :param termination_message_policy: The termination message policy of the base container.
+        Default value is "File"
     """
 
     # This field can be overloaded at the instance level via base_container_name
@@ -317,6 +319,7 @@ class KubernetesPodOperator(BaseOperator):
         log_pod_spec_on_failure: bool = True,
         on_finish_action: str = "delete_pod",
         is_delete_operator_pod: None | bool = None,
+        termination_message_policy: str = "File",
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -358,9 +361,7 @@ class KubernetesPodOperator(BaseOperator):
         self.get_logs = get_logs
         self.container_logs = container_logs
         if self.container_logs == KubernetesPodOperator.BASE_CONTAINER_NAME:
-            self.container_logs = (
-                base_container_name if base_container_name else KubernetesPodOperator.BASE_CONTAINER_NAME
-            )
+            self.container_logs = base_container_name if base_container_name else self.BASE_CONTAINER_NAME
         self.image_pull_policy = image_pull_policy
         self.node_selector = node_selector or {}
         self.annotations = annotations or {}
@@ -415,6 +416,7 @@ class KubernetesPodOperator(BaseOperator):
         else:
             self.on_finish_action = OnFinishAction(on_finish_action)
             self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
+        self.termination_message_policy = termination_message_policy
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
 
@@ -838,6 +840,7 @@ class KubernetesPodOperator(BaseOperator):
                         env=self.env_vars,
                         env_from=self.env_from,
                         security_context=self.container_security_context,
+                        termination_message_policy=self.termination_message_policy,
                     )
                 ],
                 image_pull_secrets=self.image_pull_secrets,
