@@ -128,6 +128,8 @@ class BaseSetupTeardownContext:
 
     @classmethod
     def update_context_map(cls, task: DependencyMixin):
+        from airflow.models.abstractoperator import AbstractOperator
+
         task_ = cast(AbstractOperator, task)
         if task_.is_setup or task_.is_teardown:
             return
