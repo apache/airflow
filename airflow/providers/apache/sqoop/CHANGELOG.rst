@@ -42,12 +42,8 @@ operator which instantiates the hook with those given ``extra_options`` dictiona
 
 * ``Validate SqoopHook connection string and disable extra options from public hook methods (#33039)``
 
-Bug Fixes
-~~~~~~~~~
-
-* ``Validate connection host field for Sqoop connection (#32968)``
-
 .. Review and move the new changes to one of the sections above:
+   * ``Validate connection host field for Sqoop connection (#32968)``
    * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
    * ``Remove spurious headers for provider changelogs (#32373)``
    * ``Prepare docs for July 2023 wave of Providers (#32298)``
