@@ -1255,6 +1255,8 @@ class TestKubernetesPodOperator:
         mock_await_xcom_sidecar,
         mock_extract_xcom,
     ):
+        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
+        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
