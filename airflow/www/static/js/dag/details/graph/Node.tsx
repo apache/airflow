@@ -83,9 +83,8 @@ export const BaseNode = ({
 
   const { totalTasks } = getGroupAndMapSummary({ group: task, mappedStates });
 
-  const taskName = isMapped
-    ? `${label} [${instance ? totalTasks : " "}]`
-    : label;
+  let taskName = label || task.id;
+  if (isMapped) taskName = `${label} [${instance ? totalTasks : " "}]`;
 
   let operatorTextColor = "";
   let operatorBG = "";

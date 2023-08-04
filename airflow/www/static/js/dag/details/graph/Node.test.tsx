@@ -122,4 +122,15 @@ describe("Test Graph Node", () => {
 
     expect(getByTestId("node")).toHaveStyle("opacity: 0.3");
   });
+
+  test("Renders task id if no label", async () => {
+    const { getByText } = render(
+      <Node {...mockNode} data={{ ...mockNode.data, label: "" }} />,
+      {
+        wrapper: Wrapper,
+      }
+    );
+
+    expect(getByText("task_id")).toBeInTheDocument();
+  });
 });
