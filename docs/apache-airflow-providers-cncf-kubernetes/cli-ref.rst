@@ -18,6 +18,11 @@
 Kubernetes Executor Commands
 ============================
 
+.. note::
+   The CLI commands below are used from provider by Airflow 2.7.0+.
+   Previously they were part of the core Airflow, so if you are using Airflow below 2.7.0 look at
+   the core Airflow documentation for the list of CLI commands and parameters available.
+
 .. argparse::
    :module: airflow.providers.cncf.kubernetes.executors.kubernetes_executor
    :func: _get_parser
