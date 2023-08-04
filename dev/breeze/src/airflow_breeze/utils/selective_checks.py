@@ -620,7 +620,7 @@ class SelectiveChecks:
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
-        sorted_candidate_test_types = list(sorted(candidate_test_types))
+        sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types

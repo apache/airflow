@@ -433,7 +433,7 @@ def initialize_extra_operators_links_plugins():
 
     for plugin in plugins:
         global_operator_extra_links.extend(plugin.global_operator_extra_links)
-        operator_extra_links.extend(list(plugin.operator_extra_links))
+        operator_extra_links.extend(plugin.operator_extra_links)
 
         registered_operator_link_classes.update(
             {qualname(link.__class__): link.__class__ for link in plugin.operator_extra_links}

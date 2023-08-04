@@ -48,7 +48,7 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
     elif isinstance(content, (list, tuple)):
         return [normalise(e, f"{json_path}[{i}]") for i, e in enumerate(content)]
     elif isinstance(content, dict):
-        return {k: normalise(v, f"{json_path}[{k}]") for k, v in list(content.items())}
+        return {k: normalise(v, f"{json_path}[{k}]") for k, v in content.items()}
     else:
         param_type = type(content)
         msg = f"Type {param_type} used for parameter {json_path} is not a number or a string"

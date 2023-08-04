@@ -326,8 +326,7 @@ def get_details_about_classes(
     :param wrong_entities: wrong entities found for that type
     :param full_package_name: full package name
     """
-    all_entities = list(entities)
-    all_entities.sort()
+    all_entities = sorted(entities)
     TOTALS[entity_type] += len(all_entities)
     return EntityTypeSummary(
         entities=all_entities,
