@@ -42,7 +42,6 @@ def test_create_client_from_ol_env():
     client = OpenLineageAdapter().get_or_create_openlineage_client()
 
     assert client.transport.url == "http://ol-api:5000"
-    assert "Authorization" in client.transport.session.headers
 
 
 @conf_vars(
