@@ -47,6 +47,7 @@
       "imap",
       "microsoft.azure",
       "mongo",
+      "openlineage",
       "salesforce",
       "ssh"
     ],

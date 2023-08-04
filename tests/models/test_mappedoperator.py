@@ -666,7 +666,7 @@ class TestMappedSetupTeardown:
                 ti_dict[ti.task_id] = ti.state
             else:
                 ti_dict[ti.task_id][ti.map_index] = ti.state
-        return ti_dict
+        return dict(ti_dict)
 
     def classic_operator(self, task_id, ret=None, partial=False, fail=False):
         def success_callable(ret=None):
@@ -1363,5 +1363,132 @@ class TestMappedSetupTeardown:
             "my_setup": {0: "success", 1: "failed", 2: "skipped"},
             "my_teardown": "success",
             "my_work": "upstream_failed",
+        }
+        assert states == expected
+
+    def test_one_to_many_with_teardown_and_fail_stop(self, dag_maker):
+        """
+        With fail_stop enabled, the teardown for an already-completed setup
+        should not be skipped.
+        """
+        with dag_maker(fail_stop=True) as dag:
+
+            @task
+            def my_setup():
+                print("setting up multiple things")
+                return [1, 2, 3]
+
+            @task
+            def my_work(val):
+                print(f"doing work with multiple things: {val}")
+                raise ValueError("this fails")
+                return val
+
+            @task
+            def my_teardown(val):
+                print(f"teardown: {val}")
+
+            s = my_setup()
+            t = my_teardown.expand(val=s).as_teardown(setups=s)
+            with t:
+                my_work(s)
+
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "my_setup": "success",
+            "my_teardown": {0: "success", 1: "success", 2: "success"},
+            "my_work": "failed",
+        }
+        assert states == expected
+
+    def test_one_to_many_with_teardown_and_fail_stop_more_tasks(self, dag_maker):
+        """
+        when fail_stop enabled, teardowns should run according to their setups.
+        in this case, the second teardown skips because its setup skips.
+        """
+        with dag_maker(fail_stop=True) as dag:
+            for num in (1, 2):
+                with TaskGroup(f"tg_{num}"):
+
+                    @task
+                    def my_setup():
+                        print("setting up multiple things")
+                        return [1, 2, 3]
+
+                    @task
+                    def my_work(val):
+                        print(f"doing work with multiple things: {val}")
+                        raise ValueError("this fails")
+                        return val
+
+                    @task
+                    def my_teardown(val):
+                        print(f"teardown: {val}")
+
+                    s = my_setup()
+                    t = my_teardown.expand(val=s).as_teardown(setups=s)
+                    with t:
+                        my_work(s)
+        tg1, tg2 = dag.task_group.children.values()
+        tg1 >> tg2
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "tg_1.my_setup": "success",
+            "tg_1.my_teardown": {0: "success", 1: "success", 2: "success"},
+            "tg_1.my_work": "failed",
+            "tg_2.my_setup": "skipped",
+            "tg_2.my_teardown": "skipped",
+            "tg_2.my_work": "skipped",
+        }
+        assert states == expected
+
+    def test_one_to_many_with_teardown_and_fail_stop_more_tasks_mapped_setup(self, dag_maker):
+        """
+        when fail_stop enabled, teardowns should run according to their setups.
+        in this case, the second teardown skips because its setup skips.
+        """
+        with dag_maker(fail_stop=True) as dag:
+            for num in (1, 2):
+                with TaskGroup(f"tg_{num}"):
+
+                    @task
+                    def my_pre_setup():
+                        print("input to the setup")
+                        return [1, 2, 3]
+
+                    @task
+                    def my_setup(val):
+                        print("setting up multiple things")
+                        return val
+
+                    @task
+                    def my_work(val):
+                        print(f"doing work with multiple things: {val}")
+                        raise ValueError("this fails")
+                        return val
+
+                    @task
+                    def my_teardown(val):
+                        print(f"teardown: {val}")
+
+                    s = my_setup.expand(val=my_pre_setup())
+                    t = my_teardown.expand(val=s).as_teardown(setups=s)
+                    with t:
+                        my_work(s)
+        tg1, tg2 = dag.task_group.children.values()
+        tg1 >> tg2
+        dr = dag.test()
+        states = self.get_states(dr)
+        expected = {
+            "tg_1.my_pre_setup": "success",
+            "tg_1.my_setup": {0: "success", 1: "success", 2: "success"},
+            "tg_1.my_teardown": {0: "success", 1: "success", 2: "success"},
+            "tg_1.my_work": "failed",
+            "tg_2.my_pre_setup": "skipped",
+            "tg_2.my_setup": "skipped",
+            "tg_2.my_teardown": "skipped",
+            "tg_2.my_work": "skipped",
         }
         assert states == expected

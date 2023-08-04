@@ -127,6 +127,14 @@ with DAG(
                 # Note: Value display mapping does not need to be complete.s
             },
         ),
+        # An array of numbers
+        "array_of_numbers": Param(
+            [1, 2, 3],
+            "Only integers are accepted in this array",
+            type="array",
+            title="Array of numbers",
+            items={"type": "number"},
+        ),
         # Boolean as proper parameter with description
         "bool": Param(
             True,
@@ -206,6 +214,20 @@ with DAG(
             {"key": "value"},
             type=["object", "null"],
             title="JSON entry field",
+            section="Special advanced stuff with form fields",
+        ),
+        "array_of_objects": Param(
+            [{"name": "account_name", "country": "country_name"}],
+            "Array with complex objects and validation rules. "
+            "See <a href='https://json-schema.org/understanding-json-schema"
+            "/reference/array.html#items'>JSON Schema validation options in specs.</a>",
+            type="array",
+            title="JSON array field",
+            items={
+                "type": "object",
+                "properties": {"name": {"type": "string"}, "country_name": {"type": "string"}},
+                "required": ["name"],
+            },
             section="Special advanced stuff with form fields",
         ),
         # If you want to have static parameters which are always passed and not editable by the user

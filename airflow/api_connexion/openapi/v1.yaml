@@ -3228,7 +3228,6 @@ components:
           items:
             $ref: '#/components/schemas/Provider'
 
-
     SLAMiss:
       type: object
       properties:
@@ -3256,6 +3255,7 @@ components:
 
     Trigger:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3272,6 +3272,7 @@ components:
 
     Job:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3335,7 +3336,6 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
-          nullable: true
         try_number:
           type: integer
         map_index:
@@ -3371,7 +3371,6 @@ components:
           type: string
         sla_miss:
           $ref: '#/components/schemas/SLAMiss'
-          nullable: true
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -3380,10 +3379,8 @@ components:
           type: object
         trigger:
           $ref: '#/components/schemas/Trigger'
-          nullable: true
         triggerer_job:
           $ref: '#/components/schemas/Job'
-          nullable: true
         note:
           type: string
           description: |
@@ -3561,7 +3558,6 @@ components:
 
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
-              nullable: true
               $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
@@ -3699,10 +3695,8 @@ components:
           readOnly: true
         execution_timeout:
           $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_delay:
           $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -4506,6 +4500,7 @@ components:
     TimeDelta:
       description: Time delta
       type: object
+      nullable: true
       required:
         - __type
         - days
@@ -4646,8 +4641,14 @@ components:
 
         *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
         *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
+
+        *Changed in version 2.7.0*&#58; Field becomes nullable and null primitive is added as a possible value.
+        *Changed in version 2.7.0*&#58; 'none' state is deprecated in favor of null.
+
       type: string
+      nullable: true
       enum:
+        - null
         - success
         - running
         - failed

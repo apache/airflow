@@ -26,7 +26,7 @@ from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from werkzeug.security import generate_password_hash
 
-from airflow.auth.managers.fab.auth.anonymous_user import AnonymousUser
+from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
 
 
 class FabAirflowSecurityManagerOverride:
