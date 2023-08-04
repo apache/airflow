@@ -52,8 +52,7 @@ def get_provider_and_version(url_path: str) -> tuple[str, str]:
                 provider_info = yaml.safe_load(f)
             version = provider_info["versions"][0]
             provider = "-".join(candidate_folders)
-            while provider.endswith("-"):
-                provider = provider[:-1]
+            provider = provider.rstrip("-")
             return provider, version
         except FileNotFoundError:
             candidate_folders = candidate_folders[:-1]

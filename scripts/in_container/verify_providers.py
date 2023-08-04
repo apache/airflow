@@ -181,7 +181,7 @@ def import_all_classes(
 
     for path, prefix in walkable_paths_and_prefixes.items():
         for modinfo in pkgutil.walk_packages(path=[path], prefix=prefix, onerror=onerror):
-            if not any(modinfo.name.startswith(provider_prefix) for provider_prefix in provider_prefixes):
+            if not modinfo.name.startswith(tuple(provider_prefixes)):
                 if print_skips:
                     console.print(f"Skipping module: {modinfo.name}")
                 continue

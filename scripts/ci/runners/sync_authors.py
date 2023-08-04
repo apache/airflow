@@ -42,15 +42,9 @@ WORKFLOW = ".github/workflows/ci.yml"
 req = requests.get(AUTHORS)
 author_list = toml.loads(req.text)
 
-author_set = set()
-for membership in author_list:
-    author_set.update([author for author in author_list[membership]])
+author_set = set().union(*author_list.values())
 
-authors = ""
-for author in sorted(author_set):
-    authors += f'            "{author}",\n'
-
-authors = authors[:-2]
+authors = ",\n".join(f'            "{author}"' for author in author_set)
 
 with open(WORKFLOW) as handle:
     new_ci = re.sub(

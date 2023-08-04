@@ -305,9 +305,8 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
         # deserialized values can be != str
         s += ",".join(str(deserialize(value, full=False)))
     elif isinstance(value, dict):
-        for k, v in value.items():
-            s += f"{k}={deserialize(v, full=False)},"
-        s = s[:-1] + ")"
+        s += ",".join(f"{k}={deserialize(v, full=False)}" for k, v in value.items())
+    s += ")"
 
     return s
 
