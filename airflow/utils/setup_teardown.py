@@ -128,8 +128,6 @@ class BaseSetupTeardownContext:
 
     @classmethod
     def update_context_map(cls, task: DependencyMixin):
-        from airflow.models.abstractoperator import AbstractOperator
-
         task_ = cast(AbstractOperator, task)
         if task_.is_setup or task_.is_teardown:
             return
@@ -329,12 +327,13 @@ class SetupTeardownContext(BaseSetupTeardownContext):
     """Context manager for setup and teardown tasks."""
 
     @staticmethod
-    def add_task(task: AbstractOperator | PlainXComArg):
-        """Add task to context manager."""
+    def add_tasks(*tasks: AbstractOperator | PlainXComArg):
+        """Add tasks to context manager."""
         from airflow.models.xcom_arg import PlainXComArg
 
         if not SetupTeardownContext.active:
             raise AirflowException("Cannot add task to context outside the context manager.")
-        if isinstance(task, PlainXComArg):
-            task = task.operator
-        SetupTeardownContext.update_context_map(task)
+        for task in tasks:
+            if isinstance(task, PlainXComArg):
+                task = task.operator
+            SetupTeardownContext.update_context_map(task)
