@@ -40,6 +40,7 @@ in the provider's documentation. The pre-installed providers that you may want t
 * :doc:`Configuration Reference for CNCF Kubernetes Provider <apache-airflow-providers-cncf-kubernetes:configurations-ref>`
 * :doc:`Configuration Reference for SMTP Provider <apache-airflow-providers-smtp:configurations-ref>`
 * :doc:`Configuration Reference for IMAP Provider <apache-airflow-providers-imap:configurations-ref>`
+* :doc:`Configuration Reference for OpenLineage Provider <apache-airflow-providers-openlineage:configurations-ref>`
 
 .. note::
     For more information see :doc:`/howto/set-config`.
