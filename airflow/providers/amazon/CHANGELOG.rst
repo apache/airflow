@@ -26,6 +26,38 @@
 Changelog
 ---------
 
+8.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add endpoint_url in test_connection (#32664)``
+* ``Add support for querying Redshift Serverless clusters (#32785)``
+* ``Add Deferrable mode to StepFunctionStartExecutionOperator (#32563)``
+* ``Add Deferrable mode for EMR Serverless Start Job Operator (#32534)``
+* ``Add Eventbridge PutEvents operator and hook (#32498)``
+* ``add deferrable mode to rds start & stop DB (#32437)``
+* ``EMR serverless Create/Start/Stop/Delete Application deferrable mode (#32513)``
+* ``Make Start and Stop SageMaker Pipelines operators deferrable (#32683)``
+* ``Deferrable mode for EKS Create/Delete Operator (#32355)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FIX AWS deferrable operators by using AioCredentials when using 'assume_role' (#32733)``
+* ``[bugfix] fix AWS triggers where deserialization would crash if region was not specified (#32729)``
+* ``Fix bug in prune_dict where empty dict and list would be removed even in strict mode (#32573)``
+* ``Fix S3ToRedshiftOperator does not support default values on UPSERT (#32558)``
+* ``Do not return success from AWS ECS trigger after max_attempts (#32589)``
+
+Misc
+~~~~
+
+* ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+* ``Limit Appflow mypy to 1.28.12 as it introduces strange typing issue (#32901)``
+* ``Further limit mypy-boto3-appflow as the fix is not in sight (#32927)``
+
 8.3.1
 .....
 

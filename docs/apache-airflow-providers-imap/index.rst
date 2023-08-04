@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Connection types <connections/imap>
     Python API <_api/airflow/providers/imap/index>
 

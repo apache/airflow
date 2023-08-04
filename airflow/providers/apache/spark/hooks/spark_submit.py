@@ -31,7 +31,7 @@ from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 with contextlib.suppress(ImportError, NameError):
-    from airflow.kubernetes import kube_client
+    from airflow.providers.cncf.kubernetes import kube_client
 
 ALLOWED_SPARK_BINARIES = ["spark-submit", "spark2-submit", "spark3-submit"]
 

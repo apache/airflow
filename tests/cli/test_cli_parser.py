@@ -27,12 +27,14 @@ import subprocess
 import sys
 import timeit
 from collections import Counter
+from importlib import reload
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from airflow.cli import cli_config, cli_parser
+from airflow.cli.cli_config import ActionCommand, lazy_load_command
 from airflow.configuration import AIRFLOW_HOME
 from tests.test_utils.config import conf_vars
 
@@ -203,31 +205,22 @@ class TestCli:
             cli_config.positive_int(allow_zero=True)("-1")
 
     @pytest.mark.parametrize(
-        "command",
+        "executor",
         [
-            ["celery"],
-            ["celery", "--help"],
-            ["celery", "worker", "--help"],
-            ["celery", "worker"],
-            ["celery", "flower", "--help"],
-            ["celery", "flower"],
-            ["celery", "stop_worker", "--help"],
-            ["celery", "stop_worker"],
+            "celery",
+            "kubernetes",
         ],
     )
-    def test_dag_parser_require_celery_executor(self, command):
+    def test_dag_parser_require_celery_executor(self, executor):
         with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
             io.StringIO()
         ) as stderr:
+            reload(cli_parser)
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args(command)
+                parser.parse_args([executor])
             stderr = stderr.getvalue()
-        assert (
-            "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
-            "works only with CeleryExecutor, CeleryKubernetesExecutor and executors derived from them, "
-            "your current executor: SequentialExecutor, subclassed from: BaseExecutor, see help above."
-        ) in stderr
+        assert (f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{executor}'") in stderr
 
     @pytest.mark.parametrize(
         "executor",
@@ -240,6 +233,7 @@ class TestCli:
     )
     def test_dag_parser_celery_command_accept_celery_executor(self, executor):
         with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
+            reload(cli_parser)
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
                 parser.parse_args(["celery"])
@@ -247,6 +241,36 @@ class TestCli:
         assert (
             "airflow celery command error: the following arguments are required: COMMAND, see help above."
         ) in stderr
+
+    @pytest.mark.parametrize(
+        "executor,expected_args",
+        [
+            ("CeleryExecutor", ["celery"]),
+            ("CeleryKubernetesExecutor", ["celery", "kubernetes"]),
+            ("custom_executor.CustomCeleryExecutor", ["celery"]),
+            ("custom_executor.CustomCeleryKubernetesExecutor", ["celery", "kubernetes"]),
+            ("KubernetesExecutor", ["kubernetes"]),
+            ("custom_executor.KubernetesExecutor", ["kubernetes"]),
+            ("LocalExecutor", []),
+            ("LocalKubernetesExecutor", ["kubernetes"]),
+            ("custom_executor.LocalExecutor", []),
+            ("custom_executor.LocalKubernetesExecutor", ["kubernetes"]),
+            ("SequentialExecutor", []),
+        ],
+    )
+    def test_cli_parser_executors(self, executor, expected_args):
+        """Test that CLI commands for the configured executor are present"""
+        for expected_arg in expected_args:
+            with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(
+                io.StringIO()
+            ) as stderr:
+                reload(cli_parser)
+                parser = cli_parser.get_parser()
+                with pytest.raises(SystemExit) as e:
+                    parser.parse_args([expected_arg, "--help"])
+                    assert e.value.code == 0
+                stderr = stderr.getvalue()
+                assert "airflow command error" not in stderr
 
     def test_dag_parser_config_command_dont_required_celery_executor(self):
         with conf_vars({("core", "executor"): "CeleryExecutor"}), contextlib.redirect_stderr(
@@ -287,6 +311,25 @@ class TestCli:
             f"--export-format: invalid choice: '{export_format}' "
             "(choose from 'csv'), see help above.\n"
         )
+
+    @pytest.mark.parametrize(
+        "action_cmd",
+        [
+            ActionCommand(name="name", help="help", func=lazy_load_command(""), args=(), hide=True),
+            ActionCommand(name="name", help="help", func=lazy_load_command(""), args=(), hide=False),
+        ],
+    )
+    @patch("argparse._SubParsersAction")
+    def test_add_command_with_hide(self, mock_subparser_actions, action_cmd):
+        cli_parser._add_command(mock_subparser_actions, action_cmd)
+        if action_cmd.hide:
+            mock_subparser_actions.add_parser.assert_called_once_with(
+                action_cmd.name, epilog=action_cmd.epilog
+            )
+        else:
+            mock_subparser_actions.add_parser.assert_called_once_with(
+                action_cmd.name, help=action_cmd.help, description=action_cmd.help, epilog=action_cmd.epilog
+            )
 
 
 # We need to run it from sources with PYTHONPATH, not command line tool,

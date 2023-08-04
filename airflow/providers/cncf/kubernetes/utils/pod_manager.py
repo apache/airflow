@@ -43,7 +43,7 @@ from urllib3.exceptions import HTTPError as BaseHTTPError
 from urllib3.response import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.kubernetes.pod_generator import PodDefaults
+from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
 from airflow.typing_compat import Literal, Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
@@ -89,7 +89,7 @@ class PodOperatorHookProtocol(Protocol):
 
     @property
     def core_v1_client(self) -> client.CoreV1Api:
-        """Get authenticated CoreV1Api object."""
+        """Get authenticated client object."""
 
     @property
     def is_in_cluster(self) -> bool:

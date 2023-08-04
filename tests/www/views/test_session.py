@@ -95,10 +95,4 @@ def test_check_active_user(app, user_client):
     user.active = False
     resp = user_client.get("/home")
     assert resp.status_code == 302
-    assert "/login" in resp.headers.get("Location")
-
-    # And they were logged out
-    user.active = True
-    resp = user_client.get("/home")
-    assert resp.status_code == 302
-    assert "/login" in resp.headers.get("Location")
+    assert "/logout" in resp.headers.get("Location")

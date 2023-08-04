@@ -28,6 +28,22 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.4.0
+.....
+
+Latest change: 2023-07-29
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`bcc7856b80 <https://github.com/apache/airflow/commit/bcc7856b80ee6f48de0395089b89424cf4b1c98a>`_  2023-07-29   ``Add 'termination_message_policy' parameter to 'KubernetesPodOperator' (#32885)``
+`f31af91dbd <https://github.com/apache/airflow/commit/f31af91dbd8b98cc4ddb98bed8bbc086ab4b65c9>`_  2023-07-29   ``Raise original import error in CLI vending of executors (#32931)``
+`fcbbf47864 <https://github.com/apache/airflow/commit/fcbbf47864c251046de108aafdad394d66e1df23>`_  2023-07-29   ``[AIP-51] Executors vending CLI commands (#29055)``
+`e93460383f <https://github.com/apache/airflow/commit/e93460383f287f9b2af4b6bda3ea6ba17ba3c08b>`_  2023-07-26   ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+`fcc6f284c7 <https://github.com/apache/airflow/commit/fcc6f284c742bdc554edecc5a83d9eaa7d9d7ba4>`_  2023-07-22   ``Update the watcher resource version in SparkK8SOp when it's too old (#32768)``
+`e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
+=================================================================================================  ===========  ==================================================================================
+
 7.3.0
 .....
 
@@ -36,6 +52,7 @@ Latest change: 2023-07-12
 =================================================================================================  ===========  ==========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================
+`e7f59a913e <https://github.com/apache/airflow/commit/e7f59a913e1fcf9052e69f62af9fe23901f1a358>`_  2023-07-12   ``Prepare docs for July 2023 2nd wave of Providers (#32566)``
 `b3ce116192 <https://github.com/apache/airflow/commit/b3ce1161926efb880c3f525ac0a031ab4812fb95>`_  2023-07-12   ``Fix async KPO by waiting pod termination in 'execute_complete' before cleanup (#32467)``
 `c99c03135c <https://github.com/apache/airflow/commit/c99c03135ca7e7c41e1c6d338de9e41422ea84f0>`_  2023-07-08   ``D205 Support - Providers: Stragglers and new additions (#32447)``
 `9a0f41ba53 <https://github.com/apache/airflow/commit/9a0f41ba53185031bc2aa56ead2928ae4b20de99>`_  2023-07-06   ``Logging from all containers in KubernetesOperatorPod (#31663)``
