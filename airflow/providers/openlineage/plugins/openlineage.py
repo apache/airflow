@@ -25,11 +25,11 @@ from airflow.providers.openlineage.plugins.macros import lineage_parent_id, line
 
 def _is_disabled() -> bool:
     return (
-        conf.getboolean("openlineage", "disabled")
+        conf.getboolean("openlineage", "disabled", fallback=False)
         or os.getenv("OPENLINEAGE_DISABLED", "false").lower() == "true"
         or (
-            conf.get("openlineage", "transport") == ""
-            and conf.get("openlineage", "config_path") == ""
+            conf.get("openlineage", "transport", fallback="") == ""
+            and conf.get("openlineage", "config_path", fallback="") == ""
             and os.getenv("OPENLINEAGE_URL", "") == ""
             and os.getenv("OPENLINEAGE_CONFIG", "") == ""
         )
