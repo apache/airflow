@@ -742,7 +742,7 @@ def run_provider_discovery():
         subprocess.run(["airflow", "providers", "executors"], check=True)
     if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.7.0.dev0"):
         # CI also check if our providers are installable and discoverable in airflow older versions
-        # But the notifications command is not available till airflow-2-7-0
+        # But the notifications command is not available till airflow-2-8-0
         console.print("[bright_blue]List all notifications[/]\n")
         subprocess.run(["airflow", "providers", "notification"], check=True)
 
