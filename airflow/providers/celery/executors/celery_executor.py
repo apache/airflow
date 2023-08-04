@@ -23,6 +23,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import logging
 import math
 import operator
@@ -480,3 +481,11 @@ class CeleryExecutor(BaseExecutor):
                 subcommands=CELERY_COMMANDS,
             ),
         ]
+
+
+def _get_parser() -> argparse.ArgumentParser:
+    """This method is used by Sphinx to generate documentation.
+
+    :meta private:
+    """
+    return CeleryExecutor._get_parser()

@@ -43,6 +43,7 @@
     :caption: References
 
     Configuration <configurations-ref>
+    CLI <cli-ref>
     Python API <_api/airflow/providers/cncf/kubernetes/index>
 
 .. toctree::
