@@ -188,7 +188,7 @@ class EmrHook(AwsBaseHook):
                         failure_details = resp["Step"]["Status"].get("FailureDetails", None)
                         if failure_details:
                             self.log.error("EMR Steps failed: %s", failure_details)
-                        raise
+                    raise
         return response["StepIds"]
 
     def test_connection(self):
