@@ -1148,9 +1148,9 @@ class TestSetupTearDownTask:
             print("teardown")
 
         with dag_maker() as dag:
-            task1 = mytask()
-            task2 = mytask2()
             with setuptask() >> teardowntask():
+                task1 = mytask()
+                task2 = mytask2()
                 task1 >> task2
 
         assert len(dag.task_group.children) == 4
@@ -1168,9 +1168,9 @@ class TestSetupTearDownTask:
         with dag_maker() as dag:
             setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
             teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
-            mytask = BashOperator(task_id="mytask", bash_command="echo 1")
-            mytask2 = BashOperator(task_id="mytask2", bash_command="echo 1")
             with setuptask >> teardowntask:
+                mytask = BashOperator(task_id="mytask", bash_command="echo 1")
+                mytask2 = BashOperator(task_id="mytask2", bash_command="echo 1")
                 mytask >> mytask2
 
         assert len(dag.task_group.children) == 4
