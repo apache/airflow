@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import heapq
 import logging
 import math
 import pickle
@@ -384,7 +385,7 @@ def main(
                 break
 
     console.print(f"Top {top_number} out of {issue_num} PRs:")
-    for pr_scored in sorted(scores.items(), key=lambda s: s[1], reverse=True)[:top_number]:
+    for pr_scored in heapq.nlargest(top_number, scores.items(), key=lambda s: s[1]):
         console.print(f"[green] * PR #{pr_scored[0]}: {pr_scored[1][1]}. Score: [magenta]{pr_scored[1][0]}")
 
     if save:

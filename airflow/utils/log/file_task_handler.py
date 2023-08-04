@@ -491,12 +491,11 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def _read_from_local(worker_log_path: Path) -> tuple[list[str], list[str]]:
         messages = []
-        logs = []
-        files = list(worker_log_path.parent.glob(worker_log_path.name + "*"))
+        files = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
         if files:
-            messages.extend(["Found local files:", *[f"  * {x}" for x in sorted(files)]])
-        for file in sorted(files):
-            logs.append(Path(file).read_text())
+            messages.append("Found local files:")
+            messages.extend(f"  * {x}" for x in files)
+        logs = [Path(file).read_text() for file in files]
         return messages, logs
 
     def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:

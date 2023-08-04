@@ -57,8 +57,8 @@ def get_latest_ami_id():
         Owners=["amazon"],
     )
     # Sort on CreationDate
-    sorted_images = sorted(images["Images"], key=itemgetter("CreationDate"), reverse=True)
-    return sorted_images[0]["ImageId"]
+    latest_image = max(images["Images"], key=itemgetter("CreationDate"))
+    return latest_image["ImageId"]
 
 
 @task
