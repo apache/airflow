@@ -433,7 +433,7 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     # each is a different dag
 
     # if we delete one, it shouldn't delete the others
-    one_run = [x for x in dag_runs if x.run_id == run_id_for_single_delete][0]
+    one_run = next(x for x in dag_runs if x.run_id == run_id_for_single_delete)
     assert interface.delete(item=one_run) is True
     session.commit()
     dag_runs = session.query(DagRun).all()
