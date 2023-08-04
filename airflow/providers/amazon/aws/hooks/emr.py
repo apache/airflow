@@ -185,9 +185,9 @@ class EmrHook(AwsBaseHook):
                 except AirflowException as ex:
                     if "EMR Steps failed" in str(ex):
                         resp = self.get_conn().describe_step(ClusterId=job_flow_id, StepId=step_id)
-                        self.log.error(
-                            "EMR Steps failed: %s", resp["Step"]["Status"].get("FailureDetails", None)
-                        )
+                        failure_details = resp["Step"]["Status"].get("FailureDetails", None)
+                        if failure_details:
+                            self.log.error("EMR Steps failed: %s", failure_details)
                         raise
         return response["StepIds"]
 
