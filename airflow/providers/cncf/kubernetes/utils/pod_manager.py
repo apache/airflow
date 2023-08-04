@@ -102,7 +102,7 @@ class PodOperatorHookProtocol(Protocol):
         """Returns the namespace that defined in the connection."""
 
     def get_xcom_sidecar_container_image(self) -> str | None:
-        """Returns the xcom sidecar image that defined in the connection"""
+        """Returns the xcom sidecar image that defined in the connection."""
 
     def get_xcom_sidecar_container_resources(self) -> str | None:
         """Returns the xcom sidecar resources that defined in the connection"""
