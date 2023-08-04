@@ -35,7 +35,7 @@ by setting "ssl_context" in "imap" configuration of the provider. If it is not e
 it will default to "email", "ssl_context" setting in Airflow.
 
 Setting it to "none" brings back the "none" setting that was used in previous versions of the provider,
-but it is not recommended due to security reasons ad this setting disables validation
+but it is not recommended due to security reasons and this setting disables validation
 of certificates and allows MITM attacks.
 
 3.2.2
