@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 from typing import Iterable, Sequence
 
 from google.api_core import operation
@@ -136,17 +137,7 @@ class CloudRunHook(GoogleBaseHook):
 
         jobs: pagers.ListJobsPager = self.get_conn().list_jobs(request=list_jobs_request)
 
-        return self._limit_list(jobs, limit)
-
-    def _limit_list(self, jobs, limit):
-        result = []
-        for item in jobs:
-            if limit is not None and limit == 0:
-                break
-            result.append(item)
-            if limit is not None:
-                limit -= 1
-        return result
+        return list(itertools.islice(jobs, limit))
 
 
 class CloudRunAsyncHook(GoogleBaseHook):

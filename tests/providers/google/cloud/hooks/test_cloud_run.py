@@ -183,6 +183,20 @@ class TestCloudBathHook:
         for i in range(limit):
             assert jobs_list[i].name == f"name{i}"
 
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
+    def test_list_jobs_with_limit_zero(self, mock_batch_service_client, cloud_run_hook):
+        number_of_jobs = 3
+        limit = 0
+        region = "us-central1"
+        project_id = "test_project_id"
+
+        page = self._mock_pager(number_of_jobs)
+        mock_batch_service_client.return_value.list_jobs.return_value = page
+
+        jobs_list = cloud_run_hook.list_jobs(region=region, project_id=project_id, limit=limit)
+
+        assert len(jobs_list) == 0
+
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
         new=mock_base_gcp_hook_default_project_id,
