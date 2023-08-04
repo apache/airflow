@@ -547,17 +547,16 @@ class TaskGroup(DAGNode):
                         f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
                     )
 
-    def add_tasks(self, *tasks: AbstractOperator) -> None:
-        """Add tasks to the task group.
+    def add_task(self, task: AbstractOperator) -> None:
+        """Add a task to the task group.
 
-        :param tasks: the task to add
+        :param task: the task to add
         """
         if not TaskGroupContext.active:
             raise AirflowException(
                 "Using this method on a task group that's not a context manager is not supported."
             )
-        for task in tasks:
-            task.add_to_taskgroup(self)
+        task.add_to_taskgroup(self)
 
     def add_to_taskgroup(self, task_group: TaskGroup) -> None:
         """No-op, since we're not a task.

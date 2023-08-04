@@ -327,13 +327,12 @@ class SetupTeardownContext(BaseSetupTeardownContext):
     """Context manager for setup and teardown tasks."""
 
     @staticmethod
-    def add_tasks(*tasks: AbstractOperator | PlainXComArg):
-        """Add tasks to context manager."""
+    def add_task(task: AbstractOperator | PlainXComArg):
+        """Add task to context manager."""
         from airflow.models.xcom_arg import PlainXComArg
 
         if not SetupTeardownContext.active:
             raise AirflowException("Cannot add task to context outside the context manager.")
-        for task in tasks:
-            if isinstance(task, PlainXComArg):
-                task = task.operator
-            SetupTeardownContext.update_context_map(task)
+        if isinstance(task, PlainXComArg):
+            task = task.operator
+        SetupTeardownContext.update_context_map(task)
