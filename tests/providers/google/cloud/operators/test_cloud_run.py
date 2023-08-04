@@ -1,310 +1,308 @@
-# TODO: This license is not consistent with license used in the project.
-#       Delete the inconsistent license and above line and rerun pre-commit to insert a good license.
-# #
-# # Licensed to the Apache Software Foundation (ASF) under one
-# # or more contributor license agreements.  See the NOTICE file
-# # distributed with this work for additional information
-# # regarding copyright ownership.  The ASF licenses this file
-# # to you under the Apache License, Version 2.0 (the
-# # "License"); you may not use this file except in compliance
-# # with the License.  You may obtain a copy of the License at
-# #
-# #   http://www.apache.org/licenses/LICENSE-2.0
-# #
-# # Unless required by applicable law or agreed to in writing,
-# # software distributed under the License is distributed on an
-# # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# # KIND, either express or implied.  See the License for the
-# # specific language governing permissions and limitations
-# # under the License.
-# """
-# This module contains various unit tests for GCP Cloud Build Operators
-# """
-# from __future__ import annotations
-
-# from unittest import mock
-
-# import pytest
-# from google.cloud.run_v2 import Job
-
-# from airflow.exceptions import AirflowException, TaskDeferred
-# from airflow.providers.google.cloud.operators.cloud_run import (
-#     CloudRunCreateJobOperator,
-#     CloudRunDeleteJobOperator,
-#     CloudRunExecuteJobOperator,
-#     CloudRunListJobsOperator,
-#     CloudRunUpdateJobOperator,
-# )
-# from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
-
-# CLOUD_RUN_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunHook"
-# TASK_ID = "test"
-# PROJECT_ID = "testproject"
-# REGION = "us-central1"
-# JOB_NAME = "jobname"
-# JOB = Job()
-# JOB.name = JOB_NAME
-
-
-# def _assert_common_template_fields(template_fields):
-#     assert "project_id" in template_fields
-#     assert "region" in template_fields
-#     assert "gcp_conn_id" in template_fields
-#     assert "impersonation_chain" in template_fields
-
-
-# class TestCloudRunCreateJobOperator:
-#     def test_template_fields(self):
-#         operator = CloudRunCreateJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
-#         )
-
-#         _assert_common_template_fields(operator.template_fields)
-#         assert "job_name" in operator.template_fields
-
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_create(self, hook_mock):
-#         hook_mock.return_value.create_job.return_value = JOB
-
-#         operator = CloudRunCreateJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
-#         )
-
-#         operator.execute(context=mock.MagicMock())
-
-#         hook_mock.return_value.create_job.assert_called_once_with(
-#             job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, job=JOB
-#         )
-
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""
+This module contains various unit tests for GCP Cloud Build Operators
+"""
+from __future__ import annotations
+
+from unittest import mock
+
+import pytest
+from google.cloud.run_v2 import Job
+
+from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.google.cloud.operators.cloud_run import (
+    CloudRunCreateJobOperator,
+    CloudRunDeleteJobOperator,
+    CloudRunExecuteJobOperator,
+    CloudRunListJobsOperator,
+    CloudRunUpdateJobOperator,
+)
+from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
+
+CLOUD_RUN_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunHook"
+TASK_ID = "test"
+PROJECT_ID = "testproject"
+REGION = "us-central1"
+JOB_NAME = "jobname"
+JOB = Job()
+JOB.name = JOB_NAME
+
+
+def _assert_common_template_fields(template_fields):
+    assert "project_id" in template_fields
+    assert "region" in template_fields
+    assert "gcp_conn_id" in template_fields
+    assert "impersonation_chain" in template_fields
+
+
+class TestCloudRunCreateJobOperator:
+    def test_template_fields(self):
+        operator = CloudRunCreateJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+        )
+
+        _assert_common_template_fields(operator.template_fields)
+        assert "job_name" in operator.template_fields
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_create(self, hook_mock):
+        hook_mock.return_value.create_job.return_value = JOB
+
+        operator = CloudRunCreateJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+        )
+
+        operator.execute(context=mock.MagicMock())
 
-# class TestCloudRunExecuteJobOperator:
-#     def test_template_fields(self):
-#         operator = CloudRunExecuteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
-#         )
+        hook_mock.return_value.create_job.assert_called_once_with(
+            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, job=JOB
+        )
 
-#         _assert_common_template_fields(operator.template_fields)
-#         assert "job_name" in operator.template_fields
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute_success(self, hook_mock):
-#         hook_mock.return_value.get_job.return_value = JOB
-#         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)
+class TestCloudRunExecuteJobOperator:
+    def test_template_fields(self):
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
 
-#         operator = CloudRunExecuteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
-#         )
+        _assert_common_template_fields(operator.template_fields)
+        assert "job_name" in operator.template_fields
 
-#         operator.execute(context=mock.MagicMock())
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_success(self, hook_mock):
+        hook_mock.return_value.get_job.return_value = JOB
+        hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)
 
-#         hook_mock.return_value.execute_job.assert_called_once_with(
-#             job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
-#         )
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute_fail_one_failed_task(self, hook_mock):
-#         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 2, 1)
+        operator.execute(context=mock.MagicMock())
 
-#         operator = CloudRunExecuteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
-#         )
+        hook_mock.return_value.execute_job.assert_called_once_with(
+            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
+        )
 
-#         with pytest.raises(AirflowException) as exception:
-#             operator.execute(context=mock.MagicMock())
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_fail_one_failed_task(self, hook_mock):
+        hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 2, 1)
 
-#         assert "Some tasks failed execution" in str(exception.value)
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute_fail_all_failed_tasks(self, hook_mock):
+        with pytest.raises(AirflowException) as exception:
+            operator.execute(context=mock.MagicMock())
 
-#         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 0, 3)
+        assert "Some tasks failed execution" in str(exception.value)
 
-#         operator = CloudRunExecuteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
-#         )
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_fail_all_failed_tasks(self, hook_mock):
 
-#         with pytest.raises(AirflowException) as exception:
-#             operator.execute(context=mock.MagicMock())
+        hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 0, 3)
 
-#         assert "Some tasks failed execution" in str(exception.value)
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute_fail_incomplete_failed_tasks(self, hook_mock):
-#         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 2, 0)
+        with pytest.raises(AirflowException) as exception:
+            operator.execute(context=mock.MagicMock())
 
-#         operator = CloudRunExecuteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
-#         )
+        assert "Some tasks failed execution" in str(exception.value)
 
-#         with pytest.raises(AirflowException) as exception:
-#             operator.execute(context=mock.MagicMock())
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_fail_incomplete_failed_tasks(self, hook_mock):
+        hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 2, 0)
 
-#         assert "Not all tasks finished execution" in str(exception.value)
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute_fail_incomplete_succeeded_tasks(self, hook_mock):
-#         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 0, 2)
+        with pytest.raises(AirflowException) as exception:
+            operator.execute(context=mock.MagicMock())
 
-#         operator = CloudRunExecuteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
-#         )
+        assert "Not all tasks finished execution" in str(exception.value)
 
-#         with pytest.raises(AirflowException) as exception:
-#             operator.execute(context=mock.MagicMock())
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_fail_incomplete_succeeded_tasks(self, hook_mock):
+        hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 0, 2)
 
-#         assert "Not all tasks finished execution" in str(exception.value)
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute_deferrable(self, hook_mock):
+        with pytest.raises(AirflowException) as exception:
+            operator.execute(context=mock.MagicMock())
 
-#         operator = CloudRunExecuteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
-#         )
+        assert "Not all tasks finished execution" in str(exception.value)
 
-#         with pytest.raises(TaskDeferred):
-#             operator.execute(mock.MagicMock())
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable(self, hook_mock):
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute_deferrable_execute_complete_method_timeout(self, hook_mock):
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
 
-#         operator = CloudRunExecuteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
-#         )
+        with pytest.raises(TaskDeferred):
+            operator.execute(mock.MagicMock())
 
-#         event = {"status": RunJobStatus.TIMEOUT, "job_name": JOB_NAME}
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_timeout(self, hook_mock):
 
-#         with pytest.raises(AirflowException) as e:
-#             operator.execute_complete(mock.MagicMock(), event)
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
 
-#         assert "Operation timed out" in str(e.value)
+        event = {"status": RunJobStatus.TIMEOUT, "job_name": JOB_NAME}
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute_deferrable_execute_complete_method_fail(self, hook_mock):
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
 
-#         operator = CloudRunExecuteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
-#         )
+        assert "Operation timed out" in str(e.value)
 
-#         error_code = 10
-#         error_message = "error message"
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_fail(self, hook_mock):
 
-#         event = {
-#             "status": RunJobStatus.FAIL,
-#             "operation_error_code": error_code,
-#             "operation_error_message": error_message,
-#             "job_name": JOB_NAME,
-#         }
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
 
-#         with pytest.raises(AirflowException) as e:
-#             operator.execute_complete(mock.MagicMock(), event)
+        error_code = 10
+        error_message = "error message"
 
-#         assert f"Operation failed with error code [{error_code}] and error message [{error_message}]" in str(
-#             e.value
-#         )
+        event = {
+            "status": RunJobStatus.FAIL,
+            "operation_error_code": error_code,
+            "operation_error_message": error_message,
+            "job_name": JOB_NAME,
+        }
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute_deferrable_execute_complete_method_success(self, hook_mock):
+        with pytest.raises(AirflowException) as e:
+            operator.execute_complete(mock.MagicMock(), event)
 
-#         hook_mock.return_value.get_job.return_value = JOB
+        assert f"Operation failed with error code [{error_code}] and error message [{error_message}]" in str(
+            e.value
+        )
 
-#         operator = CloudRunExecuteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
-#         )
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_deferrable_execute_complete_method_success(self, hook_mock):
 
-#         event = {"status": RunJobStatus.SUCCESS, "job_name": JOB_NAME}
+        hook_mock.return_value.get_job.return_value = JOB
 
-#         result = operator.execute_complete(mock.MagicMock(), event)
-#         assert result["name"] == JOB_NAME
+        operator = CloudRunExecuteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
+        )
 
-#     def _mock_operation(self, task_count, succeeded_count, failed_count):
-#         operation = mock.MagicMock()
-#         operation.result.return_value = self._mock_execution(task_count, succeeded_count, failed_count)
-#         return operation
+        event = {"status": RunJobStatus.SUCCESS, "job_name": JOB_NAME}
 
-#     def _mock_execution(self, task_count, succeeded_count, failed_count):
-#         execution = mock.MagicMock()
-#         execution.task_count = task_count
-#         execution.succeeded_count = succeeded_count
-#         execution.failed_count = failed_count
-#         return execution
+        result = operator.execute_complete(mock.MagicMock(), event)
+        assert result["name"] == JOB_NAME
 
+    def _mock_operation(self, task_count, succeeded_count, failed_count):
+        operation = mock.MagicMock()
+        operation.result.return_value = self._mock_execution(task_count, succeeded_count, failed_count)
+        return operation
 
-# class TestCloudRunDeleteJobOperator:
-#     def test_template_fields(self):
-#         operator = CloudRunDeleteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
-#         )
+    def _mock_execution(self, task_count, succeeded_count, failed_count):
+        execution = mock.MagicMock()
+        execution.task_count = task_count
+        execution.succeeded_count = succeeded_count
+        execution.failed_count = failed_count
+        return execution
 
-#         _assert_common_template_fields(operator.template_fields)
-#         assert "job_name" in operator.template_fields
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute(self, hook_mock):
-#         hook_mock.return_value.delete_job.return_value = JOB
+class TestCloudRunDeleteJobOperator:
+    def test_template_fields(self):
+        operator = CloudRunDeleteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
 
-#         operator = CloudRunDeleteJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
-#         )
+        _assert_common_template_fields(operator.template_fields)
+        assert "job_name" in operator.template_fields
 
-#         deleted_job = operator.execute(context=mock.MagicMock())
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute(self, hook_mock):
+        hook_mock.return_value.delete_job.return_value = JOB
 
-#         assert deleted_job["name"] == JOB.name
+        operator = CloudRunDeleteJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME
+        )
 
-#         hook_mock.return_value.delete_job.assert_called_once_with(
-#             job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
-#         )
+        deleted_job = operator.execute(context=mock.MagicMock())
 
+        assert deleted_job["name"] == JOB.name
 
-# class TestCloudRunUpdateJobOperator:
-#     def test_template_fields(self):
-#         operator = CloudRunUpdateJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
-#         )
+        hook_mock.return_value.delete_job.assert_called_once_with(
+            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
+        )
 
-#         _assert_common_template_fields(operator.template_fields)
-#         assert "job_name" in operator.template_fields
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute(self, hook_mock):
-#         hook_mock.return_value.update_job.return_value = JOB
+class TestCloudRunUpdateJobOperator:
+    def test_template_fields(self):
+        operator = CloudRunUpdateJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+        )
 
-#         operator = CloudRunUpdateJobOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
-#         )
+        _assert_common_template_fields(operator.template_fields)
+        assert "job_name" in operator.template_fields
 
-#         updated_job = operator.execute(context=mock.MagicMock())
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute(self, hook_mock):
+        hook_mock.return_value.update_job.return_value = JOB
 
-#         assert updated_job["name"] == JOB.name
+        operator = CloudRunUpdateJobOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, job=JOB
+        )
 
-#         hook_mock.return_value.update_job.assert_called_once_with(
-#             job_name=JOB_NAME, job=JOB, region=REGION, project_id=PROJECT_ID
-#         )
+        updated_job = operator.execute(context=mock.MagicMock())
 
+        assert updated_job["name"] == JOB.name
 
-# class TestCloudRunListJobsOperator:
-#     def test_template_fields(self):
-#         operator = CloudRunListJobsOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=2, show_deleted=False
-#         )
+        hook_mock.return_value.update_job.assert_called_once_with(
+            job_name=JOB_NAME, job=JOB, region=REGION, project_id=PROJECT_ID
+        )
 
-#         _assert_common_template_fields(operator.template_fields)
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute(self, hook_mock):
-#         limit = 2
-#         show_deleted = True
-#         operator = CloudRunListJobsOperator(
-#             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit, show_deleted=show_deleted
-#         )
+class TestCloudRunListJobsOperator:
+    def test_template_fields(self):
+        operator = CloudRunListJobsOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=2, show_deleted=False
+        )
 
-#         operator.execute(context=mock.MagicMock())
+        _assert_common_template_fields(operator.template_fields)
 
-#         hook_mock.return_value.list_jobs.assert_called_once_with(
-#             region=REGION, project_id=PROJECT_ID, limit=limit, show_deleted=show_deleted
-#         )
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute(self, hook_mock):
+        limit = 2
+        show_deleted = True
+        operator = CloudRunListJobsOperator(
+            task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit, show_deleted=show_deleted
+        )
 
-#     @mock.patch(CLOUD_RUN_HOOK_PATH)
-#     def test_execute_with_invalid_limit(self, hook_mock):
-#         limit = -1
-#         with pytest.raises(expected_exception=AirflowException):
-#             CloudRunListJobsOperator(task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit)
+        operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.list_jobs.assert_called_once_with(
+            region=REGION, project_id=PROJECT_ID, limit=limit, show_deleted=show_deleted
+        )
+
+    @mock.patch(CLOUD_RUN_HOOK_PATH)
+    def test_execute_with_invalid_limit(self, hook_mock):
+        limit = -1
+        with pytest.raises(expected_exception=AirflowException):
+            CloudRunListJobsOperator(task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, limit=limit)
