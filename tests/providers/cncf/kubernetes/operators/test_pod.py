@@ -312,6 +312,16 @@ class TestKubernetesPodOperator:
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
         }
 
+    def test_find_custom_pod_labels(self):
+        k = KubernetesPodOperator(
+            labels={"foo": "bar", "hello": "airflow"},
+            name="test",
+            task_id="task",
+        )
+        context = create_context(k)
+        label_selector = k._build_find_pod_label_selector(context)
+        assert "foo=bar" in label_selector and "hello=airflow" in label_selector
+
     @patch(HOOK_CLASS, new=MagicMock)
     def test_find_pod_labels(self):
         k = KubernetesPodOperator(
@@ -327,7 +337,7 @@ class TestKubernetesPodOperator:
         self.run_pod(k)
         _, kwargs = k.client.list_namespaced_pod.call_args
         assert kwargs["label_selector"] == (
-            "dag_id=dag,kubernetes_pod_operator=True,run_id=test,task_id=task,"
+            "dag_id=dag,foo=bar,kubernetes_pod_operator=True,run_id=test,task_id=task,"
             "already_checked!=True,!airflow-worker"
         )
 
