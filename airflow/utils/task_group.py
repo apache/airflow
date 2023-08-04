@@ -370,21 +370,21 @@ class TaskGroup(DAGNode):
         tasks = list(self)
         ids = {x.task_id for x in tasks}
 
-        def recurse_for_first_non_setup_teardown(task):
+        def recurse_for_first_non_teardown(task):
             for upstream_task in task.upstream_list:
                 if upstream_task.task_id not in ids:
                     continue
-                if upstream_task.is_setup or upstream_task.is_teardown:
-                    yield from recurse_for_first_non_setup_teardown(upstream_task)
+                if upstream_task.is_teardown:
+                    yield from recurse_for_first_non_teardown(upstream_task)
                 else:
                     yield upstream_task
 
         for task in tasks:
             if task.downstream_task_ids.isdisjoint(ids):
-                if not (task.is_teardown or task.is_setup):
+                if not task.is_teardown:
                     yield task
                 else:
-                    yield from recurse_for_first_non_setup_teardown(task)
+                    yield from recurse_for_first_non_teardown(task)
 
     def child_id(self, label):
         """Prefix label with group_id if prefix_group_id is True. Otherwise return the label as-is."""
