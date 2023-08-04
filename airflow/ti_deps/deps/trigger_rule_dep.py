@@ -22,7 +22,7 @@ import collections.abc
 import functools
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
-from sqlalchemy import and_, case, func, or_, select, true
+from sqlalchemy import and_, func, or_, select
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.dep_context import DepContext
