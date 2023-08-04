@@ -356,7 +356,7 @@ class GCSHook(GoogleBaseHook):
                     raise
 
                 # Wait with exponential backoff scheme before retrying.
-                timeout_seconds = 1.0 * 2 ** (num_file_attempts - 1)
+                timeout_seconds = 2 ** (num_file_attempts - 1)
                 time.sleep(timeout_seconds)
                 continue
 
@@ -524,7 +524,7 @@ class GCSHook(GoogleBaseHook):
                         raise e
 
                     # Wait with exponential backoff scheme before retrying.
-                    timeout_seconds = 1.0 * 2 ** (num_file_attempts - 1)
+                    timeout_seconds = 2 ** (num_file_attempts - 1)
                     time.sleep(timeout_seconds)
                     continue
 

@@ -154,7 +154,7 @@ Start an Amazon SageMaker pipeline execution
 To trigger an execution run for an already-defined Amazon Sagemaker pipeline, you can use
 :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerStartPipelineOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker_pipeline.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sagemaker_start_pipeline]
@@ -168,7 +168,7 @@ Stop an Amazon SageMaker pipeline execution
 To stop an Amazon Sagemaker pipeline execution that is currently running, you can use
 :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerStopPipelineOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker_pipeline.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sagemaker_stop_pipeline]
@@ -289,7 +289,7 @@ Wait on an Amazon SageMaker pipeline execution state
 To check the state of an Amazon Sagemaker pipeline execution until it reaches a terminal state
 you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerPipelineSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sagemaker_pipeline.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_sagemaker_pipeline]
