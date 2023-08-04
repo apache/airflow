@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-03T18:46:15Z
+# This constraints file was automatically generated on 2023-08-04T11:41:53Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-7-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -134,7 +134,7 @@ chardet==5.2.0
 charset-normalizer==3.2.0
 checksumdir==1.2.0
 ciso8601==2.3.0
-click-default-group==1.2.2
+click-default-group==1.2.4
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.3.0
@@ -212,7 +212,7 @@ google-cloud-core==2.3.3
 google-cloud-datacatalog==3.14.0
 google-cloud-dataflow-client==0.8.4
 google-cloud-dataform==0.5.2
-google-cloud-dataplex==1.6.0
+google-cloud-dataplex==1.6.1
 google-cloud-dataproc-metastore==1.12.0
 google-cloud-dataproc==5.4.3
 google-cloud-dlp==3.12.2
@@ -225,9 +225,9 @@ google-cloud-orchestration-airflow==1.9.1
 google-cloud-os-login==2.10.0
 google-cloud-pubsub==2.18.1
 google-cloud-redis==2.13.1
-google-cloud-resource-manager==1.10.2
-google-cloud-secret-manager==2.16.2
-google-cloud-spanner==3.39.0
+google-cloud-resource-manager==1.10.3
+google-cloud-secret-manager==2.16.3
+google-cloud-spanner==3.40.0
 google-cloud-speech==2.21.0
 google-cloud-storage-transfer==1.9.1
 google-cloud-storage==2.10.0
@@ -564,7 +564,7 @@ unicodecsv==0.14.1
 uritemplate==4.1.1
 urllib3==1.26.16
 userpath==1.9.0
-vertica-python==1.3.3
+vertica-python==1.3.4
 vine==5.0.0
 virtualenv==20.24.1
 volatile==2.1.0

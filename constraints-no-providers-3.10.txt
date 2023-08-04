@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-03T18:49:38Z
+# This constraints file was automatically generated on 2023-08-04T11:45:19Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-7-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -165,7 +165,7 @@ python-nvd3==0.15.0
 python-slugify==8.0.1
 pytz==2023.3
 pytzdata==2020.1
-referencing==0.30.0
+referencing==0.30.1
 requests-kerberos==0.14.0
 requests-oauthlib==1.3.1
 requests==2.31.0
