@@ -659,6 +659,8 @@ class MappedOperator(AbstractOperator):
 
         op = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
         SerializedBaseOperator.populate_operator(op, self.operator_class)
+        if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
+            SerializedBaseOperator.set_task_dag_references(op, self.dag)
         return op
 
     def _get_specified_expand_input(self) -> ExpandInput:
