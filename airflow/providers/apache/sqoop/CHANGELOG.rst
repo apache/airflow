@@ -40,6 +40,15 @@ are no longer accepted as arguments for those methods. These should instead be p
 as ``extra_options`` while initializing the Hook or via ``extra_options`` parameter to the
 operator which instantiates the hook with those given ``extra_options`` dictionary.
 
+* ``Validate SqoopHook connection string and disable extra options from public hook methods (#33039)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Validate connection host field for Sqoop connection (#32968)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 3.2.1
 .....
 
@@ -82,6 +91,7 @@ Misc
 
 Bug Fixes
 ~~~~~~~~~
+
 * ``Move libjars parameter in Sqoop Hook to Hook parameter (#29500)``
 
 3.1.0

@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+1.3.0
+.....
+
 In case of SMTP SSL connection, the default context now uses "default" context
 
 The "default" context is Python's ``default_ssl_context`` instead of previously used "none". The
@@ -40,6 +43,19 @@ but it is not recommended due to security reasons ad this setting disables valid
 of certificates and allows MITM attacks.
 
 You can also override "ssl_context" per-connection by setting "ssl_context" in the connection extra.
+
+Features
+~~~~~~~~
+
+* ``Add possibility to use 'ssl_context' extra for SMTP and IMAP connections (#33112)``
+* ``Allows to choose SSL context for SMTP provider (#33075)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``D205 Support - Providers: Pagerduty to SMTP (inclusive) (#32358)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 1.2.0
 .....
