@@ -1724,3 +1724,11 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
 
     # assert that the cleanup is called
     post_complete_action.assert_called_once()
+
+
+def test_default_container_logs():
+    class TestSubclassKPO(KubernetesPodOperator):
+        BASE_CONTAINER_NAME = "test-base-container"
+
+    k = TestSubclassKPO(task_id="task")
+    assert k.container_logs == "test-base-container"
