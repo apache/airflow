@@ -142,10 +142,10 @@ export const BaseNode = ({
                 {taskName}
               </Text>
               {setupTeardownType === "setup" && (
-                <ImArrowUpRight2 size={18} color={colors.gray[800]} />
+                <ImArrowUpRight2 size={15} color={colors.gray[800]} />
               )}
               {setupTeardownType === "teardown" && (
-                <ImArrowDownRight2 size={18} color={colors.gray[800]} />
+                <ImArrowDownRight2 size={15} color={colors.gray[800]} />
               )}
             </Flex>
             {!!instance && instance.state && (
