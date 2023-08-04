@@ -590,7 +590,9 @@ class KubernetesPodOperator(BaseOperator):
                     container_logs=self.container_logs,
                     follow_logs=True,
                 )
-            else:
+            if not self.get_logs or (
+                self.container_logs is not True and self.base_container_name not in self.container_logs
+            ):
                 self.pod_manager.await_container_completion(
                     pod=self.pod, container_name=self.base_container_name
                 )
