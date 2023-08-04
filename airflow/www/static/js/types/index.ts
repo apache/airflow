@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import type { CamelCase } from "type-fest";
+import type { ElkShape } from "elkjs";
 import type * as API from "./api-generated";
 
 type RunState = "success" | "running" | "queued" | "failed";
@@ -69,6 +71,7 @@ interface TaskInstance {
   mappedStates?: {
     [key: string]: number;
   };
+  queuedDttm?: string | null;
   mapIndex?: number;
   tryNumber?: number;
   triggererJob?: Job;
@@ -97,6 +100,7 @@ interface Task {
   operator?: string;
   hasOutletDatasets?: boolean;
   triggerRule?: API.TriggerRule;
+  setupTeardownType?: "setup" | "teardown";
 }
 
 type RunOrdering = (
@@ -116,6 +120,9 @@ interface DepNode {
     isOpen?: boolean;
     isJoinNode?: boolean;
     childCount?: number;
+    labelStyle: string;
+    style: string;
+    setupTeardownType?: "setup" | "teardown";
   };
   children?: DepNode[];
 }
@@ -125,21 +132,63 @@ interface DepEdge {
   target: string;
 }
 
+export interface NodeType extends ElkShape {
+  value: DepNode["value"];
+  children?: NodeType[];
+}
+
+export interface WebserverEdge {
+  label?: string;
+  sourceId: string;
+  targetId: string;
+  isSetupTeardown?: boolean;
+}
+
 interface DatasetListItem extends API.Dataset {
   lastDatasetUpdate: string | null;
   totalUpdates: number;
 }
 
+type MinimalTaskInstance = Pick<TaskInstance, "taskId" | "mapIndex" | "runId">;
+
+type PrimaryShortcutKey = "ctrlKey" | "shiftKey" | "altKey" | "metaKey";
+
+interface KeyboardShortcutKeys {
+  primaryKey: PrimaryShortcutKey;
+  secondaryKey: Array<string>;
+  detail: string;
+}
+
+interface KeyboardShortcutIdentifier {
+  [name: string]: KeyboardShortcutKeys;
+}
+
+interface HistoricalMetricsData {
+  dagRunStates: {
+    [K in CamelCase<RunState>]: number;
+  };
+  dagRunTypes: {
+    [K in CamelCase<DagRun["runType"]>]: number;
+  };
+  taskInstanceStates: {
+    [K in TaskState extends string ? CamelCase<K> : never]: number;
+  };
+}
+
 export type {
+  API,
   Dag,
   DagRun,
-  RunState,
-  TaskState,
-  TaskInstance,
-  Task,
-  DepNode,
-  DepEdge,
-  API,
-  RunOrdering,
   DatasetListItem,
+  DepEdge,
+  DepNode,
+  HistoricalMetricsData,
+  MinimalTaskInstance,
+  RunOrdering,
+  RunState,
+  Task,
+  TaskInstance,
+  TaskState,
+  KeyboardShortcutKeys,
+  KeyboardShortcutIdentifier,
 };

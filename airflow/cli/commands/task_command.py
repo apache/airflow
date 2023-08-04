@@ -29,6 +29,7 @@ from typing import Generator, Union, cast
 
 import pendulum
 from pendulum.parsing.exceptions import ParserError
+from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 
@@ -64,6 +65,7 @@ from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 
@@ -111,11 +113,9 @@ def _get_dag_run(
         with suppress(ParserError, TypeError):
             execution_date = timezone.parse(exec_date_or_run_id)
         try:
-            dag_run = (
-                session.query(DagRun)
-                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
-                .one()
-            )
+            dag_run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
+            ).one()
         except NoResultFound:
             if not create_if_necessary:
                 raise DagRunNotFound(
@@ -131,7 +131,12 @@ def _get_dag_run(
         dag_run_execution_date = pendulum.instance(timezone.utcnow())
 
     if create_if_necessary == "memory":
-        dag_run = DagRun(dag.dag_id, run_id=exec_date_or_run_id, execution_date=dag_run_execution_date)
+        dag_run = DagRun(
+            dag.dag_id,
+            run_id=exec_date_or_run_id,
+            execution_date=dag_run_execution_date,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
+        )
         return dag_run, True
     elif create_if_necessary == "db":
         dag_run = dag.create_dagrun(
@@ -398,7 +403,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
         print(f"Loading pickle id: {args.pickle}")
         _dag = get_dag_by_pickle(args.pickle)
     elif not dag:
-        _dag = get_dag(args.subdir, args.dag_id)
+        _dag = get_dag(args.subdir, args.dag_id, args.read_from_db)
     else:
         _dag = dag
     task = _dag.get_task(task_id=args.task_id)
@@ -434,6 +439,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def task_failed_deps(args) -> None:
     """
     Get task instance dependencies that were not met.
@@ -464,9 +470,11 @@ def task_failed_deps(args) -> None:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def task_state(args) -> None:
     """
     Returns the state of a TaskInstance at the command line.
+
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """
@@ -478,6 +486,7 @@ def task_state(args) -> None:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
     """Lists the tasks within a DAG at the command line."""
     dag = dag or get_dag(args.subdir, args.dag_id)
@@ -525,21 +534,18 @@ def _guess_debugger() -> _SupportedDebugger:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 @provide_session
 def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
-    dag_run = (
-        session.query(DagRun)
-        .filter(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
-        .one_or_none()
+    dag_run = session.scalar(
+        select(DagRun).where(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
     )
     if not dag_run:
         try:
             execution_date = timezone.parse(args.execution_date_or_run_id)
-            dag_run = (
-                session.query(DagRun)
-                .filter(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
-                .one_or_none()
+            dag_run = session.scalar(
+                select(DagRun).where(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
             )
         except (ParserError, TypeError) as err:
             raise AirflowException(f"Error parsing the supplied execution_date. Error: {str(err)}")
@@ -630,6 +636,7 @@ def task_test(args, dag: DAG | None = None) -> None:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
     """Renders and displays templated fields for a given task."""
     if not dag:
@@ -652,6 +659,7 @@ def task_render(args, dag: DAG | None = None) -> None:
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def task_clear(args) -> None:
     """Clears all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)

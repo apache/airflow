@@ -33,7 +33,13 @@ import { useSearchParams } from "react-router-dom";
 import useSelection from "src/dag/useSelection";
 import { getTask, getMetaValue } from "src/utils";
 import { useGridData, useTaskInstance } from "src/api";
-import { MdDetails, MdAccountTree, MdReorder } from "react-icons/md";
+import {
+  MdDetails,
+  MdAccountTree,
+  MdReorder,
+  MdCode,
+  MdOutlineViewTimeline,
+} from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
@@ -42,10 +48,16 @@ import TaskInstanceContent from "./taskInstance";
 import DagRunContent from "./dagRun";
 import DagContent from "./Dag";
 import Graph from "./graph";
+import Gantt from "./gantt";
+import DagCode from "./dagCode";
 import MappedInstances from "./taskInstance/MappedInstances";
 import Logs from "./taskInstance/Logs";
 import BackToTaskSummary from "./taskInstance/BackToTaskSummary";
 import FilterTasks from "./FilterTasks";
+import ClearRun from "./dagRun/ClearRun";
+import MarkRunAs from "./dagRun/MarkRunAs";
+import ClearInstance from "./taskInstance/taskActions/ClearInstance";
+import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -53,15 +65,21 @@ interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  gridScrollRef: React.RefObject<HTMLDivElement>;
+  ganttScrollRef: React.RefObject<HTMLDivElement>;
 }
 
 const tabToIndex = (tab?: string) => {
   switch (tab) {
     case "graph":
       return 1;
+    case "gantt":
+      return 2;
+    case "code":
+      return 3;
     case "logs":
     case "mapped_tasks":
-      return 2;
+      return 4;
     case "details":
     default:
       return 0;
@@ -70,6 +88,7 @@ const tabToIndex = (tab?: string) => {
 
 const indexToTab = (
   index: number,
+  taskId: string | null,
   showLogs: boolean,
   showMappedTasks: boolean
 ) => {
@@ -77,6 +96,10 @@ const indexToTab = (
     case 1:
       return "graph";
     case 2:
+      return "gantt";
+    case 3:
+      return "code";
+    case 4:
       if (showMappedTasks) return "mapped_tasks";
       if (showLogs) return "logs";
       return undefined;
@@ -88,7 +111,13 @@ const indexToTab = (
 
 const TAB_PARAM = "tab";
 
-const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
+const Details = ({
+  openGroupIds,
+  onToggleGroups,
+  hoveredTaskState,
+  gridScrollRef,
+  ganttScrollRef,
+}: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
     onSelect,
@@ -117,16 +146,18 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const onChangeTab = useCallback(
     (index: number) => {
       const params = new URLSearchParamsWrapper(searchParams);
-      const newTab = indexToTab(index, showLogs, showMappedTasks);
+      const newTab = indexToTab(index, taskId, showLogs, showMappedTasks);
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, showLogs, showMappedTasks]
+    [setSearchParams, searchParams, showLogs, showMappedTasks, taskId]
   );
 
   useEffect(() => {
-    if ((!taskId || isGroup) && tabIndex > 1) {
+    // Default to graph tab when navigating from a task instance to a group/dag/dagrun
+    const tabCount = runId && taskId && !isGroup ? 5 : 4;
+    if (tabCount === 4 && tabIndex > 3) {
       onChangeTab(1);
     }
   }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
@@ -147,9 +178,46 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
   return (
     <Flex flexDirection="column" pl={3} height="100%">
-      <Flex alignItems="center" justifyContent="space-between">
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        flexWrap="wrap"
+        ml={6}
+      >
         <Header />
-        <Flex>{taskId && runId && <FilterTasks taskId={taskId} />}</Flex>
+        <Flex flexWrap="wrap">
+          {runId && !taskId && (
+            <>
+              <ClearRun runId={runId} mr={2} />
+              <MarkRunAs runId={runId} state={run?.state} />
+            </>
+          )}
+          {runId && taskId && (
+            <>
+              <ClearInstance
+                taskId={taskId}
+                runId={runId}
+                executionDate={run?.executionDate || ""}
+                isGroup={isGroup}
+                isMapped={isMapped}
+                mapIndex={mapIndex}
+                mt={2}
+                mr={2}
+              />
+              <MarkInstanceAs
+                taskId={taskId}
+                runId={runId}
+                state={instance?.state}
+                isGroup={isGroup}
+                isMapped={isMapped}
+                mapIndex={mapIndex}
+                mt={2}
+                mr={2}
+              />
+            </>
+          )}
+          {taskId && runId && <FilterTasks taskId={taskId} />}
+        </Flex>
       </Flex>
       <Divider my={2} />
       <Tabs
@@ -170,6 +238,18 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
             <MdAccountTree size={16} />
             <Text as="strong" ml={1}>
               Graph
+            </Text>
+          </Tab>
+          <Tab>
+            <MdOutlineViewTimeline size={16} />
+            <Text as="strong" ml={1}>
+              Gantt
+            </Text>
+          </Tab>
+          <Tab>
+            <MdCode size={16} />
+            <Text as="strong" ml={1}>
+              Code
             </Text>
           </Tab>
           {showLogs && (
@@ -213,6 +293,16 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               onToggleGroups={onToggleGroups}
               hoveredTaskState={hoveredTaskState}
             />
+          </TabPanel>
+          <TabPanel p={0} height="100%">
+            <Gantt
+              openGroupIds={openGroupIds}
+              gridScrollRef={gridScrollRef}
+              ganttScrollRef={ganttScrollRef}
+            />
+          </TabPanel>
+          <TabPanel height="100%">
+            <DagCode />
           </TabPanel>
           {showLogs && run && (
             <TabPanel

@@ -63,13 +63,15 @@ def upgrade():
     conn = op.get_bind()
     if conn.dialect.name != "sqlite":
         if conn.dialect.name == "mssql":
-            op.drop_index("idx_fileloc_hash", "serialized_dag")
+            op.drop_index(index_name="idx_fileloc_hash", table_name="serialized_dag")
 
         op.alter_column(
             table_name="serialized_dag", column_name="fileloc_hash", type_=sa.BigInteger(), nullable=False
         )
         if conn.dialect.name == "mssql":
-            op.create_index("idx_fileloc_hash", "serialized_dag", ["fileloc_hash"])
+            op.create_index(
+                index_name="idx_fileloc_hash", table_name="serialized_dag", columns=["fileloc_hash"]
+            )
 
     sessionmaker = sa.orm.sessionmaker()
     session = sessionmaker(bind=conn)

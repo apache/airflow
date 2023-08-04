@@ -18,7 +18,6 @@
 """This module contains Google DisplayVideo hook."""
 from __future__ import annotations
 
-import warnings
 from typing import Any, Sequence
 
 from googleapiclient.discovery import Resource, build
@@ -43,11 +42,6 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        if api_version in ["v1", "v1.1"]:
-            warnings.warn(
-                f"API {api_version} is deprecated and shortly will be removed please use v2",
-                DeprecationWarning,
-            )
         self.api_version = api_version
 
     def get_conn(self) -> Resource:
@@ -99,10 +93,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param query: Query object to be passed to request body.
         """
-        if self.api_version in ["v1", "v1.1"]:
-            response = self.get_conn().queries().createquery(body=query).execute(num_retries=self.num_retries)
-        else:
-            response = self.get_conn().queries().create(body=query).execute(num_retries=self.num_retries)
+        response = self.get_conn().queries().create(body=query).execute(num_retries=self.num_retries)
         return response
 
     def delete_query(self, query_id: str) -> None:
@@ -111,10 +102,7 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param query_id: Query ID to delete.
         """
-        if self.api_version in ["v1", "v1.1"]:
-            self.get_conn().queries().deletequery(queryId=query_id).execute(num_retries=self.num_retries)
-        else:
-            self.get_conn().queries().delete(queryId=query_id).execute(num_retries=self.num_retries)
+        self.get_conn().queries().delete(queryId=query_id).execute(num_retries=self.num_retries)
 
     def get_query(self, query_id: str) -> dict:
         """
@@ -122,20 +110,12 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
 
         :param query_id: Query ID to retrieve.
         """
-        if self.api_version in ["v1", "v1.1"]:
-            response = (
-                self.get_conn().queries().getquery(queryId=query_id).execute(num_retries=self.num_retries)
-            )
-        else:
-            response = self.get_conn().queries().get(queryId=query_id).execute(num_retries=self.num_retries)
+        response = self.get_conn().queries().get(queryId=query_id).execute(num_retries=self.num_retries)
         return response
 
     def list_queries(self) -> list[dict]:
         """Retrieves stored queries."""
-        if self.api_version in ["v1", "v1.1"]:
-            response = self.get_conn().queries().listqueries().execute(num_retries=self.num_retries)
-        else:
-            response = self.get_conn().queries().list().execute(num_retries=self.num_retries)
+        response = self.get_conn().queries().list().execute(num_retries=self.num_retries)
         return response.get("queries", [])
 
     def run_query(self, query_id: str, params: dict[str, Any] | None) -> dict:
@@ -145,20 +125,9 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         :param query_id: Query ID to run.
         :param params: Parameters for the report.
         """
-        if self.api_version in ["v1", "v1.1"]:
-            return (
-                self.get_conn()
-                .queries()
-                .runquery(queryId=query_id, body=params)
-                .execute(num_retries=self.num_retries)
-            )
-        else:
-            return (
-                self.get_conn()
-                .queries()
-                .run(queryId=query_id, body=params)
-                .execute(num_retries=self.num_retries)
-            )
+        return (
+            self.get_conn().queries().run(queryId=query_id, body=params).execute(num_retries=self.num_retries)
+        )
 
     def get_report(self, query_id: str, report_id: str) -> dict:
         """

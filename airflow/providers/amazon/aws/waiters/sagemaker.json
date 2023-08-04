@@ -1,0 +1,155 @@
+{
+    "version": 2,
+    "waiters": {
+        "TrainingJobComplete": {
+            "delay": 30,
+            "operation": "DescribeTrainingJob",
+            "maxAttempts": 60,
+            "description": "Wait until job is COMPLETED",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "TrainingJobStatus",
+                    "expected": "Completed",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TrainingJobStatus",
+                    "expected": "Failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TrainingJobStatus",
+                    "expected": "Stopped",
+                    "state": "failure"
+                }
+            ]
+        },
+        "TransformJobComplete": {
+            "delay": 30,
+            "operation": "DescribeTransformJob",
+            "maxAttempts": 60,
+            "description": "Wait until job is COMPLETED",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "TransformJobStatus",
+                    "expected": "Completed",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TransformJobStatus",
+                    "expected": "Failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "TransformJobStatus",
+                    "expected": "Stopped",
+                    "state": "failure"
+                }
+            ]
+        },
+        "ProcessingJobComplete": {
+            "delay": 30,
+            "operation": "DescribeProcessingJob",
+            "maxAttempts": 60,
+            "description": "Wait until job is COMPLETED",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "ProcessingJobStatus",
+                    "expected": "Completed",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ProcessingJobStatus",
+                    "expected": "Failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "ProcessingJobStatus",
+                    "expected": "Stopped",
+                    "state": "failure"
+                }
+            ]
+        },
+        "TuningJobComplete": {
+            "delay": 30,
+            "operation": "DescribeHyperParameterTuningJob",
+            "maxAttempts": 60,
+            "description": "Wait until job is COMPLETED",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "HyperParameterTuningJobStatus",
+                    "expected": "Completed",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "HyperParameterTuningJobStatus",
+                    "expected": "Failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "HyperParameterTuningJobStatus",
+                    "expected": "Stopped",
+                    "state": "failure"
+                }
+            ]
+        },
+        "PipelineExecutionComplete": {
+            "delay": 30,
+            "operation": "DescribePipelineExecution",
+            "maxAttempts": 60,
+            "description": "Wait until pipeline execution is Succeeded",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "PipelineExecutionStatus",
+                    "expected": "Succeeded",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PipelineExecutionStatus",
+                    "expected": "Failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PipelineExecutionStatus",
+                    "expected": "Stopped",
+                    "state": "failure"
+                }
+            ]
+        },
+        "PipelineExecutionStopped": {
+            "delay": 10,
+            "operation": "DescribePipelineExecution",
+            "maxAttempts": 120,
+            "description": "Wait until pipeline execution is Stopped",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "PipelineExecutionStatus",
+                    "expected": "Stopped",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "PipelineExecutionStatus",
+                    "expected": "Failed",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}

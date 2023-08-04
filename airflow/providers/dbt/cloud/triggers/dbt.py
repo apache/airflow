@@ -25,9 +25,9 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class DbtCloudRunJobTrigger(BaseTrigger):
-    """
-    DbtCloudRunJobTrigger is triggered with run id and account id, makes async Http call to dbt and
-    get the status for the submitted job with run id in polling interval of time.
+    """Trigger to make an HTTP call to dbt and get the status for the job.
+
+    This is done with run id in polling interval of time.
 
     :param conn_id: The connection identifier for connecting to Dbt.
     :param run_id: The ID of a dbt Cloud job.
@@ -64,8 +64,8 @@ class DbtCloudRunJobTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
-        """Make async connection to Dbt, polls for the pipeline run status"""
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        """Make async connection to Dbt, polls for the pipeline run status."""
         hook = DbtCloudHook(self.conn_id)
         try:
             while await self.is_still_running(hook):
@@ -108,11 +108,7 @@ class DbtCloudRunJobTrigger(BaseTrigger):
             yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})
 
     async def is_still_running(self, hook: DbtCloudHook) -> bool:
-        """
-        Async function to check whether the job is submitted via async API is in
-        running state and returns True if it is still running else
-        return False
-        """
+        """Check whether the submitted job is running."""
         job_run_status = await hook.get_job_status(self.run_id, self.account_id)
         if not DbtCloudJobRunStatus.is_terminal(job_run_status):
             return True

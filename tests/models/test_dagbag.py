@@ -908,7 +908,6 @@ class TestDagBag:
     def test_sync_perm_for_dag(self, mock_security_manager):
         """
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        when DAG specific perm views don't exist already or the DAG has access_control set.
         """
         db_clean_up()
         with create_session() as session:
@@ -932,7 +931,7 @@ class TestDagBag:
 
             # perms now exist
             _sync_perms()
-            mock_sync_perm_for_dag.assert_not_called()
+            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
 
             # Always sync if we have access_control
             dag.access_control = {"Public": {"can_read"}}
@@ -979,6 +978,54 @@ class TestDagBag:
 
         assert set(updated_ser_dag_1.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_1_update_time > ser_dag_1_update_time
+
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
+    @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
+    def test_get_dag_refresh_race_condition(self):
+        """
+        Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
+        is before DagBag.dags_last_fetched.
+        """
+
+        # serialize the initial version of the DAG
+        with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
+            example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+        # deserialize the DAG
+        with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 10)), tick=False):
+            dag_bag = DagBag(read_dags_from_db=True)
+
+            with assert_queries_count(2):
+                ser_dag = dag_bag.get_dag("example_bash_operator")
+
+            ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+            assert ser_dag.tags == ["example", "example2"]
+            assert ser_dag_update_time == tz.datetime(2020, 1, 5, 1, 0, 10)
+
+            with create_session() as session:
+                assert SerializedDagModel.get_last_updated_datetime(
+                    dag_id="example_bash_operator",
+                    session=session,
+                ) == tz.datetime(2020, 1, 5, 0, 0, 0)
+
+        # Simulate a long-running serialization transaction
+        # Make a change in the DAG and write Serialized DAG to the DB
+        # Note the date *before* the deserialize step above, simulating a serialization happening
+        # long before the transaction is committed
+        with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
+            example_bash_op_dag.tags += ["new_tag"]
+            SerializedDagModel.write_dag(dag=example_bash_op_dag)
+
+        # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
+        # fetches the Serialized DAG from DB
+        with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 30)), tick=False):
+            with assert_queries_count(2):
+                updated_ser_dag = dag_bag.get_dag("example_bash_operator")
+                updated_ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
+
+        assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
+        assert updated_ser_dag_update_time > ser_dag_update_time
 
     def test_collect_dags_from_db(self):
         """DAGs are collected from Database"""

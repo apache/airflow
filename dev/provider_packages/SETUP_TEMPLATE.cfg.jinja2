@@ -51,6 +51,7 @@ classifiers =
    Topic :: System :: Monitoring
 project_urls=
    Documentation=https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/
+   Changelog=https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/changelog.html
    Bug Tracker=https://github.com/apache/airflow/issues
    Source Code=https://github.com/apache/airflow
    Slack Chat=https://s.apache.org/airflow-slack
@@ -63,7 +64,7 @@ python_tag=py3
 [options]
 zip_safe = False
 include_package_data = True
-python_requires = ~=3.7
+python_requires = ~=3.8
 packages = find:
 setup_requires = {{ SETUP_REQUIREMENTS }}
 install_requires = {{ INSTALL_REQUIREMENTS }}

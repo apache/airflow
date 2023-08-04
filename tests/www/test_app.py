@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
+import re
 import runpy
 import sys
 from datetime import timedelta
@@ -27,6 +29,7 @@ from werkzeug.routing import Rule
 from werkzeug.test import create_environ
 from werkzeug.wrappers import Response
 
+from airflow.exceptions import AirflowConfigException
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
@@ -84,15 +87,26 @@ class TestApp:
         assert b"success" == response.get_data()
         assert response.status_code == 200
 
-    @conf_vars(
-        {
-            ("webserver", "base_url"): "http://localhost:8080/internal-client",
-        }
+    @pytest.mark.parametrize(
+        "base_url, expected_exception",
+        [
+            ("http://localhost:8080/internal-client", None),
+            (
+                "http://localhost:8080/internal-client/",
+                AirflowConfigException("webserver.base_url conf cannot have a trailing slash."),
+            ),
+        ],
     )
     @dont_initialize_flask_app_submodules
-    def test_should_respect_base_url_ignore_proxy_headers(self):
-        app = application.cached_app(testing=True)
-        app.url_map.add(Rule("/debug", endpoint="debug"))
+    def test_should_respect_base_url_ignore_proxy_headers(self, base_url, expected_exception):
+        with conf_vars({("webserver", "base_url"): base_url}):
+            if expected_exception:
+                with pytest.raises(expected_exception.__class__, match=re.escape(str(expected_exception))):
+                    app = application.cached_app(testing=True)
+                    app.url_map.add(Rule("/debug", endpoint="debug"))
+                return
+            app = application.cached_app(testing=True)
+            app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -124,9 +138,18 @@ class TestApp:
         assert b"success" == response.get_data()
         assert response.status_code == 200
 
+    @pytest.mark.parametrize(
+        "base_url, expected_exception",
+        [
+            ("http://localhost:8080/internal-client", None),
+            (
+                "http://localhost:8080/internal-client/",
+                AirflowConfigException("webserver.base_url conf cannot have a trailing slash."),
+            ),
+        ],
+    )
     @conf_vars(
         {
-            ("webserver", "base_url"): "http://localhost:8080/internal-client",
             ("webserver", "enable_proxy_fix"): "True",
             ("webserver", "proxy_fix_x_for"): "1",
             ("webserver", "proxy_fix_x_proto"): "1",
@@ -136,9 +159,17 @@ class TestApp:
         }
     )
     @dont_initialize_flask_app_submodules
-    def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(self):
-        app = application.cached_app(testing=True)
-        app.url_map.add(Rule("/debug", endpoint="debug"))
+    def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(
+        self, base_url, expected_exception
+    ):
+        with conf_vars({("webserver", "base_url"): base_url}):
+            if expected_exception:
+                with pytest.raises(expected_exception.__class__, match=re.escape(str(expected_exception))):
+                    app = application.cached_app(testing=True)
+                    app.url_map.add(Rule("/debug", endpoint="debug"))
+                return
+            app = application.cached_app(testing=True)
+            app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -227,6 +258,29 @@ class TestApp:
         with pytest.deprecated_call():
             app = application.cached_app(testing=True)
         assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"
+
+    @pytest.mark.parametrize(
+        "hash_method, result, exception",
+        [
+            ("sha512", hashlib.sha512, None),
+            ("sha384", hashlib.sha384, None),
+            ("sha256", hashlib.sha256, None),
+            ("sha224", hashlib.sha224, None),
+            ("sha1", hashlib.sha1, None),
+            ("md5", hashlib.md5, None),
+            (None, hashlib.md5, None),
+            ("invalid", None, AirflowConfigException),
+        ],
+    )
+    @dont_initialize_flask_app_submodules
+    def test_should_respect_caching_hash_method(self, hash_method, result, exception):
+        with conf_vars({("webserver", "caching_hash_method"): hash_method}):
+            if exception:
+                with pytest.raises(expected_exception=exception):
+                    app = application.cached_app(testing=True)
+            else:
+                app = application.cached_app(testing=True)
+                assert next(iter(app.extensions["cache"])).cache._hash_method == result
 
 
 class TestFlaskCli:

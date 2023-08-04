@@ -21,6 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import conf
+from airflow.exceptions import TaskDeferred
 from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -98,6 +99,27 @@ class TestGlueJobOperator:
         mock_print_job_logs.assert_not_called()
         assert glue.job_name == JOB_NAME
 
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_execute_deferrable(self, _, mock_initialize_job):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            deferrable=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute(mock.MagicMock())
+
+        assert defer.value.trigger.job_name == JOB_NAME
+        assert defer.value.trigger.run_id == JOB_RUN_ID
+
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_job_state")
     @mock.patch.object(GlueJobHook, "initialize_job")
@@ -121,10 +143,7 @@ class TestGlueJobOperator:
 
         mock_initialize_job.assert_called_once_with({}, {})
         mock_print_job_logs.assert_called_once_with(
-            job_name=JOB_NAME,
-            run_id=JOB_RUN_ID,
-            job_failed=False,
-            next_token=None,
+            job_name=JOB_NAME, run_id=JOB_RUN_ID, continuation_tokens=mock.ANY
         )
         assert glue.job_name == JOB_NAME
 
@@ -188,3 +207,46 @@ class TestGlueJobOperator:
             assert job_run_id == JOB_RUN_ID
 
         mock_log_info.assert_any_call("You can monitor this Glue Job run at: %s", glue_job_run_url)
+
+    @mock.patch.object(GlueJobHook, "conn")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_killed_without_stop_job_run_on_kill(
+        self,
+        _,
+        mock_glue_hook,
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+        )
+        glue.on_kill()
+        mock_glue_hook.batch_stop_job_run.assert_not_called()
+
+    @mock.patch.object(GlueJobHook, "conn")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_killed_with_stop_job_run_on_kill(
+        self,
+        _,
+        mock_glue_hook,
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            stop_job_run_on_kill=True,
+        )
+        glue._job_run_id = JOB_RUN_ID
+        glue.on_kill()
+        mock_glue_hook.batch_stop_job_run.assert_called_once_with(
+            JobName=JOB_NAME,
+            JobRunIds=[JOB_RUN_ID],
+        )

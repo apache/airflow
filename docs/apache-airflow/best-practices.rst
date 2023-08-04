@@ -394,6 +394,34 @@ It's important to note, that without ``watcher`` task, the whole DAG Run will ge
 If we want the ``watcher`` to monitor the state of all tasks, we need to make it dependent on all of them separately. Thanks to this, we can fail the DAG Run if any of the tasks fail. Note that the watcher task has a trigger rule set to ``"one_failed"``.
 On the other hand, without the ``teardown`` task, the ``watcher`` task will not be needed, because ``failing_task`` will propagate its ``failed`` state to downstream task ``passed_task`` and the whole DAG Run will also get the ``failed`` status.
 
+
+Using AirflowClusterPolicySkipDag exception in cluster policies to skip specific DAGs
+-------------------------------------------------------------------------------------
+
+.. versionadded:: 2.7
+
+Airflow DAGs can usually be deployed and updated with the specific branch of Git repository via ``git-sync``.
+But, when you have to run multiple Airflow clusters for some operational reasons, it's very cumbersome to maintain multiple Git branches.
+Especially, you have some difficulties when you need to synchronize two separate branches(like ``prod`` and ``beta``) periodically with proper branching strategy.
+
+- cherry-pick is too cumbersome to maintain Git repository.
+- hard-reset is not recommended way for GitOps
+
+So, you can consider connecting multiple Airflow clusters with same Git branch (like ``main``), and maintaining those with different environment variables and different connection configurations with same ``connection_id``.
+you can also raise :class:`~airflow.exceptions.AirflowClusterPolicySkipDag` exception on the cluster policy, to load specific DAGs to :class:`~airflow.models.dagbag.DagBag` on the specific Airflow deployment only, if needed.
+
+.. code-block:: python
+
+  def dag_policy(dag: DAG):
+      """Skipping the DAG with `only_for_beta` tag."""
+
+      if "only_for_beta" in dag.tags:
+          raise AirflowClusterPolicySkipDag(
+              f"DAG {dag.dag_id} is not loaded on the production cluster, due to `only_for_beta` tag."
+          )
+
+The example above, shows the ``dag_policy`` code snippet to skip the DAG depending on the tags it has.
+
 .. _best_practices/reducing_dag_complexity:
 
 Reducing DAG complexity
@@ -873,7 +901,7 @@ Using DockerOperator or Kubernetes Pod Operator
 -----------------------------------------------
 
 Another strategy is to use the :class:`airflow.providers.docker.operators.docker.DockerOperator`
-:class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+:class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 Those require that Airflow has access to a Docker engine or Kubernetes cluster.
 
 Similarly as in case of Python operators, the taskflow decorators are handy for you if you would like to
@@ -932,7 +960,7 @@ The drawbacks:
 
 You can see detailed examples of using :class:`airflow.operators.providers.Docker` in
 :ref:`Taskflow Docker example <taskflow/docker_example>`
-and :class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+and :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 :ref:`Taskflow Kubernetes example <taskflow/kubernetes_example>`
 
 Using multiple Docker Images and Celery Queues

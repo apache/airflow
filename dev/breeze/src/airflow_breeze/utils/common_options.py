@@ -22,8 +22,10 @@ import click
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
+    ALL_HISTORICAL_PYTHON_VERSIONS,
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
+    ALLOWED_CELERY_BROKERS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
@@ -37,7 +39,10 @@ from airflow_breeze.global_constants import (
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
+    DEFAULT_CELERY_BROKER,
     SINGLE_PLATFORMS,
+    START_AIRFLOW_ALLOWED_EXECUTORS,
+    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
     get_available_documentation_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
@@ -212,11 +217,6 @@ option_github_token = click.option(
     "--github-token",
     help="The token used to authenticate to GitHub.",
     envvar="GITHUB_TOKEN",
-)
-option_github_username = click.option(
-    "--github-username",
-    help="The user name used to authenticate to GitHub.",
-    envvar="GITHUB_USERNAME",
 )
 option_image_tag_for_pulling = click.option(
     "-t",
@@ -450,23 +450,6 @@ argument_packages = click.argument(
     required=False,
     type=BetterChoice(get_available_documentation_packages(short_version=True)),
 )
-option_timezone = click.option(
-    "--timezone",
-    default="UTC",
-    type=str,
-    help="Timezone to use during the check.",
-)
-option_updated_on_or_after = click.option(
-    "--updated-on-or-after",
-    type=str,
-    help="Date when the release was updated after.",
-)
-option_max_age = click.option(
-    "--max-age",
-    type=int,
-    default=3,
-    help="Max age of the last release (used if no updated-on-or-after if specified).",
-)
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
@@ -519,7 +502,8 @@ option_builder = click.option(
     "--builder",
     help="Buildx builder used to perform `docker buildx build` commands.",
     envvar="BUILDER",
-    default="default",
+    show_default=True,
+    default="autodetect",
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
@@ -551,4 +535,45 @@ option_debug_resources = click.option(
     is_flag=True,
     help="Whether to show resource information while running in parallel.",
     envvar="DEBUG_RESOURCES",
+)
+option_executor = click.option(
+    "--executor",
+    type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
+    help="Specify the executor to use with airflow.",
+    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
+    show_default=True,
+)
+option_celery_broker = click.option(
+    "--celery-broker",
+    type=click.Choice(ALLOWED_CELERY_BROKERS, case_sensitive=False),
+    help="Specify the celery message broker",
+    default=DEFAULT_CELERY_BROKER,
+    show_default=True,
+)
+option_celery_flower = click.option("--celery-flower", help="Start celery flower", is_flag=True)
+option_install_selected_providers = click.option(
+    "--install-selected-providers",
+    help="Comma-separated list of providers selected to be installed (implies --use-packages-from-dist).",
+    envvar="INSTALL_SELECTED_PROVIDERS",
+    default="",
+)
+option_skip_constraints = click.option(
+    "--skip-constraints",
+    is_flag=True,
+    help="Do not use constraints when installing providers.",
+    envvar="SKIP_CONSTRAINTS",
+)
+option_historical_python_version = click.option(
+    "--python",
+    type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
+    required=False,
+    envvar="PYTHON_VERSION",
+    help="Python version to update sbom from. (defaults to all historical python versions)",
+)
+option_commit_sha = click.option(
+    "--commit-sha",
+    default=None,
+    show_default=True,
+    envvar="COMMIT_SHA",
+    help="Commit SHA that is used to build the images.",
 )

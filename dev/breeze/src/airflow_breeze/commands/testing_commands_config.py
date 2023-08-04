@@ -35,6 +35,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mysql-version",
                 "--mssql-version",
                 "--integration",
+                "--github-repository",
             ],
         },
         {
@@ -46,16 +47,17 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
-                "--full-tests-needed",
             ],
         },
         {
             "name": "Advanced flag for tests command",
             "options": [
                 "--image-tag",
+                "--use-airflow-version",
                 "--mount-sources",
                 "--upgrade-boto",
                 "--remove-arm-packages",
+                "--skip-docker-compose-down",
             ],
         },
     ],
@@ -71,6 +73,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
+                "--github-repository",
             ],
         },
         {
@@ -88,6 +91,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--mount-sources",
+                "--helm-test-package",
                 "--github-repository",
             ],
         },
@@ -99,6 +103,8 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-name",
                 "--image-tag",
                 "--python",
+                "--skip-docker-compose-deletion",
+                "--wait-for-containers-timeout",
                 "--github-repository",
             ],
         }

@@ -22,6 +22,7 @@ from typing import IO, Any
 
 from azure.storage.file import File, FileService
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 
@@ -47,7 +48,7 @@ class AzureFileShareHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -64,7 +65,7 @@ class AzureFileShareHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -107,8 +108,8 @@ class AzureFileShareHook(BaseHook):
             elif key.startswith(backcompat_prefix):
                 short_name = key[len(backcompat_prefix) :]
                 warnings.warn(
-                    f"`{key}` is deprecated in azure connection extra," f" please use `{short_name}` instead",
-                    DeprecationWarning,
+                    f"`{key}` is deprecated in azure connection extra please use `{short_name}` instead",
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
                 if short_name not in service_options:  # prefer values provided with short name

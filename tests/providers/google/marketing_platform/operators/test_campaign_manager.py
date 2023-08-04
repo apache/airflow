@@ -35,7 +35,7 @@ from airflow.providers.google.marketing_platform.operators.campaign_manager impo
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 
-API_VERSION = "api_version"
+API_VERSION = "v4"
 GCP_CONN_ID = "google_cloud_default"
 
 CONVERSION = {

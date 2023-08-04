@@ -19,28 +19,31 @@
 from __future__ import annotations
 
 import time
+import warnings
+from functools import cached_property
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 DEFER_METHOD_NAME = "execute_complete"
 XCOM_RUN_ID_KEY = "run_id"
+XCOM_JOB_ID_KEY = "job_id"
 XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     """
-    Handles the Airflow + Databricks lifecycle logic for a Databricks operator
+    Handles the Airflow + Databricks lifecycle logic for a Databricks operator.
 
     :param operator: Databricks operator being handled
     :param context: Airflow context
@@ -98,11 +101,14 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
 
 def _handle_deferrable_databricks_operator_execution(operator, hook, log, context) -> None:
     """
-    Handles the Airflow + Databricks lifecycle logic for deferrable Databricks operators
+    Handles the Airflow + Databricks lifecycle logic for deferrable Databricks operators.
 
     :param operator: Databricks async operator being handled
     :param context: Airflow context
     """
+    job_id = hook.get_job_id(operator.run_id)
+    if operator.do_xcom_push and context is not None:
+        context["ti"].xcom_push(key=XCOM_JOB_ID_KEY, value=job_id)
     if operator.do_xcom_push and context is not None:
         context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=operator.run_id)
     log.info("Run submitted with run_id: %s", operator.run_id)
@@ -118,6 +124,10 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
                 run_id=operator.run_id,
                 databricks_conn_id=operator.databricks_conn_id,
                 polling_period_seconds=operator.polling_period_seconds,
+                retry_limit=operator.databricks_retry_limit,
+                retry_delay=operator.databricks_retry_delay,
+                retry_args=operator.databricks_retry_args,
+                run_page_url=run_page_url,
             ),
             method_name=DEFER_METHOD_NAME,
         )
@@ -153,10 +163,9 @@ class DatabricksJobRunLink(BaseOperatorLink):
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
-    Submits a Spark job run to Databricks using the
-    `api/2.1/jobs/runs/submit
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_
-    API endpoint.
+    Submits a Spark job run to Databricks using the api/2.1/jobs/runs/submit API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
 
     There are three ways to instantiate this operator.
 
@@ -267,6 +276,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param git_source: Optional specification of a remote git repository from which
         supported task types are retrieved.
+    :param deferrable: Run operator in the deferrable mode.
 
         .. seealso::
             https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
@@ -293,7 +303,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         dbt_task: dict[str, str | list[str]] | None = None,
         new_cluster: dict[str, object] | None = None,
         existing_cluster_id: str | None = None,
-        libraries: list[dict[str, str]] | None = None,
+        libraries: list[dict[str, Any]] | None = None,
         run_name: str | None = None,
         timeout_seconds: int | None = None,
         databricks_conn_id: str = "databricks_default",
@@ -306,6 +316,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -317,6 +328,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
+        self.deferrable = deferrable
         if tasks is not None:
             self.json["tasks"] = tasks
         if spark_jar_task is not None:
@@ -373,7 +385,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def execute(self, context: Context):
         json_normalised = normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
-        _handle_databricks_operator_execution(self, self._hook, self.log, context)
+        if self.deferrable:
+            _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
+        else:
+            _handle_databricks_operator_execution(self, self._hook, self.log, context)
 
     def on_kill(self):
         if self.run_id:
@@ -384,9 +399,22 @@ class DatabricksSubmitRunOperator(BaseOperator):
         else:
             self.log.error("Error: Task: %s with invalid run_id was requested to be cancelled.", self.task_id)
 
+    def execute_complete(self, context: dict | None, event: dict):
+        _handle_deferrable_databricks_operator_completion(event, self.log)
+
 
 class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
-    """Deferrable version of ``DatabricksSubmitRunOperator``"""
+    """Deferrable version of ``DatabricksSubmitRunOperator``."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "`DatabricksSubmitRunDeferrableOperator` has been deprecated. "
+            "Please use `airflow.providers.databricks.operators.DatabricksSubmitRunOperator` with "
+            "`deferrable=True` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(deferrable=True, *args, **kwargs)
 
     def execute(self, context):
         hook = self._get_hook(caller="DatabricksSubmitRunDeferrableOperator")
@@ -400,10 +428,9 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
 
 class DatabricksRunNowOperator(BaseOperator):
     """
-    Runs an existing Spark job run to Databricks using the
-    `api/2.1/jobs/run-now
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>`_
-    API endpoint.
+    Runs an existing Spark job run to Databricks using the api/2.1/jobs/run-now API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
 
     There are two ways to instantiate this operator.
 
@@ -549,6 +576,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     # Used in airflow.models.BaseOperator
@@ -578,6 +606,7 @@ class DatabricksRunNowOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksRunNowOperator``."""
@@ -589,6 +618,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
+        self.deferrable = deferrable
 
         if job_id is not None:
             self.json["job_id"] = job_id
@@ -636,7 +666,14 @@ class DatabricksRunNowOperator(BaseOperator):
             self.json["job_id"] = job_id
             del self.json["job_name"]
         self.run_id = hook.run_now(self.json)
-        _handle_databricks_operator_execution(self, hook, self.log, context)
+        if self.deferrable:
+            _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
+        else:
+            _handle_databricks_operator_execution(self, hook, self.log, context)
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event:
+            _handle_deferrable_databricks_operator_completion(event, self.log)
 
     def on_kill(self):
         if self.run_id:
@@ -649,12 +686,14 @@ class DatabricksRunNowOperator(BaseOperator):
 
 
 class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
-    """Deferrable version of ``DatabricksRunNowOperator``"""
+    """Deferrable version of ``DatabricksRunNowOperator``."""
 
-    def execute(self, context):
-        hook = self._get_hook(caller="DatabricksRunNowDeferrableOperator")
-        self.run_id = hook.run_now(self.json)
-        _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
-
-    def execute_complete(self, context: dict | None, event: dict):
-        _handle_deferrable_databricks_operator_completion(event, self.log)
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "`DatabricksRunNowDeferrableOperator` has been deprecated. "
+            "Please use `airflow.providers.databricks.operators.DatabricksRunNowOperator` with "
+            "`deferrable=True` instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(deferrable=True, *args, **kwargs)

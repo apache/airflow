@@ -22,14 +22,16 @@ from typing import Any
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 
 class AzureBaseHook(BaseHook):
     """
-    This hook acts as a base hook for azure services. It offers several authentication mechanisms to
-    authenticate the client library used for upstream azure hooks.
+    This hook acts as a base hook for azure services.
+
+    It offers several authentication mechanisms to authenticate
+    the client library used for upstream azure hooks.
 
     :param sdk_client: The SDKClient to use.
     :param conn_id: The :ref:`Azure connection id<howto/connection:azure>`
@@ -43,7 +45,7 @@ class AzureBaseHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -55,7 +57,7 @@ class AzureBaseHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         import json
 
         return {
@@ -96,7 +98,7 @@ class AzureBaseHook(BaseHook):
             warnings.warn(
                 "`extra__azure__tenantId` is deprecated in azure connection extra, "
                 "please use `tenantId` instead",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             tenant = conn.extra_dejson.get("extra__azure__tenantId")
@@ -105,7 +107,7 @@ class AzureBaseHook(BaseHook):
             warnings.warn(
                 "`extra__azure__subscriptionId` is deprecated in azure connection extra, "
                 "please use `subscriptionId` instead",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             subscription_id = conn.extra_dejson.get("extra__azure__subscriptionId")

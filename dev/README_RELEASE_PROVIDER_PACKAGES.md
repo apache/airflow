@@ -36,8 +36,8 @@
   - [Prepare documentation](#prepare-documentation)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
-  - [Verify the release by PMC members](#verify-the-release-by-pmc-members)
-  - [Verify by Contributors](#verify-by-contributors)
+  - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
+  - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
 - [Publish release](#publish-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
@@ -45,6 +45,8 @@
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
+  - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
 
@@ -345,7 +347,7 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --for-production --package-filter apache-airflow-providers \
+breeze build-docs --clean-build --package-filter apache-airflow-providers \
    --package-filter 'apache-airflow-providers-*'
 ```
 
@@ -357,7 +359,7 @@ If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --for-production \
+breeze build-docs --clean-build \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
@@ -378,40 +380,19 @@ If you have providers as list of provider ids because you just released them, yo
 ./docs/start_doc_server.sh
 ```
 
-You should navigate the providers and make sure the docs render properly.
-Note: if you used ``--for-production`` then default of url paths goes to ``latest``
-thus viewing the pages will result in 404 file not found error.
-You will need to change it manually to see the docs
-
 - Copy the documentation to the ``airflow-site`` repository
-
-**NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
-apache-airflow with doc extra:
-
-* `pip install 'apache-airflow[doc_gen]'`
-
-If you don't have virtual env set you can do:
-
-```shell script
-cd <path_you_want_to_save_your_virtual_env>
-virtualenv providers
-
-source venv/providers/bin/activate
-
-pip install 'apache-airflow[doc_gen]'
-```
 
 All providers (including overriding documentation for doc-only changes):
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-./docs/publish_docs.py \
+breeze release-management publish-docs \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
     --override-versioned
 
-cd "${AIRFLOW_SITE_DIRECTORY}"
+breeze release-management add-back-references --gen-type providers
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:
@@ -435,6 +416,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 - Create the commit and push changes.
 
 ```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
 branch="add-documentation-$(date "+%Y-%m-%d%n")"
 git checkout -b "${branch}"
 git add .
@@ -449,6 +431,7 @@ execution of the script below. You will use link to that issue in the next step.
 set as your environment variable.
 
 You can also pass the token as `--github-token` option in the script.
+You can also pass list of PR to be excluded from the issue with `--excluded-pr-list`.
 
 ```shell script
 breeze release-management generate-issue-content-providers --only-available-in-dist
@@ -485,7 +468,8 @@ cat <<EOF
 Hey all,
 
 I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
-which will last for 72 hours - which means that it will end on $(date -d '+3 days').
+which will last for 72 hours - which means that it will end on $(date -d '+3 days') and until 3 binding +1 votes have been received.
+
 
 Consider this my (binding) +1.
 
@@ -500,12 +484,11 @@ https://dist.apache.org/repos/dist/dev/airflow/providers/
 *apache_airflow_providers_<PROVIDER>-*.whl are the binary
  Python "wheel" release.
 
-The test procedure for PMC members who would like to test the RC candidates are described in
-https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-by-pmc-members
+The test procedure for PMC members is described in
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-candidate-by-pmc-members
 
-and for Contributors:
-
-https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-by-contributors
+The test procedure for and Contributors who would like to test this RC is described in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-candidate-by-contributors
 
 
 Public keys are available at:
@@ -547,7 +530,7 @@ Please modify the message above accordingly to clearly exclude those packages.
 
 Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
 
-## Verify the release by PMC members
+## Verify the release candidate by PMC members
 
 ### SVN check
 
@@ -697,14 +680,18 @@ Checking apache-airflow-providers-google-1.0.0rc1.tar.gz.sha512
 Checking apache_airflow-providers-google-1.0.0rc1-py3-none-any.whl.sha512
 ```
 
-## Verify by Contributors
+## Verify the release candidate by Contributors
 
 This can be done (and we encourage to) by any of the Contributors. In fact, it's best if the
 actual users of Apache Airflow test it in their own staging/test installations. Each release candidate
 is available on PyPI apart from SVN packages, so everyone should be able to install
 the release candidate version.
 
-You can use any of the installation methods you prefer (you can even install it via the binary wheels
+Breeze allows you to easily install and run pre-release candidates by following simple instructions
+described in
+[Manually testing release candidate packages](https://github.com/apache/airflow/blob/main/TESTING.rst#manually-testing-release-candidate-packages)
+
+But you can use any of the installation methods you prefer (you can even install it via the binary wheels
 downloaded from the SVN).
 
 ### Installing in your local virtualenv
@@ -719,7 +706,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-breeze start-airflow --use-airflow-version 2.2.4 --python 3.7 --backend postgres \
+breeze start-airflow --use-airflow-version 2.2.4 --python 3.8 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 
@@ -850,7 +837,7 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need Python 3.7+ and dev/requirements.txt installed)
+# Check which old packages will be removed (you need Python 3.8+ and dev/requirements.txt installed)
 python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory .
 
 # Remove those packages
@@ -988,6 +975,38 @@ It is more reliable to send it via the web ui at https://lists.apache.org/list.h
 
 Note If you choose sending it with your email client make sure the email is set to plain text mode.
 Trying to send HTML content will result in failure.
+
+## Send announcements about security issues fixed in the release
+
+The release manager should review and mark as READY all the security issues fixed in the release.
+Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
+at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+
+Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
+URL to the announcement published automatically by the CVE management tool.
+Note that the announce@apache.org is moderated, and the link to the email thread will not be published
+immediately, that's why it is recommended to add the link to users@airflow.apache.org which takes usually
+few seconds to be published after the CVE tool sends them.
+
+The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
+
+## Announce about the release in social media
+
+------------------------------------------------------------------------------------------------------------
+Announcement is done from official Apache-Airflow accounts.
+
+* Twitter: https://twitter.com/ApacheAirflow
+* Linkedin: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
+
+Make sure attach the release image generated with Figma to the post.
+If you don't have access to the account ask PMC to post.
+
+------------------------------------------------------------------------------------------------------------
+
+Normally we do not announce on providers in social media other than a new provider added which doesn't happen often.
+If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+Example for special case: an exciting new capability that the community waited for and should have big impact.
 
 ## Add release data to Apache Committee Report Helper
 

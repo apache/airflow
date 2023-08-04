@@ -39,11 +39,12 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
-    from airflow.models.taskinstance import TaskInstanceKey, TaskInstanceStateType
+    from airflow.models.taskinstance import TaskInstanceStateType
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # This is a work to be executed by a worker.
     # It can Key and Command - but it can also be None, None which is actually a
@@ -93,20 +94,20 @@ class LocalWorkerBase(Process, LoggingMixin):
         # Remove the command since the worker is done executing the task
         setproctitle("airflow worker -- LocalExecutor")
 
-    def _execute_work_in_subprocess(self, command: CommandType) -> str:
+    def _execute_work_in_subprocess(self, command: CommandType) -> TaskInstanceState:
         try:
             subprocess.check_call(command, close_fds=True)
-            return State.SUCCESS
+            return TaskInstanceState.SUCCESS
         except subprocess.CalledProcessError as e:
             self.log.error("Failed to execute task %s.", str(e))
-            return State.FAILED
+            return TaskInstanceState.FAILED
 
-    def _execute_work_in_fork(self, command: CommandType) -> str:
+    def _execute_work_in_fork(self, command: CommandType) -> TaskInstanceState:
         pid = os.fork()
         if pid:
             # In parent, wait for the child
             pid, ret = os.waitpid(pid, 0)
-            return State.SUCCESS if ret == 0 else State.FAILED
+            return TaskInstanceState.SUCCESS if ret == 0 else TaskInstanceState.FAILED
 
         from airflow.sentry import Sentry
 
@@ -129,10 +130,10 @@ class LocalWorkerBase(Process, LoggingMixin):
 
             args.func(args)
             ret = 0
-            return State.SUCCESS
+            return TaskInstanceState.SUCCESS
         except Exception as e:
             self.log.exception("Failed to execute task %s.", e)
-            return State.FAILED
+            return TaskInstanceState.FAILED
         finally:
             Sentry.flush()
             logging.shutdown()
@@ -202,8 +203,8 @@ class QueuedLocalWorker(LocalWorkerBase):
 class LocalExecutor(BaseExecutor):
     """
     LocalExecutor executes tasks locally in parallel.
-    It uses the multiprocessing Python library and queues to parallelize the execution
-    of tasks.
+
+    It uses the multiprocessing Python library and queues to parallelize the execution of tasks.
 
     :param parallelism: how many parallel processes are run in the executor
     """
@@ -388,10 +389,7 @@ class LocalExecutor(BaseExecutor):
         self.impl.sync()
 
     def end(self) -> None:
-        """
-        Ends the executor.
-        :return:
-        """
+        """Ends the executor."""
         if TYPE_CHECKING:
             assert self.impl
             assert self.manager

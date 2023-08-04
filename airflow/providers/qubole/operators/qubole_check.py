@@ -26,13 +26,13 @@ from airflow.providers.qubole.operators.qubole import QuboleOperator
 
 
 class _QuboleCheckOperatorMixin:
-    """This is a Mixin for Qubole related check operators"""
+    """This is a Mixin for Qubole related check operators."""
 
     kwargs: dict
     results_parser_callable: Callable | None
 
     def execute(self, context=None) -> None:
-        """Execute a check operation against Qubole"""
+        """Execute a check operation against Qubole."""
         try:
             self._hook_context = context
             super().execute(context=context)  # type: ignore[misc]
@@ -40,12 +40,13 @@ class _QuboleCheckOperatorMixin:
             handle_airflow_exception(e, self.get_hook())
 
     def get_db_hook(self) -> QuboleCheckHook:
-        """Get QuboleCheckHook"""
+        """Get QuboleCheckHook."""
         return self.get_hook()
 
     def get_hook(self) -> QuboleCheckHook:
         """
-        Reinitialising the hook, as some template fields might have changed
+        Reinitialising the hook, as some template fields might have changed.
+
         This method overwrites the original QuboleOperator.get_hook() which returns a QuboleHook.
         """
         return QuboleCheckHook(
@@ -55,8 +56,9 @@ class _QuboleCheckOperatorMixin:
 
 class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOperator):
     """
-    Performs checks against Qubole Commands. ``QuboleCheckOperator`` expects
-    a command that will be executed on QDS.
+    Performs checks against Qubole Commands.
+
+    ``QuboleCheckOperator`` expects a command that will be executed on QDS.
     By default, each value on first row of the result of this Qubole Command
     is evaluated using python ``bool`` casting. If any of the
     values return ``False``, the check is failed and errors out.
@@ -129,6 +131,7 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
 class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator, QuboleOperator):
     """
     Performs a simple value check using Qubole command.
+
     By default, each value on the first row of this
     Qubole command is compared with a pre-defined value.
     The check fails and errors out if the output of the command
@@ -177,7 +180,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
 
 
 def get_sql_from_qbol_cmd(params) -> str:
-    """Get Qubole sql from Qubole command"""
+    """Get Qubole sql from Qubole command."""
     sql = ""
     if "query" in params:
         sql = params["query"]
@@ -187,7 +190,7 @@ def get_sql_from_qbol_cmd(params) -> str:
 
 
 def handle_airflow_exception(airflow_exception, hook: QuboleCheckHook):
-    """Qubole check handle Airflow exception"""
+    """Qubole check handle Airflow exception."""
     cmd = hook.cmd
     if cmd is not None:
         if cmd.is_success(cmd.status):

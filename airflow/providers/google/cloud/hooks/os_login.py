@@ -14,15 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-.. spelling::
+"""OS Login hooks.
 
+.. spelling:word-list::
     ImportSshPublicKeyResponse
     oslogin
 """
 from __future__ import annotations
 
-import warnings
 from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -44,22 +43,22 @@ class OSLoginHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._conn: OsLoginServiceClient | None = None
 
     def get_conn(self) -> OsLoginServiceClient:
-        """Return OS Login service client"""
+        """Return OS Login service client."""
         if self._conn:
             return self._conn
 
@@ -77,9 +76,9 @@ class OSLoginHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ImportSshPublicKeyResponse:
         """
-        Adds an SSH public key and returns the profile information. Default POSIX
-        account information is set when no username and UID exist as part of the
-        login profile.
+        Adds an SSH public key and returns the profile information.
+
+        Default POSIX account information is set when no username and UID exist as part of the login profile.
 
         :param user: The unique ID for the user
         :param ssh_public_key: The SSH public key and expiration time.

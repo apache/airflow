@@ -23,6 +23,7 @@ from typing import Any, Sequence
 
 from trino.exceptions import TrinoQueryError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 
@@ -30,6 +31,10 @@ from airflow.providers.trino.hooks.trino import TrinoHook
 class TrinoOperator(SQLExecuteQueryOperator):
     """
     Executes sql code using a specific Trino query Engine.
+
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -55,7 +60,7 @@ class TrinoOperator(SQLExecuteQueryOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
 

@@ -667,8 +667,7 @@ SET_MACHINE_TYPE_VALIDATION_SPECIFICATION = [
 
 class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
     """
-    Changes the machine type for a stopped instance to the machine type specified in
-        the request.
+    Changes the machine type for a stopped instance to the machine type specified in the request.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -944,6 +943,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         )
         self._validate_all_body_fields()
         self.check_body_fields()
+        self._field_sanitizer.sanitize(self.body)
         try:
             # Idempotence check (sort of) - we want to check if the new Template
             # is already created and if is, then we assume it was created by previous run
@@ -1093,7 +1093,7 @@ class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
                 project_id=self.project_id,
                 request_id=self.request_id,
             )
-            self.log.info("Successfully deleted Instance template")
+            self.log.info("Successfully deleted Instance template %s", self.resource_id)
         except exceptions.NotFound as e:
             # Expecting 404 Error in case if Instance template doesn't exist.
             if e.code == 404:
@@ -1246,7 +1246,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         new_body = merge(new_body, self.body_patch)
         self.log.info("Calling insert instance template with updated body: %s", new_body)
         hook.insert_instance_template(body=new_body, request_id=self.request_id, project_id=self.project_id)
-        instance_template = hook.get_instance_template(
+        new_instance_tmp = hook.get_instance_template(
             resource_id=self.body_patch["name"], project_id=self.project_id
         )
         ComputeInstanceTemplateDetailsLink.persist(
@@ -1255,14 +1255,15 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             resource_id=self.body_patch["name"],
             project_id=self.project_id or hook.project_id,
         )
-        return InstanceTemplate.to_dict(instance_template)
+        return InstanceTemplate.to_dict(new_instance_tmp)
 
 
 class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseOperator):
     """
-    Patches the Instance Group Manager, replacing source template URL with the
-    destination one. API V1 does not have update/patch operations for Instance
-    Group Manager, so you must use beta or newer API version. Beta is the default.
+    Patches the Instance Group Manager, replacing source template URL with the destination one.
+
+    API V1 does not have update/patch operations for Instance Group Manager,
+    so you must use beta or newer API version. Beta is the default.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1408,6 +1409,7 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
 class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator):
     """
     Creates an Instance Group Managers using the body specified.
+
     After the group is created, instances in the group are created using the specified Instance Template.
 
     .. seealso::
@@ -1575,8 +1577,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
 
 class ComputeEngineDeleteInstanceGroupManagerOperator(ComputeEngineBaseOperator):
     """
-    Deletes an Instance Group Managers.
-    Deleting an Instance Group Manager is permanent and cannot be undone.
+    Permanently and irrevocably deletes an Instance Group Managers.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

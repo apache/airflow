@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -76,7 +76,7 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         self.database_name = database_name
 
     def poke(self, context: Context):
-        """Checks for existence of the partition in the AWS Glue Catalog table"""
+        """Checks for existence of the partition in the AWS Glue Catalog table."""
         if "." in self.table_name:
             self.database_name, self.table_name = self.table_name.split(".")
         self.log.info(
@@ -87,7 +87,7 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> GlueCatalogHook:
-        """Gets the GlueCatalogHook"""
+        """Gets the GlueCatalogHook."""
         return self.hook
 
     @cached_property

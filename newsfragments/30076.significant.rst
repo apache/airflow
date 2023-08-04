@@ -1,3 +1,0 @@
-SLA callbacks no longer add files to the dag processor manager's queue
-
-This stops SLA callbacks from keeping the dag processor manager permanently busy. It means reduced CPU, and fixes issues where SLAs stop the system from seeing changes to existing dag files. Additional metrics added to help track queue state.

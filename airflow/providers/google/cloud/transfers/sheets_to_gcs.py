@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import csv
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -45,9 +44,6 @@ class GoogleSheetsToGCSOperator(BaseOperator):
     :param destination_path: The Google cloud storage URI array for the object created by the operator.
         For example: ``path/to/my/files``.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -74,7 +70,6 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         sheet_filter: list[str] | None = None,
         destination_path: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -84,11 +79,6 @@ class GoogleSheetsToGCSOperator(BaseOperator):
         self.sheet_filter = sheet_filter
         self.destination_bucket = destination_bucket
         self.destination_path = destination_path
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def _upload_data(
@@ -122,12 +112,10 @@ class GoogleSheetsToGCSOperator(BaseOperator):
     def execute(self, context: Context):
         sheet_hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

@@ -72,6 +72,7 @@ const FilterTasks = ({ taskId }: Props) => {
         transition="all 0.2s"
         title={label}
         aria-label={label}
+        mt={2}
       >
         <Flex>
           {!root ? "Filter Tasks " : "Clear Task Filter "}

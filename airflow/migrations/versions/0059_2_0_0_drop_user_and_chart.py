@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
@@ -101,13 +101,13 @@ def downgrade():
     )
 
     if conn.dialect.name == "mysql":
-        conn.execute("SET time_zone = '+00:00'")
+        conn.execute(text("SET time_zone = '+00:00'"))
         op.alter_column(table_name="chart", column_name="last_modified", type_=mysql.TIMESTAMP(fsp=6))
     else:
         if conn.dialect.name in ("sqlite", "mssql"):
             return
 
         if conn.dialect.name == "postgresql":
-            conn.execute("set timezone=UTC")
+            conn.execute(text("set timezone=UTC"))
 
         op.alter_column(table_name="chart", column_name="last_modified", type_=sa.TIMESTAMP(timezone=True))

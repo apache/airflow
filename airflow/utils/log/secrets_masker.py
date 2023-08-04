@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Mask sensitive information from logs"""
+"""Mask sensitive information from logs."""
 from __future__ import annotations
 
 import collections.abc
 import logging
-import re
 import sys
+from enum import Enum
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -30,14 +31,17 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Pattern,
     TextIO,
     Tuple,
     TypeVar,
     Union,
 )
 
+import re2
+
 from airflow import settings
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.typing_compat import TypeGuard
 
 if TYPE_CHECKING:
@@ -82,7 +86,7 @@ def get_sensitive_variables_fields():
 
 
 def should_hide_value_for_key(name):
-    """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden"""
+    """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden."""
     from airflow import settings
 
     if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
@@ -141,9 +145,9 @@ def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
 
 
 class SecretsMasker(logging.Filter):
-    """Redact secrets from logs"""
+    """Redact secrets from logs."""
 
-    replacer: re.Pattern | None = None
+    replacer: Pattern | None = None
     patterns: set[str]
 
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"
@@ -207,7 +211,9 @@ class SecretsMasker(logging.Filter):
 
         return True
 
-    def _redact_all(self, item: Redactable, depth: int, max_depth: int) -> Redacted:
+    # Default on `max_depth` is to support versions of the OpenLineage plugin (not the provider) which called
+    # this function directly. New versions of that provider, and this class itself call it with a value
+    def _redact_all(self, item: Redactable, depth: int, max_depth: int = MAX_RECURSION_DEPTH) -> Redacted:
         if depth > max_depth or isinstance(item, str):
             return "***"
         if isinstance(item, dict):
@@ -237,6 +243,8 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
+            elif isinstance(item, Enum):
+                return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
             elif _is_v1_env_var(item):
                 tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
@@ -329,13 +337,13 @@ class SecretsMasker(logging.Filter):
             new_mask = False
             for s in self._adaptations(secret):
                 if s:
-                    pattern = re.escape(s)
+                    pattern = re2.escape(s)
                     if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):
                         self.patterns.add(pattern)
                         new_mask = True
 
             if new_mask:
-                self.replacer = re.compile("|".join(self.patterns))
+                self.replacer = re2.compile("|".join(self.patterns))
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:

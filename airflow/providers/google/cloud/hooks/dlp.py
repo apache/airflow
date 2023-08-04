@@ -16,10 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains a CloudDLPHook
-which allows you to connect to Google Cloud DLP service.
+This module contains a CloudDLPHook which allows you to connect to Google Cloud DLP service.
 
-.. spelling::
+.. spelling:word-list::
 
     ImageRedactionConfig
     RedactImageRequest
@@ -28,7 +27,6 @@ from __future__ import annotations
 
 import re
 import time
-import warnings
 from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -66,6 +64,7 @@ DLP_JOB_PATH_PATTERN = "^projects/[^/]+/dlpJobs/(?P<job>.*?)$"
 class CloudDLPHook(GoogleBaseHook):
     """
     Hook for Google Cloud Data Loss Prevention (DLP) APIs.
+
     Cloud DLP allows clients to detect the presence of Personally Identifiable
     Information (PII) and other privacy-sensitive data in user-supplied,
     unstructured data streams, like text blocks or images. The service also
@@ -73,9 +72,6 @@ class CloudDLPHook(GoogleBaseHook):
     on Google Cloud based data sets.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -89,16 +85,16 @@ class CloudDLPHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._client: DlpServiceClient | None = None
@@ -171,8 +167,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> DeidentifyTemplate:
         """
-        Creates a deidentify template for re-using frequently used configuration for
-        de-identifying content, images, and storage.
+        Create a deidentify template to reuse frequently-used configurations for content, images, and storage.
 
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
@@ -297,8 +292,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InspectTemplate:
         """
-        Creates an inspect template for re-using frequently used configuration for
-        inspecting content, images, and storage.
+        Create an inspect template to reuse frequently used configurations for content, images, and storage.
 
         :param organization_id: (Optional) The organization ID. Required to set this
             field if parent resource is an organization.
@@ -348,8 +342,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> JobTrigger:
         """
-        Creates a job trigger to run DLP actions such as scanning storage for sensitive
-        information on a set schedule.
+        Create a job trigger to run DLP actions such as scanning storage for sensitive info on a set schedule.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -441,8 +434,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> DeidentifyContentResponse:
         """
-        De-identifies potentially sensitive info from a content item. This method has limits
-        on input size and output size.
+        De-identifies potentially sensitive info from a content item; limits input size and output size.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -535,8 +527,10 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes a long-running DLP job. This method indicates that the client is no longer
-        interested in the DLP job result. The job will be cancelled if possible.
+        Deletes a long-running DLP job.
+
+        This method indicates that the client is no longer interested in the DLP job result.
+        The job will be cancelled if possible.
 
         :param dlp_job_id: The ID of the DLP job resource to be cancelled.
         :param project_id: (Optional) Google Cloud project ID where the
@@ -935,8 +929,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InspectContentResponse:
         """
-        Finds potentially sensitive info in content. This method has limits on input size,
-        processing time, and output size.
+        Finds potentially sensitive info in content; limits input size, processing time, and output size.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default
@@ -1268,8 +1261,7 @@ class CloudDLPHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> RedactImageResponse:
         """
-        Redacts potentially sensitive info from an image. This method has limits on
-        input size, processing time, and output size.
+        Redacts potentially sensitive info from an image; limits input size, processing time, and output size.
 
         :param project_id: (Optional) Google Cloud project ID where the
             DLP Instance exists. If set to None or missing, the default

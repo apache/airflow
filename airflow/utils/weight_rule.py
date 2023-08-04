@@ -37,7 +37,7 @@ class WeightRule(str, Enum):
     @classmethod
     @cache
     def all_weight_rules(cls) -> set[str]:
-        """Returns all weight rules"""
+        """Returns all weight rules."""
         return set(cls.__members__.values())
 
     def __str__(self) -> str:

@@ -69,11 +69,19 @@ Examples
 * **Password**: ``********``
 * **Port**: ``5439``
 
-**IAM Authentication**
+**Credentials Authentication**
 
-Uses AWS IAM to retrieve a temporary password to connect to Amazon Redshift. Port is required.
+Uses the credentials in Connection to connect to Amazon Redshift. Port is required.
 If none is provided, default is used (5439). This assumes all other Connection fields e.g. **Login** are empty.
 In this method, **cluster_identifier** replaces **Host** and **Port** in order to uniquely identify the cluster.
+
+**IAM Authentication**
+
+Uses the AWS IAM profile given at hook initialization to retrieve a temporary password to connect
+to Amazon Redshift. **Port** is required. If none is provided, default is used (5439). **Login**
+and **Schema** are also required. This assumes all other Connection fields are empty.
+In this method, if **cluster_identifier** is not set within the extras, it is automatically
+inferred by the **Host** field in Connection.
 `More details about AWS IAM authentication to generate database user credentials <https://docs.aws.amazon.com/redshift/latest/mgmt/generating-user-credentials.html>`_.
 
 * **Extra**:

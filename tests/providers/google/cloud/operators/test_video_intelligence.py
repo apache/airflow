@@ -20,8 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.videointelligence_v1 import enums
-from google.cloud.videointelligence_v1.proto.video_intelligence_pb2 import AnnotateVideoResponse
+from google.cloud.videointelligence_v1 import AnnotateVideoResponse, Feature
 
 from airflow.providers.google.cloud.operators.video_intelligence import (
     CloudVideoIntelligenceDetectVideoExplicitContentOperator,
@@ -59,7 +58,7 @@ class TestCloudVideoIntelligenceOperators:
         )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
-            features=[enums.Feature.LABEL_DETECTION],
+            features=[Feature.LABEL_DETECTION],
             input_content=None,
             video_context=None,
             location=None,
@@ -86,7 +85,7 @@ class TestCloudVideoIntelligenceOperators:
         )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
-            features=[enums.Feature.EXPLICIT_CONTENT_DETECTION],
+            features=[Feature.EXPLICIT_CONTENT_DETECTION],
             input_content=None,
             video_context=None,
             location=None,
@@ -113,7 +112,7 @@ class TestCloudVideoIntelligenceOperators:
         )
         mock_hook.return_value.annotate_video.assert_called_once_with(
             input_uri=INPUT_URI,
-            features=[enums.Feature.SHOT_CHANGE_DETECTION],
+            features=[Feature.SHOT_CHANGE_DETECTION],
             input_content=None,
             video_context=None,
             location=None,

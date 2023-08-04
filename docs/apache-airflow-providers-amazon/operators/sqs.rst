@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-==========
-Amazon SQS
-==========
+=================================
+Amazon Simple Queue Service (SQS)
+=================================
 
 `Amazon Simple Queue Service (SQS) <https://aws.amazon.com/sqs/>`__  is a fully managed message queuing
 service that enables you to decouple and scale microservices, distributed systems, and serverless
@@ -29,7 +29,7 @@ or requiring other services to be available.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------
@@ -61,6 +61,7 @@ Read messages from an Amazon SQS queue
 
 To read messages from an Amazon SQS queue until exhausted use the
 :class:`~airflow.providers.amazon.aws.sensors.sqs.SqsSensor`
+This sensor can also be run in deferrable mode by setting ``deferrable`` param to ``True``.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sqs.py
     :language: python

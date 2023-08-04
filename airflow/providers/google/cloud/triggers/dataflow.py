@@ -36,9 +36,6 @@ class TemplateJobStartTrigger(BaseTrigger):
     :param location: Optional. the location where job is executed. If set to None then
         the value of DEFAULT_DATAFLOW_LOCATION will be used
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional. Service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -57,7 +54,6 @@ class TemplateJobStartTrigger(BaseTrigger):
         project_id: str | None,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
         cancel_timeout: int | None = 5 * 60,
@@ -68,7 +64,6 @@ class TemplateJobStartTrigger(BaseTrigger):
         self.job_id = job_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep
         self.impersonation_chain = impersonation_chain
         self.cancel_timeout = cancel_timeout
@@ -82,7 +77,6 @@ class TemplateJobStartTrigger(BaseTrigger):
                 "job_id": self.job_id,
                 "location": self.location,
                 "gcp_conn_id": self.gcp_conn_id,
-                "delegate_to": self.delegate_to,
                 "poll_sleep": self.poll_sleep,
                 "impersonation_chain": self.impersonation_chain,
                 "cancel_timeout": self.cancel_timeout,
@@ -143,7 +137,6 @@ class TemplateJobStartTrigger(BaseTrigger):
     def _get_async_hook(self) -> AsyncDataflowHook:
         return AsyncDataflowHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             poll_sleep=self.poll_sleep,
             impersonation_chain=self.impersonation_chain,
             cancel_timeout=self.cancel_timeout,

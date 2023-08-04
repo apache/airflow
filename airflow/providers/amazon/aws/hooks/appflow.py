@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 if TYPE_CHECKING:
@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 class AppflowHook(AwsBaseHook):
     """
     Interact with Amazon Appflow.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("appflow") <Appflow.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -45,7 +46,7 @@ class AppflowHook(AwsBaseHook):
 
     @cached_property
     def conn(self) -> AppflowClient:
-        """Get the underlying boto3 Appflow client (cached)"""
+        """Get the underlying boto3 Appflow client (cached)."""
         return super().conn
 
     def run_flow(self, flow_name: str, poll_interval: int = 20, wait_for_completion: bool = True) -> str:
@@ -80,8 +81,7 @@ class AppflowHook(AwsBaseHook):
         self, flow_name: str, filter_tasks: list[TaskTypeDef], set_trigger_ondemand: bool = False
     ) -> None:
         """
-        Update the flow task filter.
-        All filters will be removed if an empty array is passed to filter_tasks.
+        Update the flow task filter; all filters will be removed if an empty array is passed to filter_tasks.
 
         :param flow_name: The flow name
         :param filter_tasks: List flow tasks to be added

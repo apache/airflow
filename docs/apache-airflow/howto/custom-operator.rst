@@ -87,7 +87,7 @@ can be reused by other users in different operators. Such approach provides bett
 utilization of added integration than using ``CustomServiceBaseOperator`` for each external service.
 
 Other consideration is the temporary state. If an operation requires an in-memory state (for example
-a job id that should be used in ``on_kill`` method to cancel a request) then the state should be keep
+a job id that should be used in ``on_kill`` method to cancel a request) then the state should be kept
 in the operator not in a hook. In this way the service hook can be completely state-less and whole
 logic of an operation is in one place - in the operator.
 

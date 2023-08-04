@@ -45,7 +45,7 @@ NOTSET = ArgNotSet()
 
 
 class DagRunType(str, enum.Enum):
-    """Class with DagRun types"""
+    """Class with DagRun types."""
 
     BACKFILL_JOB = "backfill"
     SCHEDULED = "scheduled"
@@ -68,9 +68,6 @@ class DagRunType(str, enum.Enum):
 
 
 class EdgeInfoType(TypedDict):
-    """
-    Represents extra metadata that the DAG can store about an edge,
-    usually generated from an EdgeModifier.
-    """
+    """Extra metadata that the DAG can store about an edge, usually generated from an EdgeModifier."""
 
     label: str | None

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from copy import copy
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping, TypeVar, overload
 
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.client import Connection  # type: ignore[attr-defined]
@@ -30,9 +30,11 @@ from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHoo
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
+T = TypeVar("T")
+
+
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
-    """
-    Hook to interact with Databricks SQL.
+    """Hook to interact with Databricks SQL.
 
     :param databricks_conn_id: Reference to the
         :ref:`Databricks connection <howto/connection:databricks>`.
@@ -95,7 +97,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         return lst[0]
 
     def get_conn(self) -> Connection:
-        """Returns a Databricks SQL connection object"""
+        """Returns a Databricks SQL connection object."""
         if not self._http_path:
             if self._sql_endpoint_name:
                 endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
@@ -139,19 +141,43 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             )
         return self._sql_conn
 
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None:
+        ...
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> T | list[T]:
+        ...
+
     def run(
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
-        handler: Callable | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: Callable[[Any], T] | None = None,
         split_statements: bool = True,
         return_last: bool = True,
-    ) -> Any | list[Any] | None:
-        """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially.
+    ) -> T | list[T] | None:
+        """Runs a command or a list of commands.
+
+        Pass a list of SQL statements to the SQL parameter to get them to
+        execute sequentially.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -180,10 +206,12 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             raise ValueError("List of SQL statements is empty")
 
+        conn = None
         results = []
         for sql_statement in sql_list:
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
-            with closing(self.get_conn()) as conn:
+            conn = self.get_conn()
+            with closing(conn.cursor()) as cur:
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
@@ -196,7 +224,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                         else:
                             results.append(result)
                             self.descriptions.append(cur.description)
-
+        if conn:
+            conn.close()
             self._sql_conn = None
 
         if handler is None:

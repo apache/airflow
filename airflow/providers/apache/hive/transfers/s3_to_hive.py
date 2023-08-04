@@ -37,8 +37,11 @@ if TYPE_CHECKING:
 
 class S3ToHiveOperator(BaseOperator):
     """
-    Moves data from S3 to Hive. The operator downloads a file from S3,
-    stores the file locally before loading it into a Hive table.
+    Moves data from S3 to Hive.
+
+    The operator downloads a file from S3, stores the file locally
+    before loading it into a Hive table.
+
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
     Hive data types are inferred from the cursor's metadata from.
@@ -149,6 +152,10 @@ class S3ToHiveOperator(BaseOperator):
 
         else:
             raise AirflowException(f"The key {self.s3_key} does not exists")
+
+        if TYPE_CHECKING:
+            assert s3_key_object
+
         _, file_ext = os.path.splitext(s3_key_object.key)
         if self.select_expression and self.input_compressed and file_ext.lower() != ".gz":
             raise AirflowException("GZIP is the only compression format Amazon S3 Select supports")

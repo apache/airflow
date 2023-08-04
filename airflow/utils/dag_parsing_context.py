@@ -53,7 +53,7 @@ def _airflow_parsing_context_manager(dag_id: str | None = None, task_id: str | N
 
 
 def get_parsing_context() -> AirflowParsingContext:
-    """Return the current (DAG) parsing context info"""
+    """Return the current (DAG) parsing context info."""
     return AirflowParsingContext(
         dag_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID),
         task_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID),

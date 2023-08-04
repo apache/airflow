@@ -19,15 +19,17 @@ from __future__ import annotations
 
 import ast
 import re
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, return_single_query_results
+from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -112,7 +114,7 @@ _MIN_SUPPORTED_PROVIDERS_VERSION = {
 
 class BaseSQLOperator(BaseOperator):
     """
-    This is a base class for generic SQL Operator to get a DB Hook
+    This is a base class for generic SQL Operator to get a DB Hook.
 
     The provided method is .get_db_hook(). The default behavior will try to
     retrieve the DB hook based on connection type.
@@ -138,7 +140,7 @@ class BaseSQLOperator(BaseOperator):
 
     @cached_property
     def _hook(self):
-        """Get DB Hook based on connection type"""
+        """Get DB Hook based on connection type."""
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
         hook = conn.get_hook(hook_params=self.hook_params)
@@ -188,7 +190,7 @@ class BaseSQLOperator(BaseOperator):
 
 class SQLExecuteQueryOperator(BaseSQLOperator):
     """
-    Executes SQL code in a specific database
+    Executes SQL code in a specific database.
 
     When implementing a specific Operator, you can also implement `_process_output` method in the
     hook to perform additional processing of values returned by the DB Hook of yours. For example, you
@@ -202,6 +204,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
         to the default value in the ``run`` method of the configured hook.
+    :param conn_id: the connection ID used to connect to the database
+    :param database: name of database which overwrite the defined one in connection
     :param return_last: (optional) return the result of only last statement (default: True).
     :param show_return_value_in_logs: (optional) if true operator output will be printed to the task log.
         Use with caution. It's not recommended to dump large datasets to the log. (default: False).
@@ -223,12 +227,14 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
         handler: Callable[[Any], Any] = fetch_all_handler,
+        conn_id: str | None = None,
+        database: str | None = None,
         split_statements: bool | None = None,
         return_last: bool = True,
         show_return_value_in_logs: bool = False,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
         self.autocommit = autocommit
         self.parameters = parameters
@@ -258,6 +264,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             self.log.info("Operator output is: %s", results)
         return results
 
+    def _should_run_output_processing(self) -> bool:
+        return self.do_xcom_push
+
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
@@ -269,11 +278,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             sql=self.sql,
             autocommit=self.autocommit,
             parameters=self.parameters,
-            handler=self.handler if self.do_xcom_push else None,
+            handler=self.handler if self._should_run_output_processing() else None,
             return_last=self.return_last,
             **extra_kwargs,
         )
-        if not self.do_xcom_push:
+        if not self._should_run_output_processing():
             return None
         if return_single_query_results(self.sql, self.return_last, self.split_statements):
             # For simplicity, we pass always list as input to _process_output, regardless if
@@ -287,10 +296,72 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         if isinstance(self.parameters, str):
             self.parameters = ast.literal_eval(self.parameters)
 
+    def get_openlineage_facets_on_start(self) -> OperatorLineage | None:
+        try:
+            from airflow.providers.openlineage.sqlparser import SQLParser
+        except ImportError:
+            return None
+
+        hook = self.get_db_hook()
+
+        connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
+        try:
+            database_info = hook.get_openlineage_database_info(connection)
+        except AttributeError:
+            self.log.debug("%s has no database info provided", hook)
+            database_info = None
+
+        if database_info is None:
+            return None
+
+        try:
+            sql_parser = SQLParser(
+                dialect=hook.get_openlineage_database_dialect(connection),
+                default_schema=hook.get_openlineage_default_schema(),
+            )
+        except AttributeError:
+            self.log.debug("%s failed to get database dialect", hook)
+            return None
+
+        operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
+            sql=self.sql,
+            hook=hook,
+            database_info=database_info,
+            database=self.database,
+            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+        )
+
+        return operator_lineage
+
+    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
+        try:
+            from airflow.providers.openlineage.extractors import OperatorLineage
+        except ImportError:
+            return None
+
+        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
+
+        hook = self.get_db_hook()
+        try:
+            database_specific_lineage = hook.get_openlineage_database_specific_lineage(task_instance)
+        except AttributeError:
+            database_specific_lineage = None
+
+        if database_specific_lineage is None:
+            return operator_lineage
+
+        return OperatorLineage(
+            inputs=operator_lineage.inputs + database_specific_lineage.inputs,
+            outputs=operator_lineage.outputs + database_specific_lineage.outputs,
+            run_facets=merge_dicts(operator_lineage.run_facets, database_specific_lineage.run_facets),
+            job_facets=merge_dicts(operator_lineage.job_facets, database_specific_lineage.job_facets),
+        )
+
 
 class SQLColumnCheckOperator(BaseSQLOperator):
     """
     Performs one or more of the templated checks in the column_checks dictionary.
+
     Checks are performed on a per-column basis specified by the column_mapping.
 
     Each check can take one or more of the following options:
@@ -537,6 +608,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 class SQLTableCheckOperator(BaseSQLOperator):
     """
     Performs one or more of the checks provided in the checks dictionary.
+
     Checks should be written to return a boolean result.
 
     :param table: the table to run checks on
@@ -622,7 +694,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.log.info("All tests have passed")
 
     def _generate_sql_query(self):
-        self.log.info("Partition clause: %s", self.partition_clause)
+        self.log.debug("Partition clause: %s", self.partition_clause)
 
         def _generate_partition_clause(check_name):
             if self.partition_clause and "partition_clause" not in self.checks[check_name]:
@@ -647,10 +719,11 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
 class SQLCheckOperator(BaseSQLOperator):
     """
-    Performs checks against a db. The ``SQLCheckOperator`` expects
-    a sql query that will return a single row. Each value on that
-    first row is evaluated using python ``bool`` casting. If any of the
-    values return ``False`` the check is failed and errors out.
+    Performs checks against a db.
+
+    The ``SQLCheckOperator`` expects a sql query that will return a single row.
+    Each value on that first row is evaluated using python ``bool`` casting.
+    If any of the values return ``False`` the check is failed and errors out.
 
     Note that Python bool casting evals the following as ``False``:
 
@@ -693,7 +766,7 @@ class SQLCheckOperator(BaseSQLOperator):
         sql: str,
         conn_id: str | None = None,
         database: str | None = None,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -805,8 +878,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
 
 class SQLIntervalCheckOperator(BaseSQLOperator):
     """
-    Checks that the values of metrics given as SQL expressions are within
-    a certain tolerance of the ones from days_back before.
+    Check that metrics given as SQL expressions are within tolerance of the ones from days_back before.
 
     :param table: the table name
     :param conn_id: the connection ID used to connect to the database.
@@ -835,8 +907,8 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     ui_color = "#fff7e6"
 
     ratio_formulas = {
-        "max_over_min": lambda cur, ref: float(max(cur, ref)) / min(cur, ref),
-        "relative_diff": lambda cur, ref: float(abs(cur - ref)) / ref,
+        "max_over_min": lambda cur, ref: max(cur, ref) / min(cur, ref),
+        "relative_diff": lambda cur, ref: abs(cur - ref) / ref,
     }
 
     def __init__(
@@ -943,9 +1015,9 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
 
 class SQLThresholdCheckOperator(BaseSQLOperator):
     """
-    Performs a value check using sql code against a minimum threshold
-    and a maximum threshold. Thresholds can be in the form of a numeric
-    value OR a sql statement that results a numeric.
+    Performs a value check using sql code against a minimum threshold and a maximum threshold.
+
+    Thresholds can be in the form of a numeric value OR a sql statement that results a numeric.
 
     :param sql: the sql to be executed. (templated)
     :param conn_id: the connection ID used to connect to the database.
@@ -1025,6 +1097,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     def push(self, meta_data):
         """
         Optional: Send data check info and metadata to an external database.
+
         Default functionality will log metadata.
         """
         info = "\n".join(f"""{key}: {item}""" for key, item in meta_data.items())
@@ -1060,7 +1133,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         follow_task_ids_if_false: list[str],
         conn_id: str = "default_conn_id",
         database: str | None = None,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)

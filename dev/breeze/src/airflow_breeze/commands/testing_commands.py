@@ -17,15 +17,19 @@
 from __future__ import annotations
 
 import os
-import re
 import sys
 from datetime import datetime
+from time import sleep
 
 import click
 from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
-from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES, all_selective_test_types
+from airflow_breeze.global_constants import (
+    ALLOWED_HELM_TEST_PACKAGES,
+    ALLOWED_TEST_TYPE_CHOICES,
+    all_selective_test_types,
+)
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
@@ -48,10 +52,11 @@ from airflow_breeze.utils.common_options import (
     option_python,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_use_airflow_version,
     option_verbose,
 )
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.custom_param_types import NotVerifiedBetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     DOCKER_COMPOSE_COMMAND,
     get_env_variables_for_docker_commands,
@@ -61,13 +66,13 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
     SummarizeAfter,
-    bytes2human,
     check_async_run_results,
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import FILES_DIR, cleanup_python_generated_files
-from airflow_breeze.utils.run_tests import run_docker_compose_tests
+from airflow_breeze.utils.run_tests import file_name_from_test_type, run_docker_compose_tests
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
+from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 
@@ -87,6 +92,20 @@ def group_for_testing():
 @option_python
 @option_image_tag_for_running
 @option_image_name
+@click.option(
+    "--skip-docker-compose-deletion",
+    help="Skip deletion of docker-compose instance after the test",
+    envvar="SKIP_DOCKER_COMPOSE_DELETION",
+    is_flag=True,
+)
+@click.option(
+    "--wait-for-containers-timeout",
+    help="Time to wait (in seconds) for all containers to start",
+    envvar="WAIT_FOR_CONTAINERS_TIMEOUT",
+    show_default=True,
+    type=IntRange(0, 600),
+    default=300,
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -95,10 +114,13 @@ def docker_compose_tests(
     python: str,
     image_name: str,
     image_tag: str | None,
+    skip_docker_compose_deletion: bool,
+    wait_for_containers_timeout: int,
     github_repository: str,
     extra_pytest_args: tuple,
 ):
     """Run docker-compose tests."""
+    perform_environment_checks()
     if image_name is None:
         build_params = BuildProdParams(
             python=python, image_tag=image_tag, github_repository=github_repository
@@ -108,6 +130,8 @@ def docker_compose_tests(
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         extra_pytest_args=extra_pytest_args,
+        skip_docker_compose_deletion=skip_docker_compose_deletion,
+        wait_for_containers_timeout=wait_for_containers_timeout,
     )
     sys.exit(return_code)
 
@@ -123,6 +147,7 @@ def _run_test(
     output: Output | None,
     test_timeout: int,
     output_outside_the_group: bool = False,
+    skip_docker_compose_down: bool = False,
 ) -> tuple[int, str]:
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables["RUN_TESTS"] = "true"
@@ -134,16 +159,20 @@ def _run_test(
     env_variables["COLLECT_ONLY"] = str(exec_shell_params.collect_only).lower()
     env_variables["REMOVE_ARM_PACKAGES"] = str(exec_shell_params.remove_arm_packages).lower()
     env_variables["SKIP_PROVIDER_TESTS"] = str(exec_shell_params.skip_provider_tests).lower()
+    env_variables["SUSPENDED_PROVIDERS_FOLDERS"] = " ".join(get_suspended_providers_folders()).strip()
     if "[" in exec_shell_params.test_type and not exec_shell_params.test_type.startswith("Providers"):
         get_console(output=output).print(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
         sys.exit(1)
-    project_name = _file_name_from_test_type(exec_shell_params.test_type)
+    project_name = file_name_from_test_type(exec_shell_params.test_type)
+    compose_project_name = f"airflow-test-{project_name}"
+    # This is needed for Docker-compose 1 compatibility
+    env_variables["COMPOSE_PROJECT_NAME"] = compose_project_name
     down_cmd = [
         *DOCKER_COMPOSE_COMMAND,
         "--project-name",
-        f"airflow-test-{project_name}",
+        compose_project_name,
         "down",
         "--remove-orphans",
     ]
@@ -151,7 +180,7 @@ def _run_test(
     run_cmd = [
         *DOCKER_COMPOSE_COMMAND,
         "--project-name",
-        f"airflow-test-{project_name}",
+        compose_project_name,
         "run",
         "-T",
         "--service-ports",
@@ -160,7 +189,7 @@ def _run_test(
     ]
     run_cmd.extend(list(extra_pytest_args))
     try:
-        remove_docker_networks(networks=[f"airflow-test-{project_name}_default"])
+        remove_docker_networks(networks=[f"{compose_project_name}_default"])
         result = run_command(
             run_cmd,
             env=env_variables,
@@ -176,38 +205,42 @@ def _run_test(
                 text=True,
             )
             container_ids = ps_result.stdout.splitlines()
+            get_console(output=output).print("[info]Wait 10 seconds for logs to find their way to stderr.\n")
+            sleep(10)
             get_console(output=output).print(
-                f"[info]Error {ps_result.returncode}. Dumping containers: {container_ids}."
+                f"[info]Error {result.returncode}. Dumping containers: {container_ids} for {project_name}.\n"
             )
             date_str = datetime.now().strftime("%Y_%d_%m_%H_%M_%S")
             for container_id in container_ids:
+                if compose_project_name not in container_id:
+                    continue
                 dump_path = FILES_DIR / f"container_logs_{container_id}_{date_str}.log"
-                get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}")
+                get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}\n")
                 with open(dump_path, "w") as outfile:
-                    run_command(["docker", "logs", container_id], check=False, stdout=outfile)
+                    run_command(
+                        ["docker", "logs", "--details", "--timestamps", container_id],
+                        check=False,
+                        stdout=outfile,
+                    )
     finally:
-        run_command(
-            [
-                *DOCKER_COMPOSE_COMMAND,
-                "--project-name",
-                f"airflow-test-{project_name}",
-                "rm",
-                "--stop",
-                "--force",
-                "-v",
-            ],
-            env=env_variables,
-            output=output,
-            check=False,
-            verbose_override=False,
-        )
-        remove_docker_networks(networks=[f"airflow-test-{project_name}_default"])
+        if not skip_docker_compose_down:
+            run_command(
+                [
+                    *DOCKER_COMPOSE_COMMAND,
+                    "--project-name",
+                    compose_project_name,
+                    "rm",
+                    "--stop",
+                    "--force",
+                    "-v",
+                ],
+                env=env_variables,
+                output=output,
+                check=False,
+                verbose_override=False,
+            )
+            remove_docker_networks(networks=[f"{compose_project_name}_default"])
     return result.returncode, f"Test: {exec_shell_params.test_type}"
-
-
-def _file_name_from_test_type(test_type: str):
-    test_type_no_brackets = test_type.lower().replace("[", "_").replace("]", "")
-    return re.sub("[,\.]", "_", test_type_no_brackets)[:30]
 
 
 def _run_tests_in_pool(
@@ -220,6 +253,7 @@ def _run_tests_in_pool(
     include_success_outputs: bool,
     debug_resources: bool,
     skip_cleanup: bool,
+    skip_docker_compose_down: bool,
 ):
     escaped_tests = [test.replace("[", "\\[") for test in tests_to_run]
     with ci_group(f"Testing {' '.join(escaped_tests)}"):
@@ -243,6 +277,7 @@ def _run_tests_in_pool(
                         "db_reset": db_reset,
                         "output": outputs[index],
                         "test_timeout": test_timeout,
+                        "skip_docker_compose_down": skip_docker_compose_down,
                     },
                 )
                 for index, test_type in enumerate(tests_to_run)
@@ -264,43 +299,13 @@ def run_tests_in_parallel(
     parallel_test_types_list: list[str],
     extra_pytest_args: tuple,
     db_reset: bool,
-    full_tests_needed: bool,
     test_timeout: int,
     include_success_outputs: bool,
     debug_resources: bool,
     parallelism: int,
     skip_cleanup: bool,
+    skio_docker_compose_down: bool,
 ) -> None:
-    import psutil
-
-    memory_available = psutil.virtual_memory()
-    if memory_available.available < LOW_MEMORY_CONDITION and exec_shell_params.backend in ["mssql", "mysql"]:
-        # Run heavy tests sequentially
-        heavy_test_types_to_run = {"Core", "Providers"} & set(parallel_test_types_list)
-        if heavy_test_types_to_run:
-            # some of those are requested
-            get_console().print(
-                f"[warning]Running {heavy_test_types_to_run} tests sequentially"
-                f"for {exec_shell_params.backend}"
-                f" backend due to low memory available: {bytes2human(memory_available.available)}"
-            )
-            tests_to_run_sequentially = []
-            for heavy_test_type in heavy_test_types_to_run:
-                for test_type in parallel_test_types_list:
-                    if test_type.startswith(heavy_test_type):
-                        parallel_test_types_list.remove(test_type)
-                        tests_to_run_sequentially.append(test_type)
-            _run_tests_in_pool(
-                tests_to_run=tests_to_run_sequentially,
-                parallelism=1,
-                exec_shell_params=exec_shell_params,
-                extra_pytest_args=extra_pytest_args,
-                test_timeout=test_timeout,
-                db_reset=db_reset,
-                include_success_outputs=include_success_outputs,
-                debug_resources=debug_resources,
-                skip_cleanup=skip_cleanup,
-            )
     _run_tests_in_pool(
         tests_to_run=parallel_test_types_list,
         parallelism=parallelism,
@@ -311,6 +316,7 @@ def run_tests_in_parallel(
         include_success_outputs=include_success_outputs,
         debug_resources=debug_resources,
         skip_cleanup=skip_cleanup,
+        skip_docker_compose_down=skio_docker_compose_down,
     )
 
 
@@ -329,18 +335,22 @@ def run_tests_in_parallel(
 @option_mssql_version
 @option_integration
 @option_image_tag_for_running
+@option_use_airflow_version
 @option_mount_sources
 @click.option(
     "--test-type",
-    help="Type of test to run. Note that with Providers, you can also specify which provider "
-    'tests should be run - for example --test-type "Providers[airbyte,http]"',
+    help="Type of test to run. With Providers, you can specify tests of which providers "
+    "should be run: `Providers[airbyte,http]` or "
+    "excluded from the full test suite: `Providers[-amazon,google]`",
     default="All",
+    envvar="TEST_TYPE",
     type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
 )
 @click.option(
     "--test-timeout",
     help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
     default=60,
+    envvar="TEST_TIMEOUT",
     type=IntRange(min=0),
     show_default=True,
 )
@@ -356,12 +366,6 @@ def run_tests_in_parallel(
     default=" ".join(all_selective_test_types()) + " PlainAsserts",
     show_default=True,
     envvar="PARALLEL_TEST_TYPES",
-)
-@click.option(
-    "--full-tests-needed",
-    help="Whether full set of tests is run.",
-    is_flag=True,
-    envvar="FULL_TESTS_NEEDED",
 )
 @click.option(
     "--upgrade-boto",
@@ -381,8 +385,15 @@ def run_tests_in_parallel(
     is_flag=True,
     envvar="REMOVE_ARM_PACKAGES",
 )
+@click.option(
+    "--skip-docker-compose-down",
+    help="Skips running docker-compose down after tests",
+    is_flag=True,
+    envvar="SKIP_DOCKER_COMPOSE_DOWN",
+)
 @option_verbose
 @option_dry_run
+@option_github_repository
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def command_for_tests(
     python: str,
@@ -395,18 +406,20 @@ def command_for_tests(
     test_timeout: int,
     db_reset: bool,
     image_tag: str | None,
+    use_airflow_version: str | None,
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
     debug_resources: bool,
     include_success_outputs: bool,
     parallel_test_types: str,
-    full_tests_needed: bool,
     mount_sources: str,
     extra_pytest_args: tuple,
     upgrade_boto: bool,
     collect_only: bool,
     remove_arm_packages: bool,
+    github_repository: str,
+    skip_docker_compose_down: bool,
 ):
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
@@ -418,33 +431,31 @@ def command_for_tests(
         mysql_version=mysql_version,
         mssql_version=mssql_version,
         image_tag=image_tag,
+        use_airflow_version=use_airflow_version,
         mount_sources=mount_sources,
         forward_ports=False,
         test_type=test_type,
         upgrade_boto=upgrade_boto,
         collect_only=collect_only,
         remove_arm_packages=remove_arm_packages,
+        github_repository=github_repository,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
     cleanup_python_generated_files()
     perform_environment_checks()
     if run_in_parallel:
         test_list = parallel_test_types.split(" ")
-        test_list.sort(key=lambda x: x in ["Providers", "WWW"], reverse=True)
         run_tests_in_parallel(
             exec_shell_params=exec_shell_params,
             parallel_test_types_list=test_list,
             extra_pytest_args=extra_pytest_args,
             db_reset=db_reset,
-            # Allow to pass information on whether to use full tests in the parallel execution mode
-            # or not - this will allow to skip some heavy tests on more resource-heavy configurations
-            # in case full tests are not required, some of those will be skipped
-            full_tests_needed=full_tests_needed,
             test_timeout=test_timeout,
             include_success_outputs=include_success_outputs,
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
+            skio_docker_compose_down=skip_docker_compose_down,
         )
     else:
         returncode, _ = _run_test(
@@ -453,13 +464,15 @@ def command_for_tests(
             db_reset=db_reset,
             output=None,
             test_timeout=test_timeout,
+            output_outside_the_group=True,
+            skip_docker_compose_down=skip_docker_compose_down,
         )
         sys.exit(returncode)
 
 
 @group_for_testing.command(
     name="integration-tests",
-    help="Run the specified integratio tests.",
+    help="Run the specified integration tests.",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,
@@ -473,6 +486,7 @@ def command_for_tests(
 @option_image_tag_for_running
 @option_mount_sources
 @option_integration
+@option_github_repository
 @click.option(
     "--test-timeout",
     help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
@@ -497,6 +511,7 @@ def integration_tests(
     mysql_version: str,
     mssql_version: str,
     integration: tuple,
+    github_repository: str,
     test_timeout: int,
     skip_provider_tests: bool,
     db_reset: bool,
@@ -518,6 +533,7 @@ def integration_tests(
         forward_ports=False,
         test_type="Integration",
         skip_provider_tests=skip_provider_tests,
+        github_repository=github_repository,
     )
     cleanup_python_generated_files()
     perform_environment_checks()
@@ -545,11 +561,18 @@ def integration_tests(
 @option_github_repository
 @option_verbose
 @option_dry_run
+@click.option(
+    "--helm-test-package",
+    help="Package to tests",
+    default="all",
+    type=BetterChoice(ALLOWED_HELM_TEST_PACKAGES),
+)
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def helm_tests(
     extra_pytest_args: tuple,
     image_tag: str | None,
     mount_sources: str,
+    helm_test_package: str,
     github_repository: str,
 ):
     exec_shell_params = ShellParams(
@@ -560,6 +583,8 @@ def helm_tests(
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables["RUN_TESTS"] = "true"
     env_variables["TEST_TYPE"] = "Helm"
+    if helm_test_package != "all":
+        env_variables["HELM_TEST_PACKAGE"] = helm_test_package
     perform_environment_checks()
     cleanup_python_generated_files()
     cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "--rm", "airflow"]

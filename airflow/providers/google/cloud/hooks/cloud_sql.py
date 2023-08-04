@@ -31,7 +31,6 @@ import string
 import subprocess
 import time
 import uuid
-import warnings
 from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
@@ -40,16 +39,18 @@ from typing import Any, Sequence
 from urllib.parse import quote_plus
 
 import httpx
+from aiohttp import ClientSession
+from gcloud.aio.auth import AioSession, Token
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
-
-from airflow.exceptions import AirflowException
+from requests import Session
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -80,7 +81,6 @@ class CloudSQLHook(GoogleBaseHook):
 
     :param api_version: This is the version of the api.
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
-    :param delegate_to: This performs a task on one host with reference to other hosts.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
     """
@@ -94,16 +94,16 @@ class CloudSQLHook(GoogleBaseHook):
         self,
         api_version: str,
         gcp_conn_id: str = default_conn_name,
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
@@ -201,7 +201,11 @@ class CloudSQLHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        # For some delete instance operations, the operation stops being available ~9 seconds after
+        # completion, so we need a shorter sleep time to make sure we don't miss the DONE status.
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name, time_to_sleep=5
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_database(self, instance: str, database: str, project_id: str) -> dict:
@@ -298,11 +302,9 @@ class CloudSQLHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    @GoogleBaseHook.operation_in_progress_retry()
-    def export_instance(self, instance: str, body: dict, project_id: str) -> None:
+    def export_instance(self, instance: str, body: dict, project_id: str):
         """
-        Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
-        or CSV file.
+        Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump or CSV file.
 
         :param instance: Database instance ID of the Cloud SQL instance. This does not include the
             project ID.
@@ -319,13 +321,12 @@ class CloudSQLHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        return operation_name
 
     @GoogleBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: dict, project_id: str) -> None:
         """
-        Imports data into a Cloud SQL instance from a SQL dump or CSV file in
-        Cloud Storage.
+        Imports data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
 
         :param instance: Database instance ID. This does not include the
             project ID.
@@ -357,7 +358,7 @@ class CloudSQLHook(GoogleBaseHook):
         :param instance: Database instance ID to be used for the clone. This does not include the
             project ID.
         :param body: The request body, as described in
-            https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/instances/clone
+            https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances/clone
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
         :return: None
@@ -374,13 +375,16 @@ class CloudSQLHook(GoogleBaseHook):
         except HttpError as ex:
             raise AirflowException(f"Cloning of instance {instance} failed: {ex.content}")
 
-    def _wait_for_operation_to_complete(self, project_id: str, operation_name: str) -> None:
+    @GoogleBaseHook.fallback_to_default_project_id
+    def _wait_for_operation_to_complete(
+        self, project_id: str, operation_name: str, time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
+    ) -> None:
         """
-        Waits for the named operation to complete - checks status of the
-        asynchronous call.
+        Waits for the named operation to complete - checks status of the asynchronous call.
 
         :param project_id: Project ID of the project that contains the instance.
         :param operation_name: Name of the operation.
+        :param time_to_sleep: Time to sleep between active checks of the operation results.
         :return: None
         """
         service = self.get_conn()
@@ -398,13 +402,49 @@ class CloudSQLHook(GoogleBaseHook):
                     raise AirflowException(error_msg)
                 # No meaningful info to return from the response in case of success
                 return
-            time.sleep(TIME_TO_SLEEP_IN_SECONDS)
+            time.sleep(time_to_sleep)
 
 
 CLOUD_SQL_PROXY_DOWNLOAD_URL = "https://dl.google.com/cloudsql/cloud_sql_proxy.{}.{}"
 CLOUD_SQL_PROXY_VERSION_DOWNLOAD_URL = (
     "https://storage.googleapis.com/cloudsql-proxy/{}/cloud_sql_proxy.{}.{}"
 )
+
+
+class CloudSQLAsyncHook(GoogleBaseAsyncHook):
+    """Class to get asynchronous hook for Google Cloud SQL."""
+
+    sync_hook_class = CloudSQLHook
+
+    async def _get_conn(self, session: Session, url: str):
+        scopes = [
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/sqlservice.admin",
+        ]
+
+        async with Token(scopes=scopes) as token:
+            session_aio = AioSession(session)
+            headers = {
+                "Authorization": f"Bearer {await token.get()}",
+            }
+        return await session_aio.get(url=url, headers=headers)
+
+    async def get_operation_name(self, project_id: str, operation_name: str, session):
+        url = f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{project_id}/operations/{operation_name}"
+        return await self._get_conn(url=str(url), session=session)
+
+    async def get_operation(self, project_id: str, operation_name: str):
+        async with ClientSession() as session:
+            try:
+                operation = await self.get_operation_name(
+                    project_id=project_id,
+                    operation_name=operation_name,
+                    session=session,
+                )
+                operation = await operation.json(content_type=None)
+            except HttpError as e:
+                raise e
+            return operation
 
 
 class CloudSqlProxyRunner(LoggingMixin):
@@ -678,10 +718,11 @@ CLOUD_SQL_VALID_DATABASE_TYPES = ["postgres", "mysql"]
 
 
 class CloudSQLDatabaseHook(BaseHook):
-    """Serves DB connection configuration for Google Cloud SQL (Connections
-    of *gcpcloudsqldb://* type).
+    """
+    Serves DB connection configuration for Google Cloud SQL (Connections of *gcpcloudsqldb://* type).
 
     The hook is a "meta" one. It does not perform an actual connection.
+
     It is there to retrieve all the parameters configured in gcpcloudsql:// connection,
     start/stop Cloud SQL Proxy if needed, dynamically generate Postgres or MySQL
     connection in the database and return an actual Postgres or MySQL hook.
@@ -835,12 +876,13 @@ class CloudSQLDatabaseHook(BaseHook):
 
     @staticmethod
     def _generate_unique_path() -> str:
-        """
-        We are not using mkdtemp here as the path generated with mkdtemp
-        can be close to 60 characters and there is a limitation in
-        length of socket path to around 100 characters in total.
-        We append project/location/instance to it later and postgres
-        appends its own prefix, so we chose a shorter "${tempdir()}[8 random characters]"
+        """Generate a unique path.
+
+        We don't using mkdtemp here since it can generate paths close to 60
+        characters. We append project/location/instance to the path, Postgres
+        will then appends its own prefix, making the resulting path exceed the
+        100 character length limitation of a socket path. This generates a
+        shorter path ``${tempdir()}[8 random characters]``.
         """
         random.seed()
         while True:
@@ -921,9 +963,10 @@ class CloudSQLDatabaseHook(BaseHook):
         return instance_specification
 
     def create_connection(self) -> Connection:
-        """
-        Create Connection object, according to whether it uses proxy, TCP, UNIX sockets, SSL.
-        Connection ID will be randomly generated.
+        """Create a connection.
+
+        Connection ID will be randomly generated according to whether it uses
+        proxy, TCP, UNIX sockets, SSL.
         """
         uri = self._generate_connection_uri()
         connection = Connection(conn_id=self.db_conn_id, uri=uri)
@@ -931,9 +974,9 @@ class CloudSQLDatabaseHook(BaseHook):
         return connection
 
     def get_sqlproxy_runner(self) -> CloudSqlProxyRunner:
-        """
-        Retrieve Cloud SQL Proxy runner. It is used to manage the proxy
-        lifecycle per task.
+        """Retrieve Cloud SQL Proxy runner.
+
+        It is used to manage the proxy lifecycle per task.
 
         :return: The Cloud SQL Proxy runner.
         """
@@ -951,9 +994,10 @@ class CloudSQLDatabaseHook(BaseHook):
         )
 
     def get_database_hook(self, connection: Connection) -> PostgresHook | MySqlHook:
-        """
-        Retrieve database hook. This is the actual Postgres or MySQL database hook
-        that uses proxy or connects directly to the Google Cloud SQL database.
+        """Retrieve database hook.
+
+        This is the actual Postgres or MySQL database hook that uses proxy or
+        connects directly to the Google Cloud SQL database.
         """
         if self.database_type == "postgres":
             db_hook: PostgresHook | MySqlHook = PostgresHook(connection=connection, schema=self.database)
@@ -975,13 +1019,16 @@ class CloudSQLDatabaseHook(BaseHook):
                     self.log.info(output)
 
     def reserve_free_tcp_port(self) -> None:
-        """Reserve free TCP port to be used by Cloud SQL Proxy"""
+        """Reserve free TCP port to be used by Cloud SQL Proxy."""
         self.reserved_tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.reserved_tcp_socket.bind(("127.0.0.1", 0))
         self.sql_proxy_tcp_port = self.reserved_tcp_socket.getsockname()[1]
 
     def free_reserved_port(self) -> None:
-        """Free TCP port. Makes it immediately ready to be used by Cloud SQL Proxy."""
+        """Free TCP port.
+
+        Makes it immediately ready to be used by Cloud SQL Proxy.
+        """
         if self.reserved_tcp_socket:
             self.reserved_tcp_socket.close()
             self.reserved_tcp_socket = None

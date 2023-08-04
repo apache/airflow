@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
@@ -32,8 +31,9 @@ if TYPE_CHECKING:
 
 class AzureFileShareToGCSOperator(BaseOperator):
     """
-    Synchronizes a Azure FileShare directory content (excluding subdirectories),
-    possibly filtered by a prefix, with a Google Cloud Storage destination path.
+    Sync an Azure FileShare directory with a Google Cloud Storage destination path.
+
+    Does not include subdirectories.  May be filtered by prefix.
 
     :param share_name: The Azure FileShare share where to find the objects. (templated)
     :param directory_name: (Optional) Path to Azure FileShare directory which content is to be transferred.
@@ -44,9 +44,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
-    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param replace: Whether you want to replace existing destination files
         or not.
     :param gzip: Option to compress file for upload
@@ -79,7 +76,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
         prefix: str = "",
         azure_fileshare_conn_id: str = "azure_fileshare_default",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         replace: bool = False,
         gzip: bool = False,
         google_impersonation_chain: str | Sequence[str] | None = None,
@@ -93,12 +89,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.azure_fileshare_conn_id = azure_fileshare_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'google_impersonation_chain'",
-                DeprecationWarning,
-            )
-        self.delegate_to = delegate_to
         self.replace = replace
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
@@ -123,7 +113,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
 
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
 

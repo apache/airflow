@@ -44,10 +44,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         self.trigger_id = None
 
     def _set_context(self, context):
-        """
-        This method, part of LoggingMixin, is used mainly for configuration of logging
-        for tasks, but is not used for triggers.
-        """
+        """Part of LoggingMixin and used mainly for configuration of task logging; not used for triggers."""
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -60,7 +57,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         raise NotImplementedError("Triggers must implement serialize()")
 
     @abc.abstractmethod
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """
         Runs the trigger in an asynchronous context.
 

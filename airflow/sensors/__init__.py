@@ -33,9 +33,6 @@ __deprecated_classes = {
         'ExternalTaskSensor': 'airflow.sensors.external_task.ExternalTaskSensor',
         'ExternalTaskSensorLink': 'airflow.sensors.external_task.ExternalTaskSensorLink',
     },
-    'hdfs_sensor': {
-        'HdfsSensor': 'airflow.providers.apache.hdfs.sensors.hdfs.HdfsSensor',
-    },
     'hive_partition_sensor': {
         'HivePartitionSensor': 'airflow.providers.apache.hive.sensors.hive_partition.HivePartitionSensor',
     },

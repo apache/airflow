@@ -91,7 +91,7 @@ with models.DAG(
     # [END howto_operator_sftp_to_gcs_copy_directory]
 
     # [START howto_operator_sftp_to_gcs_move_specific_files]
-    move_specific_files_from_gcs_to_sftp = SFTPToGCSOperator(
+    move_specific_files_from_sftp_to_gcs = SFTPToGCSOperator(
         task_id="dir-move-specific-files-sftp-to-gcs",
         source_path=f"{FILE_LOCAL_PATH}/{SUBDIR}/*.bin",
         destination_bucket=BUCKET_NAME,
@@ -112,7 +112,7 @@ with models.DAG(
         copy_file_from_sftp_to_gcs,
         move_file_from_sftp_to_gcs_destination,
         copy_directory_from_sftp_to_gcs,
-        move_specific_files_from_gcs_to_sftp,
+        move_specific_files_from_sftp_to_gcs,
         # TEST TEARDOWN
         delete_bucket,
     )

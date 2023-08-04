@@ -22,7 +22,6 @@ from airflow.decorators import setup, task, teardown
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
-from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
@@ -124,9 +123,9 @@ class TestDockerDecorator:
         "extra_kwargs, actual_exit_code, expected_state",
         [
             (None, 99, TaskInstanceState.FAILED),
-            ({"skip_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_exit_code": 100}, 101, TaskInstanceState.FAILED),
-            ({"skip_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
         ],
     )
     def test_skip_docker_operator(self, extra_kwargs, actual_exit_code, expected_state, dag_maker):
@@ -146,7 +145,6 @@ class TestDockerDecorator:
             ti = dr.get_task_instances()[0]
             assert ti.state == expected_state
 
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     def test_setup_decorator_with_decorated_docker_task(self, dag_maker):
         @setup
         @task.docker(image="python:3.9-slim", auto_remove="force")
@@ -158,9 +156,8 @@ class TestDockerDecorator:
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
-        assert setup_task._is_setup
+        assert setup_task.is_setup
 
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     def test_teardown_decorator_with_decorated_docker_task(self, dag_maker):
         @teardown
         @task.docker(image="python:3.9-slim", auto_remove="force")
@@ -172,9 +169,8 @@ class TestDockerDecorator:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
-        assert teardown_task._is_teardown
+        assert teardown_task.is_teardown
 
-    @pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
     def test_teardown_decorator_with_decorated_docker_task_and_on_failure_fail_arg(
         self, dag_maker, on_failure_fail_dagrun
@@ -189,5 +185,5 @@ class TestDockerDecorator:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
-        assert teardown_task._is_teardown
-        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun

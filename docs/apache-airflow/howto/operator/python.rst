@@ -70,7 +70,7 @@ PythonVirtualenvOperator
 ========================
 
 Use the ``@task.virtualenv`` decorator to execute Python callables inside a new Python virtual environment.
-The ``virtualenv`` package needs to be installed in the environment that runs Airflow (as optional dependency ``pip install airflow[virtualenv] --constraint ...``).
+The ``virtualenv`` package needs to be installed in the environment that runs Airflow (as optional dependency ``pip install apache-airflow[virtualenv] --constraint ...``).
 
 .. warning::
     The ``@task.virtualenv`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonVirtualenvOperator`

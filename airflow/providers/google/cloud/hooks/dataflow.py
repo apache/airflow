@@ -32,7 +32,7 @@ from typing import Any, Callable, Generator, Sequence, TypeVar, cast
 from google.cloud.dataflow_v1beta3 import GetJobRequest, Job, JobState, JobsV1Beta3AsyncClient, JobView
 from googleapiclient.discovery import build
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -57,29 +57,25 @@ T = TypeVar("T", bound=Callable)
 def process_line_and_extract_dataflow_job_id_callback(
     on_new_job_id_callback: Callable[[str], None] | None
 ) -> Callable[[str], None]:
-    """
-    Returns callback which triggers function passed as `on_new_job_id_callback` when Dataflow job_id is found.
-    To be used for `process_line_callback` in
-    :py:class:`~airflow.providers.apache.beam.hooks.beam.BeamCommandRunner`
+    """Build callback that triggers the specified function.
+
+    The returned callback is intended to be used as ``process_line_callback`` in
+    :py:class:`~airflow.providers.apache.beam.hooks.beam.BeamCommandRunner`.
 
     :param on_new_job_id_callback: Callback called when the job ID is known
     """
 
-    def _process_line_and_extract_job_id(
-        line: str,
-        # on_new_job_id_callback: Callable[[str], None] | None
-    ) -> None:
+    def _process_line_and_extract_job_id(line: str) -> None:
         # Job id info: https://goo.gl/SE29y9.
+        if on_new_job_id_callback is None:
+            return
         matched_job = JOB_ID_PATTERN.search(line)
-        if matched_job:
-            job_id = matched_job.group("job_id_java") or matched_job.group("job_id_python")
-            if on_new_job_id_callback:
-                on_new_job_id_callback(job_id)
+        if matched_job is None:
+            return
+        job_id = matched_job.group("job_id_java") or matched_job.group("job_id_python")
+        on_new_job_id_callback(job_id)
 
-    def wrap(line: str):
-        return _process_line_and_extract_job_id(line)
-
-    return wrap
+    return _process_line_and_extract_job_id
 
 
 def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) -> Callable[[T], T]:
@@ -127,6 +123,7 @@ _fallback_to_project_id_from_variables = _fallback_variable_parameter("project_i
 class DataflowJobStatus:
     """
     Helper class with Dataflow job statuses.
+
     Reference: https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
     """
 
@@ -221,7 +218,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def is_job_running(self) -> bool:
         """
-        Helper method to check if jos is still running in dataflow
+        Helper method to check if jos is still running in dataflow.
 
         :return: True if job is running.
         """
@@ -236,7 +233,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _get_current_jobs(self) -> list[dict]:
         """
-        Helper method to get list of jobs that start with job name or id
+        Helper method to get list of jobs that start with job name or id.
 
         :return: list of jobs including id's
         """
@@ -374,7 +371,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _refresh_jobs(self) -> None:
         """
-        Helper method to get all jobs by name
+        Helper method to get all jobs by name.
 
         :return: jobs
         """
@@ -392,8 +389,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _check_dataflow_job_state(self, job) -> bool:
         """
-        Helper method to check the state of one job in dataflow for this task
-        if job failed raise exception
+        Helper method to check the state of one job in dataflow for this task if job failed raise exception.
 
         :return: True if job is done.
         :raise: Exception
@@ -467,7 +463,7 @@ class _DataflowJobsController(LoggingMixin):
             time.sleep(self._poll_sleep)
 
     def cancel(self) -> None:
-        """Cancels or drains current job"""
+        """Cancels or drains current job."""
         self._jobs = [
             job for job in self.get_jobs() if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES
         ]
@@ -516,26 +512,26 @@ class DataflowHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
         drain_pipeline: bool = False,
         cancel_timeout: int | None = 5 * 60,
         wait_until_finished: bool | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         self.poll_sleep = poll_sleep
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.job_id: str | None = None
         self.beam_hook = BeamHook(BeamRunnerType.DataflowRunner)
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
 
@@ -579,7 +575,7 @@ class DataflowHook(GoogleBaseHook):
             to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
             to wait for the required pipeline state.
             """,
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
 
@@ -679,7 +675,7 @@ class DataflowHook(GoogleBaseHook):
         if on_new_job_id_callback:
             warnings.warn(
                 "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             on_new_job_id_callback(job.get("id"))
@@ -770,7 +766,7 @@ class DataflowHook(GoogleBaseHook):
         if on_new_job_id_callback:
             warnings.warn(
                 "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             on_new_job_id_callback(job.get("id"))
@@ -844,7 +840,7 @@ class DataflowHook(GoogleBaseHook):
             to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
             to wait for the required pipeline state.
             """,
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
 
@@ -898,7 +894,7 @@ class DataflowHook(GoogleBaseHook):
         variables: dict | None = None,
     ) -> bool:
         """
-        Helper method to check if jos is still running in dataflow
+        Helper method to check if jos is still running in dataflow.
 
         :param name: The name of the job.
         :param project_id: Optional, the Google Cloud project ID in which to start a job.
@@ -910,7 +906,7 @@ class DataflowHook(GoogleBaseHook):
             warnings.warn(
                 "The variables parameter has been deprecated. You should pass location using "
                 "the location parameter.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )
         jobs_controller = _DataflowJobsController(
@@ -1039,7 +1035,7 @@ class DataflowHook(GoogleBaseHook):
         if on_new_job_id_callback:
             warnings.warn(
                 "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             on_new_job_id_callback(cast(str, job.get("id")))
@@ -1188,6 +1184,14 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
     """Async hook class for dataflow service."""
 
     sync_hook_class = DataflowHook
+
+    def __init__(self, **kwargs):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+        super().__init__(**kwargs)
 
     async def initialize_client(self, client_class):
         """

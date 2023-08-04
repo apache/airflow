@@ -35,7 +35,6 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 )
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
-TEST_DELEGATE_TO: str = "test-delegate-to"
 TEST_LOCATION: str = "europe-west-3b"
 TEST_ENTRY_ID: str = "test-entry-id"
 TEST_ENTRY: dict = {}
@@ -83,6 +82,10 @@ TEST_CREDENTIALS = mock.MagicMock()
 
 
 class TestCloudDataCatalog:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudDataCatalogHook(gcp_conn_id="test", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",

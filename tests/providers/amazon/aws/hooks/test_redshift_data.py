@@ -20,9 +20,10 @@ from __future__ import annotations
 import logging
 from unittest import mock
 
+import pytest
+
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 
-CONN_ID = "aws_conn_test"
 SQL = "sql"
 DATABASE = "database"
 STATEMENT_ID = "statement_id"
@@ -30,7 +31,7 @@ STATEMENT_ID = "statement_id"
 
 class TestRedshiftDataHook:
     def test_conn_attribute(self):
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
         assert hasattr(hook, "conn")
         assert hook.conn.__class__.__name__ == "RedshiftDataAPIService"
         conn = hook.conn
@@ -40,22 +41,50 @@ class TestRedshiftDataHook:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_execute_without_waiting(self, mock_conn):
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        cluster_identifier = "cluster_identifier"
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
         hook.execute_query(
             database=DATABASE,
+            cluster_identifier=cluster_identifier,
             sql=SQL,
             wait_for_completion=False,
         )
         mock_conn.execute_statement.assert_called_once_with(
             Database=DATABASE,
+            ClusterIdentifier=cluster_identifier,
             Sql=SQL,
             WithEvent=False,
         )
         mock_conn.describe_statement.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "cluster_identifier, workgroup_name",
+        [
+            (None, None),
+            ("some_cluster", "some_workgroup"),
+        ],
+    )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
-    def test_execute_with_all_parameters(self, mock_conn):
+    def test_execute_requires_either_cluster_identifier_or_workgroup_name(
+        self, mock_conn, cluster_identifier, workgroup_name
+    ):
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        cluster_identifier = "cluster_identifier"
+        workgroup_name = "workgroup_name"
+
+        with pytest.raises(ValueError):
+            hook = RedshiftDataHook()
+            hook.execute_query(
+                database=DATABASE,
+                cluster_identifier=cluster_identifier,
+                workgroup_name=workgroup_name,
+                sql=SQL,
+                wait_for_completion=False,
+            )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_execute_with_all_parameters_cluster_identifier(self, mock_conn):
         cluster_identifier = "cluster_identifier"
         db_user = "db_user"
         secret_arn = "secret_arn"
@@ -64,7 +93,7 @@ class TestRedshiftDataHook:
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
         hook.execute_query(
             sql=SQL,
             database=DATABASE,
@@ -90,6 +119,41 @@ class TestRedshiftDataHook:
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_execute_with_all_parameters_workgroup_name(self, mock_conn):
+        workgroup_name = "workgroup_name"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        parameters = [{"name": "id", "value": "1"}]
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+
+        hook = RedshiftDataHook()
+        hook.execute_query(
+            sql=SQL,
+            database=DATABASE,
+            workgroup_name=workgroup_name,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+            parameters=parameters,
+        )
+
+        mock_conn.execute_statement.assert_called_once_with(
+            Database=DATABASE,
+            Sql=SQL,
+            WorkgroupName=workgroup_name,
+            DbUser=db_user,
+            SecretArn=secret_arn,
+            StatementName=statement_name,
+            Parameters=parameters,
+            WithEvent=False,
+        )
+        mock_conn.describe_statement.assert_called_once_with(
+            Id=STATEMENT_ID,
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_batch_execute(self, mock_conn):
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
@@ -98,7 +162,7 @@ class TestRedshiftDataHook:
         secret_arn = "secret_arn"
         statement_name = "statement_name"
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
         hook.execute_query(
             cluster_identifier=cluster_identifier,
             database=DATABASE,
@@ -132,7 +196,7 @@ class TestRedshiftDataHook:
             "Records": [[{"stringValue": "string"}]],
         }
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
 
         hook.get_table_primary_key(
             table=table,
@@ -170,7 +234,7 @@ class TestRedshiftDataHook:
             },
         ]
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
 
         hook.get_table_primary_key(
             table=table,
@@ -198,7 +262,7 @@ class TestRedshiftDataHook:
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         mock_conn.describe_statement.return_value = {"Status": "FINISHED", "ResultRows": 123}
 
-        hook = RedshiftDataHook(aws_conn_id=CONN_ID, region_name="us-east-1")
+        hook = RedshiftDataHook()
         # https://docs.pytest.org/en/stable/how-to/logging.html
         with caplog.at_level(logging.INFO):
             hook.execute_query(

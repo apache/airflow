@@ -122,4 +122,4 @@ class CloudSpeechToTextRecognizeSpeechOperator(GoogleCloudBaseOperator):
         response = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )
-        return MessageToDict(response)
+        return MessageToDict(response._pb)

@@ -20,8 +20,13 @@ How-to Guide for Slack notifications
 
 Introduction
 ------------
-Slack notifier (:class:`airflow.providers.slack.notifications.slack_notifier.SlackNotifier`) allows users to send
+Slack notifier (:class:`airflow.providers.slack.notifications.slack.SlackNotifier`) allows users to send
 messages to a slack channel using the various ``on_*_callbacks`` at both the DAG level and Task level
+
+You can also use a notifier with ``sla_miss_callback``.
+
+.. note::
+    When notifiers are used with `sla_miss_callback` the context will contain only values passed to the callback, refer :ref:`sla_miss_callback<concepts:sla_miss_callback>`.
 
 Example Code:
 -------------
@@ -31,7 +36,7 @@ Example Code:
     from datetime import datetime
     from airflow import DAG
     from airflow.operators.bash import BashOperator
-    from airflow.providers.slack.notifications.slack_notifier import send_slack_notification
+    from airflow.providers.slack.notifications.slack import send_slack_notification
 
     with DAG(
         start_date=datetime(2023, 1, 1),

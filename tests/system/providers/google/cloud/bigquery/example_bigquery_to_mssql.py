@@ -35,7 +35,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 try:
     from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
 except ImportError:
-    pytest.skip("MySQL not available", allow_module_level=True)
+    pytest.skip("MsSQL not available", allow_module_level=True)
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -57,7 +57,7 @@ with models.DAG(
     bigquery_to_mssql = BigQueryToMsSqlOperator(
         task_id="bigquery_to_mssql",
         source_project_dataset_table=f"{PROJECT_ID}.{DATASET_NAME}.{TABLE}",
-        mssql_table=destination_table,
+        target_table_name=destination_table,
         replace=False,
     )
     # [END howto_operator_bigquery_to_mssql]

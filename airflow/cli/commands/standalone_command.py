@@ -35,6 +35,7 @@ from airflow.jobs.job import most_recent_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import db
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
 class StandaloneCommand:
@@ -56,6 +57,7 @@ class StandaloneCommand:
         self.ready_time = None
         self.ready_delay = 3
 
+    @providers_configuration_loaded
     def run(self):
         """Main run loop."""
         self.print_output("standalone", "Starting Airflow Standalone")
@@ -213,6 +215,7 @@ class StandaloneCommand:
     def is_ready(self):
         """
         Detects when all Airflow components are ready to serve.
+
         For now, it's simply time-based.
         """
         return (

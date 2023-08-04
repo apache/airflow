@@ -22,7 +22,7 @@ from unittest import mock
 from airflow.providers.google.marketing_platform.hooks.campaign_manager import GoogleCampaignManagerHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-API_VERSION = "v3.3"
+API_VERSION = "v4"
 GCP_CONN_ID = "google_cloud_default"
 
 REPORT_ID = "REPORT_ID"

@@ -55,7 +55,6 @@ WORKSPACE_ID = "test_workspace_id"
 WORKSPACE = f"projects/{PROJECT_ID}/locations/{REGION}/repositories/{REPOSITORY_ID}/workspaces/{WORKSPACE_ID}"
 COMPILATION_RESULT_ID = "test_compilation_result_id"
 GCP_CONN_ID = "google_cloud_default"
-DELEGATE_TO = "test-delegate-to"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 FILEPATH = "path/to/file.txt"
 FILE_CONTENT = b"test content"

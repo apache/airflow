@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import re
-import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import unquote, urlsplit
@@ -29,6 +28,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from airflow.providers.google.cloud.links.cloud_build import (
@@ -155,9 +155,6 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param retry: Designation of what errors, if any, should be retried.
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
@@ -179,9 +176,8 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        delegate_to: str | None = None,
         poll_interval: float = 4.0,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         location: str = "global",
         **kwargs,
     ) -> None:
@@ -196,11 +192,6 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.poll_interval = poll_interval
         self.deferrable = deferrable
         self.location = location
@@ -219,7 +210,6 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         hook = CloudBuildHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            delegate_to=self.delegate_to,
         )
         build = BuildProcessor(build=self.build).process_body()
 
@@ -244,7 +234,6 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
                     project_id=self.project_id,
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
-                    delegate_to=self.delegate_to,
                     poll_interval=self.poll_interval,
                     location=self.location,
                 ),
@@ -270,7 +259,6 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
             hook = CloudBuildHook(
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
-                delegate_to=self.delegate_to,
             )
             self.log.info("Cloud Build completed with response %s ", event["message"])
             project_id = self.project_id or hook.project_id
@@ -759,8 +747,7 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
 
 class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
     """
-    Creates a new build based on the specified build. This method creates a new build
-    using the original build request, which may or may not result in an identical build.
+    Creates a new build using the original build request, which may or may not result in an identical build.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1011,6 +998,7 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
 class BuildProcessor:
     """
     Processes build configurations to add additional functionality to support the use of operators.
+
     The following improvements are made:
     * It is required to provide the source and only one type can be given,
     * It is possible to provide the source as the URL address instead dict.
@@ -1057,7 +1045,7 @@ class BuildProcessor:
 
     def process_body(self) -> Build:
         """
-        Processes the body passed in the constructor
+        Processes the body passed in the constructor.
 
         :return: the body.
         """
@@ -1069,7 +1057,7 @@ class BuildProcessor:
     @staticmethod
     def _convert_repo_url_to_dict(source: str) -> dict[str, Any]:
         """
-        Convert url to repository in Google Cloud Source to a format supported by the API
+        Convert url to repository in Google Cloud Source to a format supported by the API.
 
         Example valid input:
 
@@ -1103,7 +1091,7 @@ class BuildProcessor:
     @staticmethod
     def _convert_storage_url_to_dict(storage_url: str) -> dict[str, Any]:
         """
-        Convert url to object in Google Cloud Storage to a format supported by the API
+        Convert url to object in Google Cloud Storage to a format supported by the API.
 
         Example valid input:
 

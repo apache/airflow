@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import os
 import time
+import uuid
 from datetime import datetime
 from typing import cast
 
@@ -53,19 +54,31 @@ ENCRYPTION_ENTITY_ID = int(os.environ.get("ENCRYPTION_ENTITY_ID", 12345))
 DEVICE_ID = os.environ.get("DEVICE_ID", "12345")
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 REPORT_NAME = f"report_{DAG_ID}_{ENV_ID}"
+FILE_NAME = f"file_{DAG_ID}_{ENV_ID}"
+ACCOUNT_ID = f"account_{DAG_ID}_{ENV_ID}"
+FORMAT = "CSV"
+
+# For more information, please check
+# https://developers.google.com/doubleclick-advertisers/rest/v4/reports#type
 REPORT = {
+    "kind": "dfareporting#report",
     "type": "STANDARD",
     "name": REPORT_NAME,
+    "fileName": FILE_NAME,
+    "accountId": ACCOUNT_ID,
+    "format": FORMAT,
     "criteria": {
         "dateRange": {
             "kind": "dfareporting#dateRange",
             "relativeDateRange": "LAST_365_DAYS",
         },
-        "dimensions": [{"kind": "dfareporting#sortedDimension", "name": "dfa:advertiser"}],
-        "metricNames": ["dfa:activeViewImpressionDistributionViewable"],
+        "dimensions": [{"kind": "dfareporting#sortedDimension", "name": "campaign"}],
+        "metricNames": ["activeViewImpressionDistributionViewable"],
     },
 }
 
+# For more information, please check
+# https://developers.google.com/doubleclick-advertisers/rest/v4/Conversion
 CONVERSION = {
     "kind": "dfareporting#conversion",
     "floodlightActivityId": FLOODLIGHT_ACTIVITY_ID,
@@ -129,12 +142,13 @@ with models.DAG(
     # [END howto_campaign_manager_wait_for_operation]
 
     # [START howto_campaign_manager_get_report_operator]
+    report_name = f"reports/report_{str(uuid.uuid1())}"
     get_report = GoogleCampaignManagerDownloadReportOperator(
         task_id="get_report",
         profile_id=PROFILE_ID,
         report_id=report_id,
         file_id=file_id,
-        report_name="test_report.csv",
+        report_name=report_name,
         bucket_name=BUCKET_NAME,
     )
     # [END howto_campaign_manager_get_report_operator]

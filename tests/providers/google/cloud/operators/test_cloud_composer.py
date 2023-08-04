@@ -37,7 +37,6 @@ TASK_ID = "task-id"
 TEST_GCP_REGION = "global"
 TEST_GCP_PROJECT = "test-project"
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
-TEST_DELEGATE_TO = None
 TEST_IMPERSONATION_CHAIN = None
 TEST_ENVIRONMENT_ID = "testenvname"
 TEST_ENVIRONMENT = {
@@ -83,7 +82,6 @@ class TestCloudComposerCreateEnvironmentOperator:
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            delegate_to=TEST_DELEGATE_TO,
         )
         mock_hook.return_value.create_environment.assert_called_once_with(
             project_id=TEST_GCP_PROJECT,
@@ -135,7 +133,6 @@ class TestCloudComposerDeleteEnvironmentOperator:
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            delegate_to=TEST_DELEGATE_TO,
         )
         mock_hook.return_value.delete_environment.assert_called_once_with(
             project_id=TEST_GCP_PROJECT,
@@ -187,7 +184,6 @@ class TestCloudComposerUpdateEnvironmentOperator:
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            delegate_to=TEST_DELEGATE_TO,
         )
         mock_hook.return_value.update_environment.assert_called_once_with(
             project_id=TEST_GCP_PROJECT,
@@ -243,7 +239,6 @@ class TestCloudComposerGetEnvironmentOperator:
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            delegate_to=TEST_DELEGATE_TO,
         )
         mock_hook.return_value.get_environment.assert_called_once_with(
             project_id=TEST_GCP_PROJECT,
@@ -271,7 +266,6 @@ class TestCloudComposerListEnvironmentsOperator:
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            delegate_to=TEST_DELEGATE_TO,
         )
         mock_hook.return_value.list_environments.assert_called_once_with(
             project_id=TEST_GCP_PROJECT,
@@ -300,7 +294,6 @@ class TestCloudComposerListImageVersionsOperator:
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            delegate_to=TEST_DELEGATE_TO,
         )
         mock_hook.return_value.list_image_versions.assert_called_once_with(
             project_id=TEST_GCP_PROJECT,

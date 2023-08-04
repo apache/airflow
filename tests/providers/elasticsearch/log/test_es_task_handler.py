@@ -29,8 +29,10 @@ from urllib.parse import quote
 import elasticsearch
 import pendulum
 import pytest
+from elasticsearch.exceptions import ElasticsearchException
 
 from airflow.configuration import conf
+from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler, getattr_nested
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -101,6 +103,27 @@ class TestElasticsearchTaskHandler:
 
     def teardown_method(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
+
+    def test_es_response(self):
+        sample_response = self.es.sample_log_response()
+        es_response = ElasticSearchResponse(self.es_task_handler, sample_response)
+        logs_by_host = self.es_task_handler._group_logs_by_host(es_response)
+
+        def concat_logs(lines):
+            log_range = (
+                (len(lines) - 1) if lines[-1].message == self.es_task_handler.end_of_log_mark else len(lines)
+            )
+            return "\n".join(self.es_task_handler._format_msg(lines[i]) for i in range(log_range))
+
+        for _, hosted_log in logs_by_host.items():
+            message = concat_logs(hosted_log)
+
+        assert (
+            message == "Dependencies all met for dep_context=non-requeueable"
+            " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
+            "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
+            "on 2023-07-09 07:47:32+00:00"
+        )
 
     def test_client(self):
         assert isinstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
@@ -341,13 +364,12 @@ class TestElasticsearchTaskHandler:
 
     def test_read_raises(self, ti):
         with mock.patch.object(self.es_task_handler.log, "exception") as mock_exception:
-            with mock.patch("elasticsearch_dsl.Search.execute") as mock_execute:
-                mock_execute.side_effect = Exception("Failed to read")
+            with mock.patch.object(self.es_task_handler.client, "search") as mock_execute:
+                mock_execute.side_effect = ElasticsearchException("Failed to read")
                 logs, metadatas = self.es_task_handler.read(ti, 1)
             assert mock_exception.call_count == 1
             args, kwargs = mock_exception.call_args
             assert "Could not read log with log_id:" in args[0]
-
         assert 1 == len(logs)
         assert len(logs) == len(metadatas)
         assert [[]] == logs

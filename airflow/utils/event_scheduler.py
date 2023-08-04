@@ -22,7 +22,7 @@ from typing import Callable
 
 
 class EventScheduler(scheduler):
-    """General purpose event scheduler"""
+    """General purpose event scheduler."""
 
     def call_regular_interval(
         self,
@@ -31,7 +31,7 @@ class EventScheduler(scheduler):
         arguments=(),
         kwargs={},
     ):
-        """Helper to call a function at (roughly) a given interval"""
+        """Helper to call a function at (roughly) a given interval."""
 
         def repeat(*args, **kwargs):
             action(*args, **kwargs)

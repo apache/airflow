@@ -54,6 +54,35 @@ These patterns can be adjusted by :ref:`config:logging__log_filename_template`.
 
 In addition, you can supply a remote location to store current logs and backups.
 
+Writing to task logs from your code
+-----------------------------------
+
+Airflow uses standard the Python `logging <https://docs.python.org/3/library/logging.html>`_ framework to
+write logs, and for the duration of a task, the root logger is configured to write to the task's log.
+
+Most operators will write logs to the task log automatically. This is because they
+have a ``log`` logger that you can use to write to the task log.
+This logger is created and configured by :class:`~airflow.utils.log.LoggingMixin` that all
+operators derive from. But also due to the root logger handling, any standard logger (using default settings) that
+propagates logging to the root will also write to the task log.
+
+So if you want to log to the task log from custom code of yours you can do any of the following:
+
+* Log with the ``self.log`` logger from BaseOperator
+* Use standard ``print`` statements to print to ``stdout`` (not recommended, but in some cases it can be useful)
+* Use the standard logger approach of creating a logger using the Python module name
+  and using it to write to the task log
+
+This is the usual way loggers are used directly in Python code:
+
+.. code-block:: python
+
+  import logging
+
+  logger = logging.getLogger(__name__)
+  logger.info("This is a log message")
+
+
 Interleaving of logs
 --------------------
 
@@ -72,65 +101,29 @@ the example below.
 .. code-block:: bash
 
     $ airflow info
-    ...
-    airflow on PATH: [True]
 
-    Executor: [SequentialExecutor]
-    Task Logging Handlers: [StackdriverTaskHandler]
-    SQL Alchemy Conn: [sqlite://///root/airflow/airflow.db]
-    DAGs Folder: [/root/airflow/dags]
-    Plugins Folder: [/root/airflow/plugins]
-    Base Log Folder: [/root/airflow/logs]
+    Apache Airflow
+    version                | 2.7.0.dev0
+    executor               | LocalExecutor
+    task_logging_handler   | airflow.utils.log.file_task_handler.FileTaskHandler
+    sql_alchemy_conn       | postgresql+psycopg2://postgres:airflow@postgres/airflow
+    dags_folder            | /files/dags
+    plugins_folder         | /root/airflow/plugins
+    base_log_folder        | /root/airflow/logs
+    remote_base_log_folder |
 
+    [skipping the remaining outputs for brevity]
+
+The output of ``airflow info`` above is truncated to only display the section that pertains to the logging configuration.
 You can also run ``airflow config list`` to check that the logging configuration options have valid values.
-
-.. _write-logs-advanced:
 
 Advanced configuration
 ----------------------
 
-Not all configuration options are available from the ``airflow.cfg`` file. Some configuration options require
-that the logging config class be overwritten. This can be done via the ``logging_config_class`` option
-in ``airflow.cfg`` file. This option should specify the import path to a configuration compatible with
-:func:`logging.config.dictConfig`. If your file is a standard import location, then you should set a :envvar:`PYTHONPATH` environment variable.
+You can configure :doc:`advanced features </administration-and-deployment/logging-monitoring/advanced-logging-configuration>`
+- including adding your own custom task log handlers (but also log handlers for all airflow components).
 
-Follow the steps below to enable custom logging config class:
-
-#. Start by setting environment variable to known directory e.g. ``~/airflow/``
-
-    .. code-block:: bash
-
-        export PYTHONPATH=~/airflow/
-
-#. Create a directory to store the config file e.g. ``~/airflow/config``
-#. Create file called ``~/airflow/config/log_config.py`` with following the contents:
-
-    .. code-block:: python
-
-      from copy import deepcopy
-      from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-
-      LOGGING_CONFIG = deepcopy(DEFAULT_LOGGING_CONFIG)
-
-#.  At the end of the file, add code to modify the default dictionary configuration.
-#. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
-
-    .. code-block:: ini
-
-        [logging]
-        remote_logging = True
-        logging_config_class = log_config.LOGGING_CONFIG
-
-#. Restart the application.
-
-See :doc:`../modules_management` for details on how Python and Airflow manage modules.
-
-External Links
---------------
-
-When using remote logging, you can configure Airflow to show a link to an external UI within the Airflow Web UI. Clicking the link redirects you to the external UI.
-
-Some external systems require specific configuration in Airflow for redirection to work but others do not.
+.. _serving-worker-trigger-logs:
 
 Serving logs from workers and triggerer
 ---------------------------------------
@@ -162,3 +155,10 @@ To accomplish this we have a few attributes that may be set on the handler, eith
 - ``trigger_should_queue``: Controls whether the triggerer should put a QueueListener between the event loop and the handler, to ensure blocking IO in the handler does not disrupt the event loop.
 - ``trigger_send_end_marker``: Controls whether an END signal should be sent to the logger when trigger completes. It is used to tell the wrapper to close and remove the individual file handler specific to the trigger that just completed.
 - ``trigger_supported``: If ``trigger_should_wrap`` and ``trigger_should_queue`` are not True, we generally assume that the handler does not support triggers.  But if in this case the handler has ``trigger_supported`` set to True, then we'll still move the handler to root at triggerer start so that it will process trigger messages.  Essentially, this should be true for handlers that "natively" support triggers. One such example of this is the StackdriverTaskHandler.
+
+External Links
+--------------
+
+When using remote logging, you can configure Airflow to show a link to an external UI within the Airflow Web UI. Clicking the link redirects you to the external UI.
+
+Some external systems require specific configuration in Airflow for redirection to work but others do not.

@@ -34,7 +34,6 @@ TEST_TASK_ID = "task_id"
 TEST_JOB_ID = "test_job_id"
 TEST_PROJECT_ID = "test_project"
 TEST_LOCATION = "us-central1"
-TEST_DELEGATE_TO = "test_delegate_to"
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
@@ -57,7 +56,6 @@ class TestDataflowJobStatusSensor:
             location=TEST_LOCATION,
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": current_status}
@@ -67,7 +65,6 @@ class TestDataflowJobStatusSensor:
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_get_job.assert_called_once_with(
@@ -84,7 +81,6 @@ class TestDataflowJobStatusSensor:
             location=TEST_LOCATION,
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
@@ -98,7 +94,6 @@ class TestDataflowJobStatusSensor:
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_get_job.assert_called_once_with(
@@ -129,7 +124,6 @@ class TestDataflowJobMetricsSensor:
             location=TEST_LOCATION,
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": job_current_state}
@@ -139,7 +133,6 @@ class TestDataflowJobMetricsSensor:
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_fetch_job_metrics_by_id.assert_called_once_with(
@@ -172,7 +165,6 @@ class DataflowJobMessagesSensorTest:
             location=TEST_LOCATION,
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": job_current_state}
@@ -183,7 +175,6 @@ class DataflowJobMessagesSensorTest:
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_fetch_job_messages_by_id.assert_called_once_with(
@@ -205,7 +196,6 @@ class DataflowJobMessagesSensorTest:
             location=TEST_LOCATION,
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
@@ -219,7 +209,6 @@ class DataflowJobMessagesSensorTest:
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_fetch_job_messages_by_id.assert_not_called()
@@ -249,7 +238,6 @@ class DataflowJobAutoScalingEventsSensorTest:
             location=TEST_LOCATION,
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": job_current_state}
@@ -260,7 +248,6 @@ class DataflowJobAutoScalingEventsSensorTest:
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_fetch_job_autoscaling_events_by_id.assert_called_once_with(
@@ -282,7 +269,6 @@ class DataflowJobAutoScalingEventsSensorTest:
             location=TEST_LOCATION,
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
@@ -296,7 +282,6 @@ class DataflowJobAutoScalingEventsSensorTest:
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=TEST_GCP_CONN_ID,
-            delegate_to=TEST_DELEGATE_TO,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
         )
         mock_fetch_job_autoscaling_events_by_id.assert_not_called()
