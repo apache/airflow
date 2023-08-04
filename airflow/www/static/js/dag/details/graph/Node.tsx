@@ -28,7 +28,7 @@ import { getGroupAndMapSummary, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
 import InstanceTooltip from "src/dag/InstanceTooltip";
 import { useContainerRef } from "src/context/containerRef";
-import { MdArrowUpward, MdArrowDownward } from "react-icons/md";
+import { ImArrowUpRight2, ImArrowDownRight2 } from "react-icons/im";
 
 export interface CustomNodeProps {
   label: string;
@@ -142,10 +142,10 @@ export const BaseNode = ({
                 {taskName}
               </Text>
               {setupTeardownType === "setup" && (
-                <MdArrowUpward size={18} color={colors.gray[800]} />
+                <ImArrowUpRight2 size={18} color={colors.gray[800]} />
               )}
               {setupTeardownType === "teardown" && (
-                <MdArrowDownward size={18} color={colors.gray[800]} />
+                <ImArrowDownRight2 size={18} color={colors.gray[800]} />
               )}
             </Flex>
             {!!instance && instance.state && (
