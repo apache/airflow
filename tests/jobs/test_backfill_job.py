@@ -2054,7 +2054,7 @@ class TestBackfillJob:
     def test_backfill_disable_retry(self, dag_maker, disable_retry, try_number, exception):
         with dag_maker(
             dag_id="test_disable_retry",
-            schedule_interval="@daily",
+            schedule="@daily",
             default_args={
                 "retries": 2,
                 "retry_delay": datetime.timedelta(seconds=3),
