@@ -27,6 +27,12 @@ def _is_disabled() -> bool:
     return (
         conf.getboolean("openlineage", "disabled")
         or os.getenv("OPENLINEAGE_DISABLED", "false").lower() == "true"
+        or (
+            conf.get("openlineage", "transport") == ""
+            and conf.get("openlineage", "config_path") == ""
+            and os.getenv("OPENLINEAGE_URL", "") == ""
+            and os.getenv("OPENLINEAGE_CONFIG", "") == ""
+        )
     )
 
 
@@ -39,8 +45,8 @@ class OpenLineageProviderPlugin(AirflowPlugin):
     """
 
     name = "OpenLineageProviderPlugin"
-    macros = [lineage_run_id, lineage_parent_id]
     if not _is_disabled():
         from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 
+        macros = [lineage_run_id, lineage_parent_id]
         listeners = [OpenLineageListener()]
