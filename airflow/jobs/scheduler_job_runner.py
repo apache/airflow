@@ -176,7 +176,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint("scheduler", "scheduler_zombie_task_threshold")
-        self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
+        self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor", fallback=True)
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
 
         # Since the functionality for stalled_task_timeout, task_adoption_timeout, and

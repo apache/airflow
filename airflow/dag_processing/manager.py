@@ -401,7 +401,7 @@ class DagFileProcessorManager(LoggingMixin):
         if self._async_mode and self._direct_scheduler_conn is not None:
             os.set_blocking(self._direct_scheduler_conn.fileno(), False)
 
-        self.standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
+        self.standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor", fallback=False)
         self._parallelism = conf.getint("scheduler", "parsing_processes")
         if (
             conf.get_mandatory_value("database", "sql_alchemy_conn").startswith("sqlite")
