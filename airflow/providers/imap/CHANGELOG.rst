@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+In case of IMAP SSL connection, the context now uses the "default" context
+
+The "default" context is Python's ``default_ssl_context`` instead of previously used "none". The
+``default_ssl_context`` provides a balance between security and compatibility but in some cases,
+when certificates are old, self-signed or misconfigured, it might not work. This can be configured
+by setting "ssl_context" in "imap" configuration of the provider. If it is not explicitly set,
+it will default to "email", "ssl_context" setting in Airflow.
+
+Setting it to "none" brings back the "none" setting that was used in previous versions of the provider,
+but it is not recommended due to security reasons and this setting disables validation
+of certificates and allows MITM attacks.
+
 3.2.2
 .....
 
