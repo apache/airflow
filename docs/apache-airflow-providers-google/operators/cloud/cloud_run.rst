@@ -26,7 +26,7 @@ Create a job
 ---------------------
 
 Before you create a job in Cloud Run, you need to define it.
-For more information about the Job object fields, visit `Google Cloud Run Job description <hhttps://cloud.google.com/run/docs/reference/rpc/google.cloud.run.v2#google.cloud.run.v2.Job>`__
+For more information about the Job object fields, visit `Google Cloud Run Job description <https://cloud.google.com/run/docs/reference/rpc/google.cloud.run.v2#google.cloud.run.v2.Job>`__
 
 A simple job configuration can look as follows:
 
