@@ -84,7 +84,11 @@ class ImapHook(BaseHook):
         if use_ssl:
             from airflow.configuration import conf
 
-            ssl_context_string = conf.get("imap", "SSL_CONTEXT", fallback=None)
+            extra_ssl_context = conn.extra_dejson.get("ssl_context", None)
+            if extra_ssl_context:
+                ssl_context_string = extra_ssl_context
+            else:
+                ssl_context_string = conf.get("imap", "SSL_CONTEXT", fallback=None)
             if ssl_context_string is None:
                 ssl_context_string = conf.get("email", "SSL_CONTEXT", fallback=None)
             if ssl_context_string is None:

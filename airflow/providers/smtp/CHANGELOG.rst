@@ -39,6 +39,8 @@ Setting it to "none" brings back the "none" setting that was used in previous ve
 but it is not recommended due to security reasons ad this setting disables validation
 of certificates and allows MITM attacks.
 
+You can also override "ssl_context" per-connection by setting "ssl_context" in the connection extra.
+
 1.2.0
 .....
 

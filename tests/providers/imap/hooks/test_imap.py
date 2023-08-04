@@ -116,6 +116,33 @@ class TestImapHook:
 
     @patch(imaplib_string)
     @patch("ssl.create_default_context")
+    def test_connect_and_disconnect_imap_ssl_context_from_extra(self, create_default_context, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib)
+        db.merge_conn(
+            Connection(
+                conn_id="imap_ssl_context_from_extra",
+                conn_type="imap",
+                host="imap_server_address",
+                login="imap_user",
+                password="imap_password",
+                port=1993,
+                extra=json.dumps(dict(use_ssl=True, ssl_context="default")),
+            )
+        )
+
+        with conf_vars({("imap", "ssl_context"): "none"}):
+            with ImapHook(imap_conn_id="imap_ssl_context_from_extra"):
+                pass
+
+        assert create_default_context.called
+        mock_imaplib.IMAP4_SSL.assert_called_once_with(
+            "imap_server_address", 1993, ssl_context=create_default_context.return_value
+        )
+        mock_conn.login.assert_called_once_with("imap_user", "imap_password")
+        assert mock_conn.logout.call_count == 1
+
+    @patch(imaplib_string)
+    @patch("ssl.create_default_context")
     def test_connect_and_disconnect_imap_ssl_context_default(self, create_default_context, mock_imaplib):
         mock_conn = _create_fake_imap(mock_imaplib)
 

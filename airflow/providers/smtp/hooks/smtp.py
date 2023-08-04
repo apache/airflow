@@ -112,7 +112,11 @@ class SmtpHook(BaseHook):
         if self.use_ssl:
             from airflow.configuration import conf
 
-            ssl_context_string = conf.get("smtp_provider", "SSL_CONTEXT", fallback=None)
+            extra_ssl_context = self.conn.extra_dejson.get("ssl_context", None)
+            if extra_ssl_context:
+                ssl_context_string = extra_ssl_context
+            else:
+                ssl_context_string = conf.get("smtp_provider", "SSL_CONTEXT", fallback=None)
             if ssl_context_string is None:
                 ssl_context_string = conf.get("email", "SSL_CONTEXT", fallback=None)
             if ssl_context_string is None:
