@@ -26,6 +26,9 @@
 Changelog
 ---------
 
+This release brings back mysql-connector-python as required dependency of the provider - since 8.1.0
+version has been released with Protobuf 4 support, removing dependency conflicts with other providers.
+
 5.2.0
 .....
 

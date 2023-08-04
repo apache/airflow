@@ -40,7 +40,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import backref, declared_attr, relationship
 
-from airflow.auth.managers.model.base_user import BaseUser
+from airflow.auth.managers.models.base_user import BaseUser
 from airflow.models.base import Base
 
 """
