@@ -26,7 +26,7 @@
 Changelog
 ---------
 
-In case of IMAP SSL connection, the default context now uses "default" context
+In case of IMAP SSL connection, the context now uses the "default" context
 
 The "default" context is Python's ``default_ssl_context`` instead of previously used "none". The
 ``default_ssl_context`` provides a balance between security and compatibility but in some cases,
