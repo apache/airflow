@@ -35,9 +35,8 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_update"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-CLUSTER_NAME = f"cluster-dataproc-update-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 REGION = "europe-west1"
-ZONE = "europe-west1-b"
 
 
 # Cluster definition
@@ -102,7 +101,14 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    create_cluster >> scale_cluster >> delete_cluster
+    (
+        # TEST SETUP
+        create_cluster
+        # TEST BODY
+        >> scale_cluster
+        # TEST TEARDOWN
+        >> delete_cluster
+    )
 
     from tests.system.utils.watcher import watcher
 

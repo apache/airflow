@@ -17,32 +17,26 @@
 # under the License.
 from __future__ import annotations
 
-from flask import current_app
-from flask_login import AnonymousUserMixin
+from abc import abstractmethod
 
 
-class AnonymousUser(AnonymousUserMixin):
-    """User object used when no active user is logged in."""
-
-    _roles: set[tuple[str, str]] = set()
-    _perms: set[tuple[str, str]] = set()
+class BaseUser:
+    """User model interface."""
 
     @property
-    def roles(self):
-        if not self._roles:
-            public_role = current_app.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
-            self._roles = {current_app.appbuilder.sm.find_role(public_role)} if public_role else set()
-        return self._roles
-
-    @roles.setter
-    def roles(self, roles):
-        self._roles = roles
-        self._perms = set()
+    def is_authenticated(self) -> bool:
+        return not self.is_anonymous
 
     @property
-    def perms(self):
-        if not self._perms:
-            self._perms = {
-                (perm.action.name, perm.resource.name) for role in self.roles for perm in role.permissions
-            }
-        return self._perms
+    @abstractmethod
+    def is_active(self) -> bool:
+        ...
+
+    @property
+    @abstractmethod
+    def is_anonymous(self) -> bool:
+        ...
+
+    @abstractmethod
+    def get_id(self) -> str:
+        ...

@@ -195,9 +195,9 @@ function wait_for_airflow_db() {
     run_check_with_retries "airflow db check"
 }
 
-function upgrade_db() {
-    # Runs airflow db upgrade
-    airflow db upgrade || true
+function migrate_db() {
+    # Runs airflow db migrate
+    airflow db migrate || true
 }
 
 function wait_for_celery_broker() {
@@ -283,8 +283,12 @@ if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
     wait_for_airflow_db
 fi
 
+if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] || [[ -n "${_AIRFLOW_DB_MIGRATE=}" ]] ; then
+    migrate_db
+fi
+
 if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] ; then
-    upgrade_db
+    >&2 echo "WARNING: Environment variable '_AIRFLOW_DB_UPGRADE' is deprecated please use '_AIRFLOW_DB_MIGRATE' instead"
 fi
 
 if [[ -n "${_AIRFLOW_WWW_USER_CREATE=}" ]] ; then

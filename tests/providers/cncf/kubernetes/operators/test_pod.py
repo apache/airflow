@@ -589,6 +589,23 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].image_pull_policy == "Always"
 
+    def test_termination_message_policy_correctly_set(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+            termination_message_policy="FallbackToLogsOnError",
+        )
+
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[0].termination_message_policy == "FallbackToLogsOnError"
+
+    def test_termination_message_policy_default_value_correctly_set(self):
+        k = KubernetesPodOperator(
+            task_id="task",
+        )
+
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[0].termination_message_policy == "File"
+
     @pytest.mark.parametrize(
         "task_kwargs, should_be_deleted",
         [
@@ -1707,3 +1724,11 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
 
     # assert that the cleanup is called
     post_complete_action.assert_called_once()
+
+
+def test_default_container_logs():
+    class TestSubclassKPO(KubernetesPodOperator):
+        BASE_CONTAINER_NAME = "test-base-container"
+
+    k = TestSubclassKPO(task_id="task")
+    assert k.container_logs == "test-base-container"

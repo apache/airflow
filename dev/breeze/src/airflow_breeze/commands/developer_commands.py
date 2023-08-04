@@ -357,6 +357,9 @@ def build_docs(
     package_filter: tuple[str],
     github_repository: str,
 ):
+    """
+    Build documents.
+    """
     perform_environment_checks()
     cleanup_python_generated_files()
     params = BuildCiParams(

@@ -124,6 +124,7 @@ class TestKubernetesPodOperatorSystem:
                         "envFrom": [],
                         "name": "base",
                         "ports": [],
+                        "terminationMessagePolicy": "File",
                         "volumeMounts": [],
                     }
                 ],
@@ -957,6 +958,7 @@ class TestKubernetesPodOperatorSystem:
                         "name": "base",
                         "ports": [],
                         "resources": {"limits": {"memory": "200Mi"}, "requests": {"memory": "100Mi"}},
+                        "terminationMessagePolicy": "File",
                         "volumeMounts": [{"mountPath": "/airflow/xcom", "name": "xcom"}],
                     },
                     {

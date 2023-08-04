@@ -589,16 +589,8 @@ class AirflowAppBuilder:
         return get_auth_manager().get_url_login(next_url=next_url)
 
     @property
-    def get_url_for_logout(self):
-        return url_for(f"{self.sm.auth_view.endpoint}.logout")
-
-    @property
     def get_url_for_index(self):
         return url_for(f"{self.indexview.endpoint}.{self.indexview.default_view}")
-
-    @property
-    def get_url_for_userinfo(self):
-        return url_for(f"{self.sm.user_view.endpoint}.userinfo")
 
     def get_url_for_locale(self, lang):
         return url_for(

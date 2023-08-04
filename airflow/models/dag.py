@@ -85,8 +85,8 @@ from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
     AirflowSkipException,
-    DagInvalidTriggerRule,
     DuplicateTaskIdFound,
+    FailStopDagInvalidTriggerRule,
     RemovedInAirflow3Warning,
     TaskNotFound,
 )
@@ -717,11 +717,7 @@ class DAG(LoggingMixin):
         :meta private:
         """
         for task in self.tasks:
-            if task.is_teardown and all(x.is_setup for x in task.upstream_list):
-                raise AirflowDagInconsistent(
-                    f"Dag has teardown task without an upstream work task: dag='{self.dag_id}',"
-                    f" task='{task.task_id}'"
-                )
+            FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -2520,7 +2516,7 @@ class DAG(LoggingMixin):
 
         :param task: the task you want to add
         """
-        DagInvalidTriggerRule.check(self, task.trigger_rule)
+        FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
         from airflow.utils.task_group import TaskGroupContext
 
@@ -2674,7 +2670,7 @@ class DAG(LoggingMixin):
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
         session: Session = NEW_SESSION,
-    ) -> None:
+    ) -> DagRun:
         """
         Execute one single DagRun for a given DAG and execution date.
 
@@ -2711,6 +2707,7 @@ class DAG(LoggingMixin):
             secrets_backend_list.insert(0, local_secrets)
 
         execution_date = execution_date or timezone.utcnow()
+        self.validate()
         self.log.debug("Clearing existing task instances for execution date %s", execution_date)
         self.clear(
             start_date=execution_date,
@@ -2738,19 +2735,17 @@ class DAG(LoggingMixin):
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == DagRunState.RUNNING:
             schedulable_tis, _ = dr.update_state(session=session)
-            try:
-                for ti in schedulable_tis:
+            for ti in schedulable_tis:
+                try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
                     _run_task(ti, session=session)
-            except Exception:
-                self.log.info(
-                    "Task failed. DAG will continue to run until finished and be marked as failed.",
-                    exc_info=True,
-                )
+                except Exception:
+                    self.log.exception("Task failed; ti=%s", ti)
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
+        return dr
 
     @provide_session
     def create_dagrun(

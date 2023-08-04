@@ -2054,7 +2054,7 @@ def make_group_other_inaccessible(file_path: str):
     except Exception as e:
         log.warning(
             "Could not change permissions of config file to be group/other inaccessible. "
-            "Continuing with original permissions:",
+            "Continuing with original permissions: %s",
             e,
         )
 

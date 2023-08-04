@@ -40,7 +40,7 @@ DAG_ID = "dataproc_cluster_generation"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-CLUSTER_NAME = f"dataproc-cluster-gen-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 REGION = "europe-west1"
 ZONE = "europe-west1-b"
 INIT_FILE_SRC = str(Path(__file__).parent / "resources" / "pip-install.sh")
@@ -64,8 +64,6 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
 ).make()
 
 # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
-
-TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
 
 
 with models.DAG(
@@ -110,7 +108,16 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    create_bucket >> upload_file >> create_dataproc_cluster >> [delete_cluster, delete_bucket]
+    (
+        # TEST SETUP
+        create_bucket
+        >> upload_file
+        >>
+        # TEST BODY
+        create_dataproc_cluster
+        # TEST TEARDOWN
+        >> [delete_cluster, delete_bucket]
+    )
 
     from tests.system.utils.watcher import watcher
 

@@ -31,11 +31,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.3.0
 .....
 
-Latest change: 2023-07-22
+Latest change: 2023-07-29
 
-=================================================================================================  ===========  ===================================================================
+=================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ===================================================================
+=================================================================================================  ===========  ===================================================================================
+`f31af91dbd <https://github.com/apache/airflow/commit/f31af91dbd8b98cc4ddb98bed8bbc086ab4b65c9>`_  2023-07-29   ``Raise original import error in CLI vending of executors (#32931)``
+`fcbbf47864 <https://github.com/apache/airflow/commit/fcbbf47864c251046de108aafdad394d66e1df23>`_  2023-07-29   ``[AIP-51] Executors vending CLI commands (#29055)``
+`e93460383f <https://github.com/apache/airflow/commit/e93460383f287f9b2af4b6bda3ea6ba17ba3c08b>`_  2023-07-26   ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+`2ac237b3eb <https://github.com/apache/airflow/commit/2ac237b3eba93ed0c5fa15bced690f42d7444897>`_  2023-07-24   ``Add pre-Airflow-2-7 hardcoded defaults for config for older providers  (#32775)``
 `56c41d460c <https://github.com/apache/airflow/commit/56c41d460c3f2a4e871c7834033c3152e71f71d2>`_  2023-07-22   ``Introduce decorator to load providers configuration (#32765)``
 `73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `ea0deaa993 <https://github.com/apache/airflow/commit/ea0deaa993674ad0e4ef777d687dc13809b0ec5d>`_  2023-07-16   ``Move default_celery.py to inside the provider (#32628)``
@@ -46,7 +50,7 @@ Commit                                                                          
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `8c37b74a20 <https://github.com/apache/airflow/commit/8c37b74a208a808d905c1b86d081d69d7a1aa900>`_  2023-06-28   ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
 `09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
-=================================================================================================  ===========  ===================================================================
+=================================================================================================  ===========  ===================================================================================
 
 3.2.1
 .....

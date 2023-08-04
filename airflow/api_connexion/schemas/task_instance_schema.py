@@ -108,7 +108,7 @@ class TaskInstanceBatchFormSchema(Schema):
     end_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
     duration_gte = fields.Int(load_default=None)
     duration_lte = fields.Int(load_default=None)
-    state = fields.List(fields.Str(), load_default=None)
+    state = fields.List(fields.Str(allow_none=True), load_default=None)
     pool = fields.List(fields.Str(), load_default=None)
     queue = fields.List(fields.Str(), load_default=None)
 
