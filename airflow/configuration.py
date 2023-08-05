@@ -960,6 +960,14 @@ class AirflowConfigParser(ConfigParser):
         deprecated_section: str | None
         deprecated_key: str | None
 
+        option_description = self.configuration_description.get(section, {}).get(key, {})
+        if option_description.get("deprecated"):
+            deprecation_reason = option_description.get("deprecation_reason", "")
+            warnings.warn(
+                f"The '{key}' option in section {section} is deprecated. {deprecation_reason}",
+                DeprecationWarning,
+                stacklevel=2 + _extra_stacklevel,
+            )
         # For when we rename whole sections
         if section in self.inversed_deprecated_sections:
             deprecated_section, deprecated_key = (section, key)
@@ -995,7 +1003,6 @@ class AirflowConfigParser(ConfigParser):
             deprecated_section, deprecated_key, _ = self.deprecated_options.get(
                 (section, key), (None, None, None)
             )
-
         # first check environment variables
         option = self._get_environment_variables(
             deprecated_key,

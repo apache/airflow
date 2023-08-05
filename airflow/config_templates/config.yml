@@ -591,10 +591,17 @@ database:
       default: ~
     load_default_connections:
       description: |
-        Whether to load the default connections that ship with Airflow. It's good to
-        get started, but you probably want to set this to ``False`` in a production
-        environment
+        Whether to load the default connections that ship with Airflow when ``airflow db init`` is called.
+        It's good to get started, but you probably want to set this to ``False`` in a production environment.
       version_added: 2.3.0
+      version_deprecated: 2.7.0
+      deprecation_reason: |
+        This option is only used by the deprecated "airflow db init" command.
+        This option has been used in previous versions of Airflow to determine if loading of the default
+        connections is done with the ``airflow db init`` command. This command has been deprecated and
+        replaced by two separate commands ``airflow db migrate`` and
+        ``airflow connections create-default-connections`` and ``load_default_connections`` is not
+        used anymore by those commands.
       type: string
       example: ~
       default: "True"
