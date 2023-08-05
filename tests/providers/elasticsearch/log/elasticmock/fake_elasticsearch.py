@@ -478,9 +478,6 @@ class FakeElasticsearch(Elasticsearch):
     def _validate_search_targets(self, targets, body):
         # TODO: support allow_no_indices query parameter
         matches = set()
-        print(
-            f"_validate_search_targets:::targets: {targets}, self.__documents_dict: {self.__documents_dict}"
-        )
         for target in targets:
             print(f"Loop over:::target = {target}")
             if target == "_all" or target == "":

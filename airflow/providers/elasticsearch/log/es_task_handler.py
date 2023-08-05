@@ -203,7 +203,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                          can be used for steaming log reading and auto-tailing.
         :return: a list of tuple with host and log documents, metadata.
         """
-        print(f"invoking _read with metadata: {metadata}, try_number: {try_number}")
         if not metadata:
             metadata = {"offset": 0}
         if "offset" not in metadata:
@@ -212,7 +211,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
         logs = self.es_read(log_id, offset, metadata)
-        print(f"after self.es_read()...logs: {logs}")
         logs_by_host = self._group_logs_by_host(logs)
         next_offset = offset if not logs else attrgetter(self.offset_field)(logs[-1])
         # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
