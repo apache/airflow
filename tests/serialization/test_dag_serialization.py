@@ -899,20 +899,21 @@ class TestStringifiedDAGs:
             Param("my value", description="hello"),
             Param(None, description=None),
             Param([True], type="array", items={"type": "boolean"}),
+            Param(),
         ],
     )
-    def test_full_param_roundtrip(self, param):
+    def test_full_param_roundtrip(self, param: Param):
         """
         Test to make sure that only native Param objects are being passed as dag or task params
         """
 
-        dag = DAG(dag_id="simple_dag", params={"my_param": param})
+        dag = DAG(dag_id="simple_dag", schedule=None, params={"my_param": param})
         serialized_json = SerializedDAG.to_json(dag)
         serialized = json.loads(serialized_json)
         SerializedDAG.validate_schema(serialized)
         dag = SerializedDAG.from_dict(serialized)
 
-        assert dag.params["my_param"] == param.value
+        assert dag.params.get_param("my_param").value == param.value
         observed_param = dag.params.get_param("my_param")
         assert isinstance(observed_param, Param)
         assert observed_param.description == param.description
