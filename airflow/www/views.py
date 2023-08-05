@@ -1391,7 +1391,7 @@ class Airflow(AirflowBaseView):
             "dag_owner_links",
             "is_paused",
         ]
-        attrs_to_avoid.extend(wwwutils.get_attr_renderer().keys())
+        attrs_to_avoid.extend(wwwutils.get_attr_renderer())
         dag_model_attrs: list[tuple[str, Any]] = [
             (attr_name, attr)
             for attr_name, attr in (
@@ -4677,7 +4677,7 @@ class ConnectionModelView(AirflowModelView):
                     # value isn't an empty string.
                     if value != "":
                         extra[field_name] = value
-        if extra.keys():
+        if extra:
             sensitive_unchanged_keys = set()
             for key, value in extra.items():
                 if value == SENSITIVE_FIELD_PLACEHOLDER:

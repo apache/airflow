@@ -473,13 +473,7 @@ class AirflowConfigParser(ConfigParser):
 
         :return: list of section names
         """
-        my_own_sections = self.sections()
-
-        all_sections_from_defaults = list(self.configuration_description.keys())
-        for section in my_own_sections:
-            if section not in all_sections_from_defaults:
-                all_sections_from_defaults.append(section)
-        return all_sections_from_defaults
+        return list(dict.fromkeys(self.configuration_description) | dict.fromkeys(self.sections()))
 
     def get_options_including_defaults(self, section: str) -> list[str]:
         """
@@ -489,13 +483,8 @@ class AirflowConfigParser(ConfigParser):
         :return: list of option names for the section given
         """
         my_own_options = self.options(section) if self.has_section(section) else []
-        all_options_from_defaults = list(
-            self.configuration_description.get(section, {}).get("options", {}).keys()
-        )
-        for option in my_own_options:
-            if option not in all_options_from_defaults:
-                all_options_from_defaults.append(option)
-        return all_options_from_defaults
+        all_options_from_defaults = list(self.configuration_description.get(section, {}).get("options", {}))
+        return list(dict.fromkeys(all_options_from_defaults) | dict.fromkeys(my_own_options))
 
     def optionxform(self, optionstr: str) -> str:
         """
@@ -1336,7 +1325,7 @@ class AirflowConfigParser(ConfigParser):
             _section.update(OrderedDict(self.items(section)))
 
         section_prefix = self._env_var_name(section, "")
-        for env_var in sorted(os.environ.keys()):
+        for env_var in sorted(os.environ):
             if env_var.startswith(section_prefix):
                 key = env_var.replace(section_prefix, "")
                 if key.endswith("_CMD"):

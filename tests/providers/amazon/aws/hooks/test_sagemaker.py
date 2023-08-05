@@ -721,8 +721,8 @@ class TestSageMakerHook:
         # check conversion to the weird format for passing parameters (list of tuples)
         assert len(args_passed["PipelineParameters"]) == 2
         for transformed_param in args_passed["PipelineParameters"]:
-            assert "Name" in transformed_param.keys()
-            assert "Value" in transformed_param.keys()
+            assert "Name" in transformed_param
+            assert "Value" in transformed_param
             # Name contains the key
             assert transformed_param["Name"] in params_dict.keys()
             # Value contains the value associated with the key in Name

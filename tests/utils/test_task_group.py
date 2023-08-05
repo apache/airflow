@@ -190,7 +190,7 @@ def test_build_task_group_context_manager():
 
     assert dag.task_group.group_id is None
     assert dag.task_group.is_root
-    assert set(dag.task_group.children.keys()) == {"task1", "group234", "task5"}
+    assert set(dag.task_group.children) == {"task1", "group234", "task5"}
     assert group34.group_id == "group234.group34"
 
     assert task_group_to_dict(dag.task_group) == EXPECTED_JSON
@@ -698,8 +698,8 @@ def test_build_task_group_deco_context_manager():
         sec_1.set_downstream(task_end())
 
     # Testing TaskGroup created using taskgroup decorator
-    assert set(dag.task_group.children.keys()) == {"task_start", "task_end", "section_1"}
-    assert set(dag.task_group.children["section_1"].children.keys()) == {
+    assert set(dag.task_group.children) == {"task_start", "task_end", "section_1"}
+    assert set(dag.task_group.children["section_1"].children) == {
         "section_1.task_1",
         "section_1.task_2",
         "section_1.section_2",
@@ -815,8 +815,8 @@ def test_build_task_group_with_operators():
         sec_1.set_downstream(t_end)
 
     # Testing Tasks in DAG
-    assert set(dag.task_group.children.keys()) == {"section_1", "task_start", "task_end"}
-    assert set(dag.task_group.children["section_1"].children.keys()) == {
+    assert set(dag.task_group.children) == {"section_1", "task_start", "task_end"}
+    assert set(dag.task_group.children["section_1"].children) == {
         "section_1.task_2",
         "section_1.task_3",
         "section_1.task_1",

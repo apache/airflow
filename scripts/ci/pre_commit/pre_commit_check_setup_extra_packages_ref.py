@@ -57,8 +57,8 @@ def get_file_content(*path_elements: str) -> str:
 def get_extras_from_setup() -> set[str]:
     """Returns a set of regular (non-deprecated) extras from setup."""
     return (
-        set(EXTRAS_DEPENDENCIES.keys())
-        - set(EXTRAS_DEPRECATED_ALIASES.keys())
+        set(EXTRAS_DEPENDENCIES)
+        - set(EXTRAS_DEPRECATED_ALIASES)
         - set(EXTRAS_DEPRECATED_ALIASES_IGNORED_FROM_REF_DOCS)
     )
 
@@ -165,7 +165,7 @@ def check_deprecated_extras(console: Console) -> bool:
     deprecated_extras_table.add_column("DEPRECATED_IN_DOCS", justify="right", style="cyan")
     deprecated_extras_table.add_column("TARGET_IN_DOCS", justify="center", style="magenta")
 
-    for extra in deprecated_setup_extras.keys():
+    for extra in deprecated_setup_extras:
         if extra not in deprecated_docs_extras:
             deprecated_extras_table.add_row(extra, deprecated_setup_extras[extra], "", "")
         elif deprecated_docs_extras[extra] != deprecated_setup_extras[extra]:
@@ -173,7 +173,7 @@ def check_deprecated_extras(console: Console) -> bool:
                 extra, deprecated_setup_extras[extra], extra, deprecated_docs_extras[extra]
             )
 
-    for extra in deprecated_docs_extras.keys():
+    for extra in deprecated_docs_extras:
         if extra not in deprecated_setup_extras:
             deprecated_extras_table.add_row("", "", extra, deprecated_docs_extras[extra])
 

@@ -152,7 +152,7 @@ def main():
         for error in errors:
             console.print(f"* [red]{error}[/]")
         sys.exit(1)
-    ids = list(hooks.keys())
+    ids = list(hooks)
     ids.append("all")
     ids.sort()
     prepare_pre_commit_ids_py_file(ids)

@@ -403,7 +403,7 @@ class TestDagProcessorJobRunner:
     ):
         """Test files are sorted by modified time"""
         paths_with_mtime = {"file_3.py": 3.0, "file_2.py": 2.0, "file_4.py": 5.0, "file_1.py": 4.0}
-        dag_files = list(paths_with_mtime.keys())
+        dag_files = list(paths_with_mtime)
         mock_getmtime.side_effect = list(paths_with_mtime.values())
         mock_find_path.return_value = dag_files
 
@@ -1252,7 +1252,7 @@ class TestDagProcessorJobRunner:
         assert manager.processor._file_path_queue == collections.deque(
             [dag2_req1.full_filepath, dag1_req1.full_filepath]
         )
-        assert set(manager.processor._callback_to_execute.keys()) == {
+        assert set(manager.processor._callback_to_execute) == {
             dag1_req1.full_filepath,
             dag2_req1.full_filepath,
         }

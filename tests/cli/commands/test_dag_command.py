@@ -503,10 +503,8 @@ class TestCliDags:
             dag_command.dag_details(args)
             out = temp_stdout.getvalue()
 
-        dag_detail_fields = DAGSchema().fields.keys()
-
         # Check if DAG Details field are present
-        for field in dag_detail_fields:
+        for field in DAGSchema().fields:
             assert field in out
 
         # Check if identifying values are present

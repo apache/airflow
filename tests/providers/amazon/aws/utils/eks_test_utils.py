@@ -202,7 +202,7 @@ def convert_keys(original: dict) -> dict:
     :param original: Dict which needs the keys converted.
     :value original: Dict
     """
-    if "nodegroup_name" in original.keys():
+    if "nodegroup_name" in original:
         conversion_map = {
             "cluster_name": "clusterName",
             "cluster_role_arn": "roleArn",
@@ -211,7 +211,7 @@ def convert_keys(original: dict) -> dict:
             "nodegroup_name": "nodegroupName",
             "nodegroup_role_arn": "nodeRole",
         }
-    elif "fargate_profile_name" in original.keys():
+    elif "fargate_profile_name" in original:
         conversion_map = {
             "cluster_name": "clusterName",
             "fargate_profile_name": "fargateProfileName",

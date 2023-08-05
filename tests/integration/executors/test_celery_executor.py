@@ -146,7 +146,7 @@ class TestCeleryExecutor:
 
                 executor._process_tasks(task_tuples_to_send)
 
-                assert list(executor.tasks.keys()) == [
+                assert list(executor.tasks) == [
                     ("success", "fake_simple_ti", execute_date, 0),
                     ("fail", "fake_simple_ti", execute_date, 0),
                 ]

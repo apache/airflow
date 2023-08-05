@@ -195,7 +195,7 @@ if __name__ == "__main__":
             console.print(f"[red] {error}")
         console.print(f"[bright_blue]Total: {len(errors)} errors.")
     unique_sorted_dependencies: dict[str, dict[str, list[str]]] = defaultdict(dict)
-    for key in sorted(ALL_DEPENDENCIES.keys()):
+    for key in sorted(ALL_DEPENDENCIES):
         unique_sorted_dependencies[key]["deps"] = sorted(ALL_DEPENDENCIES[key]["deps"])
         unique_sorted_dependencies[key]["cross-providers-deps"] = sorted(
             set(ALL_DEPENDENCIES[key]["cross-providers-deps"])

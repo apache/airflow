@@ -135,7 +135,7 @@ class DaskExecutor(BaseExecutor):
             assert self.client
             assert self.futures
 
-        self.client.cancel(list(self.futures.keys()))
+        self.client.cancel(list(self.futures))
         for future in as_completed(self.futures.copy()):
             self._process_future(future)
 

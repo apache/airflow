@@ -635,7 +635,7 @@ class TestKubernetesExecutor:
         executor.kube_config.multi_namespace_mode_namespace_list = multi_namespace_mode_namespace_list
         executor.start()
         try:
-            assert list(executor.kube_scheduler.kube_watchers.keys()) == watchers_keys
+            assert list(executor.kube_scheduler.kube_watchers) == watchers_keys
             assert all(
                 isinstance(v, KubernetesJobWatcher) for v in executor.kube_scheduler.kube_watchers.values()
             )

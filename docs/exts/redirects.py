@@ -34,7 +34,7 @@ def generate_redirects(app):
         log.info("Could not found the redirect file: %s", redirect_file_path)
         return
 
-    in_suffix = next(iter(app.config.source_suffix.keys()))
+    in_suffix = next(iter(app.config.source_suffix))
 
     if not isinstance(app.builder, builders.StandaloneHTMLBuilder):
         return

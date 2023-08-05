@@ -65,7 +65,7 @@ def generate_providers_metadata_for_package(
     last_airflow_version = "2.0.0"
     package_name = "apache-airflow-providers-" + provider_id.replace(".", "-")
     for provider_version in reversed(provider_yaml_dict["versions"]):
-        for airflow_version in constraints.keys():
+        for airflow_version in constraints:
             if constraints[airflow_version].get(package_name) == provider_version:
                 last_airflow_version = airflow_version
         date_released = get_tag_date(

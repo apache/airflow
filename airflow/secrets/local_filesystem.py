@@ -49,7 +49,7 @@ def get_connection_parameter_names() -> set[str]:
     """Returns :class:`airflow.models.connection.Connection` constructor parameters."""
     from airflow.models.connection import Connection
 
-    return {k for k in signature(Connection.__init__).parameters.keys() if k != "self"}
+    return {k for k in signature(Connection.__init__).parameters if k != "self"}
 
 
 def _parse_env_file(file_path: str) -> tuple[dict[str, list[str]], list[FileSyntaxError]]:
@@ -193,7 +193,7 @@ def _create_connection(conn_id: str, value: Any):
         return Connection(conn_id=conn_id, uri=value)
     if isinstance(value, dict):
         connection_parameter_names = get_connection_parameter_names() | {"extra_dejson"}
-        current_keys = set(value.keys())
+        current_keys = set(value)
         if not current_keys.issubset(connection_parameter_names):
             illegal_keys = current_keys - connection_parameter_names
             illegal_keys_list = ", ".join(illegal_keys)

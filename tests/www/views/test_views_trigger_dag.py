@@ -194,7 +194,7 @@ def test_trigger_dag_params_conf(admin_client, request_conf, expected_conf):
     else:
         test_request_conf = json.dumps(request_conf, indent=4)
         resp = admin_client.get(f"dags/{test_dag_id}/trigger?conf={test_request_conf}&doc_md={doc_md}")
-    for key in expected_conf.keys():
+    for key in expected_conf:
         check_content_in_response(key, resp)
         check_content_in_response(str(expected_conf[key]), resp)
 

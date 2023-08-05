@@ -50,7 +50,7 @@ class TestProviderManager:
     def test_providers_are_loaded(self):
         with self._caplog.at_level(logging.WARNING):
             provider_manager = ProvidersManager()
-            provider_list = list(provider_manager.providers.keys())
+            provider_list = list(provider_manager.providers)
             # No need to sort the list - it should be sorted alphabetically !
             for provider in provider_list:
                 package_name = provider_manager.providers[provider].data["package-name"]
@@ -189,7 +189,7 @@ class TestProviderManager:
         with pytest.warns(expected_warning=None) as warning_records:
             with self._caplog.at_level(logging.WARNING):
                 provider_manager = ProvidersManager()
-                connections_list = list(provider_manager.hooks.keys())
+                connections_list = list(provider_manager.hooks)
                 assert len(connections_list) > 60
         if len(self._caplog.records) != 0:
             for record in self._caplog.records:
@@ -214,7 +214,7 @@ class TestProviderManager:
 
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()
-        connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
+        connections_form_widgets = list(provider_manager.connection_form_widgets)
         assert len(connections_form_widgets) > 29
 
     @pytest.mark.parametrize(
@@ -304,7 +304,7 @@ class TestProviderManager:
             widgets={f: BooleanField(lazy_gettext("Dummy param")) for f in expected_field_names_order},
         )
         actual_field_names_order = tuple(
-            key for key in provider_manager.connection_form_widgets.keys() if key.startswith(field_prefix)
+            key for key in provider_manager.connection_form_widgets if key.startswith(field_prefix)
         )
         assert actual_field_names_order == expected_field_names_order, "Not keeping original fields order"
 
@@ -345,13 +345,13 @@ class TestProviderManager:
             },
         )
         actual_field_names_order = tuple(
-            key for key in provider_manager.connection_form_widgets.keys() if key.startswith(field_prefix)
+            key for key in provider_manager.connection_form_widgets if key.startswith(field_prefix)
         )
         assert actual_field_names_order == expected_field_names_order, "Not keeping original fields order"
 
     def test_field_behaviours(self):
         provider_manager = ProvidersManager()
-        connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
+        connections_with_field_behaviours = list(provider_manager.field_behaviours)
         assert len(connections_with_field_behaviours) > 16
 
     def test_extra_links(self):

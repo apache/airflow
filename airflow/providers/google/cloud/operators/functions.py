@@ -212,7 +212,7 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         )
 
     def _set_airflow_version_label(self) -> None:
-        if "labels" not in self.body.keys():
+        if "labels" not in self.body:
             self.body["labels"] = {}
         self.body["labels"].update({"airflow-version": "v" + version.replace(".", "-").replace("+", "-")})
 

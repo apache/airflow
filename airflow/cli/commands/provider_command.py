@@ -122,7 +122,7 @@ def connection_form_widget_list(args):
 def connection_field_behaviours(args):
     """Lists field behaviours."""
     AirflowConsole().print_as(
-        data=list(ProvidersManager().field_behaviours.keys()),
+        data=list(ProvidersManager().field_behaviours),
         output=args.output,
         mapper=lambda x: {
             "field_behaviours": x,

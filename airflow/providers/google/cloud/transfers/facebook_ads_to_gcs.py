@@ -132,7 +132,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             )
         elif isinstance(bulk_report, dict):
             converted_rows_with_action = self._generate_rows_with_action(True)
-            for account_id in bulk_report.keys():
+            for account_id in bulk_report:
                 rows = bulk_report.get(account_id, [])
                 if rows:
                     converted_rows_with_action = self._prepare_rows_for_upload(
@@ -206,7 +206,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
 
     def _flush_rows(self, converted_rows: list[Any] | None, object_name: str):
         if converted_rows:
-            headers = converted_rows[0].keys()
+            headers = list(converted_rows[0])
             with tempfile.NamedTemporaryFile("w", suffix=".csv") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=headers)
                 writer.writeheader()

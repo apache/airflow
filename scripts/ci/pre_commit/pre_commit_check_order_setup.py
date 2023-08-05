@@ -111,7 +111,7 @@ def check_variable_order(var_name: str) -> None:
     var = getattr(setup, var_name)
 
     if isinstance(var, dict):
-        _check_list_sorted(list(var.keys()), f"Order of dependencies in: {var_name}")
+        _check_list_sorted(list(var), f"Order of dependencies in: {var_name}")
     else:
         _check_list_sorted(var, f"Order of dependencies in: {var_name}")
 

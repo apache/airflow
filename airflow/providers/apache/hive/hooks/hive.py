@@ -707,15 +707,15 @@ class HiveMetastoreHook(BaseHook):
             return None
 
         # Assuming all specs have the same keys.
-        if partition_key not in part_specs[0].keys():
+        if partition_key not in part_specs[0]:
             raise AirflowException(f"Provided partition_key {partition_key} is not in part_specs.")
         is_subset = None
         if filter_map:
-            is_subset = set(filter_map.keys()).issubset(set(part_specs[0].keys()))
+            is_subset = set(filter_map).issubset(set(part_specs[0]))
         if filter_map and not is_subset:
             raise AirflowException(
-                f"Keys in provided filter_map {', '.join(filter_map.keys())} "
-                f"are not subset of part_spec keys: {', '.join(part_specs[0].keys())}"
+                f"Keys in provided filter_map {', '.join(filter_map)} "
+                f"are not subset of part_spec keys: {', '.join(part_specs[0])}"
             )
 
         candidates = [
@@ -765,7 +765,7 @@ class HiveMetastoreHook(BaseHook):
             elif field not in key_name_set:
                 raise AirflowException("Provided field is not a partition key.")
 
-            if filter_map and not set(filter_map.keys()).issubset(key_name_set):
+            if filter_map and not set(filter_map).issubset(key_name_set):
                 raise AirflowException("Provided filter_map contains keys that are not partition key.")
 
             part_names = client.get_partition_names(

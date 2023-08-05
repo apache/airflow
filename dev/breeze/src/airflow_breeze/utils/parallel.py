@@ -237,7 +237,7 @@ def get_multi_tuple_array(title: str, tuples: list[tuple[NamedTuple, ...]]) -> T
     first_tuple = tuples[0]
     keys: list[str] = []
     for named_tuple in first_tuple:
-        keys.extend(named_tuple._asdict().keys())
+        keys.extend(named_tuple._asdict())
     for key in keys:
         table.add_column(header=key, header_style="info")
     for t in tuples:

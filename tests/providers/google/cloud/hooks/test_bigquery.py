@@ -1075,7 +1075,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
             "view": view_patched,
             "requirePartitionFilter": require_partition_filter_patched,
         }
-        fields = list(body.keys())
+        fields = list(body)
         body["tableReference"] = TABLE_REFERENCE_REPR
 
         mock_table.from_api_repr.assert_called_once_with(body)
@@ -1966,7 +1966,7 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
             "requirePartitionFilter": require_partition_filter_patched,
         }
 
-        fields = list(body.keys())
+        fields = list(body)
 
         self.hook.update_table(
             table_resource=body,

@@ -593,7 +593,7 @@ class TestSlackWebhookHook:
 
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
-        assert list(SlackWebhookHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+        assert list(SlackWebhookHook.get_ui_field_behaviour()["placeholders"]) == [
             "schema",
             "host",
             "password",

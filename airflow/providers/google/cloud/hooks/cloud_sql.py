@@ -523,7 +523,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.log.info("Downloading cloud_sql_proxy from %s to %s", download_url, proxy_path_tmp)
         # httpx has a breaking API change (follow_redirects vs allow_redirects)
         # and this should work with both versions (cf. issue #20088)
-        if "follow_redirects" in signature(httpx.get).parameters.keys():
+        if "follow_redirects" in signature(httpx.get).parameters:
             response = httpx.get(download_url, follow_redirects=True)
         else:
             response = httpx.get(download_url, allow_redirects=True)  # type: ignore[call-arg]

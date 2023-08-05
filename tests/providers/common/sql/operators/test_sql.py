@@ -476,7 +476,7 @@ class TestTableCheckOperator:
         records = [("row_count_check", 1), ("column_sum_check", "y")]
         operator = self._construct_operator(monkeypatch, self.checks, records)
         operator.execute(context=MagicMock())
-        assert [operator.checks[check]["success"] is True for check in operator.checks.keys()]
+        assert [operator.checks[check]["success"] is True for check in operator.checks]
 
     def test_fail_all_checks_check(self, monkeypatch):
         records = [("row_count_check", 0), ("column_sum_check", "n")]

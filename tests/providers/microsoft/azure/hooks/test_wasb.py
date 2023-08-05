@@ -662,7 +662,7 @@ class TestWasbHook:
         Check that ensure_prefixes decorator working properly
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
-        assert list(WasbHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+        assert list(WasbHook.get_ui_field_behaviour()["placeholders"]) == [
             "login",
             "password",
             "host",

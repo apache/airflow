@@ -54,7 +54,7 @@ class TestExtraConfigMapsSecrets:
             ("ConfigMap", f"{RELEASE_NAME}-airflow-variables"),
             ("ConfigMap", f"{RELEASE_NAME}-other-variables"),
         ]
-        assert set(k8s_objects_by_key.keys()) == set(all_expected_keys)
+        assert set(k8s_objects_by_key) == set(all_expected_keys)
 
         all_expected_data = [
             {"AIRFLOW_VAR_HELLO_MESSAGE": "Hi!", "AIRFLOW_VAR_KUBERNETES_NAMESPACE": "default"},
@@ -101,7 +101,7 @@ class TestExtraConfigMapsSecrets:
             ("Secret", f"{RELEASE_NAME}-other-secrets"),
             ("Secret", f"{RELEASE_NAME}-other-secrets-with-type"),
         ]
-        assert set(k8s_objects_by_key.keys()) == set(all_expected_keys)
+        assert set(k8s_objects_by_key) == set(all_expected_keys)
 
         all_expected_data = [
             {"AIRFLOW_CON_AWS": b64encode(b"aws_connection_string").decode("utf-8")},

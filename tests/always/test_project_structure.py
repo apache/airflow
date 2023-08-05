@@ -186,7 +186,7 @@ class ExampleCoverageTest(ProjectStructureTest):
         """
         classes = self.list_of_classes()
         assert 0 != len(classes), "Failed to retrieve operators, override class_paths if needed"
-        classes = set(classes.keys())
+        classes = set(classes)
         for example in self.example_paths():
             classes -= get_imports_from_file(example)
 

@@ -72,7 +72,7 @@ class TestAzureContainerVolumeHook:
 
         Note: remove this test and the _ensure_prefixes decorator after min airflow version >= 2.5.0
         """
-        assert list(AzureContainerVolumeHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+        assert list(AzureContainerVolumeHook.get_ui_field_behaviour()["placeholders"]) == [
             "login",
             "password",
             "extra__azure_container_volume__connection_string",

@@ -240,7 +240,7 @@ class DecoratedOperator(BaseOperator):
         if not self.multiple_outputs or return_value is None:
             return return_value
         if isinstance(return_value, dict):
-            for key in return_value.keys():
+            for key in return_value:
                 if not isinstance(key, str):
                     raise AirflowException(
                         "Returned dictionary keys must be strings when using "

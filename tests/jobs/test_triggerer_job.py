@@ -237,7 +237,7 @@ def test_trigger_lifecycle(session):
         # Wait for up to 3 seconds for it to appear in the TriggerRunner's storage
         for _ in range(30):
             if job_runner.trigger_runner.triggers:
-                assert list(job_runner.trigger_runner.triggers.keys()) == [1]
+                assert list(job_runner.trigger_runner.triggers) == [1]
                 break
             time.sleep(0.1)
         else:

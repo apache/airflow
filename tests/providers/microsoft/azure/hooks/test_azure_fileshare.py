@@ -252,7 +252,7 @@ class TestAzureFileshareHook:
 
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
-        assert list(AzureFileShareHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+        assert list(AzureFileShareHook.get_ui_field_behaviour()["placeholders"]) == [
             "login",
             "password",
             "extra__azure_fileshare__sas_token",

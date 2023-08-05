@@ -659,7 +659,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
-        if source_format in src_fmt_to_param_mapping.keys():
+        if source_format in src_fmt_to_param_mapping:
             valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[source_format]]
             src_fmt_configs = _validate_src_fmt_configs(
                 source_format, src_fmt_configs, valid_configs, backward_compatibility_configs
@@ -723,7 +723,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param fields: The fields of ``table`` to change, spelled as the Table
             properties (e.g. "friendly_name").
         """
-        fields = fields or list(table_resource.keys())
+        fields = fields or list(table_resource)
         table_resource = self._resolve_table_reference(
             table_resource=table_resource, project_id=project_id, dataset_id=dataset_id, table_id=table_id
         )
@@ -833,7 +833,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         self.update_table(
             table_resource=table_resource,
-            fields=list(table_resource.keys()),
+            fields=list(table_resource),
             project_id=project_id,
             dataset_id=dataset_id,
             table_id=table_id,
@@ -3265,7 +3265,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             "relative_diff": lambda cur, ref: abs(cur - ref) / ref,
         }
 
-        metrics_sorted = sorted(metrics_thresholds.keys())
+        metrics_sorted = sorted(metrics_thresholds)
 
         current = dict(zip(metrics_sorted, row1))
         reference = dict(zip(metrics_sorted, row2))

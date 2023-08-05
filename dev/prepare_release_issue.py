@@ -212,7 +212,7 @@ def print_issue_content(
     if is_helm_chart:
         link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
         link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
-    pr_list = list(pull_requests.keys())
+    pr_list = list(pull_requests)
     pr_list.sort()
     user_logins: dict[int, str] = {pr: "@" + " @".join(users[pr]) for pr in users}
     all_users: set[str] = set()

@@ -85,7 +85,7 @@ class TestBatchWaiters:
         assert config["version"] == 2
         assert isinstance(config["waiters"], dict)
 
-        waiters = sorted(config["waiters"].keys())
+        waiters = sorted(config["waiters"])
         assert waiters == ["JobComplete", "JobExists", "JobRunning"]
 
     def test_list_waiters(self):
@@ -93,7 +93,7 @@ class TestBatchWaiters:
         config = self.batch_waiters.waiter_config
 
         assert isinstance(config["waiters"], dict)
-        waiters = sorted(config["waiters"].keys())
+        waiters = sorted(config["waiters"])
         assert waiters == ["JobComplete", "JobExists", "JobRunning"]
         assert waiters == self.batch_waiters.list_waiters()
 

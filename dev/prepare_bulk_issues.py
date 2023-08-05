@@ -201,7 +201,7 @@ def prepare_bulk_issues(
             if index == 0:
                 continue
             issues[row[0]].append(row)
-    names = sorted(issues.keys())[start_from:]
+    names = sorted(issues)[start_from:]
     total_issues = len(names)
     processed_issues = 0
     if dry_run:

@@ -1130,7 +1130,7 @@ def generate_issue_content_providers(
         pr_list: list[PullRequest.PullRequest | Issue.Issue]
 
     if not packages:
-        packages = list(DEPENDENCIES.keys())
+        packages = list(DEPENDENCIES)
     with ci_group("Generates GitHub issue content with people who can test it"):
         if excluded_pr_list:
             excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
@@ -1270,7 +1270,7 @@ def generate_providers_metadata(refresh_constraints: bool, python: str | None):
         python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     get_all_constraint_files(refresh_constraints=refresh_constraints, python_version=python)
     constraints = load_constraints(python_version=python)
-    for package_id in DEPENDENCIES.keys():
+    for package_id in DEPENDENCIES:
         with ci_group(f"Generating metadata for {package_id}"):
             metadata = generate_providers_metadata_for_package(package_id, constraints)
             if metadata:

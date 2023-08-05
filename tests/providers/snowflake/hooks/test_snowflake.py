@@ -607,7 +607,7 @@ class TestPytestSnowflakeHook:
 
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
-        assert list(SnowflakeHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+        assert list(SnowflakeHook.get_ui_field_behaviour()["placeholders"]) == [
             "extra",
             "schema",
             "login",

@@ -369,7 +369,7 @@ labels.try_number="3"'''
         assert "https" == parsed_url.scheme
         assert "console.cloud.google.com" == parsed_url.netloc
         assert "/logs/viewer" == parsed_url.path
-        assert {"project", "interval", "resource", "advancedFilter"} == set(parsed_qs.keys())
+        assert {"project", "interval", "resource", "advancedFilter"} == set(parsed_qs)
         assert "global" in parsed_qs["resource"]
 
         filter_params = parsed_qs["advancedFilter"][0].split("\n")

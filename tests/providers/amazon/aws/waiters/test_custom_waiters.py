@@ -80,7 +80,7 @@ class TestCustomEKSServiceWaiters:
         with open(hook.waiter_path) as config_file:
             expected_waiters = json.load(config_file)["waiters"]
 
-        for waiter in list(expected_waiters.keys()):
+        for waiter in expected_waiters:
             assert waiter in hook.list_waiters()
             assert waiter in hook._list_custom_waiters()
 

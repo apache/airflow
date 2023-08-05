@@ -180,7 +180,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
         refreshed_tis = []
         TI = TaskInstance
 
-        ti_primary_key_to_ti_key = {ti_key.primary: ti_key for ti_key in ti_status.running.keys()}
+        ti_primary_key_to_ti_key = {ti_key.primary: ti_key for ti_key in ti_status.running}
 
         filter_for_tis = TI.filter_for_tis(list(ti_status.running.values()))
         if filter_for_tis is not None:

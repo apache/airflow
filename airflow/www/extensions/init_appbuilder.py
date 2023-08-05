@@ -250,7 +250,7 @@ class AirflowAppBuilder:
             # instantiate the views and add session
             self._check_and_init(baseview)
             # Register the views has blueprints
-            if baseview.__class__.__name__ not in self.get_app.blueprints.keys():
+            if baseview.__class__.__name__ not in self.get_app.blueprints:
                 self.register_blueprint(baseview)
             # Add missing permissions where needed
         self.add_permissions()

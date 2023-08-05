@@ -466,7 +466,7 @@ class TestSlackHook:
 
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
-        assert list(SlackHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+        assert list(SlackHook.get_ui_field_behaviour()["placeholders"]) == [
             "password",
             "extra__slack__timeout",
             "extra__slack__base_url",

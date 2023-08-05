@@ -280,7 +280,7 @@ def get_command_hash_export() -> str:
         hashes.append(f"main:{dict_hash(the_context_dict['command']['params'])}")
         commands_dict = the_context_dict["command"]["commands"]
         options = rich_click.rich_click.OPTION_GROUPS
-        for command in sorted(commands_dict.keys()):
+        for command in sorted(commands_dict):
             current_command_dict = commands_dict[command]
             current_command_hash_dict = {
                 "command": current_command_dict,
@@ -288,7 +288,7 @@ def get_command_hash_export() -> str:
             }
             if "commands" in current_command_dict:
                 subcommands = current_command_dict["commands"]
-                for subcommand in sorted(subcommands.keys()):
+                for subcommand in sorted(subcommands):
                     subcommand_click_dict = subcommands[subcommand]
                     try:
                         subcommand_rich_click_dict = options[f"breeze {command} {subcommand}"]
@@ -441,7 +441,7 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
     commands_list = list(commands)
     if force:
         console.print("[info]Force regeneration all breeze command images")
-        commands_list.extend(get_command_hash_dict(new_hash_text_dump).keys())
+        commands_list.extend(get_command_hash_dict(new_hash_text_dump))
         regenerate_all_commands = True
     elif commands_list:
         console.print(f"[info]Regenerating breeze command images for specified commands:{commands_list}")
@@ -588,13 +588,13 @@ def check_that_all_params_are_in_groups(commands: tuple[str, ...]) -> int:
     if commands:
         commands_list = list(commands)
     else:
-        commands_list = commands_dict.keys()
+        commands_list = list(commands_dict)
     errors_detected = False
     for command in commands_list:
         current_command_dict = commands_dict[command]
         if "commands" in current_command_dict:
             subcommands = current_command_dict["commands"]
-            for subcommand in sorted(subcommands.keys()):
+            for subcommand in sorted(subcommands):
                 if errors_detected_in_params(command, subcommand, subcommands[subcommand]):
                     errors_detected = True
         else:

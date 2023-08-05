@@ -144,7 +144,7 @@ class TestAzureDataLakeHook:
 
         Note: remove this test and the _ensure_prefixes decorator after min airflow version >= 2.5.0
         """
-        assert list(AzureDataLakeHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+        assert list(AzureDataLakeHook.get_ui_field_behaviour()["placeholders"]) == [
             "login",
             "password",
             "extra__azure_data_lake__tenant",

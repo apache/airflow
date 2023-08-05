@@ -390,7 +390,7 @@ class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
 
     def _compare_column_families(self, hook, instance) -> bool:
         table_column_families = hook.get_column_families_for_table(instance, self.table_id)
-        if set(table_column_families.keys()) != set(self.column_families.keys()):
+        if set(table_column_families) != set(self.column_families):
             self.log.error("Table '%s' has different set of Column Families", self.table_id)
             self.log.error("Expected: %s", self.column_families.keys())
             self.log.error("Actual: %s", table_column_families.keys())

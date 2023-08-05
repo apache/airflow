@@ -563,7 +563,7 @@ elif PACKAGE_NAME == "helm-chart":
         ordered_sections.append({"name": name, "params": sections.pop(name)})
 
     if sections:
-        raise ValueError(f"Found section(s) which were not in `section_order`: {list(sections.keys())}")
+        raise ValueError(f"Found section(s) which were not in `section_order`: {list(sections)}")
 
     jinja_contexts = {
         "params_ctx": {"sections": ordered_sections},

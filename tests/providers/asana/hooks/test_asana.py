@@ -245,7 +245,7 @@ class TestAsanaHook:
 
         Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
         """
-        assert list(AsanaHook.get_ui_field_behaviour()["placeholders"].keys()) == [
+        assert list(AsanaHook.get_ui_field_behaviour()["placeholders"]) == [
             "password",
             "extra__asana__workspace",
             "extra__asana__project",

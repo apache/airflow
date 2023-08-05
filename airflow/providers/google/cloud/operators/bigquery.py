@@ -2362,7 +2362,7 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        fields = self.fields or list(self.dataset_resource.keys())
+        fields = self.fields or list(self.dataset_resource)
 
         dataset = bq_hook.update_dataset(
             dataset_resource=self.dataset_resource,

@@ -678,7 +678,7 @@ class DagFileProcessor(LoggingMixin):
         self._validate_task_pools(dagbag=dagbag)
 
         stored_warnings = set(
-            session.query(DagWarning).filter(DagWarning.dag_id.in_(dagbag.dags.keys())).all()
+            session.query(DagWarning).filter(DagWarning.dag_id.in_(dagbag.dags)).all()
         )
 
         for warning_to_delete in stored_warnings - self.dag_warnings:

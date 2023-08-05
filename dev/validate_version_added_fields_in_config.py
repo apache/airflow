@@ -48,7 +48,7 @@ CONFIG_TEMPLATE_FORMAT_UPDATE = "2.6.0"
 def fetch_pypi_versions() -> list[str]:
     r = requests.get("https://pypi.org/pypi/apache-airflow/json")
     r.raise_for_status()
-    all_version = r.json()["releases"].keys()
+    all_version = r.json()["releases"]
     released_versions = [d for d in all_version if not (("rc" in d) or ("b" in d))]
     return released_versions
 

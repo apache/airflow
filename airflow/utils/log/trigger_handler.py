@@ -115,7 +115,7 @@ class TriggererHandlerWrapper(logging.Handler):
             h.flush()
 
     def close(self):
-        for trigger_id in list(self.handlers.keys()):
+        for trigger_id in list(self.handlers):
             h = self.handlers[trigger_id]
             h.close()
             del self.handlers[trigger_id]

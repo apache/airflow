@@ -35,7 +35,7 @@ class TestChartQuality:
         # Add extra restrictions just for the tests to make sure
         # we don't forget to update the schema if we add a new property
         schema["additionalProperties"] = False
-        schema["minProperties"] = len(schema["properties"].keys())
+        schema["minProperties"] = len(schema["properties"])
 
         # shouldn't raise
         validate(instance=values, schema=schema)

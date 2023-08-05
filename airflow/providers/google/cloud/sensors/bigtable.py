@@ -107,7 +107,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         ready_state = ClusterState(enums.Table.ReplicationState.READY)
 
         is_table_replicated = True
-        for cluster_id in cluster_states.keys():
+        for cluster_id in cluster_states:
             if cluster_states[cluster_id] != ready_state:
                 self.log.info("Table '%s' is not yet replicated on cluster '%s'.", self.table_id, cluster_id)
                 is_table_replicated = False

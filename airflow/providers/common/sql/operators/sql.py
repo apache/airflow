@@ -935,7 +935,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         self.ignore_zero = ignore_zero
         self.table = table
         self.metrics_thresholds = metrics_thresholds
-        self.metrics_sorted = sorted(metrics_thresholds.keys())
+        self.metrics_sorted = sorted(metrics_thresholds)
         self.date_filter_column = date_filter_column
         self.days_back = -abs(days_back)
         sqlexp = ", ".join(self.metrics_sorted)

@@ -469,7 +469,7 @@ def import_local_settings():
         if hasattr(airflow_local_settings, "__all__"):
             names = list(airflow_local_settings.__all__)
         else:
-            names = list(filter(lambda n: not n.startswith("__"), airflow_local_settings.__dict__.keys()))
+            names = list(filter(lambda n: not n.startswith("__"), airflow_local_settings.__dict__))
 
         if "policy" in names and "task_policy" not in names:
             warnings.warn(

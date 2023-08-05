@@ -78,7 +78,7 @@ class MsSqlHook(DbApiHook):
         r[0] = self.sqlalchemy_scheme
         # remove query string 'sqlalchemy_scheme' like parameters:
         qs = parse_qs(r[3], keep_blank_values=True)
-        for k in list(qs.keys()):
+        for k in list(qs):
             if k.lower() == "sqlalchemy_scheme":
                 qs.pop(k, None)
         r[3] = urlencode(qs, doseq=True)

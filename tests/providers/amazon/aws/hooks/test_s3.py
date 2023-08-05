@@ -1072,7 +1072,7 @@ class TestAwsS3Hook:
         url = presigned_url.split("?")[1]
         params = {x[0]: x[1] for x in [x.split("=") for x in url[0:].split("&")]}
 
-        assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))
+        assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params))
 
     def test_should_throw_error_if_extra_args_is_not_dict(self):
         with pytest.raises(TypeError, match="extra_args expected dict, got .*"):

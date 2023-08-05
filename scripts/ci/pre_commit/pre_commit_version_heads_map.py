@@ -44,7 +44,7 @@ def read_revision_heads_map():
 
     revision_heads_map = ast.literal_eval(revision_heads_map_ast.value)
 
-    return revision_heads_map.keys()
+    return list(revision_heads_map)
 
 
 if __name__ == "__main__":

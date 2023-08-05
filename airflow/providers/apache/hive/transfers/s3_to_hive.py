@@ -241,7 +241,7 @@ class S3ToHiveOperator(BaseOperator):
     def _match_headers(self, header_list):
         if not header_list:
             raise AirflowException("Unable to retrieve header row from file")
-        field_names = self.field_dict.keys()
+        field_names = list(self.field_dict)
         if len(field_names) != len(header_list):
             self.log.warning(
                 "Headers count mismatch File headers:\n %s\nField names: \n %s\n", header_list, field_names

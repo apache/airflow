@@ -73,14 +73,14 @@ class TestRedis:
             redis_password_in_password_secret = self.get_redis_password_in_password_secret(k8s_obj_by_key)
             assert re.search(expected_password_match, redis_password_in_password_secret)
         else:
-            assert REDIS_OBJECTS["SECRET_PASSWORD"] not in k8s_obj_by_key.keys()
+            assert REDIS_OBJECTS["SECRET_PASSWORD"] not in k8s_obj_by_key
 
         if expected_broker_url_match is not None:
             # assert redis broker url in secret
             broker_url_in_broker_url_secret = self.get_broker_url_in_broker_url_secret(k8s_obj_by_key)
             assert re.search(expected_broker_url_match, broker_url_in_broker_url_secret)
         else:
-            assert REDIS_OBJECTS["SECRET_BROKER_URL"] not in k8s_obj_by_key.keys()
+            assert REDIS_OBJECTS["SECRET_BROKER_URL"] not in k8s_obj_by_key
 
     def assert_broker_url_env(
         self, k8s_obj_by_key, expected_broker_url_secret_name=REDIS_OBJECTS["SECRET_BROKER_URL"][1]
@@ -106,7 +106,7 @@ class TestRedis:
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key)
         assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS
 
         self.assert_password_and_broker_url_secrets(
@@ -129,7 +129,7 @@ class TestRedis:
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key)
         assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS
 
         self.assert_password_and_broker_url_secrets(
@@ -173,7 +173,7 @@ class TestRedis:
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key)
         assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS - {
             REDIS_OBJECTS["SECRET_PASSWORD"],
             REDIS_OBJECTS["SECRET_BROKER_URL"],
@@ -200,7 +200,7 @@ class TestRedis:
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key)
         assert created_redis_objects == {REDIS_OBJECTS["SECRET_BROKER_URL"]}
 
         self.assert_password_and_broker_url_secrets(
@@ -225,7 +225,7 @@ class TestRedis:
         )
         k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
 
-        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key)
         assert created_redis_objects == set()
 
         self.assert_password_and_broker_url_secrets(

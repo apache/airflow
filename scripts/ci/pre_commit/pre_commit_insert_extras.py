@@ -57,8 +57,8 @@ if __name__ == "__main__":
     global_constants_file_path = (
         AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
     )
-    extras_list = wrap(", ".join(EXTRAS_DEPENDENCIES.keys()), 100)
+    extras_list = wrap(", ".join(EXTRAS_DEPENDENCIES), 100)
     extras_list = [line + "\n" for line in extras_list]
-    extras_code = [f"    {extra}\n" for extra in EXTRAS_DEPENDENCIES.keys()]
+    extras_code = [f"    {extra}\n" for extra in EXTRAS_DEPENDENCIES]
     insert_documentation(install_file_path, extras_list, INSTALL_HEADER, INSTALL_FOOTER)
     insert_documentation(contributing_file_path, extras_list, RST_HEADER, RST_FOOTER)

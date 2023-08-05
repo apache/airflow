@@ -642,7 +642,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         # line's execution, but we consider that safe, since there's a strict
         # add -> remove -> never again lifecycle this function is already
         # handling.
-        running_trigger_ids = set(self.triggers.keys())
+        running_trigger_ids = set(self.triggers)
         known_trigger_ids = (
             running_trigger_ids.union(x[0] for x in self.events)
             .union(self.to_cancel)

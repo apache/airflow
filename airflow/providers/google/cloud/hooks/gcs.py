@@ -1321,8 +1321,8 @@ class GCSHook(GoogleBaseHook):
         source_names_index = {a.name[source_object_prefix_len:]: a for a in source_blobs}
         destination_names_index = {a.name[destination_object_prefix_len:]: a for a in destination_blobs}
         # Create sets with names without parent object name
-        source_names = set(source_names_index.keys())
-        destination_names = set(destination_names_index.keys())
+        source_names = set(source_names_index)
+        destination_names = set(destination_names_index)
         # Determine objects to copy and delete
         to_copy = source_names - destination_names
         to_delete = destination_names - source_names

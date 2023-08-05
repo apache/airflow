@@ -243,7 +243,7 @@ def update_sbom_information(
 )
 @click.option(
     "--provider-id",
-    type=BetterChoice(list(PROVIDER_DEPENDENCIES.keys())),
+    type=BetterChoice(list(PROVIDER_DEPENDENCIES)),
     required=True,
     help="Provider to generate the requirements for",
 )

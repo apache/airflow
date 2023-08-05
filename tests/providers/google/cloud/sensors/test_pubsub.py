@@ -131,7 +131,7 @@ class TestPubSubPullSensor:
             assert pulled_messages == generated_messages
 
             assert isinstance(context, dict)
-            for key in context.keys():
+            for key in context:
                 assert isinstance(key, str)
 
             return messages_callback_return_value

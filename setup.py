@@ -202,7 +202,7 @@ class ListExtras(Command):
 
     def run(self) -> None:
         """List extras."""
-        print("\n".join(wrap(", ".join(EXTRAS_DEPENDENCIES.keys()), 100)))
+        print("\n".join(wrap(", ".join(EXTRAS_DEPENDENCIES), 100)))
 
 
 def git_version() -> str:
@@ -630,7 +630,7 @@ add_extras_for_all_deprecated_aliases()
 
 # This is list of all providers. It's a shortcut for anyone who would like to easily get list of
 # All providers. It is used by pre-commits.
-ALL_PROVIDERS = list(PROVIDER_DEPENDENCIES.keys())
+ALL_PROVIDERS = list(PROVIDER_DEPENDENCIES)
 
 ALL_DB_PROVIDERS = [
     "apache.cassandra",
@@ -748,7 +748,7 @@ def sort_extras_dependencies() -> dict[str, list[str]]:
     external packages will be first, then if providers are added they are added at the end of the lists.
     """
     sorted_dependencies: dict[str, list[str]] = {}
-    sorted_extra_ids = sorted(EXTRAS_DEPENDENCIES.keys())
+    sorted_extra_ids = sorted(EXTRAS_DEPENDENCIES)
     for extra_id in sorted_extra_ids:
         sorted_dependencies[extra_id] = sorted(EXTRAS_DEPENDENCIES[extra_id])
     return sorted_dependencies

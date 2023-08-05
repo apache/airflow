@@ -454,7 +454,7 @@ class TestStringifiedDAGs:
             items should not matter but assertEqual would fail if the order of
             items changes in the dag dictionary
             """
-            dag_dict["dag"]["tasks"] = sorted(dag_dict["dag"]["tasks"], key=lambda x: sorted(x.keys()))
+            dag_dict["dag"]["tasks"] = sorted(dag_dict["dag"]["tasks"], key=sorted)
             dag_dict["dag"]["_access_control"]["__var"]["test_role"]["__var"] = sorted(
                 dag_dict["dag"]["_access_control"]["__var"]["test_role"]["__var"]
             )
@@ -487,7 +487,7 @@ class TestStringifiedDAGs:
             stringified_dags[dag.dag_id] = dag
 
         dags = collect_dags("airflow/example_dags")
-        assert set(stringified_dags.keys()) == set(dags.keys())
+        assert set(stringified_dags) == set(dags)
 
         # Verify deserialized DAGs.
         for dag_id in stringified_dags:
@@ -1160,7 +1160,7 @@ class TestStringifiedDAGs:
         keys_for_backwards_compat: set = {
             "_concurrency",
         }
-        dag_params: set = set(dag_schema.keys()) - ignored_keys - keys_for_backwards_compat
+        dag_params: set = set(dag_schema) - ignored_keys - keys_for_backwards_compat
         assert set(DAG.get_serialized_fields()) == dag_params
 
     def test_operator_subclass_changing_base_defaults(self):

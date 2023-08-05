@@ -35,13 +35,13 @@ def make_mock_cg(container_state, events=None):
     """
     events = events or []
     instance_view_dict = {"current_state": container_state, "events": events}
-    instance_view = namedtuple("InstanceView", instance_view_dict.keys())(*instance_view_dict.values())
+    instance_view = namedtuple("InstanceView", instance_view_dict)(*instance_view_dict.values())
 
     container_dict = {"instance_view": instance_view}
-    container = namedtuple("Container", container_dict.keys())(*container_dict.values())
+    container = namedtuple("Container", container_dict)(*container_dict.values())
 
     container_g_dict = {"containers": [container]}
-    container_g = namedtuple("ContainerGroup", container_g_dict.keys())(*container_g_dict.values())
+    container_g = namedtuple("ContainerGroup", container_g_dict)(*container_g_dict.values())
     return container_g
 
 
@@ -53,13 +53,13 @@ def make_mock_cg_with_missing_events(container_state):
     This can happen, when the container group is provisioned, but not started.
     """
     instance_view_dict = {"current_state": container_state, "events": None}
-    instance_view = namedtuple("InstanceView", instance_view_dict.keys())(*instance_view_dict.values())
+    instance_view = namedtuple("InstanceView", instance_view_dict)(*instance_view_dict.values())
 
     container_dict = {"instance_view": instance_view}
-    container = namedtuple("Container", container_dict.keys())(*container_dict.values())
+    container = namedtuple("Container", container_dict)(*container_dict.values())
 
     container_g_dict = {"containers": [container]}
-    container_g = namedtuple("ContainerGroup", container_g_dict.keys())(*container_g_dict.values())
+    container_g = namedtuple("ContainerGroup", container_g_dict)(*container_g_dict.values())
     return container_g
 
 
