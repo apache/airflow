@@ -1016,7 +1016,7 @@ class DataflowHook(GoogleBaseHook):
         self.log.info("Exit code %d", proc.returncode)
         stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
         if proc.returncode != 0:
-            raise AirflowException(f"Process exit with non-zero exit code. Exit code: \ {proc.returncode} \n Error Details : {stderr_last_20_lines}")
+            raise AirflowException(f"Process exit with non-zero exit code. Exit code: \ {proc.returncode} Error Details : {stderr_last_20_lines}")
         job_id = proc.stdout.decode().strip()
 
         self.log.info("Created job ID: %s", job_id)
