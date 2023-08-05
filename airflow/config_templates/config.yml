@@ -2379,7 +2379,7 @@ elasticsearch:
 elasticsearch_configs:
   description: ~
   options:
-    use_ssl:
+    http_compress:
       description: ~
       version_added: 1.10.5
       type: string
