@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-04T09:24:03Z
+# This constraints file was automatically generated on 2023-08-05T11:29:11Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -52,7 +52,7 @@ aioitertools==0.11.0
 aioresponses==0.7.4
 aiosignal==1.3.1
 alabaster==0.7.13
-alembic==1.11.1
+alembic==1.11.2
 alibabacloud-adb20211201==1.0.0
 alibabacloud-credentials==0.3.2
 alibabacloud-endpoint-util==0.0.3
@@ -331,11 +331,12 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.28.0
-mypy-boto3-rds==1.28.17
+mypy-boto3-rds==1.28.19
 mypy-boto3-redshift-data==1.28.16
-mypy-boto3-s3==1.28.16
+mypy-boto3-s3==1.28.19
 mypy-extensions==1.0.0
 mypy==1.2.0
+mysql-connector-python==8.1.0
 mysqlclient==2.2.0
 nbclient==0.8.0
 nbformat==5.9.2
@@ -395,7 +396,7 @@ prison==0.2.1
 prometheus-client==0.17.1
 prompt-toolkit==3.0.39
 proto-plus==1.22.3
-protobuf==4.23.4
+protobuf==4.21.12
 psutil==5.9.5
 psycopg2-binary==2.9.6
 ptyprocess==0.7.0

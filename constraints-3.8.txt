@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-04T09:31:33Z
+# This constraints file was automatically generated on 2023-08-05T11:36:54Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -52,7 +52,7 @@ aioitertools==0.11.0
 aioresponses==0.7.4
 aiosignal==1.3.1
 alabaster==0.7.13
-alembic==1.11.1
+alembic==1.11.2
 alibabacloud-adb20211201==1.0.0
 alibabacloud-credentials==0.3.2
 alibabacloud-endpoint-util==0.0.3
@@ -157,7 +157,7 @@ appdirs==1.4.4
 apprise==1.4.5
 argcomplete==3.1.1
 arrow==1.2.3
-asana==4.0.3
+asana==4.0.4
 asgiref==3.7.2
 asn1crypto==1.5.1
 astroid==2.15.6
@@ -413,11 +413,12 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.28.0
-mypy-boto3-rds==1.28.17
+mypy-boto3-rds==1.28.19
 mypy-boto3-redshift-data==1.28.16
-mypy-boto3-s3==1.28.16
+mypy-boto3-s3==1.28.19
 mypy-extensions==1.0.0
 mypy==1.2.0
+mysql-connector-python==8.1.0
 mysqlclient==2.2.0
 nbclient==0.8.0
 nbformat==5.9.2
@@ -479,7 +480,7 @@ prompt-toolkit==3.0.39
 proto-plus==1.22.3
 protobuf==4.23.4
 psutil==5.9.5
-psycopg2-binary==2.9.6
+psycopg2-binary==2.9.7
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
@@ -540,7 +541,7 @@ reactivex==4.0.4
 readme-renderer==40.0
 redis==4.6.0
 redshift-connector==2.0.913
-referencing==0.30.0
+referencing==0.30.2
 regex==2023.6.3
 requests-file==1.5.1
 requests-kerberos==0.14.0
