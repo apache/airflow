@@ -306,6 +306,10 @@ class FileTaskHandler(logging.Handler):
         executor_messages: list[str] = []
         executor_logs: list[str] = []
         served_logs: list[str] = []
+        is_running = ti.try_number == try_number and ti.state in (
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        )
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
@@ -320,7 +324,7 @@ class FileTaskHandler(logging.Handler):
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
+        if is_running and not executor_messages:
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
@@ -340,15 +344,11 @@ class FileTaskHandler(logging.Handler):
         )
         log_pos = len(logs)
         messages = "".join([f"*** {x}\n" for x in messages_list])
-        end_of_log = ti.try_number != try_number or ti.state not in (
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.DEFERRED,
-        )
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
         out_message = logs if "log_pos" in (metadata or {}) else messages + logs
-        return out_message, {"end_of_log": end_of_log, "log_pos": log_pos}
+        return out_message, {"end_of_log": not is_running, "log_pos": log_pos}
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
