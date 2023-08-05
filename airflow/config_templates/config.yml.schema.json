@@ -38,13 +38,29 @@
                     "type": [
                         "string",
                         "null"
-                    ]
+                    ],
+                    "description": "Description of the option."
                 },
                 "version_added": {
                     "type": [
                         "string",
                         "null"
-                    ]
+                    ],
+                    "description": "When set to a version string, signals that this option has been added in the version specified."
+                },
+                "version_deprecated": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "When set to a version string, this option is deprecated as of this version, and will be removed in the future."
+                },
+                "deprecation_reason": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "The reason why this option is deprecated."
                 },
                 "type": {
                     "type": "string",
@@ -53,21 +69,24 @@
                         "boolean",
                         "integer",
                         "float"
-                    ]
+                    ],
+                    "description": "Type of the option - string, boolean, integer or float."
                 },
                 "example": {
                     "type": [
                         "string",
                         "null",
                         "number"
-                    ]
+                    ],
+                    "description": "Example value for the option."
                 },
                 "default": {
                     "type": [
                         "string",
                         "null",
                         "number"
-                    ]
+                    ],
+                    "description": "Default value for the option."
                 },
                 "sensitive": {
                     "type": "boolean",
