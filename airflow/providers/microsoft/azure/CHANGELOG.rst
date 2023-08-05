@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+6.2.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor account_url use in WasbHook (#32980)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete azure cosmos DB sensor example_dag (#32906)``
+   * ``Add issue link for TODO wrt Azure integration pinned dependencies (#33064)``
+
 6.2.2
 .....
 
