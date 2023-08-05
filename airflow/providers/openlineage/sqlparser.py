@@ -291,6 +291,6 @@ class SQLParser:
             else:
                 db = None
             schemas = hierarchy.setdefault(normalize_name(db) if db else db, {})
-            tables = schemas.setdefault(normalize_name(table.schema) if table.schema else db, [])
+            tables = schemas.setdefault(normalize_name(table.schema) if table.schema else None, [])
             tables.append(table.name)
         return hierarchy

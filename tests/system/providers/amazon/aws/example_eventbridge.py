@@ -56,7 +56,7 @@ with DAG(
     # [START howto_operator_eventbridge_put_rule]
     put_rule = EventBridgePutRuleOperator(
         task_id="put_rule_task",
-        name="Example Rule",
+        name="example_rule",
         event_pattern='{"source": ["example.myapp"]}',
         description="This rule matches events from example.myapp.",
     )

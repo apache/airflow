@@ -115,6 +115,7 @@ def generate_back_references(link: str, base_path: str):
         old_to_new = construct_old_to_new_tuple_mapping(file_name)
     old_to_new.append(("index.html", "changelog.html"))
     old_to_new.append(("index.html", "security.html"))
+    old_to_new.append(("security.html", "security/security-model.html"))
 
     versions = [f.path.split("/")[-1] for f in os.scandir(base_path) if f.is_dir()]
 

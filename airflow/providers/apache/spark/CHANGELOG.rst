@@ -29,6 +29,14 @@
 Changelog
 ---------
 
+4.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate conn_prefix in extra field for Spark JDBC hook (#32946)``
+
 4.1.2
 .....
 

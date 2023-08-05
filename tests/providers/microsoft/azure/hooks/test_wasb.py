@@ -223,7 +223,7 @@ class TestWasbHook:
             authority=self.client_secret_auth_config["authority"],
         )
         mock_blob_service_client.assert_called_once_with(
-            account_url=conn.host,
+            account_url=f"https://{conn.login}.blob.core.windows.net/",
             credential=mock_credential.return_value,
             tenant_id=conn.extra_dejson["tenant_id"],
             proxies=conn.extra_dejson["proxies"],

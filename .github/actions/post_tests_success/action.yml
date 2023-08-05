@@ -16,25 +16,11 @@
 # under the License.
 #
 ---
-name: 'Post tests'
-description: 'Run post tests actions'
+name: 'Post tests on success'
+description: 'Run post tests actions on success'
 runs:
   using: "composite"
   steps:
-    - name: "Upload airflow logs"
-      uses: actions/upload-artifact@v3
-      if: failure()
-      with:
-        name: airflow-logs-${{env.JOB_ID}}
-        path: './files/airflow_logs*'
-        retention-days: 7
-    - name: "Upload container logs"
-      uses: actions/upload-artifact@v3
-      if: failure()
-      with:
-        name: container-logs-${{env.JOB_ID}}
-        path: "./files/container_logs*"
-        retention-days: 7
     - name: "Upload artifact for warnings"
       uses: actions/upload-artifact@v3
       with:
@@ -57,4 +43,3 @@ runs:
     - name: "Fix ownership"
       shell: bash
       run: breeze ci fix-ownership
-      if: always()

@@ -33,7 +33,6 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.redis.operators.redis_publish import RedisPublishOperator
 from airflow.providers.redis.sensors.redis_key import RedisKeySensor
-from airflow.providers.redis.sensors.redis_pub_sub import RedisPubSubSensor
 
 # [END import_module]
 # [START instantiate_dag]
@@ -59,17 +58,6 @@ with DAG(
 
     # [END RedisPublishOperator_DAG]
 
-    # [START RedisPubSubSensor_DAG]
-    pubsub_sensor_task = RedisPubSubSensor(
-        task_id="pubsub_sensor_task",
-        redis_conn_id="redis_default",
-        channels="your_channel",
-        dag=dag,
-        timeout=600,
-        poke_interval=30,
-    )
-    # [END RedisPubSubSensor_DAG]
-
     # [START RedisKeySensor_DAG]
     key_sensor_task = RedisKeySensor(
         task_id="key_sensor_task",
@@ -81,7 +69,7 @@ with DAG(
     )
     # [END RedisKeySensor_DAG]
 
-    publish_task >> pubsub_sensor_task >> key_sensor_task
+    publish_task >> key_sensor_task
 
     from tests.system.utils.watcher import watcher
 

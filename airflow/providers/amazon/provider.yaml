@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.5.0
   - 8.4.0
   - 8.3.1
   - 8.3.0
@@ -572,6 +573,9 @@ triggers:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.triggers.step_function
+  - integration-name: Amazon Simple Queue Service (SQS)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.sqs
 
 transfers:
   - source-integration-name: Amazon DynamoDB

@@ -25,6 +25,8 @@ import warnings
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple, Sized
 
+from airflow.utils.trigger_rule import TriggerRule
+
 if TYPE_CHECKING:
     from airflow.models import DAG, DagRun
 
@@ -214,20 +216,23 @@ class DagFileExists(AirflowBadRequest):
         warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
 
 
-class DagInvalidTriggerRule(AirflowException):
+class FailStopDagInvalidTriggerRule(AirflowException):
     """Raise when a dag has 'fail_stop' enabled yet has a non-default trigger rule."""
 
-    @classmethod
-    def check(cls, dag: DAG | None, trigger_rule: str):
-        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+    _allowed_rules = (TriggerRule.ALL_SUCCESS, TriggerRule.ALL_DONE_SETUP_SUCCESS)
 
-        if dag is not None and dag.fail_stop and trigger_rule != DEFAULT_TRIGGER_RULE:
+    @classmethod
+    def check(cls, *, dag: DAG | None, trigger_rule: TriggerRule):
+        """
+        Check that fail_stop dag tasks have allowable trigger rules.
+
+        :meta private:
+        """
+        if dag is not None and dag.fail_stop and trigger_rule not in cls._allowed_rules:
             raise cls()
 
     def __str__(self) -> str:
-        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
-
-        return f"A 'fail-stop' dag can only have {DEFAULT_TRIGGER_RULE} trigger rule"
+        return f"A 'fail-stop' dag can only have {TriggerRule.ALL_SUCCESS} trigger rule"
 
 
 class DuplicateTaskIdFound(AirflowException):
