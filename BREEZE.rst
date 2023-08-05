@@ -455,7 +455,7 @@ Often errors during documentation generation come from the docstrings of auto-ap
 During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
 easily identify the location the problems with documentation originated from.
 
-Those are all available flags of ``build-docs`` command:
+These are all available flags of ``build-docs`` command:
 
 .. image:: ./images/breeze/output_build-docs.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_build-docs.svg
@@ -537,7 +537,7 @@ The above will run the check for the last 4 commits in your branch. You can use 
 in ``--from-ref`` and ``--to-ref`` flags.
 
 
-Those are all available flags of ``static-checks`` command:
+These are all available flags of ``static-checks`` command:
 
 .. image:: ./images/breeze/output_static-checks.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_static-checks.svg
@@ -580,7 +580,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
     breeze start-airflow --python 3.8 --backend mysql --use-airflow-version 2.2.5
 
-Those are all available flags of ``start-airflow`` command:
+These are all available flags of ``start-airflow`` command:
 
 .. image:: ./images/breeze/output_start-airflow.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_start-airflow.svg
@@ -605,7 +605,7 @@ to enter the running container. It's as easy as launching ``breeze exec`` while 
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
-Those are all available flags of ``exec`` command:
+These are all available flags of ``exec`` command:
 
 .. image:: ./images/breeze/output_exec.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_exec.svg
@@ -643,7 +643,7 @@ need to build the images again from scratch - pulling from the registry might ta
 
 Breeze will ask you to confirm each step, unless you specify ``--answer yes`` flag.
 
-Those are all available flags of ``cleanup`` command:
+These are all available flags of ``cleanup`` command:
 
 .. image:: ./images/breeze/output_cleanup.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_cleanup.svg
@@ -736,7 +736,7 @@ You can always stop it via:
 
    breeze down
 
-Those are all available flags of ``down`` command:
+These are all available flags of ``down`` command:
 
 .. image:: ./images/breeze/output_down.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_down.svg
@@ -1394,7 +1394,7 @@ download the latest images before rebuilding because this is usually faster than
 Building CI image
 .................
 
-Those are all available flags of ``ci-image build`` command:
+These are all available flags of ``ci-image build`` command:
 
 .. image:: ./images/breeze/output_ci-image_build.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_build.svg
@@ -1406,7 +1406,7 @@ Pulling CI image
 
 You can also pull the CI images locally in parallel with optional verification.
 
-Those are all available flags of ``pull`` command:
+These are all available flags of ``pull`` command:
 
 .. image:: ./images/breeze/output_ci-image_pull.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_pull.svg
@@ -1419,7 +1419,7 @@ Verifying CI image
 Finally, you can verify CI image by running tests - either with the pulled/built images or
 with an arbitrary image.
 
-Those are all available flags of ``verify`` command:
+These are all available flags of ``verify`` command:
 
 .. image:: ./images/breeze/output_ci-image_verify.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_verify.svg
@@ -1488,7 +1488,7 @@ Same as above but uses python 3.8.
 Building PROD image
 ...................
 
-Those are all available flags of ``build-prod-image`` command:
+These are all available flags of ``build-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_build.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_build.svg
@@ -1500,7 +1500,7 @@ Pulling PROD image
 
 You can also pull PROD images in parallel with optional verification.
 
-Those are all available flags of ``pull-prod-image`` command:
+These are all available flags of ``pull-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_pull.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_pull.svg
@@ -1513,7 +1513,7 @@ Verifying PROD image
 Finally, you can verify PROD image by running tests - either with the pulled/built images or
 with an arbitrary image.
 
-Those are all available flags of ``verify-prod-image`` command:
+These are all available flags of ``verify-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_verify.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_verify.svg
@@ -1528,7 +1528,7 @@ Breeze has tools that you can use to configure defaults and breeze behaviours an
 operations that might be necessary when you add new commands in Breeze. It also allows to configure your
 host operating system for Breeze autocompletion.
 
-Those are all available flags of ``setup`` command:
+These are all available flags of ``setup`` command:
 
 .. image:: ./images/breeze/output_setup.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup.svg
@@ -1552,7 +1552,7 @@ it off by passing ``--no-colour`` to config in which case the messages to the us
 will be printed using different schemes (italic/bold/underline) to indicate different kind of messages
 rather than colours.
 
-Those are all available flags of ``setup config`` command:
+These are all available flags of ``setup config`` command:
 
 .. image:: ./images/breeze/output_setup_config.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_config.svg
@@ -1570,7 +1570,7 @@ also force reinstalling the autocomplete via:
 
    breeze setup autocomplete --force
 
-Those are all available flags of ``setup-autocomplete`` command:
+These are all available flags of ``setup-autocomplete`` command:
 
 .. image:: ./images/breeze/output_setup_autocomplete.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_autocomplete.svg
@@ -1583,7 +1583,7 @@ Breeze version
 You can display Breeze version and with ``--verbose`` flag it can provide more information: where
 Breeze is installed from and details about setup hashes.
 
-Those are all available flags of ``version`` command:
+These are all available flags of ``version`` command:
 
 .. image:: ./images/breeze/output_setup_version.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_version.svg
@@ -1594,7 +1594,7 @@ Those are all available flags of ``version`` command:
 Breeze self-upgrade
 ...................
 
-You can self-upgrade breeze automatically. Those are all available flags of ``self-upgrade`` command:
+You can self-upgrade breeze automatically. These are all available flags of ``self-upgrade`` command:
 
 .. image:: ./images/breeze/output_setup_self-upgrade.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_self-upgrade.svg
@@ -1650,7 +1650,7 @@ Breeze requires certain resources to be available - disk, memory, CPU. When you 
 the resources are checked and information if there is enough resources is displayed. However you can
 manually run resource check any time by ``breeze ci resource-check`` command.
 
-Those are all available flags of ``resource-check`` command:
+These are all available flags of ``resource-check`` command:
 
 .. image:: ./images/breeze/output_ci_resource-check.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_resource-check.svg
@@ -1664,7 +1664,7 @@ When our CI runs a job, it needs all memory and disk it can have. We have a Bree
 the memory and disk space used. You can also use it clear space locally but it performs a few operations
 that might be a bit invasive - such are removing swap file and complete pruning of docker disk space used.
 
-Those are all available flags of ``free-space`` command:
+These are all available flags of ``free-space`` command:
 
 .. image:: ./images/breeze/output_ci_free-space.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_free-space.svg
@@ -1684,7 +1684,7 @@ by the root user, you can fix the ownership of those files by running :
 
   breeze ci fix-ownership
 
-Those are all available flags of ``fix-ownership`` command:
+These are all available flags of ``fix-ownership`` command:
 
 .. image:: ./images/breeze/output_ci_fix-ownership.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_fix-ownership.svg
@@ -1705,7 +1705,7 @@ from the context of the commit/PR to be merged via stderr output.
 More details about the algorithm used to pick the right tests and the available outputs can be
 found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
 
-Those are all available flags of ``selective-check`` command:
+These are all available flags of ``selective-check`` command:
 
 .. image:: ./images/breeze/output_ci_selective-check.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_selective-check.svg
@@ -1719,7 +1719,7 @@ When our CI runs a job, it might be within one of several workflows. Information
 is stored in GITHUB_CONTEXT. Rather than using some jq/bash commands, we retrieve the necessary information
 (like PR labels, event_type, where the job runs on, job description and convert them into GA outputs.
 
-Those are all available flags of ``get-workflow-info`` command:
+These are all available flags of ``get-workflow-info`` command:
 
 .. image:: ./images/breeze/output_ci_get-workflow-info.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_get-workflow-info.svg
@@ -2020,7 +2020,7 @@ while publishing the documentation.
 The flag ``--airflow-site-directory`` takes the path of the cloned ``airflow-site``. The command will
 not proceed if this is an invalid path.
 
-Those are all available flags of ``release-management publish-docs`` command:
+These are all available flags of ``release-management publish-docs`` command:
 
 .. image:: ./images/breeze/output_release-management_publish-docs.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_publish-docs.svg
@@ -2064,7 +2064,7 @@ providers - you can mix apache-airflow, helm-chart and provider packages this wa
      breeze release-management publish-docs --airflow-site-directory DIRECTORY apache.airflow apache.beam google
 
 
-Those are all available flags of ``release-management add-back-references`` command:
+These are all available flags of ``release-management add-back-references`` command:
 
 .. image:: .images/breeze/output_release-management_add-back-references.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_add-back-references.svg
@@ -2109,7 +2109,7 @@ Constraints are generated separately for each python version and there are separ
   providers. If you want to manage airflow separately and then add providers individually, you can
   use those.
 
-Those are all available flags of ``generate-constraints`` command:
+These are all available flags of ``generate-constraints`` command:
 
 .. image:: ./images/breeze/output_release-management_generate-constraints.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-constraints.svg
@@ -2118,12 +2118,29 @@ Those are all available flags of ``generate-constraints`` command:
 
 In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
-the procedure described in `Refreshing CI Cache <dev/REFRESHING_CI_CACHE.md#manually-generating-constraint-files>`_
+the procedure described in the
+`Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 which utilises multiple processors on your local machine to generate such constraints faster.
 
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.
+
+Updating constraints
+""""""""""""""""""""
+
+Sometimes (very rarely) we might want to update individual packages in constraints that we generated and
+tagged already in the past. This can be done using ``breeze release-management update-constraints`` command.
+
+These are all available flags of ``update-constraints`` command:
+
+.. image:: ./images/breeze/output_release-management_update-constraints.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_update-constraints.svg
+  :width: 100%
+  :alt: Breeze update-constraints
+
+You can read more details about what happens when you update constraints in the
+`Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 
 
 SBOM generation tasks
@@ -2174,7 +2191,7 @@ keeps data in their own volume. Those volumes are persisted until ``breeze down`
 You can also preserve the volumes by adding flag ``--preserve-volumes`` when you run the command.
 Then, next time when you start Breeze, it will have the data pre-populated.
 
-Those are all available flags of ``down`` command:
+These are all available flags of ``down`` command:
 
 .. image:: ./images/breeze/output-down.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-down.svg
