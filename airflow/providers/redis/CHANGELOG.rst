@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+3.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move redis subscribe to poke() method in Redis Sensor (#32984)``
+
 3.3.0
 .....
 

@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -16,4 +15,16 @@
     specific language governing permissions and limitations
     under the License.
 
-.. include:: ../../airflow/providers/ftp/CHANGELOG.rst
+Celery Executor Commands
+------------------------
+
+.. note::
+   The CLI commands below are used from provider by Airflow 2.7.0+.
+   Previously they were part of the core Airflow, so if you are using Airflow below 2.7.0 look at
+   the core Airflow documentation for the list of CLI commands and parameters available.
+
+
+.. argparse::
+   :module: airflow.providers.celery.executors.celery_executor
+   :func: _get_parser
+   :prog: airflow

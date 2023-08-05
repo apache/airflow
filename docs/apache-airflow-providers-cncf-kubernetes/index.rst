@@ -43,6 +43,7 @@
     :caption: References
 
     Configuration <configurations-ref>
+    CLI <cli-ref>
     Python API <_api/airflow/providers/cncf/kubernetes/index>
 
 .. toctree::
@@ -78,7 +79,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 7.4.0
+Release: 7.4.1
 
 Provider package
 ----------------
