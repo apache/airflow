@@ -292,7 +292,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         }
 
         try:
-            max_log_line = self.client.count(index=self.index_patterns, query=query)["count"]
+            max_log_line = self.client.count(index=self.index_patterns, body=query)["count"]  # type: ignore
         except NotFoundError as e:
             self.log.exception("The target index pattern %s does not exist", self.index_patterns)
             raise e
@@ -301,9 +301,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if max_log_line != 0:
             try:
                 query.update({"sort": [self.offset_field]})
-                res = self.client.search(
+                res = self.client.search(  # type: ignore
                     index=self.index_patterns,
-                    query=query,
+                    body=query,
                     size=self.MAX_LINE_PER_PAGE,
                     from_=self.MAX_LINE_PER_PAGE * self.PAGE,
                 )
