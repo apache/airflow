@@ -748,7 +748,6 @@ def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
         upgradedb(session=session)
     else:
         _create_db_from_orm(session=session)
-    # Load default connections
     if conf.getboolean("database", "LOAD_DEFAULT_CONNECTIONS") and load_connections:
         create_default_connections(session=session)
     # Add default pool & sync log_template

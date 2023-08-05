@@ -1520,7 +1520,7 @@ DB_COMMANDS = (
         name="init",
         help=(
             "Deprecated -- use `migrate` instead. "
-            "To create default connections use `connections create-default-connections`. "
+            "To create default connections use `airflow connections create-default-connections`. "
             "Initialize the metadata database"
         ),
         func=lazy_load_command("airflow.cli.commands.db_command.initdb"),
