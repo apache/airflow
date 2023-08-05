@@ -408,7 +408,7 @@ pygraphviz==1.11
 pyhcl==0.4.4
 pykerberos==1.2.4
 pymongo==3.13.0
-pymssql==2.2.7
+pymssql==2.2.8
 pyodbc==4.0.39
 pyparsing==3.1.0
 pypsrp==0.8.1
