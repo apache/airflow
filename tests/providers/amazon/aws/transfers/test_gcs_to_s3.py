@@ -69,7 +69,11 @@ class TestGCSToS3Operator:
 
             operator.execute(None)
             mock_hook.return_value.list.assert_called_once_with(
-                bucket_name=GCS_BUCKET, delimiter=None, match_glob=f"**/*{DELIMITER}", prefix=PREFIX
+                bucket_name=GCS_BUCKET,
+                delimiter=None,
+                match_glob=f"**/*{DELIMITER}",
+                prefix=PREFIX,
+                user_project=None,
             )
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")

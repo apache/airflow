@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+7.4.1
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix waiting the base container when reading the logs of other containers (#33127)``
+* ``Fix: Configurable Docker image of 'xcom_sidecar' (#32858)``
+* ``Fix 'KubernetesPodOperator' sub classes default container_logs (#33090)``
+* ``Consider custom pod labels on pod finding process on 'KubernetesPodOperator' (#33057)``
+
+Misc
+~~~~
+
+* ``aDd documentation generation for CLI commands from executors (#33081)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Fix waiting the base container when reading the logs of other containers (#33092)" (#33125)``
+   * ``Fix waiting the base container when reading the logs of other containers (#33092)``
+
 7.4.0
 .....
 

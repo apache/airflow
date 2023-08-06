@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+6.1.4
+.....
+
+Misc
+~~~~
+
+* ``Bring back mysql-connector-python as required depednency (#32989)``
+
 6.1.3
 .....
 

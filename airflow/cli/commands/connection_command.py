@@ -39,6 +39,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, helpers, yaml
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
 
@@ -107,6 +108,10 @@ def _connection_to_dict(conn: Connection) -> dict:
     )
 
 
+def create_default_connections(args):
+    db_create_default_connections()
+
+
 def _format_connections(conns: list[Connection], file_format: str, serialization_format: str) -> str:
     if serialization_format == "json":
         serializer_func = lambda x: json.dumps(_connection_to_dict(x))
@@ -145,7 +150,7 @@ def _valid_uri(uri: str) -> bool:
 @cache
 def _get_connection_types() -> list[str]:
     """Returns connection types available."""
-    _connection_types = ["fs", "mesos_framework-id", "email", "generic"]
+    _connection_types = []
     providers_manager = ProvidersManager()
     for connection_type, provider_info in providers_manager.hooks.items():
         if provider_info:

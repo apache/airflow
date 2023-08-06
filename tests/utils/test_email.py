@@ -240,15 +240,50 @@ class TestEmailSmtp:
 
     @mock.patch("smtplib.SMTP_SSL")
     @mock.patch("smtplib.SMTP")
-    def test_send_mime_ssl(self, mock_smtp, mock_smtp_ssl):
+    def test_send_mime_ssl_none_context(self, mock_smtp, mock_smtp_ssl):
         mock_smtp_ssl.return_value = mock.Mock()
-        with conf_vars({("smtp", "smtp_ssl"): "True"}):
+        with conf_vars({("smtp", "smtp_ssl"): "True", ("email", "ssl_context"): "none"}):
             email.send_mime_email("from", "to", MIMEMultipart(), dryrun=False)
         assert not mock_smtp.called
         mock_smtp_ssl.assert_called_once_with(
             host=conf.get("smtp", "SMTP_HOST"),
             port=conf.getint("smtp", "SMTP_PORT"),
             timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            context=None,
+        )
+
+    @mock.patch("smtplib.SMTP_SSL")
+    @mock.patch("smtplib.SMTP")
+    @mock.patch("ssl.create_default_context")
+    def test_send_mime_ssl_default_context_if_not_set(self, create_default_context, mock_smtp, mock_smtp_ssl):
+        mock_smtp_ssl.return_value = mock.Mock()
+        with conf_vars({("smtp", "smtp_ssl"): "True"}):
+            email.send_mime_email("from", "to", MIMEMultipart(), dryrun=False)
+        assert not mock_smtp.called
+        assert create_default_context.called
+        mock_smtp_ssl.assert_called_once_with(
+            host=conf.get("smtp", "SMTP_HOST"),
+            port=conf.getint("smtp", "SMTP_PORT"),
+            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            context=create_default_context.return_value,
+        )
+
+    @mock.patch("smtplib.SMTP_SSL")
+    @mock.patch("smtplib.SMTP")
+    @mock.patch("ssl.create_default_context")
+    def test_send_mime_ssl_default_context_with_value_set_to_default(
+        self, create_default_context, mock_smtp, mock_smtp_ssl
+    ):
+        mock_smtp_ssl.return_value = mock.Mock()
+        with conf_vars({("smtp", "smtp_ssl"): "True", ("email", "ssl_context"): "default"}):
+            email.send_mime_email("from", "to", MIMEMultipart(), dryrun=False)
+        assert not mock_smtp.called
+        assert create_default_context.called
+        mock_smtp_ssl.assert_called_once_with(
+            host=conf.get("smtp", "SMTP_HOST"),
+            port=conf.getint("smtp", "SMTP_PORT"),
+            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            context=create_default_context.return_value,
         )
 
     @mock.patch("smtplib.SMTP_SSL")
@@ -284,7 +319,6 @@ class TestEmailSmtp:
         msg = MIMEMultipart()
         with pytest.raises(SMTPServerDisconnected):
             email.send_mime_email("from", "to", msg, dryrun=False)
-
         mock_smtp.assert_any_call(
             host=conf.get("smtp", "SMTP_HOST"),
             port=conf.getint("smtp", "SMTP_PORT"),
@@ -299,7 +333,8 @@ class TestEmailSmtp:
 
     @mock.patch("smtplib.SMTP_SSL")
     @mock.patch("smtplib.SMTP")
-    def test_send_mime_ssl_complete_failure(self, mock_smtp, mock_smtp_ssl):
+    @mock.patch("ssl.create_default_context")
+    def test_send_mime_ssl_complete_failure(self, create_default_context, mock_smtp, mock_smtp_ssl):
         mock_smtp_ssl.side_effect = SMTPServerDisconnected()
         msg = MIMEMultipart()
         with conf_vars({("smtp", "smtp_ssl"): "True"}):
@@ -310,7 +345,9 @@ class TestEmailSmtp:
             host=conf.get("smtp", "SMTP_HOST"),
             port=conf.getint("smtp", "SMTP_PORT"),
             timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            context=create_default_context.return_value,
         )
+        assert create_default_context.called
         assert mock_smtp_ssl.call_count == conf.getint("smtp", "SMTP_RETRY_LIMIT")
         assert not mock_smtp.called
         assert not mock_smtp_ssl.return_value.starttls.called

@@ -20,6 +20,7 @@ from __future__ import annotations
 import collections.abc
 import logging
 import sys
+from enum import Enum
 from functools import cached_property
 from typing import (
     TYPE_CHECKING,
@@ -242,6 +243,8 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
+            elif isinstance(item, Enum):
+                return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
             elif _is_v1_env_var(item):
                 tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
