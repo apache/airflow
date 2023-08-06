@@ -253,6 +253,9 @@ def test_xcom_map_nest(dag_maker, session):
     for ti in decision.schedulable_tis:
         ti.run(session=session)
 
+    session.flush()
+    session.commit()
+
     # Now "pull" should apply the mapping functions in order.
     decision = dr.task_instance_scheduling_decisions(session=session)
     for ti in decision.schedulable_tis:
