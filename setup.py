@@ -299,18 +299,14 @@ doc = [
     # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
     # https://github.com/pallets/click/issues/2558
     "click>=8.0,!=8.1.4,!=8.1.5",
-    # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
-    # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
-    # <section> tags for sections
-    "docutils<0.17.0",
     "eralchemy2",
-    "sphinx-airflow-theme",
+    "sphinx-airflow-theme>=0.1.1b1",
     "sphinx-argparse>=0.1.13",
     "sphinx-autoapi>=2.0.0",
     "sphinx-copybutton",
     "sphinx-jinja>=2.0",
-    "sphinx-rtd-theme>=0.1.6",
-    "sphinx>=5.2.0",
+    "sphinx-rtd-theme==1.3.0rc1",
+    "sphinx>=7.0.0",
     "sphinxcontrib-httpdomain>=1.7.0",
     "sphinxcontrib-redoc>=1.6.0",
     "sphinxcontrib-spelling>=7.3",
