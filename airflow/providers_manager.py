@@ -218,6 +218,13 @@ class TriggerInfo(NamedTuple):
     integration_name: str
 
 
+class NotificationInfo(NamedTuple):
+    """Notification class and provider it comes from."""
+
+    notification_class_name: str
+    package_name: str
+
+
 class PluginInfo(NamedTuple):
     """Plugin class, name and provider it comes from."""
 
@@ -426,6 +433,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._provider_configs: dict[str, dict[str, Any]] = {}
         self._api_auth_backend_module_names: set[str] = set()
         self._trigger_info_set: set[TriggerInfo] = set()
+        self._notification_info_set: set[NotificationInfo] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._customized_form_fields_schema_validator = (
             _create_customized_form_field_behaviours_schema_validator()
@@ -528,6 +536,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers executors information."""
         self.initialize_providers_list()
         self._discover_executors()
+   
+    @provider_info_cache("notifications")
+    def initialize_providers_notifications(self):
+        """Lazy initialization of providers notifications information."""
+        self.initialize_providers_list()
+        self._discover_notifications()
 
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
@@ -1025,6 +1039,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 e,
             )
 
+    def _discover_notifications(self) -> None:
+        """Retrieves all notifications defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("notifications"):
+                for notification_class_name in provider.data["notifications"]:
+                    if _correctness_check(provider_package, notification_class_name, provider):
+                        self._notification_info_set.add(notification_class_name)
+
     def _discover_extra_links(self) -> None:
         """Retrieves all extra links defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1100,6 +1122,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                             integration_name=trigger.get("integration-name", ""),
                         )
                     )
+
+    @property
+    def notification(self) -> list[NotificationInfo]:
+        """Returns information about available providers notifications class."""
+        self.initialize_providers_notifications()
+        return sorted(self._notification_info_set)
 
     @property
     def trigger(self) -> list[TriggerInfo]:
