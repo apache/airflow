@@ -214,6 +214,11 @@ def _find_path_from_directory(
 
     patterns_by_dir: Dict[Path, List[_IgnoreRule]] = {}
 
+    # set this rather than import from lyft_etl to avoid any circular import errors
+    is_tars = "tars" in os.environ.get("SERVICE", "")
+    is_kyte = "kyte" in os.environ.get("SERVICE", "")
+    is_loadtest_env = "loadtest" in os.environ.get("SERVICE_FACET", "").lower()
+
     for root, dirs, files in os.walk(base_dir_path, followlinks=True):
         patterns: List[_IgnoreRule] = patterns_by_dir.get(Path(root).resolve(), [])
 
