@@ -141,7 +141,7 @@ with models.DAG(
         project_id=PROJECT_ID,
         region=region,
         job_name=job2_name,
-        job=_create_job(),
+        job=batch_v1.Job.to_dict(_create_job()),
         dag=dag,
         deferrable=True,
     )

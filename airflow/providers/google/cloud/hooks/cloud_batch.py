@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 from time import sleep
 from typing import Iterable, Sequence
 
@@ -80,6 +81,8 @@ class CloudBatchHook(GoogleBaseHook):
     def submit_build_job(
         self, job_name: str, job: Job, region: str, project_id: str = PROVIDE_PROJECT_ID
     ) -> Job:
+        if isinstance(job, dict):
+            job = Job.from_json(json.dumps(job))
 
         create_request = CreateJobRequest()
         create_request.job = job

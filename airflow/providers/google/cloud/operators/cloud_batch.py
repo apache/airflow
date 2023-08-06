@@ -61,7 +61,7 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         region: str,
         job_name: str,
-        job: Job,
+        job: dict | Job,
         polling_period_seconds: float = 10,
         timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
