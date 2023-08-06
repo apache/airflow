@@ -34,6 +34,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.cli import cli_config, cli_parser
+from airflow.cli.cli_config import ActionCommand, lazy_load_command
 from airflow.configuration import AIRFLOW_HOME
 from tests.test_utils.config import conf_vars
 
@@ -310,6 +311,25 @@ class TestCli:
             f"--export-format: invalid choice: '{export_format}' "
             "(choose from 'csv'), see help above.\n"
         )
+
+    @pytest.mark.parametrize(
+        "action_cmd",
+        [
+            ActionCommand(name="name", help="help", func=lazy_load_command(""), args=(), hide=True),
+            ActionCommand(name="name", help="help", func=lazy_load_command(""), args=(), hide=False),
+        ],
+    )
+    @patch("argparse._SubParsersAction")
+    def test_add_command_with_hide(self, mock_subparser_actions, action_cmd):
+        cli_parser._add_command(mock_subparser_actions, action_cmd)
+        if action_cmd.hide:
+            mock_subparser_actions.add_parser.assert_called_once_with(
+                action_cmd.name, epilog=action_cmd.epilog
+            )
+        else:
+            mock_subparser_actions.add_parser.assert_called_once_with(
+                action_cmd.name, help=action_cmd.help, description=action_cmd.help, epilog=action_cmd.epilog
+            )
 
 
 # We need to run it from sources with PYTHONPATH, not command line tool,

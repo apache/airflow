@@ -298,7 +298,7 @@ Let's run a few commands to validate this script further.
 .. code-block:: bash
 
     # initialize the database tables
-    airflow db init
+    airflow db migrate
 
     # print the list of active DAGs
     airflow dags list

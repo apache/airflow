@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.2.1
+.....
+
+Latest change: 2023-08-04
+
+=================================================================================================  ===========  =====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================
+`108a07b580 <https://github.com/apache/airflow/commit/108a07b580ca185b5982f2e60deb70f73a1f745a>`_  2023-08-04   ``Bring back mysql-connector-python as required depednency (#32989)``
+=================================================================================================  ===========  =====================================================================
+
 5.2.0
 .....
 
-Latest change: 2023-07-25
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `ce2841bf6a <https://github.com/apache/airflow/commit/ce2841bf6ab609f31cb04aea9a39473de281bf24>`_  2023-07-25   ``Add default port to Openlineage authority method. (#32828)``
 `98a999034c <https://github.com/apache/airflow/commit/98a999034cab576b001340c9274ed293dcfce2cd>`_  2023-07-21   ``Add OpenLineage support for MySQL. (#31609)``
 `e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``

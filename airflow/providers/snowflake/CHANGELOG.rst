@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+4.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix connection parameters of 'SnowflakeValueCheckOperator' (#32605)``
+
 4.4.0
 .....
 

@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, Typ
 from packaging.utils import canonicalize_name
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.hooks.filesystem import FSHook
 from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -431,6 +432,37 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         )
         # Set of plugins contained in providers
         self._plugins_set: set[PluginInfo] = set()
+        self._init_airflow_core_hooks()
+
+    def _init_airflow_core_hooks(self):
+        """Initializes the hooks dict with default hooks from Airflow core."""
+        core_dummy_hooks = {
+            "generic": "Generic",
+            "email": "Email",
+            "mesos_framework-id": "Mesos Framework ID",
+        }
+        for key, display in core_dummy_hooks.items():
+            self._hooks_lazy_dict[key] = HookInfo(
+                hook_class_name=None,
+                connection_id_attribute_name=None,
+                package_name=None,
+                hook_name=display,
+                connection_type=None,
+                connection_testable=False,
+            )
+        for cls in [FSHook]:
+            package_name = cls.__module__
+            hook_class_name = f"{cls.__module__}.{cls.__name__}"
+            hook_info = self._import_hook(
+                connection_type=None,
+                provider_info=None,
+                hook_class_name=hook_class_name,
+                package_name=package_name,
+            )
+            self._hook_provider_dict[hook_info.connection_type] = HookClassProvider(
+                hook_class_name=hook_class_name, package_name=package_name
+            )
+            self._hooks_lazy_dict[hook_info.connection_type] = hook_info
 
     @provider_info_cache("list")
     def initialize_providers_list(self):

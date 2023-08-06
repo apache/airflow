@@ -23,7 +23,7 @@ from flask_login import current_user
 from airflow import AirflowException
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.fab.models import User
-from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
+from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 
 
 class FabAuthManager(BaseAuthManager):
@@ -69,6 +69,12 @@ class FabAuthManager(BaseAuthManager):
             return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
         else:
             return url_for(f"{self.security_manager.auth_view.endpoint}.login")
+
+    def get_url_logout(self):
+        """Return the logout page url."""
+        if not self.security_manager.auth_view:
+            raise AirflowException("`auth_view` not defined in the security manager.")
+        return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
 
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""

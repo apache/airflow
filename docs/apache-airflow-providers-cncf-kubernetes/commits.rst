@@ -28,6 +28,23 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.4.1
+.....
+
+Latest change: 2023-08-04
+
+=================================================================================================  ===========  =======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================
+`f4542a30b0 <https://github.com/apache/airflow/commit/f4542a30b03a9d02f58d03899ee8a5c37d6a3a9a>`_  2023-08-04   ``Fix waiting the base container when reading the logs of other containers (#33127)``
+`4fbbdbc9b1 <https://github.com/apache/airflow/commit/4fbbdbc9b16650b4f1086804b12dc60b08627356>`_  2023-08-04   ``Revert "Fix waiting the base container when reading the logs of other containers (#33092)" (#33125)``
+`164526d4c7 <https://github.com/apache/airflow/commit/164526d4c798a72dba3087d71f30f60f60595b0e>`_  2023-08-04   ``Consider custom pod labels on pod finding process on 'KubernetesPodOperator' (#33057)``
+`d31c77510c <https://github.com/apache/airflow/commit/d31c77510cc9141011c65c513d9f07580c639717>`_  2023-08-04   ``Fix waiting the base container when reading the logs of other containers (#33092)``
+`900ad8c190 <https://github.com/apache/airflow/commit/900ad8c1907d3342ba1777ad99db37a0d3f5d61a>`_  2023-08-04   ``Fix: Configurable Docker image of 'xcom_sidecar' (#32858)``
+`879fd34e97 <https://github.com/apache/airflow/commit/879fd34e97a5343e6d2bbf3d5373831b9641b5ad>`_  2023-08-04   ``aDd documentation generation for CLI commands from executors (#33081)``
+`f83d63ea54 <https://github.com/apache/airflow/commit/f83d63ea54df788b472941c07dce4301fc0f1c91>`_  2023-08-04   ``Fix 'KubernetesPodOperator' sub classes default container_logs (#33090)``
+=================================================================================================  ===========  =======================================================================================================
+
 7.4.0
 .....
 
@@ -36,6 +53,7 @@ Latest change: 2023-07-29
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `bcc7856b80 <https://github.com/apache/airflow/commit/bcc7856b80ee6f48de0395089b89424cf4b1c98a>`_  2023-07-29   ``Add 'termination_message_policy' parameter to 'KubernetesPodOperator' (#32885)``
 `f31af91dbd <https://github.com/apache/airflow/commit/f31af91dbd8b98cc4ddb98bed8bbc086ab4b65c9>`_  2023-07-29   ``Raise original import error in CLI vending of executors (#32931)``
 `fcbbf47864 <https://github.com/apache/airflow/commit/fcbbf47864c251046de108aafdad394d66e1df23>`_  2023-07-29   ``[AIP-51] Executors vending CLI commands (#29055)``
