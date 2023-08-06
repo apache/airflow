@@ -230,6 +230,20 @@ class TestConnection:
                 ),
                 "a_valid_conn_id_!!$$%%",
             ),
+            # a valid connection as well testing dashes
+            (
+                Connection(
+                    conn_id="a_-.11",
+                    conn_type="type",
+                    login="user",
+                    password="pass",
+                    host="protocol://host",
+                    port=100,
+                    schema="schema",
+                    extra={"param1": "val1", "param2": "val2"},
+                ),
+                "a_-.11",
+            ),
         ],
     )
     # Responsible for ensuring that the sanitized connection id
