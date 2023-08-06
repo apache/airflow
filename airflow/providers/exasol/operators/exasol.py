@@ -56,4 +56,4 @@ class ExasolOperator(SQLExecuteQueryOperator):
         if schema is not None:
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {"schema": schema, **hook_params}
-        super().__init__(handler=handler, **kwargs)
+        super().__init__(conn_id=exasol_conn_id, handler=handler, **kwargs)

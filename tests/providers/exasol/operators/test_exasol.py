@@ -52,6 +52,7 @@ class TestExasol:
     def test_overwrite_schema(self, mock_base_op):
         ExasolOperator(task_id="TEST", sql="SELECT 1", schema="dummy")
         mock_base_op.assert_called_once_with(
+            conn_id="exasol_default",
             database=None,
             hook_params={"schema": "dummy"},
             default_args={},

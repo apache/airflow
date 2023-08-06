@@ -224,7 +224,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
                 "session_parameters": session_parameters,
                 **hook_params,
             }
-        super().__init__(sql=sql, parameters=parameters, **kwargs)
+        super().__init__(sql=sql, parameters=parameters, conn_id=snowflake_conn_id, **kwargs)
         self.query_ids: list[str] = []
 
 
@@ -293,7 +293,9 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
                 "session_parameters": session_parameters,
                 **hook_params,
             }
-        super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
+        super().__init__(
+            sql=sql, pass_value=pass_value, tolerance=tolerance, conn_id=snowflake_conn_id, **kwargs
+        )
         self.query_ids: list[str] = []
 
 
@@ -376,6 +378,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
             metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column,
             days_back=days_back,
+            conn_id=snowflake_conn_id,
             **kwargs,
         )
         self.query_ids: list[str] = []

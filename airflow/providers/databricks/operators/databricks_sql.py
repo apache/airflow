@@ -95,7 +95,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         client_parameters: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(conn_id=databricks_conn_id, **kwargs)
         self.databricks_conn_id = databricks_conn_id
         self._output_path = output_path
         self._output_format = output_format
