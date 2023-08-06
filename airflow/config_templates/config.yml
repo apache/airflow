@@ -2258,6 +2258,16 @@ triggerer:
       type: float
       example: ~
       default: "5"
+    triggerer_health_check_threshold:
+      description: |
+        If the last triggerer heartbeat happened more than triggerer_health_check_threshold
+        ago (in seconds), triggerer is considered unhealthy.
+        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        for TriggererJob.
+      version_added: 2.7.0
+      type: float
+      example: ~
+      default: "30"
 kerberos:
   description: ~
   options:
