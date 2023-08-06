@@ -536,7 +536,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers executors information."""
         self.initialize_providers_list()
         self._discover_executors()
-   
+
     @provider_info_cache("notifications")
     def initialize_providers_notifications(self):
         """Lazy initialization of providers notifications information."""
