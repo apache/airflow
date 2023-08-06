@@ -19,22 +19,32 @@
 ==========================================
 
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
     Connection Types <connections/impala>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API<_api/airflow/providers/apache/impala/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -42,6 +52,7 @@ Content
     Installing from sources <installing-providers-from-sources>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -51,6 +62,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -63,7 +75,7 @@ Package apache-airflow-providers-apache-impala
 `Apache Impala <https://impala.apache.org/>`__.
 
 
-Release: 1.0.0
+Release: 1.1.2
 
 Provider package
 ----------------
@@ -81,11 +93,13 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 ==================  ==================
 PIP package         Version required
 ==================  ==================
 ``impyla``          ``>=0.18.0,<1.0``
-``apache-airflow``  ``>=2.3.0``
+``apache-airflow``  ``>=2.4.0``
 ==================  ==================
 
 Cross provider package dependencies
@@ -113,7 +127,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-impala 1.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-impala-1.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-impala-1.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-impala-1.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-impala 1.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.0.0-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/apache/impala/CHANGELOG.rst
+* `The apache-airflow-providers-apache-impala 1.1.2 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-impala-1.1.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-impala-1.1.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-impala-1.1.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-impala 1.1.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.1.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.1.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_impala-1.1.2-py3-none-any.whl.sha512>`__)

@@ -225,6 +225,7 @@ class TestDockerOperator:
             working_dir="/container/path",
             tty=True,
             hostname=TEST_CONTAINER_HOSTNAME,
+            ports=[],
         )
         self.client_mock.create_host_config.assert_called_once_with(
             mounts=[
@@ -244,6 +245,7 @@ class TestDockerOperator:
             device_requests=[DeviceRequest(count=-1, capabilities=[["gpu"]])],
             log_config=LogConfig(config={"max-size": "10m", "max-file": "5"}),
             ipc_mode=None,
+            port_bindings={},
         )
         self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
@@ -295,6 +297,7 @@ class TestDockerOperator:
             working_dir="/container/path",
             tty=True,
             hostname=TEST_CONTAINER_HOSTNAME,
+            ports=[],
         )
         self.client_mock.create_host_config.assert_called_once_with(
             mounts=[
@@ -313,6 +316,7 @@ class TestDockerOperator:
             device_requests=None,
             log_config=LogConfig(config={}),
             ipc_mode=None,
+            port_bindings={},
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
@@ -385,6 +389,7 @@ class TestDockerOperator:
                     working_dir="/container/path",
                     tty=True,
                     hostname=None,
+                    ports=[],
                 ),
                 call(
                     command="env",
@@ -397,6 +402,7 @@ class TestDockerOperator:
                     working_dir="/container/path",
                     tty=True,
                     hostname=None,
+                    ports=[],
                 ),
             ]
         )
@@ -420,6 +426,7 @@ class TestDockerOperator:
                     device_requests=None,
                     log_config=LogConfig(config={}),
                     ipc_mode=None,
+                    port_bindings={},
                 ),
                 call(
                     mounts=[
@@ -438,6 +445,7 @@ class TestDockerOperator:
                     device_requests=None,
                     log_config=LogConfig(config={}),
                     ipc_mode=None,
+                    port_bindings={},
                 ),
             ]
         )
@@ -495,6 +503,7 @@ class TestDockerOperator:
             working_dir="/container/path",
             tty=True,
             hostname=None,
+            ports=[],
         )
         stringio_mock.assert_called_once_with("UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
         self.dotenv_mock.assert_called_once_with(stream="UNIT=FILE\nPRIVATE=FILE\nVAR=VALUE")
@@ -678,15 +687,24 @@ class TestDockerOperator:
         operator = DockerOperator(task_id="test", image="test", extra_hosts=hosts_obj)
         operator.execute(None)
         self.client_mock.create_container.assert_called_once()
-        assert "host_config" in self.client_mock.create_container.call_args[1]
-        assert "extra_hosts" in self.client_mock.create_host_config.call_args[1]
-        assert hosts_obj is self.client_mock.create_host_config.call_args[1]["extra_hosts"]
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "extra_hosts" in self.client_mock.create_host_config.call_args.kwargs
+        assert hosts_obj is self.client_mock.create_host_config.call_args.kwargs["extra_hosts"]
 
     def test_privileged(self):
         privileged = mock.Mock()
         operator = DockerOperator(task_id="test", image="test", privileged=privileged)
         operator.execute(None)
         self.client_mock.create_container.assert_called_once()
-        assert "host_config" in self.client_mock.create_container.call_args[1]
-        assert "privileged" in self.client_mock.create_host_config.call_args[1]
-        assert privileged is self.client_mock.create_host_config.call_args[1]["privileged"]
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "privileged" in self.client_mock.create_host_config.call_args.kwargs
+        assert privileged is self.client_mock.create_host_config.call_args.kwargs["privileged"]
+
+    def test_port_bindings(self):
+        port_bindings = {8000: 8080}
+        operator = DockerOperator(task_id="test", image="test", port_bindings=port_bindings)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "port_bindings" in self.client_mock.create_host_config.call_args.kwargs
+        assert port_bindings == self.client_mock.create_host_config.call_args.kwargs["port_bindings"]

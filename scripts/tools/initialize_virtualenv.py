@@ -112,7 +112,7 @@ def main():
     Setup local virtual environment.
     """
     airflow_home_dir = Path(os.environ.get("AIRFLOW_HOME", Path.home() / "airflow"))
-    airflow_sources = Path(__file__).parents[2]
+    airflow_sources = Path(__file__).resolve().parents[2]
 
     if not check_if_in_virtualenv():
         print(

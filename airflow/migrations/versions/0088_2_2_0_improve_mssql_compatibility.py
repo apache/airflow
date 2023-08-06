@@ -28,6 +28,7 @@ from collections import defaultdict
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import text
 from sqlalchemy.dialects import mssql
 
 from airflow.migrations.db_types import TIMESTAMP
@@ -48,7 +49,7 @@ def is_table_empty(conn, table_name):
     :param table_name: table name
     :return: Booelan indicating if the table is present
     """
-    return conn.execute(f"select TOP 1 * from {table_name}").first() is None
+    return conn.execute(text(f"select TOP 1 * from {table_name}")).first() is None
 
 
 def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
@@ -63,12 +64,14 @@ def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
     :param table_name: table name
     :return: a dictionary of ((constraint name, constraint type), column name) of table
     """
-    query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
+    query = text(
+        f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
      JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu ON ccu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
      WHERE tc.TABLE_NAME = '{table_name}' AND
      (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'UNIQUE')
     """
+    )
     result = conn.execute(query).fetchall()
     constraint_dict = defaultdict(list)
     for constraint, constraint_type, column in result:
@@ -107,13 +110,15 @@ def create_constraints(operator, column_name, constraint_dict):
 
 
 def _is_timestamp(conn, table_name, column_name):
-    query = f"""SELECT
+    query = text(
+        f"""SELECT
     TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE
     FROM SYS.COLUMNS C
     JOIN SYS.TYPES T
     ON C.USER_TYPE_ID=T.USER_TYPE_ID
     WHERE C.OBJECT_ID=OBJECT_ID('{table_name}') and C.NAME='{column_name}';
     """
+    )
     column_type = conn.execute(query).fetchone()[0]
     return column_type == "timestamp"
 
@@ -173,14 +178,18 @@ def upgrade():
                 op.drop_constraint(constraint[0], "dag_run", type_="unique")
     # create filtered indexes
     conn.execute(
-        """CREATE UNIQUE NONCLUSTERED INDEX idx_not_null_dag_id_execution_date
+        text(
+            """CREATE UNIQUE NONCLUSTERED INDEX idx_not_null_dag_id_execution_date
                 ON dag_run(dag_id,execution_date)
                 WHERE dag_id IS NOT NULL and execution_date is not null"""
+        )
     )
     conn.execute(
-        """CREATE UNIQUE NONCLUSTERED INDEX idx_not_null_dag_id_run_id
+        text(
+            """CREATE UNIQUE NONCLUSTERED INDEX idx_not_null_dag_id_run_id
                  ON dag_run(dag_id,run_id)
                  WHERE dag_id IS NOT NULL and run_id is not null"""
+        )
     )
 
 

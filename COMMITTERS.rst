@@ -72,6 +72,10 @@ Code contribution
 5.  Has made a significant improvement or added an integration with services/technologies important to the Airflow
     Ecosystem
 
+6.  Actively participated in the security process, as a member of security team, discussing, assessing and
+    fixing security issues.
+
+
 Community contributions
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -144,6 +148,8 @@ Code contribution
   * Code reviews
   * Merging pull requests
   * Fixing bugs and implementing improvements
+  * Actively participating in the security process and significantly contributing to overall security of
+    Airflow
 
 
 Only a current PMC member can nominate a current committer to be part of PMC.
@@ -187,5 +193,8 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 3.  Merge your Apache and GitHub accounts using `GitBox (Apache Account Linking utility) <https://gitbox.apache.org/setup/>`__. You should see 3 green checks in GitBox.
 4.  Wait at least 30  minutes for an email inviting you to Apache GitHub Organization and accept invitation.
 5.  After accepting the GitHub Invitation verify that you are a member of the `Airflow committers team on GitHub <https://github.com/orgs/apache/teams/airflow-committers>`__.
-6.  Ask in ``#internal-airflow-ci-cd`` channel to be `configured in self-hosted runners <https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers>`_ by the CI maintainers
-7.  After confirming that step 6 is done, open a PR to include your GitHub ID in `ci.yml <https://github.com/apache/airflow/blob/main/.github/workflows/ci.yml#L72>`__ as well as your name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.
+6.  Ask in ``#internal-airflow-ci-cd`` channel to be `configured in self-hosted runners <https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers>`_
+    by the CI maintainers. Wait for confirmation that this is done and some helpful tips from the CI maintainer
+7.  After confirming that step 6 is done, open a PR to include your GitHub ID in:
+    * ``dev/breeze/src/airflow_breeze/global_constants.py`` (COMMITTERS variable)
+    * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.

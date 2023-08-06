@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 @attr.s(auto_attribs=True)
 class NoteBook(File):
-    """Jupyter notebook"""
+    """Jupyter notebook."""
 
     # For compatibility with Airflow 2.3:
     # 1. Use predefined set because `File.template_fields` introduced in Airflow 2.4
@@ -50,7 +50,7 @@ class NoteBook(File):
 
 class PapermillOperator(BaseOperator):
     """
-    Executes a jupyter notebook through papermill that is annotated with parameters
+    Executes a jupyter notebook through papermill that is annotated with parameters.
 
     :param input_nb: input notebook, either path or NoteBook inlet.
     :param output_nb: output notebook, either path or NoteBook outlet.

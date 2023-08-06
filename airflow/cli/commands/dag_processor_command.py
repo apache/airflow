@@ -31,6 +31,7 @@ from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
 
@@ -53,6 +54,7 @@ def _create_dag_processor_job_runner(args: Any) -> DagProcessorJobRunner:
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def dag_processor(args):
     """Starts Airflow Dag Processor Job."""
     if not conf.getboolean("scheduler", "standalone_dag_processor"):

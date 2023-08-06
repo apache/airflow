@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class ElastiCacheReplicationGroupHook(AwsBaseHook):
     """
     Interact with Amazon ElastiCache.
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("elasticache") <ElastiCache.Client>`.
 
     :param max_retries: Max retries for checking availability of and deleting replication group
@@ -109,7 +110,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def is_replication_group_available(self, replication_group_id: str) -> bool:
         """
-        Helper for checking if replication group is available or not
+        Helper for checking if replication group is available or not.
 
         :param replication_group_id: ID of replication group to check for availability
         :return: True if available else False
@@ -124,7 +125,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         max_retries: int | None = None,
     ) -> bool:
         """
-        Check if replication group is available or not by performing a describe over it
+        Check if replication group is available or not by performing a describe over it.
 
         :param replication_group_id: ID of replication group to check for availability
         :param initial_sleep_time: Initial sleep time in seconds
@@ -178,7 +179,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         max_retries: int | None = None,
     ):
         """
-        Helper for deleting a replication group ensuring it is either deleted or can't be deleted
+        Helper for deleting a replication group ensuring it is either deleted or can't be deleted.
 
         :param replication_group_id: ID of replication to delete
         :param initial_sleep_time: Initial sleep time in second
@@ -253,7 +254,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         max_retries: int | None = None,
     ) -> dict:
         """
-        Delete a replication group ensuring it is either deleted or can't be deleted
+        Delete a replication group ensuring it is either deleted or can't be deleted.
 
         :param replication_group_id: ID of replication to delete
         :param initial_sleep_time: Initial sleep time in second

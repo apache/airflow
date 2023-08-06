@@ -29,12 +29,13 @@ from airflow.providers.google.cloud.transfers.gcs_to_sftp import GCSToSFTPOperat
 TASK_ID = "test-gcs-to-sftp-operator"
 GCP_CONN_ID = "GCP_CONN_ID"
 SFTP_CONN_ID = "SFTP_CONN_ID"
-DELEGATE_TO = "DELEGATE_TO"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEST_BUCKET = "test-bucket"
 DESTINATION_SFTP = "destination_path"
 
 
+# TODO: After deprecating delimiter and wildcards in source objects,
+#       implement reverted changes from the first commit of PR #31261
 class TestGoogleCloudStorageToSFTPOperator:
     @pytest.mark.parametrize(
         "source_object, target_object, keep_directory_structure",
@@ -59,13 +60,11 @@ class TestGoogleCloudStorageToSFTPOperator:
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         task.execute({})
         gcs_hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook_mock.assert_called_once_with(SFTP_CONN_ID)
@@ -103,13 +102,11 @@ class TestGoogleCloudStorageToSFTPOperator:
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         task.execute(None)
         gcs_hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook_mock.assert_called_once_with(SFTP_CONN_ID)
@@ -196,7 +193,6 @@ class TestGoogleCloudStorageToSFTPOperator:
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
         )
         operator.execute(None)
 
@@ -289,7 +285,6 @@ class TestGoogleCloudStorageToSFTPOperator:
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
         )
         operator.execute(None)
 
@@ -323,7 +318,6 @@ class TestGoogleCloudStorageToSFTPOperator:
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
         )
         with pytest.raises(AirflowException):
             operator.execute(None)

@@ -69,8 +69,7 @@ class TestGlueJobSensor:
         mock_print_job_logs.assert_called_once_with(
             job_name=job_name,
             run_id=job_run_id,
-            job_failed=False,
-            next_token=ANY,
+            continuation_tokens=ANY,
         )
 
     @mock.patch.object(GlueJobHook, "print_job_logs")
@@ -111,8 +110,7 @@ class TestGlueJobSensor:
         mock_print_job_logs.assert_called_once_with(
             job_name=job_name,
             run_id=job_run_id,
-            job_failed=False,
-            next_token=ANY,
+            continuation_tokens=ANY,
         )
 
     @mock.patch.object(GlueJobHook, "print_job_logs")

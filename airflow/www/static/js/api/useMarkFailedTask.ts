@@ -31,10 +31,12 @@ export default function useMarkFailedTask({
   dagId,
   runId,
   taskId,
+  isGroup,
 }: {
   dagId: string;
   runId: string;
   taskId: string;
+  isGroup: boolean;
 }) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
@@ -58,13 +60,18 @@ export default function useMarkFailedTask({
         csrf_token: csrfToken,
         dag_id: dagId,
         dag_run_id: runId,
-        task_id: taskId,
         confirmed: true,
         past,
         future,
         upstream,
         downstream,
       });
+
+      if (isGroup) {
+        params.append("group_id", taskId);
+      } else {
+        params.append("task_id", taskId);
+      }
 
       mapIndexes.forEach((mi: number) => {
         params.append("map_index", mi.toString());

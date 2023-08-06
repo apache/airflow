@@ -17,10 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from time import sleep
+from functools import cached_property
 
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 
@@ -28,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.sts import StsHook
 class GlueCrawlerHook(AwsBaseHook):
     """
     Interacts with AWS Glue Crawler.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -88,7 +87,9 @@ class GlueCrawlerHook(AwsBaseHook):
         crawler_name = crawler_kwargs["Name"]
         current_crawler = self.get_crawler(crawler_name)
 
-        tags_updated = self.update_tags(crawler_name, crawler_kwargs.pop("Tags", {}))
+        tags_updated = (
+            self.update_tags(crawler_name, crawler_kwargs.pop("Tags")) if "Tags" in crawler_kwargs else False
+        )
 
         update_config = {
             key: value
@@ -171,49 +172,26 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def wait_for_crawler_completion(self, crawler_name: str, poll_interval: int = 5) -> str:
         """
-        Waits until Glue crawler completes and
-        returns the status of the latest crawl run.
-        Raises AirflowException if the crawler fails or is cancelled.
+        Wait until Glue crawler completes; returns the status of the latest crawl or raises AirflowException.
 
         :param crawler_name: unique crawler name per AWS account
         :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
         :return: Crawler's status
         """
-        failed_status = ["FAILED", "CANCELLED"]
+        self.get_waiter("crawler_ready").wait(Name=crawler_name, WaiterConfig={"Delay": poll_interval})
 
-        while True:
-            crawler = self.get_crawler(crawler_name)
-            crawler_state = crawler["State"]
-            if crawler_state == "READY":
-                self.log.info("State: %s", crawler_state)
-                self.log.info("crawler_config: %s", crawler)
-                crawler_status = crawler["LastCrawl"]["Status"]
-                if crawler_status in failed_status:
-                    raise AirflowException(f"Status: {crawler_status}")
-                metrics = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])[
-                    "CrawlerMetricsList"
-                ][0]
-                self.log.info("Status: %s", crawler_status)
-                self.log.info("Last Runtime Duration (seconds): %s", metrics["LastRuntimeSeconds"])
-                self.log.info("Median Runtime Duration (seconds): %s", metrics["MedianRuntimeSeconds"])
-                self.log.info("Tables Created: %s", metrics["TablesCreated"])
-                self.log.info("Tables Updated: %s", metrics["TablesUpdated"])
-                self.log.info("Tables Deleted: %s", metrics["TablesDeleted"])
+        # query one extra time to log some info
+        crawler = self.get_crawler(crawler_name)
+        self.log.info("crawler_config: %s", crawler)
+        crawler_status = crawler["LastCrawl"]["Status"]
 
-                return crawler_status
+        metrics_response = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])
+        metrics = metrics_response["CrawlerMetricsList"][0]
+        self.log.info("Status: %s", crawler_status)
+        self.log.info("Last Runtime Duration (seconds): %s", metrics["LastRuntimeSeconds"])
+        self.log.info("Median Runtime Duration (seconds): %s", metrics["MedianRuntimeSeconds"])
+        self.log.info("Tables Created: %s", metrics["TablesCreated"])
+        self.log.info("Tables Updated: %s", metrics["TablesUpdated"])
+        self.log.info("Tables Deleted: %s", metrics["TablesDeleted"])
 
-            else:
-                self.log.info("Polling for AWS Glue crawler: %s ", crawler_name)
-                self.log.info("State: %s", crawler_state)
-
-                metrics = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])[
-                    "CrawlerMetricsList"
-                ][0]
-                time_left = int(metrics["TimeLeftSeconds"])
-
-                if time_left > 0:
-                    self.log.info("Estimated Time Left (seconds): %s", time_left)
-                else:
-                    self.log.info("Crawler should finish soon")
-
-                sleep(poll_interval)
+        return crawler_status

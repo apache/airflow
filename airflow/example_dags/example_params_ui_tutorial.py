@@ -55,7 +55,7 @@ with DAG(
         "most_loved_number": Param(
             42,
             type="integer",
-            title="You favorite number",
+            title="Your favorite number",
             description_html="""Everybody should have a favorite number. Not only math teachers.
             If you can not think of any at the moment please think of the 42 which is very famous because
             of the book
@@ -65,11 +65,75 @@ with DAG(
         ),
         # If you want to have a selection list box then you can use the enum feature of JSON schema
         "pick_one": Param(
-            "value 1",
+            "value 42",
             type="string",
             title="Select one Value",
             description="You can use JSON schema enum's to generate drop down selection boxes.",
-            enum=[f"value {i}" for i in range(1, 42)],
+            enum=[f"value {i}" for i in range(16, 64)],
+        ),
+        # You can also label the selected values via values_display attribute
+        "pick_with_label": Param(
+            3,
+            type="number",
+            title="Select one Number",
+            description="With drop down selections you can also have nice display labels for the values.",
+            enum=[*range(1, 10)],
+            values_display={
+                1: "One",
+                2: "Two",
+                3: "Three",
+                4: "Four - is like you take three and get one for free!",
+                5: "Five",
+                6: "Six",
+                7: "Seven",
+                8: "Eight",
+                9: "Nine",
+            },
+        ),
+        # If you want to have a list box with proposals but not enforcing a fixed list
+        # then you can use the examples feature of JSON schema
+        "proposals": Param(
+            "some value",
+            type="string",
+            title="Field with proposals",
+            description="You can use JSON schema examples's to generate drop down selection boxes "
+            "but allow also to enter custom values. Try typing an 'a' and see options.",
+            examples=(
+                "Alpha,Bravo,Charlie,Delta,Echo,Foxtrot,Golf,Hotel,India,Juliett,Kilo,Lima,Mike,November,Oscar,Papa,"
+                "Quebec,Romeo,Sierra,Tango,Uniform,Victor,Whiskey,X-ray,Yankee,Zulu"
+            ).split(","),
+        ),
+        # If you want to select multiple items from a fixed list JSON schema des not allow to use enum
+        # In this case the type "array" is being used together with "examples" as pick list
+        "multi_select": Param(
+            ["two", "three"],
+            "Select from the list of options.",
+            type="array",
+            title="Multi Select",
+            examples=["one", "two", "three", "four", "five"],
+        ),
+        # A multiple options selection can also be combined with values_display
+        "multi_select_with_label": Param(
+            ["2", "3"],
+            "Select from the list of options. See that options can have nicer text and still technical values"
+            "are propagated as values during trigger to the DAG.",
+            type="array",
+            title="Multi Select with Labels",
+            examples=["1", "2", "3", "4", "5"],
+            values_display={
+                "1": "One box of choccolate",
+                "2": "Two bananas",
+                "3": "Three apples",
+                # Note: Value display mapping does not need to be complete.s
+            },
+        ),
+        # An array of numbers
+        "array_of_numbers": Param(
+            [1, 2, 3],
+            "Only integers are accepted in this array",
+            type="array",
+            title="Array of numbers",
+            items={"type": "number"},
         ),
         # Boolean as proper parameter with description
         "bool": Param(
@@ -150,6 +214,20 @@ with DAG(
             {"key": "value"},
             type=["object", "null"],
             title="JSON entry field",
+            section="Special advanced stuff with form fields",
+        ),
+        "array_of_objects": Param(
+            [{"name": "account_name", "country": "country_name"}],
+            "Array with complex objects and validation rules. "
+            "See <a href='https://json-schema.org/understanding-json-schema"
+            "/reference/array.html#items'>JSON Schema validation options in specs.</a>",
+            type="array",
+            title="JSON array field",
+            items={
+                "type": "object",
+                "properties": {"name": {"type": "string"}, "country_name": {"type": "string"}},
+                "required": ["name"],
+            },
             section="Special advanced stuff with form fields",
         ),
         # If you want to have static parameters which are always passed and not editable by the user

@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import warnings
 from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -57,8 +56,6 @@ class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
         Note that if `retry` is specified, the timeout applies to each individual attempt.
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -77,7 +74,6 @@ class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
         "dataplex_task_id",
         "body",
         "validate_only",
-        "delegate_to",
         "impersonation_chain",
     )
     template_fields_renderers = {"body": "json"}
@@ -96,7 +92,6 @@ class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous: bool = False,
         *args,
@@ -114,18 +109,12 @@ class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
 
     def execute(self, context: Context) -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -189,8 +178,6 @@ class DataplexDeleteTaskOperator(GoogleCloudBaseOperator):
         Note that if `retry` is specified, the timeout applies to each individual attempt.
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -201,7 +188,7 @@ class DataplexDeleteTaskOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("project_id", "dataplex_task_id", "delegate_to", "impersonation_chain")
+    template_fields = ("project_id", "dataplex_task_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -214,7 +201,6 @@ class DataplexDeleteTaskOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
@@ -229,17 +215,11 @@ class DataplexDeleteTaskOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -280,8 +260,6 @@ class DataplexListTasksOperator(GoogleCloudBaseOperator):
         Note that if `retry` is specified, the timeout applies to each individual attempt.
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -298,7 +276,6 @@ class DataplexListTasksOperator(GoogleCloudBaseOperator):
         "page_token",
         "filter",
         "order_by",
-        "delegate_to",
         "impersonation_chain",
     )
     operator_extra_links = (DataplexTasksLink(),)
@@ -317,7 +294,6 @@ class DataplexListTasksOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
@@ -335,17 +311,11 @@ class DataplexListTasksOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> list[dict]:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -382,8 +352,6 @@ class DataplexGetTaskOperator(GoogleCloudBaseOperator):
         Note that if `retry` is specified, the timeout applies to each individual attempt.
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate, if any. For this to work, the service accountmaking the
-        request must have  domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -394,7 +362,7 @@ class DataplexGetTaskOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("project_id", "dataplex_task_id", "delegate_to", "impersonation_chain")
+    template_fields = ("project_id", "dataplex_task_id", "impersonation_chain")
     operator_extra_links = (DataplexTaskLink(),)
 
     def __init__(
@@ -408,7 +376,6 @@ class DataplexGetTaskOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
@@ -423,17 +390,11 @@ class DataplexGetTaskOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -470,8 +431,6 @@ class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
         Note that if `retry` is specified, the timeout applies to each individual attempt.
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate, if any. For this to work, the service account making the
-        request must have domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -490,7 +449,6 @@ class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
         "lake_id",
         "body",
         "validate_only",
-        "delegate_to",
         "impersonation_chain",
     )
     template_fields_renderers = {"body": "json"}
@@ -508,7 +466,6 @@ class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous: bool = False,
         *args,
@@ -525,18 +482,12 @@ class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
 
     def execute(self, context: Context) -> dict:
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -599,8 +550,6 @@ class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
         Note that if `retry` is specified, the timeout applies to each individual attempt.
     :param metadata: Additional metadata that is provided to the method.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate, if any. For this to work, the service account making the
-        request must have domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -611,7 +560,7 @@ class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("project_id", "lake_id", "delegate_to", "impersonation_chain")
+    template_fields = ("project_id", "lake_id", "impersonation_chain")
     operator_extra_links = (DataplexLakeLink(),)
 
     def __init__(
@@ -624,7 +573,6 @@ class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         *args,
         **kwargs,
@@ -639,18 +587,12 @@ class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
 
         hook = DataplexHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )

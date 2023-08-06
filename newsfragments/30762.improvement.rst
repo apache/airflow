@@ -1,0 +1,1 @@
+PostgreSQL only improvement: Added index on taskinstance table. This index seems to have great positive effect in a setup with tens of millions such rows.

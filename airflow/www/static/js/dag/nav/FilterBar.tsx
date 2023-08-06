@@ -46,13 +46,20 @@ const FilterBar = () => {
   } = useFilters();
 
   const { timezone } = useTimezone();
+  // @ts-ignore
   const time = moment(filters.baseDate);
+  // @ts-ignore
   const formattedTime = time.tz(timezone).format(isoFormatWithoutTZ);
 
   const inputStyles = { backgroundColor: "white", size: "lg" };
 
   return (
-    <Flex backgroundColor="#f0f0f0" mt={4} p={4} justifyContent="space-between">
+    <Flex
+      backgroundColor="blackAlpha.200"
+      mt={4}
+      p={4}
+      justifyContent="space-between"
+    >
       <Flex>
         <Box px={2}>
           <Input

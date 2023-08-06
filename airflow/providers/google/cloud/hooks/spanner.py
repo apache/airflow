@@ -18,8 +18,7 @@
 """This module contains a Google Cloud Spanner Hook."""
 from __future__ import annotations
 
-import warnings
-from typing import Callable, Sequence
+from typing import Callable, NamedTuple, Sequence
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.spanner_v1.client import Client
@@ -27,13 +26,23 @@ from google.cloud.spanner_v1.database import Database
 from google.cloud.spanner_v1.instance import Instance
 from google.cloud.spanner_v1.transaction import Transaction
 from google.longrunning.operations_grpc_pb2 import Operation
+from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
 
 
-class SpannerHook(GoogleBaseHook):
+class SpannerConnectionParams(NamedTuple):
+    """Information about Google Spanner connection parameters."""
+
+    project_id: str | None
+    instance_id: str | None
+    database_id: str | None
+
+
+class SpannerHook(GoogleBaseHook, DbApiHook):
     """
     Hook for Google Cloud Spanner APIs.
 
@@ -41,22 +50,27 @@ class SpannerHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
+    conn_name_attr = "gcp_conn_id"
+    default_conn_name = "google_cloud_spanner_default"
+    conn_type = "gcpspanner"
+    hook_name = "Google Cloud Spanner"
+
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None
+        self._client: Client | None = None
 
     def _get_client(self, project_id: str) -> Client:
         """
@@ -71,12 +85,40 @@ class SpannerHook(GoogleBaseHook):
             )
         return self._client
 
+    def _get_conn_params(self) -> SpannerConnectionParams:
+        """Extract spanner database connection parameters."""
+        extras = self.get_connection(self.gcp_conn_id).extra_dejson
+        project_id = get_field(extras, "project_id") or self.project_id
+        instance_id = get_field(extras, "instance_id")
+        database_id = get_field(extras, "database_id")
+        return SpannerConnectionParams(project_id, instance_id, database_id)
+
+    def get_uri(self) -> str:
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
+        project_id, instance_id, database_id = self._get_conn_params()
+        if not all([instance_id, database_id]):
+            raise AirflowException("The instance_id or database_id were not specified")
+        return f"spanner+spanner:///projects/{project_id}/instances/{instance_id}/databases/{database_id}"
+
+    def get_sqlalchemy_engine(self, engine_kwargs=None):
+        """
+        Get an sqlalchemy_engine object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        :return: the created engine.
+        """
+        if engine_kwargs is None:
+            engine_kwargs = {}
+        project_id, _, _ = self._get_conn_params()
+        spanner_client = self._get_client(project_id=project_id)
+        return create_engine(self.get_uri(), connect_args={"client": spanner_client}, **engine_kwargs)
+
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(
         self,
         instance_id: str,
         project_id: str,
-    ) -> Instance:
+    ) -> Instance | None:
         """
         Gets information about a particular instance.
 
@@ -216,8 +258,7 @@ class SpannerHook(GoogleBaseHook):
         project_id: str,
     ) -> Database | None:
         """
-        Retrieves a database in Cloud Spanner. If the database does not exist
-        in the specified instance, it returns None.
+        Retrieves a database in Cloud Spanner; return None if the database does not exist in the instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param database_id: The ID of the database in Cloud Spanner.

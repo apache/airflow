@@ -18,7 +18,6 @@
 """This module contains a Google Cloud Dataform sensor."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import AirflowException
@@ -43,10 +42,6 @@ class DataformWorkflowInvocationStateSensor(BaseSensorOperator):
         https://cloud.google.com/python/docs/reference/dataform/latest/google.cloud.dataform_v1beta1.types.WorkflowInvocation.State
     :param failure_statuses: State that will terminate the sensor with an exception
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled. See:
-        https://developers.google.com/identity/protocols/oauth2/service-account#delegatingauthority
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -69,7 +64,6 @@ class DataformWorkflowInvocationStateSensor(BaseSensorOperator):
         expected_statuses: set[int] | int,
         failure_statuses: Iterable[int] | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -83,18 +77,12 @@ class DataformWorkflowInvocationStateSensor(BaseSensorOperator):
         self.project_id = project_id
         self.region = region
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: DataformHook | None = None
 
     def poke(self, context: Context) -> bool:
         self.hook = DataformHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

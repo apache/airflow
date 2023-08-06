@@ -18,7 +18,7 @@
  */
 
 import React from "react";
-import { Box, Text, Flex } from "@chakra-ui/react";
+import { Box, Text, Flex, useTheme } from "@chakra-ui/react";
 import { Handle, NodeProps, Position } from "reactflow";
 
 import { SimpleStatus } from "src/dag/StatusBox";
@@ -28,6 +28,7 @@ import { getGroupAndMapSummary, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
 import InstanceTooltip from "src/dag/InstanceTooltip";
 import { useContainerRef } from "src/context/containerRef";
+import { ImArrowUpRight2, ImArrowDownRight2 } from "react-icons/im";
 
 export interface CustomNodeProps {
   label: string;
@@ -42,6 +43,10 @@ export interface CustomNodeProps {
   onToggleCollapse: () => void;
   isOpen?: boolean;
   isActive?: boolean;
+  setupTeardownType?: "setup" | "teardown";
+  fullParentNode?: string;
+  labelStyle?: string;
+  style?: string;
 }
 
 export const BaseNode = ({
@@ -58,13 +63,18 @@ export const BaseNode = ({
     onToggleCollapse,
     isOpen,
     isActive,
+    setupTeardownType,
+    labelStyle,
+    style,
   },
 }: NodeProps<CustomNodeProps>) => {
+  const { colors } = useTheme();
   const { onSelect } = useSelection();
   const containerRef = useContainerRef();
 
   if (!task) return null;
 
+  const bg = isOpen ? "blackAlpha.50" : "white";
   const { isMapped } = task;
   const mappedStates = instance?.mappedStates;
 
@@ -73,6 +83,16 @@ export const BaseNode = ({
   const taskName = isMapped
     ? `${label} [${instance ? totalTasks : " "}]`
     : label;
+
+  let operatorTextColor = "";
+  let operatorBG = "";
+  if (style) {
+    [, operatorBG] = style.split(":");
+  }
+
+  if (labelStyle) {
+    [, operatorTextColor] = labelStyle.split(":");
+  }
 
   return (
     <Tooltip
@@ -90,7 +110,7 @@ export const BaseNode = ({
         borderRadius={5}
         borderWidth={1}
         borderColor={isSelected ? "blue.400" : "gray.400"}
-        bg={isSelected ? "blue.50" : "white"}
+        bg={isSelected ? "blue.50" : bg}
         height={`${height}px`}
         width={`${width}px`}
         cursor={latestDagRunId ? "cursor" : "default"}
@@ -112,20 +132,40 @@ export const BaseNode = ({
           p={2}
           flexWrap="wrap"
         >
-          <Flex flexDirection="column">
-            <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
-              {taskName}
-            </Text>
+          <Flex flexDirection="column" width="100%">
+            <Flex
+              justifyContent="space-between"
+              alignItems="center"
+              width="100%"
+            >
+              <Text noOfLines={1} maxWidth={`calc(${width}px - 8px)`}>
+                {taskName}
+              </Text>
+              {setupTeardownType === "setup" && (
+                <ImArrowUpRight2 size={15} color={colors.gray[800]} />
+              )}
+              {setupTeardownType === "teardown" && (
+                <ImArrowDownRight2 size={15} color={colors.gray[800]} />
+              )}
+            </Flex>
             {!!instance && instance.state && (
               <Flex alignItems="center">
                 <SimpleStatus state={instance.state} />
-                <Text ml={2} color="gray.500" fontSize="sm">
+                <Text ml={2} color="gray.500" fontSize="md">
                   {instance.state}
                 </Text>
               </Flex>
             )}
             {task?.operator && (
-              <Text color="gray.500" fontWeight={400} fontSize="md">
+              <Text
+                fontWeight={400}
+                fontSize="md"
+                width="fit-content"
+                borderRadius={5}
+                bg={operatorBG}
+                color={operatorTextColor || "gray.500"}
+                px={1}
+              >
                 {task.operator}
               </Text>
             )}
@@ -134,6 +174,9 @@ export const BaseNode = ({
             <Text
               color="blue.600"
               cursor="pointer"
+              // Increase the target area to expand/collapse a group
+              p={3}
+              m={-3}
               onClick={(e) => {
                 e.stopPropagation();
                 onToggleCollapse();

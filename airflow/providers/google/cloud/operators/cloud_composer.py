@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists
@@ -28,6 +27,7 @@ from google.cloud.orchestration.airflow.service_v1.types import Environment
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -45,7 +45,7 @@ CLOUD_COMPOSER_ENVIRONMENTS_LINK = CLOUD_COMPOSER_BASE_LINK + "?project={project
 
 
 class CloudComposerEnvironmentLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Composer Environment Link"""
+    """Helper class for constructing Cloud Composer Environment Link."""
 
     name = "Cloud Composer Environment"
     key = "composer_conf"
@@ -72,7 +72,7 @@ class CloudComposerEnvironmentLink(BaseGoogleLink):
 
 
 class CloudComposerEnvironmentsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Composer Environment Link"""
+    """Helper class for constructing Cloud Composer Environment Link."""
 
     name = "Cloud Composer Environment List"
     key = "composer_conf"
@@ -106,9 +106,6 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param retry: Designation of what errors, if any, should be retried.
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
@@ -136,11 +133,10 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         environment: Environment | dict,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        delegate_to: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -154,11 +150,6 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.deferrable = deferrable
         self.pooling_period_seconds = pooling_period_seconds
 
@@ -166,7 +157,6 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            delegate_to=self.delegate_to,
         )
 
         name = hook.get_environment_name(self.project_id, self.region, self.environment_id)
@@ -198,7 +188,6 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
                         operation_name=result.operation.name,
                         gcp_conn_id=self.gcp_conn_id,
                         impersonation_chain=self.impersonation_chain,
-                        delegate_to=self.delegate_to,
                         pooling_period_seconds=self.pooling_period_seconds,
                     ),
                     method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
@@ -219,7 +208,6 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
             hook = CloudComposerHook(
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
-                delegate_to=self.delegate_to,
             )
 
             env = hook.get_environment(
@@ -254,12 +242,9 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param deferrable: Run operator in the deferrable mode
     :param pooling_period_seconds: Optional: Control the rate of the poll for the result of deferrable run.
-        By default the trigger will poll every 30 seconds.
+        By default, the trigger will poll every 30 seconds.
     """
 
     template_fields = (
@@ -280,8 +265,7 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        delegate_to: str | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -294,11 +278,6 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.deferrable = deferrable
         self.pooling_period_seconds = pooling_period_seconds
 
@@ -306,7 +285,6 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            delegate_to=self.delegate_to,
         )
         result = hook.delete_environment(
             project_id=self.project_id,
@@ -326,7 +304,6 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
                     operation_name=result.operation.name,
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
-                    delegate_to=self.delegate_to,
                     pooling_period_seconds=self.pooling_period_seconds,
                 ),
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
@@ -355,9 +332,6 @@ class CloudComposerGetEnvironmentOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     """
 
     template_fields = (
@@ -380,7 +354,6 @@ class CloudComposerGetEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -392,17 +365,11 @@ class CloudComposerGetEnvironmentOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
 
     def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            delegate_to=self.delegate_to,
         )
 
         result = hook.get_environment(
@@ -439,9 +406,6 @@ class CloudComposerListEnvironmentsOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     """
 
     template_fields = (
@@ -464,7 +428,6 @@ class CloudComposerListEnvironmentsOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -477,17 +440,11 @@ class CloudComposerListEnvironmentsOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
 
     def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            delegate_to=self.delegate_to,
         )
         CloudComposerEnvironmentsLink.persist(operator_instance=self, context=context)
         result = hook.list_environments(
@@ -526,12 +483,9 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param deferrable: Run operator in the deferrable mode
     :param pooling_period_seconds: Optional: Control the rate of the poll for the result of deferrable run.
-        By default the trigger will poll every 30 seconds.
+        By default, the trigger will poll every 30 seconds.
     """
 
     template_fields = (
@@ -556,8 +510,7 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        delegate_to: str | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -572,11 +525,6 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.deferrable = deferrable
         self.pooling_period_seconds = pooling_period_seconds
 
@@ -584,7 +532,6 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            delegate_to=self.delegate_to,
         )
 
         result = hook.update_environment(
@@ -610,7 +557,6 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
                     operation_name=result.operation.name,
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
-                    delegate_to=self.delegate_to,
                     pooling_period_seconds=self.pooling_period_seconds,
                 ),
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
@@ -621,7 +567,6 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
             hook = CloudComposerHook(
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
-                delegate_to=self.delegate_to,
             )
 
             env = hook.get_environment(
@@ -654,9 +599,6 @@ class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     """
 
     template_fields = (
@@ -678,7 +620,6 @@ class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -692,17 +633,11 @@ class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
 
     def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            delegate_to=self.delegate_to,
         )
         result = hook.list_image_versions(
             project_id=self.project_id,

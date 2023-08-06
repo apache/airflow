@@ -26,7 +26,6 @@ from pathlib import Path
 
 from airflow import models
 from airflow.models.baseoperator import chain
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceAsyncSensor,
@@ -93,6 +92,19 @@ with models.DAG(
     )
     # [END howto_sensor_gcs_upload_session_complete_task]
 
+    # [START howto_sensor_gcs_upload_session_async_task]
+    gcs_upload_session_async_complete = GCSUploadSessionCompleteSensor(
+        bucket=BUCKET_NAME,
+        prefix=FILE_NAME,
+        inactivity_period=15,
+        min_objects=1,
+        allow_delete=True,
+        previous_objects=set(),
+        task_id="gcs_upload_session_async_complete",
+        deferrable=True,
+    )
+    # [END howto_sensor_gcs_upload_session_async_task]
+
     # [START howto_sensor_object_update_exists_task]
     gcs_update_object_exists = GCSObjectUpdateSensor(
         bucket=BUCKET_NAME,
@@ -100,6 +112,12 @@ with models.DAG(
         task_id="gcs_object_update_sensor_task",
     )
     # [END howto_sensor_object_update_exists_task]
+
+    # [START howto_sensor_object_update_exists_task_async]
+    gcs_update_object_exists_async = GCSObjectUpdateSensor(
+        bucket=BUCKET_NAME, object=FILE_NAME, task_id="gcs_object_update_sensor_task_async", deferrable=True
+    )
+    # [END howto_sensor_object_update_exists_task_async]
 
     upload_file = LocalFilesystemToGCSOperator(
         task_id="upload_file",
@@ -138,16 +156,22 @@ with models.DAG(
     )
     # [END howto_sensor_object_with_prefix_exists_task]
 
+    # [START howto_sensor_object_with_prefix_exists_task_async]
+    gcs_object_with_prefix_exists_async = GCSObjectsWithPrefixExistenceSensor(
+        bucket=BUCKET_NAME,
+        prefix=FILE_NAME[:5],
+        task_id="gcs_object_with_prefix_exists_task_async",
+        deferrable=True,
+    )
+    # [END howto_sensor_object_with_prefix_exists_task_async]
+
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    sleep = BashOperator(task_id="sleep", bash_command="sleep 5")
-
     chain(
         # TEST SETUP
         create_bucket,
-        sleep,
         upload_file,
         # TEST BODY
         [

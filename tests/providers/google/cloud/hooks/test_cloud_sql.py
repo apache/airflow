@@ -24,13 +24,17 @@ import tempfile
 from unittest import mock
 from unittest.mock import PropertyMock
 
+import aiohttp
 import httplib2
 import pytest
+from aiohttp.helpers import TimerNoop
 from googleapiclient.errors import HttpError
+from yarl import URL
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import (
+    CloudSQLAsyncHook,
     CloudSQLDatabaseHook,
     CloudSQLHook,
     CloudSqlProxyRunner,
@@ -40,8 +44,32 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_no_default_project_id,
 )
 
+HOOK_STR = "airflow.providers.google.cloud.hooks.cloud_sql.{}"
+PROJECT_ID = "test_project_id"
+OPERATION_NAME = "test_operation_name"
+OPERATION_URL = (
+    f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{PROJECT_ID}/operations/{OPERATION_NAME}"
+)
+
+
+@pytest.fixture
+def hook_async():
+    with mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseAsyncHook.__init__",
+        new=mock_base_gcp_hook_default_project_id,
+    ):
+        yield CloudSQLAsyncHook()
+
+
+def session():
+    return mock.Mock()
+
 
 class TestGcpSqlHookDefaultProjectId:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudSQLHook(api_version="v1", gcp_conn_id="test", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -112,9 +140,6 @@ class TestGcpSqlHookDefaultProjectId:
 
         export_method.assert_called_once_with(body={}, instance="instance", project="example-project")
         execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_called_once_with(
-            project_id="example-project", operation_name="operation_id"
-        )
         assert 1 == mock_get_credentials.call_count
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_conn")
@@ -124,25 +149,14 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = export_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
         ]
-        wait_for_operation_to_complete.return_value = None
-        self.cloudsql_hook.export_instance(project_id="example-project", instance="instance", body={})
-
-        assert 2 == export_method.call_count
-        assert 2 == execute_method.call_count
-        wait_for_operation_to_complete.assert_called_once_with(
-            project_id="example-project", operation_name="operation_id"
-        )
+        with pytest.raises(HttpError):
+            self.cloudsql_hook.export_instance(project_id="example-project", instance="instance", body={})
+        wait_for_operation_to_complete.assert_not_called()
 
     @mock.patch(
         "airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook.get_credentials_and_project_id",
@@ -196,13 +210,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = insert_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -230,13 +238,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = patch_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -287,7 +289,7 @@ class TestGcpSqlHookDefaultProjectId:
         delete_method.assert_called_once_with(instance="instance", project="example-project")
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
-            operation_name="operation_id", project_id="example-project"
+            operation_name="operation_id", project_id="example-project", time_to_sleep=5
         )
         assert 1 == mock_get_credentials.call_count
 
@@ -304,13 +306,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = delete_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -322,7 +318,7 @@ class TestGcpSqlHookDefaultProjectId:
         assert 2 == delete_method.call_count
         assert 2 == execute_method.call_count
         wait_for_operation_to_complete.assert_called_once_with(
-            operation_name="operation_id", project_id="example-project"
+            operation_name="operation_id", project_id="example-project", time_to_sleep=5
         )
 
     @mock.patch(
@@ -405,13 +401,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = insert_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -461,13 +451,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = patch_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -517,13 +501,7 @@ class TestGcpSqlHookDefaultProjectId:
         execute_method = delete_method.return_value.execute
         execute_method.side_effect = [
             HttpError(
-                resp=type(
-                    "",
-                    (object,),
-                    {
-                        "status": 429,
-                    },
-                )(),
+                resp=httplib2.Response({"status": 429}),
                 content=b"Internal Server Error",
             ),
             {"name": "operation_id"},
@@ -589,9 +567,6 @@ class TestGcpSqlHookNoDefaultProjectID:
         )
         export_method.assert_called_once_with(body={}, instance="instance", project="example-project")
         execute_method.assert_called_once_with(num_retries=5)
-        wait_for_operation_to_complete.assert_called_once_with(
-            project_id="example-project", operation_name="operation_id"
-        )
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
@@ -680,7 +655,7 @@ class TestGcpSqlHookNoDefaultProjectID:
         delete_method.assert_called_once_with(instance="instance", project="example-project")
         execute_method.assert_called_once_with(num_retries=5)
         wait_for_operation_to_complete.assert_called_once_with(
-            operation_name="operation_id", project_id="example-project"
+            operation_name="operation_id", project_id="example-project", time_to_sleep=5
         )
 
     @mock.patch(
@@ -1276,3 +1251,75 @@ class TestCloudSqlProxyRunner:
         )
         with pytest.raises(ValueError, match="The sql_proxy_version should match the regular expression"):
             runner._get_sql_proxy_download_url()
+
+
+class TestCloudSQLAsyncHook:
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook._get_conn"))
+    async def test_async_get_operation_name_should_execute_successfully(self, mocked_conn, hook_async):
+        await hook_async.get_operation_name(
+            operation_name=OPERATION_NAME,
+            project_id=PROJECT_ID,
+            session=session,
+        )
+
+        mocked_conn.assert_awaited_once_with(url=OPERATION_URL, session=session)
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation_name"))
+    async def test_async_get_operation_completed_should_execute_successfully(self, mocked_get, hook_async):
+        response = aiohttp.ClientResponse(
+            "get",
+            URL(OPERATION_URL),
+            request_info=mock.Mock(),
+            writer=mock.Mock(),
+            continue100=None,
+            timer=TimerNoop(),
+            traces=[],
+            loop=mock.Mock(),
+            session=session,
+        )
+        response.status = 200
+        mocked_get.return_value = response
+        mocked_get.return_value._headers = {"Authorization": "test-token"}
+        mocked_get.return_value._body = b'{"status": "DONE"}'
+
+        operation = await hook_async.get_operation(operation_name=OPERATION_NAME, project_id=PROJECT_ID)
+        mocked_get.assert_awaited_once()
+        assert operation["status"] == "DONE"
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook.get_operation_name"))
+    async def test_async_get_operation_running_should_execute_successfully(self, mocked_get, hook_async):
+        response = aiohttp.ClientResponse(
+            "get",
+            URL(OPERATION_URL),
+            request_info=mock.Mock(),
+            writer=mock.Mock(),
+            continue100=None,
+            timer=TimerNoop(),
+            traces=[],
+            loop=mock.Mock(),
+            session=session,
+        )
+        response.status = 200
+        mocked_get.return_value = response
+        mocked_get.return_value._headers = {"Authorization": "test-token"}
+        mocked_get.return_value._body = b'{"status": "RUNNING"}'
+
+        operation = await hook_async.get_operation(operation_name=OPERATION_NAME, project_id=PROJECT_ID)
+        mocked_get.assert_awaited_once()
+        assert operation["status"] == "RUNNING"
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_STR.format("CloudSQLAsyncHook._get_conn"))
+    async def test_async_get_operation_exception_should_execute_successfully(
+        self, mocked_get_conn, hook_async
+    ):
+        """Assets that the logging is done correctly when CloudSQLAsyncHook raises HttpError"""
+
+        mocked_get_conn.side_effect = HttpError(
+            resp=mock.MagicMock(status=409), content=b"Operation already exists"
+        )
+        with pytest.raises(HttpError):
+            await hook_async.get_operation(operation_name=OPERATION_NAME, project_id=PROJECT_ID)

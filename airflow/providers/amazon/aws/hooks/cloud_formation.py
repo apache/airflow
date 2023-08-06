@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains AWS CloudFormation Hook"""
+"""This module contains AWS CloudFormation Hook."""
 from __future__ import annotations
 
 from boto3 import client, resource
@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class CloudFormationHook(AwsBaseHook):
     """
     Interact with AWS CloudFormation.
+
     Provide thin wrapper around
     :external+boto3:py:class:`boto3.client("cloudformation") <CloudFormation.Client>`.
 

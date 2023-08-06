@@ -20,6 +20,7 @@ from __future__ import annotations
 from copy import deepcopy
 from unittest import mock
 
+import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
@@ -33,7 +34,7 @@ from airflow.providers.google.cloud.operators.functions import (
 from airflow.version import version
 
 EMPTY_CONTENT = b""
-MOCK_RESP_404 = type("", (object,), {"status": 404})()
+MOCK_RESP_404 = httplib2.Response({"status": 404})
 
 GCP_PROJECT_ID = "test_project_id"
 GCP_LOCATION = "test_region"
@@ -657,7 +658,7 @@ class TestGcfFunctionDelete:
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_non_404_gcf_error_bubbled_up(self, mock_hook):
         op = CloudFunctionDeleteFunctionOperator(name=self._FUNCTION_NAME, task_id="id")
-        resp = type("", (object,), {"status": 500})()
+        resp = httplib2.Response({"status": 500})
         mock_hook.return_value.delete_function.side_effect = mock.Mock(
             side_effect=HttpError(resp=resp, content=b"error")
         )

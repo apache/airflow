@@ -23,13 +23,13 @@ import os
 import warnings
 from contextlib import suppress
 from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 from urllib.parse import urljoin
 
 import pendulum
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
@@ -96,7 +96,7 @@ def _fetch_logs_from_service(url, log_relative_path):
     return response
 
 
-_parse_timestamp = conf.getimport("core", "interleave_timestamp_parser", fallback=None)
+_parse_timestamp = conf.getimport("logging", "interleave_timestamp_parser", fallback=None)
 
 if not _parse_timestamp:
 
@@ -134,10 +134,10 @@ def _interleave_logs(*logs):
 
 class FileTaskHandler(logging.Handler):
     """
-    FileTaskHandler is a python log handler that handles and reads
-    task instance logs. It creates and delegates log handling
-    to `logging.FileHandler` after receiving task instance context.
-    It reads logs from task instance's host machine.
+    FileTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It creates and delegates log handling to `logging.FileHandler` after receiving task
+    instance context.  It reads logs from task instance's host machine.
 
     :param base_log_folder: Base log folder to place logs.
     :param filename_template: template filename string
@@ -147,7 +147,7 @@ class FileTaskHandler(logging.Handler):
 
     def __init__(self, base_log_folder: str, filename_template: str | None = None):
         super().__init__()
-        self.handler: logging.FileHandler | None = None
+        self.handler: logging.Handler | None = None
         self.local_base = base_log_folder
         if filename_template is not None:
             warnings.warn(
@@ -201,7 +201,7 @@ class FileTaskHandler(logging.Handler):
         triggerer instances.
         """
         full_path = Path(full_path).as_posix()
-        full_path += f".{LogType.TRIGGER}"
+        full_path += f".{LogType.TRIGGER.value}"
         if job_id:
             full_path += f".{job_id}.log"
         return full_path
@@ -278,8 +278,7 @@ class FileTaskHandler(logging.Handler):
         metadata: dict[str, Any] | None = None,
     ):
         """
-        Template method that contains custom logic of reading
-        logs given the try_number.
+        Template method that contains custom logic of reading logs given the try_number.
 
         :param ti: task instance record
         :param try_number: current try_number to read log from
@@ -303,11 +302,14 @@ class FileTaskHandler(logging.Handler):
         worker_log_rel_path = self._render_filename(ti, try_number)
         messages_list: list[str] = []
         remote_logs: list[str] = []
-        running_logs: list[str] = []
         local_logs: list[str] = []
         executor_messages: list[str] = []
         executor_logs: list[str] = []
         served_logs: list[str] = []
+        is_running = ti.try_number == try_number and ti.state in (
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        )
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
@@ -316,19 +318,25 @@ class FileTaskHandler(logging.Handler):
             if response:
                 executor_messages, executor_logs = response
             if executor_messages:
-                messages_list.extend(messages_list)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
-            messages_list.extend(served_messages)
+                messages_list.extend(executor_messages)
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
+        if is_running and not executor_messages:
+            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            messages_list.extend(served_messages)
+        elif ti.state not in State.unfinished and not (local_logs or remote_logs):
+            # ordinarily we don't check served logs, with the assumption that users set up
+            # remote logging or shared drive for logs for persistence, but that's not always true
+            # so even if task is done, if no local logs or remote logs are found, we'll check the worker
+            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            messages_list.extend(served_messages)
+
         logs = "\n".join(
             _interleave_logs(
                 *local_logs,
-                *running_logs,
                 *remote_logs,
                 *(executor_logs or []),
                 *served_logs,
@@ -336,12 +344,11 @@ class FileTaskHandler(logging.Handler):
         )
         log_pos = len(logs)
         messages = "".join([f"*** {x}\n" for x in messages_list])
-        end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
         out_message = logs if "log_pos" in (metadata or {}) else messages + logs
-        return out_message, {"end_of_log": end_of_log, "log_pos": log_pos}
+        return out_message, {"end_of_log": not is_running, "log_pos": log_pos}
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -349,7 +356,7 @@ class FileTaskHandler(logging.Handler):
         namespace = None
         with suppress(Exception):
             namespace = pod_override.metadata.namespace
-        return namespace or conf.get("kubernetes_executor", "namespace", fallback="default")
+        return namespace or conf.get("kubernetes_executor", "namespace")
 
     def _get_log_retrieval_url(
         self, ti: TaskInstance, log_relative_path: str, log_type: LogType | None = None
@@ -454,8 +461,9 @@ class FileTaskHandler(logging.Handler):
 
     def _init_file(self, ti):
         """
-        Create log directory and give it permissions that are configured. See above _prepare_log_folder
-        method for more detailed explanation.
+        Create log directory and give it permissions that are configured.
+
+        See above _prepare_log_folder method for more detailed explanation.
 
         :param ti: task instance object
         :return: relative log path of the given task instance
@@ -517,6 +525,14 @@ class FileTaskHandler(logging.Handler):
             logger.exception("Could not read served logs")
         return messages, logs
 
-    def _read_remote_logs(self, ti, try_number, metadata=None):
-        """Implement in subclasses to read from the remote service"""
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+        """
+        Implement in subclasses to read from the remote service.
+
+        This method should return two lists, messages and logs.
+
+        * Each element in the messages list should be a single message,
+          such as, "reading from x file".
+        * Each element in the logs list should be the content of one file.
+        """
         raise NotImplementedError

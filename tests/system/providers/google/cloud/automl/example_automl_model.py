@@ -51,7 +51,7 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "automl_model"
+DAG_ID = "example_automl_model"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_AUTOML_LOCATION = "us-central1"
@@ -59,18 +59,18 @@ GCP_AUTOML_LOCATION = "us-central1"
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 RESOURCE_DATA_BUCKET = "system-tests-resources"
 
-DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+DATASET_NAME = "test_dataset_model"
 DATASET = {
     "display_name": DATASET_NAME,
     "tables_dataset_metadata": {"target_column_spec_id": ""},
 }
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/bank-marketing.csv"
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-model/bank-marketing.csv"
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
 IMPORT_OUTPUT_CONFIG = {
-    "gcs_destination": {"output_uri_prefix": f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl"}
+    "gcs_destination": {"output_uri_prefix": f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-model"}
 }
 
-MODEL_NAME = f"model_{DAG_ID}_{ENV_ID}"
+MODEL_NAME = "test_model"
 MODEL = {
     "display_name": MODEL_NAME,
     "tables_model_metadata": {"train_budget_milli_node_hours": 1000},
@@ -130,9 +130,9 @@ with models.DAG(
     move_dataset_file = GCSSynchronizeBucketsOperator(
         task_id="move_data_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="automl",
+        source_object="automl-model",
         destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        destination_object="automl",
+        destination_object="automl-model",
         recursive=True,
     )
 
@@ -255,7 +255,9 @@ with models.DAG(
 
     (
         # TEST SETUP
-        [create_bucket >> move_dataset_file, create_dataset]
+        create_bucket
+        >> move_dataset_file
+        >> create_dataset
         >> import_dataset
         >> list_tables_spec
         >> list_columns_spec

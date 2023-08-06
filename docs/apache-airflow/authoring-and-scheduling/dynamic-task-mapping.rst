@@ -177,9 +177,8 @@ Mapping with non-TaskFlow operators
 It is possible to use ``partial`` and ``expand`` with classic style operators as well. Some arguments are not mappable and must be passed to ``partial()``, such as ``task_id``, ``queue``, ``pool``, and most other arguments to ``BaseOperator``.
 
 
-.. code-block:: python
-
-    BashOperator.partial(task_id="bash", do_xcom_push=False).expand(bash_command=["echo 1", "echo 2"])
+.. exampleinclude:: /../../airflow/example_dags/example_dynamic_task_mapping_with_no_taskflow_operators.py
+    :language: python
 
 .. note:: Only keyword arguments are allowed to be passed to ``partial()``.
 

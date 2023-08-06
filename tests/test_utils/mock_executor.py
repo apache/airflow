@@ -21,7 +21,7 @@ from collections import defaultdict
 from unittest.mock import MagicMock
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 

@@ -111,7 +111,7 @@ def on_task_instance_failed(previous_state: TaskInstanceState, task_instance: Ta
 
 # [START howto_listen_dagrun_success_task]
 @hookimpl
-def on_dag_run_success(dag_run: DagRun, message: str):
+def on_dag_run_success(dag_run: DagRun, msg: str):
     """
     This method is called when dag run state changes to SUCCESS.
     """
@@ -126,7 +126,7 @@ def on_dag_run_success(dag_run: DagRun, message: str):
 
 # [START howto_listen_dagrun_failure_task]
 @hookimpl
-def on_dag_run_failed(dag_run: DagRun, message: str):
+def on_dag_run_failed(dag_run: DagRun, msg: str):
     """
     This method is called when dag run state changes to FAILED.
     """
@@ -142,7 +142,7 @@ def on_dag_run_failed(dag_run: DagRun, message: str):
 
 # [START howto_listen_dagrun_running_task]
 @hookimpl
-def on_dag_run_running(dag_run: DagRun, message: str):
+def on_dag_run_running(dag_run: DagRun, msg: str):
     """
     This method is called when dag run state changes to RUNNING.
     """

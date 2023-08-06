@@ -15,13 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Objects relating to sourcing connections from AWS SSM Parameter Store"""
+"""Objects relating to sourcing connections from AWS SSM Parameter Store."""
 from __future__ import annotations
 
 import re
-import warnings
+from functools import cached_property
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -29,7 +28,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection or Variables from AWS SSM Parameter Store
+    Retrieves Connection or Variables from AWS SSM Parameter Store.
 
     Configurable via ``airflow.cfg`` like so:
 
@@ -113,7 +112,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
     @cached_property
     def client(self):
-        """Create a SSM client"""
+        """Create a SSM client."""
         from airflow.providers.amazon.aws.hooks.base_aws import SessionFactory
         from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
@@ -134,7 +133,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_conn_value(self, conn_id: str) -> str | None:
         """
-        Get param value
+        Get param value.
 
         :param conn_id: connection id
         """
@@ -143,29 +142,9 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.connections_prefix, conn_id, self.connections_lookup_pattern)
 
-    def get_conn_uri(self, conn_id: str) -> str | None:
-        """
-        Return URI representation of Connection conn_id.
-
-        As of Airflow version 2.3.0 this method is deprecated.
-
-        :param conn_id: the connection id
-        """
-        warnings.warn(
-            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
-            "in a future release. Please use method `get_conn_value` instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        value = self.get_conn_value(conn_id)
-        if value is None:
-            return None
-
-        return self.deserialize_connection(conn_id, value).get_uri()
-
     def get_variable(self, key: str) -> str | None:
         """
-        Get Airflow Variable
+        Get Airflow Variable.
 
         :param key: Variable Key
         :return: Variable Value
@@ -177,7 +156,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_config(self, key: str) -> str | None:
         """
-        Get Airflow Configuration
+        Get Airflow Configuration.
 
         :param key: Configuration Option Key
         :return: Configuration Option Value
@@ -211,7 +190,7 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
     def _ensure_leading_slash(self, ssm_path: str):
         """
-        AWS Systems Manager mandate to have a leading "/". Adding it dynamically if not there to the SSM path
+        AWS Systems Manager mandate to have a leading "/". Adding it dynamically if not there to the SSM path.
 
         :param ssm_path: SSM parameter path
         """

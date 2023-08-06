@@ -17,10 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import inspect
+import logging
 import os
 import pickle
-import shutil
 import subprocess
 import sys
 import types
@@ -30,7 +31,7 @@ from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Collection, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence, cast
 
 import dill
 
@@ -38,6 +39,7 @@ from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
     AirflowSkipException,
+    DeserializingResultError,
     RemovedInAirflow3Warning,
 )
 from airflow.models.baseoperator import BaseOperator
@@ -48,17 +50,15 @@ from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
+if TYPE_CHECKING:
+    from pendulum.datetime import DateTime
+
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """
-    Deprecated function.
-    Calls @task.python and allows users to turn a python function into
-    an Airflow task. Please use the following instead:
+    """Deprecated. Use :func:`airflow.decorators.task` instead.
 
-    from airflow.decorators import task
-
-    @task
-    def my_task()
+    Calls ``@task.python`` and allows users to turn a Python function into
+    an Airflow task.
 
     :param python_callable: A reference to an object that is callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
@@ -68,7 +68,6 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
-    :return:
     """
     # To maintain backwards compatibility, we import the task object into this file
     # This prevents breakages in dags that use `from airflow.operators.python import task`
@@ -241,7 +240,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
     :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task will
         be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
-        skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
+        skipped but the ``trigger_rule`` defined for all other downstream tasks will be respected.
     """
 
     def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
@@ -256,23 +255,38 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.log.info("Proceeding with downstream tasks...")
             return condition
 
-        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task IDs %s", downstream_tasks)
+        if not self.downstream_task_ids:
+            self.log.info("No downstream tasks; nothing to do.")
+            return condition
 
-        if downstream_tasks:
-            dag_run = context["dag_run"]
-            execution_date = dag_run.execution_date
+        dag_run = context["dag_run"]
 
+        def get_tasks_to_skip():
             if self.ignore_downstream_trigger_rules is True:
-                self.log.info("Skipping all downstream tasks...")
-                self.skip(dag_run, execution_date, downstream_tasks)
+                tasks = context["task"].get_flat_relatives(upstream=False)
             else:
-                self.log.info("Skipping downstream tasks while respecting trigger rules...")
-                # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
-                # Scheduler handle the remaining downstream task(s) appropriately.
-                self.skip(dag_run, execution_date, context["task"].get_direct_relatives(upstream=False))
+                tasks = context["task"].get_direct_relatives(upstream=False)
+            for t in tasks:
+                if not t.is_teardown:
+                    yield t
 
+        to_skip = get_tasks_to_skip()
+
+        # this let's us avoid an intermediate list unless debug logging
+        if self.log.getEffectiveLevel() <= logging.DEBUG:
+            self.log.debug("Downstream task IDs %s", to_skip := list(get_tasks_to_skip()))
+
+        self.log.info("Skipping downstream tasks")
+
+        self.skip(
+            dag_run=dag_run,
+            execution_date=cast("DateTime", dag_run.execution_date),
+            tasks=to_skip,
+            map_index=context["ti"].map_index,
+        )
         self.log.info("Done.")
+        # returns the result of the super execute method as it is instead of returning None
+        return condition
 
 
 class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
@@ -384,12 +398,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             return None
         try:
             return self.pickling_library.loads(path.read_bytes())
-        except ValueError:
-            self.log.error(
-                "Error deserializing result. Note that result deserialization "
-                "is not supported across major Python versions."
-            )
-            raise
+        except ValueError as value_error:
+            raise DeserializingResultError() from value_error
 
     def __deepcopy__(self, memo):
         # module objects can't be copied _at all__
@@ -404,6 +414,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         output_path = tmp_dir / "script.out"
         string_args_path = tmp_dir / "string_args.txt"
         script_path = tmp_dir / "script.py"
+        termination_log_path = tmp_dir / "termination.log"
         self._write_args(input_path)
         self._write_string_args(string_args_path)
         write_python_script(
@@ -427,11 +438,17 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     os.fspath(input_path),
                     os.fspath(output_path),
                     os.fspath(string_args_path),
+                    os.fspath(termination_log_path),
                 ]
             )
         except subprocess.CalledProcessError as e:
             if e.returncode in self.skip_on_exit_code:
                 raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
+            elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
+                error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
+                with open(termination_log_path) as file:
+                    error_msg += file.read()
+                raise AirflowException(error_msg) from None
             else:
                 raise
 
@@ -523,7 +540,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 "major versions for PythonVirtualenvOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. Venv version: {python_version}"
             )
-        if not shutil.which("virtualenv"):
+        if importlib.util.find_spec("virtualenv") is None:
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if not requirements:
             self.requirements: list[str] | str = []
@@ -724,7 +741,10 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
 
         try:
             result = subprocess.check_output(
-                [self.python, "-c", "from airflow import __version__; print(__version__)"], text=True
+                [self.python, "-c", "from airflow import __version__; print(__version__)"],
+                text=True,
+                # Avoid Airflow logs polluting stdout.
+                env={**os.environ, "_AIRFLOW__AS_LIBRARY": "true"},
             )
             target_airflow_version = result.strip()
             if target_airflow_version != airflow_version:
@@ -746,9 +766,25 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return None
 
 
+class ExternalBranchPythonOperator(ExternalPythonOperator, SkipMixin):
+    """
+    A workflow can "branch" or follow a path after the execution of this task,
+    Extends ExternalPythonOperator, so expects to get Python:
+    virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path,
+    so it can run on separate virtualenv similarly to ExternalPythonOperator.
+    """
+
+    def execute(self, context: Context) -> Any:
+        branch = super().execute(context)
+        self.log.info("Branch callable return %s", branch)
+        self.skip_all_except(context["ti"], branch)
+        return branch
+
+
 def get_current_context() -> Context:
     """
     Retrieve the execution context dictionary without altering user method's signature.
+
     This is the simplest method of retrieving the execution context dictionary.
 
     **Old style:**

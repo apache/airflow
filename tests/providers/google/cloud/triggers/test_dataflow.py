@@ -19,21 +19,18 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
-from asyncio import Future
+from unittest import mock
 
 import pytest
 from google.cloud.dataflow_v1beta3 import JobState
 
 from airflow.providers.google.cloud.triggers.dataflow import TemplateJobStartTrigger
 from airflow.triggers.base import TriggerEvent
-from tests.providers.google.cloud.utils.compat import async_mock
 
 PROJECT_ID = "test-project-id"
 JOB_ID = "test_job_id_2012-12-23-10:00"
 LOCATION = "us-central1"
 GCP_CONN_ID = "test_gcp_conn_id"
-DELEGATE_TO = "delegating_to_something"
 POLL_SLEEP = 20
 IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
@@ -46,25 +43,10 @@ def trigger():
         job_id=JOB_ID,
         location=LOCATION,
         gcp_conn_id=GCP_CONN_ID,
-        delegate_to=DELEGATE_TO,
         poll_sleep=POLL_SLEEP,
         impersonation_chain=IMPERSONATION_CHAIN,
         cancel_timeout=CANCEL_TIMEOUT,
     )
-
-
-@pytest.fixture()
-def make_mock_awaitable():
-    def func(mock_obj, return_value):
-        if sys.version_info < (3, 8):
-            f = Future()
-            f.set_result(return_value)
-            mock_obj.return_value = f
-        else:
-            mock_obj.return_value = return_value
-        return mock_obj
-
-    return func
 
 
 class TestTemplateJobStartTrigger:
@@ -77,7 +59,6 @@ class TestTemplateJobStartTrigger:
                 "job_id": JOB_ID,
                 "location": LOCATION,
                 "gcp_conn_id": GCP_CONN_ID,
-                "delegate_to": DELEGATE_TO,
                 "poll_sleep": POLL_SLEEP,
                 "impersonation_chain": IMPERSONATION_CHAIN,
                 "cancel_timeout": CANCEL_TIMEOUT,
@@ -89,7 +70,6 @@ class TestTemplateJobStartTrigger:
         "attr, expected",
         [
             ("gcp_conn_id", GCP_CONN_ID),
-            ("delegate_to", DELEGATE_TO),
             ("poll_sleep", POLL_SLEEP),
             ("impersonation_chain", IMPERSONATION_CHAIN),
             ("cancel_timeout", CANCEL_TIMEOUT),
@@ -102,9 +82,9 @@ class TestTemplateJobStartTrigger:
         assert actual == expected
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_return_success_event(self, mock_job_status, trigger, make_mock_awaitable):
-        make_mock_awaitable(mock_job_status, JobState.JOB_STATE_DONE)
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    async def test_run_loop_return_success_event(self, mock_job_status, trigger):
+        mock_job_status.return_value = JobState.JOB_STATE_DONE
 
         expected_event = TriggerEvent(
             {
@@ -118,9 +98,9 @@ class TestTemplateJobStartTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_return_failed_event(self, mock_job_status, trigger, make_mock_awaitable):
-        make_mock_awaitable(mock_job_status, JobState.JOB_STATE_FAILED)
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    async def test_run_loop_return_failed_event(self, mock_job_status, trigger):
+        mock_job_status.return_value = JobState.JOB_STATE_FAILED
 
         expected_event = TriggerEvent(
             {
@@ -133,9 +113,9 @@ class TestTemplateJobStartTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_return_stopped_event(self, mock_job_status, trigger, make_mock_awaitable):
-        make_mock_awaitable(mock_job_status, JobState.JOB_STATE_STOPPED)
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    async def test_run_loop_return_stopped_event(self, mock_job_status, trigger):
+        mock_job_status.return_value = JobState.JOB_STATE_STOPPED
         expected_event = TriggerEvent(
             {
                 "status": "stopped",
@@ -147,9 +127,9 @@ class TestTemplateJobStartTrigger:
         assert actual_event == expected_event
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_is_still_running(self, mock_job_status, trigger, caplog, make_mock_awaitable):
-        make_mock_awaitable(mock_job_status, JobState.JOB_STATE_RUNNING)
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
+    async def test_run_loop_is_still_running(self, mock_job_status, trigger, caplog):
+        mock_job_status.return_value = JobState.JOB_STATE_RUNNING
         caplog.set_level(logging.INFO)
 
         task = asyncio.create_task(trigger.run().__anext__())

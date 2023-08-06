@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Airflow models"""
+"""Airflow models."""
 from __future__ import annotations
 
 # Do not add new models to this -- this is for compat only
@@ -59,12 +59,10 @@ def import_all_models():
     for name in __lazy_imports:
         __getattr__(name)
 
-    import airflow.jobs.job
     import airflow.models.dagwarning
     import airflow.models.dataset
     import airflow.models.serialized_dag
     import airflow.models.tasklog
-    import airflow.www.fab_security.sqla.models
 
 
 def __getattr__(name):

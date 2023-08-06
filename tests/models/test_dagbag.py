@@ -908,7 +908,6 @@ class TestDagBag:
     def test_sync_perm_for_dag(self, mock_security_manager):
         """
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
-        when DAG specific perm views don't exist already or the DAG has access_control set.
         """
         db_clean_up()
         with create_session() as session:
@@ -932,7 +931,7 @@ class TestDagBag:
 
             # perms now exist
             _sync_perms()
-            mock_sync_perm_for_dag.assert_not_called()
+            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
 
             # Always sync if we have access_control
             dag.access_control = {"Public": {"can_read"}}

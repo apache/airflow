@@ -66,7 +66,7 @@ csrf = CSRFProtect()
 
 
 def sync_appbuilder_roles(flask_app):
-    """Sync appbuilder roles to DB"""
+    """Sync appbuilder roles to DB."""
     # Garbage collect old permissions/views after they have been modified.
     # Otherwise, when the name of a view or menu is changed, the framework
     # will add the new Views and Menus names to the backend, but will not
@@ -76,12 +76,15 @@ def sync_appbuilder_roles(flask_app):
 
 
 def create_app(config=None, testing=False):
-    """Create a new instance of Airflow WWW app"""
+    """Create a new instance of Airflow WWW app."""
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
 
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
-    flask_app.config.from_pyfile(settings.WEBSERVER_CONFIG, silent=True)
+
+    webserver_config = conf.get_mandatory_value("webserver", "config_file")
+    flask_app.config.from_pyfile(webserver_config, silent=True)
+
     flask_app.config["TESTING"] = testing
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
 
@@ -175,7 +178,7 @@ def create_app(config=None, testing=False):
 
 
 def cached_app(config=None, testing=False):
-    """Return cached instance of Airflow WWW app"""
+    """Return cached instance of Airflow WWW app."""
     global app
     if not app:
         app = create_app(config=config, testing=testing)

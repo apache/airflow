@@ -22,22 +22,27 @@ import json
 import os
 from json import JSONDecodeError
 
+from sqlalchemy import select
+
 from airflow.cli.simple_table import AirflowConsole
 from airflow.models import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def variables_list(args):
     """Displays all the variables."""
     with create_session() as session:
-        variables = session.query(Variable)
+        variables = session.scalars(select(Variable)).all()
     AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def variables_get(args):
     """Displays variable by a given name."""
     try:
@@ -52,6 +57,7 @@ def variables_get(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def variables_set(args):
     """Creates new variable with a given name and value."""
     Variable.set(args.key, args.value, serialize_json=args.json)
@@ -59,6 +65,7 @@ def variables_set(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def variables_delete(args):
     """Deletes variable by a given name."""
     Variable.delete(args.key)
@@ -66,6 +73,7 @@ def variables_delete(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def variables_import(args):
     """Imports variables from a given file."""
     if os.path.exists(args.file):
@@ -74,6 +82,7 @@ def variables_import(args):
         raise SystemExit("Missing variables file.")
 
 
+@providers_configuration_loaded
 def variables_export(args):
     """Exports all the variables to the file."""
     _variable_export_helper(args.file)
@@ -107,7 +116,7 @@ def _variable_export_helper(filepath):
     """Helps export all the variables to the file."""
     var_dict = {}
     with create_session() as session:
-        qry = session.query(Variable).all()
+        qry = session.scalars(select(Variable))
 
         data = json.JSONDecoder()
         for var in qry:

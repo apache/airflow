@@ -102,7 +102,7 @@ To test outside of the dag:
         ]
     )
 
-.. spelling::
+.. spelling:word-list::
 
     pcoll
 """

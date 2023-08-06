@@ -81,6 +81,12 @@ def test_home_status_filter_cookie(admin_client):
         admin_client.get("home?status=paused", follow_redirects=True)
         assert "paused" == flask.session[FILTER_STATUS_COOKIE]
 
+        admin_client.get("home?status=running", follow_redirects=True)
+        assert "running" == flask.session[FILTER_STATUS_COOKIE]
+
+        admin_client.get("home?status=failed", follow_redirects=True)
+        assert "failed" == flask.session[FILTER_STATUS_COOKIE]
+
         admin_client.get("home?status=all", follow_redirects=True)
         assert "all" == flask.session[FILTER_STATUS_COOKIE]
 
@@ -156,7 +162,55 @@ def working_dags(tmpdir):
 
 
 @pytest.fixture()
+def working_dags_with_read_perm(tmpdir):
+    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
+    dag_contents_template_with_read_perm = (
+        "from airflow import DAG\ndag = DAG('{}', tags=['{}'], "
+        "access_control={{'role_single_dag':{{'can_read'}}}}) "
+    )
+    with create_session() as session:
+        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
+            filename = os.path.join(tmpdir, f"{dag_id}.py")
+            if dag_id == "filter_test_1":
+                with open(filename, "w") as f:
+                    f.writelines(dag_contents_template_with_read_perm.format(dag_id, tag))
+            else:
+                with open(filename, "w") as f:
+                    f.writelines(dag_contents_template.format(dag_id, tag))
+            _process_file(filename, session)
+
+
+@pytest.fixture()
+def working_dags_with_edit_perm(tmpdir):
+    dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
+    dag_contents_template_with_read_perm = (
+        "from airflow import DAG\ndag = DAG('{}', tags=['{}'], "
+        "access_control={{'role_single_dag':{{'can_edit'}}}}) "
+    )
+    with create_session() as session:
+        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
+            filename = os.path.join(tmpdir, f"{dag_id}.py")
+            if dag_id == "filter_test_1":
+                with open(filename, "w") as f:
+                    f.writelines(dag_contents_template_with_read_perm.format(dag_id, tag))
+            else:
+                with open(filename, "w") as f:
+                    f.writelines(dag_contents_template.format(dag_id, tag))
+            _process_file(filename, session)
+
+
+@pytest.fixture()
 def broken_dags(tmpdir, working_dags):
+    with create_session() as session:
+        for dag_id in TEST_FILTER_DAG_IDS:
+            filename = os.path.join(tmpdir, f"{dag_id}.py")
+            with open(filename, "w") as f:
+                f.writelines("airflow DAG")
+            _process_file(filename, session)
+
+
+@pytest.fixture()
+def broken_dags_with_read_perm(tmpdir, working_dags_with_read_perm):
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
             filename = os.path.join(tmpdir, f"{dag_id}.py")
@@ -182,8 +236,18 @@ def test_home_importerrors(broken_dags, user_client):
         check_content_in_response(f"/{dag_id}.py", resp)
 
 
-@pytest.mark.parametrize("page", ["home", "home?status=active", "home?status=paused", "home?status=all"])
-def test_home_importerrors_filtered_singledag_user(broken_dags, client_single_dag, page):
+@pytest.mark.parametrize(
+    "page",
+    [
+        "home",
+        "home?status=all",
+        "home?status=active",
+        "home?status=paused",
+        "home?status=running",
+        "home?status=failed",
+    ],
+)
+def test_home_importerrors_filtered_singledag_user(broken_dags_with_read_perm, client_single_dag, page):
     # Users that can only see certain DAGs get a filtered list of import errors
     resp = client_single_dag.get(page, follow_redirects=True)
     check_content_in_response("Import Errors", resp)
@@ -201,7 +265,7 @@ def test_home_dag_list(working_dags, user_client):
         check_content_in_response(f"dag_id={dag_id}", resp)
 
 
-def test_home_dag_list_filtered_singledag_user(working_dags, client_single_dag):
+def test_home_dag_list_filtered_singledag_user(working_dags_with_read_perm, client_single_dag):
     # Users that can only see certain DAGs get a filtered list
     resp = client_single_dag.get("home", follow_redirects=True)
     # They can see the first DAG
@@ -219,7 +283,7 @@ def test_home_dag_list_search(working_dags, user_client):
     check_content_not_in_response("dag_id=a_first_dag_id_asc", resp)
 
 
-def test_home_dag_edit_permissions(capture_templates, working_dags, client_single_dag_edit):
+def test_home_dag_edit_permissions(capture_templates, working_dags_with_edit_perm, client_single_dag_edit):
     with capture_templates() as templates:
         client_single_dag_edit.get("home", follow_redirects=True)
 

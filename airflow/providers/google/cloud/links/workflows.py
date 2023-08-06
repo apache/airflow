@@ -36,7 +36,7 @@ EXECUTION_LINK = (
 
 
 class WorkflowsWorkflowDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Workflow details Link"""
+    """Helper class for constructing Workflow details Link."""
 
     name = "Workflow details"
     key = "workflow_details"
@@ -58,7 +58,7 @@ class WorkflowsWorkflowDetailsLink(BaseGoogleLink):
 
 
 class WorkflowsListOfWorkflowsLink(BaseGoogleLink):
-    """Helper class for constructing list of Workflows Link"""
+    """Helper class for constructing list of Workflows Link."""
 
     name = "List of workflows"
     key = "list_of_workflows"
@@ -78,7 +78,7 @@ class WorkflowsListOfWorkflowsLink(BaseGoogleLink):
 
 
 class WorkflowsExecutionLink(BaseGoogleLink):
-    """Helper class for constructing Workflows Execution Link"""
+    """Helper class for constructing Workflows Execution Link."""
 
     name = "Workflow Execution"
     key = "workflow_execution"

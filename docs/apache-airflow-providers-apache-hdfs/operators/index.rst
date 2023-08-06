@@ -23,5 +23,4 @@ Apache Hadoop HDFS Operators
 .. toctree::
     :maxdepth: 1
 
-    hdfs
     webhdfs

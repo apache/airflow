@@ -73,7 +73,7 @@ if TYPE_CHECKING:
     try:
         from kubernetes.client import models as k8s
 
-        from airflow.kubernetes.pod_generator import PodGenerator
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
     except ImportError:
         pass
 
@@ -287,7 +287,7 @@ class BaseSerialization:
     _datetime_types = (datetime.datetime,)
 
     # Object types that are always excluded in serialization.
-    _excluded_types = (logging.Logger, Connection, type)
+    _excluded_types = (logging.Logger, Connection, type, property)
 
     _json_schema: Validator | None = None
 
@@ -735,6 +735,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
+
+    Creating a SerializedBaseOperator is a three-step process:
+
+    1. Instantiate a :class:`SerializedBaseOperator` object.
+    2. Populate attributes with :func:`SerializedBaseOperator.populated_operator`.
+    3. When the task's containing DAG is available, fix references to the DAG
+       with :func:`SerializedBaseOperator.set_task_dag_references`.
     """
 
     _decorated_fields = {"executor_config"}
@@ -822,7 +829,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
-                op.operator_extra_links
+                op.operator_extra_links.__get__(op)
+                if isinstance(op.operator_extra_links, property)
+                else op.operator_extra_links
             )
 
         if include_deps:
@@ -873,6 +882,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def populate_operator(cls, op: Operator, encoded_op: dict[str, Any]) -> None:
+        """Populate operator attributes with serialized values.
+
+        This covers simple attributes that don't reference other things in the
+        DAG. Setting references (such as ``op.dag`` and task dependencies) is
+        done in ``set_task_dag_references`` instead, which is called after the
+        DAG is hydrated.
+        """
         if "label" not in encoded_op:
             # Handle deserialization of old data before the introduction of TaskGroup
             encoded_op["label"] = encoded_op["task_id"]
@@ -960,7 +976,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls.deserialize(v)
             elif k in ("outlets", "inlets"):
                 v = cls.deserialize(v)
-
+            elif k == "on_failure_fail_dagrun":
+                k = "_on_failure_fail_dagrun"
             # else use v as it is
 
             setattr(op, k, v)
@@ -978,6 +995,32 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
+
+    @staticmethod
+    def set_task_dag_references(task: Operator, dag: DAG) -> None:
+        """Handle DAG references on an operator.
+
+        The operator should have been mostly populated earlier by calling
+        ``populate_operator``. This function further fixes object references
+        that were not possible before the task's containing DAG is hydrated.
+        """
+        task.dag = dag
+
+        for date_attr in ("start_date", "end_date"):
+            if getattr(task, date_attr, None) is None:
+                setattr(task, date_attr, getattr(dag, date_attr, None))
+
+        if task.subdag is not None:
+            task.subdag.parent_dag = dag
+
+        # Dereference expand_input and op_kwargs_expand_input.
+        for k in ("expand_input", "op_kwargs_expand_input"):
+            if isinstance(kwargs_ref := getattr(task, k, None), _ExpandInputRef):
+                setattr(task, k, kwargs_ref.deref(dag))
+
+        for task_id in task.downstream_task_ids:
+            # Bypass set_upstream etc here - it does more than we want
+            dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
 
     @classmethod
     def deserialize_operator(cls, encoded_op: dict[str, Any]) -> Operator:
@@ -1087,6 +1130,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def _deserialize_operator_extra_links(cls, encoded_op_links: list) -> dict[str, BaseOperatorLink]:
         """
         Deserialize Operator Links if the Classes are registered in Airflow Plugins.
+
         Error is raised if the OperatorLink is not found in Plugins too.
 
         :param encoded_op_links: Serialized Operator Link
@@ -1238,7 +1282,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 for dep in SerializedBaseOperator.detect_dependencies(task)
             }
             dag_deps.update(DependencyDetector.detect_dag_dependencies(dag))
-            serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
+            serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["_task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
@@ -1324,24 +1368,7 @@ class SerializedDAG(DAG, BaseSerialization):
             setattr(dag, k, None)
 
         for task in dag.task_dict.values():
-            task.dag = dag
-
-            for date_attr in ["start_date", "end_date"]:
-                if getattr(task, date_attr) is None:
-                    setattr(task, date_attr, getattr(dag, date_attr))
-
-            if task.subdag is not None:
-                setattr(task.subdag, "parent_dag", dag)
-
-            # Dereference expand_input and op_kwargs_expand_input.
-            for k in ("expand_input", "op_kwargs_expand_input"):
-                kwargs_ref = getattr(task, k, None)
-                if isinstance(kwargs_ref, _ExpandInputRef):
-                    setattr(task, k, kwargs_ref.deref(dag))
-
-            for task_id in task.downstream_task_ids:
-                # Bypass set_upstream etc here - it does more than we want
-                dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
+            SerializedBaseOperator.set_task_dag_references(task, dag)
 
         return dag
 
@@ -1444,9 +1471,11 @@ class TaskGroupSerialization(BaseSerialization):
         return group
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class DagDependency:
-    """Dataclass for representing dependencies between DAGs.
+    """
+    Dataclass for representing dependencies between DAGs.
+
     These are calculated during serialization and attached to serialized DAGs.
     """
 
@@ -1476,7 +1505,12 @@ def _has_kubernetes() -> bool:
     try:
         from kubernetes.client import models as k8s
 
-        from airflow.kubernetes.pod_generator import PodGenerator
+        try:
+            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        except ImportError:
+            from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator import (  # type: ignore[assignment]
+                PodGenerator,
+            )
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator

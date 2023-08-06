@@ -18,14 +18,23 @@
 ``apache-airflow-providers-amazon``
 ===================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
     Connection types <connections/index>
+    Notifications <notifications/index>
     Operators <operators/index>
     Transfers <transfer/index>
     Deferrable Operators <deferrable>
@@ -33,24 +42,22 @@ Content
     Logging for Tasks <logging/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/amazon/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: System tests
 
+    System Tests <_api/tests/system/providers/amazon/index>
     System Tests Dashboard <https://aws-mwaa.github.io/open-source/system-tests/dashboard.html>
 
 .. toctree::
     :hidden:
-    :caption: System tests
-
-    System Tests <_api/tests/system/providers/amazon/index>
-
-.. toctree::
     :maxdepth: 1
     :caption: Resources
 
@@ -62,6 +69,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -74,7 +82,7 @@ Package apache-airflow-providers-amazon
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 7.4.1
+Release: 8.5.0
 
 Provider package
 ----------------
@@ -92,11 +100,14 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-=======================================  ==================
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
+=======================================  =====================
 PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.3.0``
+=======================================  =====================
+``apache-airflow``                       ``>=2.4.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
+``apache-airflow-providers-http``
 ``boto3``                                ``>=1.24.0``
 ``asgiref``
 ``watchtower``                           ``~=2.0.1``
@@ -105,8 +116,10 @@ PIP package                              Version required
 ``sqlalchemy_redshift``                  ``>=0.8.6``
 ``mypy-boto3-rds``                       ``>=1.24.0``
 ``mypy-boto3-redshift-data``             ``>=1.24.0``
-``mypy-boto3-appflow``                   ``>=1.24.0``
-=======================================  ==================
+``mypy-boto3-appflow``                   ``>=1.24.0,<1.28.12``
+``asgiref``
+``mypy-boto3-s3``                        ``>=1.24.0``
+=======================================  =====================
 
 Cross provider package dependencies
 -----------------------------------
@@ -130,8 +143,11 @@ Dependent package                                                               
 `apache-airflow-providers-exasol <https://airflow.apache.org/docs/apache-airflow-providers-exasol>`_                    ``exasol``
 `apache-airflow-providers-ftp <https://airflow.apache.org/docs/apache-airflow-providers-ftp>`_                          ``ftp``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                    ``google``
+`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                        ``http``
 `apache-airflow-providers-imap <https://airflow.apache.org/docs/apache-airflow-providers-imap>`_                        ``imap``
+`apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
 `apache-airflow-providers-mongo <https://airflow.apache.org/docs/apache-airflow-providers-mongo>`_                      ``mongo``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_          ``openlineage``
 `apache-airflow-providers-salesforce <https://airflow.apache.org/docs/apache-airflow-providers-salesforce>`_            ``salesforce``
 `apache-airflow-providers-ssh <https://airflow.apache.org/docs/apache-airflow-providers-ssh>`_                          ``ssh``
 ======================================================================================================================  ===================
@@ -142,7 +158,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 7.4.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-7.4.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-7.4.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-7.4.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 7.4.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-7.4.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-7.4.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-7.4.1-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/amazon/CHANGELOG.rst
+* `The apache-airflow-providers-amazon 8.5.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.5.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.5.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.5.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 8.5.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.5.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.5.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.5.0-py3-none-any.whl.sha512>`__)

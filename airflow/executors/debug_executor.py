@@ -32,7 +32,8 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class DebugExecutor(BaseExecutor):

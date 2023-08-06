@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import BadRequest, Conflict
@@ -32,10 +31,12 @@ from google.cloud.bigquery import (
     LoadJob,
     QueryJob,
     SchemaField,
+    UnknownJob,
 )
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -128,9 +129,6 @@ class GCSToBigQueryOperator(BaseOperator):
         execute() command, which in turn gets stored in XCom for future
         operators to use. This can be helpful with incremental loads--during
         future executions, you can pick up from the max ID.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :param src_fmt_configs: configure optional fields specific to the source format
@@ -151,10 +149,11 @@ class GCSToBigQueryOperator(BaseOperator):
         If autodetect is None and no schema is provided (neither via schema_fields
         nor a schema_object), assume the table already exists.
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-        **Example**: ::
+
+        .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
             }
     :param location: [Optional] The geographic location of the job. Required except for US and EU.
         See details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location
@@ -180,6 +179,7 @@ class GCSToBigQueryOperator(BaseOperator):
         "schema_object_bucket",
         "destination_project_dataset_table",
         "impersonation_chain",
+        "src_fmt_configs",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#f0eee4"
@@ -208,7 +208,6 @@ class GCSToBigQueryOperator(BaseOperator):
         encoding="UTF-8",
         max_id_key=None,
         gcp_conn_id="google_cloud_default",
-        delegate_to=None,
         schema_update_options=(),
         src_fmt_configs=None,
         external_table=False,
@@ -220,7 +219,7 @@ class GCSToBigQueryOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         labels=None,
         description=None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
         cancel_on_kill: bool = True,
@@ -230,7 +229,6 @@ class GCSToBigQueryOperator(BaseOperator):
         project_id: str | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.hook: BigQueryHook | None = None
         self.configuration: dict[str, Any] = {}
@@ -274,11 +272,6 @@ class GCSToBigQueryOperator(BaseOperator):
 
         self.max_id_key = max_id_key
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
 
         self.schema_update_options = schema_update_options
         self.src_fmt_configs = src_fmt_configs
@@ -308,7 +301,7 @@ class GCSToBigQueryOperator(BaseOperator):
         # Submit a new job without waiting for it to complete.
         return hook.insert_job(
             configuration=self.configuration,
-            project_id=self.project_id,
+            project_id=self.project_id or hook.project_id,
             location=self.location,
             job_id=job_id,
             timeout=self.result_timeout,
@@ -317,14 +310,13 @@ class GCSToBigQueryOperator(BaseOperator):
         )
 
     @staticmethod
-    def _handle_job_error(job: BigQueryJob) -> None:
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
     def execute(self, context: Context):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
@@ -356,7 +348,6 @@ class GCSToBigQueryOperator(BaseOperator):
             if self.schema_object and self.source_format != "DATASTORE_BACKUP":
                 gcs_hook = GCSHook(
                     gcp_conn_id=self.gcp_conn_id,
-                    delegate_to=self.delegate_to,
                     impersonation_chain=self.impersonation_chain,
                 )
                 self.schema_fields = json.loads(
@@ -368,7 +359,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
         if self.external_table:
             self.log.info("Creating a new BigQuery table for storing data...")
-            table_obj_api_repr = self._create_empty_table()
+            table_obj_api_repr = self._create_external_table()
 
             BigQueryTableLink.persist(
                 context=context,
@@ -386,11 +377,11 @@ class GCSToBigQueryOperator(BaseOperator):
 
             try:
                 self.log.info("Executing: %s", self.configuration)
-                job = self._submit_job(self.hook, job_id)
+                job: BigQueryJob | UnknownJob = self._submit_job(self.hook, job_id)
             except Conflict:
                 # If the job already exists retrieve it
                 job = self.hook.get_job(
-                    project_id=self.hook.project_id,
+                    project_id=self.project_id or self.hook.project_id,
                     location=self.location,
                     job_id=job_id,
                 )
@@ -423,12 +414,12 @@ class GCSToBigQueryOperator(BaseOperator):
                                 persist_kwargs = {
                                     "context": context,
                                     "task_instance": self,
-                                    "project_id": self.hook.project_id,
                                     "table_id": table,
                                 }
                                 if not isinstance(table, str):
                                     persist_kwargs["table_id"] = table["tableId"]
                                     persist_kwargs["dataset_id"] = table["datasetId"]
+                                    persist_kwargs["project_id"] = table["projectId"]
                                 BigQueryTableLink.persist(**persist_kwargs)
 
             self.job_id = job.job_id
@@ -439,7 +430,7 @@ class GCSToBigQueryOperator(BaseOperator):
                     trigger=BigQueryInsertJobTrigger(
                         conn_id=self.gcp_conn_id,
                         job_id=self.job_id,
-                        project_id=self.hook.project_id,
+                        project_id=self.project_id or self.hook.project_id,
                     ),
                     method_name="execute_complete",
                 )
@@ -452,8 +443,8 @@ class GCSToBigQueryOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])
@@ -467,7 +458,6 @@ class GCSToBigQueryOperator(BaseOperator):
     def _find_max_value_in_column(self):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
@@ -485,7 +475,9 @@ class GCSToBigQueryOperator(BaseOperator):
                 }
             }
             try:
-                job_id = hook.insert_job(configuration=self.configuration, project_id=hook.project_id)
+                job_id = hook.insert_job(
+                    configuration=self.configuration, project_id=self.project_id or hook.project_id
+                )
                 rows = list(hook.get_job(job_id=job_id, location=self.location).result())
             except BadRequest as e:
                 if "Unrecognized name:" in e.message:
@@ -508,12 +500,7 @@ class GCSToBigQueryOperator(BaseOperator):
             else:
                 raise RuntimeError(f"The {select_command} returned no rows!")
 
-    def _create_empty_table(self):
-        self.project_id, dataset_id, table_id = self.hook.split_tablename(
-            table_input=self.destination_project_dataset_table,
-            default_project_id=self.project_id or self.hook.project_id,
-        )
-
+    def _create_external_table(self):
         external_config_api_repr = {
             "autodetect": self.autodetect,
             "sourceFormat": self.source_format,
@@ -540,6 +527,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "skipLeadingRows",
                 "quote",
                 "encoding",
+                "preserveAsciiControlCharacters",
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
@@ -558,7 +546,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
         # build table definition
         table = Table(
-            table_ref=TableReference.from_string(self.destination_project_dataset_table, self.project_id)
+            table_ref=TableReference.from_string(self.destination_project_dataset_table, self.hook.project_id)
         )
         table.external_data_configuration = external_config
         if self.labels:
@@ -576,7 +564,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.log.info("Creating external table: %s", self.destination_project_dataset_table)
         self.hook.create_empty_table(
             table_resource=table_obj_api_repr,
-            project_id=self.project_id,
+            project_id=self.project_id or self.hook.project_id,
             location=self.location,
             exists_ok=True,
         )
@@ -584,9 +572,9 @@ class GCSToBigQueryOperator(BaseOperator):
         return table_obj_api_repr
 
     def _use_existing_table(self):
-        self.project_id, destination_dataset, destination_table = self.hook.split_tablename(
+        destination_project_id, destination_dataset, destination_table = self.hook.split_tablename(
             table_input=self.destination_project_dataset_table,
-            default_project_id=self.project_id or self.hook.project_id,
+            default_project_id=self.hook.project_id,
             var_name="destination_project_dataset_table",
         )
 
@@ -606,7 +594,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "autodetect": self.autodetect,
                 "createDisposition": self.create_disposition,
                 "destinationTable": {
-                    "projectId": self.project_id,
+                    "projectId": destination_project_id,
                     "datasetId": destination_dataset,
                     "tableId": destination_table,
                 },
@@ -704,6 +692,7 @@ class GCSToBigQueryOperator(BaseOperator):
     ) -> dict:
         """
         Validates the given src_fmt_configs against a valid configuration for the source format.
+
         Adds the backward compatibility config to the src_fmt_configs.
 
         :param source_format: File format to export.
@@ -727,7 +716,6 @@ class GCSToBigQueryOperator(BaseOperator):
     def _cleanse_time_partitioning(
         self, destination_dataset_table: str | None, time_partitioning_in: dict | None
     ) -> dict:  # if it is a partitioned table ($ is in the table name) add partition load option
-
         if time_partitioning_in is None:
             time_partitioning_in = {}
 

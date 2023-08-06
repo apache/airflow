@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import json
-import sys
 from copy import deepcopy
+from unittest import mock
 from unittest.mock import PropertyMock
 
 import httplib2
@@ -36,17 +36,16 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
 )
 
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
-
 pytest.mlengine_hook = MLEngineAsyncHook()
 pytest.PROJECT_ID = "test-project"
 pytest.JOB_ID = "test-job-id"
 
 
 class TestMLEngineHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            hook.MLEngineHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         self.hook = hook.MLEngineHook()
 

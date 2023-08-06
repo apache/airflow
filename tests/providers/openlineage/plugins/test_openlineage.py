@@ -23,6 +23,8 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.test_utils.config import conf_vars
+
 
 class TestOpenLineageProviderPlugin:
     def setup_method(self):
@@ -36,7 +38,47 @@ class TestOpenLineageProviderPlugin:
 
     @pytest.mark.parametrize(
         "mocks, expected",
-        [([patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"}, 0)], 0), ([], 1)],
+        [
+            ([patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"})], 0),
+            (
+                [
+                    conf_vars(
+                        {("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}'}
+                    ),
+                    patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"}),
+                ],
+                0,
+            ),
+            ([patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "false"})], 0),
+            (
+                [
+                    conf_vars(
+                        {
+                            ("openlineage", "disabled"): "False",
+                            ("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}',
+                        }
+                    )
+                ],
+                1,
+            ),
+            (
+                [
+                    conf_vars({("openlineage", "disabled"): "False"}),
+                    patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"}),
+                ],
+                0,
+            ),
+            ([], 0),
+            ([patch.dict(os.environ, {"OPENLINEAGE_URL": "http://localhost:8080"})], 1),
+            (
+                [
+                    conf_vars(
+                        {("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}'}
+                    )
+                ],
+                1,
+            ),
+        ],
     )
     def test_plugin_disablements(self, mocks, expected):
         with contextlib.ExitStack() as stack:
@@ -45,4 +87,5 @@ class TestOpenLineageProviderPlugin:
             from airflow.providers.openlineage.plugins.openlineage import OpenLineageProviderPlugin
 
             plugin = OpenLineageProviderPlugin()
+
             assert len(plugin.listeners) == expected

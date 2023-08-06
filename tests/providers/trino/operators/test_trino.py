@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.trino.operators.trino import TrinoOperator
 
 TRINO_CONN_ID = "test_trino"
@@ -32,7 +33,7 @@ class TestTrinoOperator:
     def test_execute(self, mock_get_db_hook):
         """Asserts that the run method is called when a TrinoOperator task is executed"""
 
-        with pytest.warns(DeprecationWarning, match="This class is deprecated.*"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This class is deprecated.*"):
             op = TrinoOperator(
                 task_id=TASK_ID,
                 sql="SELECT 1;",

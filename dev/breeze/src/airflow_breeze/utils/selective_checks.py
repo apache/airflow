@@ -20,30 +20,19 @@ import json
 import os
 import sys
 from enum import Enum
-
-from airflow_breeze.utils.exclude_from_matrix import excluded_combos
-from airflow_breeze.utils.github_actions import get_ga_output
-from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_ROOT,
-    AIRFLOW_SOURCES_ROOT,
-    SYSTEM_TESTS_PROVIDERS_ROOT,
-    TESTS_PROVIDERS_ROOT,
-)
-from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    # noinspection PyUnresolvedReferences
-    from cached_property import cached_property
-
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from re import match
 from typing import Any, Dict, List, TypeVar
 
+if sys.version_info >= (3, 9):
+    from typing import Literal
+else:
+    from typing import Literal
+
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MSSQL_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
@@ -56,15 +45,29 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     HELM_VERSION,
     KIND_VERSION,
+    RUNS_ON_PUBLIC_RUNNER,
+    RUNS_ON_SELF_HOSTED_RUNNER,
+    SELF_HOSTED_RUNNERS_CPU_COUNT,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
     all_selective_test_types,
 )
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.exclude_from_matrix import excluded_combos
+from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_SOURCES_ROOT,
+    DOCS_DIR,
+    SYSTEM_TESTS_PROVIDERS_ROOT,
+    TESTS_PROVIDERS_ROOT,
+)
+from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
+USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 
 
 class FileGroupForCi(Enum):
@@ -123,17 +126,17 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^airflow/kubernetes",
             r"^tests/kubernetes",
-            r"^tests/charts",
+            r"^helm_tests",
         ],
         FileGroupForCi.SETUP_FILES: [
             r"^pyproject.toml",
             r"^setup.cfg",
             r"^setup.py",
             r"^generated/provider_dependencies.json$",
-            r"^airflow/providers/.*/provider.yaml$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
+            r"^\.github/SECURITY\.rst$",
             r"^airflow/.*\.py$",
             r"^chart",
             r"^providers",
@@ -196,7 +199,7 @@ TEST_TYPE_MATCHES = HashableDict(
 )
 
 
-def find_provider_affected(changed_file: str) -> str | None:
+def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     file_path = AIRFLOW_SOURCES_ROOT / changed_file
     # is_relative_to is only available in Python 3.9 - we should simplify this check when we are Python 3.9+
     for provider_root in (TESTS_PROVIDERS_ROOT, SYSTEM_TESTS_PROVIDERS_ROOT, AIRFLOW_PROVIDERS_ROOT):
@@ -207,6 +210,13 @@ def find_provider_affected(changed_file: str) -> str | None:
         except ValueError:
             pass
     else:
+        if include_docs:
+            try:
+                relative_path = file_path.relative_to(DOCS_DIR)
+                if relative_path.parts[0].startswith("apache-airflow-providers-"):
+                    return relative_path.parts[0].replace("apache-airflow-providers-", "").replace("-", ".")
+            except ValueError:
+                pass
         return None
 
     for parent_dir_path in file_path.parents:
@@ -219,34 +229,24 @@ def find_provider_affected(changed_file: str) -> str | None:
     return "Providers"
 
 
-def add_dependent_providers(
-    providers: set[str], provider_to_check: str, dependencies: dict[str, dict[str, list[str]]]
-):
-    for provider, provider_info in dependencies.items():
-        # Providers that use this provider
-        if provider_to_check in provider_info["cross-providers-deps"]:
-            providers.add(provider)
-        # and providers we use directly
-        for dep_name in dependencies[provider_to_check]["cross-providers-deps"]:
-            providers.add(dep_name)
-
-
-def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
+def find_all_providers_affected(
+    changed_files: tuple[str, ...], include_docs: bool, fail_if_suspended_providers_affected: bool
+) -> list[str] | Literal["ALL_PROVIDERS"] | None:
     all_providers: set[str] = set()
-    dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+
     all_providers_affected = False
     suspended_providers: set[str] = set()
     for changed_file in changed_files:
-        provider = find_provider_affected(changed_file)
+        provider = find_provider_affected(changed_file, include_docs=include_docs)
         if provider == "Providers":
             all_providers_affected = True
         elif provider is not None:
-            if provider not in dependencies:
+            if provider not in DEPENDENCIES:
                 suspended_providers.add(provider)
             else:
                 all_providers.add(provider)
     if all_providers_affected:
-        return set()
+        return "ALL_PROVIDERS"
     if suspended_providers:
         # We check for suspended providers only after we have checked if all providers are affected.
         # No matter if we found that we are modifying a suspended provider individually, if all providers are
@@ -255,7 +255,7 @@ def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
         # potential escape hatch if someone would like to modify suspended provider,
         # but it can be found at the review time and is anyway harmless as the provider will not be
         # released nor tested nor used in CI anyway.
-        get_console().print("[error]You are modifying suspended providers.\n")
+        get_console().print("[yellow]You are modifying suspended providers.\n")
         get_console().print(
             "[info]Some providers modified by this change have been suspended, "
             "and before attempting such changes you should fix the reason for suspension."
@@ -265,10 +265,22 @@ def find_all_providers_affected(changed_files: tuple[str, ...]) -> set[str]:
             "to make changes to the provider."
         )
         get_console().print(f"Suspended providers: {suspended_providers}")
-        sys.exit(1)
+        if fail_if_suspended_providers_affected:
+            get_console().print(
+                "[error]This PR did not have `allow suspended provider changes` label set so it will fail."
+            )
+            sys.exit(1)
+        else:
+            get_console().print(
+                "[info]This PR had `allow suspended provider changes` label set so it will continue"
+            )
+    if len(all_providers) == 0:
+        return None
     for provider in list(all_providers):
-        add_dependent_providers(all_providers, provider, dependencies)
-    return all_providers
+        all_providers.update(
+            get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
+        )
+    return sorted(all_providers)
 
 
 class SelectiveChecks:
@@ -282,6 +294,9 @@ class SelectiveChecks:
         commit_ref: str | None = None,
         pr_labels: tuple[str, ...] = (),
         github_event: GithubEvents = GithubEvents.PULL_REQUEST,
+        github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY,
+        github_actor: str = "",
+        github_context_dict: dict[str, Any] | None = None,
     ):
         self._files = files
         self._default_branch = default_branch
@@ -289,6 +304,9 @@ class SelectiveChecks:
         self._commit_ref = commit_ref
         self._pr_labels = pr_labels
         self._github_event = github_event
+        self._github_repository = github_repository
+        self._github_actor = github_actor
+        self._github_context_dict = github_context_dict or {}
 
     def __important_attributes(self) -> tuple[Any, ...]:
         return tuple(getattr(self, f) for f in self.__HASHABLE_FIELDS)
@@ -302,10 +320,14 @@ class SelectiveChecks:
         )
 
     def __str__(self) -> str:
+        from airflow_breeze.utils.github import get_ga_output
+
         output = []
         for field_name in dir(self):
             if not field_name.startswith("_"):
-                output.append(get_ga_output(field_name, getattr(self, field_name)))
+                value = getattr(self, field_name)
+                if value is not None:
+                    output.append(get_ga_output(field_name, value))
         return "\n".join(output)
 
     default_python_version = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
@@ -440,7 +462,7 @@ class SelectiveChecks:
         return " ".join(self.kubernetes_versions)
 
     @cached_property
-    def kubernetes_combos(self) -> str:
+    def kubernetes_combos_list_as_string(self) -> str:
         python_version_array: list[str] = self.python_versions_list_as_string.split(" ")
         kubernetes_version_array: list[str] = self.kubernetes_versions_list_as_string.split(" ")
         combo_titles, short_combo_titles, combos = get_kubernetes_python_combos(
@@ -506,7 +528,12 @@ class SelectiveChecks:
 
     @cached_property
     def run_amazon_tests(self) -> bool:
-        return "amazon" in self.parallel_test_types or "Providers" in self.parallel_test_types.split(" ")
+        if self.parallel_test_types_list_as_string is None:
+            return False
+        return (
+            "amazon" in self.parallel_test_types_list_as_string
+            or "Providers" in self.parallel_test_types_list_as_string.split(" ")
+        )
 
     @cached_property
     def run_kubernetes_tests(self) -> bool:
@@ -526,7 +553,7 @@ class SelectiveChecks:
 
     @cached_property
     def image_build(self) -> bool:
-        return self.run_tests or self.docs_build or self.run_kubernetes_tests
+        return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveUnitTestTypes
@@ -538,7 +565,18 @@ class SelectiveChecks:
             get_console().print(f"[warning]{test_type} added because it matched {count} files[/]")
         return matched_files
 
+    def _are_all_providers_affected(self) -> bool:
+        # if "Providers" test is present in the list of tests, it means that we should run all providers tests
+        # prepare all providers packages and build all providers documentation
+        return "Providers" in self._get_test_types_to_run()
+
+    def _fail_if_suspended_providers_affected(self):
+        return "allow suspended provider changes" not in self._pr_labels
+
     def _get_test_types_to_run(self) -> list[str]:
+        if self.full_tests_needed:
+            return list(all_selective_test_types())
+
         candidate_test_types: set[str] = {"Always"}
         matched_files: set[str] = set()
         matched_files.update(
@@ -571,8 +609,12 @@ class SelectiveChecks:
             candidate_test_types.update(all_selective_test_types())
         else:
             if "Providers" in candidate_test_types:
-                affected_providers = find_all_providers_affected(changed_files=self._files)
-                if len(affected_providers) != 0:
+                affected_providers = find_all_providers_affected(
+                    changed_files=self._files,
+                    include_docs=False,
+                    fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
+                )
+                if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
                     candidate_test_types.remove("Providers")
                     candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
             get_console().print(
@@ -586,7 +628,7 @@ class SelectiveChecks:
     @staticmethod
     def _extract_long_provider_tests(current_test_types: set[str]):
         """
-        In case there are Provider tests in the list of test to run (either in the form of
+        In case there are Provider tests in the list of test to run - either in the form of
         Providers or Providers[...] we subtract them from the test type,
         and add them to the list of tests to run individually.
 
@@ -614,13 +656,10 @@ class SelectiveChecks:
                     current_test_types.add(f"Providers[{','.join(provider_tests_to_run)}]")
 
     @cached_property
-    def parallel_test_types(self) -> str:
+    def parallel_test_types_list_as_string(self) -> str | None:
         if not self.run_tests:
-            return ""
-        if self.full_tests_needed:
-            current_test_types = set(all_selective_test_types())
-        else:
-            current_test_types = set(self._get_test_types_to_run())
+            return None
+        current_test_types = set(self._get_test_types_to_run())
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
             for test_type in current_test_types:
@@ -662,20 +701,60 @@ class SelectiveChecks:
         ) > 0 or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
 
     @cached_property
-    def docs_filter(self) -> str:
-        return (
-            ""
-            if self._default_branch == "main"
-            else "--package-filter apache-airflow --package-filter docker-stack"
+    def docs_filter_list_as_string(self) -> str | None:
+        _ALL_DOCS_LIST = ""
+        if not self.docs_build:
+            return None
+        if self._default_branch != "main":
+            return "--package-filter apache-airflow --package-filter docker-stack"
+        if self.full_tests_needed:
+            return _ALL_DOCS_LIST
+        providers_affected = find_all_providers_affected(
+            changed_files=self._files,
+            include_docs=True,
+            fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
         )
+        if (
+            providers_affected == "ALL_PROVIDERS"
+            or "docs/conf.py" in self._files
+            or "docs/build_docs.py" in self._files
+            or self._are_all_providers_affected()
+        ):
+            return _ALL_DOCS_LIST
+        packages = []
+        if any(
+            [file.startswith("airflow/") or file.startswith("docs/apache-airflow/") for file in self._files]
+        ):
+            packages.append("apache-airflow")
+        if any([file.startswith("docs/apache-airflow-providers/") for file in self._files]):
+            packages.append("apache-airflow-providers")
+        if any([file.startswith("chart/") or file.startswith("docs/helm-chart") for file in self._files]):
+            packages.append("helm-chart")
+        if any([file.startswith("docs/docker-stack/") for file in self._files]):
+            packages.append("docker-stack")
+        if providers_affected:
+            for provider in providers_affected:
+                packages.append(f"apache-airflow-providers-{provider.replace('.', '-')}")
+        return " ".join([f"--package-filter {package}" for package in packages])
 
     @cached_property
     def skip_pre_commits(self) -> str:
-        return "identity" if self._default_branch == "main" else "identity,check-airflow-2-2-compatibility"
+        return (
+            "identity"
+            if self._default_branch == "main"
+            else "identity,check-airflow-provider-compatibility,"
+            "check-extra-packages-references,check-provider-yaml-valid"
+        )
 
     @cached_property
     def skip_provider_tests(self) -> bool:
-        return self._default_branch != "main"
+        if self._default_branch != "main":
+            return True
+        if self.full_tests_needed:
+            return False
+        if any(test_type.startswith("Providers") for test_type in self._get_test_types_to_run()):
+            return False
+        return True
 
     @cached_property
     def cache_directive(self) -> str:
@@ -686,9 +765,51 @@ class SelectiveChecks:
         return DEBUG_CI_RESOURCES_LABEL in self._pr_labels
 
     @cached_property
-    def suspended_providers_folders(self) -> str:
-        return " ".join(get_suspended_providers_folders())
-
-    @cached_property
     def helm_test_packages(self) -> str:
         return json.dumps(all_helm_test_packages())
+
+    @cached_property
+    def affected_providers_list_as_string(self) -> str | None:
+        _ALL_PROVIDERS_LIST = ""
+        if self.full_tests_needed:
+            return _ALL_PROVIDERS_LIST
+        if self._are_all_providers_affected():
+            return _ALL_PROVIDERS_LIST
+        affected_providers = find_all_providers_affected(
+            changed_files=self._files,
+            include_docs=True,
+            fail_if_suspended_providers_affected=self._fail_if_suspended_providers_affected(),
+        )
+        if not affected_providers:
+            return None
+        if affected_providers == "ALL_PROVIDERS":
+            return _ALL_PROVIDERS_LIST
+        return " ".join(sorted(affected_providers))
+
+    @cached_property
+    def runs_on(self) -> str:
+        if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
+            if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
+                return RUNS_ON_SELF_HOSTED_RUNNER
+            actor = self._github_actor
+            if self._github_event in (GithubEvents.PULL_REQUEST, GithubEvents.PULL_REQUEST_TARGET):
+                try:
+                    actor = self._github_context_dict["event"]["pull_request"]["user"]["login"]
+                    get_console().print(
+                        f"[warning]The actor: {actor} retrieved from GITHUB_CONTEXT's"
+                        f" event.pull_request.user.login[/]"
+                    )
+                except Exception as e:
+                    get_console().print(f"[warning]Exception when reading user login: {e}[/]")
+                    get_console().print(
+                        f"[info]Could not find the actor from pull request, "
+                        f"falling back to the actor who triggered the PR: {actor}[/]"
+                    )
+            if actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
+                return RUNS_ON_SELF_HOSTED_RUNNER
+        return RUNS_ON_PUBLIC_RUNNER
+
+    @cached_property
+    def mssql_parallelism(self) -> int:
+        # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
+        return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1

@@ -35,7 +35,7 @@
 #                        much smaller.
 #
 # Use the same builder frontend version for everyone
-ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -44,11 +44,11 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.5.3"
+ARG AIRFLOW_VERSION="2.6.3"
 
-ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
+ARG PYTHON_BASE_IMAGE="python:3.8-slim-bullseye"
 
-ARG AIRFLOW_PIP_VERSION=23.1
+ARG AIRFLOW_PIP_VERSION=23.2.1
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -94,9 +94,9 @@ fi
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
-freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
+freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
-libssl-dev locales lsb-release openssh-client sasl2-bin \
+libssl-dev locales lsb-release openssh-client pkgconf sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
         export DEV_APT_DEPS
     fi
@@ -105,7 +105,7 @@ software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
 function get_runtime_apt_deps() {
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
-curl dumb-init freetds-bin gosu krb5-user \
+curl dumb-init freetds-bin gosu krb5-user libgeos-dev \
 ldap-utils libffi7 libldap-2.4-2 libsasl2-2 libsasl2-modules libssl1.1 locales \
 lsb-release netcat openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
@@ -266,6 +266,10 @@ EOF
 COPY <<"EOF" /install_mssql.sh
 set -euo pipefail
 
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
+
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
+
 : "${INSTALL_MSSQL_CLIENT:?Should be true or false}"
 
 COLOR_BLUE=$'\e[34m'
@@ -298,6 +302,40 @@ function install_mssql_client() {
     rm -rf /var/lib/apt/lists/*
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    # Workaround an issue with installing pymssql on ARM architecture triggered by Cython 3.0.0 release as of
+    # 18 July 2023. The problem is that pip uses latest Cython to compile pymssql and since we are using
+    # setuptools, there is no easy way to fix version of Cython used to compile packages.
+    #
+    # This triggers a problem with newer `pip` versions that have build isolation enabled by default because
+    # There is no (easy) way to pin build dependencies for dependent packages. If a package does not have
+    # limit on build dependencies, it will use the latest version of them to build that particular package.
+    #
+    # The workaround to the problem suggest in the last thread by Pradyun Gedam - pip maintainer - is to
+    # use PIP_CONSTRAINT environment variable and constraint the version of Cython used while installing
+    # the package. Which is precisely what we are doing here.
+    #
+    # Note that it does not work if we pass ``--constraint`` option to pip because it will not be passed to
+    # the package being build in isolation. The fact that the PIP_CONSTRAINT env variable works in the isolation
+    # is a bit of side-effect on how env variables work and that they are passed to subprocesses as pip
+    # launches a subprocess `pip` to build the package.
+    #
+    # This is a temporary solution until the issue is resolved in pymssql or Cython
+    # Issues/discussions that track it:
+    #
+    # * https://github.com/cython/cython/issues/5541
+    # * https://github.com/pymssql/pymssql/pull/827
+    # * https://discuss.python.org/t/no-way-to-pin-build-dependencies/29833
+    #
+    # TODO: Remove this workaround when the issue is resolved.
+    #       ALSO REMOVE THE TOP LINES ABOVE WITH common.sh IMPORT AS WELL AS COPYING common.sh ib
+    #       Dockerfile AND Dockerfile.ci (look for capital PYMSSQL - there are several places to remove)
+    if [[ "${1}" == "dev" ]]; then
+        common::install_pip_version
+        echo "Cython==0.29.36" >> /tmp/mssql-constraints.txt
+        PIP_CONSTRAINT=/tmp/mssql-constraints.txt pip install pymssql
+        rm /tmp/mssql-constraints.txt
+    fi
 }
 
 install_mssql_client "${@}"
@@ -433,7 +471,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.1"
+            export AIRFLOW_PIP_VERSION="23.2.1"
         fi
     fi
 }
@@ -684,7 +722,6 @@ set -euo pipefail
 
 : "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
 : "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
-: "${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS:?Should be set}"
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
@@ -906,9 +943,9 @@ function wait_for_airflow_db() {
     run_check_with_retries "airflow db check"
 }
 
-function upgrade_db() {
-    # Runs airflow db upgrade
-    airflow db upgrade || true
+function migrate_db() {
+    # Runs airflow db migrate
+    airflow db migrate || true
 }
 
 function wait_for_celery_broker() {
@@ -986,8 +1023,12 @@ if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
     wait_for_airflow_db
 fi
 
+if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] || [[ -n "${_AIRFLOW_DB_MIGRATE=}" ]] ; then
+    migrate_db
+fi
+
 if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] ; then
-    upgrade_db
+    >&2 echo "WARNING: Environment variable '_AIRFLOW_DB_UPGRADE' is deprecated please use '_AIRFLOW_DB_MIGRATE' instead"
 fi
 
 if [[ -n "${_AIRFLOW_WWW_USER_CREATE=}" ]] ; then
@@ -1158,8 +1199,15 @@ ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
 # scripts which are needed much later will not invalidate the docker layer here
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
 
+# THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
+# AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
+ARG AIRFLOW_PIP_VERSION=23.2.1
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
+COPY --from=scripts common.sh /scripts/docker/
+
+
 RUN bash /scripts/docker/install_mysql.sh dev && \
-    bash /scripts/docker/install_mssql.sh && \
+    bash /scripts/docker/install_mssql.sh dev && \
     bash /scripts/docker/install_postgres.sh dev
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
@@ -1241,18 +1289,17 @@ COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 # Those are additional constraints that are needed for some extras but we do not want to
-# Force them on the main Airflow package.
-# * dill<0.3.3 required by apache-beam
-# * pyarrow>=6.0.0 is because pip resolver decides for Python 3.10 to downgrade pyarrow to 5 even if it is OK
-#   for python 3.10 and other dependencies adding the limit helps resolver to make better decisions
-# * authlib, gcloud_aio_auth, adal are needed to generate constraints for PyPI packages and can be removed after we release
-#   new google, azure providers
-# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci, find_newer_dependencies.py
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0 authlib>=1.0.0 gcloud_aio_auth>=4.0.0 adal>=1.2.7"
+# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
+# dependency resolution and we do not need to limit the versions of the dependencies
+# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
+
+ARG VERSION_SUFFIX_FOR_PYPI=""
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
-    EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+    EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
 
 WORKDIR ${AIRFLOW_HOME}
 
@@ -1345,6 +1392,12 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
     AIRFLOW_HOME=${AIRFLOW_HOME}
 
+# THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
+# AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
+ARG AIRFLOW_PIP_VERSION=23.2.1
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
+COPY --from=scripts common.sh /scripts/docker/
+
 # Only copy mysql/mssql installation scripts for now - so that changing the other
 # scripts which are needed much later will not invalidate the docker layer here.
 COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
@@ -1353,7 +1406,7 @@ COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scrip
 # had different umask set and group x bit was not set. In Azure the bit might be not set at all.
 # That also protects against AUFS Docker backend problem where changing the executable bit required sync
 RUN bash /scripts/docker/install_mysql.sh prod \
-    && bash /scripts/docker/install_mssql.sh \
+    && bash /scripts/docker/install_mssql.sh prod \
     && bash /scripts/docker/install_postgres.sh prod \
     && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
            --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" \

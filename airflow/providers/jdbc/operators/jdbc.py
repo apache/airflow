@@ -20,6 +20,7 @@ from __future__ import annotations
 import warnings
 from typing import Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
@@ -28,6 +29,10 @@ class JdbcOperator(SQLExecuteQueryOperator):
     Executes sql code in a database using jdbc driver.
 
     Requires jaydebeapi.
+
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -52,6 +57,6 @@ class JdbcOperator(SQLExecuteQueryOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )

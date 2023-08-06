@@ -26,6 +26,7 @@ from datetime import datetime
 from pathlib import Path
 
 from airflow import models
+from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
@@ -70,13 +71,14 @@ with models.DAG(
 
     # [START howto_operator_start_python_job]
     start_python_job = BeamRunPythonPipelineOperator(
+        runner=BeamRunnerType.DataflowRunner,
         task_id="start_python_job",
         py_file=GCS_PYTHON_SCRIPT,
         py_options=[],
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.36.0"],
+        py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={"location": LOCATION},
@@ -90,7 +92,7 @@ with models.DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.36.0"],
+        py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
     )

@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from functools import cached_property
 
 import watchtower
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.utils.log.file_task_handler import FileTaskHandler

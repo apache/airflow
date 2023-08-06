@@ -19,8 +19,9 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.videointelligence_v1 import enums
+from google.cloud.videointelligence_v1 import Feature
 
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -29,12 +30,16 @@ from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_
 INPUT_URI = "gs://bucket-name/input-file"
 OUTPUT_URI = "gs://bucket-name/output-file"
 
-FEATURES = [enums.Feature.LABEL_DETECTION]
+FEATURES = [Feature.LABEL_DETECTION]
 
 ANNOTATE_VIDEO_RESPONSE = {"test": "test"}
 
 
 class TestCloudVideoIntelligenceHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudVideoIntelligenceHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.__init__",
@@ -64,12 +69,14 @@ class TestCloudVideoIntelligenceHook:
         # Then
         assert result is ANNOTATE_VIDEO_RESPONSE
         annotate_video_method.assert_called_once_with(
-            input_uri=INPUT_URI,
-            input_content=None,
-            features=FEATURES,
-            video_context=None,
-            output_uri=None,
-            location_id=None,
+            request={
+                "input_uri": INPUT_URI,
+                "input_content": None,
+                "features": FEATURES,
+                "video_context": None,
+                "output_uri": None,
+                "location_id": None,
+            },
             retry=DEFAULT,
             timeout=None,
             metadata=(),
@@ -87,12 +94,14 @@ class TestCloudVideoIntelligenceHook:
         # Then
         assert result is ANNOTATE_VIDEO_RESPONSE
         annotate_video_method.assert_called_once_with(
-            input_uri=INPUT_URI,
-            output_uri=OUTPUT_URI,
-            input_content=None,
-            features=FEATURES,
-            video_context=None,
-            location_id=None,
+            request={
+                "input_uri": INPUT_URI,
+                "output_uri": OUTPUT_URI,
+                "input_content": None,
+                "features": FEATURES,
+                "video_context": None,
+                "location_id": None,
+            },
             retry=DEFAULT,
             timeout=None,
             metadata=(),

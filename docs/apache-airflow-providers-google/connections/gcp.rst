@@ -36,6 +36,11 @@ There are two ways to connect to Google Cloud using Airflow.
    Key can be specified as a path to the key file (``Keyfile Path``), as a key payload (``Keyfile JSON``)
    or as secret in Secret Manager (``Keyfile secret name``). Only one way of defining the key can be used at a time.
    If you need to manage multiple keys then you should configure multiple connections.
+3. Using a `credential configuration file <https://googleapis.dev/python/google-auth/2.9.0/user-guide.html#external-credentials-workload-identity-federation>`_,
+   by specifying the path to or the content of a valid credential configuration file.
+   A credential configuration file is a configuration file that typically contains non-sensitive metadata to instruct
+   the ``google-auth`` library on how to retrieve external subject tokens and exchange them for service account access
+   tokens.
 
    .. warning:: Additional permissions might be needed
 
@@ -98,6 +103,11 @@ Keyfile JSON
 
     Not required if using application default credentials.
 
+Credential Configuration File
+    Credential configuration file JSON or path to a credential configuration file on the filesystem.
+
+    Not required if using application default credentials.
+
 Secret name which holds Keyfile JSON
     Name of the secret in Secret Manager which contains a `service account
     <https://cloud.google.com/docs/authentication/#service_accounts>`_ key.
@@ -144,7 +154,7 @@ Number of Retries
 
     .. code-block:: bash
 
-       export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{"conn_type": "google-cloud-platform", "key_path": "/keys/key.json", "scope": "https://www.googleapis.com/auth/cloud-platform", "project": "airflow", "num_retries": 5}'
+       export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{"conn_type": "google_cloud_platform", "extra": {"key_path": "/keys/key.json", "scope": "https://www.googleapis.com/auth/cloud-platform", "project": "airflow", "num_retries": 5}}'
 
 .. _howto/connection:gcp:impersonation:
 
@@ -288,4 +298,4 @@ Note that as domain-wide delegation is currently supported by most of the Google
 
 * All of Google Cloud operators and hooks.
 * Firebase hooks.
-* All transfer operators that involve Google cloud in different providers, for example: :class:`airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs`.
+* All transfer operators that involve Google cloud in different providers, for example: :class:`airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator`.

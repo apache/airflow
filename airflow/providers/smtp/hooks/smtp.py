@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module provides everything to be able to search in mails for a specific attachment
-and also to download it.
+Search in emails for a specific attachment and also to download it.
+
 It uses the smtplib library that is already integrated in python 3.
 """
 from __future__ import annotations
@@ -26,6 +26,7 @@ import collections.abc
 import os
 import re
 import smtplib
+import ssl
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -87,7 +88,6 @@ class SmtpHook(BaseHook):
                     if attempt < self.smtp_retry_limit:
                         continue
                     raise AirflowException("Unable to connect to smtp server")
-
                 if self.smtp_starttls:
                     self.smtp_client.starttls()
                 if self.smtp_user and self.smtp_password:
@@ -109,11 +109,33 @@ class SmtpHook(BaseHook):
             smtp_kwargs["port"] = self.port
         smtp_kwargs["timeout"] = self.timeout
 
+        if self.use_ssl:
+            from airflow.configuration import conf
+
+            extra_ssl_context = self.conn.extra_dejson.get("ssl_context", None)
+            if extra_ssl_context:
+                ssl_context_string = extra_ssl_context
+            else:
+                ssl_context_string = conf.get("smtp_provider", "SSL_CONTEXT", fallback=None)
+            if ssl_context_string is None:
+                ssl_context_string = conf.get("email", "SSL_CONTEXT", fallback=None)
+            if ssl_context_string is None:
+                ssl_context_string = "default"
+            if ssl_context_string == "default":
+                ssl_context = ssl.create_default_context()
+            elif ssl_context_string == "none":
+                ssl_context = None
+            else:
+                raise RuntimeError(
+                    f"The email.ssl_context configuration variable must "
+                    f"be set to 'default' or 'none' and is '{ssl_context_string}'."
+                )
+            smtp_kwargs["context"] = ssl_context
         return SMTP(**smtp_kwargs)
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
@@ -138,7 +160,7 @@ class SmtpHook(BaseHook):
         }
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test SMTP connectivity from UI"""
+        """Test SMTP connectivity from UI."""
         try:
             smtp_client = self.get_conn().smtp_client
             if smtp_client:
@@ -302,8 +324,9 @@ class SmtpHook(BaseHook):
 
     def _get_email_list_from_str(self, addresses: str) -> list[str]:
         """
-        Extract a list of email addresses from a string. The string
-        can contain multiple email addresses separated by
+        Extract a list of email addresses from a string.
+
+        The string can contain multiple email addresses separated by
         any of the following delimiters: ',' or ';'.
 
         :param addresses: A string containing one or more email addresses.
@@ -356,7 +379,7 @@ class SmtpHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "extra"],
             "relabeling": {},

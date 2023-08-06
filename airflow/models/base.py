@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import MetaData, String
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import registry
 
 from airflow.configuration import conf
 
@@ -45,14 +45,15 @@ def _get_schema():
 
 
 metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
+mapper_registry = registry(metadata=metadata)
 
-Base: Any = declarative_base(metadata=metadata)
+Base: Any = mapper_registry.generate_base()
 
 ID_LEN = 250
 
 
 def get_id_collation_args():
-    """Get SQLAlchemy args to use for COLLATION"""
+    """Get SQLAlchemy args to use for COLLATION."""
     collation = conf.get("database", "sql_engine_collation_for_ids", fallback=None)
     if collation:
         return {"collation": collation}
@@ -73,7 +74,7 @@ def get_id_collation_args():
         return {}
 
 
-COLLATION_ARGS = get_id_collation_args()
+COLLATION_ARGS: dict[str, Any] = get_id_collation_args()
 
 
 def StringID(*, length=ID_LEN, **kwargs) -> String:

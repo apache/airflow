@@ -26,6 +26,7 @@ import {
   Button,
   Checkbox,
   Icon,
+  Spinner,
 } from "@chakra-ui/react";
 import { MdWarning } from "react-icons/md";
 
@@ -119,7 +120,7 @@ const Logs = ({
   const { timezone } = useTimezone();
 
   const taskTryNumber = selectedTryNumber || tryNumber || 1;
-  const { data } = useTaskLog({
+  const { data, isLoading } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
@@ -266,12 +267,16 @@ const Logs = ({
               <Text fontSize="sm">{warning}</Text>
             </Flex>
           )}
-          {!!parsedLogs && (
-            <LogBlock
-              parsedLogs={parsedLogs}
-              wrap={wrap}
-              tryNumber={taskTryNumber}
-            />
+          {isLoading ? (
+            <Spinner />
+          ) : (
+            !!parsedLogs && (
+              <LogBlock
+                parsedLogs={parsedLogs}
+                wrap={wrap}
+                tryNumber={taskTryNumber}
+              />
+            )
           )}
         </>
       )}

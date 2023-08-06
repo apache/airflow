@@ -20,6 +20,7 @@ import os
 
 import click
 
+from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.common_options import option_answer
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
@@ -164,7 +165,11 @@ def push_artifacts_to_asf_repo(version, repo_root):
             check=True,
         )
         console_print("Files pushed to svn")
-        os.chdir(repo_root)
+
+
+def delete_asf_repo(repo_root):
+    os.chdir(repo_root)
+    if confirm_action("Do you want to remove the cloned asf repo?"):
         run_command(["rm", "-rf", "asf-dist"], dry_run_override=DRY_RUN, check=True)
 
 
@@ -198,7 +203,7 @@ def push_packages_to_test_pypi(version):
             "environment. The package download link is available at: "
             "https://test.pypi.org/project/apache-airflow/#files "
             "Install it with the appropriate constraint file, adapt python version: "
-            f"pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ apache-airflow=={version} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-{version}/constraints-3.8.txt"  # noqa: 501
+            f"pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/apache-airflow=={version} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-{version}/constraints-3.8.txt"  # noqa: 501
         )
 
 
@@ -267,7 +272,7 @@ def remove_old_releases(version, repo_root):
     if not confirm_action("Do you want to look for old RCs to remove?"):
         return
 
-    os.chdir("asf-dist/dev/airflow")
+    os.chdir(f"{repo_root}/asf-dist/dev/airflow")
 
     old_releases = []
     for entry in os.scandir():
@@ -290,11 +295,10 @@ def remove_old_releases(version, repo_root):
     os.chdir(repo_root)
 
 
-@click.command(
+@release_management.command(
     name="start-rc-process",
     short_help="Start RC process",
     help="Start the process for releasing a new RC.",
-    hidden=True,
 )
 @click.option("--version", required=True, help="The release candidate version e.g. 2.4.3rc1")
 @click.option("--previous-version", required=True, help="Previous version released e.g. 2.4.2")
@@ -343,7 +347,7 @@ def publish_release_candidate(version, previous_version, github_token):
     git_clean()
     # Build the latest image
     if confirm_action("Build latest breeze image?"):
-        run_command(["breeze", "ci-image", "build", "--python", "3.7"], dry_run_override=DRY_RUN, check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.8"], dry_run_override=DRY_RUN, check=True)
     # Create the tarball
     tarball_release(version, version_without_rc)
     # Create the artifacts
@@ -361,6 +365,13 @@ def publish_release_candidate(version, previous_version, github_token):
     move_artifacts_to_svn(version, airflow_repo_root)
     # Push the artifacts to the asf repo
     push_artifacts_to_asf_repo(version, airflow_repo_root)
+
+    # Remove old releases
+    remove_old_releases(version, airflow_repo_root)
+
+    # Delete asf-dist directory
+    delete_asf_repo(airflow_repo_root)
+
     # Prepare the pypi packages
     prepare_pypi_packages(version, version_suffix, airflow_repo_root)
     # Push the packages to test pypi
@@ -374,9 +385,6 @@ def publish_release_candidate(version, previous_version, github_token):
     # Create issue for testing
     os.chdir(airflow_repo_root)
     create_issue_for_testing(version, previous_version, github_token)
-
-    # Remove old releases
-    remove_old_releases(version, airflow_repo_root)
 
     console_print()
     console_print("Done!")

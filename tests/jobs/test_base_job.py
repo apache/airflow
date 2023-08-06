@@ -148,6 +148,29 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
+    def test_is_alive_scheduler(self):
+        job = Job(heartrate=10, state=State.RUNNING, job_type="SchedulerJob")
+        assert job.is_alive() is True
+
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)
+        assert job.is_alive() is True
+
+        # default health-check grace period for scheduler job is not heartrate*2.1 but 30 seconds
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=21)
+        assert job.is_alive() is True
+
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=31)
+        assert job.is_alive() is False
+
+        # test because .seconds was used before instead of total_seconds
+        # internal repr of datetime is (days, seconds)
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(days=1)
+        assert job.is_alive() is False
+
+        job.state = State.SUCCESS
+        job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
+        assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
+
     @patch("airflow.jobs.job.create_session")
     def test_heartbeat_failed(self, mock_create_session):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
@@ -181,7 +204,6 @@ class TestJob:
 
         test_job = Job(heartrate=10, dag_id="example_dag", state=State.RUNNING)
         MockJobRunner(job=test_job)
-        assert test_job.executor_class == "SequentialExecutor"
         assert test_job.heartrate == 10
         assert test_job.dag_id == "example_dag"
         assert test_job.hostname == "test_hostname"

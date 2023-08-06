@@ -20,6 +20,16 @@
 Amazon Redshift Operators
 =========================
 
+Amazon offers two ways to query Redshift.
+
+1. `Using Python connector <https://docs.aws.amazon.com/redshift/latest/mgmt/python-connect-examples.html>`__
+2. `Using the Amazon Redshift Data API <https://docs.aws.amazon.com/redshift/latest/mgmt/data-api.html>`__
+
+Airflow enables both. You can choose with what you want to work.
+
+To use with API (HTTP) choose Amazon Redshift Data.
+
+To use with Postgres Connection choose Amazon Redshift SQL.
 
 .. toctree::
     :maxdepth: 1

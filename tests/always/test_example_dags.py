@@ -23,11 +23,10 @@ from pathlib import Path
 import pytest
 
 from airflow.models import DagBag
-from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import yaml
 from tests.test_utils.asserts import assert_queries_count
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[3]
+AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 NO_DB_QUERY_EXCEPTION = ["/airflow/example_dags/example_subdag_operator.py"]
@@ -55,15 +54,14 @@ def example_not_suspended_dags():
     suspended_providers_folders = get_suspended_providers_folders()
     possible_prefixes = ["airflow/providers/", "tests/system/providers/"]
     suspended_providers_folders = [
-        f"{prefix}{provider}" for prefix in possible_prefixes for provider in suspended_providers_folders
+        AIRFLOW_SOURCES_ROOT.joinpath(prefix, provider).as_posix()
+        for prefix in possible_prefixes
+        for provider in suspended_providers_folders
     ]
     for example_dir in example_dirs:
         candidates = glob(f"{AIRFLOW_SOURCES_ROOT.as_posix()}/{example_dir}", recursive=True)
         for candidate in candidates:
             if any(candidate.startswith(s) for s in suspended_providers_folders):
-                continue
-            # we will also suspend AIP-52 DAGs unless it is enabled
-            if not _ENABLE_AIP_52 and "example_setup_teardown" in candidate:
                 continue
             yield candidate
 
@@ -72,7 +70,7 @@ def example_dags_except_db_exception():
     return [
         dag_file
         for dag_file in example_not_suspended_dags()
-        if any(not dag_file.endswith(e) for e in NO_DB_QUERY_EXCEPTION)
+        if not any(dag_file.endswith(e) for e in NO_DB_QUERY_EXCEPTION)
     ]
 
 

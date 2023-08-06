@@ -29,7 +29,6 @@ from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperat
 TASK_ID = "test-gcs-to-sftp-operator"
 GCP_CONN_ID = "GCP_CONN_ID"
 SFTP_CONN_ID = "SFTP_CONN_ID"
-DELEGATE_TO = "DELEGATE_TO"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 DEFAULT_MIME_TYPE = "application/octet-stream"
@@ -64,13 +63,11 @@ class TestSFTPToGCSOperator:
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
@@ -100,14 +97,12 @@ class TestSFTPToGCSOperator:
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
             gzip=True,
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
@@ -137,13 +132,11 @@ class TestSFTPToGCSOperator:
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
@@ -179,7 +172,6 @@ class TestSFTPToGCSOperator:
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
         )
         task.execute(None)
 
@@ -231,7 +223,6 @@ class TestSFTPToGCSOperator:
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
         )
         task.execute(None)
 
@@ -253,7 +244,6 @@ class TestSFTPToGCSOperator:
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
-            delegate_to=DELEGATE_TO,
         )
         with pytest.raises(AirflowException) as ctx:
             task.execute(None)

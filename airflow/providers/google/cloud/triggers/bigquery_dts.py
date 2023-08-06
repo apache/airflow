@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import Any, AsyncIterator, Sequence
 
 from google.cloud.bigquery_datatransfer_v1 import TransferRun, TransferState
@@ -28,24 +27,23 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class BigQueryDataTransferRunTrigger(BaseTrigger):
-    """Triggers class to watch the Transfer Run state to define when the job is done.
+    """
+    Triggers class to watch the Transfer Run state to define when the job is done.
+
     :param project_id: The BigQuery project id where the transfer configuration should be
     :param config_id: ID of the config of the Transfer Run which should be watched.
     :param run_id: ID of the Transfer Run which should be watched.
     :param poll_interval: Optional. Interval which defines how often triggers check status of the job.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-    if any. For this to work, the service account making the request must have
-    domain-wide delegation enabled.
     :param location: BigQuery Transfer Service location for regional transfers.
     :param impersonation_chain: Optional service account to impersonate using short-term
-    credentials, or chained list of accounts required to get the access_token
-    of the last account in the list, which will be impersonated in the request.
-    If set as a string, the account must grant the originating account
-    the Service Account Token Creator IAM role.
-    If set as a sequence, the identities from the list must grant
-    Service Account Token Creator IAM role to the directly preceding identity, with first
-    account from the list granting this role to the originating account (templated).
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     def __init__(
@@ -55,7 +53,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
         run_id: str,
         poll_interval: int = 10,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ):
@@ -65,11 +62,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
         self.run_id = run_id
         self.poll_interval = poll_interval
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.location = location
         self.impersonation_chain = impersonation_chain
 
@@ -83,17 +75,13 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                 "run_id": self.run_id,
                 "poll_interval": self.poll_interval,
                 "gcp_conn_id": self.gcp_conn_id,
-                "delegate_to": self.delegate_to,
                 "location": self.location,
                 "impersonation_chain": self.impersonation_chain,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """
-        Get Transfer Run status and if it one of the statuses which mean end of the job
-        then yield TriggerEvent object.
-        """
+        """If the Transfer Run is in a terminal state, then yield TriggerEvent object."""
         hook = self._get_async_hook()
         while True:
             try:
@@ -117,7 +105,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                         }
                     )
                     return
-
                 elif state == TransferState.FAILED:
                     self.log.info("Job has failed")
                     yield TriggerEvent(
@@ -128,7 +115,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                         }
                     )
                     return
-
                 if state == TransferState.CANCELLED:
                     self.log.info("Job has been cancelled.")
                     yield TriggerEvent(
@@ -139,12 +125,10 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                         }
                     )
                     return
-
                 else:
                     self.log.info("Job is still working...")
                     self.log.info("Waiting for %s seconds", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
-
             except Exception as e:
                 yield TriggerEvent(
                     {
@@ -157,7 +141,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
     def _get_async_hook(self) -> AsyncBiqQueryDataTransferServiceHook:
         return AsyncBiqQueryDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )

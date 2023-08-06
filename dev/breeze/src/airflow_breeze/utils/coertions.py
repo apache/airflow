@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import Iterable
+
 
 def coerce_bool_value(value: str | bool) -> bool:
     if isinstance(value, bool):
@@ -25,3 +27,7 @@ def coerce_bool_value(value: str | bool) -> bool:
         return False
     else:
         return value[0].lower() in ["t", "y"]  # handle all kinds of truth-y/yes-y/false-y/non-sy strings
+
+
+def one_or_none_set(iterable: Iterable[bool]) -> bool:
+    return len([i for i in iterable if i]) in (0, 1)

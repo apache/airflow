@@ -27,10 +27,9 @@ logger = logging.getLogger(__name__)
 
 
 def test_logging_fn(**kwargs):
-    """
-    Tests DAG logging.
+    """Tests DAG logging.
+
     :param kwargs:
-    :return:
     """
     logger.info("Log from DAG Logger")
     kwargs["ti"].log.info("Log from TI Logger")

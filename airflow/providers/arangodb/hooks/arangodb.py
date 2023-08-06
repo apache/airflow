@@ -18,12 +18,12 @@
 """This module allows connecting to a ArangoDB."""
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from arango import AQLQueryExecuteError, ArangoClient as ArangoDBClient
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -93,8 +93,7 @@ class ArangoDBHook(BaseHook):
 
     def query(self, query, **kwargs) -> Cursor:
         """
-        Function to create an ArangoDB session
-        and execute the AQL query in the session.
+        Function to create an ArangoDB session and execute the AQL query in the session.
 
         :param query: AQL query
         """
