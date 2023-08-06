@@ -28,7 +28,7 @@
       "asgiref",
       "boto3>=1.24.0",
       "jsonpath_ng>=1.5.3",
-      "mypy-boto3-appflow>=1.24.0,<1.28.12",
+      "mypy-boto3-appflow>=1.28.16",
       "mypy-boto3-rds>=1.24.0",
       "mypy-boto3-redshift-data>=1.24.0",
       "mypy-boto3-s3>=1.24.0",
