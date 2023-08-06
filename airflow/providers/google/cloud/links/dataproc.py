@@ -32,6 +32,8 @@ if TYPE_CHECKING:
 
 DATAPROC_BASE_LINK = BASE_LINK + "/dataproc"
 DATAPROC_JOB_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
+# For backward-compatibility, DATAPROC_JOB_LINK was DATAPROC_JOB_LOG_LINK.
+DATAPROC_JOB_LOG_LINK = DATAPROC_JOB_LINK
 
 DATAPROC_CLUSTER_LINK = (
     DATAPROC_BASE_LINK + "/clusters/{cluster_id}/monitoring?region={region}&project={project_id}"
