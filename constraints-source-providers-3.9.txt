@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-06T12:07:38Z
+# This constraints file was automatically generated on 2023-08-06T19:07:24Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -35,7 +35,7 @@ PyHive==0.6.5
 PyJWT==2.8.0
 PyNaCl==1.5.0
 PyYAML==6.0.1
-Pygments==2.15.1
+Pygments==2.16.1
 SQLAlchemy-JSONField==1.0.1.post0
 SQLAlchemy-Utils==0.41.1
 SQLAlchemy==1.4.49
