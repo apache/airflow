@@ -152,7 +152,7 @@ with models.DAG(
         project_id=PROJECT_ID,
         region=region,
         job_name=job2_name,
-        job=_create_job(),
+        job=Job.to_dict(_create_job()),
         dag=dag,
     )
 

@@ -74,7 +74,9 @@ class TestCloudBathHook:
         update_request = UpdateJobRequest()
         update_request.job = job
 
-        cloud_run_hook.update_job(job=job, job_name=job_name, region=region, project_id=project_id)
+        cloud_run_hook.update_job(
+            job=Job.to_dict(job), job_name=job_name, region=region, project_id=project_id
+        )
 
         cloud_run_hook._client.update_job.assert_called_once_with(update_request)
 
@@ -94,7 +96,9 @@ class TestCloudBathHook:
         create_request.job_id = job_name
         create_request.parent = f"projects/{project_id}/locations/{region}"
 
-        cloud_run_hook.create_job(job=job, job_name=job_name, region=region, project_id=project_id)
+        cloud_run_hook.create_job(
+            job=Job.to_dict(job), job_name=job_name, region=region, project_id=project_id
+        )
 
         cloud_run_hook._client.create_job.assert_called_once_with(create_request)
 

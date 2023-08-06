@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 from typing import Iterable, Sequence
 
 from google.api_core import operation
@@ -87,7 +88,9 @@ class CloudRunHook(GoogleBaseHook):
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_job(self, job_name: str, job: Job, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
+    def create_job(self, job_name: str, job, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
+        if isinstance(job, dict):
+            job = Job.from_json(json.dumps(job))
 
         create_request = CreateJobRequest()
         create_request.job = job
@@ -98,7 +101,9 @@ class CloudRunHook(GoogleBaseHook):
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def update_job(self, job_name: str, job: Job, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
+    def update_job(self, job_name: str, job, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
+        if isinstance(job, dict):
+            job = Job.from_json(json.dumps(job))
 
         update_request = UpdateJobRequest()
         job.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
