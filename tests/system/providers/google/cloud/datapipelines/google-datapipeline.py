@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.operators.datapipeline import (
 
 DAG_ID = "google-datapipeline"
 DATA_PIPELINE_NAME = os.environ.get("DATA_PIPELINE_NAME", "example-datapipeline")
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
 
 with models.DAG(
     DAG_ID,
