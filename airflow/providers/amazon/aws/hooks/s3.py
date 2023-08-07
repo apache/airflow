@@ -1511,29 +1511,3 @@ class S3Hook(AwsBaseHook):
         """
         s3_client = self.get_conn()
         s3_client.delete_bucket_tagging(Bucket=bucket_name)
-
-
-class MinIOHook(S3Hook):
-    """Interact with MinIO Simple Storage Service (S3)."""
-
-    conn_name_attr = "minio_conn_id"
-    default_conn_name = "minio_default"
-    conn_type = "minio"
-    hook_name = "MinIO storage service"
-
-    def __init__(
-        self,
-        minio_conn_id: str | None = default_conn_name,
-        transfer_config_args: dict | None = None,
-        extra_args: dict | None = None,
-        *args,
-        **kwargs,
-    ) -> None:
-        kwargs["aws_conn_id"] = minio_conn_id
-        kwargs["transfer_config_args"] = transfer_config_args
-        kwargs["extra_args"] = extra_args
-        super().__init__(*args, **kwargs)
-
-    def test_connection(self):
-        """Check if connection to MinIO is valid."""
-        self.get_conn().list_buckets()

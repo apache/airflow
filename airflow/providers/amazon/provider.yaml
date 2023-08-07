@@ -499,6 +499,9 @@ hooks:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.hooks.s3
+  - integration-name: Minio Simple Storage Service (S3)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.minio
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker
@@ -671,10 +674,10 @@ connection-types:
     connection-type: chime
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
+  - hook-class-name: airflow.providers.amazon.aws.hooks.minio.MinIOHook
+    connection-type: minio
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
-  - hook-class-name: airflow.providers.amazon.aws.hooks.s3.MinIOHook
-    connection-type: minio
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
