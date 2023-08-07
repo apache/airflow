@@ -74,6 +74,7 @@ class TestCreateDataPipelineOperator:
         create_operator.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
             gcp_conn_id="test_gcp_conn_id",
+            impersonation_chain=None,
         )
 
         mock_hook.return_value.create_data_pipeline.assert_called_once_with(
