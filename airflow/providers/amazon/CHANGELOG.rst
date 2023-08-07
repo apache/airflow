@@ -26,6 +26,33 @@
 Changelog
 ---------
 
+8.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, sagemaker: add OpenLineage support for SageMaker's Processing, Transform and Training operators (#31816)``
+* ``Add Amazon EventBridge PutRule hook and operator (#32869)``
+* ``Add GCS Requester Pays bucket support to GCSToS3Operator (#32760)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Check google provider version in GCSToS3Operator before provide match_glob param (#32925)``
+* ``Set longer default 'waiter_max_attempts' for deferred BatchJobOperator (#33045)``
+
+Misc
+~~~~
+
+* ``openlineage, sagemaker: add missing OpenLineage type signature (#33114)``
+* ``Add S3Bucket for mypy (#33028)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deferrable mode for Sqs Sensor (#32809)``
+   * ``Increase the number of attempts in AWS system test 'example_rds_export' (#32976)``
+
 8.4.0
 .....
 

@@ -43,13 +43,15 @@ from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProc
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_BATCH_LINK,
-    DATAPROC_BATCHES_LINK,
-    DATAPROC_CLUSTER_LINK,
-    DATAPROC_JOB_LOG_LINK,
-    DATAPROC_WORKFLOW_LINK,
-    DATAPROC_WORKFLOW_TEMPLATE_LINK,
+    DATAPROC_CLUSTER_LINK_DEPRECATED,
+    DATAPROC_JOB_LINK_DEPRECATED,
+    DataprocBatchesListLink,
+    DataprocBatchLink,
+    DataprocClusterLink,
+    DataprocJobLink,
     DataprocLink,
-    DataprocListLink,
+    DataprocWorkflowLink,
+    DataprocWorkflowTemplateLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataproc import (
@@ -189,6 +191,7 @@ class ClusterGenerator:
         enable_component_gateway: bool | None = False,
         **kwargs,
     ) -> None:
+
         self.project_id = project_id
         self.num_masters = num_masters
         self.num_workers = num_workers
@@ -488,7 +491,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     )
     template_fields_renderers = {"cluster_config": "json", "virtual_cluster_config": "json"}
 
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocClusterLink(),)
 
     def __init__(
         self,
@@ -629,9 +632,15 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         self.log.info("Creating cluster: %s", self.cluster_name)
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required to display extra link no matter what the cluster status will be
-        DataprocLink.persist(
-            context=context, task_instance=self, url=DATAPROC_CLUSTER_LINK, resource=self.cluster_name
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            DataprocClusterLink.persist(
+                context=context,
+                operator=self,
+                cluster_id=self.cluster_name,
+                project_id=project_id,
+                region=self.region,
+            )
         try:
             # First try to create a new cluster
             operation = self._create_cluster(hook)
@@ -814,7 +823,10 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required to display extra link no matter what the cluster status will be
         DataprocLink.persist(
-            context=context, task_instance=self, url=DATAPROC_CLUSTER_LINK, resource=self.cluster_name
+            context=context,
+            task_instance=self,
+            url=DATAPROC_CLUSTER_LINK_DEPRECATED,
+            resource=self.cluster_name,
         )
         operation = hook.update_cluster(
             project_id=self.project_id,
@@ -1070,7 +1082,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
             self.log.info("Job %s submitted successfully.", job_id)
             # Save data required for extra links no matter what the job status will be
             DataprocLink.persist(
-                context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=job_id
+                context=context, task_instance=self, url=DATAPROC_JOB_LINK_DEPRECATED, resource=job_id
             )
 
             if self.deferrable:
@@ -1669,7 +1681,7 @@ class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = ("region", "template")
     template_fields_renderers = {"template": "json"}
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocWorkflowTemplateLink(),)
 
     def __init__(
         self,
@@ -1709,12 +1721,15 @@ class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
             self.log.info("Workflow %s created", workflow.name)
         except AlreadyExists:
             self.log.info("Workflow with given id already exists")
-        DataprocLink.persist(
-            context=context,
-            task_instance=self,
-            url=DATAPROC_WORKFLOW_TEMPLATE_LINK,
-            resource=self.template["id"],
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            DataprocWorkflowTemplateLink.persist(
+                context=context,
+                operator=self,
+                workflow_template_id=self.template["id"],
+                region=self.region,
+                project_id=project_id,
+            )
 
 
 class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
@@ -1759,7 +1774,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = ("template_id", "impersonation_chain", "request_id", "parameters")
     template_fields_renderers = {"parameters": "json"}
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocWorkflowLink(),)
 
     def __init__(
         self,
@@ -1811,9 +1826,15 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         self.workflow_id = operation.operation.name.split("/")[-1]
-        DataprocLink.persist(
-            context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=self.workflow_id
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            DataprocWorkflowLink.persist(
+                context=context,
+                operator=self,
+                workflow_id=self.workflow_id,
+                region=self.region,
+                project_id=project_id,
+            )
         self.log.info("Template instantiated. Workflow Id : %s", self.workflow_id)
         if not self.deferrable:
             hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
@@ -1889,7 +1910,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
 
     template_fields: Sequence[str] = ("template", "impersonation_chain")
     template_fields_renderers = {"template": "json"}
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocWorkflowLink(),)
 
     def __init__(
         self,
@@ -1926,9 +1947,10 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
     def execute(self, context: Context):
         self.log.info("Instantiating Inline Template")
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        project_id = self.project_id or hook.project_id
         operation = hook.instantiate_inline_workflow_template(
             template=self.template,
-            project_id=self.project_id or hook.project_id,
+            project_id=project_id,
             region=self.region,
             request_id=self.request_id,
             retry=self.retry,
@@ -1936,9 +1958,14 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
             metadata=self.metadata,
         )
         self.workflow_id = operation.operation.name.split("/")[-1]
-        DataprocLink.persist(
-            context=context, task_instance=self, url=DATAPROC_WORKFLOW_LINK, resource=self.workflow_id
-        )
+        if project_id:
+            DataprocWorkflowLink.persist(
+                context=context,
+                operator=self,
+                workflow_id=self.workflow_id,
+                region=self.region,
+                project_id=project_id,
+            )
         if not self.deferrable:
             self.log.info("Template instantiated. Workflow Id : %s", self.workflow_id)
             operation.result()
@@ -2010,7 +2037,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = ("project_id", "region", "job", "impersonation_chain", "request_id")
     template_fields_renderers = {"job": "json"}
 
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocJobLink(),)
 
     def __init__(
         self,
@@ -2066,9 +2093,15 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         new_job_id: str = job_object.reference.job_id
         self.log.info("Job %s submitted successfully.", new_job_id)
         # Save data required by extra links no matter what the job status will be
-        DataprocLink.persist(
-            context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=new_job_id
-        )
+        project_id = self.project_id or self.hook.project_id
+        if project_id:
+            DataprocJobLink.persist(
+                context=context,
+                operator=self,
+                job_id=new_job_id,
+                region=self.region,
+                project_id=project_id,
+            )
 
         self.job_id = new_job_id
         if self.deferrable:
@@ -2168,7 +2201,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         "project_id",
         "impersonation_chain",
     )
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocClusterLink(),)
 
     def __init__(
         self,
@@ -2210,9 +2243,15 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         # Save data required by extra links no matter what the cluster status will be
-        DataprocLink.persist(
-            context=context, task_instance=self, url=DATAPROC_CLUSTER_LINK, resource=self.cluster_name
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            DataprocClusterLink.persist(
+                context=context,
+                operator=self,
+                cluster_id=self.cluster_name,
+                project_id=project_id,
+                region=self.region,
+            )
         self.log.info("Updating %s cluster.", self.cluster_name)
         operation = hook.update_cluster(
             project_id=self.project_id,
@@ -2299,7 +2338,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         "region",
         "impersonation_chain",
     )
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocBatchLink(),)
 
     def __init__(
         self,
@@ -2344,7 +2383,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         # batch_id might not be set and will be generated
         if self.batch_id:
             link = DATAPROC_BATCH_LINK.format(
-                region=self.region, project_id=self.project_id, resource=self.batch_id
+                region=self.region, project_id=self.project_id, batch_id=self.batch_id
             )
             self.log.info("Creating batch %s", self.batch_id)
             self.log.info("Once started, the batch job will be available at %s", link)
@@ -2423,7 +2462,17 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                 wait_check_interval=self.polling_interval_seconds,
             )
         batch_id = self.batch_id or result.name.split("/")[-1]
+
         self.handle_batch_status(context, result.state, batch_id)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            DataprocBatchLink.persist(
+                context=context,
+                operator=self,
+                project_id=project_id,
+                region=self.region,
+                batch_id=batch_id,
+            )
         return Batch.to_dict(result)
 
     def execute_complete(self, context, event=None) -> None:
@@ -2446,24 +2495,14 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         # The existing batch may be a number of states other than 'SUCCEEDED'\
         # wait_for_operation doesn't fail if the job is cancelled, so we will check for it here which also
         # finds a cancelling|canceled|unspecified job from wait_for_batch or the deferred trigger
-        link = DATAPROC_BATCH_LINK.format(region=self.region, project_id=self.project_id, resource=batch_id)
+        link = DATAPROC_BATCH_LINK.format(region=self.region, project_id=self.project_id, batch_id=batch_id)
         if state == Batch.State.FAILED:
-            DataprocLink.persist(
-                context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=batch_id
-            )
             raise AirflowException("Batch job %s failed.  Driver Logs: %s", batch_id, link)
         if state in (Batch.State.CANCELLED, Batch.State.CANCELLING):
-            DataprocLink.persist(
-                context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=batch_id
-            )
             raise AirflowException("Batch job %s was cancelled. Driver logs: %s", batch_id, link)
         if state == Batch.State.STATE_UNSPECIFIED:
-            DataprocLink.persist(
-                context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=batch_id
-            )
             raise AirflowException("Batch job %s unspecified. Driver logs: %s", batch_id, link)
         self.log.info("Batch job %s completed. Driver logs: %s", batch_id, link)
-        DataprocLink.persist(context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=batch_id)
 
 
 class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
@@ -2554,7 +2593,7 @@ class DataprocGetBatchOperator(GoogleCloudBaseOperator):
     """
 
     template_fields: Sequence[str] = ("batch_id", "region", "project_id", "impersonation_chain")
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocBatchLink(),)
 
     def __init__(
         self,
@@ -2590,9 +2629,15 @@ class DataprocGetBatchOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        DataprocLink.persist(
-            context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=self.batch_id
-        )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            DataprocBatchLink.persist(
+                context=context,
+                operator=self,
+                project_id=project_id,
+                region=self.region,
+                batch_id=self.batch_id,
+            )
         return Batch.to_dict(batch)
 
 
@@ -2624,7 +2669,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
     """
 
     template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain")
-    operator_extra_links = (DataprocListLink(),)
+    operator_extra_links = (DataprocBatchesListLink(),)
 
     def __init__(
         self,
@@ -2668,7 +2713,9 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
             filter=self.filter,
             order_by=self.order_by,
         )
-        DataprocListLink.persist(context=context, task_instance=self, url=DATAPROC_BATCHES_LINK)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            DataprocBatchesListLink.persist(context=context, operator=self, project_id=project_id)
         return [Batch.to_dict(result) for result in results]
 
 

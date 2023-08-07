@@ -48,12 +48,13 @@ with DAG(
     doc_md=__doc__,
     tags=["example"],
 ) as dag:
-
+    # [START cosmos_document_sensor]
     t1 = AzureCosmosDocumentSensor(
         task_id="check_cosmos_file",
         collection_name="airflow_example_coll",
         document_id="airflow_checkid",
     )
+    # [END cosmos_document_sensor]
 
     t2 = AzureCosmosInsertDocumentOperator(
         task_id="insert_cosmos_file",
