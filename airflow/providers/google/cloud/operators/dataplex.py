@@ -802,7 +802,8 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
     :param fail_on_dq_failure: If set to true and not all Data Quality scan rules have been passed,
         an exception is thrown. If set to false and not all Data Quality scan rules have been passed,
         execution will finish with success.
-    :param wait_timeout: The amount of time, in seconds, to wait for the result.
+    :param: result_timeout: Value in seconds for which operator will wait for the Data Quality scan result.
+            Throws exception if there is no result found after specified amount of seconds.
 
     :return: Dataplex Data Quality scan job id.
     """
@@ -822,7 +823,7 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous: bool = False,
         fail_on_dq_failure: bool = False,
-        wait_timeout: float | None = None,
+        result_timeout: float = 30,
         *args,
         **kwargs,
     ) -> None:
@@ -839,7 +840,7 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
         self.fail_on_dq_failure = fail_on_dq_failure
-        self.wait_timeout = wait_timeout
+        self.result_timeout = result_timeout
 
     def execute(self, context: Context) -> str:
         hook = DataplexHook(
@@ -858,14 +859,28 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         )
         job_id = result.job.name.split("/")[-1]
         if not self.asynchronous:
-            hook.wait_for_data_scan_job(
+            job = hook.wait_for_data_scan_job(
                 job_id=job_id,
                 data_scan_id=self.data_scan_id,
                 project_id=self.project_id,
                 region=self.region,
-                fail_on_dq_failure=self.fail_on_dq_failure,
-                timeout=self.wait_timeout,
+                result_timeout=self.result_timeout,
             )
+
+            if job.state == DataScanJob.State.FAILED:
+                raise AirflowException(f"Data Quality job failed: {job_id}")
+            if job.state == DataScanJob.State.SUCCEEDED:
+                if not job.data_quality_result.passed:
+                    if self.fail_on_dq_failure:
+                        raise AirflowException(
+                            "Data Quality job execution failed due to failure of its scanning rules: "
+                            f"{self.data_scan_id}"
+                        )
+                else:
+                    self.log.info("Data Quality job executed successfully.")
+            else:
+                self.log.info("Data Quality job execution returned status: %s", job.status)
+
         return job_id
 
 
@@ -895,8 +910,10 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
     :param fail_on_dq_failure: If set to true and not all Data Quality scan rules have been passed,
         an exception is thrown. If set to false and not all Data Quality scan rules have been passed,
         execution will finish with success.
-    :param wait_for_result: Wait for job to finish.
-    :param wait_timeout: The amount of time, in seconds, to wait for an execution job the result.
+    :param wait_for_result: Flag indicating whether to wait for the result of a job execution
+        or to return the job in its current state.
+    :param: result_timeout: Value in seconds for which operator will wait for the Data Quality scan result.
+        Throws exception if there is no result found after specified amount of seconds.
 
     :return: Dict representing DataScanJob.
         When the job completes with a successful status, information about the Data Quality result
@@ -919,7 +936,7 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         fail_on_dq_failure: bool = False,
         wait_for_results: bool = True,
-        wait_timeout: float | None = None,
+        result_timeout: float = 30,
         *args,
         **kwargs,
     ) -> None:
@@ -936,7 +953,7 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.fail_on_dq_failure = fail_on_dq_failure
         self.wait_for_results = wait_for_results
-        self.wait_timeout = wait_timeout
+        self.result_timeout = result_timeout
 
     def execute(self, context: Context) -> dict:
         hook = DataplexHook(
@@ -961,30 +978,35 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
             self.job_id = job_id.split("/")[-1]
 
         if self.wait_for_results:
-            hook.wait_for_data_scan_job(
+            job = hook.wait_for_data_scan_job(
                 job_id=self.job_id,
                 data_scan_id=self.data_scan_id,
                 project_id=self.project_id,
                 region=self.region,
-                fail_on_dq_failure=self.fail_on_dq_failure,
-                fail_on_job_failure=False,
-                fail_on_timeout=False,
-                timeout=self.wait_timeout,
+                result_timeout=self.result_timeout,
+            )
+        else:
+            job = hook.get_data_scan_job(
+                project_id=self.project_id,
+                region=self.region,
+                job_id=self.job_id,
+                data_scan_id=self.data_scan_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
             )
 
-        job = hook.get_data_scan_job(
-            project_id=self.project_id,
-            region=self.region,
-            job_id=self.job_id,
-            data_scan_id=self.data_scan_id,
-            retry=self.retry,
-            timeout=self.timeout,
-            metadata=self.metadata,
-        )
-
-        if self.fail_on_dq_failure:
-            if job.state == DataScanJob.State.SUCCEEDED and not job.data_quality_result.passed:
-                raise AirflowException(f"Data Quality failed: {self.data_scan_id}")
+        if job.state == DataScanJob.State.SUCCEEDED:
+            if not job.data_quality_result.passed:
+                if self.fail_on_dq_failure:
+                    raise AirflowException(
+                        "Data Quality job execution failed due to failure of its scanning rules: "
+                        f"{self.data_scan_id}"
+                    )
+            else:
+                self.log.info("Data Quality job executed successfully")
+        else:
+            self.log.info("Data Quality job execution returned status: %s", job.state)
 
         return MessageToDict(job._pb)
 

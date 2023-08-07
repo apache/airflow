@@ -644,15 +644,12 @@ class DataplexHook(GoogleBaseHook):
     def wait_for_data_scan_job(
         self,
         data_scan_id: str,
-        fail_on_dq_failure: bool,
         job_id: str | None = None,
-        fail_on_job_failure: bool = True,
         project_id: str | None = None,
         region: str | None = None,
-        wait_time: int = 10,
-        timeout: float | None = None,
-        fail_on_timeout: bool = True,
-    ) -> None:
+        wait_time: int = 2,
+        result_timeout: float | None = None,
+    ) -> Any:
         """
         Wait for Dataplex data scan job.
 
@@ -661,12 +658,8 @@ class DataplexHook(GoogleBaseHook):
         :param region: Required. The ID of the Google Cloud region that the lake belongs to.
         :param project_id: Optional. Google Cloud project ID.
         :param wait_time: Number of seconds between checks.
-        :param timeout: The amount of time, in seconds, to wait for an execution job the result.
-        :param fail_on_dq_failure: If set to true and not all Data Quality scan rules have been passed,
-            an exception is thrown. If set to false and not all Data Quality scan rules have been passed,
-            execution will finish with success.
-        :param fail_on_job_failure: If set to true and job fails, an exception is thrown.
-        :param fail_on_timeout: If set to true and timeout, an exception is thrown.
+        :param result_timeout: Value in seconds for which operator will wait for the Data Quality scan result.
+            Throws exception if there is no result found after specified amount of seconds.
         """
         start = time.monotonic()
         state = None
@@ -675,12 +668,10 @@ class DataplexHook(GoogleBaseHook):
             DataScanJob.State.FAILED,
             DataScanJob.State.SUCCEEDED,
         ):
-            if timeout and start + timeout < time.monotonic():
-                if fail_on_timeout:
-                    raise AirflowException(
-                        f"Timeout: data quality scan {job_id} is not ready after {timeout}s"
-                    )
-                break
+            if result_timeout and start + result_timeout < time.monotonic():
+                raise AirflowException(
+                    f"Timeout: data quality scan {job_id} is not ready after {result_timeout}s"
+                )
             time.sleep(wait_time)
             try:
                 job = self.get_data_scan_job(
@@ -692,16 +683,7 @@ class DataplexHook(GoogleBaseHook):
                 state = job.state
             except Exception as err:
                 self.log.info("Retrying. Dataplex API returned error when waiting for job: %s", err)
-
-            if fail_on_dq_failure:
-                if state == DataScanJob.State.SUCCEEDED and not job.data_quality_result.passed:
-                    raise AirflowException(f"Data Quality scan failed: {data_scan_id}")
-            if state == DataScanJob.State.FAILED:
-                if fail_on_job_failure:
-                    raise AirflowException(f"Job failed:\n{job_id}")
-                break
-            if state == DataScanJob.State.CANCELLED:
-                raise AirflowException(f"Job was cancelled:\n{job_id}")
+        return job
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_data_scan(

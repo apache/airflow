@@ -300,6 +300,7 @@ class TestDataplexGetDataQualityScanResultOperator:
             job_id=JOB_ID,
             data_scan_id=DATA_SCAN_ID,
             api_version=API_VERSION,
+            wait_for_results=False,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )

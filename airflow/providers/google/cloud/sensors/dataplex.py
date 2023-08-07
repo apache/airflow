@@ -139,7 +139,8 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param wait_timeout: The amount of time, in seconds, to wait for an execution job the result.
+    :param result_timeout: Value in seconds for which operator will wait for the Data Quality scan result.
+        Throws exception if there is no result found after specified amount of seconds.
     :param fail_on_dq_failure: If set to true and not all Data Quality scan rules have been passed,
         an exception is thrown. If set to false and not all Data Quality scan rules have been passed,
         execution will finish with success.
@@ -161,7 +162,7 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         fail_on_dq_failure: bool = False,
-        wait_timeout: float | None = None,
+        result_timeout: float | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -176,7 +177,7 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.fail_on_dq_failure = fail_on_dq_failure
-        self.wait_timeout = wait_timeout
+        self.result_timeout = result_timeout
         self.start_sensor_time: float | None = None
 
     def execute(self, context: Context) -> None:
@@ -188,11 +189,11 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         self.log.info("Waiting for job %s to be %s", self.job_id, DataScanJob.State.SUCCEEDED)
-        if self.wait_timeout:
+        if self.execution_timeout:
             duration = self._duration()
-            if duration > self.wait_timeout:
+            if duration > self.execution_timeout:
                 raise AirflowException(
-                    f"Timeout: data quality scan {self.job_id} is not ready after {self.wait_timeout}s"
+                    f"Timeout: data quality scan {self.job_id} is not ready after {self.execution_timeout}s"
                 )
 
         hook = DataplexHook(
@@ -228,6 +229,8 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
             raise AirflowException(f"Data Quality scan job cancelled: {self.job_id}")
         if self.fail_on_dq_failure:
             if job_status == DataScanJob.State.SUCCEEDED and not job.data_quality_result.passed:
-                raise AirflowException(f"Data Quality scan failed: {self.data_scan_id}")
+                raise AirflowException(
+                    f"Data Quality job execution failed due to failure of its scanning rules: {self.job_id}"
+                )
 
         return job_status == DataScanJob.State.SUCCEEDED
