@@ -109,8 +109,7 @@ class BaseDatabricksHook(BaseHook):
             raise ValueError("Retry limit must be greater than or equal to 1")
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
-        self.aad_tokens: dict[str, dict] = {}
-        self.sp_token: dict[str, Any] = {}
+        self.oauth_tokens: dict[str, dict] = {}
         self.token_timeout_seconds = 10
         self.caller = caller
 
@@ -213,17 +212,18 @@ class BaseDatabricksHook(BaseHook):
         """
         return AsyncRetrying(**self.retry_args)
 
-    def _get_sp_token(self) -> str:
+    def _get_sp_token(self, resource: str) -> str:
         """Function to get Service Principal token."""
-        if self.sp_token and self._is_sp_token_valid(self.sp_token):
-            return self.sp_token["token"]
+        sp_token = self.oauth_tokens.get(resource)
+        if sp_token and self._is_oauth_token_valid(sp_token):
+            return sp_token["access_token"]
 
         self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
         try:
             for attempt in self._get_retry_object():
                 with attempt:
                     resp = requests.post(
-                        OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host),
+                        resource,
                         auth=HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
@@ -235,36 +235,30 @@ class BaseDatabricksHook(BaseHook):
 
                     resp.raise_for_status()
                     jsn = resp.json()
-                    if (
-                        "access_token" not in jsn
-                        or jsn.get("token_type") != "Bearer"
-                        or "expires_in" not in jsn
-                    ):
-                        raise AirflowException(
-                            f"Can't get necessary data from Service Principal token: {jsn}"
-                        )
+                    jsn["expires_on"] = int(time.time() + jsn["expires_in"])
 
-                    token = jsn["access_token"]
-                    self.sp_token = {"token": token, "expires_on": int(time.time() + jsn["expires_in"])}
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
                     break
         except RetryError:
             raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
         except requests_exceptions.HTTPError as e:
             raise AirflowException(f"Response: {e.response.content}, Status Code: {e.response.status_code}")
 
-        return token
+        return jsn["access_token"]
 
-    async def _a_get_sp_token(self) -> str:
+    async def _a_get_sp_token(self, resource: str) -> str:
         """Async version of `_get_sp_token()`."""
-        if self.sp_token and self._is_sp_token_valid(self.sp_token):
-            return self.sp_token["token"]
+        sp_token = self.oauth_tokens.get(resource)
+        if sp_token and self._is_oauth_token_valid(sp_token):
+            return sp_token["access_token"]
 
         self.log.info("Existing Service Principal token is expired, or going to expire soon. Refreshing...")
         try:
             async for attempt in self._a_get_retry_object():
                 with attempt:
                     async with self._session.post(
-                        OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host),
+                        resource,
                         auth=HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
@@ -275,37 +269,17 @@ class BaseDatabricksHook(BaseHook):
                     ) as resp:
                         resp.raise_for_status()
                         jsn = await resp.json()
-                    if (
-                        "access_token" not in jsn
-                        or jsn.get("token_type") != "Bearer"
-                        or "expires_in" not in jsn
-                    ):
-                        raise AirflowException(
-                            f"Can't get necessary data from Service Principal token: {jsn}"
-                        )
+                        jsn["expires_on"] = int(time.time() + jsn["expires_in"])
 
-                    token = jsn["access_token"]
-                    self.sp_token = {"token": token, "expires_on": int(time.time() + jsn["expires_in"])}
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
                     break
         except RetryError:
             raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
         except requests_exceptions.HTTPError as e:
             raise AirflowException(f"Response: {e.response.content}, Status Code: {e.response.status_code}")
 
-        return token
-
-    @staticmethod
-    def _is_sp_token_valid(sp_token: dict) -> bool:
-        """
-        Utility function to check Service Principal token hasn't expired yet.
-
-        :param aad_token: dict with properties of AAD token
-        :return: true if token is valid, false otherwise
-        """
-        now = int(time.time())
-        if sp_token["expires_on"] > (now + TOKEN_REFRESH_LEAD_TIME):
-            return True
-        return False
+        return jsn["access_token"]
 
     def _get_aad_token(self, resource: str) -> str:
         """
@@ -315,9 +289,9 @@ class BaseDatabricksHook(BaseHook):
         :param resource: resource to issue token to
         :return: AAD token, or raise an exception
         """
-        aad_token = self.aad_tokens.get(resource)
-        if aad_token and self._is_aad_token_valid(aad_token):
-            return aad_token["token"]
+        aad_token = self.oauth_tokens.get(resource)
+        if aad_token and self._is_oauth_token_valid(aad_token):
+            return aad_token["access_token"]
 
         self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
         try:
@@ -357,22 +331,16 @@ class BaseDatabricksHook(BaseHook):
 
                     resp.raise_for_status()
                     jsn = resp.json()
-                    if (
-                        "access_token" not in jsn
-                        or jsn.get("token_type") != "Bearer"
-                        or "expires_on" not in jsn
-                    ):
-                        raise AirflowException(f"Can't get necessary data from AAD token: {jsn}")
 
-                    token = jsn["access_token"]
-                    self.aad_tokens[resource] = {"token": token, "expires_on": int(jsn["expires_on"])}
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
                     break
         except RetryError:
             raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
         except requests_exceptions.HTTPError as e:
             raise AirflowException(f"Response: {e.response.content}, Status Code: {e.response.status_code}")
 
-        return token
+        return jsn["access_token"]
 
     async def _a_get_aad_token(self, resource: str) -> str:
         """
@@ -381,9 +349,9 @@ class BaseDatabricksHook(BaseHook):
         :param resource: resource to issue token to
         :return: AAD token, or raise an exception
         """
-        aad_token = self.aad_tokens.get(resource)
-        if aad_token and self._is_aad_token_valid(aad_token):
-            return aad_token["token"]
+        aad_token = self.oauth_tokens.get(resource)
+        if aad_token and self._is_oauth_token_valid(aad_token):
+            return aad_token["access_token"]
 
         self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
         try:
@@ -424,22 +392,16 @@ class BaseDatabricksHook(BaseHook):
                         ) as resp:
                             resp.raise_for_status()
                             jsn = await resp.json()
-                    if (
-                        "access_token" not in jsn
-                        or jsn.get("token_type") != "Bearer"
-                        or "expires_on" not in jsn
-                    ):
-                        raise AirflowException(f"Can't get necessary data from AAD token: {jsn}")
 
-                    token = jsn["access_token"]
-                    self.aad_tokens[resource] = {"token": token, "expires_on": int(jsn["expires_on"])}
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
                     break
         except RetryError:
             raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
         except aiohttp.ClientResponseError as err:
             raise AirflowException(f"Response: {err.message}, Status Code: {err.status}")
 
-        return token
+        return jsn["access_token"]
 
     def _get_aad_headers(self) -> dict:
         """
@@ -472,17 +434,18 @@ class BaseDatabricksHook(BaseHook):
         return headers
 
     @staticmethod
-    def _is_aad_token_valid(aad_token: dict) -> bool:
+    def _is_oauth_token_valid(token: dict, time_key="expires_on") -> bool:
         """
-        Utility function to check AAD token hasn't expired yet.
+        Utility function to check if an OAuth token is valid and hasn't expired yet.
 
-        :param aad_token: dict with properties of AAD token
+        :param sp_token: dict with properties of OAuth token
+        :param time_key: name of the key that holds the time of expiration
         :return: true if token is valid, false otherwise
         """
-        now = int(time.time())
-        if aad_token["expires_on"] > (now + TOKEN_REFRESH_LEAD_TIME):
-            return True
-        return False
+        if "access_token" not in token or token.get("token_type", "") != "Bearer" or time_key not in token:
+            raise AirflowException(f"Can't get necessary data from OAuth token: {token}")
+
+        return int(token[time_key]) > (int(time.time()) + TOKEN_REFRESH_LEAD_TIME)
 
     @staticmethod
     def _check_azure_metadata_service() -> None:
@@ -544,7 +507,7 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.info("Using Service Principal Token.")
-            return self._get_sp_token()
+            return self._get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")
 
@@ -572,7 +535,7 @@ class BaseDatabricksHook(BaseHook):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
             self.log.info("Using Service Principal Token.")
-            return await self._a_get_sp_token()
+            return await self._a_get_sp_token(OIDC_TOKEN_SERVICE_URL.format(self.databricks_conn.host))
         elif raise_error:
             raise AirflowException("Token authentication isn't configured")
 

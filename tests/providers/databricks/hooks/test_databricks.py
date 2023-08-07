@@ -689,21 +689,42 @@ class TestDatabricksHook:
             timeout=self.hook.timeout_seconds,
         )
 
-    def test_is_aad_token_valid_returns_true(self):
-        aad_token = {"token": "my_token", "expires_on": int(time.time()) + TOKEN_REFRESH_LEAD_TIME + 10}
-        assert self.hook._is_aad_token_valid(aad_token)
+    def test_is_oauth_token_valid_returns_true(self):
+        token = {
+            "access_token": "my_token",
+            "expires_on": int(time.time()) + TOKEN_REFRESH_LEAD_TIME + 10,
+            "token_type": "Bearer",
+        }
+        assert self.hook._is_oauth_token_valid(token)
 
-    def test_is_aad_token_valid_returns_false(self):
-        aad_token = {"token": "my_token", "expires_on": int(time.time())}
-        assert not self.hook._is_aad_token_valid(aad_token)
+    def test_is_oauth_token_valid_returns_false(self):
+        token = {
+            "access_token": "my_token",
+            "expires_on": int(time.time()),
+            "token_type": "Bearer",
+        }
+        assert not self.hook._is_oauth_token_valid(token)
 
-    def test_is_sp_token_valid_returns_true(self):
-        sp_token = {"token": "my_token", "expires_on": int(time.time()) + TOKEN_REFRESH_LEAD_TIME + 10}
-        assert self.hook._is_sp_token_valid(sp_token)
+    def test_is_oauth_token_valid_raises_missing_token(self):
+        with pytest.raises(AirflowException):
+            self.hook._is_oauth_token_valid({})
 
-    def test_is_sp_token_valid_returns_false(self):
-        sp_token = {"token": "my_token", "expires_on": int(time.time())}
-        assert not self.hook._is_sp_token_valid(sp_token)
+    def test_is_oauth_token_valid_raises_invalid_type(self):
+        token_missing_type = {"access_token": "my_token"}
+        token_wrong_type = {"access_token": "my_token", "token_type": "not bearer"}
+
+        with pytest.raises(AirflowException):
+            self.hook._is_oauth_token_valid(token_missing_type)
+            self.hook._is_oauth_token_valid(token_wrong_type)
+
+    def test_is_oauth_token_valid_raises_wrong_time_key(self):
+        token = {
+            "access_token": "my_token",
+            "expires_on": 0,
+            "token_type": "Bearer",
+        }
+        with pytest.raises(AirflowException):
+            self.hook._is_oauth_token_valid(token, time_key="expiration")
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_list_jobs_success_single_page(self, mock_requests):
@@ -1461,7 +1482,7 @@ class TestDatabricksHookAsyncAadTokenManagedIdentity:
 def create_sp_token_for_resource() -> dict:
     return {
         "token_type": "Bearer",
-        "expires_in": "3600",
+        "expires_in": 3600,
         "access_token": TOKEN,
     }
 
@@ -1492,6 +1513,10 @@ class TestDatabricksHookSpToken:
         data = {"notebook_task": NOTEBOOK_TASK, "new_cluster": NEW_CLUSTER}
         run_id = self.hook.submit_run(data)
 
+        ad_call_args = mock_requests.method_calls[0]
+        assert ad_call_args[1][0] == "xx.cloud.databricks.com/oidc/v1/token"
+        assert ad_call_args[2]["data"] == "grant_type=client_credentials&scope=all-apis"
+
         assert run_id == "1"
         args = mock_requests.post.call_args
         kwargs = args[1]
@@ -1518,7 +1543,7 @@ class TestDatabricksHookAsyncSpToken:
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.post")
     async def test_get_run_state(self, mock_post, mock_get):
         mock_post.return_value.__aenter__.return_value.json = AsyncMock(
-            return_value=create_sp_token_for_resource(DEFAULT_DATABRICKS_SCOPE)
+            return_value=create_sp_token_for_resource()
         )
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
 
