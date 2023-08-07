@@ -722,10 +722,10 @@ scheduler:
     periodSeconds: 60
     command: ~
 
-  # Wait for at most 10 minutes (60*10s) for the scheduler container to startup.
+  # Wait for at most 10 minutes (6*10s) for the scheduler container to startup.
   # livenessProbe kicks in after the startup
   startupProbe:
-    failureThreshold: 60
+    failureThreshold: 6
     periodSeconds: 10
     timeoutSeconds: 20
     command: ~
@@ -1076,7 +1076,7 @@ webserver:
 
   startupProbe:
     timeoutSeconds: 20
-    failureThreshold: 60
+    failureThreshold: 6
     periodSeconds: 10
     scheme: HTTP
 

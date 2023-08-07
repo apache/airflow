@@ -1973,7 +1973,7 @@
                         "failureThreshold": {
                             "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
                             "type": "integer",
-                            "default": 60
+                            "default": 6
                         },
                         "periodSeconds": {
                             "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
@@ -3810,7 +3810,7 @@
                         "failureThreshold": {
                             "description": "Webserver Startup probe failure threshold.",
                             "type": "integer",
-                            "default": 60
+                            "default": 6
                         },
                         "periodSeconds": {
                             "description": "Webserver Startup probe period seconds.",
