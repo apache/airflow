@@ -30,6 +30,8 @@ you to create and run Pods on a Kubernetes cluster.
   using the
   :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>` operator as it
   simplifies the Kubernetes authorization process.
+  Or
+  :ref:`EksPodOperator <howto/operator:EksPodOperator>` operator for `AWS Elastic Kubernetes Engine <https://aws.amazon.com/eks/>`__.
 
 .. note::
   The :doc:`Kubernetes executor <apache-airflow:core-concepts/executor/kubernetes>` is **not** required to use this operator.
