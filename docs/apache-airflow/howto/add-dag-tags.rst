@@ -28,7 +28,7 @@ The filter is saved in a cookie and can be reset by the reset button.
 
 For example:
 
-In your DAG file, pass a list of tags you want to add to DAG object:
+In your DAG file, pass a list of tags you want to add to the DAG object:
 
 .. code-block:: python
 
