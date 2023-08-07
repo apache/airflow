@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-06T23:22:07Z
+# This constraints file was automatically generated on 2023-08-07T14:56:45Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -45,7 +45,7 @@ Sphinx==5.3.0
 WTForms==3.0.1
 Werkzeug==2.2.3
 adal==1.2.7
-aiobotocore==2.5.2
+aiobotocore==2.5.3
 aiofiles==23.1.0
 aiohttp==3.8.5
 aioitertools==0.11.0
@@ -195,13 +195,13 @@ backoff==1.10.0
 bcrypt==4.0.1
 beautifulsoup4==4.12.2
 billiard==4.1.0
-bitarray==2.8.0
+bitarray==2.8.1
 black==23.7.0
 bleach==6.0.0
 blinker==1.6.2
-boto3==1.26.161
+boto3==1.28.17
 boto==2.49.0
-botocore==1.29.161
+botocore==1.31.17
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==5.3.1
@@ -348,7 +348,7 @@ idna==3.4
 ijson==3.2.3
 imagesize==1.4.1
 importlib-metadata==6.8.0
-importlib-resources==6.0.0
+importlib-resources==6.0.1
 impyla==0.18.0
 incremental==22.10.0
 inflection==0.5.1
@@ -372,7 +372,7 @@ jsonpickle==3.0.1
 jsonpointer==2.4
 jsonschema-spec==0.2.3
 jsonschema-specifications==2023.7.1
-jsonschema==4.18.6
+jsonschema==4.19.0
 junit-xml==1.9
 jupyter_client==8.3.0
 jupyter_core==5.3.1
@@ -634,7 +634,7 @@ types-certifi==2021.10.8.3
 types-croniter==1.4.0.1
 types-docutils==0.20.0.1
 types-paramiko==3.3.0.0
-types-protobuf==4.23.0.2
+types-protobuf==4.23.0.3
 types-pyOpenSSL==23.2.0.2
 types-python-dateutil==2.8.19.14
 types-python-slugify==8.0.0.3
