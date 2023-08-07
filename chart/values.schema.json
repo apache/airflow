@@ -1960,6 +1960,41 @@
                         }
                     }
                 },
+                "startupProbe": {
+                    "description": "Startup probe configuration for scheduler container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 6
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
                 "replicas": {
                     "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for MySQL 8+ and PostgreSQL",
                     "type": "integer",
@@ -3757,6 +3792,33 @@
                         },
                         "scheme": {
                             "description": "Webserver Readiness probe scheme.",
+                            "type": "string",
+                            "default": "HTTP"
+                        }
+                    }
+                },
+                "startupProbe": {
+                    "description": "Startup probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "timeoutSeconds": {
+                            "description": "Webserver Startup probe timeout seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Webserver Startup probe failure threshold.",
+                            "type": "integer",
+                            "default": 6
+                        },
+                        "periodSeconds": {
+                            "description": "Webserver Startup probe period seconds.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "scheme": {
+                            "description": "Webserver Startup probe scheme.",
                             "type": "string",
                             "default": "HTTP"
                         }

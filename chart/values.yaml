@@ -721,6 +721,14 @@ scheduler:
     failureThreshold: 5
     periodSeconds: 60
     command: ~
+
+  # Wait for at most 10 minutes (6*10s) for the scheduler container to startup.
+  # livenessProbe kicks in after the startup
+  startupProbe:
+    failureThreshold: 6
+    periodSeconds: 10
+    timeoutSeconds: 20
+    command: ~
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -1063,6 +1071,12 @@ webserver:
     initialDelaySeconds: 15
     timeoutSeconds: 5
     failureThreshold: 5
+    periodSeconds: 10
+    scheme: HTTP
+
+  startupProbe:
+    timeoutSeconds: 20
+    failureThreshold: 6
     periodSeconds: 10
     scheme: HTTP
 
