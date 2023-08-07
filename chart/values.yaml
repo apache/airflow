@@ -2129,7 +2129,7 @@ config:
     # For Airflow 1.10
     rbac: 'True'
   celery:
-    flower_url_prefix: '{{ .Values.ingress.flower.path }}'
+    flower_url_prefix: '{{ ternary "" .Values.ingress.flower.path (eq .Values.ingress.flower.path "/") }}'
     worker_concurrency: 16
   scheduler:
     standalone_dag_processor: '{{ ternary "True" "False" .Values.dagProcessor.enabled }}'
