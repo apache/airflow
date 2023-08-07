@@ -23,13 +23,13 @@ from typing import NamedTuple
 
 from rich.console import Console
 
-from airflow_breeze.utils.publish_docs_helpers import prepare_code_snippet
+from airflow_breeze.utils.publish_docs_helpers import CONSOLE_WIDTH, prepare_code_snippet
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 ROOT_PROJECT_DIR = Path(__file__).parents[5].resolve()
 DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
 
-console = Console(force_terminal=True, color_system="standard", width=180)
+console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
 
 @total_ordering

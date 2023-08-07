@@ -133,7 +133,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^setup.cfg",
             r"^setup.py",
             r"^generated/provider_dependencies.json$",
-            r"^airflow/providers/.*/provider.yaml$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -554,7 +553,7 @@ class SelectiveChecks:
 
     @cached_property
     def image_build(self) -> bool:
-        return self.run_tests or self.docs_build or self.run_kubernetes_tests
+        return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveUnitTestTypes

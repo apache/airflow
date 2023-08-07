@@ -23,7 +23,6 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionCreateInstanceOperator,
     CloudDataFusionCreatePipelineOperator,
@@ -36,34 +35,37 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionStopPipelineOperator,
     CloudDataFusionUpdateInstanceOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
+from airflow.utils.trigger_rule import TriggerRule
 
 # [START howto_data_fusion_env_variables]
 SERVICE_ACCOUNT = os.environ.get("GCP_DATAFUSION_SERVICE_ACCOUNT")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 LOCATION = "europe-north1"
-INSTANCE_NAME = "airflow-test-instance"
+DAG_ID = "example_datafusion"
+INSTANCE_NAME = f"df-{ENV_ID}".replace("_", "-")
 INSTANCE = {
     "type": "BASIC",
     "displayName": INSTANCE_NAME,
     "dataprocServiceAccount": SERVICE_ACCOUNT,
 }
 
-BUCKET_1 = "test-datafusion-1"
-BUCKET_2 = "test-datafusion-2"
-BUCKET_1_URI = f"gs://{BUCKET_1}"
-BUCKET_2_URI = f"gs://{BUCKET_2}"
+BUCKET_NAME_1 = f"bucket1-{DAG_ID}-{ENV_ID}".replace("_", "-")
+BUCKET_NAME_2 = f"bucket2-{DAG_ID}-{ENV_ID}".replace("_", "-")
+BUCKET_NAME_1_URI = f"gs://{BUCKET_NAME_1}"
+BUCKET_NAME_2_URI = f"gs://{BUCKET_NAME_2}"
 
-PIPELINE_NAME = "test-pipe"
+PIPELINE_NAME = f"pipe-{ENV_ID}".replace("_", "-")
 PIPELINE = {
     "artifact": {
         "name": "cdap-data-pipeline",
-        "version": "6.7.2",
+        "version": "6.8.3",
         "scope": "SYSTEM",
     },
     "description": "Data Pipeline Application",
-    "name": "test-pipe",
+    "name": PIPELINE_NAME,
     "config": {
         "resources": {"memoryMB": 2048, "virtualCores": 1},
         "driverResources": {"memoryMB": 2048, "virtualCores": 1},
@@ -80,7 +82,7 @@ PIPELINE = {
                     "name": "GCSFile",
                     "type": "batchsource",
                     "label": "GCS",
-                    "artifact": {"name": "google-cloud", "version": "0.20.3", "scope": "SYSTEM"},
+                    "artifact": {"name": "google-cloud", "version": "0.21.2", "scope": "SYSTEM"},
                     "properties": {
                         "project": "auto-detect",
                         "format": "text",
@@ -91,7 +93,7 @@ PIPELINE = {
                         "encrypted": "false",
                         "schema": '{"type":"record","name":"textfile","fields":[{"name"\
                             :"offset","type":"long"},{"name":"body","type":"string"}]}',
-                        "path": BUCKET_1_URI,
+                        "path": BUCKET_NAME_1_URI,
                         "referenceName": "foo_bucket",
                         "useConnection": "false",
                         "serviceAccountType": "filePath",
@@ -109,7 +111,7 @@ PIPELINE = {
                     "name": "GCS",
                     "type": "batchsink",
                     "label": "GCS2",
-                    "artifact": {"name": "google-cloud", "version": "0.20.3", "scope": "SYSTEM"},
+                    "artifact": {"name": "google-cloud", "version": "0.21.2", "scope": "SYSTEM"},
                     "properties": {
                         "project": "auto-detect",
                         "suffix": "yyyy-MM-dd-HH-mm",
@@ -119,7 +121,7 @@ PIPELINE = {
                         "schema": '{"type":"record","name":"textfile","fields":[{"name"\
                             :"offset","type":"long"},{"name":"body","type":"string"}]}',
                         "referenceName": "bar",
-                        "path": BUCKET_2_URI,
+                        "path": BUCKET_NAME_2_URI,
                         "serviceAccountType": "filePath",
                         "contentType": "application/octet-stream",
                     },
@@ -146,19 +148,20 @@ PIPELINE = {
 # [END howto_data_fusion_env_variables]
 
 with models.DAG(
-    "example_data_fusion",
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    tags=["example", "datafusion"],
 ) as dag:
     create_bucket1 = GCSCreateBucketOperator(
         task_id="create_bucket1",
-        bucket_name=BUCKET_1,
+        bucket_name=BUCKET_NAME_1,
         project_id=PROJECT_ID,
     )
 
     create_bucket2 = GCSCreateBucketOperator(
         task_id="create_bucket2",
-        bucket_name=BUCKET_2,
+        bucket_name=BUCKET_NAME_2,
         project_id=PROJECT_ID,
     )
 
@@ -255,38 +258,44 @@ with models.DAG(
         pipeline_name=PIPELINE_NAME,
         instance_name=INSTANCE_NAME,
         task_id="delete_pipeline",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_cloud_data_fusion_delete_pipeline]
 
     # [START howto_cloud_data_fusion_delete_instance_operator]
     delete_instance = CloudDataFusionDeleteInstanceOperator(
-        location=LOCATION, instance_name=INSTANCE_NAME, task_id="delete_instance"
+        location=LOCATION,
+        instance_name=INSTANCE_NAME,
+        task_id="delete_instance",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_cloud_data_fusion_delete_instance_operator]
 
-    # Add sleep before creating pipeline
-    sleep = BashOperator(task_id="sleep", bash_command="sleep 60")
-
-    # Add sleep before creating pipeline
-    sleep_30 = BashOperator(task_id="sleep_30", bash_command="sleep 30")
+    delete_bucket1 = GCSDeleteBucketOperator(
+        task_id="delete_bucket1", bucket_name=BUCKET_NAME_1, trigger_rule=TriggerRule.ALL_DONE
+    )
+    delete_bucket2 = GCSDeleteBucketOperator(
+        task_id="delete_bucket2", bucket_name=BUCKET_NAME_1, trigger_rule=TriggerRule.ALL_DONE
+    )
 
     (
-        create_bucket1
-        >> create_bucket2
+        # TEST SETUP
+        [create_bucket1, create_bucket2]
+        # TEST BODY
         >> create_instance
         >> get_instance
         >> restart_instance
         >> update_instance
-        >> sleep
         >> create_pipeline
         >> list_pipelines
         >> start_pipeline_async
         >> start_pipeline_sensor
         >> start_pipeline
         >> stop_pipeline
-        >> sleep_30
         >> delete_pipeline
         >> delete_instance
+        # TEST TEARDOWN
+        >> [delete_bucket1, delete_bucket2]
     )
 
     from tests.system.utils.watcher import watcher

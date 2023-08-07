@@ -124,7 +124,7 @@ def patch_pool(
 
     else:
         required_fields = {"name", "slots"}
-        fields_diff = required_fields - set(get_json_request_dict().keys())
+        fields_diff = required_fields.difference(get_json_request_dict())
         if fields_diff:
             raise BadRequest(detail=f"Missing required property(ies): {sorted(fields_diff)}")
 
@@ -139,7 +139,7 @@ def patch_pool(
 def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
     """Create a pool."""
     required_fields = {"name", "slots"}  # Pool would require both fields in the post request
-    fields_diff = required_fields - set(get_json_request_dict().keys())
+    fields_diff = required_fields.difference(get_json_request_dict())
     if fields_diff:
         raise BadRequest(detail=f"Missing required property(ies): {sorted(fields_diff)}")
 

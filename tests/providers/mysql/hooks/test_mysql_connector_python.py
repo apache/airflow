@@ -20,13 +20,8 @@ from __future__ import annotations
 import json
 from unittest import mock
 
-import pytest
-
 from airflow.models import Connection
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-
-# Make sure that the optional package 'mysql-connector-python' is installed (which is not by default)
-pytest.importorskip("mysql")
 
 
 class TestMySqlHookConnMySqlConnectorPython:

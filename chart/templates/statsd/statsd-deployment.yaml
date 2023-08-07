@@ -97,6 +97,13 @@ spec:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
+          {{- if .Values.statsd.env }}
+          env:
+            {{- range $i, $config := .Values.statsd.env }}
+            - value: {{ $config.value | quote }}
+              name: {{ $config.name | quote }}
+            {{- end }}
+          {{- end }}
           ports:
             - name: statsd-ingest
               protocol: UDP

@@ -26,6 +26,7 @@ from datetime import datetime
 from google.cloud.dataform_v1beta1 import WorkflowInvocation
 
 from airflow import models
+from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteDatasetOperator
 from airflow.providers.google.cloud.operators.dataform import (
     DataformCancelWorkflowInvocationOperator,
     DataformCreateCompilationResultOperator,
@@ -54,6 +55,7 @@ DAG_ID = "example_dataform"
 REPOSITORY_ID = f"example_dataform_repository_{ENV_ID}"
 REGION = "us-central1"
 WORKSPACE_ID = f"example_dataform_workspace_{ENV_ID}"
+DEFAULT_DATASET = "dataform"
 
 # This DAG is not self-run we need to do some extra configuration to execute it in automation process
 with models.DAG(
@@ -81,6 +83,13 @@ with models.DAG(
         workspace_id=WORKSPACE_ID,
     )
     # [END howto_operator_create_workspace]
+
+    # Delete the default dataset if it exists in the bigquery
+    delete_dataset = BigQueryDeleteDatasetOperator(
+        task_id="delete_dataset",
+        dataset_id=DEFAULT_DATASET,
+        delete_contents=True,
+    )
 
     # [START howto_initialize_workspace]
     first_initialization_step, last_initialization_step = make_initialization_workspace_flow(
@@ -250,6 +259,13 @@ with models.DAG(
     )
     # [END howto_operator_remove_directory]
 
+    delete_dataset_2 = BigQueryDeleteDatasetOperator(
+        task_id="delete_dataset_2",
+        dataset_id=DEFAULT_DATASET,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     # [START howto_operator_delete_workspace]
     delete_workspace = DataformDeleteWorkspaceOperator(
         task_id="delete-workspace",
@@ -273,7 +289,7 @@ with models.DAG(
 
     delete_repository.trigger_rule = TriggerRule.ALL_DONE
 
-    (make_repository >> make_workspace >> first_initialization_step)
+    (make_repository >> make_workspace >> delete_dataset >> first_initialization_step)
     (
         last_initialization_step
         >> install_npm_packages
@@ -289,6 +305,7 @@ with models.DAG(
         >> write_test_file
         >> remove_test_file
         >> remove_test_directory
+        >> delete_dataset_2
         >> delete_workspace
         >> delete_repository
     )

@@ -64,7 +64,7 @@ class AirflowConsole(Console):
             return
 
         table = SimpleTable(show_header=self.show_header)
-        for col in data[0].keys():
+        for col in data[0]:
             table.add_column(col)
 
         for row in data:
@@ -77,7 +77,7 @@ class AirflowConsole(Console):
             self.print("No data found")
             return
         rows = [d.values() for d in data]
-        output = tabulate(rows, tablefmt="plain", headers=list(data[0].keys()))
+        output = tabulate(rows, tablefmt="plain", headers=list(data[0]))
         print(output)
 
     def _normalize_data(self, value: Any, output: str) -> list | str | dict | None:
@@ -108,9 +108,7 @@ class AirflowConsole(Console):
         }
         renderer = output_to_renderer.get(output)
         if not renderer:
-            raise ValueError(
-                f"Unknown formatter: {output}. Allowed options: {list(output_to_renderer.keys())}"
-            )
+            raise ValueError(f"Unknown formatter: {output}. Allowed options: {list(output_to_renderer)}")
 
         if mapper:
             dict_data: Sequence[dict] = [mapper(d) for d in data]

@@ -32,6 +32,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    Logging <logging/index>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/redis/index>
@@ -69,7 +76,7 @@ Package apache-airflow-providers-redis
 `Redis <https://redis.io/>`__
 
 
-Release: 3.2.1
+Release: 3.3.1
 
 Provider package
 ----------------

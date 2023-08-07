@@ -43,7 +43,7 @@ from airflow_breeze.global_constants import (
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
-    get_available_documentation_packages,
+    get_available_documentation_provider_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -448,7 +448,7 @@ argument_packages = click.argument(
     "packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(get_available_documentation_packages(short_version=True)),
+    type=BetterChoice(get_available_documentation_provider_packages(short_version=True)),
 )
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
@@ -569,4 +569,11 @@ option_historical_python_version = click.option(
     required=False,
     envvar="PYTHON_VERSION",
     help="Python version to update sbom from. (defaults to all historical python versions)",
+)
+option_commit_sha = click.option(
+    "--commit-sha",
+    default=None,
+    show_default=True,
+    envvar="COMMIT_SHA",
+    help="Commit SHA that is used to build the images.",
 )
