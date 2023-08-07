@@ -422,18 +422,17 @@ def webserver(args):
 
         run_args += ["airflow.www.app:cached_app()"]
 
-        reload_on_plugin_change = conf.getboolean("webserver", "reload_on_plugin_change", fallback=False)
-        if not reload_on_plugin_change:
+        if conf.getboolean("webserver", "reload_on_plugin_change", fallback=False):
+            log.warning(
+                "Setting reload_on_plugin_change = true prevents running Gunicorn with preloading. "
+                "This means the app cannot be loaded before workers are forked, and each worker has a "
+                "separate copy of the app. This may cause IntegrityError during webserver startup, and "
+                "should be avoided in production."
+            )
+        else:
             # To prevent different workers creating the web app and
             # all writing to the database at the same time, we use the --preload option.
             run_args += ["--preload"]
-        if reload_on_plugin_change:
-            log.warning(
-                "reload_on_plugin_change prevents running gunicorn with the --preload option. "
-                "With the preload option, the app is loaded before the workers are forked, and each worker "
-                "will then have a copy of the app. reload_on_plugin_change may cause IntegrityErrors during "
-                "webserver startup, so avoid using it in production."
-            )
 
         gunicorn_master_proc: psutil.Process | subprocess.Popen
 
