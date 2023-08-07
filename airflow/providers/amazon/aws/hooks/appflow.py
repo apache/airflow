@@ -23,7 +23,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.client import AppflowClient
-    from mypy_boto3_appflow.type_defs import TaskTypeDef
+    from mypy_boto3_appflow.type_defs import TaskOutputTypeDef, TaskTypeDef
 
 
 class AppflowHook(AwsBaseHook):
@@ -90,7 +90,7 @@ class AppflowHook(AwsBaseHook):
         """
         response = self.conn.describe_flow(flowName=flow_name)
         connector_type = response["sourceFlowConfig"]["connectorType"]
-        tasks: list[TaskTypeDef] = []
+        tasks: list[TaskTypeDef | TaskOutputTypeDef] = []
 
         # cleanup old filter tasks
         for task in response["tasks"]:

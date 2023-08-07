@@ -2245,7 +2245,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = job.job_id
         return job.job_id
 
-    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False):
+    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
         else:
@@ -3261,8 +3261,8 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             raise AirflowException("The first SQL query returned None")
 
         ratio_formulas = {
-            "max_over_min": lambda cur, ref: float(max(cur, ref)) / min(cur, ref),
-            "relative_diff": lambda cur, ref: float(abs(cur - ref)) / ref,
+            "max_over_min": lambda cur, ref: max(cur, ref) / min(cur, ref),
+            "relative_diff": lambda cur, ref: abs(cur - ref) / ref,
         }
 
         metrics_sorted = sorted(metrics_thresholds.keys())

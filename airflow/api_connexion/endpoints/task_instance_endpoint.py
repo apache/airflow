@@ -400,6 +400,8 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = select(TI).join(TI.dag_run)
 
     base_query = _apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])
+    base_query = _apply_array_filter(base_query, key=TI.run_id, values=data["dag_run_ids"])
+    base_query = _apply_array_filter(base_query, key=TI.task_id, values=data["task_ids"])
     base_query = _apply_range_filter(
         base_query,
         key=DR.execution_date,

@@ -189,10 +189,6 @@ def create_connection_form_class() -> type[DynamicForm]:
 
     def _iter_connection_types() -> Iterator[tuple[str, str]]:
         """List available connection types."""
-        yield ("email", "Email")
-        yield ("fs", "File (path)")
-        yield ("generic", "Generic")
-        yield ("mesos_framework-id", "Mesos Framework ID")
         for connection_type, provider_info in providers_manager.hooks.items():
             if provider_info:
                 yield (connection_type, provider_info.hook_name)

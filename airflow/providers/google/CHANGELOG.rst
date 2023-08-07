@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+10.6.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+* ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
+* ``Add GCS Requester Pays bucket support to GCSToS3Operator (#32760)``
+* ``Add system test and docs for CloudDataTransferServiceGCSToGCSOperator (#32960)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DataFusionAsyncHook' catch 404 (#32855)``
+* ``Fix system test for MetastoreHivePartitionSensor (#32861)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Get rid of Python2 numeric relics (#33050)``
+   * ``Refactor of links in Dataproc. (#31895)``
+   * ``Handle multiple connections using exceptions (#32365)``
+   * ``openlineage,gcs: use proper name for openlineage methods (#32956)``
+
 10.5.0
 ......
 
@@ -41,7 +68,6 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fixup docstring for deprecated DataprocSubmitSparkJobOperator and refactoring system tests (#32743)``
 * ``Fix BigQueryGetDataOperator where project_id is not being respected in deferrable mode (#32488)``
 * ``Refresh GKE OAuth2 tokens (#32673)``
 * ``Fix 'BigQueryInsertJobOperator' not exiting deferred state (#31591)``
@@ -49,15 +75,16 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Fixup docstring for deprecated DataprocSubmitSparkJobOperator and refactoring system tests (#32743)``
 * ``Add more accurate typing for DbApiHook.run method (#31846)``
 * ``Add deprecation info to the providers modules and classes docstring (#32536)``
 * ``Fixup docstring for deprecated DataprocSubmitHiveJobOperator (#32723)``
-* ``Fixup docs and optimize system test for DataprocSubmitJobOperator (Hadoop job) (#32722)``
 * ``Fixup docstring for deprecated DataprocSubmitPigJobOperator (#32739)``
 * ``Fix Datafusion system tests (#32749)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixup docs and optimize system test for DataprocSubmitJobOperator (Hadoop job) (#32722)``
    * ``Fixup system test for DataprocSubmitJobOperator (SparkSQL job) (#32745)``
    * ``Fixup system test for DataprocSubmitJobOperator (PySpark job) (#32740)``
    * ``Migrate system test for PostgresToGCSOperator to new design AIP-47 (#32641)``

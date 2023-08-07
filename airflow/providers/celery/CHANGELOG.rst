@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+3.3.1
+.....
+
+Misc
+~~~~
+
+* ``aDd documentation generation for CLI commands from executors (#33081)``
+* ``Get rid of Python2 numeric relics (#33050)``
+
 3.3.0
 .....
 
