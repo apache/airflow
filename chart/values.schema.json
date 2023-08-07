@@ -4967,6 +4967,27 @@
                     "default": [
                         "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
                     ]
+                },
+                "env": {
+                    "description": "Add additional env vars to statsd container.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
                 }
             }
         },
