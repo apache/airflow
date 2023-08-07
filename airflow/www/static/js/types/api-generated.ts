@@ -1984,6 +1984,18 @@ export interface components {
        */
       dag_ids?: string[];
       /**
+       * @description Return objects with specific DAG Run IDs.
+       * The value can be repeated to retrieve multiple matching values (OR condition).
+       * *New in version 2.7.1*
+       */
+      dag_run_ids?: string[];
+      /**
+       * @description Return objects with specific task IDs.
+       * The value can be repeated to retrieve multiple matching values (OR condition).
+       * *New in version 2.7.1*
+       */
+      task_ids?: string[];
+      /**
        * Format: date-time
        * @description Returns objects greater or equal to the specified date.
        *
