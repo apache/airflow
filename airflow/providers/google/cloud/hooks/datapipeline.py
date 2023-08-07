@@ -18,6 +18,8 @@
 """This module contains a Google Data Pipelines Hook."""
 from __future__ import annotations
 
+from typing import Sequence
+
 from googleapiclient.discovery import build
 
 from airflow.providers.google.common.hooks.base_google import (

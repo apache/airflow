@@ -18,9 +18,14 @@
 """This module contains Google Data Pipelines operators."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.datapipeline import DEFAULT_DATAPIPELINE_LOCATION, DataPipelineHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class RunDataPipelineOperator(GoogleCloudBaseOperator):
@@ -68,7 +73,8 @@ class RunDataPipelineOperator(GoogleCloudBaseOperator):
             location=self.location,
         )
 
-        if "error" in self.response:
-            raise AirflowException(self.response.get("error").get("message"))
+        if self.response:
+            if "error" in self.response:
+                raise AirflowException(self.response.get("error").get("message"))
 
         return self.response

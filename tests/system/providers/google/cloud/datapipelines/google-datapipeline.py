@@ -25,11 +25,9 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
-from airflow.providers.google.cloud.operators.datapipeline import CreateDataPipelineOperator, RunDataPipelineOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.providers.google.cloud.operators.datapipeline import (
+    RunDataPipelineOperator,
+)
 
 DAG_ID = "google-datapipeline"
 DATA_PIPELINE_NAME = os.environ.get("DATA_PIPELINE_NAME", "example-datapipeline")
@@ -44,9 +42,7 @@ with models.DAG(
 ) as dag:
     # [START howto_operator_run_data_pipeline]
     run_data_pipeline = RunDataPipelineOperator(
-        task_id = "run_data_pipeline",
-        data_pipeline_name = DATA_PIPELINE_NAME,
-        project_id=GCP_PROJECT_ID
-        )
+        task_id="run_data_pipeline", data_pipeline_name=DATA_PIPELINE_NAME, project_id=GCP_PROJECT_ID
+    )
     # [END howto_operator_run_data_pipeline]
     run_data_pipeline
