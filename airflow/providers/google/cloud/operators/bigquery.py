@@ -253,6 +253,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -371,6 +372,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -509,6 +511,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         "labels",
     )
     ui_color = BigQueryUIColors.CHECK.value
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -634,6 +637,10 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     """
 
+    template_fields: Sequence[str] = tuple(set(SQLColumnCheckOperator.template_fields) | {"gcp_conn_id"})
+
+    conn_id_field = "gcp_conn_id"
+
     def __init__(
         self,
         *,
@@ -756,6 +763,10 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     """
+
+    template_fields: Sequence[str] = tuple(set(SQLTableCheckOperator.template_fields) | {"gcp_conn_id"})
+
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
