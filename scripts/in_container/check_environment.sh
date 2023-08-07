@@ -123,6 +123,9 @@ function startairflow_if_requested() {
                 airflow connections create-default-connections
             fi
         else
+            echo "${COLOR_YELLOW}Failed to run 'airflow db migrate'.${COLOR_RESET}"
+            echo "${COLOR_BLUE}This could be because you are installing old airflow version${COLOR_RESET}"
+            echo "${COLOR_BLUE}Attempting to run deprecated 'airflow db init' instead.${COLOR_RESET}"
             # For Airflow versions that do not support db migrate, we should run airflow db init and
             # set the removed AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS
             AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS} airflow db init
