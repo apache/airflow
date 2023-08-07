@@ -18,11 +18,11 @@
 Google Cloud Data Pipelines Operators
 ===============================
 
-Data Pipelines is a Dataflow feature that allows customers to create 
-and schedule recurring jobs, view aggregated job metrics, and define 
-and manage job SLOs. A pipeline consists of a collection of jobs 
-including ways to manage them. A pipeline may be associated with a 
-Dataflow Template (classic/flex) and include all jobs launched with 
+Data Pipelines is a Dataflow feature that allows customers to create
+and schedule recurring jobs, view aggregated job metrics, and define
+and manage job SLOs. A pipeline consists of a collection of jobs
+including ways to manage them. A pipeline may be associated with a
+Dataflow Template (classic/flex) and include all jobs launched with
 the associated template.
 
 Prerequisite Tasks
@@ -33,15 +33,15 @@ Prerequisite Tasks
 Creating a Data Pipeline
 ^^^^^^^^^^^^^^^^^^
 
-To create a new Data Pipelines instance using a request body and parent name, use the create data pipeline operator. 
+To create a new Data Pipelines instance using a request body and parent name, use the create data pipeline operator.
 The operator utilizes the following parameters:
    **Request Body**: instance of the Pipeline,
    **Project ID**: id of the GCP project that owns the job,
    **Location**: destination for the Pipeline,
-   **Google Cloud Platform Connection ID**: id to connect to Google Cloud. 
+   **Google Cloud Platform Connection ID**: id to connect to Google Cloud.
 
 The request body and project id need to be passed each time, while the GCP connection id and location have default values.
-The project id and location will be used to build the parent name needed to create the operator. 
+The project id and location will be used to build the parent name needed to create the operator.
 
 Here is an example of how you can create a Data Pipelines instance by running the above parameters with CreateDataPipelineOperator:
 
@@ -51,6 +51,6 @@ Here is an example of how you can create a Data Pipelines instance by running th
    :start-after: [START howto_operator_create_data_pipeline]
    :end-before: [END howto_operator_create_data_pipeline]
 
-For further information regarding the API usage, see 
+For further information regarding the API usage, see
 `Data Pipelines API REST Resource <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines#Pipeline>`__
 in the Google Cloud documentation.

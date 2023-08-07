@@ -18,8 +18,9 @@
 """This module contains a Google Data Pipelines Hook."""
 from __future__ import annotations
 
-from googleapiclient.discovery import build
 from typing import Sequence
+
+from googleapiclient.discovery import build
 
 from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
@@ -68,7 +69,6 @@ class DataPipelineHook(GoogleBaseHook):
 
         Returns the created Data Pipelines instance in JSON representation.
         """
-
         parent = self.build_parent_name(project_id, location)
         service = self.get_conn()
         self.log.info(dir(service.projects().locations()))

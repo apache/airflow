@@ -28,11 +28,9 @@ from pathlib import Path
 from airflow import models
 from airflow.providers.google.cloud.operators.datapipeline import (
     CreateDataPipelineOperator,
-    RunDataPipelineOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 DAG_ID = "google-datapipeline"
