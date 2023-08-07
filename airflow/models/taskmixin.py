@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
 
 class DependencyMixin:
-    """Mixing implementing common dependency setting methods methods like >> and <<."""
+    """Mixing implementing common dependency setting methods like >> and <<."""
 
     @property
     def roots(self) -> Sequence[DependencyMixin]:
