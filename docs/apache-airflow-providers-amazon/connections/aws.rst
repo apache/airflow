@@ -57,7 +57,7 @@ automatically the credentials from there.
     This is no longer the case and the region needs to be set manually, either in the connection screens in Airflow,
     or via the ``AWS_DEFAULT_REGION`` environment variable.
 
-.. caution:: If you do not set ``[database] load_default_connections`` to ``True``
+.. caution:: If you do not run "airflow connections create-default-connections" command,
     most probably you do not have ``aws_default``. For historical reasons, the Amazon Provider
     components (Hooks, Operators, Sensors, etc.) fallback to the default boto3 credentials strategy
     in case of a missing Connection ID. This behaviour is deprecated and will be removed in a future releases.

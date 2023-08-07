@@ -86,7 +86,14 @@
         {% endfor -%}
       </select>
     {% elif form_details.schema and "array" in form_details.schema.type %}
-      {% if "examples" in form_details.schema and form_details.schema.examples %}
+      {% if "items" in form_details.schema and form_details.schema.items %}
+      <textarea class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" valuetype="advancedarray" rows="6"
+        {%- if not "null" in form_details.schema.type %} required=""{% endif -%}>
+        {%- if form_details.value is sequence %}
+          {{- form_details.value | tojson() -}}
+        {% endif -%}
+      </textarea>
+      {% elif "examples" in form_details.schema and form_details.schema.examples %}
       <select multiple name="element_{{ form_key }}" id="element_{{ form_key }}" class="select2-drop-mask" valuetype="multiselect"
         onchange="updateJSONconf();"{% if not "null" in form_details.schema.type %} required=""{% endif %}>
         {% for option in form_details.schema.examples -%}

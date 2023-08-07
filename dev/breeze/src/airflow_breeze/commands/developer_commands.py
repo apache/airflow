@@ -32,7 +32,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_SELECTED,
-    get_available_documentation_packages,
+    get_available_documentation_provider_packages,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
@@ -331,7 +331,7 @@ def start_airflow(
 @click.option(
     "--package-filter",
     help="List of packages to consider.",
-    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
+    type=NotVerifiedBetterChoice(get_available_documentation_provider_packages()),
     multiple=True,
 )
 @click.option(
@@ -357,6 +357,9 @@ def build_docs(
     package_filter: tuple[str],
     github_repository: str,
 ):
+    """
+    Build documents.
+    """
     perform_environment_checks()
     cleanup_python_generated_files()
     params = BuildCiParams(

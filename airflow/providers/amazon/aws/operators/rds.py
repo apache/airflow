@@ -20,9 +20,9 @@ from __future__ import annotations
 import json
 import warnings
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from astroid.decorators import cachedproperty
 from mypy_boto3_rds.type_defs import TagTypeDef
 
 from airflow.configuration import conf
@@ -74,7 +74,7 @@ class RdsBaseOperator(BaseOperator):
 
         self._await_interval = 60  # seconds
 
-    @cachedproperty
+    @cached_property
     def hook(self) -> RdsHook:
         return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, **self.hook_params)
 
@@ -392,6 +392,8 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
 
     :param export_task_identifier: The identifier of the snapshot export task to cancel
     :param wait_for_completion:  If True, waits for DB snapshot export to cancel. (default: True)
+    :param check_interval: The amount of time in seconds to wait between attempts
+    :param max_attempts: The maximum number of attempts to be made
     """
 
     template_fields = ("export_task_identifier",)
@@ -402,6 +404,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         export_task_identifier: str,
         wait_for_completion: bool = True,
         check_interval: int = 30,
+        max_attempts: int = 40,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -409,6 +412,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         self.export_task_identifier = export_task_identifier
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
+        self.max_attempts = max_attempts
 
     def execute(self, context: Context) -> str:
         self.log.info("Canceling export task %s", self.export_task_identifier)
@@ -419,7 +423,10 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
 
         if self.wait_for_completion:
             self.hook.wait_for_export_task_state(
-                self.export_task_identifier, target_state="canceled", check_interval=self.check_interval
+                self.export_task_identifier,
+                target_state="canceled",
+                check_interval=self.check_interval,
+                max_attempts=self.max_attempts,
             )
         return json.dumps(cancel_export, default=str)
 

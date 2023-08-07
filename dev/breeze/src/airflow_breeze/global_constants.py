@@ -66,7 +66,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.23.17", "v1.24.15", "v1.25.11", "v1.26.6", "v1.27.3"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.24.15", "v1.25.11", "v1.26.6", "v1.27.3"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["CeleryExecutor", "LocalExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS = START_AIRFLOW_ALLOWED_EXECUTORS[1]
@@ -145,7 +145,7 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 
 
-def get_available_documentation_packages(short_version=False) -> list[str]:
+def get_available_documentation_provider_packages(short_version=False) -> list[str]:
     provider_names: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
     doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
     available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]

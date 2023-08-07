@@ -46,6 +46,7 @@ from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
+from airflow.utils.empty_set import _get_empty_set_for_configuration
 from airflow.utils.module_loading import import_string
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.weight_rule import WeightRule
@@ -65,8 +66,6 @@ ConfigSectionSourcesType = Dict[str, Union[str, Tuple[str, str]]]
 ConfigSourcesType = Dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
-
-EMPTY_SET: Set[tuple[str, str]] = set()  # noqa: UP006
 
 
 def _parse_sqlite_version(s: str) -> tuple[int, ...]:
@@ -299,7 +298,9 @@ class AirflowConfigParser(ConfigParser):
     @functools.cached_property
     def sensitive_config_values(self) -> Set[tuple[str, str]]:  # noqa: UP006
         if self.configuration_description is None:
-            return EMPTY_SET.copy()  # we can't use set() here because set is defined below # ¯\_(ツ)_/¯
+            return (
+                _get_empty_set_for_configuration()
+            )  # we can't use set() here because set is defined below # ¯\_(ツ)_/¯
         flattened = {
             (s, k): item
             for s, s_c in self.configuration_description.items()
@@ -959,6 +960,14 @@ class AirflowConfigParser(ConfigParser):
         deprecated_section: str | None
         deprecated_key: str | None
 
+        option_description = self.configuration_description.get(section, {}).get(key, {})
+        if option_description.get("deprecated"):
+            deprecation_reason = option_description.get("deprecation_reason", "")
+            warnings.warn(
+                f"The '{key}' option in section {section} is deprecated. {deprecation_reason}",
+                DeprecationWarning,
+                stacklevel=2 + _extra_stacklevel,
+            )
         # For when we rename whole sections
         if section in self.inversed_deprecated_sections:
             deprecated_section, deprecated_key = (section, key)
@@ -994,7 +1003,6 @@ class AirflowConfigParser(ConfigParser):
             deprecated_section, deprecated_key, _ = self.deprecated_options.get(
                 (section, key), (None, None, None)
             )
-
         # first check environment variables
         option = self._get_environment_variables(
             deprecated_key,
@@ -2029,20 +2037,21 @@ def initialize_config() -> AirflowConfigParser:
         # file on top of it.
         if airflow_config_parser.getboolean("core", "unit_test_mode"):
             airflow_config_parser.load_test_config()
-
+    # Set the WEBSERVER_CONFIG variable
+    global WEBSERVER_CONFIG
+    WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
     return airflow_config_parser
 
 
 @providers_configuration_loaded
 def write_webserver_configuration_if_needed(airflow_config_parser: AirflowConfigParser):
-    global WEBSERVER_CONFIG
-    WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
-    if not os.path.isfile(WEBSERVER_CONFIG):
+    webserver_config = airflow_config_parser.get("webserver", "config_file")
+    if not os.path.isfile(webserver_config):
         import shutil
 
-        pathlib.Path(WEBSERVER_CONFIG).parent.mkdir(parents=True, exist_ok=True)
-        log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
-        shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
+        pathlib.Path(webserver_config).parent.mkdir(parents=True, exist_ok=True)
+        log.info("Creating new FAB webserver config file in: %s", webserver_config)
+        shutil.copy(_default_config_file_path("default_webserver_config.py"), webserver_config)
 
 
 def make_group_other_inaccessible(file_path: str):
@@ -2052,7 +2061,7 @@ def make_group_other_inaccessible(file_path: str):
     except Exception as e:
         log.warning(
             "Could not change permissions of config file to be group/other inaccessible. "
-            "Continuing with original permissions:",
+            "Continuing with original permissions: %s",
             e,
         )
 
@@ -2313,6 +2322,6 @@ SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 FERNET_KEY = ""  # Set only if needed when generating a new file
 WEBSERVER_CONFIG = ""  # Set by initialize_config
 
-conf = initialize_config()
+conf: AirflowConfigParser = initialize_config()
 secrets_backend_list = initialize_secrets_backends()
 conf.validate()

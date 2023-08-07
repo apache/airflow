@@ -23,6 +23,29 @@
 
 ------
 
+1.6.2
+.....
+
+Misc
+~~~~
+
+* ``Make SQLExecute Query signature consistent with other SQL operators (#32974)``
+* ``Get rid of Python2 numeric relics (#33050)``
+
+1.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix local OpenLineage import in 'SQLExecuteQueryOperator'. (#32400)``
+
+Misc
+~~~~
+
+* ``Add default port to Openlineage authority method. (#32828)``
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+
 1.6.0
 .....
 

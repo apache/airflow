@@ -23,7 +23,7 @@ import pendulum
 import pytest
 
 from airflow.decorators import dag, task as task_decorator, task_group as task_group_decorator
-from airflow.exceptions import AirflowException, TaskAlreadyInTaskGroup
+from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
@@ -1479,72 +1479,3 @@ def test_task_group_arrow_with_setups_teardowns():
         tg1 >> w2
     assert t1.downstream_task_ids == set()
     assert w1.downstream_task_ids == {"tg1.t1", "w2"}
-
-
-def test_tasks_defined_outside_taskgrooup(dag_maker):
-    # Test that classic tasks defined outside a task group are added to the root task group
-    # when the relationships are defined inside the task group
-    with dag_maker() as dag:
-        t1 = make_task("t1")
-        t2 = make_task("t2")
-        t3 = make_task("t3")
-        with TaskGroup(group_id="tg1"):
-            t1 >> t2 >> t3
-    dag.validate()
-    assert dag.task_group.children.keys() == {"tg1"}
-    assert dag.task_group.children["tg1"].children.keys() == {"t1", "t2", "t3"}
-    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
-    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t2"].upstream_task_ids == {"t1"}
-    assert dag.task_group.children["tg1"].children["t2"].downstream_task_ids == {"t3"}
-    assert dag.task_group.children["tg1"].children["t3"].upstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t3"].downstream_task_ids == set()
-
-    # Test that decorated tasks defined outside a task group are added to the root task group
-    # when relationships are defined inside the task group
-    with dag_maker() as dag:
-        t1 = make_task("t1", type_="decorated")
-        t2 = make_task("t2", type_="decorated")
-        t3 = make_task("t3", type_="decorated")
-        with TaskGroup(group_id="tg1"):
-            t1 >> t2 >> t3
-    dag.validate()
-    assert dag.task_group.children.keys() == {"tg1"}
-    assert dag.task_group.children["tg1"].children.keys() == {"t1", "t2", "t3"}
-    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
-    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t2"].upstream_task_ids == {"t1"}
-    assert dag.task_group.children["tg1"].children["t2"].downstream_task_ids == {"t3"}
-    assert dag.task_group.children["tg1"].children["t3"].upstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t3"].downstream_task_ids == set()
-
-    # Test adding single decorated task defined outside a task group to a task group
-    with dag_maker() as dag:
-        t1 = make_task("t1", type_="decorated")
-        with TaskGroup(group_id="tg1") as tg1:
-            tg1.add_task(t1)
-    dag.validate()
-    assert dag.task_group.children.keys() == {"tg1"}
-    assert dag.task_group.children["tg1"].children.keys() == {"t1"}
-    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
-    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == set()
-
-    # Test adding single classic task defined outside a task group to a task group
-    with dag_maker() as dag:
-        t1 = make_task("t1")
-        with TaskGroup(group_id="tg1") as tg1:
-            tg1.add_task(t1)
-    dag.validate()
-    assert dag.task_group.children.keys() == {"tg1"}
-    assert dag.task_group.children["tg1"].children.keys() == {"t1"}
-    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
-    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == set()
-
-    with pytest.raises(
-        AirflowException,
-        match="Using this method on a task group that's not a context manager is not supported.",
-    ):
-        with dag_maker():
-            t1 = make_task("t1")
-            tg1 = TaskGroup(group_id="tg1")
-            tg1.add_task(t1)

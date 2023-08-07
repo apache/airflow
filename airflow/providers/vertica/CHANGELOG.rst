@@ -28,6 +28,14 @@
 Changelog
 ---------
 
+3.5.1
+.....
+
+Misc
+~~~~
+
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
 3.5.0
 .....
 

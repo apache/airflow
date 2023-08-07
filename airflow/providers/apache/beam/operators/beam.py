@@ -309,10 +309,15 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
     def execute_sync(self, context: Context):
         with ExitStack() as exit_stack:
+            gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
             if self.py_file.lower().startswith("gs://"):
-                gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
+            if self.snake_case_pipeline_options.get("requirements_file", "").startswith("gs://"):
+                tmp_req_file = exit_stack.enter_context(
+                    gcs_hook.provide_file(object_url=self.snake_case_pipeline_options["requirements_file"])
+                )
+                self.snake_case_pipeline_options["requirements_file"] = tmp_req_file.name
 
             if self.is_dataflow and self.dataflow_hook:
                 with self.dataflow_hook.provide_authorized_gcloud():
