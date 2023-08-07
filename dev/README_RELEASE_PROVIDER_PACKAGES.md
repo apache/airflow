@@ -468,7 +468,7 @@ cat <<EOF
 Hey all,
 
 I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
-which will last for 72 hours - which means that it will end on $(date -d '+3 days') and until 3 binding +1 votes have been received.
+which will last for 72 hours - which means that it will end on $(TZ=UTC date -v+3d "+%B %d, %Y %H:M" ) UTC and until 3 binding +1 votes have been received.
 
 
 Consider this my (binding) +1.

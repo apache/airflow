@@ -40,6 +40,8 @@ from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
+    from openlineage.client.run import Dataset
+
     from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.utils.context import Context
 
@@ -160,7 +162,7 @@ class SageMakerBaseOperator(BaseOperator):
         return SageMakerHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
-    def path_to_s3_dataset(path):
+    def path_to_s3_dataset(path) -> Dataset:
         from openlineage.client.run import Dataset
 
         path = path.replace("s3://", "")

@@ -21,7 +21,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
+from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 
 appbuilder = Mock()
 actionmodelview = Mock()
@@ -85,9 +85,9 @@ def security_manager_override():
             )
 
     with mock.patch(
-        "airflow.auth.managers.fab.security_manager_override.LoginManager"
+        "airflow.auth.managers.fab.security_manager.override.LoginManager"
     ) as mock_login_manager, mock.patch(
-        "airflow.auth.managers.fab.security_manager_override.JWTManager"
+        "airflow.auth.managers.fab.security_manager.override.JWTManager"
     ) as mock_jwt_manager:
         mock_login_manager_instance = Mock()
         mock_login_manager.return_value = mock_login_manager_instance
@@ -113,7 +113,7 @@ class TestFabAirflowSecurityManagerOverride:
         security_manager_override.load_user("123")
         mock_get_user_by_id.assert_called_once_with(123)
 
-    @mock.patch("airflow.auth.managers.fab.security_manager_override.g", spec={})
+    @mock.patch("airflow.auth.managers.fab.security_manager.override.g", spec={})
     def test_load_user_jwt(self, mock_g, security_manager_override):
         mock_user = Mock()
         mock_load_user = Mock(return_value=mock_user)

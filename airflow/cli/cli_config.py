@@ -1520,7 +1520,7 @@ DB_COMMANDS = (
         name="init",
         help=(
             "Deprecated -- use `migrate` instead. "
-            "To create default connections use `connections create-default-connections`. "
+            "To create default connections use `airflow connections create-default-connections`. "
             "Initialize the metadata database"
         ),
         func=lazy_load_command("airflow.cli.commands.db_command.initdb"),
@@ -1798,6 +1798,12 @@ PROVIDERS_COMMANDS = (
         name="executors",
         help="Get information about executors provided",
         func=lazy_load_command("airflow.cli.commands.provider_command.executors_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="notifications",
+        help="Get information about notifications provided",
+        func=lazy_load_command("airflow.cli.commands.provider_command.notifications_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(

@@ -150,7 +150,7 @@ def _valid_uri(uri: str) -> bool:
 @cache
 def _get_connection_types() -> list[str]:
     """Returns connection types available."""
-    _connection_types = ["fs", "mesos_framework-id", "email", "generic"]
+    _connection_types = []
     providers_manager = ProvidersManager()
     for connection_type, provider_info in providers_manager.hooks.items():
         if provider_info:

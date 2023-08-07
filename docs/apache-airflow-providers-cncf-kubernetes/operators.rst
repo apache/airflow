@@ -26,10 +26,11 @@ The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.Kubernet
 you to create and run Pods on a Kubernetes cluster.
 
 .. note::
-  If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, consider
-  using the
-  :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>` operator as it
-  simplifies the Kubernetes authorization process.
+  If you use a managed Kubernetes consider using a specialize KPO operator as it simplifies the Kubernetes authorization process :
+
+  - :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>` operator for `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__,
+
+  - :ref:`EksPodOperator <howto/operator:EksPodOperator>` operator for `AWS Elastic Kubernetes Engine <https://aws.amazon.com/eks/>`__.
 
 .. note::
   The :doc:`Kubernetes executor <apache-airflow:core-concepts/executor/kubernetes>` is **not** required to use this operator.

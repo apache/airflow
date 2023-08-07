@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.0.1
+.....
+
+Latest change: 2023-08-04
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`bdc10a5ff6 <https://github.com/apache/airflow/commit/bdc10a5ff6fea0fd968345fd4a9b732be49b9761>`_  2023-08-04   ``Move openlineage configuration to provider (#33124)``
+`11ff650e1b <https://github.com/apache/airflow/commit/11ff650e1b122aadebcea462adfae5492a76ed94>`_  2023-08-04   ``openlineage: disable running listener if not configured (#33120)``
+`e10aa6ae6a <https://github.com/apache/airflow/commit/e10aa6ae6ad07830cbf5ec59d977654c52012c22>`_  2023-08-04   ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
+`2a39914cbd <https://github.com/apache/airflow/commit/2a39914cbd091fb7b19de80197afcaf82c8ec240>`_  2023-08-01   ``Don't use database as fallback when no schema parsed. (#32959)``
+=================================================================================================  ===========  ===================================================================================================
+
 1.0.0
 .....
 
-Latest change: 2023-07-28
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  ===============================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `0924389a87 <https://github.com/apache/airflow/commit/0924389a877c5461733ef8a048e860b951d81a56>`_  2023-07-28   ``Fix MIN_AIRFLOW_VERSION_EXCEPTIONS for openlineage (#32909)``
 `5c8223c335 <https://github.com/apache/airflow/commit/5c8223c33598f06820aa215f2cd07760ccbb063e>`_  2023-07-28   ``Bump common-sql version in  provider (#32907)``
 `8a0f410010 <https://github.com/apache/airflow/commit/8a0f410010cc39ce8d31ee7b64a352fbd2ad19ef>`_  2023-07-28   ``Update openlineage provider to min version of airflow 2.7.0 (#32882)``
