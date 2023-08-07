@@ -32,6 +32,7 @@ import psutil
 import pytest
 import time_machine
 from sqlalchemy import func
+from sqlalchemy.exc import OperationalError
 
 import airflow.example_dags
 from airflow import settings
@@ -4490,6 +4491,21 @@ class TestSchedulerJob:
         assert ti1.state == State.SCHEDULED
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
+
+    def test_timeout_triggers_on_operational_error(self):
+        """
+        Tests that the trigger timeout check does not crash scheduler on occasional OperationalError
+        """
+        mock_session = mock.MagicMock()
+        mock_session.execute.side_effect = OperationalError("Occasional deadlock", {}, None)
+
+        # Boot up the scheduler and make it check timeouts
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        self.job_runner.check_trigger_timeouts(session=mock_session)
+
+        # Assert rollback called on mock_session once
+        mock_session.rollback.assert_called_once()
 
     def test_find_zombies_nothing(self):
         executor = MockExecutor(do_update=False)

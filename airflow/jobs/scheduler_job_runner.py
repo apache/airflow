@@ -1653,34 +1653,29 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     @provide_session
     def check_trigger_timeouts(self, session: Session = NEW_SESSION) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
-        for attempt in run_with_db_retries(logger=self.log):
-            with attempt:
-                self.log.debug(
-                    "Running SchedulerJob.check_trigger_timeouts with retries. Try %d of %d",
-                    attempt.retry_state.attempt_number,
-                    MAX_DB_RETRIES,
-                )
-                self.log.debug("Calling SchedulerJob.check_trigger_timeouts method")
+        self.log.debug("Calling SchedulerJob.check_trigger_timeouts method")
 
-                try:
-                    num_timed_out_tasks = session.execute(
-                        update(TI)
-                        .where(
-                            TI.state == TaskInstanceState.DEFERRED,
-                            TI.trigger_timeout < timezone.utcnow(),
-                        )
-                        .values(
-                            state=TaskInstanceState.SCHEDULED,
-                            next_method="__fail__",
-                            next_kwargs={"error": "Trigger/execution timeout"},
-                            trigger_id=None,
-                        )
-                    ).rowcount
-                    if num_timed_out_tasks:
-                        self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
-                except OperationalError:
-                    session.rollback()
-                    raise
+        try:
+            num_timed_out_tasks = session.execute(
+                update(TI)
+                .where(
+                    TI.state == TaskInstanceState.DEFERRED,
+                    TI.trigger_timeout < timezone.utcnow(),
+                )
+                .values(
+                    state=TaskInstanceState.SCHEDULED,
+                    next_method="__fail__",
+                    next_kwargs={"error": "Trigger/execution timeout"},
+                    trigger_id=None,
+                )
+            ).rowcount
+            if num_timed_out_tasks:
+                self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+        except OperationalError as e:
+            session.rollback()
+            self.log.warning(
+                f"Failed to check trigger timeouts due to {e}. Will reattempt at next scheduled check"
+            )
 
     def _find_zombies(self) -> None:
         """
