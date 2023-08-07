@@ -48,10 +48,10 @@ def parse_netloc_to_hostname(*args, **kwargs):
 
 
 def sanitize_conn_id(conn_id: str | None) -> str | None:
-    """
-    Sanitizes the connection id and allows only specific characters to be within. Namely,
-    it allows alphanumeric characters plus the symbols @,#,$,%,&,!,-,_,. and () from 1
-    and up to 200 consecutive matches.
+    """Sanitizes the connection id and allows only specific characters to be within.
+    
+    Namely, it allows alphanumeric characters plus the symbols @,#,$,%,&,!,-,_,. and ()
+    from 1 and up to 200 consecutive matches.
 
     The character selection is such that it prevents the injection of javascript or
     executable bits in order to avoid any awkward behavior in the front-end.
