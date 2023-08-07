@@ -18,7 +18,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Divider, Text } from "@chakra-ui/react";
+import { Alert, AlertIcon, Box, Divider, Text } from "@chakra-ui/react";
 
 import useSelection from "src/dag/useSelection";
 import { useGridData } from "src/api";
@@ -114,6 +114,12 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
 
   return (
     <Box ref={ganttRef} position="relative" height="100%" overflow="hidden">
+      {!runId && (
+        <Alert status="warning" position="absolute" top={2}>
+          <AlertIcon />
+          Please select a dag run in order to see a gantt chart
+        </Alert>
+      )}
       <Box borderBottomWidth={1} pt={`${top}px`} pointerEvents="none">
         {Array.from(Array(numBars)).map((_, i) => (
           <Box

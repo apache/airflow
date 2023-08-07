@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,37 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-"""Add is_setup to task_instance
+from flask_appbuilder.security.views import UserStatsChartView
 
-Revision ID: 0646b768db47
-Revises: 788397e78828
-Create Date: 2023-07-24 10:12:07.630608
-
-"""
-
-import sqlalchemy as sa
-from alembic import op
+from airflow.security import permissions
 
 
-# revision identifiers, used by Alembic.
-revision = "0646b768db47"
-down_revision = "788397e78828"
-branch_labels = None
-depends_on = None
-airflow_version = "2.7.0"
+class CustomUserStatsChartView(UserStatsChartView):
+    """Customize permission names for FAB's builtin UserStatsChartView."""
 
-
-TABLE_NAME = "task_instance"
-
-
-def upgrade():
-    """Apply is_setup column to task_instance"""
-    with op.batch_alter_table(TABLE_NAME) as batch_op:
-        batch_op.add_column(sa.Column("is_setup", sa.Boolean(), nullable=False, server_default="0"))
-
-
-def downgrade():
-    """Remove is_setup column from task_instance"""
-    with op.batch_alter_table(TABLE_NAME) as batch_op:
-        batch_op.drop_column("is_setup", mssql_drop_default=True)
+    class_permission_name = permissions.RESOURCE_USER_STATS_CHART
+    route_base = "/userstatschartview"
+    method_permission_name = {
+        "chart": "read",
+        "list": "read",
+    }
+    base_permissions = [permissions.ACTION_CAN_READ]

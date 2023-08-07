@@ -86,6 +86,12 @@ class DefaultExtractor(BaseExtractor):
         # OpenLineage methods are optional - if there's no method, return None
         try:
             return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
+        except ImportError:
+            self.log.error(
+                "OpenLineage provider method failed to import OpenLineage integration. "
+                "This should not happen. Please report this bug to developers."
+            )
+            return None
         except AttributeError:
             return None
 

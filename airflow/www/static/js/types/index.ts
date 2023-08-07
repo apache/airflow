@@ -120,6 +120,8 @@ interface DepNode {
     isOpen?: boolean;
     isJoinNode?: boolean;
     childCount?: number;
+    labelStyle: string;
+    style: string;
     setupTeardownType?: "setup" | "teardown";
   };
   children?: DepNode[];

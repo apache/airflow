@@ -85,8 +85,8 @@ from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
     AirflowSkipException,
-    DagInvalidTriggerRule,
     DuplicateTaskIdFound,
+    FailStopDagInvalidTriggerRule,
     RemovedInAirflow3Warning,
     TaskNotFound,
 )
@@ -717,11 +717,7 @@ class DAG(LoggingMixin):
         :meta private:
         """
         for task in self.tasks:
-            if task.is_teardown and all(x.is_setup for x in task.upstream_list):
-                raise AirflowDagInconsistent(
-                    f"Dag has teardown task without an upstream work task: dag='{self.dag_id}',"
-                    f" task='{task.task_id}'"
-                )
+            FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -2223,9 +2219,7 @@ class DAG(LoggingMixin):
             return 0
         if confirm_prompt:
             ti_list = "\n".join(str(t) for t in tis)
-            question = (
-                "You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? [y/n]"
-            ).format(count=count, ti_list=ti_list)
+            question = f"You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? [y/n]"
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
@@ -2520,7 +2514,7 @@ class DAG(LoggingMixin):
 
         :param task: the task you want to add
         """
-        DagInvalidTriggerRule.check(self, task.trigger_rule)
+        FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
         from airflow.utils.task_group import TaskGroupContext
 
@@ -2711,6 +2705,7 @@ class DAG(LoggingMixin):
             secrets_backend_list.insert(0, local_secrets)
 
         execution_date = execution_date or timezone.utcnow()
+        self.validate()
         self.log.debug("Clearing existing task instances for execution date %s", execution_date)
         self.clear(
             start_date=execution_date,

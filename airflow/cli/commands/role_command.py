@@ -121,8 +121,8 @@ def __roles_add_or_remove_permissions(args):
                 exit(1)
 
         permission_count = 0
-        for (role_name, resource_name, action_name) in list(
-            itertools.product(args.role, args.resource, args.action or [None])
+        for role_name, resource_name, action_name in itertools.product(
+            args.role, args.resource, args.action or [None]
         ):
             res_key = (role_name, resource_name)
             if is_add and action_name not in perm_map[res_key]:

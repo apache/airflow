@@ -374,7 +374,7 @@ class DockerOperator(BaseOperator):
                 shm_size=self.shm_size,
                 dns=self.dns,
                 dns_search=self.dns_search,
-                cpu_shares=int(round(self.cpus * 1024)),
+                cpu_shares=round(self.cpus * 1024),
                 port_bindings=self.port_bindings,
                 mem_limit=self.mem_limit,
                 cap_add=self.cap_add,

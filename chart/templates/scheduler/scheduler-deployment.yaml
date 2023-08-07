@@ -195,6 +195,17 @@ spec:
                 {{- else }}
                   {{- include "scheduler_liveness_check_command" . | indent 14 }}
                 {{- end }}
+          startupProbe:
+            timeoutSeconds: {{ .Values.scheduler.startupProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.scheduler.startupProbe.failureThreshold }}
+            periodSeconds: {{ .Values.scheduler.startupProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.scheduler.startupProbe.command }}
+                  {{- toYaml .Values.scheduler.startupProbe.command  | nindent 16 }}
+                {{- else }}
+                  {{- include "scheduler_startup_check_command" . | indent 14 }}
+                {{- end }}
           {{- if and $local (not $elasticsearch) }}
           # Serve logs if we're in local mode and we don't have elasticsearch enabled.
           ports:

@@ -37,9 +37,8 @@ DAG_ID = "dataproc_hadoop"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-CLUSTER_NAME = f"dataproc-hadoop-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 REGION = "europe-west1"
-ZONE = "europe-west1-b"
 
 OUTPUT_FOLDER = "wordcount"
 OUTPUT_PATH = f"gs://{BUCKET_NAME}/{OUTPUT_FOLDER}/"
@@ -57,8 +56,6 @@ CLUSTER_CONFIG = {
         "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
     },
 }
-
-TIMEOUT = {"seconds": 1 * 24 * 60 * 60}
 
 # Jobs definitions
 # [START how_to_cloud_dataproc_hadoop_config]
