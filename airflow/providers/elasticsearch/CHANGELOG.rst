@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+  Upgrade to ElasaticSearch 8. The ElasticsearchTaskHandler & ElasticsearchSQLHook will now use ElasticSearch 8 package.
+  This also means that the release drops support for ElasticSearch 7 and below and will no longer work with
+  ElasticSearch database that is below version 8.
+
 5.0.0
 .....
 

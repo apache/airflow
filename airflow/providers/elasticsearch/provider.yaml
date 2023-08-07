@@ -73,3 +73,20 @@ connection-types:
 
 logging:
   - airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler
+
+config:
+  elasticsearch_configs:
+    description: ~
+    options:
+      http_compress:
+        description: ~
+        version_added: 1.10.5
+        type: string
+        example: ~
+        default: "False"
+      verify_certs:
+        description: ~
+        version_added: 1.10.5
+        type: string
+        example: ~
+        default: "True"

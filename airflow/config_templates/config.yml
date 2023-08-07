@@ -2376,21 +2376,6 @@ elasticsearch:
       type: string
       example: something-*
       default: "_all"
-elasticsearch_configs:
-  description: ~
-  options:
-    http_compress:
-      description: ~
-      version_added: 1.10.5
-      type: string
-      example: ~
-      default: "False"
-    verify_certs:
-      description: ~
-      version_added: 1.10.5
-      type: string
-      example: ~
-      default: "True"
 sensors:
   description: ~
   options:
