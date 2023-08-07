@@ -95,8 +95,8 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
             body=self.body,
             location=self.location,
         )
-
-        if "error" in self.data_pipeline:
-            raise AirflowException(self.data_pipeline.get("error").get("message"))
+        if self.data_pipeline:
+            if "error" in self.data_pipeline:
+                raise AirflowException(self.data_pipeline.get("error").get("message"))
 
         return self.data_pipeline
