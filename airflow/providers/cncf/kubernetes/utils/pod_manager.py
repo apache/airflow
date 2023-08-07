@@ -101,6 +101,12 @@ class PodOperatorHookProtocol(Protocol):
     def get_namespace(self) -> str | None:
         """Returns the namespace that defined in the connection."""
 
+    def get_xcom_sidecar_container_image(self) -> str | None:
+        """Returns the xcom sidecar image that defined in the connection."""
+
+    def get_xcom_sidecar_container_resources(self) -> str | None:
+        """Returns the xcom sidecar resources that defined in the connection."""
+
 
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
     """Retrieves container status."""

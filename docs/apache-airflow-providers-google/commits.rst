@@ -35,6 +35,25 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.6.0
+......
+
+Latest change: 2023-08-04
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`e10aa6ae6a <https://github.com/apache/airflow/commit/e10aa6ae6ad07830cbf5ec59d977654c52012c22>`_  2023-08-04   ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
+`e3d82c6be0 <https://github.com/apache/airflow/commit/e3d82c6be0e0e1468ade053c37690aa1e0e4882d>`_  2023-08-04   ``Get rid of Python2 numeric relics (#33050)``
+`1ea7ae809b <https://github.com/apache/airflow/commit/1ea7ae809bf0b8d1c8edf97e4d456b3753a1feca>`_  2023-08-03   ``Refactor of links in Dataproc. (#31895)``
+`d9121a7b9e <https://github.com/apache/airflow/commit/d9121a7b9e3d2456c1c3cd9c09d8404501a360c8>`_  2023-08-02   ``Fix 'DataFusionAsyncHook' catch 404 (#32855)``
+`0c894dbb24 <https://github.com/apache/airflow/commit/0c894dbb24ad9ad90dcb10c81269ccc056789dc3>`_  2023-08-02   ``Handle multiple connections using exceptions (#32365)``
+`915f9e4060 <https://github.com/apache/airflow/commit/915f9e40601fbfa3ebcf2fe82ced14191b12ab18>`_  2023-07-31   ``Add GCS Requester Pays bucket support to GCSToS3Operator (#32760)``
+`f9cddf332d <https://github.com/apache/airflow/commit/f9cddf332db712ce2121d355dd94c78b392a7bb9>`_  2023-07-31   ``openlineage,gcs: use proper name for openlineage methods (#32956)``
+`ce5eebd004 <https://github.com/apache/airflow/commit/ce5eebd00403beabc23b4f0b4bedba5b5c397c42>`_  2023-07-31   ``Fix system test for MetastoreHivePartitionSensor (#32861)``
+`c422920c6e <https://github.com/apache/airflow/commit/c422920c6ef9ac2cceb0369cd0ec0989887688d9>`_  2023-07-31   ``Add system test and docs for CloudDataTransferServiceGCSToGCSOperator (#32960)``
+=================================================================================================  ===========  ===================================================================================================
+
 10.5.0
 ......
 
@@ -43,6 +62,7 @@ Latest change: 2023-07-29
 =================================================================================================  ===========  =======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `81b85ebcbd <https://github.com/apache/airflow/commit/81b85ebcbd241e1909793d7480aabc81777b225c>`_  2023-07-29   ``Fix 'BigQueryInsertJobOperator' not exiting deferred state (#31591)``
 `9d68492f87 <https://github.com/apache/airflow/commit/9d68492f875464f505afef2ecd81a28d8e4922b8>`_  2023-07-27   ``misc: update MLEngine system tests (#32881)``
 `b73366799d <https://github.com/apache/airflow/commit/b73366799d98195a5ccc49a2008932186c4763b5>`_  2023-07-27   ``openlineage, gcs: add openlineage methods for GcsToGcsOperator (#31350)``

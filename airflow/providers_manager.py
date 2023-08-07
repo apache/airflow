@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, Typ
 from packaging.utils import canonicalize_name
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.hooks.filesystem import FSHook
 from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -215,6 +216,13 @@ class TriggerInfo(NamedTuple):
     trigger_class_name: str
     package_name: str
     integration_name: str
+
+
+class NotificationInfo(NamedTuple):
+    """Notification class and provider it comes from."""
+
+    notification_class_name: str
+    package_name: str
 
 
 class PluginInfo(NamedTuple):
@@ -425,12 +433,44 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._provider_configs: dict[str, dict[str, Any]] = {}
         self._api_auth_backend_module_names: set[str] = set()
         self._trigger_info_set: set[TriggerInfo] = set()
+        self._notification_info_set: set[NotificationInfo] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._customized_form_fields_schema_validator = (
             _create_customized_form_field_behaviours_schema_validator()
         )
         # Set of plugins contained in providers
         self._plugins_set: set[PluginInfo] = set()
+        self._init_airflow_core_hooks()
+
+    def _init_airflow_core_hooks(self):
+        """Initializes the hooks dict with default hooks from Airflow core."""
+        core_dummy_hooks = {
+            "generic": "Generic",
+            "email": "Email",
+            "mesos_framework-id": "Mesos Framework ID",
+        }
+        for key, display in core_dummy_hooks.items():
+            self._hooks_lazy_dict[key] = HookInfo(
+                hook_class_name=None,
+                connection_id_attribute_name=None,
+                package_name=None,
+                hook_name=display,
+                connection_type=None,
+                connection_testable=False,
+            )
+        for cls in [FSHook]:
+            package_name = cls.__module__
+            hook_class_name = f"{cls.__module__}.{cls.__name__}"
+            hook_info = self._import_hook(
+                connection_type=None,
+                provider_info=None,
+                hook_class_name=hook_class_name,
+                package_name=package_name,
+            )
+            self._hook_provider_dict[hook_info.connection_type] = HookClassProvider(
+                hook_class_name=hook_class_name, package_name=package_name
+            )
+            self._hooks_lazy_dict[hook_info.connection_type] = hook_info
 
     @provider_info_cache("list")
     def initialize_providers_list(self):
@@ -496,6 +536,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers executors information."""
         self.initialize_providers_list()
         self._discover_executors()
+
+    @provider_info_cache("notifications")
+    def initialize_providers_notifications(self):
+        """Lazy initialization of providers notifications information."""
+        self.initialize_providers_list()
+        self._discover_notifications()
 
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
@@ -993,6 +1039,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 e,
             )
 
+    def _discover_notifications(self) -> None:
+        """Retrieves all notifications defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("notifications"):
+                for notification_class_name in provider.data["notifications"]:
+                    if _correctness_check(provider_package, notification_class_name, provider):
+                        self._notification_info_set.add(notification_class_name)
+
     def _discover_extra_links(self) -> None:
         """Retrieves all extra links defined in the providers."""
         for provider_package, provider in self._provider_dict.items():
@@ -1068,6 +1122,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                             integration_name=trigger.get("integration-name", ""),
                         )
                     )
+
+    @property
+    def notification(self) -> list[NotificationInfo]:
+        """Returns information about available providers notifications class."""
+        self.initialize_providers_notifications()
+        return sorted(self._notification_info_set)
 
     @property
     def trigger(self) -> list[TriggerInfo]:

@@ -129,6 +129,8 @@ class Job(Base, LoggingMixin):
         """
         if self.job_type == "SchedulerJob":
             health_check_threshold: int = conf.getint("scheduler", "scheduler_health_check_threshold")
+        elif self.job_type == "TriggererJob":
+            health_check_threshold: int = conf.getint("triggerer", "triggerer_health_check_threshold")
         else:
             health_check_threshold: int = self.heartrate * grace_multiplier
         return (

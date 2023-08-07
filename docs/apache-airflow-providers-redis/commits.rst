@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.1
+.....
+
+Latest change: 2023-08-01
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`17a3dd4135 <https://github.com/apache/airflow/commit/17a3dd41355c29ed55fcf449b3b7002d4085e9bb>`_  2023-08-01   ``Move redis subscribe to poke() method in Redis Sensor (#32984)``
+=================================================================================================  ===========  ==================================================================
+
 3.3.0
 .....
 
-Latest change: 2023-07-23
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  ================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `42b4b43c4c <https://github.com/apache/airflow/commit/42b4b43c4c2ccf0b6e7eaa105c982df495768d01>`_  2023-07-23   ``Add Redis task handler (#31855)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``

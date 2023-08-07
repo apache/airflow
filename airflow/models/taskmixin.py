@@ -24,7 +24,6 @@ import pendulum
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
@@ -97,15 +96,11 @@ class DependencyMixin:
     def __lshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task << Task."""
         self.set_upstream(other)
-        self.set_setup_teardown_ctx_dependencies(other)
-        self.set_taskgroup_ctx_dependencies(other)
         return other
 
     def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task >> Task."""
         self.set_downstream(other)
-        self.set_setup_teardown_ctx_dependencies(other)
-        self.set_taskgroup_ctx_dependencies(other)
         return other
 
     def __rrshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
@@ -135,22 +130,6 @@ class DependencyMixin:
         elif isinstance(obj, Sequence):
             for o in obj:
                 yield from cls._iter_references(o)
-
-    def set_setup_teardown_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        if not SetupTeardownContext.active:
-            return
-        for op, _ in self._iter_references([self, other]):
-            SetupTeardownContext.update_context_map(op)
-
-    def set_taskgroup_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        from airflow.utils.task_group import TaskGroupContext
-
-        if not TaskGroupContext.active:
-            return
-        task_group = TaskGroupContext.get_current_task_group(None)
-        for op, _ in self._iter_references([self, other]):
-            if task_group:
-                op.add_to_taskgroup(task_group)
 
 
 class TaskMixin(DependencyMixin):

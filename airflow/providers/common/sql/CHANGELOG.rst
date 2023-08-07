@@ -23,6 +23,15 @@
 
 ------
 
+1.6.2
+.....
+
+Misc
+~~~~
+
+* ``Make SQLExecute Query signature consistent with other SQL operators (#32974)``
+* ``Get rid of Python2 numeric relics (#33050)``
+
 1.6.1
 .....
 
