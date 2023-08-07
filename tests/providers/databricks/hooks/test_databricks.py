@@ -43,6 +43,7 @@ from airflow.providers.databricks.hooks.databricks_base import (
     AZURE_METADATA_SERVICE_INSTANCE_URL,
     AZURE_TOKEN_SERVICE_URL,
     DEFAULT_DATABRICKS_SCOPE,
+    OIDC_TOKEN_SERVICE_URL,
     TOKEN_REFRESH_LEAD_TIME,
     BearerAuth,
 )
@@ -1514,7 +1515,7 @@ class TestDatabricksHookSpToken:
         run_id = self.hook.submit_run(data)
 
         ad_call_args = mock_requests.method_calls[0]
-        assert ad_call_args[1][0] == "xx.cloud.databricks.com/oidc/v1/token"
+        assert ad_call_args[1][0] == OIDC_TOKEN_SERVICE_URL.format(HOST)
         assert ad_call_args[2]["data"] == "grant_type=client_credentials&scope=all-apis"
 
         assert run_id == "1"
