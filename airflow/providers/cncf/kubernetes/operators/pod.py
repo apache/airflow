@@ -212,6 +212,7 @@ class KubernetesPodOperator(BaseOperator):
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :param pod_template_file: path to pod template file (templated)
+    :param pod_template_content: pod template content (templated)
     :param priority_class_name: priority class name for the launched Pod
     :param pod_runtime_info_envs: (Optional) A list of environment variables,
         to be set in the container.
@@ -256,6 +257,7 @@ class KubernetesPodOperator(BaseOperator):
         "labels",
         "config_file",
         "pod_template_file",
+        "pod_template_content",
         "namespace",
         "container_resources",
         "volumes",
@@ -308,6 +310,7 @@ class KubernetesPodOperator(BaseOperator):
         log_events_on_failure: bool = False,
         do_xcom_push: bool = False,
         pod_template_file: str | None = None,
+        pod_template_content: str | None = None,
         priority_class_name: str | None = None,
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
@@ -388,6 +391,7 @@ class KubernetesPodOperator(BaseOperator):
         self.log_events_on_failure = log_events_on_failure
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
+        self.pod_template_content = pod_template_content
         self.name = self._set_name(name)
         self.random_name_suffix = random_name_suffix
         self.termination_grace_period = termination_grace_period
@@ -808,6 +812,11 @@ class KubernetesPodOperator(BaseOperator):
         if self.pod_template_file:
             self.log.debug("Pod template file found, will parse for base pod")
             pod_template = pod_generator.PodGenerator.deserialize_model_file(self.pod_template_file)
+            if self.full_pod_spec:
+                pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
+        elif self.pod_template_content:
+            self.log.debug("Pod template content found, will parse for base pod")
+            pod_template = pod_generator.PodGenerator.deserialize_model(yaml.safe_load(self.pod_template_content))
             if self.full_pod_spec:
                 pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
         elif self.full_pod_spec:
