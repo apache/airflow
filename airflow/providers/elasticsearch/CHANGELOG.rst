@@ -30,13 +30,14 @@ Changelog
 5.1.0
 .....
 
-Breaking changes
-~~~~~~~~~~~~~~~~
+Misc
+~~~~
 
 .. note::
-  Upgrade to ElasaticSearch 8. The ElasticsearchTaskHandler & ElasticsearchSQLHook will now use ElasticSearch 8 package.
-  This also means that the release drops support for ElasticSearch 7 and below and will no longer work with
-  ElasticSearch database that is below version 8.
+  Upgrade to Elasticsearch 8. The ElasticsearchTaskHandler & ElasticsearchSQLHook will now use Elasticsearch 8 package.
+  As explained https://elasticsearch-py.readthedocs.io/en/stable , Elasticsearch language clients are only backwards
+  compatible with default distributions and without guarantees made, we recommend upgrading the version of
+  Elasticsearch database to 8 to ensure compatibility with the language client.
 
 5.0.0
 .....
