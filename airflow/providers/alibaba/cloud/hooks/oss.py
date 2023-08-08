@@ -66,7 +66,7 @@ def unify_bucket_name_and_key(func: T) -> T:
             raise ValueError("Missing key parameter!")
 
         key_name = get_key()
-        if "bucket_name" not in bound_args.arguments or bound_args.arguments["bucket_name"] is None:
+        if bound_args.arguments.get("bucket_name") is None:
             bound_args.arguments["bucket_name"], bound_args.arguments["key"] = OSSHook.parse_oss_url(
                 bound_args.arguments[key_name]
             )
