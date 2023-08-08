@@ -319,6 +319,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/dataflow.rst
     logo: /integration-logos/gcp/Cloud-Dataflow.png
     tags: [gcp]
+  - integration-name: Google Data Pipelines
+    external-doc-url: https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/datapipeline.rst
+    tags: [gcp]
   - integration-name: Google Data Fusion
     external-doc-url: https://cloud.google.com/data-fusion/
     how-to-guide:
