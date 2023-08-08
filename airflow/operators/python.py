@@ -507,6 +507,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
+    :param index_urls: an optional list of index urls to load Python packages from.
+        If not provided the system pip conf will be used to source packages from.
     """
 
     template_fields: Sequence[str] = tuple({"requirements"} | set(PythonOperator.template_fields))
@@ -528,6 +530,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
+        index_urls: None | Collection[str] | str = None,
         **kwargs,
     ):
         if (
@@ -543,14 +546,20 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         if importlib.util.find_spec("virtualenv") is None:
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if not requirements:
-            self.requirements: list[str] | str = []
+            self.requirements: list[str] = []
         elif isinstance(requirements, str):
-            self.requirements = requirements
+            self.requirements = [requirements]
         else:
             self.requirements = list(requirements)
         self.python_version = python_version
         self.system_site_packages = system_site_packages
         self.pip_install_options = pip_install_options
+        if isinstance(index_urls, str):
+            self.index_urls: list[str] | None = [index_urls]
+        elif isinstance(index_urls, Collection):
+            self.index_urls = list(index_urls)
+        else:
+            self.index_urls = None
         super().__init__(
             python_callable=python_callable,
             use_dill=use_dill,
@@ -564,28 +573,31 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             **kwargs,
         )
 
+    def _requirements_list(self) -> list[str]:
+        """Prepares a list of requirements that need to be installed for the venv."""
+        requirements = [str(dependency) for dependency in self.requirements]
+        if not self.system_site_packages and self.use_dill and "dill" not in requirements:
+            requirements.append("dill")
+        requirements.sort()  # Ensure a hash is stable
+        return requirements
+
+    def _prepare_venv(self, venv_path: Path) -> None:
+        """Prepares the requirements and installs the venv."""
+        requirements_file = venv_path / "requirements.txt"
+        requirements_file.write_text("\n".join(self._requirements_list()))
+        prepare_virtualenv(
+            venv_directory=str(venv_path),
+            python_bin=f"python{self.python_version}" if self.python_version else "python",
+            system_site_packages=self.system_site_packages,
+            requirements_file_path=str(requirements_file),
+            pip_install_options=self.pip_install_options,
+            index_urls=self.index_urls,
+        )
+
     def execute_callable(self):
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
-            requirements_file_name = f"{tmp_dir}/requirements.txt"
-
-            if not isinstance(self.requirements, str):
-                requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
-            else:
-                requirements_file_contents = self.requirements
-
-            if not self.system_site_packages and self.use_dill:
-                requirements_file_contents += "\ndill"
-
-            with open(requirements_file_name, "w") as file:
-                file.write(requirements_file_contents)
-            prepare_virtualenv(
-                venv_directory=tmp_dir,
-                python_bin=f"python{self.python_version}" if self.python_version else None,
-                system_site_packages=self.system_site_packages,
-                requirements_file_path=requirements_file_name,
-                pip_install_options=self.pip_install_options,
-            )
+            self._prepare_venv(tmp_path)
             python_path = tmp_path / "bin" / "python"
             result = self._execute_python_callable_in_subprocess(python_path, tmp_path)
             return result
@@ -597,6 +609,25 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
         elif "pendulum" in self.requirements:
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
+
+
+class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, SkipMixin):
+    """
+    A workflow can "branch" or follow a path after the execution of this task in a virtualenv.
+    It derives the PythonVirtualenvOperator and expects a Python function that returns
+    a single task_id or list of task_ids to follow. The task_id(s) returned
+    should point to a task directly downstream from {self}. All other "branches"
+    or directly downstream tasks are marked with a state of ``skipped`` so that
+    these paths can't move forward. The ``skipped`` states are propagated
+    downstream to allow for the DAG state to fill up and the DAG run's state
+    to be inferred.
+    """
+
+    def execute(self, context: Context) -> Any:
+        branch = super().execute(context)
+        self.log.info("Branch callable return %s", branch)
+        self.skip_all_except(context["ti"], branch)
+        return branch
 
 
 class ExternalPythonOperator(_BasePythonVirtualenvOperator):
