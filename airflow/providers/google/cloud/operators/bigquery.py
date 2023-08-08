@@ -2739,10 +2739,18 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
 
     @property
     def sql(self) -> str | None:
+        _sql = getattr(self, "_sql", None)
+        if _sql:
+            return _sql
+
         try:
             return self.configuration["query"]["query"]
         except KeyError:
             return None
+
+    @sql.setter
+    def sql(self, sql_value: str):
+        self._sql = sql_value
 
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
