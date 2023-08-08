@@ -186,6 +186,8 @@ class _BigQueryOpenLineageMixin:
         job_facets = {}
         if hasattr(self, "sql"):
             job_facets["sql"] = SqlJobFacet(query=normalize_sql(self.sql))
+        if hasattr(self, "_executed_sql"):
+            job_facets["sql"] = SqlJobFacet(query=normalize_sql(self._executed_sql))
 
         return OperatorLineage(
             inputs=list(inputs.values()),
@@ -2738,7 +2740,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         self.poll_interval = poll_interval
 
     @property
-    def sql(self) -> str | None:
+    def _executed_sql(self) -> str | None:
         try:
             return self.configuration["query"]["query"]
         except KeyError:
