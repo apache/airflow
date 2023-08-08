@@ -928,6 +928,7 @@ class TestKubernetesPodOperator:
             metadata=k8s.V1ObjectMeta(
                 namespace="templatenamespace",
                 name="hello",
+                labels={"release": "stable"},
             ),
             spec=k8s.V1PodSpec(
                 containers=[],
@@ -949,8 +950,10 @@ class TestKubernetesPodOperator:
             task_id="task",
             random_name_suffix=randomize_name,
             pod_template_content=serialized_pod,
+            labels={"hello": "world"},
         )
 
+        # render templated fields before checking generated pod spec
         k.render_template_fields(context={"params": {"repo_branch": "test_branch"}})
         pod = k.build_pod_request_obj(create_context(k))
 
@@ -960,9 +963,9 @@ class TestKubernetesPodOperator:
         else:
             assert pod.metadata.name == "hello"
 
-        # Check labels are added from pod_template_file and
-        # the pod identifying labels including Airflow version
         assert pod.metadata.labels == {
+            "hello": "world",
+            "release": "stable",
             "dag_id": "dag",
             "kubernetes_pod_operator": "True",
             "task_id": "task",
