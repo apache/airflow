@@ -17,12 +17,142 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-amazon``
--------------------------------------------------
+``apache-airflow-providers-amazon``
+
+Changelog
+---------
+
+8.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, sagemaker: add OpenLineage support for SageMaker's Processing, Transform and Training operators (#31816)``
+* ``Add Amazon EventBridge PutRule hook and operator (#32869)``
+* ``Add GCS Requester Pays bucket support to GCSToS3Operator (#32760)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Check google provider version in GCSToS3Operator before provide match_glob param (#32925)``
+* ``Set longer default 'waiter_max_attempts' for deferred BatchJobOperator (#33045)``
+
+Misc
+~~~~
+
+* ``openlineage, sagemaker: add missing OpenLineage type signature (#33114)``
+* ``Add S3Bucket for mypy (#33028)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deferrable mode for Sqs Sensor (#32809)``
+   * ``Increase the number of attempts in AWS system test 'example_rds_export' (#32976)``
+
+8.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add endpoint_url in test_connection (#32664)``
+* ``Add support for querying Redshift Serverless clusters (#32785)``
+* ``Add Deferrable mode to StepFunctionStartExecutionOperator (#32563)``
+* ``Add Deferrable mode for EMR Serverless Start Job Operator (#32534)``
+* ``Add Eventbridge PutEvents operator and hook (#32498)``
+* ``add deferrable mode to rds start & stop DB (#32437)``
+* ``EMR serverless Create/Start/Stop/Delete Application deferrable mode (#32513)``
+* ``Make Start and Stop SageMaker Pipelines operators deferrable (#32683)``
+* ``Deferrable mode for EKS Create/Delete Operator (#32355)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FIX AWS deferrable operators by using AioCredentials when using 'assume_role' (#32733)``
+* ``[bugfix] fix AWS triggers where deserialization would crash if region was not specified (#32729)``
+* ``Fix bug in prune_dict where empty dict and list would be removed even in strict mode (#32573)``
+* ``Fix S3ToRedshiftOperator does not support default values on UPSERT (#32558)``
+* ``Do not return success from AWS ECS trigger after max_attempts (#32589)``
+
+Misc
+~~~~
+
+* ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+* ``Limit Appflow mypy to 1.28.12 as it introduces strange typing issue (#32901)``
+* ``Further limit mypy-boto3-appflow as the fix is not in sight (#32927)``
+
+8.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Append region info to S3ToRedshitOperator if present (#32328)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'ChimeWebhookHook' (#31939)``
+* ``Add 'ChimeNotifier' (#32222)``
+* ``Add deferrable mode to S3KeysUnchangedSensor (#31940)``
+* ``Add deferrable mode to 'RdsCreateDbInstanceOperator' and 'RdsDeleteDbInstanceOperator' (#32171)``
+* ``Add deferrable mode for 'AthenaOperator' (#32186)``
+* ``Add a deferrable mode to 'BatchCreateComputeEnvironmentOperator' (#32036)``
+* ``Add deferrable mode in EMR operator and sensor (#32029)``
+* ``add async wait method to the "with logging" aws utils (#32055)``
+* ``Add custom waiters to EMR Serverless  (#30463)``
+* ``Add an option to 'GlueJobOperator' to stop the job run when the TI is killed (#32155)``
+* ``deferrable mode for 'SageMakerTuningOperator' and 'SageMakerEndpointOperator' (#32112)``
+* ``EKS Create/Delete Nodegroup Deferrable mode (#32165)``
+* ``Deferrable mode for ECS operators (#31881)``
+* ``feature: AWS - GlueJobOperator - job_poll_interval (#32147)``
+* ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
+* ``Introduce a base class for aws triggers (#32274)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bugfix: break down run+wait method in ECS operator (#32104)``
+* ``Handle 'UnboundLocalError' while parsing invalid 's3_url' (#32120)``
+* ``Fix 'LambdaInvokeFunctionOperator' payload parameter type (#32259)``
+* ``Bug fix GCSToS3Operator: avoid 'ValueError' when 'replace=False' with files already in S3 (#32322)``
+
+Misc
+~~~~
+
+* ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
+* ``aws waiter util: log status info with error level on waiter error (#32247)``
+* ``rewrite method used in ecs to fetch less logs (#31786)``
+* ``Refactor Eks Create Cluster Operator code (#31960)``
+* ``Use a waiter in 'AthenaHook' (#31942)``
+* ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+* ``Add default_deferrable config (#31712)``
+* ``deprecate arbitrary parameter passing to RDS hook (#32352)``
+* ``quick fix on RDS operator to prevent parameter collision (#32436)``
+* ``Remove ability to specify arbitrary hook params in AWS RDS trigger (#32386)``
+* ``Only update crawler tags if present in config dict (#32331)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "add deferrable mode for 'AthenaOperator' (#32110)" (#32172)``
+   * ``add deferrable mode for 'AthenaOperator' (#32110)``
+   * ``D205 Support - Auto-fixes and Stragglers (#32212)``
+   * ``D205 Support - Providers: Amazon/AWS (#32224)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Minor name change for the util wait method. (#32152)``
+   * ``Clean up string concatenation (#32129)``
+   * ``cleanup Amazon CHANGELOG.rst (#32031)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Stragglers and new additions (#32447)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 
 8.2.0
 .....

@@ -17,12 +17,64 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-snowflake``
-----------------------------------------------------
+``apache-airflow-providers-snowflake``
+
+
+Changelog
+---------
+
+4.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix connection parameters of 'SnowflakeValueCheckOperator' (#32605)``
+
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, snowflake: add OpenLineage support for Snowflake (#31696)``
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
+4.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix an issue that crashes Airflow Webserver when passed invalid private key path to Snowflake (#32016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``build(pre-commit): check deferrable default value (#32370)``
+   * ``D205 Support - Providers: Snowflake to Zendesk (inclusive) (#32359)``
+
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Deferrable switch to SnowflakeSqlApiOperator (#31596)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 4.2.0
 .....

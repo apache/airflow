@@ -185,11 +185,7 @@ class QuboleHook(BaseHook):
             )
 
         if self.cmd.status != "done":  # type: ignore[attr-defined]
-            raise AirflowException(
-                "Command Id: {} failed with Status: {}".format(
-                    self.cmd.id, self.cmd.status  # type: ignore[attr-defined]
-                )
-            )
+            raise AirflowException(f"Command Id: {self.cmd.id} failed with Status: {self.cmd.status}")
 
     def kill(self, ti):
         """

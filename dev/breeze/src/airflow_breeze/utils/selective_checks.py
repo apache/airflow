@@ -126,14 +126,13 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^airflow/kubernetes",
             r"^tests/kubernetes",
-            r"^tests/charts",
+            r"^helm_tests",
         ],
         FileGroupForCi.SETUP_FILES: [
             r"^pyproject.toml",
             r"^setup.cfg",
             r"^setup.py",
             r"^generated/provider_dependencies.json$",
-            r"^airflow/providers/.*/provider.yaml$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -554,7 +553,7 @@ class SelectiveChecks:
 
     @cached_property
     def image_build(self) -> bool:
-        return self.run_tests or self.docs_build or self.run_kubernetes_tests
+        return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveUnitTestTypes
@@ -727,6 +726,8 @@ class SelectiveChecks:
             [file.startswith("airflow/") or file.startswith("docs/apache-airflow/") for file in self._files]
         ):
             packages.append("apache-airflow")
+        if any([file.startswith("docs/apache-airflow-providers/") for file in self._files]):
+            packages.append("apache-airflow-providers")
         if any([file.startswith("chart/") or file.startswith("docs/helm-chart") for file in self._files]):
             packages.append("helm-chart")
         if any([file.startswith("docs/docker-stack/") for file in self._files]):

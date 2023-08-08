@@ -155,10 +155,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
         self.max_wait_time = max_wait_time
 
     def execute(self, context: Context) -> None:
-        """
-        Receive Message in specific queue in Service Bus namespace,
-        by connecting to Service Bus client.
-        """
+        """Receive Message in specific queue in Service Bus namespace by connecting to Service Bus client."""
         # Create the hook
         hook = MessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
@@ -527,10 +524,7 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
     def execute(self, context: Context) -> None:
-        """
-        Receive Message in specific queue in Service Bus namespace,
-        by connecting to Service Bus client.
-        """
+        """Receive Message in specific queue in Service Bus namespace by connecting to Service Bus client."""
         # Create the hook
         hook = MessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 

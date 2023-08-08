@@ -26,18 +26,16 @@ from typing import TYPE_CHECKING, Sequence
 
 import boto3
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.ecs import (
-    EcsClusterStates,
-    EcsHook,
-    should_retry_eni,
-)
+from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.ecs import (
-    ClusterWaiterTrigger,
+    ClusterActiveTrigger,
+    ClusterInactiveTrigger,
     TaskDoneTrigger,
 )
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
@@ -118,7 +116,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -145,13 +143,12 @@ class EcsCreateClusterOperator(EcsBaseOperator):
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
         elif self.deferrable:
             self.defer(
-                trigger=ClusterWaiterTrigger(
-                    waiter_name="cluster_active",
+                trigger=ClusterActiveTrigger(
                     cluster_arn=cluster_details["clusterArn"],
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region=self.region,
+                    region_name=self.region,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -201,7 +198,7 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -223,13 +220,12 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
         elif self.deferrable:
             self.defer(
-                trigger=ClusterWaiterTrigger(
-                    waiter_name="cluster_inactive",
+                trigger=ClusterInactiveTrigger(
                     cluster_arn=cluster_details["clusterArn"],
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region=self.region,
+                    region_name=self.region,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -263,7 +259,7 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
         of the task definition to deregister. If you use a family name, you must specify a revision.
     """
 
-    template_fields: Sequence[str] = "task_definition"
+    template_fields: Sequence[str] = ("task_definition",)
 
     def __init__(
         self,
@@ -482,7 +478,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 6,
         waiter_max_attempts: int = 100,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -727,7 +723,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
             raise AirflowException(response)
 
         for task in response["tasks"]:
-
             if task.get("stopCode", "") == "TaskFailedToStart":
                 # Reset task arn here otherwise the retry run will not start
                 # a new task but keep polling the old dead one

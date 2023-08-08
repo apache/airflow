@@ -16,7 +16,4 @@
     specific language governing permissions and limitations
     under the License.
 
-Package ``apache-airflow-providers-apache-pinot``
--------------------------------------------------
-
 .. include:: ../../airflow/providers/apache/pinot/CHANGELOG.rst

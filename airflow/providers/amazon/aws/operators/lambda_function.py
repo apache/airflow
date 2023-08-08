@@ -150,7 +150,7 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         qualifier: str | None = None,
         invocation_type: str | None = None,
         client_context: str | None = None,
-        payload: str | None = None,
+        payload: bytes | str | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):

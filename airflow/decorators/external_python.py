@@ -18,41 +18,15 @@ from __future__ import annotations
 
 from typing import Callable
 
-from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.decorators.base import TaskDecorator, task_decorator_factory
+from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.operators.python import ExternalPythonOperator
 
 
-class _PythonExternalDecoratedOperator(DecoratedOperator, ExternalPythonOperator):
-    """
-    Wraps a Python callable and captures args/kwargs when called for execution.
-
-    :param python: Full path string (file-system specific) that points to a Python binary inside
-        a virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path
-        (so usually start with "/" or "X:/" depending on the filesystem/os used).
-    :param python_callable: A reference to an object that is callable
-    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-        in your function (templated)
-    :param op_args: a list of positional arguments that will get unpacked when
-        calling your callable (templated)
-    :param multiple_outputs: If set to True, the decorated function's return value will be unrolled to
-        multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
-    """
+class _PythonExternalDecoratedOperator(_PythonDecoratedOperator, ExternalPythonOperator):
+    """Wraps a Python callable and captures args/kwargs when called for execution."""
 
     custom_operator_name: str = "@task.external_python"
-
-    def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:
-        kwargs_to_upstream = {
-            "python_callable": python_callable,
-            "op_args": op_args,
-            "op_kwargs": op_kwargs,
-        }
-        super().__init__(
-            kwargs_to_upstream=kwargs_to_upstream,
-            python_callable=python_callable,
-            op_args=op_args,
-            op_kwargs=op_kwargs,
-            **kwargs,
-        )
 
 
 def external_python_task(

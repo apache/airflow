@@ -24,6 +24,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from argparse import Action
 from functools import lru_cache
 from typing import Iterable
@@ -41,9 +42,26 @@ from airflow.cli.cli_config import (
     core_commands,
 )
 from airflow.exceptions import AirflowException
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
 
 airflow_commands = core_commands
+
+log = logging.getLogger(__name__)
+try:
+    executor, _ = ExecutorLoader.import_default_executor_cls(validate=False)
+    airflow_commands.extend(executor.get_cli_commands())
+except Exception:
+    executor_name = ExecutorLoader.get_default_executor_name()
+    log.exception("Failed to load CLI commands from executor: %s", executor_name)
+    log.error(
+        "Ensure all dependencies are met and try again. If using a Celery based executor install "
+        "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
+        "7.4.0+ version of the CNCF provider"
+    )
+    # Do no re-raise the exception since we want the CLI to still function for
+    # other commands.
+
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 
@@ -98,10 +116,7 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     subparsers.required = True
 
     command_dict = DAG_CLI_DICT if dag_parser else ALL_COMMANDS_DICT
-    subparser_list = command_dict.keys()
-    sub_name: str
-    for sub_name in sorted(subparser_list):
-        sub: CLICommand = command_dict[sub_name]
+    for _, sub in sorted(command_dict.items()):
         _add_command(subparsers, sub)
     return parser
 
@@ -119,9 +134,12 @@ def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
 
 
 def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> None:
-    sub_proc = subparsers.add_parser(
-        sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
-    )
+    if isinstance(sub, ActionCommand) and sub.hide:
+        sub_proc = subparsers.add_parser(sub.name, epilog=sub.epilog)
+    else:
+        sub_proc = subparsers.add_parser(
+            sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
+        )
     sub_proc.formatter_class = LazyRichHelpFormatter
 
     if isinstance(sub, GroupCommand):
@@ -142,6 +160,5 @@ def _add_group_command(sub: GroupCommand, sub_proc: argparse.ArgumentParser) -> 
     subcommands = sub.subcommands
     sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMAND")
     sub_subparsers.required = True
-
     for command in sorted(subcommands, key=lambda x: x.name):
         _add_command(sub_subparsers, command)

@@ -24,6 +24,7 @@ from functools import cached_property
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
@@ -315,7 +316,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -605,7 +606,7 @@ class DatabricksRunNowOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksRunNowOperator``."""
@@ -670,6 +671,10 @@ class DatabricksRunNowOperator(BaseOperator):
         else:
             _handle_databricks_operator_execution(self, hook, self.log, context)
 
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event:
+            _handle_deferrable_databricks_operator_completion(event, self.log)
+
     def on_kill(self):
         if self.run_id:
             self._hook.cancel_run(self.run_id)
@@ -692,11 +697,3 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
             stacklevel=2,
         )
         super().__init__(deferrable=True, *args, **kwargs)
-
-    def execute(self, context):
-        hook = self._get_hook(caller="DatabricksRunNowDeferrableOperator")
-        self.run_id = hook.run_now(self.json)
-        _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
-
-    def execute_complete(self, context: dict | None, event: dict):
-        _handle_deferrable_databricks_operator_completion(event, self.log)

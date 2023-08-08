@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any, Iterable, TypeVar
 
 from marshmallow import ValidationError
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import ClauseElement, Select
@@ -48,8 +48,10 @@ from airflow.models.operator import needs_expansion
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 T = TypeVar("T")
 
@@ -187,7 +189,7 @@ def get_mapped_task_instances(
 ) -> APIResponse:
     """Get list of task instances."""
     # Because state can be 'none'
-    states = _convert_state(state)
+    states = _convert_ti_states(state)
 
     base_query = (
         select(TI)
@@ -196,7 +198,7 @@ def get_mapped_task_instances(
     )
 
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
-    unfiltered_total_count = session.execute(select(func.count("*")).select_from(base_query)).scalar()
+    unfiltered_total_count = get_query_count(base_query, session=session)
     if unfiltered_total_count == 0:
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
@@ -229,7 +231,7 @@ def get_mapped_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
 
     # Count elements before joining extra columns
-    total_entries = session.execute(select(func.count("*")).select_from(base_query)).scalar()
+    total_entries = get_query_count(base_query, session=session)
 
     # Add SLA miss
     entry_query = (
@@ -264,10 +266,10 @@ def get_mapped_task_instances(
     )
 
 
-def _convert_state(states: Iterable[str] | None) -> list[str | None] | None:
+def _convert_ti_states(states: Iterable[str] | None) -> list[TaskInstanceState | None] | None:
     if not states:
         return None
-    return [State.NONE if s == "none" else s for s in states]
+    return [None if s in ("none", None) else TaskInstanceState(s) for s in states]
 
 
 def _apply_array_filter(query: Select, key: ClauseElement, values: Iterable[Any] | None) -> Select:
@@ -329,7 +331,7 @@ def get_task_instances(
 ) -> APIResponse:
     """Get list of task instances."""
     # Because state can be 'none'
-    states = _convert_state(state)
+    states = _convert_ti_states(state)
 
     base_query = select(TI).join(TI.dag_run)
 
@@ -355,8 +357,7 @@ def get_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
 
     # Count elements before joining extra columns
-    count_query = select(func.count("*")).select_from(base_query)
-    total_entries = session.execute(count_query).scalar()
+    total_entries = get_query_count(base_query, session=session)
 
     # Add join
     entry_query = (
@@ -395,10 +396,12 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         data = task_instance_batch_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    states = _convert_state(data["state"])
+    states = _convert_ti_states(data["state"])
     base_query = select(TI).join(TI.dag_run)
 
     base_query = _apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])
+    base_query = _apply_array_filter(base_query, key=TI.run_id, values=data["dag_run_ids"])
+    base_query = _apply_array_filter(base_query, key=TI.task_id, values=data["task_ids"])
     base_query = _apply_range_filter(
         base_query,
         key=DR.execution_date,
@@ -420,7 +423,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = _apply_array_filter(base_query, key=TI.queue, values=data["queue"])
 
     # Count elements before joining extra columns
-    total_entries = session.execute(select(func.count("*")).select_from(base_query)).scalar()
+    total_entries = get_query_count(base_query, session=session)
     # Add join
     base_query = base_query.join(
         SlaMiss,
@@ -692,9 +695,8 @@ def set_task_instance_note(
         raise NotFound(error_message)
 
     ti, sla_miss = result
-    from flask_login import current_user
 
-    current_user_id = getattr(current_user, "id", None)
+    current_user_id = get_auth_manager().get_user_id()
     if ti.task_instance_note is None:
         ti.note = (new_note, current_user_id)
     else:

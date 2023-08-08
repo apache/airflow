@@ -20,6 +20,9 @@ from typing import TYPE_CHECKING, Callable
 
 import sqlparse
 from attrs import define
+from openlineage.client.facet import BaseFacet, ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
+from openlineage.client.run import Dataset
+from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.utils.sql import (
@@ -28,11 +31,10 @@ from airflow.providers.openlineage.utils.sql import (
     get_table_schemas,
 )
 from airflow.typing_compat import TypedDict
-from openlineage.client.facet import BaseFacet, ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
-from openlineage.client.run import Dataset
-from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
+
     from airflow.hooks.base import BaseHook
 
 DEFAULT_NAMESPACE = "default"
@@ -103,7 +105,7 @@ class SQLParser:
 
     def parse(self, sql: list[str] | str) -> SqlMeta | None:
         """Parse a single or a list of SQL statements."""
-        return parse(sql=sql, dialect=self.dialect, default_schema=self.default_schema)
+        return parse(sql=sql, dialect=self.dialect)
 
     def parse_table_schemas(
         self,
@@ -113,6 +115,7 @@ class SQLParser:
         database_info: DatabaseInfo,
         namespace: str = DEFAULT_NAMESPACE,
         database: str | None = None,
+        sqlalchemy_engine: Engine | None = None,
     ) -> tuple[list[Dataset], ...]:
         """Parse schemas for input and output tables."""
         database_kwargs: GetTableSchemasParams = {
@@ -126,9 +129,18 @@ class SQLParser:
         return get_table_schemas(
             hook,
             namespace,
+            self.default_schema,
             database or database_info.database,
-            self.create_information_schema_query(tables=inputs, **database_kwargs) if inputs else None,
-            self.create_information_schema_query(tables=outputs, **database_kwargs) if outputs else None,
+            self.create_information_schema_query(
+                tables=inputs, sqlalchemy_engine=sqlalchemy_engine, **database_kwargs
+            )
+            if inputs
+            else None,
+            self.create_information_schema_query(
+                tables=outputs, sqlalchemy_engine=sqlalchemy_engine, **database_kwargs
+            )
+            if outputs
+            else None,
         )
 
     def generate_openlineage_metadata_from_sql(
@@ -137,6 +149,7 @@ class SQLParser:
         hook: BaseHook,
         database_info: DatabaseInfo,
         database: str | None = None,
+        sqlalchemy_engine: Engine | None = None,
     ) -> OperatorLineage:
         """Parses SQL statement(s) and generates OpenLineage metadata.
 
@@ -151,6 +164,7 @@ class SQLParser:
         :param hook: Airflow Hook used to connect to the database
         :param database_info: database specific information
         :param database: when passed it takes precedence over parsed database name
+        :param sqlalchemy_engine: when passed, engine's dialect is used to compile SQL queries
         """
         job_facets: dict[str, BaseFacet] = {"sql": SqlJobFacet(query=self.normalize_sql(sql))}
         parse_result = self.parse(self.split_sql_string(sql))
@@ -181,6 +195,7 @@ class SQLParser:
             namespace=namespace,
             database=database,
             database_info=database_info,
+            sqlalchemy_engine=sqlalchemy_engine,
         )
 
         return OperatorLineage(
@@ -206,7 +221,8 @@ class SQLParser:
     @classmethod
     def split_sql_string(cls, sql: list[str] | str) -> list[str]:
         """
-        Split SQL string into list of statements
+        Split SQL string into list of statements.
+
         Tries to use `DbApiHook.split_sql_string` if available.
         Otherwise, uses the same logic.
         """
@@ -234,6 +250,7 @@ class SQLParser:
         information_schema_table,
         is_uppercase_names,
         database: str | None = None,
+        sqlalchemy_engine: Engine | None = None,
     ) -> str:
         """Creates SELECT statement to query information schema table."""
         tables_hierarchy = cls._get_tables_hierarchy(
@@ -247,6 +264,7 @@ class SQLParser:
             information_schema_table_name=information_schema_table,
             tables_hierarchy=tables_hierarchy,
             uppercase_names=is_uppercase_names,
+            sqlalchemy_engine=sqlalchemy_engine,
         )
 
     @staticmethod
@@ -273,6 +291,6 @@ class SQLParser:
             else:
                 db = None
             schemas = hierarchy.setdefault(normalize_name(db) if db else db, {})
-            tables = schemas.setdefault(normalize_name(table.schema) if table.schema else db, [])
+            tables = schemas.setdefault(normalize_name(table.schema) if table.schema else None, [])
             tables.append(table.name)
         return hierarchy

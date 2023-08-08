@@ -34,7 +34,7 @@ from azure.cosmos.exceptions import CosmosHttpResponseError
 
 from airflow.exceptions import AirflowBadRequest
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes, get_field
+from airflow.providers.microsoft.azure.utils import get_field
 
 
 class AzureCosmosDBHook(BaseHook):
@@ -71,7 +71,6 @@ class AzureCosmosDBHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_cosmos")  # todo: remove when min airflow version >= 2.5
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
@@ -237,10 +236,7 @@ class AzureCosmosDBHook(BaseHook):
         )
 
     def upsert_document(self, document, database_name=None, collection_name=None, document_id=None):
-        """
-        Inserts a new document (or updates an existing one) into an existing
-        collection in the CosmosDB database.
-        """
+        """Insert or update a document into an existing collection in the CosmosDB database."""
         # Assign unique ID if one isn't provided
         if document_id is None:
             document_id = str(uuid.uuid4())

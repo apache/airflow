@@ -23,11 +23,14 @@ import logging
 import os
 from contextlib import suppress
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import attrs
 from attrs import asdict
+
+# TODO: move this maybe to Airflow's logic?
+from openlineage.client.utils import RedactMixin
 
 from airflow.compat.functools import cache
 from airflow.configuration import conf
@@ -36,9 +39,6 @@ from airflow.providers.openlineage.plugins.facets import (
     AirflowRunFacet,
 )
 from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker, should_hide_value_for_key
-
-# TODO: move this maybe to Airflow's logic?
-from openlineage.client.utils import RedactMixin
 
 if TYPE_CHECKING:
     from airflow.models import DAG, BaseOperator, Connection, DagRun, TaskInstance
@@ -101,6 +101,7 @@ def url_to_https(url) -> str | None:
 def redacted_connection_uri(conn: Connection, filtered_params=None, filtered_prefixes=None):
     """
     Return the connection URI for the given Connection.
+
     This method additionally filters URI by removing query parameters that are known to carry sensitive data
     like username, password, access key.
     """
@@ -324,7 +325,9 @@ def get_airflow_run_facet(
 
 
 class OpenLineageRedactor(SecretsMasker):
-    """This class redacts sensitive data similar to SecretsMasker in Airflow logs.
+    """
+    This class redacts sensitive data similar to SecretsMasker in Airflow logs.
+
     The difference is that our default max recursion depth is way higher - due to
     the structure of OL events we need more depth.
     Additionally, we allow data structures to specify data that needs not to be
@@ -411,3 +414,10 @@ def is_source_enabled() -> bool:
 def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
     not_required_keys = {"dag", "task_group"}
     return {attr: value for attr, value in operator.__dict__.items() if attr not in not_required_keys}
+
+
+def normalize_sql(sql: str | Iterable[str]):
+    if isinstance(sql, str):
+        sql = [stmt for stmt in sql.split(";") if stmt != ""]
+    sql = [obj for stmt in sql for obj in stmt.split(";") if obj != ""]
+    return ";\n".join(sql)

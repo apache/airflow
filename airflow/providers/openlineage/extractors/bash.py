@@ -17,13 +17,14 @@
 
 from __future__ import annotations
 
+from openlineage.client.facet import SourceCodeJobFacet
+
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.plugins.facets import (
     UnknownOperatorAttributeRunFacet,
     UnknownOperatorInstance,
 )
 from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys, is_source_enabled
-from openlineage.client.facet import SourceCodeJobFacet
 
 """
 :meta private:
@@ -32,9 +33,11 @@ from openlineage.client.facet import SourceCodeJobFacet
 
 class BashExtractor(BaseExtractor):
     """
+    Extract executed bash command and put it into SourceCodeJobFacet.
+
     This extractor provides visibility on what bash task does by extracting
-    executed bash command and putting it into SourceCodeJobFacet. It does not extract
-    datasets.
+    executed bash command and putting it into SourceCodeJobFacet. It does
+    not extract datasets.
 
     :meta private:
     """

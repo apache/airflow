@@ -29,8 +29,21 @@ from dataclasses import dataclass
 from tempfile import gettempdir
 from typing import TYPE_CHECKING, Callable, Generator, Iterable
 
-from sqlalchemy import Table, and_, column, delete, exc, func, inspect, or_, select, table, text, tuple_
-from sqlalchemy.orm.session import Session
+from sqlalchemy import (
+    Table,
+    and_,
+    column,
+    delete,
+    exc,
+    func,
+    inspect,
+    literal,
+    or_,
+    select,
+    table,
+    text,
+    tuple_,
+)
 
 import airflow
 from airflow import settings
@@ -45,9 +58,12 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session  
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
-    from sqlalchemy.orm import Query
+    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql.elements import ClauseElement
+    from sqlalchemy.sql.selectable import Select
 
     from airflow.models.base import Base
+    from airflow.models.connection import Connection
 
 log = logging.getLogger(__name__)
 
@@ -82,6 +98,7 @@ REVISION_HEADS_MAP = {
     "2.6.0": "98ae134e6fff",
     "2.6.1": "98ae134e6fff",
     "2.6.2": "c804e5c76e3e",
+    "2.6.3": "c804e5c76e3e",
 }
 
 
@@ -90,9 +107,9 @@ def _format_airflow_moved_table_name(source_table, version, category):
 
 
 @provide_session
-def merge_conn(conn, session: Session = NEW_SESSION):
+def merge_conn(conn: Connection, session: Session = NEW_SESSION):
     """Add new Connection."""
-    if not session.query(conn.__class__).filter_by(conn_id=conn.conn_id).first():
+    if not session.scalar(select(1).where(conn.__class__.conn_id == conn.conn_id)):
         session.add(conn)
         session.commit()
 
@@ -703,8 +720,8 @@ def _get_flask_db(sql_database_uri):
 def _create_db_from_orm(session):
     from alembic import command
 
+    from airflow.auth.managers.fab.models import Model
     from airflow.models.base import Base
-    from airflow.www.fab_security.sqla.models import Model
 
     def _create_flask_session_tbl(sql_database_uri):
         db = _get_flask_db(sql_database_uri)
@@ -730,7 +747,6 @@ def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
         upgradedb(session=session)
     else:
         _create_db_from_orm(session=session)
-    # Load default connections
     if conf.getboolean("database", "LOAD_DEFAULT_CONNECTIONS") and load_connections:
         create_default_connections(session=session)
     # Add default pool & sync log_template
@@ -910,8 +926,8 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     # If we have an empty table, and the default values exist, we will seed the
     # table with values from pre 2.3.0, so old logs will still be retrievable.
     if not stored:
-        is_default_log_id = elasticsearch_id == conf.airflow_defaults.get("elasticsearch", "log_id_template")
-        is_default_filename = filename == conf.airflow_defaults.get("logging", "log_filename_template")
+        is_default_log_id = elasticsearch_id == conf.get_default_value("elasticsearch", "log_id_template")
+        is_default_filename = filename == conf.get_default_value("logging", "log_filename_template")
         if is_default_log_id and is_default_filename:
             session.add(
                 LogTemplate(
@@ -957,18 +973,20 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
     from airflow.models.connection import Connection
 
-    dups = []
     try:
-        dups = session.query(Connection.conn_id).group_by(Connection.conn_id).having(func.count() > 1).all()
+        dups = session.scalars(
+            select(Connection.conn_id).group_by(Connection.conn_id).having(func.count() > 1)
+        ).all()
     except (exc.OperationalError, exc.ProgrammingError):
         # fallback if tables hasn't been created yet
         session.rollback()
+        return
     if dups:
         yield (
             "Seems you have non unique conn_id in connection table.\n"
             "You have to manage those duplicate connections "
             "before upgrading the database.\n"
-            f"Duplicated conn_id: {[dup.conn_id for dup in dups]}"
+            f"Duplicated conn_id: {dups}"
         )
 
 
@@ -979,17 +997,16 @@ def check_username_duplicates(session: Session) -> Iterable[str]:
     :param session:  session of the sqlalchemy
     :rtype: str
     """
-    from airflow.www.fab_security.sqla.models import RegisterUser, User
+    from airflow.auth.managers.fab.models import RegisterUser, User
 
     for model in [User, RegisterUser]:
         dups = []
         try:
-            dups = (
-                session.query(model.username)  # type: ignore[attr-defined]
+            dups = session.execute(
+                select(model.username)  # type: ignore[attr-defined]
                 .group_by(model.username)  # type: ignore[attr-defined]
                 .having(func.count() > 1)
-                .all()
-            )
+            ).all()
         except (exc.OperationalError, exc.ProgrammingError):
             # fallback if tables hasn't been created yet
             session.rollback()
@@ -1004,10 +1021,10 @@ def check_username_duplicates(session: Session) -> Iterable[str]:
 
 def reflect_tables(tables: list[Base | str] | None, session):
     """
-    When running checks prior to upgrades, we use reflection to determine current state of the
-    database.
-    This function gets the current state of each table in the set of models provided and returns
-    a SqlAlchemy metadata object containing them.
+    When running checks prior to upgrades, we use reflection to determine current state of the database.
+
+    This function gets the current state of each table in the set of models
+    provided and returns a SqlAlchemy metadata object containing them.
     """
     import sqlalchemy.schema
 
@@ -1056,15 +1073,15 @@ def check_table_for_duplicates(
     :param uniqueness: uniqueness constraint to evaluate against
     :param session:  session of the sqlalchemy
     """
-    minimal_table_obj = table(table_name, *[column(x) for x in uniqueness])
+    minimal_table_obj = table(table_name, *(column(x) for x in uniqueness))
     try:
-        subquery = (
-            session.query(minimal_table_obj, func.count().label("dupe_count"))
-            .group_by(*[text(x) for x in uniqueness])
+        subquery = session.execute(
+            select(minimal_table_obj, func.count().label("dupe_count"))
+            .group_by(*(text(x) for x in uniqueness))
             .having(func.count() > text("1"))
             .subquery()
         )
-        dupe_count = session.query(func.sum(subquery.c.dupe_count)).scalar()
+        dupe_count = session.scalar(select(func.sum(subquery.c.dupe_count)))
         if not dupe_count:
             # there are no duplicates; nothing to do.
             return
@@ -1099,12 +1116,12 @@ def check_conn_type_null(session: Session) -> Iterable[str]:
     """
     from airflow.models.connection import Connection
 
-    n_nulls = []
     try:
-        n_nulls = session.query(Connection.conn_id).filter(Connection.conn_type.is_(None)).all()
+        n_nulls = session.scalars(select(Connection.conn_id).where(Connection.conn_type.is_(None))).all()
     except (exc.OperationalError, exc.ProgrammingError, exc.InternalError):
         # fallback if tables hasn't been created yet
         session.rollback()
+        return
 
     if n_nulls:
         yield (
@@ -1112,7 +1129,7 @@ def check_conn_type_null(session: Session) -> Iterable[str]:
             "table must contain content.\n"
             "Make sure you don't have null "
             "in the conn_type column.\n"
-            f"Null conn_type conn_id: {list(n_nulls)}"
+            f"Null conn_type conn_id: {n_nulls}"
         )
 
 
@@ -1143,7 +1160,7 @@ def check_run_id_null(session: Session) -> Iterable[str]:
         dagrun_table.c.run_id.is_(None),
         dagrun_table.c.execution_date.is_(None),
     )
-    invalid_dagrun_count = session.query(func.count(dagrun_table.c.id)).filter(invalid_dagrun_filter).scalar()
+    invalid_dagrun_count = session.scalar(select(func.count(dagrun_table.c.id)).where(invalid_dagrun_filter))
     if invalid_dagrun_count > 0:
         dagrun_dangling_table_name = _format_airflow_moved_table_name(dagrun_table.name, "2.2", "dangling")
         if dagrun_dangling_table_name in inspect(session.get_bind()).get_table_names():
@@ -1178,6 +1195,7 @@ def _create_table_as(
 ):
     """
     Create a new table with rows from query.
+
     We have to handle CTAS differently for different dialects.
     """
     from sqlalchemy import column, select, table
@@ -1240,7 +1258,7 @@ def _move_dangling_data_to_new_table(
             pk_cols = source_table.primary_key.columns
 
             delete = source_table.delete().where(
-                tuple_(*pk_cols).in_(session.query(*target_table.primary_key.columns).subquery())
+                tuple_(*pk_cols).in_(session.select(*target_table.primary_key.columns).subquery())
             )
         else:
             delete = source_table.delete().where(
@@ -1254,25 +1272,22 @@ def _move_dangling_data_to_new_table(
 
 
 def _dangling_against_dag_run(session, source_table, dag_run):
-    """
-    Given a source table, we generate a subquery that will return 1 for every row that
-    has a dagrun.
-    """
+    """Given a source table, we generate a subquery that will return 1 for every row that has a dagrun."""
     source_to_dag_run_join_cond = and_(
         source_table.c.dag_id == dag_run.c.dag_id,
         source_table.c.execution_date == dag_run.c.execution_date,
     )
+
     return (
-        session.query(*[c.label(c.name) for c in source_table.c])
+        select(*(c.label(c.name) for c in source_table.c))
         .join(dag_run, source_to_dag_run_join_cond, isouter=True)
-        .filter(dag_run.c.dag_id.is_(None))
+        .where(dag_run.c.dag_id.is_(None))
     )
 
 
 def _dangling_against_task_instance(session, source_table, dag_run, task_instance):
     """
-    Given a source table, we generate a subquery that will return 1 for every row that
-    has a valid task instance (and associated dagrun).
+    Given a source table, generate a subquery that will return 1 for every row that has a valid task instance.
 
     This is used to identify rows that need to be removed from tables prior to adding a TI fk.
 
@@ -1304,10 +1319,10 @@ def _dangling_against_task_instance(session, source_table, dag_run, task_instanc
         )
 
     return (
-        session.query(*[c.label(c.name) for c in source_table.c])
-        .join(dag_run, dr_join_cond, isouter=True)
-        .join(task_instance, ti_join_cond, isouter=True)
-        .filter(or_(task_instance.c.dag_id.is_(None), dag_run.c.dag_id.is_(None)))
+        select(*(c.label(c.name) for c in source_table.c))
+        .outerjoin(dag_run, dr_join_cond)
+        .outerjoin(task_instance, ti_join_cond)
+        .where(or_(task_instance.c.dag_id.is_(None), dag_run.c.dag_id.is_(None)))
     )
 
 
@@ -1331,11 +1346,11 @@ def _move_duplicate_data_to_new_table(
     """
     bind = session.get_bind()
     dialect_name = bind.dialect.name
+
     query = (
-        session.query(source_table)
-        .with_entities(*[getattr(source_table.c, x.name).label(str(x.name)) for x in source_table.columns])
+        select(*(source_table.c[x.name].label(str(x.name)) for x in source_table.columns))
         .select_from(source_table)
-        .join(subquery, and_(*[getattr(source_table.c, x) == getattr(subquery.c, x) for x in uniqueness]))
+        .join(subquery, and_(*(source_table.c[x] == subquery.c[x] for x in uniqueness)))
     )
 
     _create_table_as(
@@ -1351,7 +1366,7 @@ def _move_duplicate_data_to_new_table(
 
     metadata = reflect_tables([target_table_name], session)
     target_table = metadata.tables[target_table_name]
-    where_clause = and_(*[getattr(source_table.c, x) == getattr(target_table.c, x) for x in uniqueness])
+    where_clause = and_(*(source_table.c[x] == target_table.c[x] for x in uniqueness))
 
     if dialect_name == "sqlite":
         subq = query.selectable.with_only_columns([text(f"{source_table}.ROWID")])
@@ -1364,8 +1379,8 @@ def _move_duplicate_data_to_new_table(
 
 def check_bad_references(session: Session) -> Iterable[str]:
     """
-    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id`
-    in many tables.
+    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id` in many tables.
+
     Here we go through each table and look for records that can't be mapped to a dag run.
     When we find such "dangling" rows we back them up in a special table and delete them
     from the main table.
@@ -1380,6 +1395,8 @@ def check_bad_references(session: Session) -> Iterable[str]:
     @dataclass
     class BadReferenceConfig:
         """
+        Bad reference config class.
+
         :param bad_rows_func: function that returns subquery which determines whether bad rows exist
         :param join_tables: table objects referenced in subquery
         :param ref_table: information-only identifier for categorizing the missing ref
@@ -1408,7 +1425,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         (TaskFail, "2.3", missing_ti_config),
         (XCom, "2.3", missing_ti_config),
     ]
-    metadata = reflect_tables([*[x[0] for x in models_list], DagRun, TaskInstance], session)
+    metadata = reflect_tables([*(x[0] for x in models_list), DagRun, TaskInstance], session)
 
     if (
         not metadata.tables
@@ -1549,6 +1566,7 @@ def upgradedb(
     session: Session = NEW_SESSION,
 ):
     """
+    Upgrades the DB.
 
     :param to_revision: Optional Alembic revision ID to upgrade *to*.
         If omitted, upgrades to latest revision.
@@ -1711,8 +1729,8 @@ def drop_airflow_models(connection):
     :param connection: SQLAlchemy Connection
     :return: None
     """
+    from airflow.auth.managers.fab.models import Model
     from airflow.models.base import Base
-    from airflow.www.fab_security.sqla.models import Model
 
     Base.metadata.drop_all(connection)
     Model.metadata.drop_all(connection)
@@ -1869,3 +1887,28 @@ def get_sqla_model_classes():
         return [mapper.class_ for mapper in Base.registry.mappers]
     except AttributeError:
         return Base._decl_class_registry.values()
+
+
+def get_query_count(query_stmt: Select, *, session: Session) -> int:
+    """Get count of query.
+
+    A SELECT COUNT() FROM is issued against the subquery built from the
+    given statement. The ORDER BY clause is stripped from the statement
+    since it's unnecessary for COUNT, and can impact query planning and
+    degrade performance.
+
+    :meta private:
+    """
+    count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
+    return session.scalar(count_stmt)
+
+
+def exists_query(*where: ClauseElement, session: Session) -> bool:
+    """Check whether there is at least one row matching given clause.
+
+    This does a SELECT 1 WHERE ... LIMIT 1 and check the result.
+
+    :meta private:
+    """
+    stmt = select(literal(True)).where(*where).limit(1)
+    return session.scalar(stmt) is not None

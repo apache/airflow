@@ -121,12 +121,6 @@ class DateTimeWithNumRunsForm(FlaskForm):
     )
 
 
-class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
-    """Date time and number of runs and dag runs form for graph and gantt view."""
-
-    execution_date = SelectField("DAG run")
-
-
 class DagRunEditForm(DynamicForm):
     """Form for editing DAG Run.
 
@@ -195,15 +189,17 @@ def create_connection_form_class() -> type[DynamicForm]:
 
     def _iter_connection_types() -> Iterator[tuple[str, str]]:
         """List available connection types."""
-        yield ("email", "Email")
-        yield ("fs", "File (path)")
-        yield ("generic", "Generic")
-        yield ("mesos_framework-id", "Mesos Framework ID")
         for connection_type, provider_info in providers_manager.hooks.items():
             if provider_info:
                 yield (connection_type, provider_info.hook_name)
 
     class ConnectionForm(DynamicForm):
+        def process(self, formdata=None, obj=None, **kwargs):
+            super().process(formdata=formdata, obj=obj, **kwargs)
+            for field in self._fields.values():
+                if isinstance(getattr(field, "data", None), str):
+                    field.data = field.data.strip()
+
         conn_id = StringField(
             lazy_gettext("Connection Id"),
             validators=[InputRequired(), ValidKey()],

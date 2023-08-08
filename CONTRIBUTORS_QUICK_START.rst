@@ -179,8 +179,20 @@ extra while installing airflow.
 
 .. code-block:: bash
 
+For Architectures other than MacOS/ARM
+
+.. code-block:: bash
+
   $ pyenv install --list
   $ pyenv install 3.8.5
+  $ pyenv versions
+
+For MacOS/Arm (3.9.1 is the first version of Python to support MacOS/ARM, but 3.8.10 works too)
+
+.. code-block:: bash
+
+  $ pyenv install --list
+  $ pyenv install 3.8.10
   $ pyenv versions
 
 5. Creating new virtual environment named ``airflow-env`` for installed version python. In next chapter virtual
@@ -188,7 +200,17 @@ extra while installing airflow.
 
 .. code-block:: bash
 
+For Architectures other than MacOS/ARM
+
+.. code-block:: bash
+
   $ pyenv virtualenv 3.8.5 airflow-env
+
+For MacOS/Arm (3.9.1 is the first version of Python to support MacOS/ARM, but 3.8.10 works too)
+
+.. code-block:: bash
+
+  $ pyenv virtualenv 3.8.10 airflow-env
 
 6. Entering virtual environment ``airflow-env``
 

@@ -35,7 +35,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
@@ -157,8 +157,11 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         return_code = None
         try:
             self.task_runner.start()
-
-            heartbeat_time_limit = conf.getint("scheduler", "scheduler_zombie_task_threshold")
+            local_task_job_heartbeat_sec = conf.getint("scheduler", "local_task_job_heartbeat_sec")
+            if local_task_job_heartbeat_sec < 1:
+                heartbeat_time_limit = conf.getint("scheduler", "scheduler_zombie_task_threshold")
+            else:
+                heartbeat_time_limit = local_task_job_heartbeat_sec
 
             # LocalTaskJob should not run callbacks, which are handled by TaskInstance._run_raw_task
             # 1, LocalTaskJob does not parse DAG, thus cannot run callbacks
@@ -243,7 +246,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         self.task_instance.refresh_from_db()
         ti = self.task_instance
 
-        if ti.state == State.RUNNING:
+        if ti.state == TaskInstanceState.RUNNING:
             fqdn = get_hostname()
             same_hostname = fqdn == ti.hostname
             if not same_hostname:
@@ -273,7 +276,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
                 )
                 raise AirflowException("PID of job runner does not match")
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, "process"):
-            if ti.state == State.SKIPPED:
+            if ti.state == TaskInstanceState.SKIPPED:
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)
                 execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date

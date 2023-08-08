@@ -15,7 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Google Storage Transfer Service Hook."""
+"""
+This module contains a Google Storage Transfer Service Hook.
+
+.. spelling::
+
+    ListTransferJobsAsyncPager
+    StorageTransferServiceAsyncClient
+
+"""
+
 from __future__ import annotations
 
 import json
@@ -24,13 +33,23 @@ import time
 import warnings
 from copy import deepcopy
 from datetime import timedelta
-from typing import Sequence
+from typing import Any, Sequence
 
+from google.cloud.storage_transfer_v1 import (
+    ListTransferJobsRequest,
+    StorageTransferServiceAsyncClient,
+    TransferJob,
+    TransferOperation,
+)
+from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
+    ListTransferJobsAsyncPager,
+)
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
+from proto import Message
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 
 log = logging.getLogger(__name__)
 
@@ -60,6 +79,7 @@ class GcpTransferOperationStatus:
 ACCESS_KEY_ID = "accessKeyId"
 ALREADY_EXISTING_IN_SINK = "overwriteObjectsAlreadyExistingInSink"
 AWS_ACCESS_KEY = "awsAccessKey"
+AWS_SECRET_ACCESS_KEY = "secretAccessKey"
 AWS_S3_DATA_SOURCE = "awsS3DataSource"
 BODY = "body"
 BUCKET_NAME = "bucketName"
@@ -73,6 +93,7 @@ GCS_DATA_SINK = "gcsDataSink"
 GCS_DATA_SOURCE = "gcsDataSource"
 HOURS = "hours"
 HTTP_DATA_SOURCE = "httpDataSource"
+INCLUDE_PREFIXES = "includePrefixes"
 JOB_NAME = "name"
 LIST_URL = "list_url"
 METADATA = "metadata"
@@ -81,6 +102,7 @@ MONTH = "month"
 NAME = "name"
 OBJECT_CONDITIONS = "object_conditions"
 OPERATIONS = "operations"
+OVERWRITE_OBJECTS_ALREADY_EXISTING_IN_SINK = "overwriteObjectsAlreadyExistingInSink"
 PATH = "path"
 PROJECT_ID = "projectId"
 SCHEDULE = "schedule"
@@ -466,3 +488,50 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
                 f"Expected: {', '.join(expected_statuses_set)}"
             )
         return False
+
+
+class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
+    """Asynchronous hook for Google Storage Transfer Service."""
+
+    def __init__(self, project_id: str | None = None, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self._client: StorageTransferServiceAsyncClient | None = None
+
+    def get_conn(self) -> StorageTransferServiceAsyncClient:
+        """
+        Returns async connection to the Storage Transfer Service.
+
+        :return: Google Storage Transfer asynchronous client.
+        """
+        if not self._client:
+            self._client = StorageTransferServiceAsyncClient()
+        return self._client
+
+    async def get_jobs(self, job_names: list[str]) -> ListTransferJobsAsyncPager:
+        """
+        Gets the latest state of a long-running operations in Google Storage Transfer Service.
+
+        :param job_names: (Required) List of names of the jobs to be fetched.
+        :return: Object that yields Transfer jobs.
+        """
+        client = self.get_conn()
+        jobs_list_request = ListTransferJobsRequest(
+            filter=json.dumps(dict(project_id=self.project_id, job_names=job_names))
+        )
+        return await client.list_transfer_jobs(request=jobs_list_request)
+
+    async def get_latest_operation(self, job: TransferJob) -> Message | None:
+        """
+        Gets the latest operation of the given TransferJob instance.
+
+        :param job: Transfer job instance.
+        :return: The latest job operation.
+        """
+        latest_operation_name = job.latest_operation_name
+        if latest_operation_name:
+            client = self.get_conn()
+            response_operation = await client.transport.operations_client.get_operation(latest_operation_name)
+            operation = TransferOperation.deserialize(response_operation.metadata.value)
+            return operation
+        return None

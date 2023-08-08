@@ -17,13 +17,37 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-apache-sqoop``
--------------------------------------------------------
 
+``apache-airflow-providers-apache-sqoop``
+
+
+Changelog
+---------
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``extra_import_options`` parameter in the ``import_table`` & ``import_query`` methods
+and the ``extra_export_options`` in the ``export_table`` methods of the ``SqoopHook``
+are no longer accepted as arguments for those methods. These should instead be passed
+as ``extra_options`` while initializing the Hook or via ``extra_options`` parameter to the
+operator which instantiates the hook with those given ``extra_options`` dictionary.
+
+* ``Validate SqoopHook connection string and disable extra options from public hook methods (#33039)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Validate connection host field for Sqoop connection (#32968)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 3.2.1
 .....
@@ -67,6 +91,7 @@ Misc
 
 Bug Fixes
 ~~~~~~~~~
+
 * ``Move libjars parameter in Sqoop Hook to Hook parameter (#29500)``
 
 3.1.0

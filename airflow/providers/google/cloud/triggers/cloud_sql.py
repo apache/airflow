@@ -28,6 +28,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 class CloudSQLExportTrigger(BaseTrigger):
     """
     Trigger that periodically polls information from Cloud SQL API to verify job status.
+
     Implementation leverages asynchronous transport.
     """
 

@@ -489,10 +489,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         return result
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_job()
 
@@ -839,10 +836,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         return result
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_job()
 
@@ -1191,16 +1185,14 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         return result
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_job()
 
 
 class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
-    """Deletes a CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob.
+    """
+    Deletes a CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob.
 
     :param training_pipeline_id: Required. The name of the TrainingPipeline resource to be deleted.
     :param custom_job_id: Required. The name of the CustomJob to delete.

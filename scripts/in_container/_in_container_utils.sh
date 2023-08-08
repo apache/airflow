@@ -163,7 +163,16 @@ function install_airflow_from_wheel() {
         exit 4
     fi
     if [[ ${constraints_reference} == "none" ]]; then
+        set +e
         pip install "${airflow_package}${extras}"
+        res=$?
+        set -e
+        if [[ ${res} != "0" ]]; then
+            >&2 echo
+            >&2 echo "WARNING! Could not install airflow without constraints, trying to install it without dependencies in case some of the required providers are not yet released"
+            >&2 echo
+            pip install "${airflow_package}${extras}" --no-deps
+        fi
     else
         set +e
         pip install "${airflow_package}${extras}" --constraint \
@@ -253,7 +262,18 @@ function install_released_airflow_version() {
     if [[ ${constraints_reference} == "none" ]]; then
         pip install "${airflow_package}${extras}"
     else
-        pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" \
+        local dependency_fix=""
+        # The pyopenssl is needed to downgrade pyopenssl for older airflow versions when using constraints
+        # Flask app builder has an optional pyopenssl transitive dependency, that causes import error when
+        # Pyopenssl is installed in a wrong version for Flask App Builder 4.1 and older. Adding PyOpenSSL
+        # directly as the dependency, forces downgrading of pyopenssl to the right version. Our constraint
+        # version has it pinned to the right version, but since it is not directly required, it is not
+        # downgraded when installing airflow and it is already installed in a newer version
+        if [[ ${USE_AIRFLOW_VERSION=} != "" ]]; then
+            dependency_fix="pyopenssl"
+        fi
+
+        pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" ${dependency_fix} \
             --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     fi
 }
@@ -278,6 +298,13 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     for provider_package in ${ALL_PROVIDERS_PACKAGES}
     do
         echo -n "Checking if ${provider_package} is available in PyPI: "
+        if [[ ${provider_package} == "apache-airflow-providers-openlineage" ]]; then
+            # The openlineage provider has 2.7.0 airflow dependency so it should be excluded for now in
+            # "pypi" dependency calculation
+            # We should remove it right after 2.7.0 is released to PyPI and regenerate the 2.7.0 constraints
+            echo "${COLOR_YELLOW}Skipped until 2.7.0 is released${COLOR_RESET}"
+            continue
+        fi
         res=$(curl --head -s -o /dev/null -w "%{http_code}" "https://pypi.org/project/${provider_package}/")
         if [[ ${res} == "200" ]]; then
             packages_to_install+=( "${provider_package}" )

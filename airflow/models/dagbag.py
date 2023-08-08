@@ -38,6 +38,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowClusterPolicyError,
+    AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
@@ -72,13 +73,13 @@ class FileLoadStat(NamedTuple):
 
 class DagBag(LoggingMixin):
     """
-    A dagbag is a collection of dags, parsed out of a folder tree and has high
-    level configuration settings, like what database to use as a backend and
-    what executor to use to fire off tasks. This makes it easier to run
-    distinct environments for say production and development, tests, or for
-    different teams or security profiles. What would have been system level
-    settings are now dagbag level so that one system can run multiple,
-    independent settings sets.
+    A dagbag is a collection of dags, parsed out of a folder tree and has high level configuration settings.
+
+    Some possible setting are database to use as a backend and what executor
+    to use to fire off tasks. This makes it easier to run distinct environments
+    for say production and development, tests, or for different teams or security
+    profiles. What would have been system level settings are now dagbag level so
+    that one system can run multiple, independent settings sets.
 
     :param dag_folder: the folder to scan to find DAGs
     :param include_examples: whether to include the examples that ship
@@ -168,7 +169,7 @@ class DagBag(LoggingMixin):
 
         :return: a list of DAG IDs in this bag
         """
-        return list(self.dags.keys())
+        return list(self.dags)
 
     @provide_session
     def get_dag(self, dag_id, session: Session = None):
@@ -276,10 +277,7 @@ class DagBag(LoggingMixin):
         self.dags_hash[dag.dag_id] = row.dag_hash
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-        """
-        Given a path to a python module or zip file, this method imports
-        the module and look for dag objects within it.
-        """
+        """Given a path to a python module or zip file, import the module and look for dag objects within."""
         from airflow.models.dag import DagContext
 
         # if the source file no longer exists in the DB or in the filesystem,
@@ -442,6 +440,8 @@ class DagBag(LoggingMixin):
             try:
                 dag.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
+            except AirflowClusterPolicySkipDag:
+                pass
             except Exception as e:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
                 self.import_errors[dag.fileloc] = f"{type(e).__name__}: {e}"
@@ -477,7 +477,7 @@ class DagBag(LoggingMixin):
 
             for task in dag.tasks:
                 settings.task_policy(task)
-        except AirflowClusterPolicyViolation:
+        except (AirflowClusterPolicyViolation, AirflowClusterPolicySkipDag):
             raise
         except Exception as e:
             self.log.exception(e)
@@ -522,8 +522,7 @@ class DagBag(LoggingMixin):
         safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
     ):
         """
-        Given a file path or a folder, this method looks for python modules,
-        imports them and adds them to the dagbag collection.
+        Look for python modules in a given path, import them, and add them to the dagbag collection.
 
         Note that if a ``.airflowignore`` file is found while processing
         the directory, it will behave much like a ``.gitignore``,

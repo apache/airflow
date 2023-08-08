@@ -19,8 +19,12 @@
 from __future__ import annotations
 
 import os
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
+from packaging.version import Version
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -40,7 +44,7 @@ class GCSToS3Operator(BaseOperator):
     :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)
-    :param delimiter: The delimiter by which you want to filter the objects. (templated)
+    :param delimiter: (Deprecated) The delimiter by which you want to filter the objects. (templated)
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
@@ -76,6 +80,10 @@ class GCSToS3Operator(BaseOperator):
         object to be uploaded in S3
     :param keep_directory_structure: (Optional) When set to False the path of the file
          on the bucket is recreated within path passed in dest_s3_key.
+    :param match_glob: (Optional) filters objects based on the glob pattern given by the string
+        (e.g, ``'**/*/.json'``)
+    :param gcp_user_project: (Optional) The identifier of the Google Cloud project to bill for this request.
+        Required for Requester Pays buckets.
     """
 
     template_fields: Sequence[str] = (
@@ -84,6 +92,7 @@ class GCSToS3Operator(BaseOperator):
         "delimiter",
         "dest_s3_key",
         "google_impersonation_chain",
+        "gcp_user_project",
     )
     ui_color = "#f0eee4"
 
@@ -102,13 +111,14 @@ class GCSToS3Operator(BaseOperator):
         dest_s3_extra_args: dict | None = None,
         s3_acl_policy: str | None = None,
         keep_directory_structure: bool = True,
+        match_glob: str | None = None,
+        gcp_user_project: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
 
         self.bucket = bucket
         self.prefix = prefix
-        self.delimiter = delimiter
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
         self.dest_s3_key = dest_s3_key
@@ -118,10 +128,33 @@ class GCSToS3Operator(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.s3_acl_policy = s3_acl_policy
         self.keep_directory_structure = keep_directory_structure
+        try:
+            from airflow.providers.google import __version__
+
+            if Version(__version__) >= Version("10.3.0"):
+                self.__is_match_glob_supported = True
+            else:
+                self.__is_match_glob_supported = False
+        except ImportError:  # __version__ was added in 10.1.0, so this means it's < 10.3.0
+            self.__is_match_glob_supported = False
+        if self.__is_match_glob_supported:
+            if delimiter:
+                warnings.warn(
+                    "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+        elif match_glob:
+            raise AirflowException(
+                "The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'."
+            )
+        self.delimiter = delimiter
+        self.match_glob = match_glob
+        self.gcp_user_project = gcp_user_project
 
     def execute(self, context: Context) -> list[str]:
         # list all files in an Google Cloud Storage bucket
-        hook = GCSHook(
+        gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
@@ -133,7 +166,16 @@ class GCSToS3Operator(BaseOperator):
             self.prefix,
         )
 
-        files = hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+        list_kwargs = {
+            "bucket_name": self.bucket,
+            "prefix": self.prefix,
+            "delimiter": self.delimiter,
+            "user_project": self.gcp_user_project,
+        }
+        if self.__is_match_glob_supported:
+            list_kwargs["match_glob"] = self.match_glob
+
+        gcs_files = gcs_hook.list(**list_kwargs)  # type: ignore
 
         s3_hook = S3Hook(
             aws_conn_id=self.dest_aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args
@@ -147,6 +189,11 @@ class GCSToS3Operator(BaseOperator):
             # and only keep those files which are present in
             # Google Cloud Storage and not in S3
             bucket_name, prefix = S3Hook.parse_s3_url(self.dest_s3_key)
+            # if prefix is empty, do not add "/" at end since it would
+            # filter all the objects (return empty list) instead of empty
+            # prefix returning all the objects
+            if prefix:
+                prefix = prefix if prefix.endswith("/") else f"{prefix}/"
             # look for the bucket and the prefix to avoid look into
             # parent directories/keys
             existing_files = s3_hook.list_keys(bucket_name, prefix=prefix)
@@ -154,24 +201,23 @@ class GCSToS3Operator(BaseOperator):
             existing_files = existing_files if existing_files is not None else []
             # remove the prefix for the existing files to allow the match
             existing_files = [file.replace(prefix, "", 1) for file in existing_files]
-            files = list(set(files) - set(existing_files))
+            gcs_files = list(set(gcs_files) - set(existing_files))
 
-        if files:
-
-            for file in files:
-                with hook.provide_file(object_name=file, bucket_name=self.bucket) as local_tmp_file:
+        if gcs_files:
+            for file in gcs_files:
+                with gcs_hook.provide_file(
+                    object_name=file, bucket_name=self.bucket, user_project=self.gcp_user_project
+                ) as local_tmp_file:
                     dest_key = os.path.join(self.dest_s3_key, file)
                     self.log.info("Saving file to %s", dest_key)
-
                     s3_hook.load_file(
                         filename=local_tmp_file.name,
                         key=dest_key,
                         replace=self.replace,
                         acl_policy=self.s3_acl_policy,
                     )
-
-            self.log.info("All done, uploaded %d files to S3", len(files))
+            self.log.info("All done, uploaded %d files to S3", len(gcs_files))
         else:
             self.log.info("In sync, no files needed to be uploaded to S3")
 
-        return files
+        return gcs_files

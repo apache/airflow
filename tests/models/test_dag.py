@@ -45,7 +45,6 @@ from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
-    AirflowDagInconsistent,
     AirflowException,
     DuplicateTaskIdFound,
     ParamValidationError,
@@ -942,6 +941,20 @@ class TestDag:
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
 
+    @pytest.mark.parametrize("interval", [None, "@daily"])
+    def test_bulk_write_to_db_interval_save_runtime(self, interval):
+        mock_active_runs_of_dags = mock.MagicMock(side_effect=DagRun.active_runs_of_dags)
+        with mock.patch.object(DagRun, "active_runs_of_dags", mock_active_runs_of_dags):
+            dags_null_timetable = [
+                DAG("dag-interval-None", schedule_interval=None),
+                DAG("dag-interval-test", schedule_interval=interval),
+            ]
+            DAG.bulk_write_to_db(dags_null_timetable, session=settings.Session())
+            if interval:
+                mock_active_runs_of_dags.assert_called_once()
+            else:
+                mock_active_runs_of_dags.assert_not_called()
+
     @pytest.mark.parametrize("state", [DagRunState.RUNNING, DagRunState.QUEUED])
     def test_bulk_write_to_db_max_active_runs(self, state):
         """
@@ -1717,7 +1730,7 @@ class TestDag:
 
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
-        from airflow.exceptions import DagInvalidTriggerRule
+        from airflow.exceptions import FailStopDagInvalidTriggerRule
         from airflow.utils.trigger_rule import TriggerRule
 
         task_with_non_default_trigger_rule = EmptyOperator(
@@ -1728,8 +1741,10 @@ class TestDag:
         )
         try:
             non_fail_stop_dag.add_task(task_with_non_default_trigger_rule)
-        except DagInvalidTriggerRule as exception:
-            assert False, f"dag add_task() raises DagInvalidTriggerRule for non fail stop dag: {exception}"
+        except FailStopDagInvalidTriggerRule as exception:
+            assert (
+                False
+            ), f"dag add_task() raises FailStopDagInvalidTriggerRule for non fail stop dag: {exception}"
 
         # a fail stop dag should allow default trigger rule
         from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
@@ -1742,13 +1757,13 @@ class TestDag:
         )
         try:
             fail_stop_dag.add_task(task_with_default_trigger_rule)
-        except DagInvalidTriggerRule as exception:
+        except FailStopDagInvalidTriggerRule as exception:
             assert (
                 False
             ), f"dag.add_task() raises exception for fail-stop dag & default trigger rule: {exception}"
 
         # a fail stop dag should not allow a non-default trigger rule
-        with pytest.raises(DagInvalidTriggerRule):
+        with pytest.raises(FailStopDagInvalidTriggerRule):
             fail_stop_dag.add_task(task_with_non_default_trigger_rule)
 
     def test_dag_add_task_sets_default_task_group(self):
@@ -3590,47 +3605,65 @@ class TestTaskClearingSetupTeardownBehavior:
         upstream = True
         return set(
             task.dag.partial_subset(
-                task_ids_or_regex=[task.task_id],
+                task_ids_or_regex=task.task_id,
                 include_downstream=not upstream,
                 include_upstream=upstream,
             ).tasks
         )
 
+    @staticmethod
+    def cleared_neither(task):
+        """Helper to return tasks that would be cleared if **upstream** selected."""
+        return set(
+            task.dag.partial_subset(
+                task_ids_or_regex=[task.task_id],
+                include_downstream=False,
+                include_upstream=False,
+            ).tasks
+        )
+
     def test_get_flat_relative_ids_with_setup(self):
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
-            s1, w1, w2, w3, t1 = self.make_tasks(dag, "s1, w1, w2, w3, t1")
+            s1, w1, w2, w3, w4, t1 = self.make_tasks(dag, "s1, w1, w2, w3, w4, t1")
 
         s1 >> w1 >> w2 >> w3
 
-        # there is no teardown downstream of w1, so we assume w1 does not need s1
-        assert set(w1.get_upstreams_only_setups_and_teardowns()) == set()
+        # w1 is downstream of s1, and s1 has no teardown, so clearing w1 clears s1
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1}
         # same with w2 and w3
-        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
-        assert set(w3.get_upstreams_only_setups_and_teardowns()) == set()
-        assert self.cleared_downstream(w2) == {w2, w3}
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s1}
+        assert set(w3.get_upstreams_only_setups_and_teardowns()) == {s1}
+        # so if we clear w2, we should also get s1, and w3, but not w1
+        assert self.cleared_downstream(w2) == {s1, w2, w3}
 
         w3 >> t1
 
         # now, w2 has a downstream teardown, but it's not connected directly to s1
-        # (this is how we signal "this is the teardown for this setup")
-        # so still, we don't regard s1 as a setup for w2
-        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
-        assert self.cleared_downstream(w2) == {w2, w3, t1}
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s1}
+        # so if we clear downstream then s1 will be cleared, and t1 will be cleared but only by virtue of
+        # being downstream of w2 -- not as a result of being the teardown for s1, which it ain't
+        assert self.cleared_downstream(w2) == {s1, w2, w3, t1}
+        # and, another consequence of not linking s1 and t1 is that when we clear upstream, note that
+        # t1 doesn't get cleared -- cus it's not upstream and it's not linked to s1
+        assert self.cleared_upstream(w2) == {s1, w1, w2}
+        # note also that if we add a 4th work task after t1, it will still be "in scope" for s1
+        t1 >> w4
+        assert self.cleared_downstream(w4) == {s1, w4}
 
         s1 >> t1
 
-        # now, we know that t1 is the teardown for s1, and it's downstream of
-        # w2, so we can infer that w2 requires it, so now when we clear w2,
-        # we will get s1 (because it's a setup for w2) and t1 (because
-        # it is a teardown for s1)
+        # now, we know that t1 is the teardown for s1, so now we know that s1 will be "torn down"
+        # by the time w4 runs, so we now know that w4 no longer requires s1, so when we clear w4,
+        # s1 will not also be cleared
+        self.cleared_downstream(w4) == {w4}
         assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
-        assert self.cleared_downstream(w1) == {s1, w1, w2, w3, t1}
+        assert self.cleared_downstream(w1) == {s1, w1, w2, w3, t1, w4}
         assert self.cleared_upstream(w1) == {s1, w1, t1}
         assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
         assert set(w2.get_upstreams_follow_setups()) == {s1, w1, t1}
-        assert self.cleared_downstream(w2) == {s1, w2, w3, t1}
+        assert self.cleared_downstream(w2) == {s1, w2, w3, t1, w4}
         assert self.cleared_upstream(w2) == {s1, w1, w2, t1}
-        assert self.cleared_downstream(w3) == {s1, w3, t1}
+        assert self.cleared_downstream(w3) == {s1, w3, t1, w4}
         assert self.cleared_upstream(w3) == {s1, w1, w2, w3, t1}
 
     def test_get_flat_relative_ids_with_setup_nested_ctx_mgr(self):
@@ -3669,32 +3702,6 @@ class TestTaskClearingSetupTeardownBehavior:
         assert self.cleared_upstream(w3) == {s1, t1, s2, w2, w3, t2}
         # t1 not included because t1 is not downstream
         assert self.cleared_downstream(w3) == {s2, w3, t2}
-
-    def test_setup_without_teardown(self):
-        """A setup needs a teardown to define its scope."""
-        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
-            s1, w1, t1 = self.make_tasks(dag, "s1, w1, t1")
-        # s1 has no teardown: fail
-        with pytest.raises(AirflowDagInconsistent):
-            dag.validate_setup_teardown()
-
-        s1 >> w1
-        # w1 depends on s1 but not as a "setup" per se, since s1 doesn't have a teardown to define
-        # its scope
-        with pytest.raises(AirflowDagInconsistent):
-            dag.validate_setup_teardown()
-
-        w1 >> t1
-        # now t1 is technically downstream of s1, but we still must wire it up explicitly
-        # to define the setup/teardown relationship
-        with pytest.raises(AirflowDagInconsistent):
-            dag.validate_setup_teardown()
-
-        s1 >> t1
-        # now, s1 and t1 are linked as setups and teardowns
-        # anything upstream of t1 and downstream of s1 is in the scope for s1
-        # so now this passes validation
-        dag.validate_setup_teardown()
 
     def test_get_flat_relative_ids_follows_teardowns(self):
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
@@ -3823,18 +3830,70 @@ class TestTaskClearingSetupTeardownBehavior:
         """
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
             s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
-            s1 >> w1 >> t1
+            s1 >> w1 >> t1.as_teardown(setups=s1)
             s1 >> w2
-            self.cleared_upstream(w2) == {s1, w2, t1}
+            # w2 is downstream of s1, so when clearing upstream, it should clear s1 (since it
+            # is upstream of w2) and t1 since it's the teardown for s1 even though not downstream of w1
+            assert self.cleared_upstream(w2) == {s1, w2, t1}
 
-    def clearing_teardown_no_clear_setup(self):
+    def test_clearing_teardown_no_clear_setup(self):
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
             s1, w1, t1 = self.make_tasks(dag, "s1, w1, t1")
             s1 >> t1
             # clearing t1 does not clear s1
-            self.cleared_downstream(t1) == {t1}
+            assert self.cleared_downstream(t1) == {t1}
             s1 >> w1 >> t1
             # that isn't changed with the introduction of w1
-            self.cleared_downstream(t1) == {t1}
+            assert self.cleared_downstream(t1) == {t1}
             # though, of course, clearing w1 clears them all
-            self.cleared_downstream(w1) == {s1, w1, t1}
+            assert self.cleared_downstream(w1) == {s1, w1, t1}
+
+    def test_clearing_setup_clears_teardown(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, w1, t1 = self.make_tasks(dag, "s1, w1, t1")
+            s1 >> t1
+            s1 >> w1 >> t1
+            # clearing w1 clears all always
+            assert self.cleared_upstream(w1) == {s1, w1, t1}
+            assert self.cleared_downstream(w1) == {s1, w1, t1}
+            assert self.cleared_neither(w1) == {s1, w1, t1}
+            # clearing s1 clears t1 always
+            assert self.cleared_upstream(s1) == {s1, t1}
+            assert self.cleared_downstream(s1) == {s1, w1, t1}
+            assert self.cleared_neither(s1) == {s1, t1}
+
+    @pytest.mark.parametrize(
+        "upstream, downstream, expected",
+        [
+            (False, False, {"my_teardown", "my_setup"}),
+            (False, True, {"my_setup", "my_work", "my_teardown"}),
+            (True, False, {"my_teardown", "my_setup"}),
+            (True, True, {"my_setup", "my_work", "my_teardown"}),
+        ],
+    )
+    def test_clearing_setup_clears_teardown_taskflow(self, upstream, downstream, expected):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+
+            @setup
+            def my_setup():
+                ...
+
+            @task_decorator
+            def my_work():
+                ...
+
+            @teardown
+            def my_teardown():
+                ...
+
+            s1 = my_setup()
+            w1 = my_work()
+            t1 = my_teardown()
+            s1 >> w1 >> t1
+            s1 >> t1
+        assert {
+            x.task_id
+            for x in dag.partial_subset(
+                "my_setup", include_upstream=upstream, include_downstream=downstream
+            ).tasks
+        } == expected

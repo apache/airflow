@@ -106,6 +106,11 @@ const Health = (props: CenterProps) => {
               status={data?.triggerer?.status}
               latestHeartbeat={data?.triggerer?.latestTriggererHeartbeat}
             />
+            <HealthSection
+              title="Dag Processor"
+              status={data?.dagProcessor?.status}
+              latestHeartbeat={data?.dagProcessor?.latestDagProcessorHeartbeat}
+            />
           </CardBody>
         </Card>
       </LoadingWrapper>

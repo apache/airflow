@@ -46,7 +46,7 @@ Airflow Interface and might change at any time.
 
 You can also use Airflow's Public Interface via the `Stable REST API <stable-rest-api-ref>`_ (based on the
 OpenAPI specification). For specific needs you can also use the
-`Airflow Command Line Interface (CLI) <cli-and-env-variables-ref.rst>`_ though it's behaviour might change
+`Airflow Command Line Interface (CLI) <cli-and-env-variables-ref>`_ though it's behaviour might change
 in details (such as output format and available flags) so if you want to rely on those in programmatic
 way, the Stable REST API is recommended.
 
@@ -339,7 +339,7 @@ All Secrets Backend implementations are public. You can extend their functionali
 
   _api/airflow/secrets/index
 
-You can read more about Secret Backends in :doc:`administration-and-deployment/security/secrets/secrets-backend/index`.
+You can read more about Secret Backends in :doc:`security/secrets/secrets-backend/index`.
 You can also find all the available Secrets Backends implemented in community providers
 in :doc:`apache-airflow-providers:core-extensions/secrets-backends`.
 

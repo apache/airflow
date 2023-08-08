@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import patch
 
@@ -46,6 +47,81 @@ class TestVerticaHookConn:
         mock_connect.assert_called_once_with(
             host="host", port=5433, database="vertica", user="login", password="password"
         )
+
+    @patch("airflow.providers.vertica.hooks.vertica.connect")
+    def test_get_conn_extra_parameters_no_cast(self, mock_connect):
+        """Test if parameters are correctly passed to connection"""
+        extra_dict = self.connection.extra_dejson
+        bool_options = [
+            "connection_load_balance",
+            "binary_transfer",
+            "disable_copy_local",
+            "use_prepared_statements",
+        ]
+        for bo in bool_options:
+            extra_dict.update({bo: True})
+        extra_dict.update({"request_complex_types": False})
+
+        std_options = [
+            "session_label",
+            "kerberos_host_name",
+            "kerberos_service_name",
+            "unicode_error",
+            "workload",
+            "ssl",
+        ]
+        for so in std_options:
+            extra_dict.update({so: so})
+        bck_server_node = ["1.2.3.4", "4.3.2.1"]
+        conn_timeout = 30
+        log_lvl = 40
+        extra_dict.update({"backup_server_node": bck_server_node})
+        extra_dict.update({"connection_timeout": conn_timeout})
+        extra_dict.update({"log_level": log_lvl})
+        self.connection.extra = json.dumps(extra_dict)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        for bo in bool_options:
+            assert kwargs[bo] is True
+        assert kwargs["request_complex_types"] is False
+        for so in std_options:
+            assert kwargs[so] == so
+        assert bck_server_node[0] in kwargs["backup_server_node"]
+        assert bck_server_node[1] in kwargs["backup_server_node"]
+        assert kwargs["connection_timeout"] == conn_timeout
+        assert kwargs["log_level"] == log_lvl
+        assert kwargs["log_path"] is None
+
+    @patch("airflow.providers.vertica.hooks.vertica.connect")
+    def test_get_conn_extra_parameters_cast(self, mock_connect):
+        """Test if parameters that can be passed either as string or int/bool
+        like log_level are correctly converted when passed as string
+        (while test_get_conn_extra_parameters_no_cast tests them passed as int/bool)"""
+        import logging
+
+        extra_dict = self.connection.extra_dejson
+        bool_options = [
+            "connection_load_balance",
+            "binary_transfer",
+            "disable_copy_local",
+            "use_prepared_statements",
+        ]
+        for bo in bool_options:
+            extra_dict.update({bo: "True"})
+        extra_dict.update({"request_complex_types": "False"})
+        extra_dict.update({"log_level": "Error"})
+        self.connection.extra = json.dumps(extra_dict)
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        for bo in bool_options:
+            assert kwargs[bo] is True
+        assert kwargs["request_complex_types"] is False
+        assert kwargs["log_level"] == logging.ERROR
+        assert kwargs["log_path"] is None
 
 
 class TestVerticaHook:

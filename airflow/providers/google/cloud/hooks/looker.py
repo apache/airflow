@@ -209,8 +209,9 @@ class LookerApiSettings(api_settings.ApiSettings):
 
     def read_config(self):
         """
-        Overrides the default logic of getting connection settings. Fetches
-        the connection settings from Airflow's connection object.
+        Fetches the connection settings from Airflow's connection object.
+
+        Overrides the default logic of getting connection settings.
         """
         config = {}
 

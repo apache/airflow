@@ -17,12 +17,42 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-postgres``
----------------------------------------------------
+``apache-airflow-providers-postgres``
+
+
+Changelog
+---------
+
+5.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, postgres: add OpenLineage support for Postgres (#31617)``
+
+Misc
+~~~~
+
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
+5.5.2
+.....
+
+Misc
+~~~~
+
+* ``Deprecate 'runtime_parameters' in favor of options in 'hook_params' (#32345)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 5.5.1
 .....

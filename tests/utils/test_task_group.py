@@ -22,7 +22,13 @@ from datetime import timedelta
 import pendulum
 import pytest
 
-from airflow.decorators import dag, task_group as task_group_decorator
+from airflow.decorators import (
+    dag,
+    setup,
+    task as task_decorator,
+    task_group as task_group_decorator,
+    teardown,
+)
 from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -33,6 +39,20 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from tests.models import DEFAULT_DATE
+
+
+def make_task(name, type_="classic"):
+    if type_ == "classic":
+        return BashOperator(task_id=name, bash_command="echo 1")
+
+    else:
+
+        @task_decorator
+        def my_task():
+            pass
+
+        return my_task.override(task_id=name)()
+
 
 EXPECTED_JSON = {
     "id": None,
@@ -533,6 +553,34 @@ def test_dag_edges():
         ("group_d.task11", "group_d.task12"),
         ("group_d.upstream_join_id", "group_d.task11"),
         ("task1", "group_a.upstream_join_id"),
+    ]
+
+
+def test_dag_edges_setup_teardown():
+    execution_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", start_date=execution_date) as dag:
+        setup1 = EmptyOperator(task_id="setup1").as_setup()
+        teardown1 = EmptyOperator(task_id="teardown1").as_teardown()
+
+        with setup1 >> teardown1:
+            EmptyOperator(task_id="task1")
+
+        with TaskGroup("group_a"):
+            setup2 = EmptyOperator(task_id="setup2").as_setup()
+            teardown2 = EmptyOperator(task_id="teardown2").as_teardown()
+
+            with setup2 >> teardown2:
+                EmptyOperator(task_id="task2")
+
+    edges = dag_edges(dag)
+
+    assert sorted((e["source_id"], e["target_id"], e.get("is_setup_teardown")) for e in edges) == [
+        ("group_a.setup2", "group_a.task2", None),
+        ("group_a.setup2", "group_a.teardown2", True),
+        ("group_a.task2", "group_a.teardown2", None),
+        ("setup1", "task1", None),
+        ("setup1", "teardown1", True),
+        ("task1", "teardown1", None),
     ]
 
 
@@ -1437,3 +1485,115 @@ def test_task_group_arrow_with_setups_teardowns():
         tg1 >> w2
     assert t1.downstream_task_ids == set()
     assert w1.downstream_task_ids == {"tg1.t1", "w2"}
+
+
+def test_task_group_arrow_with_setup_group():
+    with DAG(dag_id="setup_group_teardown_group", start_date=pendulum.now()):
+        with TaskGroup("group_1") as g1:
+
+            @setup
+            def setup_1():
+                ...
+
+            @setup
+            def setup_2():
+                ...
+
+            s1 = setup_1()
+            s2 = setup_2()
+
+        with TaskGroup("group_2") as g2:
+
+            @teardown
+            def teardown_1():
+                ...
+
+            @teardown
+            def teardown_2():
+                ...
+
+            t1 = teardown_1()
+            t2 = teardown_2()
+
+        @task_decorator
+        def work():
+            ...
+
+        w1 = work()
+        g1 >> w1 >> g2
+        t1.as_teardown(setups=s1)
+        t2.as_teardown(setups=s2)
+    assert set(s1.operator.downstream_task_ids) == {"work", "group_2.teardown_1"}
+    assert set(s2.operator.downstream_task_ids) == {"work", "group_2.teardown_2"}
+    assert set(w1.operator.downstream_task_ids) == {"group_2.teardown_1", "group_2.teardown_2"}
+    assert set(t1.operator.downstream_task_ids) == set()
+    assert set(t2.operator.downstream_task_ids) == set()
+
+    def get_nodes(group):
+        d = task_group_to_dict(group)
+        new_d = {}
+        new_d["id"] = d["id"]
+        new_d["children"] = [{"id": x["id"]} for x in d["children"]]
+        return new_d
+
+    assert get_nodes(g1) == {
+        "id": "group_1",
+        "children": [
+            {"id": "group_1.setup_1"},
+            {"id": "group_1.setup_2"},
+            {"id": "group_1.downstream_join_id"},
+        ],
+    }
+
+
+def test_task_group_arrow_with_setup_group_deeper_setup():
+    """
+    When recursing upstream for a non-teardown leaf, we should ignore setups that
+    are direct upstream of a teardown.
+    """
+    with DAG(dag_id="setup_group_teardown_group_2", start_date=pendulum.now()):
+        with TaskGroup("group_1") as g1:
+
+            @setup
+            def setup_1():
+                ...
+
+            @setup
+            def setup_2():
+                ...
+
+            @teardown
+            def teardown_0():
+                ...
+
+            s1 = setup_1()
+            s2 = setup_2()
+            t0 = teardown_0()
+            s2 >> t0
+
+        with TaskGroup("group_2") as g2:
+
+            @teardown
+            def teardown_1():
+                ...
+
+            @teardown
+            def teardown_2():
+                ...
+
+            t1 = teardown_1()
+            t2 = teardown_2()
+
+        @task_decorator
+        def work():
+            ...
+
+        w1 = work()
+        g1 >> w1 >> g2
+        t1.as_teardown(setups=s1)
+        t2.as_teardown(setups=s2)
+    assert set(s1.operator.downstream_task_ids) == {"work", "group_2.teardown_1"}
+    assert set(s2.operator.downstream_task_ids) == {"group_1.teardown_0", "group_2.teardown_2"}
+    assert set(w1.operator.downstream_task_ids) == {"group_2.teardown_1", "group_2.teardown_2"}
+    assert set(t1.operator.downstream_task_ids) == set()
+    assert set(t2.operator.downstream_task_ids) == set()

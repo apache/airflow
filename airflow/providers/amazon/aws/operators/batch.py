@@ -29,6 +29,7 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -40,7 +41,7 @@ from airflow.providers.amazon.aws.links.batch import (
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
 from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
-    BatchOperatorTrigger,
+    BatchJobTrigger,
 )
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
@@ -148,13 +149,13 @@ class BatchOperator(BaseOperator):
         parameters: dict | None = None,
         job_id: str | None = None,
         waiters: Any | None = None,
-        max_retries: int | None = None,
+        max_retries: int = 4200,
         status_retries: int | None = None,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
         tags: dict | None = None,
         wait_for_completion: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 30,
         awslogs_enabled: bool = False,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
@@ -220,12 +221,12 @@ class BatchOperator(BaseOperator):
         if self.deferrable:
             self.defer(
                 timeout=self.execution_timeout,
-                trigger=BatchOperatorTrigger(
+                trigger=BatchJobTrigger(
                     job_id=self.job_id,
-                    max_retries=self.max_retries or 10,
+                    waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
-                    poll_interval=self.poll_interval,
+                    waiter_delay=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -437,7 +438,7 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         max_retries: int | None = None,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         if "status_retries" in kwargs:
