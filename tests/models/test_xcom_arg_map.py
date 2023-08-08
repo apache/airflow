@@ -140,6 +140,7 @@ def test_xcom_convert_to_kwargs_fails_task(dag_maker, session):
     ]
 
 
+@pytest.mark.ti_test_mode
 def test_xcom_map_error_fails_task(dag_maker, session):
     with dag_maker(session=session) as dag:
 

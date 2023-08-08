@@ -154,6 +154,11 @@ else:
 
 PAST_DEPENDS_MET = "past_depends_met"
 
+# Whether to run a task instance in test mode, skipping various record and
+# update steps to avoid dataase lockup. This constant exists so it's easier to
+# mock in the test suite.
+TEST_MODE = False
+
 
 class TaskReturnCode(Enum):
     """
@@ -561,7 +566,7 @@ class TaskInstance(Base, LoggingMixin):
         # Not persisted to the database so only valid for the current process
         self.raw = False
         # can be changed when calling 'run'
-        self.test_mode = False
+        self.test_mode = TEST_MODE
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -597,7 +602,7 @@ class TaskInstance(Base, LoggingMixin):
         """Initialize the attributes that aren't stored in the DB."""
         # correctly config the ti log
         self._log = logging.getLogger("airflow.task")
-        self.test_mode = False  # can be changed when calling 'run'
+        self.test_mode = TEST_MODE  # can be changed when calling 'run'
 
     @hybrid_property
     def try_number(self):
@@ -1262,7 +1267,7 @@ class TaskInstance(Base, LoggingMixin):
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
-        test_mode: bool = False,
+        test_mode: bool | None = None,
         job_id: str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
@@ -1290,7 +1295,8 @@ class TaskInstance(Base, LoggingMixin):
         """
         task = self.task
         self.refresh_from_task(task, pool_override=pool)
-        self.test_mode = test_mode
+        if test_mode is not None:
+            self.test_mode = test_mode
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
         self.hostname = get_hostname()
@@ -1465,7 +1471,7 @@ class TaskInstance(Base, LoggingMixin):
     def _run_raw_task(
         self,
         mark_success: bool = False,
-        test_mode: bool = False,
+        test_mode: bool | None = None,
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
@@ -1483,7 +1489,8 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :param session: SQLAlchemy ORM Session
         """
-        self.test_mode = test_mode
+        if test_mode is not None:
+            self.test_mode = test_mode
         self.refresh_from_task(self.task, pool_override=pool)
         self.refresh_from_db(session=session)
         self.job_id = job_id
@@ -1613,7 +1620,7 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
 
-    def _execute_task_with_callbacks(self, context, test_mode: bool = False, *, session: Session):
+    def _execute_task_with_callbacks(self, context, test_mode: bool | None = None, *, session: Session):
         """Prepare Task for Execution."""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
@@ -1644,6 +1651,8 @@ class TaskInstance(Base, LoggingMixin):
             self.task.params = context["params"]
 
             task_orig = self.render_templates(context=context)
+            if test_mode is None:
+                test_mode = TEST_MODE
             if not test_mode:
                 rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
                 RenderedTaskInstanceFields.write(rtif)
@@ -1815,7 +1824,7 @@ class TaskInstance(Base, LoggingMixin):
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
-        test_mode: bool = False,
+        test_mode: bool | None = None,
         job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
@@ -1853,10 +1862,17 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def _handle_reschedule(
-        self, actual_start_date, reschedule_exception, test_mode=False, session=NEW_SESSION
-    ):
+        self,
+        actual_start_date,
+        reschedule_exception,
+        test_mode: bool | None = None,
+        session: Session = NEW_SESSION,
+    ) -> None:
         # Don't record reschedule request in test mode
-        if test_mode:
+        if test_mode is None:
+            if TEST_MODE:
+                return
+        elif test_mode:
             return
 
         from airflow.models.dagrun import DagRun  # Avoid circular import

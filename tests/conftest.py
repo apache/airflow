@@ -269,6 +269,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
     config.addinivalue_line("markers", "system(name): mark test to run with named system")
     config.addinivalue_line("markers", "long_running: mark test that run for a long time (many minutes)")
+    config.addinivalue_line("markers", "ti_test_mode: mark tests that runs task instance with test_mode=True")
     config.addinivalue_line(
         "markers", "quarantined: mark test that are in quarantine (i.e. flaky, need to be isolated and fixed)"
     )
@@ -942,3 +943,9 @@ def initialize_providers_manager():
     from airflow.providers_manager import ProvidersManager
 
     ProvidersManager().initialize_providers_configuration()
+
+
+@pytest.fixture(autouse=True)
+def set_ti_test_mode(request, monkeypatch):
+    if request.node.get_closest_marker("ti_test_mode"):
+        monkeypatch.setattr("airflow.models.taskinstance.TEST_MODE", True)
