@@ -37,13 +37,9 @@ class MinIOHook(S3Hook):
     def __init__(
         self,
         minio_conn_id: str = default_conn_name,
-        transfer_config_args: dict | None = None,
-        extra_args: dict | None = None,
         *args,
         **kwargs,
     ) -> None:
-        kwargs["transfer_config_args"] = transfer_config_args
-        kwargs["extra_args"] = extra_args
         super().__init__(*args, **kwargs)
         self.minio_conn_id = minio_conn_id
 
