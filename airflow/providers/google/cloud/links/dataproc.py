@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperatorLink, XCom
@@ -30,11 +30,25 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
+
+def __getattr__(name: str) -> Any:
+    # PEP-562: deprecate module-level variable
+    if name == "DATAPROC_JOB_LOG_LINK":
+        # TODO: remove DATAPROC_JOB_LOG_LINK alias in the next major release
+        # For backward-compatibility, DATAPROC_JOB_LINK was DATAPROC_JOB_LOG_LINK.
+        warnings.warn(
+            (
+                "DATAPROC_JOB_LOG_LINK has been deprecated and will be removed in the next MAJOR release."
+                " Please use DATAPROC_JOB_LINK instead"
+            ),
+            AirflowProviderDeprecationWarning,
+        )
+        return DATAPROC_JOB_LINK
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
 DATAPROC_BASE_LINK = BASE_LINK + "/dataproc"
 DATAPROC_JOB_LINK = DATAPROC_BASE_LINK + "/jobs/{job_id}?region={region}&project={project_id}"
-# TODO: remove DATAPROC_JOB_LOG_LINK alias in the next major release
-# For backward-compatibility, DATAPROC_JOB_LINK was DATAPROC_JOB_LOG_LINK.
-DATAPROC_JOB_LOG_LINK = DATAPROC_JOB_LINK
 
 DATAPROC_CLUSTER_LINK = (
     DATAPROC_BASE_LINK + "/clusters/{cluster_id}/monitoring?region={region}&project={project_id}"
