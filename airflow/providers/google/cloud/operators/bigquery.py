@@ -2750,6 +2750,15 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
 
     @sql.setter
     def sql(self, sql_value: str):
+        warnings.warn(
+            (
+                "Assigning value to sql is deprecated. "
+                "This setter will be removed in the next major release and"
+                " will raise an AttributeError when assigning value to sql"
+            ),
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         self._sql = sql_value
 
     def prepare_template(self) -> None:
