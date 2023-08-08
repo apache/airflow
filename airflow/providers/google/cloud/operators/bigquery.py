@@ -21,6 +21,7 @@ from __future__ import annotations
 import enum
 import json
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 
 import attr
@@ -2737,7 +2738,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
-    @property
+    @cached_property
     def sql(self) -> str | None:
         try:
             return self.configuration["query"]["query"]
