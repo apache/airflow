@@ -96,39 +96,21 @@ class CronMixin:
     def _should_fix_dst(self) -> bool:
         # This is lazy so instantiating a schedule does not immediately raise
         # an exception. Validity is checked with validate() during DAG-bagging.
-        return not _is_schedule_fixed(self._expression)
+        return False
 
     def _get_next(self, current: DateTime) -> DateTime:
         """Get the first schedule after specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_next(datetime.datetime)
-        if not self._should_fix_dst:
-            return convert_to_utc(make_aware(scheduled, self._timezone))
-
-        # calculate the delta to the next scheduled time, taking into account
-        # if the next scheduled time is in a different tz
-        current_offset = current.in_timezone(self._timezone).utcoffset()
-        scheduled_offset = instance(scheduled, self._timezone).utcoffset()
-        utc_offset_delta = current_offset - scheduled_offset
-        delta = scheduled - naive
-        return convert_to_utc(current.in_timezone(self._timezone) + delta + utc_offset_delta)
+        return convert_to_utc(make_aware(scheduled, self._timezone))
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first schedule before specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
-        if not self._should_fix_dst:
-            return convert_to_utc(make_aware(scheduled, self._timezone))
-
-        # calculate the delta to the next scheduled time, taking into account
-        # if the next scheduled time is in a different tz
-        current_offset = current.in_timezone(self._timezone).utcoffset()
-        scheduled_offset = instance(scheduled, self._timezone).utcoffset()
-        utc_offset_delta = current_offset - scheduled_offset
-        delta = naive - scheduled
-        return convert_to_utc(current.in_timezone(self._timezone) - delta + utc_offset_delta)
+        return convert_to_utc(make_aware(scheduled, self._timezone))
 
     def _align_to_next(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
