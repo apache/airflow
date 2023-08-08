@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import yaml
 import re
 from contextlib import contextmanager, nullcontext
 from unittest import mock
@@ -28,6 +29,7 @@ from pytest import param
 from urllib3 import HTTPResponse
 from urllib3.packages.six import BytesIO
 
+from airflow.kubernetes import pod_generator
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
@@ -909,6 +911,62 @@ class TestKubernetesPodOperator:
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
         }
+
+    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    def test_pod_template_content(self, randomize_name):
+        templated_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                namespace="templatenamespace",
+                name="hello",
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[],
+                init_containers=[
+                    k8s.V1Container(
+                        name='git-clone',
+                        image='registry.k8s.io/git-sync:v3.1.1',
+                        args=[
+                            f'--repo=git@github.com:airflow/some_repo.git',
+                            f'--branch={{ params.get("repo_branch", "master") }}',
+                        ],
+                    ),
+                ],
+            ),
+        )
+        serialized_pod = yaml.dump(pod_generator.PodGenerator.serialize_pod(templated_pod))
+
+        k = KubernetesPodOperator(
+            task_id="task",
+            random_name_suffix=randomize_name,
+            pod_template_content=serialized_pod,
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+
+        if randomize_name:
+            assert pod.metadata.name.startswith("hello")
+            assert pod.metadata.name != "hello"
+        else:
+            assert pod.metadata.name == "hello"
+
+        # Check labels are added from pod_template_file and
+        # the pod identifying labels including Airflow version
+        assert pod.metadata.labels == {
+            "dag_id": "dag",
+            "kubernetes_pod_operator": "True",
+            "task_id": "task",
+            "try_number": "1",
+            "airflow_version": mock.ANY,
+            "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
+            "run_id": "test",
+        }
+
+        assert pod.spec.init_containers[0].name == "git-clone"
+        assert pod.spec.init_containers[0].image == "registry.k8s.io/git-sync:v3.1.1"
+        assert pod.spec.init_containers[0].args == [
+            '--repo=git@github.com:airflow/some_repo.git',
+            '--branch=master',
+        ]
+        assert pod.spec.service_account_name == "foo"
 
     @patch(f"{POD_MANAGER_CLASS}.fetch_container_logs")
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion", new=MagicMock)
