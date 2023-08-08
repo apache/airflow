@@ -480,13 +480,15 @@ class BaseSerialization:
             )
         elif use_pydantic_models and _ENABLE_AIP_44:
             if isinstance(var, Job):
-                return cls._encode(JobPydantic.from_orm(var).dict(), type_=DAT.BASE_JOB)
+                return cls._encode(JobPydantic.model_validate(var).model_dump(), type_=DAT.BASE_JOB)
             elif isinstance(var, TaskInstance):
-                return cls._encode(TaskInstancePydantic.from_orm(var).dict(), type_=DAT.TASK_INSTANCE)
+                return cls._encode(
+                    TaskInstancePydantic.model_validate(var).model_dump(), type_=DAT.TASK_INSTANCE
+                )
             elif isinstance(var, DagRun):
-                return cls._encode(DagRunPydantic.from_orm(var).dict(), type_=DAT.DAG_RUN)
+                return cls._encode(DagRunPydantic.model_validate(var).model_dump(), type_=DAT.DAG_RUN)
             elif isinstance(var, Dataset):
-                return cls._encode(DatasetPydantic.from_orm(var).dict(), type_=DAT.DATA_SET)
+                return cls._encode(DatasetPydantic.model_validate(var).model_dump(), type_=DAT.DATA_SET)
             else:
                 return cls.default_serialization(strict, var)
         else:
