@@ -17,6 +17,7 @@
 """Base executor - this is the base class for all the implemented executors."""
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 import warnings
@@ -27,6 +28,7 @@ from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 
+from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
@@ -479,3 +481,26 @@ class BaseExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
+
+    @staticmethod
+    def get_cli_commands() -> list[GroupCommand]:
+        """Vends CLI commands to be included in Airflow CLI.
+
+        Override this method to expose commands via Airflow CLI to manage this executor. This can
+        be commands to setup/teardown the executor, inspect state, etc.
+        """
+        return []
+
+    @classmethod
+    def _get_parser(cls) -> argparse.ArgumentParser:
+        """This method is used by Sphinx argparse to generate documentation.
+
+        :meta private:
+        """
+        from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
+
+        parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+        subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+        for group_command in cls.get_cli_commands():
+            _add_command(subparsers, group_command)
+        return parser

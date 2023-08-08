@@ -18,37 +18,6 @@
 from __future__ import annotations
 
 import warnings
-from functools import wraps
-
-
-def _ensure_prefixes(conn_type):
-    """
-    Deprecated.
-
-    Remove when provider min airflow version >= 2.5.0 since this is handled by
-    provider manager from that version.
-    """
-
-    def dec(func):
-        @wraps(func)
-        def inner():
-            field_behaviors = func()
-            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-            def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith("extra__"):
-                    return f"extra__{conn_type}__{field}"
-                else:
-                    return field
-
-            if "placeholders" in field_behaviors:
-                placeholders = field_behaviors["placeholders"]
-                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-            return field_behaviors
-
-        return inner
-
-    return dec
 
 
 def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):

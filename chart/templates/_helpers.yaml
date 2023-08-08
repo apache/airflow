@@ -67,6 +67,13 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
   {{- end }}
+  {{- if and .Values.workers.keda.enabled .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer) }}
+  - name: KEDA_DB_CONN
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "airflow_metadata_secret" . }}
+        key: kedaConnection
+  {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
   - name: AIRFLOW__WEBSERVER__SECRET_KEY
     valueFrom:
@@ -362,6 +369,14 @@ If release name contains chart name it will be used as a full name.
 
 {{- define "kerberos_ccache_path" -}}
   {{- printf "%s/%s" .Values.kerberos.ccacheMountPath .Values.kerberos.ccacheFileName }}
+{{- end }}
+
+{{- define "celery_executor_namespace" -}}
+  {{- if semverCompare ">=2.7.0" .Values.airflowVersion }}
+    {{- print "airflow.providers.celery.executors.celery_executor.app" -}}
+  {{- else }}
+    {{- print "airflow.executors.celery_executor.app" -}}
+  {{- end }}
 {{- end }}
 
 {{- define "pgbouncer_config" -}}
@@ -678,6 +693,39 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
+
+{{- define  "scheduler_startup_check_command" }}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --local
+  {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
+  {{- else }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
+    import os
+    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
+    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+    from airflow.jobs.scheduler_job import SchedulerJob
+    from airflow.utils.db import create_session
+    from airflow.utils.net import get_hostname
+    import sys
+    with create_session() as session:
+        job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
+            SchedulerJob.latest_heartbeat.desc()).limit(1).first()
+    sys.exit(0 if job.is_alive() else 1)"
+  {{- end }}
+{{- end }}
+
 {{- define "triggerer_liveness_check_command" }}
   {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
@@ -851,9 +899,8 @@ If no value is passed for securityContexts.container or <node>.securityContexts.
     | <node>.securityContexts.container |  ->  | securityContexts.containers |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
     +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
 
-
 The template can be called like so:
-   include "containerSecurityContext" (list . .Values.statsd)
+   include "containerSecurityContext" (list . .Values.webserver)
 
 Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
 */}}
@@ -873,18 +920,17 @@ capabilities:
   {{- end -}}
 {{- end -}}
 
-  {{/*
-     Set the default value for external container securityContext(redis and statsd).
-     If no value is passed for <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
+{{/*
+Set the default value for external container securityContext(redis and statsd).
+If no value is passed for <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
 
-     +-----------------------------------+      +-----------------------------------------------------------+
-     | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
-     +-----------------------------------+      +-----------------------------------------------------------+
+    +-----------------------------------+      +-----------------------------------------------------------+
+    | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
+    +-----------------------------------+      +-----------------------------------------------------------+
 
-
-    The template can be called like so:
-      include "externalContainerSecurityContext" .Values.statsd
-    */}}
+The template can be called like so:
+  include "externalContainerSecurityContext" .Values.statsd
+*/}}
 {{- define "externalContainerSecurityContext" -}}
   {{- if .securityContexts.container -}}
     {{ toYaml .securityContexts.container | print }}

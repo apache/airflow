@@ -207,6 +207,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       UPGRADE_TO_NEWER_DEPENDENCIES: false
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     continue-on-error: true
     steps:
       - name: Cleanup repo
@@ -235,6 +236,7 @@ jobs:
           --platform ${{ matrix.platform }}
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+          COMMIT_SHA: ${{ github.sha }}
         if: needs.build-info.outputs.canary-run == 'true' && needs.build-info.outputs.default-branch == 'main'
       - name: "Push CI latest image ${{ matrix.platform }}"
         run: >
@@ -242,6 +244,7 @@ jobs:
           --tag-as-latest --push --run-in-parallel --platform ${{ matrix.platform }}
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+          COMMIT_SHA: ${{ github.sha }}
         # We only push "amd" image as it is really only needed for any kind of automated builds in CI
         # and currently there is not an easy way to make multi-platform image from two separate builds
         if: >
@@ -305,6 +308,7 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       # Force more parallelism for build even on public images
       PARALLELISM: 6
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -383,7 +387,10 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
-      - run: breeze setup version
+      - run: >
+          breeze setup version ||
+          (echo "\033[0;31mERROR: Breeze version check failed\033[0m" &&
+           echo "Please run 'breeze setup version' and commit the changes." && false)
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
       - run: breeze setup check-all-params-in-groups
@@ -630,7 +637,18 @@ jobs:
             docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
             docs-inventory-
       - name: "Build docs"
-        run: breeze build-docs ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+        run: >
+          breeze build-docs
+          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+      - name: "Clone airflow-site"
+        run: >
+          git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
+          echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
+      - name: "Publish docs"
+        run: >
+          breeze release-management publish-docs
+          --override-versioned
+          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >
@@ -889,8 +907,14 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
         run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
-      - name: "Post Helm Tests"
-        uses: ./.github/actions/post_tests
+      - name: >
+          Post Tests success: Helm"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Helm"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-postgres:
     timeout-minutes: 130
@@ -939,9 +963,13 @@ jobs:
         run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
         if: matrix.postgres-version == needs.build-info.outputs.default-postgres-version
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: Postgres"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Postgres"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-postgres-boto:
     timeout-minutes: 130
@@ -984,9 +1012,13 @@ jobs:
           ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Boto"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:Boto"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-postgres-in-progress-features-disabled:
     timeout-minutes: 130
@@ -1029,9 +1061,13 @@ jobs:
           ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:FeaturesDisabled"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:FeaturesDisabled"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-mysql:
     timeout-minutes: 130
@@ -1076,9 +1112,14 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: MySQL"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: MySQL"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
 
   tests-mssql:
     timeout-minutes: 130
@@ -1131,9 +1172,13 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: MsSQL"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: MsSQL"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-sqlite:
     timeout-minutes: 130
@@ -1176,9 +1221,13 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: Sqlite"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Sqlite"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-integration-postgres:
     timeout-minutes: 130
@@ -1243,9 +1292,14 @@ jobs:
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: Integration Postgres"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Integration Postgres"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
 
   tests-integration-mysql:
     timeout-minutes: 130
@@ -1283,10 +1337,13 @@ jobs:
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
-        if: needs.build-info.outputs.runs-on == 'self-hosted'
+          Post Tests success: Integration MySQL"
+        uses: ./.github/actions/post_tests_success
+        if: success() && needs.build-info.outputs.runs-on == 'self-hosted'
+      - name: >
+          Post Tests failure: Integration MySQL"
+        uses: ./.github/actions/post_tests_failure
+        if: failure() && needs.build-info.outputs.runs-on == 'self-hosted'
 
 
   tests-quarantined:
@@ -1297,15 +1354,13 @@ jobs:
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      PARALLEL_TEST_TYPES: "Quarantined"
+      TEST_TYPE: "Quarantined"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
-      BACKEND: "sqlite"
-      BACKEND_VERSION: ""
       JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.runs-on == 'self-hosted'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1318,11 +1373,42 @@ jobs:
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze testing tests --run-in-parallel || true
+          Tests: postgres:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "postgres"
+          BACKEND_VERSION: "11"
+          POSTGRES_VERSION: "11"
       - name: >
-          Post Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined"
-        uses: ./.github/actions/post_tests
+          Tests: mysql:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "mysql"
+          BACKEND_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
+          MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
+      - name: >
+          Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "mssql"
+          BACKEND_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
+          MSSQL_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
+      - name: >
+          Tests: sqlite:${{needs.build-info.outputs.default-python-version}}:Quarantined
+        run: breeze testing tests || true
+        env:
+          BACKEND: "sqlite"
+          BACKEND_VERSION: ""
+          MSSQL_VERSION: ""
+      - name: >
+          Post Tests success: Quarantined"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Quarantined"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
 
   summarize-warnings:
     timeout-minutes: 15
@@ -1360,7 +1446,7 @@ jobs:
 
   wait-for-prod-images:
     timeout-minutes: 80
-    name: "Wait for PROD images"
+    name: "Wait for & verify PROD images"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images, build-prod-images]
     if: needs.build-info.outputs.image-build == 'true'
@@ -1383,14 +1469,22 @@ jobs:
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
         # or from build-prod-images above.
         # We are utilising single job to wait for all images because this job merely waits
-        # For the images to be available and test them.
-        run: breeze prod-image pull --verify --wait-for-image --run-in-parallel
+        # For the images to be available.
+        run: breeze prod-image pull --wait-for-image --run-in-parallel
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      - name: Verify PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        # We pull images again (which is a NOOP) but this time we also verify the images
+        # Having it as a separate step allows us to see if the problem was with waiting or verification
+        run: breeze prod-image pull --verify --run-in-parallel
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
+
 
   test-docker-compose-quick-start:
     timeout-minutes: 60
@@ -1578,6 +1672,7 @@ jobs:
         platform: ["linux/amd64", "linux/arm64"]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -1618,12 +1713,14 @@ jobs:
           --platform ${{ matrix.platform }}
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+          COMMIT_SHA: ${{ github.sha }}
       - name: "Push CI latest image ${{ matrix.platform }}"
         run: >
           breeze ci-image build
           --tag-as-latest --push --run-in-parallel --platform ${{ matrix.platform }}
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+          COMMIT_SHA: ${{ github.sha }}
         if: matrix.platform == 'linux/amd64'
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
@@ -1635,12 +1732,15 @@ jobs:
           --run-in-parallel
           --prepare-buildx-cache
           --platform ${{ matrix.platform }}
+        env:
+          COMMIT_SHA: ${{ github.sha }}
       - name: "Push PROD latest image ${{ matrix.platform }}"
         run: >
           breeze prod-image build --tag-as-latest --install-packages-from-context
           --push --run-in-parallel --platform ${{ matrix.platform }}
         env:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+          COMMIT_SHA: ${{ github.sha }}
         if: matrix.platform == 'linux/amd64'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
@@ -1697,6 +1797,7 @@ jobs:
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+          COMMIT_SHA: ${{ github.sha }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always()

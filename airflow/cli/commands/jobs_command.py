@@ -21,10 +21,12 @@ from sqlalchemy.orm import Session
 
 from airflow.jobs.job import Job
 from airflow.utils.net import get_hostname
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import JobState
 
 
+@providers_configuration_loaded
 @provide_session
 def check(args, session: Session = NEW_SESSION) -> None:
     """Checks if job(s) are still alive."""
@@ -33,7 +35,7 @@ def check(args, session: Session = NEW_SESSION) -> None:
     if args.hostname and args.local:
         raise SystemExit("You can't use --hostname and --local at the same time")
 
-    query = select(Job).where(Job.state == State.RUNNING).order_by(Job.latest_heartbeat.desc())
+    query = select(Job).where(Job.state == JobState.RUNNING).order_by(Job.latest_heartbeat.desc())
     if args.job_type:
         query = query.where(Job.job_type == args.job_type)
     if args.hostname:

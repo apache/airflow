@@ -370,6 +370,34 @@ Templating
     :start-after: [START gcp_transfer_job_sensor_template_fields]
     :end-before: [END gcp_transfer_job_sensor_template_fields]
 
+.. _howto/operator:CloudDataTransferServiceGCSToGCSOperator:
+
+CloudDataTransferServiceGCSToGCSOperator
+-----------------------------------------------
+
+Copy data from one GCS bucket to another.
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceGCSToGCSOperator`.
+
+Using the operator
+""""""""""""""""""
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_gcp_to_gcs.py
+      :language: python
+      :dedent: 4
+      :start-after: [START howto_operator_transfer_gcs_to_gcs]
+      :end-before: [END howto_operator_transfer_gcs_to_gcs]
+
+Templating
+""""""""""
+
+.. literalinclude:: /../../airflow/providers/google/cloud/operators/cloud_storage_transfer_service.py
+    :language: python
+    :dedent: 4
+    :start-after: [START gcp_transfer_gcs_to_gcs_template_fields]
+    :end-before: [END gcp_transfer_gcs_to_gcs_template_fields]
+
 Reference
 ---------
 

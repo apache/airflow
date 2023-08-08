@@ -35,6 +35,7 @@ alibaba
 allAuthenticatedUsers
 allowinsert
 allUsers
+alphanumerics
 Alphasort
 amazonaws
 amqp
@@ -296,6 +297,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+CoreV
 coroutine
 coverals
 cp
@@ -344,6 +346,7 @@ DagRunState
 DAGs
 Dask
 dask
+daskexecutor
 dat
 Databricks
 databricks
@@ -481,6 +484,7 @@ Dont
 DOS'ing
 DownloadReportV
 downscaling
+downstreams
 Drillbit
 Drivy
 dropdown
@@ -676,6 +680,7 @@ Harenslak
 Hashable
 Hashicorp
 hashicorp
+hashlib
 hasn
 HCatalog
 hcatalog
@@ -764,6 +769,7 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceGroupConfig
 instanceTemplates
 instantiation
 integrations
@@ -1103,7 +1109,9 @@ pluggable
 pluggy
 plyvel
 png
+PodManager
 podName
+PodSpec
 podSpec
 podspec
 poller
@@ -1126,6 +1134,9 @@ precheck
 Precommit
 preconfigured
 PredictionServiceClient
+Preemptibility
+preemptibility
+Preemptible
 preemptible
 prefetch
 prefetched
@@ -1208,6 +1219,7 @@ RBAC
 rbac
 rc
 rdbms
+RDS
 readfp
 Readme
 readme
@@ -1492,6 +1504,7 @@ tblproperties
 TCP
 tcp
 teardown
+teardowns
 templatable
 templateable
 Templated
@@ -1596,6 +1609,7 @@ Upsert
 upsert
 upserts
 Upsight
+upstreams
 Uptime
 uri
 uris

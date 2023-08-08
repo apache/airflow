@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 import threading
@@ -26,13 +27,14 @@ from typing import Iterable
 
 import click
 
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_SELECTED,
-    get_available_documentation_packages,
+    get_available_documentation_provider_packages,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
@@ -96,12 +98,26 @@ from airflow_breeze.utils.run_utils import (
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Make sure that whatever you add here as an option is also
-# Added in the "main" command in breeze.py. The min command above
-# Is used for a shorthand of shell and except the extra
-# Args it should have the same parameters.
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
+    """
+    Determine which constraints reference to use.
+
+    When use-airflow-version is branch or version, we derive the constraints branch from it, unless
+    someone specified the constraints branch explicitly.
+
+    :param airflow_constraints_reference: the constraint reference specified (or default)
+    :param use_airflow_version: which airflow version we are installing
+    :return: the actual constraints reference to use
+    """
+    if (
+        use_airflow_version
+        and airflow_constraints_reference == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+        and re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z\.]*|main|v[0-9]_.*", use_airflow_version)
+    ):
+        get_console().print(f"[info]Using constraints {use_airflow_version} - matching airflow version used.")
+        return use_airflow_version
+    return airflow_constraints_reference
 
 
 class TimerThread(threading.Thread):
@@ -114,6 +130,14 @@ class TimerThread(threading.Thread):
         sleep(self.max_time)
         get_console().print(f"[error]The command took longer than {self.max_time} s. Failing!")
         os.killpg(os.getpgid(0), SIGTERM)
+
+
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# Make sure that whatever you add here as an option is also
+# Added in the "main" command in breeze.py. The min command above
+# Is used for a shorthand of shell and except the extra
+# Args it should have the same parameters.
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 @main.command()
@@ -181,6 +205,9 @@ def shell(
     if max_time:
         TimerThread(max_time=max_time).start()
         set_forced_answer("yes")
+    airflow_constraints_reference = _determine_constraint_branch_used(
+        airflow_constraints_reference, use_airflow_version
+    )
     result = enter_shell(
         python=python,
         github_repository=github_repository,
@@ -292,6 +319,10 @@ def start_airflow(
         skip_asset_compilation = True
     if use_airflow_version is None and not skip_asset_compilation:
         run_compile_www_assets(dev=dev_mode, run_in_background=True)
+    airflow_constraints_reference = _determine_constraint_branch_used(
+        airflow_constraints_reference, use_airflow_version
+    )
+
     result = enter_shell(
         python=python,
         github_repository=github_repository,
@@ -331,19 +362,13 @@ def start_airflow(
 @click.option(
     "--package-filter",
     help="List of packages to consider.",
-    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
+    type=NotVerifiedBetterChoice(get_available_documentation_provider_packages()),
     multiple=True,
 )
 @click.option(
     "--clean-build",
     help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
     "before the build - useful for a clean build.",
-    is_flag=True,
-)
-@click.option(
-    "--for-production",
-    help="Builds documentation for official release i.e. all links point to stable version. "
-    "Implies --clean-build",
     is_flag=True,
 )
 @click.option(
@@ -357,17 +382,15 @@ def start_airflow(
 def build_docs(
     docs_only: bool,
     spellcheck_only: bool,
-    for_production: bool,
     builder: str,
     clean_build: bool,
     one_pass_only: bool,
     package_filter: tuple[str],
     github_repository: str,
 ):
-    """Build documentation in the container."""
-    if for_production and not clean_build:
-        get_console().print("\n[warning]When building docs for production, clean-build is forced\n")
-        clean_build = True
+    """
+    Build documents.
+    """
     perform_environment_checks()
     cleanup_python_generated_files()
     params = BuildCiParams(
@@ -385,7 +408,7 @@ def build_docs(
         package_filter=package_filter,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
-        for_production=for_production,
+        one_pass_only=one_pass_only,
         skip_environment_initialization=True,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)

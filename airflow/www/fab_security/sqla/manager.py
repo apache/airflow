@@ -26,8 +26,7 @@ from sqlalchemy import and_, func, inspect, literal
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
-from airflow.www.fab_security.manager import BaseSecurityManager
-from airflow.www.fab_security.sqla.models import (
+from airflow.auth.managers.fab.models import (
     Action,
     Permission,
     RegisterUser,
@@ -36,6 +35,7 @@ from airflow.www.fab_security.sqla.models import (
     User,
     assoc_permission_role,
 )
+from airflow.www.fab_security.manager import BaseSecurityManager
 
 log = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class SecurityManager(BaseSecurityManager):
     permission_model = Permission
     registeruser_model = RegisterUser
 
-    def __init__(self, appbuilder):
+    def __init__(self, appbuilder, **kwargs):
         """
         Class constructor.
 
@@ -228,9 +228,6 @@ class SecurityManager(BaseSecurityManager):
             log.error(c.LOGMSG_ERR_SEC_UPD_USER.format(str(e)))
             self.get_session.rollback()
             return False
-
-    def get_user_by_id(self, pk):
-        return self.get_session.get(self.user_model, pk)
 
     def add_role(self, name: str) -> Role:
         role = self.find_role(name)

@@ -42,6 +42,7 @@ from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
 
@@ -320,6 +321,7 @@ class GunicornMonitor(LoggingMixin):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def webserver(args):
     """Starts Airflow Webserver."""
     print(settings.HEADER)
@@ -420,11 +422,17 @@ def webserver(args):
 
         run_args += ["airflow.www.app:cached_app()"]
 
-        # To prevent different workers creating the web app and
-        # all writing to the database at the same time, we use the --preload option.
-        # With the preload option, the app is loaded before the workers are forked, and each worker will
-        # then have a copy of the app
-        run_args += ["--preload"]
+        if conf.getboolean("webserver", "reload_on_plugin_change", fallback=False):
+            log.warning(
+                "Setting reload_on_plugin_change = true prevents running Gunicorn with preloading. "
+                "This means the app cannot be loaded before workers are forked, and each worker has a "
+                "separate copy of the app. This may cause IntegrityError during webserver startup, and "
+                "should be avoided in production."
+            )
+        else:
+            # To prevent different workers creating the web app and
+            # all writing to the database at the same time, we use the --preload option.
+            run_args += ["--preload"]
 
         gunicorn_master_proc: psutil.Process | subprocess.Popen
 

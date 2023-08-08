@@ -52,6 +52,7 @@ class EntityType(Enum):
     Hooks = "Hooks"
     Secrets = "Secrets"
     Trigger = "Trigger"
+    Notification = "Notification"
 
 
 class EntityTypeSummary(NamedTuple):
@@ -83,6 +84,7 @@ ENTITY_NAMES = {
     EntityType.Hooks: "Hooks",
     EntityType.Secrets: "Secrets",
     EntityType.Trigger: "Trigger",
+    EntityType.Notification: "Notification",
 }
 
 TOTALS: dict[EntityType, int] = {
@@ -92,6 +94,7 @@ TOTALS: dict[EntityType, int] = {
     EntityType.Transfers: 0,
     EntityType.Secrets: 0,
     EntityType.Trigger: 0,
+    EntityType.Notification: 0,
 }
 
 OPERATORS_PATTERN = r".*Operator$"
@@ -101,6 +104,7 @@ SECRETS_PATTERN = r".*Backend$"
 TRANSFERS_PATTERN = r".*To[A-Z0-9].*Operator$"
 WRONG_TRANSFERS_PATTERN = r".*Transfer$|.*TransferOperator$"
 TRIGGER_PATTERN = r".*Trigger$"
+NOTIFICATION_PATTERN = r".*Notifier|.*send_.*_notification$"
 
 ALL_PATTERNS = {
     OPERATORS_PATTERN,
@@ -110,6 +114,7 @@ ALL_PATTERNS = {
     TRANSFERS_PATTERN,
     WRONG_TRANSFERS_PATTERN,
     TRIGGER_PATTERN,
+    NOTIFICATION_PATTERN,
 }
 
 EXPECTED_SUFFIXES: dict[EntityType, str] = {
@@ -119,6 +124,7 @@ EXPECTED_SUFFIXES: dict[EntityType, str] = {
     EntityType.Secrets: "Backend",
     EntityType.Transfers: "Operator",
     EntityType.Trigger: "Trigger",
+    EntityType.Notification: "Notifier",
 }
 
 
@@ -463,6 +469,14 @@ def get_package_class_summary(
     from airflow.sensors.base import BaseSensorOperator
     from airflow.triggers.base import BaseTrigger
 
+    # Remove this conditional check after providers are 2.6+ compatible
+    try:
+        from airflow.notifications.basenotifier import BaseNotifier
+
+        has_notifier = True
+    except ImportError:
+        has_notifier = False
+
     all_verified_entities: dict[EntityType, VerifiedEntities] = {
         EntityType.Operators: find_all_entities(
             imported_classes=imported_classes,
@@ -523,6 +537,20 @@ def get_package_class_summary(
             unexpected_class_name_patterns=ALL_PATTERNS - {TRIGGER_PATTERN},
         ),
     }
+    if has_notifier:
+        all_verified_entities[EntityType.Notification] = find_all_entities(
+            imported_classes=imported_classes,
+            base_package=full_package_name,
+            sub_package_pattern_match=r".*\.notifications\..*",
+            ancestor_match=BaseNotifier,
+            expected_class_name_pattern=NOTIFICATION_PATTERN,
+            unexpected_class_name_patterns=ALL_PATTERNS - {NOTIFICATION_PATTERN},
+        )
+    else:
+        all_verified_entities[EntityType.Notification] = VerifiedEntities(
+            all_entities=set(), wrong_entities=[]
+        )
+
     for entity in EntityType:
         print_wrong_naming(entity, all_verified_entities[entity].wrong_entities)
 
@@ -568,6 +596,12 @@ def check_if_classes_are_properly_named(
         for class_full_name in entity_summary[entity_type].entities:
             _, class_name = class_full_name.rsplit(".", maxsplit=1)
             error_encountered = False
+            if (
+                class_name.startswith("send_")
+                and class_name.endswith("_notification")
+                and entity_type == EntityType.Notification
+            ):
+                continue
             if not is_camel_case_with_acronyms(class_name):
                 console.print(
                     f"[red]The class {class_full_name} is wrongly named. The "
@@ -714,12 +748,17 @@ def run_provider_discovery():
     subprocess.run(["airflow", "providers", "secrets"], check=True)
     console.print("[bright_blue]List all auth backends[/]\n")
     subprocess.run(["airflow", "providers", "auth"], check=True)
-    if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.7.0.dev0"):
+    if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.6.0.dev0"):
         # CI also check if our providers are installable and discoverable in airflow older versions
         # But the triggers command is not available till airflow-2-6-0
         # TODO: Remove this block once airflow dependency in providers are > 2-6-0
         console.print("[bright_blue]List all triggers[/]\n")
         subprocess.run(["airflow", "providers", "triggers"], check=True)
+    if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.7.0.dev0"):
+        # CI also check if our providers are installable and discoverable in airflow older versions
+        # But the executors command is not available till airflow-2-7-0
+        console.print("[bright_blue]List all executors[/]\n")
+        subprocess.run(["airflow", "providers", "executors"], check=True)
 
 
 AIRFLOW_LOCAL_SETTINGS_PATH = Path("/opt/airflow") / "airflow_local_settings.py"

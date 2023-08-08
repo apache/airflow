@@ -37,7 +37,7 @@ from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-from airflow.providers.celery.executors import celery_executor, celery_executor_utils
+from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -65,6 +65,7 @@ class FakeCeleryResult:
 @contextlib.contextmanager
 def _prepare_app(broker_url=None, execute=None):
     broker_url = broker_url or conf.get("celery", "BROKER_URL")
+
     execute = execute or celery_executor_utils.execute_command.__wrapped__
 
     test_config = dict(celery_executor_utils.celery_configuration)
@@ -109,6 +110,9 @@ class TestCeleryExecutor:
 
     def test_supports_sentry(self):
         assert CeleryExecutor.supports_sentry
+
+    def test_cli_commands_vended(self):
+        assert CeleryExecutor.get_cli_commands()
 
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self, caplog):
@@ -185,6 +189,7 @@ class TestCeleryExecutor:
 
         key1 = TaskInstance(task=task_1, run_id=None)
         tis = [key1]
+
         executor = celery_executor.CeleryExecutor()
 
         assert executor.try_adopt_task_instances(tis) == tis
@@ -208,6 +213,7 @@ class TestCeleryExecutor:
         ti2.state = State.QUEUED
 
         tis = [ti1, ti2]
+
         executor = celery_executor.CeleryExecutor()
         assert executor.running == set()
         assert executor.tasks == {}
@@ -243,6 +249,7 @@ class TestCeleryExecutor:
         tis = [ti]
         with _prepare_app() as app:
             app.control.revoke = mock.MagicMock()
+
             executor = celery_executor.CeleryExecutor()
             executor.job_id = 1
             executor.running = {ti.key}
@@ -257,9 +264,6 @@ class TestCeleryExecutor:
     @mock.patch("celery.Celery")
     def test_result_backend_sqlalchemy_engine_options(self, mock_celery):
         import importlib
-
-        from airflow.config_templates import default_celery
-        from airflow.providers.celery.executors import celery_executor_utils
 
         # reload celery conf to apply the new config
         importlib.reload(default_celery)
@@ -311,6 +315,7 @@ def register_signals():
 
 
 @pytest.mark.execution_timeout(200)
+@pytest.mark.quarantined
 def test_send_tasks_to_celery_hang(register_signals):
     """
     Test that celery_executor does not hang after many runs.

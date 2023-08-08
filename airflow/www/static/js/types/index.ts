@@ -71,6 +71,7 @@ interface TaskInstance {
   mappedStates?: {
     [key: string]: number;
   };
+  queuedDttm?: string | null;
   mapIndex?: number;
   tryNumber?: number;
   triggererJob?: Job;
@@ -99,6 +100,7 @@ interface Task {
   operator?: string;
   hasOutletDatasets?: boolean;
   triggerRule?: API.TriggerRule;
+  setupTeardownType?: "setup" | "teardown";
 }
 
 type RunOrdering = (
@@ -118,6 +120,8 @@ interface DepNode {
     isOpen?: boolean;
     isJoinNode?: boolean;
     childCount?: number;
+    labelStyle: string;
+    style: string;
     setupTeardownType?: "setup" | "teardown";
   };
   children?: DepNode[];
@@ -137,6 +141,7 @@ export interface WebserverEdge {
   label?: string;
   sourceId: string;
   targetId: string;
+  isSetupTeardown?: boolean;
 }
 
 interface DatasetListItem extends API.Dataset {

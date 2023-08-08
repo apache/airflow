@@ -28,14 +28,56 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.2.3
+.....
+
+Latest change: 2023-08-03
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`a069965df8 <https://github.com/apache/airflow/commit/a069965df84273c65e23d1fda9ffa47a58ed6732>`_  2023-08-03   ``Add issue link for TODO wrt Azure integration pinned dependencies (#33064)``
+`fea8c9024f <https://github.com/apache/airflow/commit/fea8c9024f3930aeba6bcf95d346fefd3ca8a016>`_  2023-08-02   ``Delete azure cosmos DB sensor example_dag (#32906)``
+`df74553ec4 <https://github.com/apache/airflow/commit/df74553ec484ad729fcd75ccbc1f5f18e7f34dc8>`_  2023-08-02   ``Refactor account_url use in WasbHook (#32980)``
+=================================================================================================  ===========  ==============================================================================
+
+6.2.2
+.....
+
+Latest change: 2023-07-29
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
+`42b4b43c4c <https://github.com/apache/airflow/commit/42b4b43c4c2ccf0b6e7eaa105c982df495768d01>`_  2023-07-23   ``Add Redis task handler (#31855)``
+`e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
+=================================================================================================  ===========  ================================================================================
+
+6.2.1
+.....
+
+Latest change: 2023-07-12
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`e7f59a913e <https://github.com/apache/airflow/commit/e7f59a913e1fcf9052e69f62af9fe23901f1a358>`_  2023-07-12   ``Prepare docs for July 2023 2nd wave of Providers (#32566)``
+`fcbf15947f <https://github.com/apache/airflow/commit/fcbf15947f2f271d502bc6f4b9e3d0bada072d84>`_  2023-07-12   ``Fix breaking change when Active Directory ID is used as host in WASB (#32560)``
+`a67427af37 <https://github.com/apache/airflow/commit/a67427af3738218786f3745d9737f462c70d4233>`_  2023-07-12   ``Fix get_blobs_list_async method to return BlobProperties (#32545)``
+`c99c03135c <https://github.com/apache/airflow/commit/c99c03135ca7e7c41e1c6d338de9e41422ea84f0>`_  2023-07-08   ``D205 Support - Providers: Stragglers and new additions (#32447)``
+`257136786c <https://github.com/apache/airflow/commit/257136786c9a3eebbae717738637ab24fd6ab563>`_  2023-07-08   ``Moves 'AzureBlobStorageToGCSOperator' from Azure to Google provider (#32306)``
+=================================================================================================  ===========  =================================================================================
+
 6.2.0
 .....
 
-Latest change: 2023-07-05
+Latest change: 2023-07-06
 
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `1240dcc167 <https://github.com/apache/airflow/commit/1240dcc167c4b47331db81deff61fc688df118c2>`_  2023-07-05   ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``

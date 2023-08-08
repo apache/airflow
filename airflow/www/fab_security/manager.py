@@ -22,19 +22,17 @@ import base64
 import datetime
 import json
 import logging
-from functools import cached_property
 from typing import Any
 from uuid import uuid4
 
 import re2
-from flask import Flask, current_app, g, session, url_for
+from flask import Flask, g, session, url_for
 from flask_appbuilder import AppBuilder
 from flask_appbuilder.const import (
     AUTH_DB,
     AUTH_LDAP,
     AUTH_OAUTH,
     AUTH_OID,
-    AUTH_REMOTE_USER,
     LOGMSG_ERR_SEC_ADD_REGISTER_USER,
     LOGMSG_ERR_SEC_AUTH_LDAP,
     LOGMSG_ERR_SEC_AUTH_LDAP_TLS,
@@ -66,15 +64,14 @@ from flask_appbuilder.security.views import (
     UserRemoteUserModelView,
     UserStatsChartView,
 )
-from flask_babel import lazy_gettext as _
-from flask_jwt_extended import JWTManager, current_user as current_user_jwt
+from flask_jwt_extended import current_user as current_user_jwt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_login import AnonymousUserMixin, LoginManager, current_user
-from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.security import check_password_hash
 
+from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role, User
 from airflow.configuration import conf
-from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
@@ -90,33 +87,6 @@ def _oauth_tokengetter(token=None):
     token = session.get("oauth")
     log.debug("Token Get: %s", token)
     return token
-
-
-class AnonymousUser(AnonymousUserMixin):
-    """User object used when no active user is logged in."""
-
-    _roles: set[tuple[str, str]] = set()
-    _perms: set[tuple[str, str]] = set()
-
-    @property
-    def roles(self):
-        if not self._roles:
-            public_role = current_app.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
-            self._roles = {current_app.appbuilder.sm.find_role(public_role)} if public_role else set()
-        return self._roles
-
-    @roles.setter
-    def roles(self, roles):
-        self._roles = roles
-        self._perms = set()
-
-    @property
-    def perms(self):
-        if not self._perms:
-            self._perms = set()
-            for role in self.roles:
-                self._perms.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
-        return self._perms
 
 
 class BaseSecurityManager:
@@ -208,12 +178,6 @@ class BaseSecurityManager:
     userstatschartview = UserStatsChartView
     permissionmodelview = PermissionModelView
 
-    @cached_property
-    def resourcemodelview(self):
-        from airflow.www.views import ResourceModelView
-
-        return ResourceModelView
-
     def __init__(self, appbuilder):
         self.appbuilder = appbuilder
         app = self.appbuilder.get_app
@@ -281,11 +245,6 @@ class BaseSecurityManager:
                 self.oauth_remotes[provider_name] = obj_provider
 
         self._builtin_roles = self.create_builtin_roles()
-        # Setup Flask-Login
-        self.lm = self.create_login_manager(app)
-
-        # Setup Flask-Jwt-Extended
-        self.jwt_manager = self.create_jwt_manager(app)
 
         # Setup Flask-Limiter
         self.limiter = self.create_limiter(app)
@@ -294,29 +253,6 @@ class BaseSecurityManager:
         limiter = Limiter(key_func=get_remote_address)
         limiter.init_app(app)
         return limiter
-
-    def create_login_manager(self, app) -> LoginManager:
-        """
-        Override to implement your custom login manager instance.
-
-        :param app: Flask app
-        """
-        lm = LoginManager(app)
-        lm.anonymous_user = AnonymousUser
-        lm.login_view = "login"
-        lm.user_loader(self.load_user)
-        return lm
-
-    def create_jwt_manager(self, app) -> JWTManager:
-        """
-        Override to implement your custom JWT manager instance.
-
-        :param app: Flask app
-        """
-        jwt_manager = JWTManager()
-        jwt_manager.init_app(app)
-        jwt_manager.user_lookup_loader(self.load_user_jwt)
-        return jwt_manager
 
     def create_builtin_roles(self):
         """Returns FAB builtin roles."""
@@ -373,11 +309,6 @@ class BaseSecurityManager:
     @property
     def api_login_allow_multiple_providers(self):
         return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
-
-    @property
-    def auth_type(self):
-        """Get the auth type."""
-        return self.appbuilder.get_app.config["AUTH_TYPE"]
 
     @property
     def auth_username_ci(self):
@@ -530,17 +461,9 @@ class BaseSecurityManager:
         return self.appbuilder.get_app.config["OAUTH_PROVIDERS"]
 
     @property
-    def is_auth_limited(self) -> bool:
-        return self.appbuilder.get_app.config["AUTH_RATE_LIMITED"]
-
-    @property
-    def auth_rate_limit(self) -> str:
-        return self.appbuilder.get_app.config["AUTH_RATE_LIMIT"]
-
-    @property
     def current_user(self):
         """Current user object."""
-        if current_user.is_authenticated:
+        if get_auth_manager().is_logged_in():
             return g.user
         elif current_user_jwt:
             return current_user_jwt
@@ -732,114 +655,6 @@ class BaseSecurityManager:
 
         return jwt_decoded_payload
 
-    def register_views(self):
-        if not self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEWS", True):
-            return
-
-        if self.auth_user_registration:
-            if self.auth_type == AUTH_DB:
-                self.registeruser_view = self.registeruserdbview()
-            elif self.auth_type == AUTH_OID:
-                self.registeruser_view = self.registeruseroidview()
-            elif self.auth_type == AUTH_OAUTH:
-                self.registeruser_view = self.registeruseroauthview()
-            if self.registeruser_view:
-                self.appbuilder.add_view_no_menu(self.registeruser_view)
-
-        self.appbuilder.add_view_no_menu(self.resetpasswordview())
-        self.appbuilder.add_view_no_menu(self.resetmypasswordview())
-        self.appbuilder.add_view_no_menu(self.userinfoeditview())
-
-        if self.auth_type == AUTH_DB:
-            self.user_view = self.userdbmodelview
-            self.auth_view = self.authdbview()
-
-        elif self.auth_type == AUTH_LDAP:
-            self.user_view = self.userldapmodelview
-            self.auth_view = self.authldapview()
-        elif self.auth_type == AUTH_OAUTH:
-            self.user_view = self.useroauthmodelview
-            self.auth_view = self.authoauthview()
-        elif self.auth_type == AUTH_REMOTE_USER:
-            self.user_view = self.userremoteusermodelview
-            self.auth_view = self.authremoteuserview()
-        else:
-            self.user_view = self.useroidmodelview
-            self.auth_view = self.authoidview()
-            if self.auth_user_registration:
-                pass
-                # self.registeruser_view = self.registeruseroidview()
-                # self.appbuilder.add_view_no_menu(self.registeruser_view)
-
-        self.appbuilder.add_view_no_menu(self.auth_view)
-
-        # this needs to be done after the view is added, otherwise the blueprint
-        # is not initialized
-        if self.is_auth_limited:
-            self.limiter.limit(self.auth_rate_limit, methods=["POST"])(self.auth_view.blueprint)
-
-        self.user_view = self.appbuilder.add_view(
-            self.user_view,
-            "List Users",
-            icon="fa-user",
-            label=_("List Users"),
-            category="Security",
-            category_icon="fa-cogs",
-            category_label=_("Security"),
-        )
-
-        role_view = self.appbuilder.add_view(
-            self.rolemodelview,
-            "List Roles",
-            icon="fa-group",
-            label=_("List Roles"),
-            category="Security",
-            category_icon="fa-cogs",
-        )
-        role_view.related_views = [self.user_view.__class__]
-
-        if self.userstatschartview:
-            self.appbuilder.add_view(
-                self.userstatschartview,
-                "User's Statistics",
-                icon="fa-bar-chart-o",
-                label=_("User's Statistics"),
-                category="Security",
-            )
-        if self.auth_user_registration:
-            self.appbuilder.add_view(
-                self.registerusermodelview,
-                "User's Statistics",
-                icon="fa-user-plus",
-                label=_("User Registrations"),
-                category="Security",
-            )
-        self.appbuilder.menu.add_separator("Security")
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
-            self.appbuilder.add_view(
-                self.actionmodelview,
-                "Actions",
-                icon="fa-lock",
-                label=_("Actions"),
-                category="Security",
-            )
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
-            self.appbuilder.add_view(
-                self.resourcemodelview,
-                "Resources",
-                icon="fa-list-alt",
-                label=_("Resources"),
-                category="Security",
-            )
-        if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
-            self.appbuilder.add_view(
-                self.permissionmodelview,
-                "Permission Pairs",
-                icon="fa-link",
-                label=_("Permissions"),
-                category="Security",
-            )
-
     def create_db(self):
         """Setups the DB, creates admin and public roles if they don't exist."""
         roles_mapping = self.appbuilder.get_app.config.get("FAB_ROLES_MAPPING", {})
@@ -852,20 +667,6 @@ class BaseSecurityManager:
         self.add_role(self.auth_role_public)
         if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
             log.warning(LOGMSG_WAR_SEC_NO_USER)
-
-    def reset_password(self, userid, password):
-        """
-        Change/Reset a user's password for authdb.
-        Password will be hashed and saved.
-
-        :param userid:
-            the user.id to reset the password
-        :param password:
-            The clear text password to reset and save hashed on the db
-        """
-        user = self.get_user_by_id(userid)
-        user.password = generate_password_hash(password)
-        self.update_user(user)
 
     def update_user_auth_stat(self, user, success=True):
         """Update user authentication stats.
@@ -1415,7 +1216,7 @@ class BaseSecurityManager:
         return result
 
     def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
-        if current_user.is_authenticated:
+        if get_auth_manager().is_logged_in():
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
             return self._get_user_permission_resources(
@@ -1734,18 +1535,7 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def load_user(self, user_id):
-        """Load user by ID."""
-        return self.get_user_by_id(int(user_id))
-
-    def load_user_jwt(self, _jwt_header, jwt_data):
-        identity = jwt_data["sub"]
-        user = self.load_user(identity)
-        # Set flask g.user to JWT user, we can't do it on before request
-        g.user = user
-        return user
-
     @staticmethod
     def before_request():
         """Hook runs before request."""
-        g.user = current_user
+        g.user = get_auth_manager().get_user()

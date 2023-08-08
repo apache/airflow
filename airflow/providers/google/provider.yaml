@@ -30,6 +30,9 @@ description: |
 
 suspended: false
 versions:
+  - 10.6.0
+  - 10.5.0
+  - 10.4.0
   - 10.3.0
   - 10.2.0
   - 10.1.1
@@ -92,7 +95,7 @@ dependencies:
   - google-cloud-dataform>=0.5.0
   - google-cloud-dataplex>=1.4.2
   - google-cloud-dataproc>=5.4.0
-  - google-cloud-dataproc-metastore>=1.10.0
+  - google-cloud-dataproc-metastore>=1.12.0
   - google-cloud-dlp>=3.12.0
   - google-cloud-kms>=2.15.0
   - google-cloud-language>=2.9.0
@@ -125,6 +128,7 @@ dependencies:
   - proto-plus>=1.19.6
   - PyOpenSSL
   - sqlalchemy-bigquery>=1.2.1
+  - sqlalchemy-spanner>=1.6.2
 
 integrations:
   - integration-name: Google Analytics360
@@ -925,6 +929,7 @@ transfers:
     python-module: airflow.providers.google.cloud.transfers.gcs_to_sftp
   - source-integration-name: PostgreSQL
     target-integration-name: Google Cloud Storage (GCS)
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/postgres_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.postgres_to_gcs
   - source-integration-name: Google BigQuery
     target-integration-name: Common SQL
@@ -1059,6 +1064,12 @@ extra-links:
   - airflow.providers.google.cloud.links.datacatalog.DataCatalogTagTemplateLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocClusterLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocJobLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocWorkflowLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocWorkflowTemplateLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocBatchLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocBatchesListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreLink
   - airflow.providers.google.cloud.links.dataprep.DataprepFlowLink

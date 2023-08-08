@@ -241,7 +241,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def get_pandas_df(
         self,
         sql: str,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         dialect: str | None = None,
         **kwargs,
     ) -> DataFrame:
@@ -2245,7 +2245,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = job.job_id
         return job.job_id
 
-    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False):
+    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
         else:
@@ -3103,29 +3103,16 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         with await self.service_file_as_context() as f:
             return Job(job_id=job_id, project=project_id, service_file=f, session=cast(Session, session))
 
-    async def get_job_status(
-        self,
-        job_id: str | None,
-        project_id: str | None = None,
-    ) -> str | None:
-        """Poll for job status asynchronously using gcloud-aio.
-
-        Note that an OSError is raised when Job results are still pending.
-        Exception means that Job finished with errors
-        """
+    async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> str:
         async with ClientSession() as s:
-            try:
-                self.log.info("Executing get_job_status...")
-                job_client = await self.get_job_instance(project_id, job_id, s)
-                job_status_response = await job_client.result(cast(Session, s))
-                if job_status_response:
-                    job_status = "success"
-            except OSError:
-                job_status = "pending"
-            except Exception as e:
-                self.log.info("Query execution finished with errors...")
-                job_status = str(e)
-            return job_status
+            job_client = await self.get_job_instance(project_id, job_id, s)
+            job = await job_client.get_job()
+            status = job.get("status", {})
+            if status["state"] == "DONE":
+                if "errorResult" in status:
+                    return "error"
+                return "success"
+            return status["state"].lower()
 
     async def get_job_output(
         self,
@@ -3274,8 +3261,8 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             raise AirflowException("The first SQL query returned None")
 
         ratio_formulas = {
-            "max_over_min": lambda cur, ref: float(max(cur, ref)) / min(cur, ref),
-            "relative_diff": lambda cur, ref: float(abs(cur - ref)) / ref,
+            "max_over_min": lambda cur, ref: max(cur, ref) / min(cur, ref),
+            "relative_diff": lambda cur, ref: abs(cur - ref) / ref,
         }
 
         metrics_sorted = sorted(metrics_thresholds.keys())

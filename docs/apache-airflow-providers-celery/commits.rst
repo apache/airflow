@@ -28,6 +28,43 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.1
+.....
+
+Latest change: 2023-08-04
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`879fd34e97 <https://github.com/apache/airflow/commit/879fd34e97a5343e6d2bbf3d5373831b9641b5ad>`_  2023-08-04   ``aDd documentation generation for CLI commands from executors (#33081)``
+`e3d82c6be0 <https://github.com/apache/airflow/commit/e3d82c6be0e0e1468ade053c37690aa1e0e4882d>`_  2023-08-04   ``Get rid of Python2 numeric relics (#33050)``
+=================================================================================================  ===========  =========================================================================
+
+3.3.0
+.....
+
+Latest change: 2023-07-29
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
+`f31af91dbd <https://github.com/apache/airflow/commit/f31af91dbd8b98cc4ddb98bed8bbc086ab4b65c9>`_  2023-07-29   ``Raise original import error in CLI vending of executors (#32931)``
+`fcbbf47864 <https://github.com/apache/airflow/commit/fcbbf47864c251046de108aafdad394d66e1df23>`_  2023-07-29   ``[AIP-51] Executors vending CLI commands (#29055)``
+`e93460383f <https://github.com/apache/airflow/commit/e93460383f287f9b2af4b6bda3ea6ba17ba3c08b>`_  2023-07-26   ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+`2ac237b3eb <https://github.com/apache/airflow/commit/2ac237b3eba93ed0c5fa15bced690f42d7444897>`_  2023-07-24   ``Add pre-Airflow-2-7 hardcoded defaults for config for older providers  (#32775)``
+`56c41d460c <https://github.com/apache/airflow/commit/56c41d460c3f2a4e871c7834033c3152e71f71d2>`_  2023-07-22   ``Introduce decorator to load providers configuration (#32765)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
+`ea0deaa993 <https://github.com/apache/airflow/commit/ea0deaa993674ad0e4ef777d687dc13809b0ec5d>`_  2023-07-16   ``Move default_celery.py to inside the provider (#32628)``
+`624211f33f <https://github.com/apache/airflow/commit/624211f33f30d0147b9daeb5913d2eb01861a842>`_  2023-07-12   ``Add Executors discovery and documentation (#32532)``
+`40d54eac1a <https://github.com/apache/airflow/commit/40d54eac1a2f35167bdd179fda3fd018fe32d116>`_  2023-07-12   ``Move CeleryExecutor to the celery provider (#32526)``
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`8c37b74a20 <https://github.com/apache/airflow/commit/8c37b74a208a808d905c1b86d081d69d7a1aa900>`_  2023-06-28   ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+=================================================================================================  ===========  ===================================================================================
+
 3.2.1
 .....
 
@@ -36,6 +73,7 @@ Latest change: 2023-06-20
 =================================================================================================  ===========  =============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
 `8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 =================================================================================================  ===========  =============================================================
 

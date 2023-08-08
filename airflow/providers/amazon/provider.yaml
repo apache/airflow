@@ -23,6 +23,9 @@ description: |
 
 suspended: false
 versions:
+  - 8.5.0
+  - 8.4.0
+  - 8.3.1
   - 8.3.0
   - 8.2.0
   - 8.1.0
@@ -75,7 +78,7 @@ dependencies:
   - sqlalchemy_redshift>=0.8.6
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
-  - mypy-boto3-appflow>=1.24.0
+  - mypy-boto3-appflow>=1.28.16
   - asgiref
   - mypy-boto3-s3>=1.24.0
 
@@ -152,6 +155,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/emr/emr_serverless.rst
     logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon EventBridge
+    external-doc-url: https://docs.aws.amazon.com/eventbridge/latest/APIReference/Welcome.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/eventbridge.rst
+    logo: /integration-logos/aws/Amazon-EventBridge_64.png
     tags: [aws]
   - integration-name: Amazon Glacier
     external-doc-url: https://aws.amazon.com/glacier/
@@ -306,6 +315,9 @@ operators:
   - integration-name: Amazon EMR on EKS
     python-modules:
       - airflow.providers.amazon.aws.operators.emr
+  - integration-name: Amazon EventBridge
+    python-modules:
+      - airflow.providers.amazon.aws.operators.eventbridge
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.operators.glacier
@@ -456,6 +468,9 @@ hooks:
   - integration-name: Amazon EMR on EKS
     python-modules:
       - airflow.providers.amazon.aws.hooks.emr
+  - integration-name: Amazon EventBridge
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.eventbridge
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.hooks.glacier
@@ -553,6 +568,12 @@ triggers:
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.triggers.rds
+  - integration-name: AWS Step Functions
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.step_function
+  - integration-name: Amazon Simple Queue Service (SQS)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.sqs
 
 transfers:
   - source-integration-name: Amazon DynamoDB
