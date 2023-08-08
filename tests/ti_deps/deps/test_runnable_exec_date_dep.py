@@ -38,7 +38,7 @@ def clean_db(session):
 
 @time_machine.travel("2016-11-01")
 @pytest.mark.parametrize(
-    "allow_trigger_in_future,schedule_interval,execution_date,is_met",
+    "allow_trigger_in_future,schedule,execution_date,is_met",
     [
         (True, None, datetime(2016, 11, 3), True),
         (True, "@daily", datetime(2016, 11, 3), False),
@@ -53,12 +53,12 @@ def test_exec_date_dep(
     session,
     create_dummy_dag,
     allow_trigger_in_future,
-    schedule_interval,
+    schedule,
     execution_date,
     is_met,
 ):
     """
-    If the dag's execution date is in the future but (allow_trigger_in_future=False or not schedule_interval)
+    If the dag's execution date is in the future but (allow_trigger_in_future=False or not schedule)
     this dep should fail
     """
     with patch.object(settings, "ALLOW_FUTURE_EXEC_DATES", allow_trigger_in_future):
@@ -66,7 +66,7 @@ def test_exec_date_dep(
             "test_localtaskjob_heartbeat",
             start_date=datetime(2015, 1, 1),
             end_date=datetime(2016, 11, 5),
-            schedule=schedule_interval,
+            schedule=schedule,
             with_dagrun_type=DagRunType.MANUAL,
             session=session,
         )

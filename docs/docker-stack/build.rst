@@ -349,7 +349,7 @@ You should be aware, about a few things:
   The DAGs in production image are in ``/opt/airflow/dags`` folder.
 
 * You can build your image without any need for Airflow sources. It is enough that you place the
-  ``Dockerfile`` and any files that are referred to (such as Dag files) in a separate directory and run
+  ``Dockerfile`` and any files that are referred to (such as DAG files) in a separate directory and run
   a command ``docker build . --pull --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
   and ``my-tag`` is the tag you want to tag the image with.
 

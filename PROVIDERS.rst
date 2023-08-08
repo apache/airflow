@@ -57,7 +57,7 @@ releasing new versions of the providers. This means that the code changes in the
 reviewed by Airflow committers and merged when they are accepted by them. Also we must have sufficient
 test coverage and documentation that allow us to maintain the providers, and our users to use them.
 
-Thy providers - their latest version in "main" branch of airflow repository - are installed and tested together
+The providers - their latest version in "main" branch of airflow repository - are installed and tested together
 with other community providers and one of the key properties of the community providers is that the latest
 version of providers contribute their dependencies to constraints of Airflow, published when Airflow Core is
 released. This means that when users are using constraints published by Airflow, they can install all

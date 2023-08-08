@@ -27,6 +27,14 @@ Changelog
 ---------
 
 
+2.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate database URL passed to create_engine of Drill hook's connection (#33074)``
+
 2.4.2
 .....
 

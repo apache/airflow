@@ -43,7 +43,7 @@ from airflow_breeze.global_constants import (
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
-    get_available_documentation_packages,
+    get_available_documentation_provider_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -448,7 +448,7 @@ argument_packages = click.argument(
     "packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(get_available_documentation_packages(short_version=True)),
+    type=BetterChoice(get_available_documentation_provider_packages(short_version=True)),
 )
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
