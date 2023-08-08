@@ -816,7 +816,7 @@ class KubernetesPodOperator(BaseOperator):
                 pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
         elif self.pod_template_content:
             self.log.debug("Pod template content found, will parse for base pod")
-            pod_template = pod_generator.PodGenerator.deserialize_model(yaml.safe_load(self.pod_template_content))
+            pod_template = pod_generator.PodGenerator.deserialize_model_dict(yaml.safe_load(self.pod_template_content))
             if self.full_pod_spec:
                 pod_template = PodGenerator.reconcile_pods(pod_template, self.full_pod_spec)
         elif self.full_pod_spec:
