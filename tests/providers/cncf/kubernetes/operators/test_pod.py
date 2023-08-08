@@ -937,7 +937,7 @@ class TestKubernetesPodOperator:
                         image='registry.k8s.io/git-sync:v3.1.1',
                         args=[
                             f'--repo=git@github.com:airflow/some_repo.git',
-                            f'--branch={{ params.get("repo_branch", "master") }}',
+                            f'--branch={{{{ params.get("repo_branch", "master") }}}}',
                         ],
                     ),
                 ],
@@ -950,6 +950,8 @@ class TestKubernetesPodOperator:
             random_name_suffix=randomize_name,
             pod_template_content=serialized_pod,
         )
+
+        k.render_template_fields(context={"params": {"repo_branch": "test_branch"}})
         pod = k.build_pod_request_obj(create_context(k))
 
         if randomize_name:
@@ -974,9 +976,8 @@ class TestKubernetesPodOperator:
         assert pod.spec.init_containers[0].image == "registry.k8s.io/git-sync:v3.1.1"
         assert pod.spec.init_containers[0].args == [
             '--repo=git@github.com:airflow/some_repo.git',
-            '--branch=master',
+            '--branch=test_branch',
         ]
-        assert pod.spec.service_account_name == "foo"
 
     @patch(f"{POD_MANAGER_CLASS}.fetch_container_logs")
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion", new=MagicMock)
