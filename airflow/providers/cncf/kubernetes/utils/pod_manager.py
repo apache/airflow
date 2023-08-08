@@ -723,7 +723,7 @@ class PodManager(LoggingMixin):
         return res
 
 
-class OnFinishAction(enum.Enum):
+class OnFinishAction(str, enum.Enum):
     """Action to take when the pod finishes."""
 
     KEEP_POD = "keep_pod"
