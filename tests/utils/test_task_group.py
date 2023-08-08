@@ -1487,7 +1487,7 @@ def test_task_group_arrow_with_setups_teardowns():
     assert w1.downstream_task_ids == {"tg1.t1", "w2"}
 
 
-def test_tasks_defined_outside_taskgrooup(dag_maker):
+def test_tasks_defined_outside_task_group(dag_maker):
     # Test that classic tasks defined outside a task group are added to the root task group
     # when the relationships are defined inside the task group
     with dag_maker() as dag:
@@ -1497,14 +1497,14 @@ def test_tasks_defined_outside_taskgrooup(dag_maker):
         with TaskGroup(group_id="tg1"):
             t1 >> t2 >> t3
     dag.validate()
-    assert dag.task_group.children.keys() == {"tg1"}
-    assert dag.task_group.children["tg1"].children.keys() == {"t1", "t2", "t3"}
-    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
-    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t2"].upstream_task_ids == {"t1"}
-    assert dag.task_group.children["tg1"].children["t2"].downstream_task_ids == {"t3"}
-    assert dag.task_group.children["tg1"].children["t3"].upstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t3"].downstream_task_ids == set()
+    assert set(dag.task_group.children.keys()) == {"t1", "t2", "t3", "tg1"}
+    assert set(dag.task_group.children["tg1"].children.keys()) == set()
+    assert dag.task_group.children["t1"].upstream_task_ids == set()
+    assert dag.task_group.children["t1"].downstream_task_ids == {"t2"}
+    assert dag.task_group.children["t2"].upstream_task_ids == {"t1"}
+    assert dag.task_group.children["t2"].downstream_task_ids == {"t3"}
+    assert dag.task_group.children["t3"].upstream_task_ids == {"t2"}
+    assert dag.task_group.children["t3"].downstream_task_ids == set()
 
     # Test that decorated tasks defined outside a task group are added to the root task group
     # when relationships are defined inside the task group
@@ -1515,14 +1515,14 @@ def test_tasks_defined_outside_taskgrooup(dag_maker):
         with TaskGroup(group_id="tg1"):
             t1 >> t2 >> t3
     dag.validate()
-    assert dag.task_group.children.keys() == {"tg1"}
-    assert dag.task_group.children["tg1"].children.keys() == {"t1", "t2", "t3"}
-    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
-    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t2"].upstream_task_ids == {"t1"}
-    assert dag.task_group.children["tg1"].children["t2"].downstream_task_ids == {"t3"}
-    assert dag.task_group.children["tg1"].children["t3"].upstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t3"].downstream_task_ids == set()
+    assert set(dag.task_group.children.keys()) == {"tg1", "t1", "t2", "t3"}
+    assert dag.task_group.children["tg1"].children.keys() == set()
+    assert dag.task_group.children["t1"].upstream_task_ids == set()
+    assert dag.task_group.children["t1"].downstream_task_ids == {"t2"}
+    assert dag.task_group.children["t2"].upstream_task_ids == {"t1"}
+    assert dag.task_group.children["t2"].downstream_task_ids == {"t3"}
+    assert dag.task_group.children["t3"].upstream_task_ids == {"t2"}
+    assert dag.task_group.children["t3"].downstream_task_ids == set()
 
     # Test adding single decorated task defined outside a task group to a task group
     with dag_maker() as dag:
