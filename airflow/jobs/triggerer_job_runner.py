@@ -257,6 +257,8 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         else:
             raise ValueError(f"Capacity number {capacity} is invalid")
 
+        self.health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
+
         should_queue = True
         if DISABLE_WRAPPER:
             self.log.warning(
@@ -363,7 +365,7 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
 
     def load_triggers(self):
         """Query the database for the triggers we're supposed to be running and update the runner."""
-        Trigger.assign_unassigned(self.job.id, self.capacity, self.job.heartrate)
+        Trigger.assign_unassigned(self.job.id, self.capacity, self.health_check_threshold)
         ids = Trigger.ids_for_triggerer(self.job.id)
         self.trigger_runner.update_triggers(set(ids))
 

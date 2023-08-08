@@ -179,8 +179,9 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    def test_is_alive_scheduler(self):
-        job = Job(heartrate=10, state=State.RUNNING, job_type="SchedulerJob")
+    @pytest.mark.parametrize("job_type", ["SchedulerJob", "TriggererJob"])
+    def test_is_alive_scheduler(self, job_type):
+        job = Job(heartrate=10, state=State.RUNNING, job_type=job_type)
         assert job.is_alive() is True
 
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=20)

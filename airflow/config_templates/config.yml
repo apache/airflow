@@ -591,10 +591,17 @@ database:
       default: ~
     load_default_connections:
       description: |
-        Whether to load the default connections that ship with Airflow. It's good to
-        get started, but you probably want to set this to ``False`` in a production
-        environment
+        Whether to load the default connections that ship with Airflow when ``airflow db init`` is called.
+        It's good to get started, but you probably want to set this to ``False`` in a production environment.
       version_added: 2.3.0
+      version_deprecated: 2.7.0
+      deprecation_reason: |
+        This option is only used by the deprecated "airflow db init" command.
+        This option has been used in previous versions of Airflow to determine if loading of the default
+        connections is done with the ``airflow db init`` command. This command has been deprecated and
+        replaced by two separate commands ``airflow db migrate`` and
+        ``airflow connections create-default-connections`` and ``load_default_connections`` is not
+        used anymore by those commands.
       type: string
       example: ~
       default: "True"
@@ -1230,65 +1237,6 @@ lineage:
       type: string
       example: ~
       default: ""
-openlineage:
-  description: |
-    This section applies settings for OpenLineage integration.
-    For backwards compatibility with `openlineage-python` one can still use
-    `openlineage.yml` file or `OPENLINEAGE_` environment variables. However, below
-    configuration takes precedence over those.
-    More in documentation - https://openlineage.io/docs/client/python#configuration.
-  options:
-    disabled:
-      description: |
-        Set this to true if you don't want OpenLineage to emit events.
-      type: boolean
-      example: ~
-      default: "False"
-      version_added: ~
-    namespace:
-      description: |
-        OpenLineage namespace
-      version_added: ~
-      type: string
-      example: "food_delivery"
-      default: ~
-    extractors:
-      description: |
-        Comma-separated paths to custom OpenLineage extractors.
-      type: string
-      example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
-      default: ''
-      version_added: ~
-    config_path:
-      description: |
-        Path to YAML config. This provides backwards compatibility to pass config as
-        `openlineage.yml` file.
-      version_added: ~
-      type: string
-      example: ~
-      default: ''
-    transport:
-      description: |
-        OpenLineage Client transport configuration. It should contain type
-        and additional options per each type.
-
-        Currently supported types are:
-
-          * HTTP
-          * Kafka
-          * Console
-      type: string
-      example: '{"type": "http", "url": "http://localhost:5000"}'
-      default: ''
-      version_added: ~
-    disable_source_code:
-      description: |
-        If disabled, OpenLineage events do not contain source code of particular
-        operators, like PythonOperator.
-      default: ~
-      example: ~
-      type: boolean
-      version_added: ~
 operators:
   description: ~
   options:
@@ -1349,6 +1297,13 @@ operators:
 webserver:
   description: ~
   options:
+    access_denied_message:
+      description: |
+        The message displayed when a user attempts to execute actions beyond their authorised privileges.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "Access is Denied"
     config_file:
       description: |
         Path of webserver config file used for configuring the webserver parameters
@@ -1445,7 +1400,8 @@ webserver:
     reload_on_plugin_change:
       description: |
         If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
-        then reload the gunicorn.
+        then reload the gunicorn. If set to True, gunicorn starts without preloading, which is slower, uses
+        more memory, and may cause race conditions. Avoid setting this to True in production.
       version_added: 1.10.11
       type: boolean
       example: ~
@@ -1855,6 +1811,22 @@ email:
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~
+    ssl_context:
+      description: |
+        ssl context to use when using SMTP and IMAP SSL connections. By default, the context is "default"
+        which sets it to ``ssl.create_default_context()`` which provides the right balance between
+        compatibility and security, it however requires that certificates in your operating system are
+        updated and that SMTP/IMAP servers of yours have valid certificates that have corresponding public
+        keys installed on your machines. You can switch it to "none" if you want to disable checking
+        of the certificates, but it is not recommended as it allows MITM (man-in-the-middle) attacks
+        if your infrastructure is not sufficiently secured. It should only be set temporarily while you
+        are fixing your certificate configuration. This can be typically done by upgrading to newer
+        version of the operating system you run Airflow components on,by upgrading/refreshing proper
+        certificates in the OS or by updating certificates for your mail servers.
+      type: string
+      version_added: 2.7.0
+      example: "default"
+      default: "default"
 smtp:
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
@@ -2287,6 +2259,16 @@ triggerer:
       type: float
       example: ~
       default: "5"
+    triggerer_health_check_threshold:
+      description: |
+        If the last triggerer heartbeat happened more than triggerer_health_check_threshold
+        ago (in seconds), triggerer is considered unhealthy.
+        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        for TriggererJob.
+      version_added: 2.7.0
+      type: float
+      example: ~
+      default: "30"
 kerberos:
   description: ~
   options:
@@ -2333,98 +2315,6 @@ kerberos:
         Allow to remove source IP from token, useful when using token behind NATted Docker host.
       version_added: 2.2.0
       type: boolean
-      example: ~
-      default: "True"
-elasticsearch:
-  description: ~
-  options:
-    host:
-      description: |
-        Elasticsearch host
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: ""
-    log_id_template:
-      description: |
-        Format of the log_id, which is used to query for a given tasks logs
-      version_added: 1.10.4
-      type: string
-      example: ~
-      is_template: true
-      default: "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
-    end_of_log_mark:
-      description: |
-        Used to mark the end of a log stream for a task
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "end_of_log"
-    frontend:
-      description: |
-        Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
-        Code will construct log_id using the log_id template from the argument above.
-        NOTE: scheme will default to https if one is not provided
-      version_added: 1.10.4
-      type: string
-      example: "http://localhost:5601/app/kibana#/discover\
-        ?_a=(columns:!(message),query:(language:kuery,query:'log_id: \"{log_id}\"'),sort:!(log.offset,asc))"
-      default: ""
-    write_stdout:
-      description: |
-        Write the task logs to the stdout of the worker, rather than the default files
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "False"
-    json_format:
-      description: |
-        Instead of the default log formatter, write the log lines as JSON
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "False"
-    json_fields:
-      description: |
-        Log fields to also attach to the json output, if enabled
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "asctime, filename, lineno, levelname, message"
-    host_field:
-      description: |
-        The field where host name is stored (normally either `host` or `host.name`)
-      version_added: 2.1.1
-      type: string
-      example: ~
-      default: "host"
-    offset_field:
-      description: |
-        The field where offset is stored (normally either `offset` or `log.offset`)
-      version_added: 2.1.1
-      type: string
-      example: ~
-      default: "offset"
-    index_patterns:
-      description: |
-        Comma separated list of index patterns to use when searching for logs (default: `_all`).
-      version_added: 2.6.0
-      type: string
-      example: something-*
-      default: "_all"
-elasticsearch_configs:
-  description: ~
-  options:
-    use_ssl:
-      description: ~
-      version_added: 1.10.5
-      type: string
-      example: ~
-      default: "False"
-    verify_certs:
-      description: ~
-      version_added: 1.10.5
-      type: string
       example: ~
       default: "True"
 sensors:

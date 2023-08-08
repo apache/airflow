@@ -42,7 +42,7 @@ def initdb(args):
     """Initializes the metadata database."""
     warnings.warn(
         "`db init` is deprecated.  Use `db migrate` instead to migrate the db and/or "
-        "create-default-connections to create the default connections",
+        "airflow connections create-default-connections to create the default connections",
         DeprecationWarning,
     )
     print("DB: " + repr(settings.engine.url))

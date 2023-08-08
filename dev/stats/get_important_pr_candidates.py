@@ -243,12 +243,11 @@ class PrStat:
         self.adjust_interaction_score()
 
         return round(
-            1.0
-            * self.interaction_score
+            self.interaction_score
             * self.label_score
             * self.length_score
             * self.change_score
-            / (math.log10(self.num_changed_files) if self.num_changed_files > 20 else 1.0),
+            / (math.log10(self.num_changed_files) if self.num_changed_files > 20 else 1),
             3,
         )
 

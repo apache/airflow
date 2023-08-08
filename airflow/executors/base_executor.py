@@ -17,6 +17,7 @@
 """Base executor - this is the base class for all the implemented executors."""
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 import warnings
@@ -27,12 +28,12 @@ from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 
-from airflow.cli.cli_config import GroupCommand
+from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -295,7 +296,7 @@ class BaseExecutor(LoggingMixin):
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
-    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
+    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
         """
         Changes state of the task.
 
@@ -317,7 +318,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, State.FAILED, info)
+        self.change_state(key, TaskInstanceState.FAILED, info)
 
     def success(self, key: TaskInstanceKey, info=None) -> None:
         """
@@ -326,7 +327,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, State.SUCCESS, info)
+        self.change_state(key, TaskInstanceState.SUCCESS, info)
 
     def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
@@ -489,3 +490,17 @@ class BaseExecutor(LoggingMixin):
         be commands to setup/teardown the executor, inspect state, etc.
         """
         return []
+
+    @classmethod
+    def _get_parser(cls) -> argparse.ArgumentParser:
+        """This method is used by Sphinx argparse to generate documentation.
+
+        :meta private:
+        """
+        from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
+
+        parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+        subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+        for group_command in cls.get_cli_commands():
+            _add_command(subparsers, group_command)
+        return parser

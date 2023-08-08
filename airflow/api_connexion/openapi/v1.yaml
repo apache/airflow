@@ -4410,6 +4410,26 @@ components:
             Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
+        dag_run_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific DAG Run IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+            *New in version 2.7.1*
+        task_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific task IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+            *New in version 2.7.1*
         execution_date_gte:
           type: string
           format: date-time

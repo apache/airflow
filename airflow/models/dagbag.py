@@ -169,7 +169,7 @@ class DagBag(LoggingMixin):
 
         :return: a list of DAG IDs in this bag
         """
-        return list(self.dags.keys())
+        return list(self.dags)
 
     @provide_session
     def get_dag(self, dag_id, session: Session = None):
