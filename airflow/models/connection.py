@@ -49,7 +49,7 @@ def parse_netloc_to_hostname(*args, **kwargs):
 
 def sanitize_conn_id(conn_id: str | None) -> str | None:
     """Sanitizes the connection id and allows only specific characters to be within.
-    
+
     Namely, it allows alphanumeric characters plus the symbols @,#,$,%,&,!,-,_,. and ()
     from 1 and up to 200 consecutive matches.
 
@@ -61,12 +61,8 @@ def sanitize_conn_id(conn_id: str | None) -> str | None:
     """
     # check if `conn_id` or our match group is `None`
     if conn_id is None or (res := re2.match(_RE_SANITIZE_CONN_ID, conn_id)) is None:
-        # comment, so it works...?
-        # log.warning(
-        #     "We failed to match `conn_id` with value: %s to the allowed pattern or it was None",
-        #     conn_id,
-        # )
         return None
+
     # if we reach here, then we matched something, return the first match
     return res.group(0)
 
