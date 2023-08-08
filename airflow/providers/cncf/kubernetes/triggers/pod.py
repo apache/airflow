@@ -245,7 +245,7 @@ class KubernetesPodTrigger(BaseTrigger):
         if pod_containers is None:
             return ContainerState.UNDEFINED
 
-        container = [c for c in pod_containers if c.name == self.base_container_name][0]
+        container = next(c for c in pod_containers if c.name == self.base_container_name)
 
         for state in (ContainerState.RUNNING, ContainerState.WAITING, ContainerState.TERMINATED):
             state_obj = getattr(container.state, state)

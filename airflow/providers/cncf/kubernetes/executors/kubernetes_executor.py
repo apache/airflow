@@ -371,7 +371,7 @@ class KubernetesExecutor(BaseExecutor):
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
         resource_instance = ResourceVersion()
-        for ns in resource_instance.resource_version.keys():
+        for ns in resource_instance.resource_version:
             resource_instance.resource_version[ns] = (
                 last_resource_version[ns] or resource_instance.resource_version[ns]
             )
