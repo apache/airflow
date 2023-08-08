@@ -28,8 +28,8 @@ from pytest import param
 from urllib3 import HTTPResponse
 from urllib3.packages.six import BytesIO
 
-from airflow.kubernetes import pod_generator
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.kubernetes import pod_generator
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator, _optionally_suppress
@@ -933,11 +933,11 @@ class TestKubernetesPodOperator:
                 containers=[],
                 init_containers=[
                     k8s.V1Container(
-                        name='git-clone',
-                        image='registry.k8s.io/git-sync:v3.1.1',
+                        name="git-clone",
+                        image="registry.k8s.io/git-sync:v3.1.1",
                         args=[
-                            f'--repo=git@github.com:airflow/some_repo.git',
-                            f'--branch={{{{ params.get("repo_branch", "master") }}}}',
+                            "--repo=git@github.com:airflow/some_repo.git",
+                            "--branch={{ params.get('repo_branch', 'master') }}",
                         ],
                     ),
                 ],
@@ -975,8 +975,8 @@ class TestKubernetesPodOperator:
         assert pod.spec.init_containers[0].name == "git-clone"
         assert pod.spec.init_containers[0].image == "registry.k8s.io/git-sync:v3.1.1"
         assert pod.spec.init_containers[0].args == [
-            '--repo=git@github.com:airflow/some_repo.git',
-            '--branch=test_branch',
+            "--repo=git@github.com:airflow/some_repo.git",
+            "--branch=test_branch",
         ]
 
     @patch(f"{POD_MANAGER_CLASS}.fetch_container_logs")
