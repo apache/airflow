@@ -1888,7 +1888,6 @@
                                 }
                             }
                         }
-
                     ]
                 },
                 "securityContexts": {
@@ -1987,7 +1986,6 @@
                                         }
                                     }
                                 }
-
                             ]
                         },
                         "securityContexts": {
@@ -2428,7 +2426,6 @@
                                 }
                             }
                         }
-
                     ]
                 },
                 "securityContexts": {
@@ -4778,7 +4775,6 @@
                                         }
                                     }
                                 }
-
                             ]
                         },
                         "securityContexts": {
@@ -5711,7 +5707,11 @@
                     "default": {
                         "preStop": {
                             "exec": {
-                                "command": ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+                                "command": [
+                                    "/bin/sh",
+                                    "-c",
+                                    "killall -INT pgbouncer && sleep 120"
+                                ]
                             }
                         }
                     },
@@ -6746,7 +6746,6 @@
                                 }
                             }
                         }
-
                     ]
                 },
                 "securityContexts": {
