@@ -49,7 +49,7 @@ class TestCloudBathHook:
         project_id = "test_project_id"
         region = "us-central1"
 
-        cloud_batch_hook.submit_build_job(
+        cloud_batch_hook.submit_batch_job(
             job_name=job_name, job=Job.to_dict(job), region=region, project_id=project_id
         )
 

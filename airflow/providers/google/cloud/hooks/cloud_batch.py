@@ -78,7 +78,7 @@ class CloudBatchHook(GoogleBaseHook):
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def submit_build_job(
+    def submit_batch_job(
         self, job_name: str, job: Job, region: str, project_id: str = PROVIDE_PROJECT_ID
     ) -> Job:
         if isinstance(job, dict):

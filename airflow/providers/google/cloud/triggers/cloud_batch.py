@@ -126,7 +126,6 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                     )
                     return
                 else:
-                    self.log.info("Job is still running...")
                     self.log.info("Current job status is: %s", status)
                     self.log.info("Sleeping for %s seconds.", self.polling_period_seconds)
                     if timeout is not None:

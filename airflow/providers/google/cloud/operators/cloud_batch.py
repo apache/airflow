@@ -81,9 +81,9 @@ class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.polling_period_seconds = polling_period_seconds
 
-    def execute(self, context):
+    def execute(self, context: Context):
         hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
-        job = hook.submit_build_job(job_name=self.job_name, job=self.job, region=self.region)
+        job = hook.submit_batch_job(job_name=self.job_name, job=self.job, region=self.region)
 
         if not self.deferrable:
             completed_job = hook.wait_for_job(
@@ -159,7 +159,7 @@ class CloudBatchDeleteJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: Context):
         hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
 
         operation = hook.delete_job(job_name=self.job_name, region=self.region, project_id=self.project_id)
@@ -223,7 +223,7 @@ class CloudBatchListJobsOperator(GoogleCloudBaseOperator):
         if limit is not None and limit < 0:
             raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
 
-    def execute(self, context):
+    def execute(self, context: Context):
         hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
 
         jobs_list = hook.list_jobs(
@@ -283,7 +283,7 @@ class CloudBatchListTasksOperator(GoogleCloudBaseOperator):
         if limit is not None and limit < 0:
             raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
 
-    def execute(self, context):
+    def execute(self, context: Context):
         hook: CloudBatchHook = CloudBatchHook(self.gcp_conn_id, self.impersonation_chain)
 
         tasks_list = hook.list_tasks(

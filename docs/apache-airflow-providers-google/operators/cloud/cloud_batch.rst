@@ -22,6 +22,11 @@ Cloud Batch is a fully managed batch service to schedule, queue, and execute bat
 
 For more information about the service visit `Google Cloud Batch documentation <https://cloud.google.com/batch>`__.
 
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: /operators/_partials/prerequisite_tasks.rst
+
 Submit a job
 ---------------------
 

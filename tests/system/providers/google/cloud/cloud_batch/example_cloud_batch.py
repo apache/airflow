@@ -120,7 +120,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "batch"],
 ) as dag:
 
     # [START howto_operator_batch_submit_job]
@@ -188,7 +188,7 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    ((submit1, submit2) >> list_tasks >> assert_tasks >> list_jobs >> get_name >> (delete_job1, delete_job2))
+    ([submit1, submit2] >> list_tasks >> assert_tasks >> list_jobs >> get_name >> [delete_job1, delete_job2])
 
     from tests.system.utils.watcher import watcher
 
