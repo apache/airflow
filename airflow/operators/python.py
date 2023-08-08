@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import fcntl
 import importlib
 import inspect
 import logging
@@ -46,6 +47,7 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
+from airflow.utils import hashlib_wrapper
 from airflow.utils.context import Context, context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
@@ -521,6 +523,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         exit code will be treated as a failure.
     :param index_urls: an optional list of index urls to load Python packages from.
         If not provided the system pip conf will be used to source packages from.
+    :param venv_cache_path: Optional path to the venv parent folder in which the venv will be cached,
+        creates a sub-folder venv-{hash} whereas hash will be replaced with a checksum of requirements.
+        If not provided the venv will be created and deleted in a temp folder for every execution.
     """
 
     template_fields: Sequence[str] = tuple({"requirements"} | set(PythonOperator.template_fields))
@@ -543,6 +548,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
+        venv_cache_path: None | str = None,
         **kwargs,
     ):
         if (
@@ -572,6 +578,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.index_urls = list(index_urls)
         else:
             self.index_urls = None
+        self.venv_cache_path = Path(venv_cache_path) if venv_cache_path else None
         super().__init__(
             python_callable=python_callable,
             use_dill=use_dill,
@@ -606,7 +613,31 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             index_urls=self.index_urls,
         )
 
+    def _ensure_venv_cache_exists(self, venv_cache_path: Path) -> Path:
+        """Helper to ensure a valid venv is set up and will create inplace."""
+        hash_object = hashlib_wrapper.md5(",".join(self._requirements_list()).encode())
+        requirements_hash = hash_object.hexdigest()
+        venv_path = venv_cache_path / f"venv-{requirements_hash[0:8]}"
+        self.log.info("Python Virtualenv will be cached in %s", venv_path)
+        venv_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(f"{venv_path}.lock", "w") as f:
+            # Ensure that cache is not build by parallel workers
+            fcntl.flock(f, fcntl.LOCK_EX)
+
+            if venv_path.exists():
+                self.log.info("Re-using cached Python Virtualenv in %s", venv_path)
+            else:
+                venv_path.mkdir(parents=True)
+                self._prepare_venv(venv_path)
+                self.log.info("New Python Virtualenv created in %s", venv_path)
+            return venv_path
+
     def execute_callable(self):
+        if self.venv_cache_path:
+            venv_path = self._ensure_venv_cache_exists(self.venv_cache_path)
+            python_path = venv_path / "bin" / "python"
+            return self._execute_python_callable_in_subprocess(python_path, venv_path)
+
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
             self._prepare_venv(tmp_path)

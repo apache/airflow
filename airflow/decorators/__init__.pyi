@@ -110,6 +110,7 @@ class TaskDecoratorCollection:
         pip_install_options: list[str] | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
+        venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -134,6 +135,9 @@ class TaskDecoratorCollection:
             exit code will be treated as a failure.
         :param index_urls: an optional list of index urls to load Python packages from.
             If not provided the system pip conf will be used to source packages from.
+        :param venv_cache_path: Optional path to the venv parent folder in which the venv will be cached,
+            creates a sub-folder venv-{hash} whereas hash will be replaced with a checksum of requirements.
+            If not provided the venv will be created and deleted in a temp folder for every execution.
         :param templates_dict: a dictionary where the values are templates that
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available

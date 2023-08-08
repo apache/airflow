@@ -126,6 +126,18 @@ To prevent adding secrets to the private repository in your DAG code you can use
 In the special case you want to prevent remote calls for setup of a virtualenv, pass the ``index_urls`` as empty list as ``index_urls=[]`` which
 forced pip installer to use the ``--no-index`` option.
 
+Caching and re-use
+^^^^^^^^^^^^^^^^^^
+
+Setup of virtualenvs is made per task execution in a temporary directory. After execution the virtualenv is deleted again. Ensure that the ``$tmp`` folder
+on your workers have sufficient disk space. Usually (if not configured differently) the local pip cache will be used preventing a re-download of packages
+for each execution.
+
+But still setting up the virtualenv for every execution needs some time. For repeated execution you can set the option ``venv_cache_path`` to a file system
+folder on your worker. In this case the virtualenv will be set up once and be re-used. If venv caching is used, per unique requirements set different
+virtualenv subfolders are created in the cache path. So depending on your variations in the DAGs in your system setup sufficient disk space is needed.
+Note that no automated cleanup is made and in case of cached mode. All worker slots share the same virtualenv.
+
 
 .. _howto/operator:ExternalPythonOperator:
 
