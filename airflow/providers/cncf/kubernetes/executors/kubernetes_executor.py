@@ -23,6 +23,7 @@ KubernetesExecutor.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import multiprocessing
@@ -727,3 +728,11 @@ class KubernetesExecutor(BaseExecutor):
                 subcommands=KUBERNETES_COMMANDS,
             )
         ]
+
+
+def _get_parser() -> argparse.ArgumentParser:
+    """This method is used by Sphinx to generate documentation.
+
+    :meta private:
+    """
+    return KubernetesExecutor._get_parser()

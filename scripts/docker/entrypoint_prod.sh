@@ -305,7 +305,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo "         https://airflow.apache.org/docs/docker-stack/build.html"
     >&2 echo
     >&2 echo "         Adding requirements at container startup is fragile and is done every time"
-    >&2 echo "         the container starts, so it is onlny useful for testing and trying out"
+    >&2 echo "         the container starts, so it is only useful for testing and trying out"
     >&2 echo "         of adding dependencies."
     >&2 echo
     pip install --root-user-action ignore --no-cache-dir ${_PIP_ADDITIONAL_REQUIREMENTS}
