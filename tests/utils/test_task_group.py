@@ -1616,6 +1616,10 @@ def test_task_group_arrow_with_setup_group():
 
 
 def test_task_group_arrow_with_setup_group_deeper_setup():
+    """
+    When recursing upstream for a non-teardown leaf, we should ignore setups that
+    are direct upstream of a teardown.
+    """
     with DAG(dag_id="setup_group_teardown_group_2", start_date=pendulum.now()):
         with TaskGroup("group_1") as g1:
 
@@ -1658,24 +1662,7 @@ def test_task_group_arrow_with_setup_group_deeper_setup():
         t1.as_teardown(setups=s1)
         t2.as_teardown(setups=s2)
     assert set(s1.operator.downstream_task_ids) == {"work", "group_2.teardown_1"}
-    assert set(s2.operator.downstream_task_ids) == {"work", "group_1.teardown_0", "group_2.teardown_2"}
+    assert set(s2.operator.downstream_task_ids) == {"group_1.teardown_0", "group_2.teardown_2"}
     assert set(w1.operator.downstream_task_ids) == {"group_2.teardown_1", "group_2.teardown_2"}
     assert set(t1.operator.downstream_task_ids) == set()
     assert set(t2.operator.downstream_task_ids) == set()
-
-    def get_nodes(group):
-        d = task_group_to_dict(group)
-        new_d = {}
-        new_d["id"] = d["id"]
-        new_d["children"] = [{"id": x["id"]} for x in d["children"]]
-        return new_d
-
-    assert get_nodes(g1) == {
-        "id": "group_1",
-        "children": [
-            {"id": "group_1.setup_1"},
-            {"id": "group_1.setup_2"},
-            {"id": "group_1.teardown_0"},
-            {"id": "group_1.downstream_join_id"},
-        ],
-    }

@@ -373,9 +373,13 @@ class TaskGroup(DAGNode):
         def recurse_for_first_non_teardown(task):
             for upstream_task in task.upstream_list:
                 if upstream_task.task_id not in ids:
+                    # upstream task is not in task group
                     continue
-                if upstream_task.is_teardown:
+                elif upstream_task.is_teardown:
                     yield from recurse_for_first_non_teardown(upstream_task)
+                elif task.is_teardown and upstream_task.is_setup:
+                    # don't go through the teardown-to-setup path
+                    continue
                 else:
                     yield upstream_task
 
