@@ -38,11 +38,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.6.0
 ......
 
-Latest change: 2023-08-04
+Latest change: 2023-08-07
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`15ede4a1a1 <https://github.com/apache/airflow/commit/15ede4a1a1af8bebb52799420bf2f328406c126e>`_  2023-08-07   ``Fix DataflowStartSqlJobOperator system test (#32823)``
+`9736143468 <https://github.com/apache/airflow/commit/9736143468cfe034e65afb3df3031ab3626f0f6d>`_  2023-08-07   ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+`0e076dceaf <https://github.com/apache/airflow/commit/0e076dceaf169174bbd4d8ee46911b60505eb098>`_  2023-08-07   ``Fix catching 409 error (#33173)``
+`8997b5e95f <https://github.com/apache/airflow/commit/8997b5e95f67a14d5e5fdbcb131643d702059359>`_  2023-08-07   ``Alias 'DATAPROC_JOB_LOG_LINK' to 'DATAPROC_JOB_LINK' (#33148)``
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `e10aa6ae6a <https://github.com/apache/airflow/commit/e10aa6ae6ad07830cbf5ec59d977654c52012c22>`_  2023-08-04   ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
 `e3d82c6be0 <https://github.com/apache/airflow/commit/e3d82c6be0e0e1468ade053c37690aa1e0e4882d>`_  2023-08-04   ``Get rid of Python2 numeric relics (#33050)``
 `1ea7ae809b <https://github.com/apache/airflow/commit/1ea7ae809bf0b8d1c8edf97e4d456b3753a1feca>`_  2023-08-03   ``Refactor of links in Dataproc. (#31895)``
