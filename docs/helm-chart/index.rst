@@ -169,10 +169,10 @@ It is not enabled by default as this may cause unexpected behaviours on existing
 
 For existing installations, all your resources will be recreated with a new name and helm will delete previous resources.
 
-This won't delete existing PVCs for logs used by statefulset/deployments, but it will recreate them with brand new PVCs.
+This won't delete existing PVCs for logs used by StatefulSets/Deployments, but it will recreate them with brand new PVCs.
 If you do want to preserve logs history you'll need to manually copy the data of these volumes into the new volumes after
 deployment. Depending on what storage backend/class you're using this procedure may vary. If you don't mind starting
-with fresh logs/redis volumes, you can just delete the old pvcs that will be names, for example:
+with fresh logs/redis volumes, you can just delete the old persistent volume claims, for example:
 
 .. code-block:: bash
 
@@ -182,4 +182,4 @@ with fresh logs/redis volumes, you can just delete the old pvcs that will be nam
 
 .. note::
 
-    If you do not change useStandardNaming or fullnameOverride after upgrade, you can proceed as usual and no unexpected behaviours will be presented.
+    If you do not change ``useStandardNaming`` or ``fullnameOverride`` after upgrade, you can proceed as usual and no unexpected behaviours will be presented.
