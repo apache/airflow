@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import yaml
 import re
 from contextlib import contextmanager, nullcontext
 from unittest import mock
@@ -923,7 +922,7 @@ class TestKubernetesPodOperator:
         }
 
     @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
-    def test_pod_template_content(self, randomize_name):
+    def test_pod_template_dict(self, randomize_name):
         templated_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 namespace="templatenamespace",
@@ -944,12 +943,10 @@ class TestKubernetesPodOperator:
                 ],
             ),
         )
-        serialized_pod = yaml.dump(pod_generator.PodGenerator.serialize_pod(templated_pod))
-
         k = KubernetesPodOperator(
             task_id="task",
             random_name_suffix=randomize_name,
-            pod_template_content=serialized_pod,
+            pod_template_dict=pod_generator.PodGenerator.serialize_pod(templated_pod),
             labels={"hello": "world"},
         )
 
