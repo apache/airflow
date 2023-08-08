@@ -1,7 +1,8 @@
-Timezone-traversing non-fixed cron timetables properly account for timezone delta.
+Timezone-traversing non-fixed cron timetables properly accounts for timezone delta.
 
-Given a cron expression which results in an `interval` based schedule instead of a `fixed` schedule such as `0 9-16 * * *`, the Monday after a timezone change (e.g. Daylight Savings Time) the first job would be one hour incorrect.
-This was due to not accounting for the timezone delta when performing the `get_next` calculation (and similarly for `get_prev`).
+Given a cron expression which results in an `interval` based schedule instead of a `fixed` schedule such as `0 9-16 * * *`, the Monday after a timezone change (e.g. Daylight Savings Time) the first job would be one hour offset.
+This was due to intentional code which accounted for timezone deltas, introduced after the switch to timetables (in `airflow>=2`).
 
-As an example, if operating in the `America/New_York` timezone when entering daylight savings time, the above schedule would result in a `10am` execution on Monday morning. This is because the transition from UTC-5 to UTC-4 results in an unaccounted for timezone delta
-of one hour. This problem is now resolved, and the Monday execution time will now properly be `9am`.
+As an example, if operating in the `America/New_York` timezone when entering daylight savings time, the above schedule would result in a `10am` execution on Monday morning, instead of the previous `9am`.
+
+This functionality is now deprecated and reverted, so timezone-aware timetables will now run at the same time, e.g. a `9am` timetable will always run at `9am` local time.
