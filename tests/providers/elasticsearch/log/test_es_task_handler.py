@@ -29,7 +29,6 @@ from urllib.parse import quote
 import elasticsearch
 import pendulum
 import pytest
-from elasticsearch.exceptions import ElasticsearchException
 
 from airflow.configuration import conf
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
@@ -40,6 +39,7 @@ from airflow.utils.timezone import datetime
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 from .elasticmock import elasticmock
+from .elasticmock.utilities import SearchFailedException
 
 
 def get_ti(dag_id, task_id, execution_date, create_task_instance):
@@ -94,7 +94,7 @@ class TestElasticsearchTaskHandler:
             offset_field=self.offset_field,
         )
 
-        self.es = elasticsearch.Elasticsearch(hosts=[{"host": "localhost", "port": 9200}])
+        self.es = elasticsearch.Elasticsearch("http://localhost:9200")
         self.index_name = "test_index"
         self.doc_type = "log"
         self.test_message = "some random stuff"
@@ -132,7 +132,7 @@ class TestElasticsearchTaskHandler:
     def test_client_with_config(self):
         es_conf = dict(conf.getsection("elasticsearch_configs"))
         expected_dict = {
-            "use_ssl": False,
+            "http_compress": False,
             "verify_certs": True,
         }
         assert es_conf == expected_dict
@@ -210,7 +210,7 @@ class TestElasticsearchTaskHandler:
     def test_read_with_missing_index(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.es_task_handler, "index_patterns", new="nonexistent,test_*"):
-            with pytest.raises(elasticsearch.exceptions.NotFoundError, match=r".*nonexistent.*"):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError, match=r"IndexMissingException.*"):
                 self.es_task_handler.read(
                     ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
                 )
@@ -365,7 +365,7 @@ class TestElasticsearchTaskHandler:
     def test_read_raises(self, ti):
         with mock.patch.object(self.es_task_handler.log, "exception") as mock_exception:
             with mock.patch.object(self.es_task_handler.client, "search") as mock_execute:
-                mock_execute.side_effect = ElasticsearchException("Failed to read")
+                mock_execute.side_effect = SearchFailedException("Failed to read")
                 logs, metadatas = self.es_task_handler.read(ti, 1)
             assert mock_exception.call_count == 1
             args, kwargs = mock_exception.call_args

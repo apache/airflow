@@ -43,6 +43,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/elasticsearch/index>
 
 .. toctree::
@@ -103,7 +104,7 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.4.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
-``elasticsearch``                        ``>7,<7.15.0``
+``elasticsearch``                        ``>8,<9``
 =======================================  ==================
 
 Cross provider package dependencies
