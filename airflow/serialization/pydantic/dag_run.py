@@ -47,4 +47,4 @@ class DagRunPydantic(BaseModelPydantic):
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
-        orm_mode = True
+        from_attributes = True
