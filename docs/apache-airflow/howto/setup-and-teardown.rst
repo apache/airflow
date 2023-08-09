@@ -140,18 +140,18 @@ Continuing with the example above, if you want the run's success to depend on ``
 Authoring with task groups
 """"""""""""""""""""""""""
 
-When arrowing from task group to task group, or from task group to task, we ignore teardowns.  This allows teardowns to run in parallel, and allows dag execution to proceed even if teardown tasks fail.
+When arrowing from task group to task group, or from task group to *task*, we ignore teardowns.  This allows teardowns to run in parallel, and allows dag execution to proceed even if teardown tasks fail.
 
 Consider this example:
 
 .. code-block:: python
 
     with TaskGroup("my_group") as tg:
-        s1 = my_setup()
-        w1 = my_work()
-        t1 = my_teardown()
+        s1 = s1()
+        w1 = w1()
+        t1 = t1()
         s1 >> w1 >> t1.as_teardown(setups=s1)
-    w2 = other_work()
+    w2 = w2()
     tg >> w2
 
 Graph:
@@ -169,14 +169,14 @@ Now let's consider an example with nesting:
 .. code-block:: python
 
     with TaskGroup("my_group") as tg:
-        s1 = my_setup()
-        w1 = my_work()
-        t1 = my_teardown()
+        s1 = s1()
+        w1 = w1()
+        t1 = t1()
         s1 >> w1 >> t1.as_teardown(setups=s1)
-    w2 = other_work()
+    w2 = w2()
     tg >> w2
-    dag_s1 = dag_setup1()
-    dag_t1 = dag_teardown1()
+    dag_s1 = dag_s1()
+    dag_t1 = dag_t1()
     dag_s1 >> [tg, w2] >> dag_t1.as_teardown(setups=dag_s1)
 
 Graph:
