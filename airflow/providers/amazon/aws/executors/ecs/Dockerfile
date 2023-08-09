@@ -1,0 +1,62 @@
+FROM apache/airflow:latest
+USER root
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends unzip
+RUN	curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+RUN	unzip awscliv2.zip && ./aws/install
+
+# Add a script to run the aws s3 sync command when the container is run
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+USER airflow
+## AWS Authentication 
+# The image requires access to AWS services. This Dockerfile supports 2 ways to authenticate with AWS.
+# The first is using build arguments where you can provide the AWS credentials as arguments
+# passed when building the image. The other option is to copy the ~/.aws folder to the container,
+# and authenticate using the credentials in that folder.
+# If you would like to use an alternative method of authentication, feel free to make the 
+# necessary changes to this file.
+
+# Use these arguments to provide AWS authentication information
+ARG aws_access_key_id
+ARG aws_secret_access_key
+ARG aws_default_region
+ARG aws_session_token
+
+ENV AWS_ACCESS_KEY_ID=$aws_access_key_id
+ENV AWS_SECRET_ACCESS_KEY=$aws_secret_access_key
+ENV AWS_DEFAULT_REGION=$aws_default_region
+ENV AWS_SESSION_TOKEN=$aws_session_token
+
+# Uncomment the line below to authenticate to AWS using the ~/.aws folder
+# If the .aws folder is not in the same folder as the Dockerfile, use the absolute path
+# of the .aws folder.
+# COPY --chown=airflow:root ./.aws /home/airflow/.aws
+
+## Loading DAGs 
+# This Dockerfile supports 2 ways to load DAGs onto the container.
+# One is to upload all the DAGs onto an S3 bucket, and then 
+# download them onto the container. The other is to copy a local folder with
+# the DAGs onto the container.
+# If you would like to use an alternative method of loading DAGs, feel free to make the 
+# necessary changes to this file.
+
+ARG host_dag_path=./dags
+ENV HOST_DAG_PATH=$host_dag_path
+# Set host_dag_path to the path of the DAGs on the host
+# COPY --chown=airflow:root $HOST_DAG_PATH $CONTAINER_DAG_PATH
+
+# If using S3 bucket as source of DAGs, uncommenting the next ENTRYPOINT command will overwrite this one.
+ENTRYPOINT []
+
+# Use these arguments to load DAGs onto the container from S3
+ARG s3_url
+ENV S3_URL=$s3_url
+ARG container_dag_path=/opt/airflow/dags
+ENV CONTAINER_DAG_PATH=$container_dag_path
+# Uncomment the line if using S3 bucket as the source of DAGs
+# ENTRYPOINT ["/entrypoint.sh"]
+
+
+
