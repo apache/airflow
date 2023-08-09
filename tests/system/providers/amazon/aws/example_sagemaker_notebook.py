@@ -78,7 +78,6 @@ with DAG(
         instance_name=INSTANCE_NAME,
     )
     delete_instance = SageMakerDeleteNotebookOperator(task_id="delete_instance", instance_name=INSTANCE_NAME)
-
     # [END howto_operator_sagemaker_notebook_delete]
 
     chain(
