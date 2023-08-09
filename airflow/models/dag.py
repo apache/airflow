@@ -2938,12 +2938,18 @@ class DAG(LoggingMixin):
             if len(existing_dags) == 1:
                 # Index optimized fast path to avoid more complicated & slower groupby queryplan
                 most_recent_subq = (
-                    select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
+                    select(func.max(DagRun.execution_date).label("max_execution_date"))
                     .where(
                         DagRun.dag_id == existing_dags[0],
                         or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
                     )
                     .subquery()
+                )
+                most_recent_runs_iter = session.scalars(
+                    select(DagRun).where(
+                        DagRun.dag_id == existing_dags[0],
+                        DagRun.execution_date == most_recent_subq.c.max_execution_date,
+                    )
                 )
             else:
                 most_recent_subq = (
@@ -2954,13 +2960,13 @@ class DAG(LoggingMixin):
                     )
                     .group_by(DagRun.dag_id)
                     .subquery()
+                    )
+                most_recent_runs_iter = session.scalars(
+                    select(DagRun).where(
+                        DagRun.dag_id == most_recent_subq.c.dag_id,
+                        DagRun.execution_date == most_recent_subq.c.max_execution_date,
+                    )
                 )
-            most_recent_runs_iter = session.scalars(
-                select(DagRun).where(
-                    DagRun.dag_id == most_recent_subq.c.dag_id,
-                    DagRun.execution_date == most_recent_subq.c.max_execution_date,
-                )
-            )
             most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
 
             # Get number of active dagruns for all dags we are processing as a single query.
