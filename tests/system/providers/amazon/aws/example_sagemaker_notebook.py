@@ -54,7 +54,6 @@ with DAG(
         role_arn=test_context[ROLE_ARN_KEY],
         wait_for_completion=True,
     )
-
     # [END howto_operator_sagemaker_notebook_create]
 
     # [START howto_operator_sagemaker_notebook_stop]
