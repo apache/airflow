@@ -32,9 +32,8 @@ from azure.kusto.data.exceptions import KustoServiceError
 from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.response import KustoResponseDataSetV2
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes
 
 
 class AzureDataExplorerHook(BaseHook):
@@ -95,7 +94,6 @@ class AzureDataExplorerHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_data_explorer")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
@@ -148,7 +146,13 @@ class AzureDataExplorerHook(BaseHook):
             value = extras.get(name)
             if value:
                 warn_if_collison(name, backcompat_key)
-            if not value:
+            if not value and extras.get(backcompat_key):
+                warnings.warn(
+                    f"`{backcompat_key}` is deprecated in azure connection extra,"
+                    f" please use `{name}` instead",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
                 value = extras.get(backcompat_key)
             if not value:
                 raise AirflowException(f"Required connection parameter is missing: `{name}`")

@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+6.1.4
+.....
+
+Misc
+~~~~
+
+* ``Bring back mysql-connector-python as required depednency (#32989)``
+
+6.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Pandas2 compatibility for Hive (#32752)``
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Move Hive configuration to Apache Hive provider (#32777)``
+
 6.1.2
 .....
 

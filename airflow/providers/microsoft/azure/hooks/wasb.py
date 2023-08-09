@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import logging
 import os
-from functools import wraps
 from typing import Any, Union
 
 from asgiref.sync import sync_to_async
@@ -49,36 +48,6 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
-
-
-def _ensure_prefixes(conn_type):
-    """
-    Deprecated.
-
-    Remove when provider min airflow version >= 2.5.0 since this is handled by
-    provider manager from that version.
-    """
-
-    def dec(func):
-        @wraps(func)
-        def inner():
-            field_behaviors = func()
-            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-            def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith("extra__"):
-                    return f"extra__{conn_type}__{field}"
-                else:
-                    return field
-
-            if "placeholders" in field_behaviors:
-                placeholders = field_behaviors["placeholders"]
-                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-            return field_behaviors
-
-        return inner
-
-    return dec
 
 
 class WasbHook(BaseHook):
@@ -124,7 +93,6 @@ class WasbHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="wasb")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
@@ -132,7 +100,7 @@ class WasbHook(BaseHook):
             "relabeling": {
                 "login": "Blob Storage Login (optional)",
                 "password": "Blob Storage Key (optional)",
-                "host": "Account Name (Active Directory Auth)",
+                "host": "Account URL (Active Directory Auth)",
             },
             "placeholders": {
                 "login": "account name",
@@ -154,7 +122,7 @@ class WasbHook(BaseHook):
         super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.blob_service_client = self.get_conn()
+        self.blob_service_client: BlobServiceClient = self.get_conn()
 
         logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
         try:
@@ -184,15 +152,19 @@ class WasbHook(BaseHook):
             # connection_string auth takes priority
             return BlobServiceClient.from_connection_string(connection_string, **extra)
 
+        account_url = (
+            conn.host
+            if conn.host and conn.host.startswith("https://")
+            else f"https://{conn.login}.blob.core.windows.net/"
+        )
+
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
             token_credential = ClientSecretCredential(tenant, app_id, app_secret, **client_secret_auth_config)
-            return BlobServiceClient(account_url=conn.host, credential=token_credential, **extra)
-
-        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
+            return BlobServiceClient(account_url=account_url, credential=token_credential, **extra)
 
         if self.public_read:
             # Here we use anonymous public read
@@ -210,9 +182,6 @@ class WasbHook(BaseHook):
             if sas_token.startswith("https"):
                 return BlobServiceClient(account_url=sas_token, **extra)
             else:
-                if not account_url.startswith("https://"):
-                    # TODO: require url in the host field in the next major version?
-                    account_url = f"https://{conn.login}.blob.core.windows.net"
                 return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
@@ -220,9 +189,6 @@ class WasbHook(BaseHook):
         if not credential:
             credential = DefaultAzureCredential()
             self.log.info("Using DefaultAzureCredential as credential")
-        if not account_url.startswith("https://"):
-            # TODO: require url in the host field in the next major version?
-            account_url = f"https://{conn.login}.blob.core.windows.net/"
         return BlobServiceClient(
             account_url=account_url,
             credential=credential,
@@ -589,6 +555,12 @@ class WasbAsyncHook(WasbHook):
             )
             return self.blob_service_client
 
+        account_url = (
+            conn.host
+            if conn.host and conn.host.startswith("https://")
+            else f"https://{conn.login}.blob.core.windows.net/"
+        )
+
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
@@ -598,11 +570,9 @@ class WasbAsyncHook(WasbHook):
                 tenant, app_id, app_secret, **client_secret_auth_config
             )
             self.blob_service_client = AsyncBlobServiceClient(
-                account_url=conn.host, credential=token_credential, **extra  # type:ignore[arg-type]
+                account_url=account_url, credential=token_credential, **extra  # type:ignore[arg-type]
             )
             return self.blob_service_client
-
-        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
 
         if self.public_read:
             # Here we use anonymous public read
@@ -625,7 +595,7 @@ class WasbAsyncHook(WasbHook):
                 self.blob_service_client = AsyncBlobServiceClient(account_url=sas_token, **extra)
             else:
                 self.blob_service_client = AsyncBlobServiceClient(
-                    account_url=f"{account_url}/{sas_token}", **extra
+                    account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra
                 )
             return self.blob_service_client
 

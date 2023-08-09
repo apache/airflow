@@ -735,7 +735,10 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
 
     post:
-      summary: Trigger a new DAG run
+      summary: Trigger a new DAG run.
+      description: >
+        This will initiate a dagrun.
+        If DAG is paused then dagrun state will remain queued, and the task won't run.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: post_dag_run
       tags: [DAGRun]
@@ -3225,7 +3228,6 @@ components:
           items:
             $ref: '#/components/schemas/Provider'
 
-
     SLAMiss:
       type: object
       properties:
@@ -3253,6 +3255,7 @@ components:
 
     Trigger:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3269,6 +3272,7 @@ components:
 
     Job:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3332,7 +3336,6 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
-          nullable: true
         try_number:
           type: integer
         map_index:
@@ -3368,7 +3371,6 @@ components:
           type: string
         sla_miss:
           $ref: '#/components/schemas/SLAMiss'
-          nullable: true
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -3377,10 +3379,8 @@ components:
           type: object
         trigger:
           $ref: '#/components/schemas/Trigger'
-          nullable: true
         triggerer_job:
           $ref: '#/components/schemas/Job'
-          nullable: true
         note:
           type: string
           description: |
@@ -3558,7 +3558,6 @@ components:
 
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
-              nullable: true
               $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
@@ -3696,10 +3695,8 @@ components:
           readOnly: true
         execution_timeout:
           $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_delay:
           $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -4413,6 +4410,26 @@ components:
             Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
+        dag_run_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific DAG Run IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+            *New in version 2.7.1*
+        task_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific task IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+            *New in version 2.7.1*
         execution_date_gte:
           type: string
           format: date-time
@@ -4503,6 +4520,7 @@ components:
     TimeDelta:
       description: Time delta
       type: object
+      nullable: true
       required:
         - __type
         - days
@@ -4643,8 +4661,14 @@ components:
 
         *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
         *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
+
+        *Changed in version 2.7.0*&#58; Field becomes nullable and null primitive is added as a possible value.
+        *Changed in version 2.7.0*&#58; 'none' state is deprecated in favor of null.
+
       type: string
+      nullable: true
       enum:
+        - null
         - success
         - running
         - failed

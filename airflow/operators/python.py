@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import inspect
 import logging
 import os
@@ -52,6 +53,17 @@ from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_scr
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
+
+
+def is_venv_installed() -> bool:
+    """
+    Checks if the virtualenv package is installed via checking if it is on the path or installed as package.
+
+    :return: True if it is. Whichever way of checking it works, is fine.
+    """
+    if shutil.which("virtualenv") or importlib.util.find_spec("virtualenv"):
+        return True
+    return False
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
@@ -540,7 +552,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 "major versions for PythonVirtualenvOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. Venv version: {python_version}"
             )
-        if not shutil.which("virtualenv"):
+        if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if not requirements:
             self.requirements: list[str] | str = []
@@ -764,6 +776,21 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
                     f"Please Install Airflow {airflow_version} in your environment to access them."
                 )
             return None
+
+
+class ExternalBranchPythonOperator(ExternalPythonOperator, SkipMixin):
+    """
+    A workflow can "branch" or follow a path after the execution of this task,
+    Extends ExternalPythonOperator, so expects to get Python:
+    virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path,
+    so it can run on separate virtualenv similarly to ExternalPythonOperator.
+    """
+
+    def execute(self, context: Context) -> Any:
+        branch = super().execute(context)
+        self.log.info("Branch callable return %s", branch)
+        self.skip_all_except(context["ti"], branch)
+        return branch
 
 
 def get_current_context() -> Context:

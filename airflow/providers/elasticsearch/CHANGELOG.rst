@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+.. note::
+  Upgrade to Elasticsearch 8. The ElasticsearchTaskHandler & ElasticsearchSQLHook will now use Elasticsearch 8 package.
+  As explained https://elasticsearch-py.readthedocs.io/en/stable , Elasticsearch language clients are only backwards
+  compatible with default distributions and without guarantees made, we recommend upgrading the version of
+  Elasticsearch database to 8 to ensure compatibility with the language client.
+
 5.0.0
 .....
 
@@ -38,11 +44,23 @@ Breaking changes
 
 * ``Deprecate the 2 non-official elasticsearch libraries (#31920)``
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix unsound type hint in ElasticsearchTaskHandler.es_read (#32509)``
+
+Misc
+~~~~
+
+* ``Fix Failing ES Remote Logging (#32438)``
+
 .. Review and move the new changes to one of the sections above:
    * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
    * ``Improve provider documentation and README structure (#32125)``
    * ``Remove spurious headers for provider changelogs (#32373)``
    * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Add deprecation info to the providers modules and classes docstring (#32536)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 
 4.5.1
 .....

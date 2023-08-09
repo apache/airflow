@@ -61,7 +61,35 @@ DEPS = "deps"
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
-#
+def apply_pypi_suffix_to_airflow_packages(dependencies: list[str]) -> None:
+    """
+    Looks through the list of dependencies, finds which one are airflow or airflow providers packages
+    and applies the version suffix to those of them that do not have the suffix applied yet.
+
+    :param dependencies: list of dependencies to add suffix to
+    """
+    for i in range(len(dependencies)):
+        dependency = dependencies[i]
+        if dependency.startswith("apache-airflow"):
+            # in case we want to depend on other airflow package, the chance is the package
+            # has not yet been released to PyPI and we only see it as a local package that is
+            # being installed with .dev0 suffix in CI. Unfortunately, there is no way in standard
+            # PEP-440 compliant way to specify version that would be both - releasable, and
+            # testable to install on CI with .dev0 or .rc suffixes. We could add `--pre` flag to
+            # enable it, but `--pre` flag is not selective and will work for all packages so
+            # we would automatically install all "pre-release" packages for all packages that
+            # we install from PyPI - and this is definitely not what we want. So in order to
+            # install only airflow packages that are available in sources in .dev0 or .rc version
+            # we need to dynamically modify the dependencies here.
+            if ">=" in dependency:
+                package, version = dependency.split(">=")
+                version_spec = f">={version}"
+                version_suffix = os.environ.get("VERSION_SUFFIX_FOR_PYPI")
+                if version_suffix and version_suffix not in version_spec:
+                    version_spec += version_suffix
+                dependencies[i] = f"{package}{version_spec}"
+
+
 # NOTE! IN Airflow 2.4.+ dependencies for providers are maintained in `provider.yaml` files for each
 # provider separately. They are loaded here and if you want to modify them, you need to modify
 # corresponding provider.yaml file.
@@ -74,11 +102,13 @@ def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
     try:
         with AIRFLOW_SOURCES_ROOT.joinpath("generated", "provider_dependencies.json").open() as f:
             dependencies = json.load(f)
-        return {
-            key: value
-            for key, value in dependencies.items()
-            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check
-        }
+        provider_dict = {}
+        for key, value in dependencies.items():
+            if value.get(DEPS):
+                apply_pypi_suffix_to_airflow_packages(value[DEPS])
+            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check:
+                provider_dict[key] = value
+        return provider_dict
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
         # we can ignore loading dependencies when they are missing - they are only used to generate
@@ -191,7 +221,7 @@ def git_version() -> str:
 
         try:
             repo = git.Repo(str(AIRFLOW_SOURCES_ROOT / ".git"))
-        except (git.NoSuchPathError):
+        except git.NoSuchPathError:
             logger.warning(".git directory not found: Cannot compute the git version")
             return ""
         except git.InvalidGitRepositoryError:
@@ -266,9 +296,9 @@ deprecated_api = [
 doc = [
     "astroid>=2.12.3",
     "checksumdir",
-    # Click 8.1.4 breaks our mypy checks. The upper limit can be lifted when the
-    # https://github.com/apache/airflow/issues/32412 issue is resolved
-    "click>=8.0,<8.1.4",
+    # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
+    # https://github.com/pallets/click/issues/2558
+    "click>=8.0,!=8.1.4,!=8.1.5",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections
@@ -481,10 +511,10 @@ ADDITIONAL_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
 CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "aiobotocore": aiobotocore,
     "async": async_packages,
-    "celery": celery,
+    "celery": celery,  # TODO: remove and move to a regular provider package in a separate PR
     "cgroups": cgroups,
-    "cncf.kubernetes": kubernetes,
-    "dask": dask,
+    "cncf.kubernetes": kubernetes,  # TODO: remove and move to a regular provider package in a separate PR
+    "dask": dask,  # TODO: remove and move to a provider package in a separate PR
     "deprecated_api": deprecated_api,
     "github_enterprise": flask_appbuilder_oauth,
     "google_auth": flask_appbuilder_oauth,
@@ -515,12 +545,12 @@ EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 
 
 def add_extras_for_all_providers() -> None:
-    for (provider_name, provider_dict) in PROVIDER_DEPENDENCIES.items():
+    for provider_name, provider_dict in PROVIDER_DEPENDENCIES.items():
         EXTRAS_DEPENDENCIES[provider_name] = provider_dict[DEPS]
 
 
 def add_additional_extras() -> None:
-    for (extra_name, extra_dependencies) in ADDITIONAL_EXTRAS_DEPENDENCIES.items():
+    for extra_name, extra_dependencies in ADDITIONAL_EXTRAS_DEPENDENCIES.items():
         EXTRAS_DEPENDENCIES[extra_name] = extra_dependencies
 
 
@@ -538,6 +568,7 @@ EXTRAS_DEPRECATED_ALIASES: dict[str, str] = {
     "azure": "microsoft.azure",
     "cassandra": "apache.cassandra",
     "crypto": "",  # this is legacy extra - all dependencies are already "install-requires"
+    "dask": "daskexecutor",
     "druid": "apache.druid",
     "gcp": "google",
     "gcp_api": "google",
@@ -729,9 +760,6 @@ EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
 PREINSTALLED_PROVIDERS = [
-    # TODO: When we release 3.3.0 version of celery provider we should change it to "celery>=3.3.0" here
-    #       In order to make sure executors are available in the celery provider
-    "celery",
     "common.sql",
     "ftp",
     "http",
@@ -844,7 +872,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
-    if extra in ["cncf.kubernetes", "kubernetes", "celery"]:
+    if extra in ["cncf.kubernetes", "kubernetes", "celery", "daskexecutor", "dask"]:
         EXTRAS_DEPENDENCIES[extra].extend(
             [get_provider_package_name_from_package_id(package_name) for package_name in providers]
         )

@@ -67,13 +67,15 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
     HAS_KUBERNETES: bool
     try:
         from kubernetes.client import models as k8s
 
-        from airflow.kubernetes.pod_generator import PodGenerator
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
     except ImportError:
         pass
 
@@ -479,14 +481,21 @@ class BaseSerialization:
                 type_=DAT.SIMPLE_TASK_INSTANCE,
             )
         elif use_pydantic_models and _ENABLE_AIP_44:
+
+            def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
+                try:
+                    return model_cls.model_validate(var).model_dump()  # type: ignore[attr-defined]
+                except AttributeError:  # Pydantic 1.x compatibility.
+                    return model_cls.from_orm(var).dict()  # type: ignore[attr-defined]
+
             if isinstance(var, Job):
-                return cls._encode(JobPydantic.from_orm(var).dict(), type_=DAT.BASE_JOB)
+                return cls._encode(_pydantic_model_dump(JobPydantic, var), type_=DAT.BASE_JOB)
             elif isinstance(var, TaskInstance):
-                return cls._encode(TaskInstancePydantic.from_orm(var).dict(), type_=DAT.TASK_INSTANCE)
+                return cls._encode(_pydantic_model_dump(TaskInstancePydantic, var), type_=DAT.TASK_INSTANCE)
             elif isinstance(var, DagRun):
-                return cls._encode(DagRunPydantic.from_orm(var).dict(), type_=DAT.DAG_RUN)
+                return cls._encode(_pydantic_model_dump(DagRunPydantic, var), type_=DAT.DAG_RUN)
             elif isinstance(var, Dataset):
-                return cls._encode(DatasetPydantic.from_orm(var).dict(), type_=DAT.DATA_SET)
+                return cls._encode(_pydantic_model_dump(DatasetPydantic, var), type_=DAT.DATA_SET)
             else:
                 return cls.default_serialization(strict, var)
         else:
@@ -735,6 +744,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     All operators are casted to SerializedBaseOperator after deserialization.
     Class specific attributes used by UI are move to object attributes.
+
+    Creating a SerializedBaseOperator is a three-step process:
+
+    1. Instantiate a :class:`SerializedBaseOperator` object.
+    2. Populate attributes with :func:`SerializedBaseOperator.populated_operator`.
+    3. When the task's containing DAG is available, fix references to the DAG
+       with :func:`SerializedBaseOperator.set_task_dag_references`.
     """
 
     _decorated_fields = {"executor_config"}
@@ -875,6 +891,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def populate_operator(cls, op: Operator, encoded_op: dict[str, Any]) -> None:
+        """Populate operator attributes with serialized values.
+
+        This covers simple attributes that don't reference other things in the
+        DAG. Setting references (such as ``op.dag`` and task dependencies) is
+        done in ``set_task_dag_references`` instead, which is called after the
+        DAG is hydrated.
+        """
         if "label" not in encoded_op:
             # Handle deserialization of old data before the introduction of TaskGroup
             encoded_op["label"] = encoded_op["task_id"]
@@ -981,6 +1004,32 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         # Used to determine if an Operator is inherited from EmptyOperator
         setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
+
+    @staticmethod
+    def set_task_dag_references(task: Operator, dag: DAG) -> None:
+        """Handle DAG references on an operator.
+
+        The operator should have been mostly populated earlier by calling
+        ``populate_operator``. This function further fixes object references
+        that were not possible before the task's containing DAG is hydrated.
+        """
+        task.dag = dag
+
+        for date_attr in ("start_date", "end_date"):
+            if getattr(task, date_attr, None) is None:
+                setattr(task, date_attr, getattr(dag, date_attr, None))
+
+        if task.subdag is not None:
+            task.subdag.parent_dag = dag
+
+        # Dereference expand_input and op_kwargs_expand_input.
+        for k in ("expand_input", "op_kwargs_expand_input"):
+            if isinstance(kwargs_ref := getattr(task, k, None), _ExpandInputRef):
+                setattr(task, k, kwargs_ref.deref(dag))
+
+        for task_id in task.downstream_task_ids:
+            # Bypass set_upstream etc here - it does more than we want
+            dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
 
     @classmethod
     def deserialize_operator(cls, encoded_op: dict[str, Any]) -> Operator:
@@ -1328,24 +1377,7 @@ class SerializedDAG(DAG, BaseSerialization):
             setattr(dag, k, None)
 
         for task in dag.task_dict.values():
-            task.dag = dag
-
-            for date_attr in ["start_date", "end_date"]:
-                if getattr(task, date_attr) is None:
-                    setattr(task, date_attr, getattr(dag, date_attr))
-
-            if task.subdag is not None:
-                setattr(task.subdag, "parent_dag", dag)
-
-            # Dereference expand_input and op_kwargs_expand_input.
-            for k in ("expand_input", "op_kwargs_expand_input"):
-                kwargs_ref = getattr(task, k, None)
-                if isinstance(kwargs_ref, _ExpandInputRef):
-                    setattr(task, k, kwargs_ref.deref(dag))
-
-            for task_id in task.downstream_task_ids:
-                # Bypass set_upstream etc here - it does more than we want
-                dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
+            SerializedBaseOperator.set_task_dag_references(task, dag)
 
         return dag
 
@@ -1482,7 +1514,12 @@ def _has_kubernetes() -> bool:
     try:
         from kubernetes.client import models as k8s
 
-        from airflow.kubernetes.pod_generator import PodGenerator
+        try:
+            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        except ImportError:
+            from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator import (  # type: ignore[assignment]
+                PodGenerator,
+            )
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator

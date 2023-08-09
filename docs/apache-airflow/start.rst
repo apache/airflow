@@ -119,7 +119,7 @@ the all-in-one ``standalone`` command, you can instead run:
 
 .. code-block:: bash
 
-    airflow db init
+    airflow db migrate
 
     airflow users create \
         --username admin \

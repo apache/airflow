@@ -105,11 +105,7 @@ class XComEncoder(json.JSONEncoder):
 
 
 class XComDecoder(json.JSONDecoder):
-    """
-    This decoder deserializes dicts to objects if they contain
-    the `__classname__` key otherwise it will return the dict
-    as is.
-    """
+    """Deserialize dicts to objects if they contain the `__classname__` key, otherwise return the dict."""
 
     def __init__(self, *args, **kwargs) -> None:
         if not kwargs.get("object_hook"):

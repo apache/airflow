@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from pandas import DataFrame
 from tabulate import tabulate
@@ -51,7 +51,7 @@ class BaseSqlToSlackOperator(BaseOperator):
         sql: str,
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -125,7 +125,7 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         slack_channel: str | None = None,
         slack_message: str,
         results_df_name: str = "results_df",
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
 
@@ -246,7 +246,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         sql: str,
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         slack_conn_id: str,
         slack_filename: str,
         slack_channels: str | Sequence[str] | None = None,
