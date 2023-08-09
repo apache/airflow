@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-08T17:50:24Z
+# This constraints file was automatically generated on 2023-08-09T08:22:49Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -40,7 +40,6 @@ aioitertools==0.11.0
 aiosignal==1.3.1
 alembic==1.11.2
 amqp==5.1.1
-annotated-types==0.5.0
 anyio==3.7.1
 apispec==6.3.0
 argcomplete==3.1.1
@@ -146,15 +145,14 @@ plyvel==1.5.0
 prison==0.2.1
 prometheus-client==0.17.1
 prompt-toolkit==3.0.39
-protobuf==4.23.4
+protobuf==4.24.0
 psutil==5.9.5
 pure-sasl==0.6.2
 pyarrow==12.0.1
 pyasn1-modules==0.3.0
 pyasn1==0.5.0
 pycparser==2.21
-pydantic==2.1.1
-pydantic_core==2.4.0
+pydantic==1.10.12
 pykerberos==1.2.4
 pyspnego==0.9.1
 python-daemon==3.0.1

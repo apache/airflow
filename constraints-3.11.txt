@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-08T17:52:31Z
+# This constraints file was automatically generated on 2023-08-09T08:24:59Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -65,7 +65,6 @@ aliyun-python-sdk-core==2.13.36
 aliyun-python-sdk-kms==2.16.1
 amqp==5.1.1
 analytics-python==1.4.post1
-annotated-types==0.5.0
 ansiwrap==0.8.4
 anyascii==0.3.2
 anyio==3.7.1
@@ -168,10 +167,10 @@ aws-sam-translator==1.72.0
 aws-xray-sdk==2.12.0
 azure-batch==14.0.0
 azure-common==1.1.28
-azure-core==1.28.0
+azure-core==1.29.0
 azure-cosmos==4.4.0
 azure-datalake-store==0.0.53
-azure-identity==1.13.0
+azure-identity==1.14.0
 azure-keyvault-secrets==4.7.0
 azure-kusto-data==0.0.45
 azure-mgmt-containerinstance==1.5.0
@@ -257,7 +256,7 @@ et-xmlfile==1.1.0
 eventlet==0.33.3
 execnet==2.0.2
 executing==1.2.0
-facebook-business==17.0.2
+facebook-business==17.0.3
 fastavro==1.8.2
 fasteners==0.18
 fastjsonschema==2.18.0
@@ -488,8 +487,7 @@ pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.18.0
 pycryptodomex==3.18.0
-pydantic==2.1.1
-pydantic_core==2.4.0
+pydantic==1.10.12
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.5
@@ -536,7 +534,7 @@ readme-renderer==40.0
 redis==4.6.0
 redshift-connector==2.0.913
 referencing==0.30.2
-regex==2023.6.3
+regex==2023.8.8
 requests-file==1.5.1
 requests-kerberos==0.14.0
 requests-mock==1.11.0
@@ -552,7 +550,7 @@ rich-click==1.6.1
 rich==13.5.2
 rpds-py==0.9.2
 rsa==4.9
-ruff==0.0.282
+ruff==0.0.283
 s3transfer==0.6.1
 sarif-om==1.0.4
 scramp==1.4.4
@@ -579,15 +577,15 @@ sphinx-autoapi==2.1.1
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
 sphinx-rtd-theme==1.2.2
-sphinxcontrib-applehelp==1.0.4
-sphinxcontrib-devhelp==1.0.2
-sphinxcontrib-htmlhelp==2.0.1
+sphinxcontrib-applehelp==1.0.5
+sphinxcontrib-devhelp==1.0.3
+sphinxcontrib-htmlhelp==2.0.2
 sphinxcontrib-httpdomain==1.8.1
 sphinxcontrib-jquery==4.1
 sphinxcontrib-jsmath==1.0.1
-sphinxcontrib-qthelp==1.0.3
+sphinxcontrib-qthelp==1.0.4
 sphinxcontrib-redoc==1.6.0
-sphinxcontrib-serializinghtml==1.1.5
+sphinxcontrib-serializinghtml==1.1.6
 sphinxcontrib-spelling==8.0.0
 spython==0.3.0
 sqlalchemy-bigquery==1.7.0
@@ -615,7 +613,7 @@ tomlkit==0.12.1
 toolz==0.12.0
 tornado==6.3.2
 towncrier==23.6.0
-tqdm==4.65.1
+tqdm==4.65.2
 traitlets==5.9.0
 trino==0.326.0
 twine==4.0.2
