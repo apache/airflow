@@ -32,6 +32,7 @@ class DagScheduleDatasetReferencePydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
 
 
 class TaskOutletDatasetReferencePydantic(BaseModelPydantic):
@@ -47,6 +48,7 @@ class TaskOutletDatasetReferencePydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
 
 
 class DatasetPydantic(BaseModelPydantic):
@@ -66,6 +68,7 @@ class DatasetPydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
 
 
 class DatasetEventPydantic(BaseModelPydantic):
@@ -84,3 +87,4 @@ class DatasetEventPydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
