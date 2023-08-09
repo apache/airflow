@@ -68,6 +68,8 @@ from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
     HAS_KUBERNETES: bool
@@ -480,14 +482,21 @@ class BaseSerialization:
                 type_=DAT.SIMPLE_TASK_INSTANCE,
             )
         elif use_pydantic_models and _ENABLE_AIP_44:
+
+            def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
+                try:
+                    return model_cls.model_validate(var).model_dump()  # type: ignore[attr-defined]
+                except AttributeError:  # Pydantic 1.x compatibility.
+                    return model_cls.from_orm(var).dict()  # type: ignore[attr-defined]
+
             if isinstance(var, Job):
-                return cls._encode(JobPydantic.from_orm(var).dict(), type_=DAT.BASE_JOB)
+                return cls._encode(_pydantic_model_dump(JobPydantic, var), type_=DAT.BASE_JOB)
             elif isinstance(var, TaskInstance):
-                return cls._encode(TaskInstancePydantic.from_orm(var).dict(), type_=DAT.TASK_INSTANCE)
+                return cls._encode(_pydantic_model_dump(TaskInstancePydantic, var), type_=DAT.TASK_INSTANCE)
             elif isinstance(var, DagRun):
-                return cls._encode(DagRunPydantic.from_orm(var).dict(), type_=DAT.DAG_RUN)
+                return cls._encode(_pydantic_model_dump(DagRunPydantic, var), type_=DAT.DAG_RUN)
             elif isinstance(var, Dataset):
-                return cls._encode(DatasetPydantic.from_orm(var).dict(), type_=DAT.DATA_SET)
+                return cls._encode(_pydantic_model_dump(DatasetPydantic, var), type_=DAT.DATA_SET)
             else:
                 return cls.default_serialization(strict, var)
         elif isinstance(var, ArgNotSet):
