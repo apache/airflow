@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-09T08:25:20Z
+# This constraints file was automatically generated on 2023-08-09T10:37:03Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -132,7 +132,7 @@ apache-airflow-providers-plexus==3.2.1
 apache-airflow-providers-postgres==5.6.0
 apache-airflow-providers-presto==5.1.2
 apache-airflow-providers-qubole==3.4.1
-apache-airflow-providers-redis==3.3.0
+apache-airflow-providers-redis==3.3.1
 apache-airflow-providers-salesforce==5.4.1
 apache-airflow-providers-samba==4.2.1
 apache-airflow-providers-segment==3.2.1
