@@ -2935,15 +2935,26 @@ class DAG(LoggingMixin):
         # Skip these queries entirely if no DAGs can be scheduled to save time.
         if any(dag.timetable.can_be_scheduled for dag in dags):
             # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
-            most_recent_subq = (
-                select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
-                .where(
-                    DagRun.dag_id.in_(existing_dags),
-                    or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+            if len(existing_dags) == 1:
+                # Index optimized fast path to avoid more complicated & slower groupby queryplan
+                most_recent_subq = (
+                    select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
+                    .where(
+                        DagRun.dag_id == existing_dags[0],
+                        or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+                    )
+                    .subquery()
                 )
-                .group_by(DagRun.dag_id)
-                .subquery()
-            )
+            else:
+                most_recent_subq = (
+                    select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
+                    .where(
+                        DagRun.dag_id.in_(existing_dags),
+                        or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+                    )
+                    .group_by(DagRun.dag_id)
+                    .subquery()
+                )
             most_recent_runs_iter = session.scalars(
                 select(DagRun).where(
                     DagRun.dag_id == most_recent_subq.c.dag_id,
