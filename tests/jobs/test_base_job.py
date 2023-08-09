@@ -32,7 +32,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.listeners import lifecycle_listener
 from tests.test_utils.config import conf_vars
-from tests.utils.test_helpers import MockJobRunner
+from tests.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
 
 
 class TestJob:
@@ -89,6 +89,37 @@ class TestJob:
 
         assert job.state == State.FAILED
         assert job.end_date is not None
+
+    @pytest.mark.parametrize(
+        "job_runner, job_type,job_heartbeat_sec",
+        [(SchedulerJobRunner, "scheduler", "11"), (TriggererJobRunner, "triggerer", "9")],
+    )
+    def test_heart_rate_after_fetched_from_db(self, job_runner, job_type, job_heartbeat_sec):
+        """Ensure heartrate is set correctly after jobs are queried from the DB"""
+        with create_session() as session, conf_vars(
+            {(job_type.lower(), "job_heartbeat_sec"): job_heartbeat_sec}
+        ):
+            job = Job()
+            job_runner(job=job)
+            session.add(job)
+            session.flush()
+
+            most_recent = most_recent_job(job_runner.job_type, session=session)
+            assert most_recent.heartrate == float(job_heartbeat_sec)
+
+            session.rollback()
+
+    @pytest.mark.parametrize(
+        "job_runner, job_type,job_heartbeat_sec",
+        [(SchedulerJobRunner, "scheduler", "11"), (TriggererJobRunner, "triggerer", "9")],
+    )
+    def test_heart_rate_via_constructor_persists(self, job_runner, job_type, job_heartbeat_sec):
+        """Ensure heartrate passed via constructor is set correctly"""
+        with conf_vars({(job_type.lower(), "job_heartbeat_sec"): job_heartbeat_sec}):
+            job = Job(heartrate=12)
+            job_runner(job)
+            # heartrate should be 12 since we passed that to the constructor directly
+            assert job.heartrate == 12
 
     def test_most_recent_job(self):
         with create_session() as session:
