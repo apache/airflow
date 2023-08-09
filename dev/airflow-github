@@ -96,7 +96,7 @@ def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue) -> str |
 
 def is_cherrypicked(repo: git.Repo, issue: Issue, previous_version: str | None = None) -> bool:
     """Check if a given issue is cherry-picked in the current branch or not"""
-    log_args = ["--format=%H", f"--grep=#{issue.number}"]
+    log_args = ["--format=%H", f"--grep=(#{issue.number})$"]
     if previous_version:
         log_args.append(previous_version + "..")
     log = repo.git.log(*log_args)
