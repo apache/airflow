@@ -54,7 +54,7 @@ class GlueCatalogHook(AwsBaseHook):
         max_items: int | None = 1,
     ) -> set[tuple]:
         """
-        Asynschronously retrieves the partition values for a table.
+        Asynchronously retrieves the partition values for a table.
 
         :param database_name: The name of the catalog database where the partitions reside.
         :param table_name: The name of the partitions' table.
