@@ -122,9 +122,10 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         bucket, prefix = self.hook.parse_s3_url(s3url=os.path.join(self.remote_base, worker_log_rel_path))
         keys = self.hook.list_keys(bucket_name=bucket, prefix=prefix)
         if keys:
-            keys = [f"s3://{bucket}/{key}" for key in keys]
-            messages.extend(["Found logs in s3:", *[f"  * {x}" for x in sorted(keys)]])
-            for key in sorted(keys):
+            keys = sorted(f"s3://{bucket}/{key}" for key in keys)
+            messages.append("Found logs in s3:")
+            messages.extend(f"  * {key}" for key in keys)
+            for key in keys:
                 logs.append(self.s3_read(key, return_error=True))
         else:
             messages.append(f"No logs found on s3 for ti={ti}")

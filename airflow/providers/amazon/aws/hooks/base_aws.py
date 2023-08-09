@@ -494,10 +494,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         responsible with catching and handling those.
         """
         stack = inspect.stack()
-        # Find the index of the most recent frame which called the provided function name.
-        target_frame_index = [frame.function for frame in stack].index(target_function_name)
-        # Pull that frame off the stack.
-        target_frame = stack[target_frame_index][0]
+        # Find the index of the most recent frame which called the provided function name
+        # and pull that frame off the stack.
+        target_frame = next(frame for frame in stack if frame.function == target_function_name)[0]
         # Get the local variables for that frame.
         frame_variables = target_frame.f_locals["self"]
         # Get the class object for that frame.

@@ -137,7 +137,7 @@ class RedshiftToS3Operator(BaseOperator):
 
         if self.redshift_data_api_kwargs:
             for arg in ["sql", "parameters"]:
-                if arg in self.redshift_data_api_kwargs.keys():
+                if arg in self.redshift_data_api_kwargs:
                     raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
 
     def _build_unload_query(
