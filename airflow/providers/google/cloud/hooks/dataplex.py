@@ -25,7 +25,15 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.dataplex_v1 import DataplexServiceClient, DataScanServiceClient
-from google.cloud.dataplex_v1.types import Asset, DataScan, DataScanJob, Lake, Task, Zone
+from google.cloud.dataplex_v1.types import (
+    Asset,
+    DataScan,
+    DataScanJob,
+    Lake,
+    Task,
+    Zone,
+)
+from google.protobuf.field_mask_pb2 import FieldMask
 from googleapiclient.discovery import Resource
 
 from airflow.exceptions import AirflowException
@@ -33,6 +41,14 @@ from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 PATH_DATA_SCAN = "projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
+
+
+class AirflowDataQualityScanException(AirflowException):
+    """Raised when data quality scan rules fail."""
+
+
+class AirflowDataQualityScanResultTimeoutException(AirflowException):
+    """Raised when no result found after specified amount of seconds."""
 
 
 class DataplexHook(GoogleBaseHook):
@@ -647,7 +663,7 @@ class DataplexHook(GoogleBaseHook):
         job_id: str | None = None,
         project_id: str | None = None,
         region: str | None = None,
-        wait_time: int = 2,
+        wait_time: int = 10,
         result_timeout: float | None = None,
     ) -> Any:
         """
@@ -669,8 +685,8 @@ class DataplexHook(GoogleBaseHook):
             DataScanJob.State.SUCCEEDED,
         ):
             if result_timeout and start + result_timeout < time.monotonic():
-                raise AirflowException(
-                    f"Timeout: data quality scan {job_id} is not ready after {result_timeout}s"
+                raise AirflowDataQualityScanResultTimeoutException(
+                    f"Timeout: Data Quality scan {job_id} is not ready after {result_timeout}s"
                 )
             time.sleep(wait_time)
             try:
@@ -712,6 +728,60 @@ class DataplexHook(GoogleBaseHook):
         name = PATH_DATA_SCAN.format(project_id=project_id, region=region, data_scan_id=data_scan_id)
         result = client.get_data_scan(
             request={"name": name, "view": "FULL"},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def update_data_scan(
+        self,
+        project_id: str,
+        region: str,
+        data_scan_id: str,
+        body: dict[str, Any] | DataScan,
+        update_mask: dict | FieldMask | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Updates a DataScan resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param data_scan_id: Required. Data Quality scan identifier.
+        :param body: Required. The Request body contains an instance of DataScan.
+        :param update_mask: Required. Mask of fields to update.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_data_scan_client()
+
+        full_scan_name = f"projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
+
+        if body:
+            if isinstance(body, DataScan):
+                body.name = full_scan_name
+            elif isinstance(body, dict):
+                body["name"] = full_scan_name
+            else:
+                raise AirflowException("Unable to set scan_name.")
+
+        if not update_mask:
+            update_mask = FieldMask(
+                paths=["data", "data_quality_spec", "labels", "description", "displayName", "executionSpec"]
+            )
+
+        result = client.update_data_scan(
+            request={
+                "data_scan": body,
+                "update_mask": update_mask,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,

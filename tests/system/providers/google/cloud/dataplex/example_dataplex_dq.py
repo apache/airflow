@@ -23,6 +23,7 @@ import os
 from datetime import datetime
 
 from google.cloud import dataplex_v1
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -34,13 +35,14 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCreateAssetOperator,
-    DataplexCreateDataQualityScanOperator,
     DataplexCreateLakeOperator,
+    DataplexCreateOrUpdateDataQualityScanOperator,
     DataplexCreateZoneOperator,
     DataplexDeleteAssetOperator,
     DataplexDeleteDataQualityScanOperator,
     DataplexDeleteLakeOperator,
     DataplexDeleteZoneOperator,
+    DataplexGetDataQualityScanOperator,
     DataplexGetDataQualityScanResultOperator,
     DataplexRunDataQualityScanOperator,
 )
@@ -120,6 +122,26 @@ EXAMPLE_DATA_SCAN.data_quality_spec = {
     ],
 }
 # [END howto_dataplex_data_quality_configuration]
+UPDATE_MASK = FieldMask(paths=["data_quality_spec"])
+ENTITY = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/{ZONE_ID}/entities/{TABLE_1}"
+EXAMPLE_DATA_SCAN_UPDATE = {
+    "data": {
+        "entity": ENTITY,
+        "resource": f"//bigquery.googleapis.com/projects/{PROJECT_ID}/datasets/{DATASET}/tables/{TABLE_1}",
+    },
+    "data_quality_spec": {
+        "rules": [
+            {
+                "range_expectation": {
+                    "min_value": "1",
+                    "max_value": "50000",
+                },
+                "column": "value",
+                "dimension": "VALIDITY",
+            }
+        ],
+    },
+}
 
 
 with models.DAG(
@@ -177,14 +199,29 @@ with models.DAG(
     )
     # [END howto_dataplex_create_asset_operator]
     # [START howto_dataplex_create_data_quality_operator]
-    create_data_scan = DataplexCreateDataQualityScanOperator(
+    create_data_scan = DataplexCreateOrUpdateDataQualityScanOperator(
         task_id="create_data_scan",
         project_id=PROJECT_ID,
         region=REGION,
         body=EXAMPLE_DATA_SCAN,
         data_scan_id=DATA_SCAN_ID,
     )
-    # [END howto_dataplex_create_data_quality_operator]
+    update_data_scan = DataplexCreateOrUpdateDataQualityScanOperator(
+        task_id="update_data_scan",
+        project_id=PROJECT_ID,
+        region=REGION,
+        update_mask=UPDATE_MASK,
+        body=EXAMPLE_DATA_SCAN_UPDATE,
+        data_scan_id=DATA_SCAN_ID,
+    )
+    # [START howto_dataplex_get_data_quality_operator]
+    get_data_scan = DataplexGetDataQualityScanOperator(
+        task_id="get_data_scan",
+        project_id=PROJECT_ID,
+        region=REGION,
+        data_scan_id=DATA_SCAN_ID,
+    )
+    # [END howto_dataplex_get_data_quality_operator]
     run_data_scan_sync = DataplexRunDataQualityScanOperator(
         task_id="run_data_scan_sync",
         project_id=PROJECT_ID,
@@ -278,6 +315,8 @@ with models.DAG(
         create_asset,
         # TEST BODY
         create_data_scan,
+        update_data_scan,
+        get_data_scan,
         run_data_scan_sync,
         get_data_scan_job_result,
         run_data_scan_async,

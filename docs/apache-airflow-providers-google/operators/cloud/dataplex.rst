@@ -142,8 +142,8 @@ To delete a lake you can use:
     :start-after: [START howto_dataplex_delete_lake_operator]
     :end-before: [END howto_dataplex_delete_lake_operator]
 
-Create a Data Quality scan
---------------------------
+Create or update a Data Quality scan
+------------------------------------
 
 Before you create a Dataplex Data Quality scan you need to define its body.
 For more information about the available fields to pass when creating a Data Quality scan, visit `Dataplex create data quality API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans#DataScan>`__
@@ -156,15 +156,30 @@ A simple Data Quality scan configuration can look as followed:
     :start-after: [START howto_dataplex_data_quality_configuration]
     :end-before: [END howto_dataplex_data_quality_configuration]
 
-With this configuration we can create the Data Quality scan:
+With this configuration we can create or update the Data Quality scan:
 
-:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateDataQualityScanOperator`
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateOrUpdateDataQualityScanOperator`
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_create_data_quality_operator]
     :end-before: [END howto_dataplex_create_data_quality_operator]
+
+Get a Data Quality scan
+----------
+
+To get a Data Quality scan you can use:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataQualityScanOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_get_data_quality_operator]
+    :end-before: [END howto_dataplex_get_data_quality_operator]
+
+
 
 Delete a Data Quality scan
 --------------------------

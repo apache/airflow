@@ -22,8 +22,8 @@ from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCreateAssetOperator,
-    DataplexCreateDataQualityScanOperator,
     DataplexCreateLakeOperator,
+    DataplexCreateOrUpdateDataQualityScanOperator,
     DataplexCreateTaskOperator,
     DataplexCreateZoneOperator,
     DataplexDeleteAssetOperator,
@@ -490,7 +490,7 @@ class TestDataplexDeleteDataQualityScanOperator:
 class TestDataplexCreateDataQualityScanOperator:
     @mock.patch(HOOK_STR)
     def test_execute(self, hook_mock):
-        op = DataplexCreateDataQualityScanOperator(
+        op = DataplexCreateOrUpdateDataQualityScanOperator(
             task_id=TASK_ID,
             project_id=PROJECT_ID,
             region=REGION,
