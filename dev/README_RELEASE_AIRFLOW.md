@@ -817,7 +817,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     breeze release-management publish-docs --package-filter apache-airflow --package-filter docker-stack
-    breeze release-management add-back-references --gen-type airflow
+    breeze release-management add-back-references apache-airflow
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push

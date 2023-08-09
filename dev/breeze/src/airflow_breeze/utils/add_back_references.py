@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import enum
 import os
 import re
 import tempfile
@@ -26,19 +25,12 @@ from urllib.request import urlopen
 
 from rich import print
 
-from airflow_breeze.global_constants import get_available_documentation_provider_packages
+from airflow_breeze.utils.console import get_console
 
 airflow_redirects_link = (
     "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/redirects.txt"
 )
 helm_redirects_link = "https://raw.githubusercontent.com/apache/airflow/main/docs/helm-chart/redirects.txt"
-
-
-# types of generations supported
-class GenerationType(enum.Enum):
-    airflow = 1
-    helm = 2
-    providers = 3
 
 
 def download_file(url):
@@ -149,26 +141,23 @@ def generate_back_references(link: str, base_path: Path):
                 create_back_reference_html(relative_path, dest_file_path)
 
 
-def start_generating_back_references(
-    gen_type: GenerationType, airflow_site_directory: Path, short_provider_package_ids: list[str]
-):
-    # Either packages or gen_type should be provided
+def start_generating_back_references(airflow_site_directory: Path, short_provider_package_ids: list[str]):
     docs_archive_path = airflow_site_directory / "docs-archive"
     airflow_docs_path = docs_archive_path / "apache-airflow"
     helm_docs_path = docs_archive_path / "helm-chart"
-
-    if gen_type == GenerationType.airflow:
+    if "apache-airflow" in short_provider_package_ids:
         generate_back_references(airflow_redirects_link, airflow_docs_path)
-    elif gen_type == GenerationType.helm:
+        short_provider_package_ids.remove("apache-airflow")
+    if "helm-chart" in short_provider_package_ids:
         generate_back_references(helm_redirects_link, helm_docs_path)
-    elif gen_type == GenerationType.providers:
-        if short_provider_package_ids:
-            all_providers = [
-                f"apache-airflow-providers-{package.replace('.','-')}"
-                for package in short_provider_package_ids
-            ]
-        else:
-            all_providers = get_available_documentation_provider_packages()
+        short_provider_package_ids.remove("helm-chart")
+    if "docker-stack" in short_provider_package_ids:
+        get_console().print("[info]Skipping docker-stack package. No back-reference needed.")
+        short_provider_package_ids.remove("docker-stack")
+    if short_provider_package_ids:
+        all_providers = [
+            f"apache-airflow-providers-{package.replace('.','-')}" for package in short_provider_package_ids
+        ]
         for p in all_providers:
             print(f"Processing airflow provider: {p}")
             generate_back_references(get_github_redirects_url(p), docs_archive_path / p)
