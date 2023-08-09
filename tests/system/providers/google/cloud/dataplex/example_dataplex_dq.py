@@ -206,6 +206,7 @@ with models.DAG(
         body=EXAMPLE_DATA_SCAN,
         data_scan_id=DATA_SCAN_ID,
     )
+    # [END howto_dataplex_create_data_quality_operator]
     update_data_scan = DataplexCreateOrUpdateDataQualityScanOperator(
         task_id="update_data_scan",
         project_id=PROJECT_ID,

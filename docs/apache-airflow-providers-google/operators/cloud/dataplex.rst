@@ -167,13 +167,13 @@ With this configuration we can create or update the Data Quality scan:
     :end-before: [END howto_dataplex_create_data_quality_operator]
 
 Get a Data Quality scan
-----------
+-----------------------
 
 To get a Data Quality scan you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataQualityScanOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_get_data_quality_operator]
