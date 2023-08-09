@@ -183,22 +183,16 @@ class DockerSwarmOperator(DockerOperator):
             self.service["ID"], follow=True, stdout=True, stderr=True, is_tty=self.tty
         )
         line = ""
-        while True:
+        for log in logs:
             try:
-                log = next(logs)
-            except StopIteration:
-                # If the service log stream terminated, stop fetching logs further.
-                break
+                log = log.decode()
+            except UnicodeDecodeError:
+                continue
+            if log == "\n":
+                self.log.info(line)
+                line = ""
             else:
-                try:
-                    log = log.decode()
-                except UnicodeDecodeError:
-                    continue
-                if log == "\n":
-                    self.log.info(line)
-                    line = ""
-                else:
-                    line += log
+                line += log
         # flush any remaining log stream
         if line:
             self.log.info(line)

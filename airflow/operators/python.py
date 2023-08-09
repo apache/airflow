@@ -22,6 +22,7 @@ import inspect
 import logging
 import os
 import pickle
+import shutil
 import subprocess
 import sys
 import types
@@ -52,6 +53,17 @@ from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_scr
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
+
+
+def is_venv_installed() -> bool:
+    """
+    Checks if the virtualenv package is installed via checking if it is on the path or installed as package.
+
+    :return: True if it is. Whichever way of checking it works, is fine.
+    """
+    if shutil.which("virtualenv") or importlib.util.find_spec("virtualenv"):
+        return True
+    return False
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
@@ -540,7 +552,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 "major versions for PythonVirtualenvOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. Venv version: {python_version}"
             )
-        if importlib.util.find_spec("virtualenv") is None:
+        if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if not requirements:
             self.requirements: list[str] | str = []

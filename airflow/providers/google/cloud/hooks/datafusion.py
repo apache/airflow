@@ -39,6 +39,12 @@ from airflow.providers.google.common.hooks.base_google import (
 Operation = Dict[str, Any]
 
 
+class ConflictException(AirflowException):
+    """Exception to catch 409 error."""
+
+    pass
+
+
 class PipelineStates:
     """Data Fusion pipeline states."""
 
@@ -163,6 +169,8 @@ class DataFusionHook(GoogleBaseHook):
     def _check_response_status_and_data(response, message: str) -> None:
         if response.status == 404:
             raise AirflowNotFoundException(message)
+        elif response.status == 409:
+            raise ConflictException("Conflict: Resource is still in use.")
         elif response.status != 200:
             raise AirflowException(message)
         if response.data is None:
@@ -356,21 +364,18 @@ class DataFusionHook(GoogleBaseHook):
         if version_id:
             url = os.path.join(url, "versions", version_id)
 
-        response = self._cdap_request(url=url, method="DELETE", body=None)
-        # Check for 409 error: the previous step for starting/stopping pipeline could still be in progress.
-        # Waiting some time before retry.
-        for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+        for time_to_wait in exponential_sleep_generator(initial=1, maximum=10):
             try:
+                response = self._cdap_request(url=url, method="DELETE", body=None)
                 self._check_response_status_and_data(
                     response, f"Deleting a pipeline failed with code {response.status}: {response.data}"
                 )
-                break
-            except AirflowException as exc:
-                if "409" in str(exc):
-                    sleep(time_to_wait)
-                    response = self._cdap_request(url=url, method="DELETE", body=None)
-                else:
-                    raise
+                if response.status == 200:
+                    break
+            except ConflictException as exc:
+                self.log.info(exc)
+                sleep(time_to_wait)
+                continue
 
     def list_pipelines(
         self,

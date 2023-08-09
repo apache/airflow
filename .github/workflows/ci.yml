@@ -1446,7 +1446,7 @@ jobs:
 
   wait-for-prod-images:
     timeout-minutes: 80
-    name: "Wait for PROD images"
+    name: "Wait for & verify PROD images"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images, build-prod-images]
     if: needs.build-info.outputs.image-build == 'true'
@@ -1469,14 +1469,22 @@ jobs:
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
         # or from build-prod-images above.
         # We are utilising single job to wait for all images because this job merely waits
-        # For the images to be available and test them.
-        run: breeze prod-image pull --verify --wait-for-image --run-in-parallel
+        # For the images to be available.
+        run: breeze prod-image pull --wait-for-image --run-in-parallel
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      - name: Verify PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        # We pull images again (which is a NOOP) but this time we also verify the images
+        # Having it as a separate step allows us to see if the problem was with waiting or verification
+        run: breeze prod-image pull --verify --run-in-parallel
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
+
 
   test-docker-compose-quick-start:
     timeout-minutes: 60

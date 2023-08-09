@@ -116,10 +116,7 @@ def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     subparsers.required = True
 
     command_dict = DAG_CLI_DICT if dag_parser else ALL_COMMANDS_DICT
-    subparser_list = command_dict.keys()
-    sub_name: str
-    for sub_name in sorted(subparser_list):
-        sub: CLICommand = command_dict[sub_name]
+    for _, sub in sorted(command_dict.items()):
         _add_command(subparsers, sub)
     return parser
 

@@ -24,6 +24,12 @@ Configuration Reference
   ``{{ package_name }}`` provider that can be set in the ``airflow.cfg`` file or using environment variables.
 
   .. note::
+    The configuration embedded in provider packages started to be used as of Airflow 2.7.0. Previously the
+    configuration was described and configured in the Airflow core package - so if you are using Airflow
+    below 2.7.0, look at Airflow documentation for the list of available configuration options
+    that were available in Airflow core.
+
+  .. note::
      For more information see :doc:`apache-airflow:howto/set-config`.
 
 .. include:: ../exts/includes/sections-and-options.rst

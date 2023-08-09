@@ -97,8 +97,6 @@ class Job(Base, LoggingMixin):
     Only makes sense for SchedulerJob and BackfillJob instances.
     """
 
-    heartrate = conf.getfloat("scheduler", "JOB_HEARTBEAT_SEC")
-
     def __init__(self, executor=None, heartrate=None, **kwargs):
         # Save init parameters as DB fields
         self.hostname = get_hostname()
@@ -117,6 +115,15 @@ class Job(Base, LoggingMixin):
     def executor(self):
         return ExecutorLoader.get_default_executor()
 
+    @cached_property
+    def heartrate(self):
+        if self.job_type == "TriggererJob":
+            return conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
+        else:
+            # Heartrate used to be hardcoded to scheduler, so in all other
+            # cases continue to use that value for back compat
+            return conf.getfloat("scheduler", "JOB_HEARTBEAT_SEC")
+
     def is_alive(self, grace_multiplier=2.1):
         """
         Is this job currently alive.
@@ -129,6 +136,8 @@ class Job(Base, LoggingMixin):
         """
         if self.job_type == "SchedulerJob":
             health_check_threshold: int = conf.getint("scheduler", "scheduler_health_check_threshold")
+        elif self.job_type == "TriggererJob":
+            health_check_threshold: int = conf.getint("triggerer", "triggerer_health_check_threshold")
         else:
             health_check_threshold: int = self.heartrate * grace_multiplier
         return (

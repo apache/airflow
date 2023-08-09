@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.4.1
+.....
+
+Latest change: 2023-07-31
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`2ab78ec441 <https://github.com/apache/airflow/commit/2ab78ec441a748ae4d99e429fe336b80a601d7b1>`_  2023-07-31   ``Fix connection parameters of 'SnowflakeValueCheckOperator' (#32605)``
+=================================================================================================  ===========  =======================================================================
+
 4.4.0
 .....
 
-Latest change: 2023-07-21
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `5b082c38a6 <https://github.com/apache/airflow/commit/5b082c38a66b1a0b6b496e0d3b15a6684339e1d1>`_  2023-07-21   ``openlineage, snowflake: add OpenLineage support for Snowflake (#31696)``
 `60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
 `e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``

@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.engine import Result
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Query, Session, load_only, make_transient, selectinload
+from sqlalchemy.orm import Query, Session, joinedload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -1397,10 +1397,23 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
+        query = (
+            session.query(DagModel)
+            .filter(DagModel.dag_id == dag_run.dag_id)
+            .options(joinedload(DagModel.parent_dag))
+        )
+        dag_model = with_row_locks(
+            query, of=DagModel, session=session, **skip_locked(session=session)
+        ).one_or_none()
 
-        if not dag or not dag_model:
+        if not dag:
             self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
+            return callback
+        if not dag_model:
+            self.log.info(
+                "DAG %s scheduling was skipped, probably because the DAG record was locked", dag_run.dag_id
+            )
             return callback
 
         if (
@@ -1558,10 +1571,12 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             Stats.gauge(f"pool.open_slots.{pool_name}", slot_stats["open"])
             Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
             Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
+            Stats.gauge(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
             # Same metrics with tagging
             Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
             Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
             Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
+            Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:

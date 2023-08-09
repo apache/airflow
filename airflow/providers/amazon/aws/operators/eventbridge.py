@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Sequence
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eventbridge import EventBridgeHook
-from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -68,7 +68,7 @@ class EventBridgePutEventsOperator(BaseOperator):
     def execute(self, context: Context):
 
         response = self.hook.conn.put_events(
-            **trim_none_values(
+            **prune_dict(
                 {
                     "Entries": self.entries,
                     "EndpointId": self.endpoint_id,
@@ -170,3 +170,104 @@ class EventBridgePutRuleOperator(BaseOperator):
             state=self.state,
             tags=self.tags,
         )
+
+
+class EventBridgeEnableRuleOperator(BaseOperator):
+    """
+    Enable an EventBridge Rule.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EventBridgeEnableRuleOperator`
+
+    :param name: the name of the rule to enable
+    :param event_bus_name: the name or ARN of the event bus associated with the rule (default if omitted)
+    :param aws_conn_id: the AWS connection to use
+    :param region_name: the region of the rule to be enabled
+
+    """
+
+    template_fields: Sequence[str] = ("name", "event_bus_name", "region_name", "aws_conn_id")
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        event_bus_name: str | None = None,
+        region_name: str | None = None,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.name = name
+        self.event_bus_name = event_bus_name
+        self.region_name = region_name
+        self.aws_conn_id = aws_conn_id
+
+    @cached_property
+    def hook(self) -> EventBridgeHook:
+        """Create and return an EventBridgeHook."""
+        return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
+    def execute(self, context: Context):
+        self.hook.conn.enable_rule(
+            **prune_dict(
+                {
+                    "Name": self.name,
+                    "EventBusName": self.event_bus_name,
+                }
+            )
+        )
+
+        self.log.info('Enabled rule "%s"', self.name)
+
+
+class EventBridgeDisableRuleOperator(BaseOperator):
+    """
+    Disable an EventBridge Rule.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EventBridgeDisableRuleOperator`
+
+    :param name: the name of the rule to disable
+    :param event_bus_name: the name or ARN of the event bus associated with the rule (default if omitted)
+    :param aws_conn_id: the AWS connection to use
+    :param region_name: the region of the rule to be disabled
+
+    """
+
+    template_fields: Sequence[str] = ("name", "event_bus_name", "region_name", "aws_conn_id")
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        event_bus_name: str | None = None,
+        region_name: str | None = None,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.name = name
+        self.event_bus_name = event_bus_name
+        self.region_name = region_name
+        self.aws_conn_id = aws_conn_id
+
+    @cached_property
+    def hook(self) -> EventBridgeHook:
+        """Create and return an EventBridgeHook."""
+        return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
+    def execute(self, context: Context):
+
+        self.hook.conn.disable_rule(
+            **prune_dict(
+                {
+                    "Name": self.name,
+                    "EventBusName": self.event_bus_name,
+                }
+            )
+        )
+
+        self.log.info('Disabled rule "%s"', self.name)
