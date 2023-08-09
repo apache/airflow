@@ -721,7 +721,7 @@ class MappedOperator(AbstractOperator):
         # in the weeds here. We don't close this session for the same reason.
         session = settings.Session()
 
-        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session)
+        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
         unmapped_task = self.unmap(mapped_kwargs)
         context_update_for_unmapped(context, unmapped_task)
 
@@ -734,6 +734,6 @@ class MappedOperator(AbstractOperator):
             template_fields=self.template_fields,
             context=context,
             jinja_env=jinja_env,
-            seen_oids=set(),
+            seen_oids=seen_oids,
             session=session,
         )

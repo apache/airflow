@@ -217,6 +217,10 @@ class ListOfDictsExpandInput(NamedTuple):
 
     value: OperatorExpandKwargsArgument
 
+    def _iter_parse_time_resolved_kwargs(self, mapping) -> Iterable[tuple[str, Sized]]:
+        """Generate kwargs with values available on parse-time."""
+        return ((k, v) for k, v in mapping.items() if _is_parse_time_mappable(v))
+
     def get_parse_time_mapped_ti_count(self) -> int:
         if isinstance(self.value, collections.abc.Sized):
             return len(self.value)
@@ -265,7 +269,10 @@ class ListOfDictsExpandInput(NamedTuple):
                     f"expand_kwargs() input dict keys must all be str, "
                     f"but {key!r} is of type {_describe_type(key)}"
                 )
-        return mapping, {id(v) for v in mapping.values()}
+        literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs(mapping)}
+        resolved_oids = {id(v) for k, v in mapping.items() if k not in literal_keys}
+
+        return mapping, resolved_oids
 
 
 EXPAND_INPUT_EMPTY = DictOfListsExpandInput({})  # Sentinel value.
