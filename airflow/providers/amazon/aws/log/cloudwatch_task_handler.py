@@ -115,7 +115,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         :return: string of all logs from the given log stream
         """
         start_time = (
-            None if task_instance.start_date is None else datetime_to_epoch_utc_ms(task_instance.start_date)
+            0 if task_instance.start_date is None else datetime_to_epoch_utc_ms(task_instance.start_date)
         )
         # If there is an end_date to the task instance, fetch logs until that date + 30 seconds
         # 30 seconds is an arbitrary buffer so that we don't miss any logs that were emitted

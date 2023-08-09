@@ -157,12 +157,12 @@ class TestCloudwatchTaskHandler:
     @pytest.mark.parametrize(
         "start_date, end_date, expected_start_time, expected_end_time",
         [
-            (None, None, None, None),
+            (None, None, 0, None),
             (datetime(2020, 1, 1), None, datetime_to_epoch_utc_ms(datetime(2020, 1, 1)), None),
             (
                 None,
                 datetime(2020, 1, 2),
-                None,
+                0,
                 datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30)),
             ),
             (

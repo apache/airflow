@@ -74,8 +74,8 @@ class AwsLogsHook(AwsBaseHook):
 
         :param log_group: The name of the log group.
         :param log_stream_name: The name of the specific stream.
-        :param start_time: The timestamp value to start reading the logs from (default: 0).
-        :param end_time: The timestamp value to stop reading the logs from (default: None).
+        :param start_time: The timestamp value in ms to start reading the logs from (default: 0).
+        :param end_time: The timestamp value in ms to stop reading the logs from (default: None).
             If None is provided, reads it until the end of the log stream
         :param skip: The number of log entries to skip at the start (default: 0).
             This is for when there are multiple entries at the same timestamp.
