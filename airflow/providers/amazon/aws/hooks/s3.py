@@ -1284,18 +1284,15 @@ class S3Hook(AwsBaseHook):
             bucket and trying to delete the bucket.
         :return: None
         """
-        tries_remaining = max_retries + 1
         if force_delete:
-            while tries_remaining:
+            for retry in range(max_retries):
                 bucket_keys = self.list_keys(bucket_name=bucket_name)
                 if not bucket_keys:
                     break
-                if tries_remaining <= max_retries:
-                    # Avoid first loop
+                if retry:  # Avoid first loop
                     sleep(500)
 
                 self.delete_objects(bucket=bucket_name, keys=bucket_keys)
-                tries_remaining -= 1
 
         self.conn.delete_bucket(Bucket=bucket_name)
 
