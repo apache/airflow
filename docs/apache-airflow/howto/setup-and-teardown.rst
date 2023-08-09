@@ -109,7 +109,7 @@ You can have a setup without a teardown:
 
     create_cluster >> run_query >> other_task
 
-In this case, everything downstream of create_cluster is assumed to require it.  So if you clear query_two, it will also clear create_cluster.  Suppose that we add a teardown for create_cluster after run_query:
+In this case, everything downstream of create_cluster is assumed to require it.  So if you clear other_task, it will also clear create_cluster.  Suppose that we add a teardown for create_cluster after run_query:
 
 .. code-block:: python
 
