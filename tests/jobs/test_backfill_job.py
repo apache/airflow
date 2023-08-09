@@ -598,6 +598,7 @@ class TestBackfillJob:
         pool = Pool(
             pool="pool_with_two_slots",
             slots=slots,
+            include_deferred=False,
         )
         session.add(pool)
         session.commit()
@@ -961,7 +962,7 @@ class TestBackfillJob:
         Test that queued tasks are executed by BackfillJobRunner
         """
         session = settings.Session()
-        pool = Pool(pool="test_backfill_pooled_task_pool", slots=1)
+        pool = Pool(pool="test_backfill_pooled_task_pool", slots=1, include_deferred=False)
         session.add(pool)
         session.commit()
         session.close()
