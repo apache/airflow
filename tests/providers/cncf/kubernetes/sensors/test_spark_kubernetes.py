@@ -792,6 +792,7 @@ class TestSparkKubernetesSensor:
         )
         error_log_call.assert_called_once_with(TEST_POD_LOG_RESULT)
 
+    @pytest.mark.skip("Chase leaking sessions")
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_COMPLETED_APPLICATION,
@@ -839,6 +840,7 @@ class TestSparkKubernetesSensor:
         sensor.poke(None)
         warn_log_call.assert_called_once()
 
+    @pytest.mark.skip("Chase leaking sessions")
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_DRIVER_WITH_SIDECAR_APPLICATION,

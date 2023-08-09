@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import contextlib
+import logging
+import sys
 from functools import wraps
 from inspect import signature
 from typing import Callable, Generator, TypeVar, cast
@@ -24,10 +26,17 @@ from typing import Callable, Generator, TypeVar, cast
 from airflow import settings
 from airflow.typing_compat import ParamSpec
 
+logger = logging.getLogger("airflow.task")
+
 
 @contextlib.contextmanager
 def create_session() -> Generator[settings.SASession, None, None]:
     """Contextmanager that will create and teardown a session."""
+    method = ""
+    for i in range(1, 4):
+        method += sys._getframe(i).f_back.f_code.co_name + ":"  # type: ignore
+
+    logger.info("CREATE SESSION %s", method)
     Session = getattr(settings, "Session", None)
     if Session is None:
         raise RuntimeError("Session must be set before!")
@@ -39,6 +48,7 @@ def create_session() -> Generator[settings.SASession, None, None]:
         session.rollback()
         raise
     finally:
+        logger.info("DESTROY_SESSION %s", method)
         session.close()
 
 

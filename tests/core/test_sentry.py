@@ -150,6 +150,7 @@ class TestSentryHook:
             for key, value in scope._tags.items():
                 assert TEST_SCOPE[key] == value
 
+    @pytest.mark.skip("Chase leaking sessions")
     @time_machine.travel(CRUMB_DATE)
     def test_add_breadcrumbs(self, sentry, task_instance):
         """

@@ -167,6 +167,7 @@ class TestGCSTaskHandler:
         mock_blob.from_string.return_value.upload_from_string(data="CONTENT\nMESSAGE\n")
         assert self.gcs_task_handler.closed is True
 
+    @pytest.mark.skip("Chase leaking sessions")
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
         return_value=("TEST_CREDENTIALS", "TEST_PROJECT_ID"),

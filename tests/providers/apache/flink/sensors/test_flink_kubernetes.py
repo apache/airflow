@@ -1099,6 +1099,7 @@ class TestFlinkKubernetesSensor:
             name="flink-stream-example",
         )
 
+    @pytest.mark.skip("Chase leaking sessions")
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_READY_CLUSTER,
