@@ -601,7 +601,7 @@ class KubernetesPodOperator(BaseOperator):
             if self.do_xcom_push:
                 self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
                 result = self.extract_xcom(pod=self.pod)
-            self.remote_pod = self.pod_manager.await_pod_completion(self.pod)
+            self.remote_pod = self.pod_manager.await_pod_completion(self.pod, self.base_container_name)
         finally:
             self.cleanup(
                 pod=self.pod or self.pod_request_obj,
@@ -664,7 +664,7 @@ class KubernetesPodOperator(BaseOperator):
                     xcom_sidecar_output = self.extract_xcom(pod=pod)
                     return xcom_sidecar_output
         finally:
-            pod = self.pod_manager.await_pod_completion(pod)
+            pod = self.pod_manager.await_pod_completion(pod, self.base_container_name)
             if pod is not None:
                 self.post_complete_action(
                     pod=pod,
