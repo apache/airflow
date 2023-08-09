@@ -16,7 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from flask_appbuilder.security.views import PermissionModelView, PermissionViewModelView, RoleModelView
+from flask_appbuilder.security.views import (
+    PermissionModelView,
+    PermissionViewModelView,
+    RoleModelView,
+    ViewMenuModelView,
+)
 from flask_babel import lazy_gettext
 
 from airflow.security import permissions
@@ -85,3 +90,23 @@ class CustomRoleModelView(RoleModelView):
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
     ]
+
+
+class ResourceModelView(ViewMenuModelView):
+    """Customize permission names for FAB's builtin ViewMenuModelView."""
+
+    class_permission_name = permissions.RESOURCE_RESOURCE
+    route_base = "/resources"
+    method_permission_name = {
+        "list": "read",
+    }
+    base_permissions = [
+        permissions.ACTION_CAN_READ,
+    ]
+
+    list_title = lazy_gettext("List Resources")
+    show_title = lazy_gettext("Show Resource")
+    add_title = lazy_gettext("Add Resource")
+    edit_title = lazy_gettext("Edit Resource")
+
+    label_columns = {"name": lazy_gettext("Name")}
