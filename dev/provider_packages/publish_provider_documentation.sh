@@ -30,4 +30,6 @@ done
 
 breeze build-docs "${provider_filters[@]}"
 
+breeze release-management add-back-references "${@}"
+
 cd "${AIRFLOW_SITE_DIRECTORY}"

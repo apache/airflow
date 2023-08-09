@@ -392,7 +392,7 @@ breeze release-management publish-docs \
     --package-filter 'apache-airflow-providers-*' \
     --override-versioned
 
-breeze release-management add-back-references --gen-type providers
+breeze release-management add-back-references all-providers
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:
