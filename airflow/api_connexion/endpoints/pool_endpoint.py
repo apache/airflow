@@ -88,10 +88,10 @@ def patch_pool(
 ) -> APIResponse:
     """Update a pool."""
     request_dict = get_json_request_dict()
-    # Only slots can be modified in 'default_pool'
+    # Only slots and include_deferred can be modified in 'default_pool'
     try:
         if pool_name == Pool.DEFAULT_POOL_NAME and request_dict["name"] != Pool.DEFAULT_POOL_NAME:
-            if update_mask and len(update_mask) == 1 and update_mask[0].strip() == "slots":
+            if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
                 pass
             else:
                 raise BadRequest(detail="Default Pool's name can't be modified")

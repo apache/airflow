@@ -195,9 +195,9 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             # we only select a single column (that is a string),
             # so safe to assume that there is only a single col in the record
             pk_columns += [y["stringValue"] for x in response["Records"] for y in x]
-            if "NextToken" not in response.keys():
-                break
-            else:
+            if "NextToken" in response:
                 token = response["NextToken"]
+            else:
+                break
 
         return pk_columns or None

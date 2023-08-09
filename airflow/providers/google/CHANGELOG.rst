@@ -48,6 +48,12 @@ Bug Fixes
 * ``Fix 'DataFusionAsyncHook' catch 404 (#32855)``
 * ``Fix system test for MetastoreHivePartitionSensor (#32861)``
 * ``Fix catching 409 error (#33173)``
+* ``make 'sql' a cached property in 'BigQueryInsertJobOperator' (#33218)``
+
+Misc
+~~~~
+
+* ``refactor(providers.google): use module level __getattr__ for DATAPROC_JOB_LOG_LINK to DATAPROC_JOB_LINK and add deprecation warning (#33189)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -58,6 +64,7 @@ Bug Fixes
    * ``Fix DataflowStartSqlJobOperator system test (#32823)``
    * ``Alias 'DATAPROC_JOB_LOG_LINK' to 'DATAPROC_JOB_LINK' (#33148)``
    * ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+   * ``Prepare docs for RC2 providers (google, redis) (#33185)``
 
 10.5.0
 ......

@@ -1001,7 +1001,7 @@ class DagFileProcessorManager(LoggingMixin):
                 processor.terminate()
                 self._file_stats.pop(file_path)
 
-        to_remove = set(self._file_stats.keys()) - set(self._file_paths)
+        to_remove = set(self._file_stats).difference(self._file_paths)
         for key in to_remove:
             # Remove the stats for any dag files that don't exist anymore
             del self._file_stats[key]
@@ -1076,7 +1076,7 @@ class DagFileProcessorManager(LoggingMixin):
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.popleft()
             # Stop creating duplicate processor i.e. processor with the same filepath
-            if file_path in self._processors.keys():
+            if file_path in self._processors:
                 continue
 
             callback_to_execute_for_file = self._callback_to_execute[file_path]
@@ -1115,7 +1115,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._parsing_start_time = time.perf_counter()
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
-        file_paths_in_progress = self._processors.keys()
+        file_paths_in_progress = set(self._processors)
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode
@@ -1173,7 +1173,7 @@ class DagFileProcessorManager(LoggingMixin):
             file_path for file_path, stat in self._file_stats.items() if stat.run_count == self._max_runs
         ]
 
-        file_paths_to_exclude = set(file_paths_in_progress).union(
+        file_paths_to_exclude = file_paths_in_progress.union(
             file_paths_recently_processed,
             files_paths_at_run_limit,
         )
