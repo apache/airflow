@@ -50,7 +50,6 @@ IGNORED = {
     # Only on MappedOperator.
     "expand_input",
     "partial_kwargs",
-    "template_in_template",
 }
 
 

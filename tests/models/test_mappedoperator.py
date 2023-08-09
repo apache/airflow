@@ -398,8 +398,7 @@ def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expect
     assert t.expand_input.value == {"params": [{"c": "x"}, {"d": 1}]}
 
 
-@pytest.mark.parametrize("template_in_template", [True, False])
-def test_mapped_render_template_fields_validating_operator(dag_maker, session, template_in_template):
+def test_mapped_render_template_fields_validating_operator(dag_maker, session):
     class MyOperator(BaseOperator):
         template_fields = ("partial_template", "map_template")
 
@@ -420,7 +419,7 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session, t
         output1 = task1.output
         mapped = MyOperator.partial(
             task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
-        ).expand(template_in_template=template_in_template, map_template=output1, map_static=output1)
+        ).expand(map_template=output1, map_static=output1)
 
     dr = dag_maker.create_dagrun()
     ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
@@ -448,9 +447,7 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session, t
 
     assert mapped_ti.task.partial_template == "a", "Should be templated!"
     assert mapped_ti.task.partial_static == "{{ ti.task_id }}", "Should not be templated!"
-    assert (
-        mapped_ti.task.map_template == "2016-01-01" if template_in_template else "{{ ds }}"
-    ), "Should be templated only when template_in_template is set to True!"
+    assert mapped_ti.task.map_template == "2016-01-01", "Should be templated!"
     assert mapped_ti.task.map_static == "{{ ds }}", "Should not be templated!"
 
 
@@ -548,7 +545,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
 @pytest.mark.parametrize(
     "map_index, expected",
     [
-        pytest.param(0, "{{ ds }}", id="0"),
+        pytest.param(0, "2016-01-01", id="0"),
         pytest.param(1, 2, id="1"),
     ],
 )

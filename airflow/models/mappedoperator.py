@@ -162,16 +162,14 @@ class OperatorPartial:
                 task_id = f"at {hex(id(self))}"
             warnings.warn(f"Task {task_id} was never mapped!")
 
-    def expand(self, template_in_template=False, **mapped_kwargs: OperatorExpandArgument) -> MappedOperator:
+    def expand(self, **mapped_kwargs: OperatorExpandArgument) -> MappedOperator:
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
         validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
         prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
         # Since the input is already checked at parse time, we can set strict
         # to False to skip the checks on execution.
-        return self._expand(
-            DictOfListsExpandInput(mapped_kwargs), strict=False, template_in_template=template_in_template
-        )
+        return self._expand(DictOfListsExpandInput(mapped_kwargs), strict=False)
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> MappedOperator:
         from airflow.models.xcom_arg import XComArg
@@ -184,9 +182,7 @@ class OperatorPartial:
             raise TypeError(f"expected XComArg or list[dict], not {type(kwargs).__name__}")
         return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
-    def _expand(
-        self, expand_input: ExpandInput, *, strict: bool, template_in_template: bool = False
-    ) -> MappedOperator:
+    def _expand(self, expand_input: ExpandInput, *, strict: bool) -> MappedOperator:
         from airflow.operators.empty import EmptyOperator
 
         self._expand_called = True
@@ -229,7 +225,6 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
-            template_in_template=template_in_template,
         )
         return op
 
@@ -266,7 +261,6 @@ class MappedOperator(AbstractOperator):
     template_ext: Sequence[str]
     template_fields: Collection[str]
     template_fields_renderers: dict[str, str]
-    template_in_template: bool = False
     ui_color: str
     ui_fgcolor: str
     _is_empty: bool
@@ -727,7 +721,7 @@ class MappedOperator(AbstractOperator):
         # in the weeds here. We don't close this session for the same reason.
         session = settings.Session()
 
-        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session)
         unmapped_task = self.unmap(mapped_kwargs)
         context_update_for_unmapped(context, unmapped_task)
 
@@ -740,6 +734,6 @@ class MappedOperator(AbstractOperator):
             template_fields=self.template_fields,
             context=context,
             jinja_env=jinja_env,
-            seen_oids=seen_oids if not self.template_in_template else set(),
+            seen_oids=set(),
             session=session,
         )
