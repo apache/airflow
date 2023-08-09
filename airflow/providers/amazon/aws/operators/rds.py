@@ -328,6 +328,8 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
     :param s3_prefix: The Amazon S3 bucket prefix to use as the file name and path of the exported snapshot.
     :param export_only: The data to be exported from the snapshot.
     :param wait_for_completion:  If True, waits for the DB snapshot export to complete. (default: True)
+    :param waiter_interval: The number of seconds to wait before checking the export status. (default: 30)
+    :param waiter_max_attempts: The number of attempts to make before failing. (default: 40)
     """
 
     template_fields = (
