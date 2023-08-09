@@ -386,7 +386,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
                 export_task_id=self.export_task_identifier,
                 target_state="complete",
                 check_interval=self.waiter_interval,
-                max_attempts=self.waiter_max_attempts
+                max_attempts=self.waiter_max_attempts,
             )
         return json.dumps(start_export, default=str)
 
