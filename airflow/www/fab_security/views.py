@@ -18,79 +18,11 @@
 from __future__ import annotations
 
 from flask_appbuilder.security.views import (
-    PermissionModelView,
-    PermissionViewModelView,
-    RoleModelView,
     ViewMenuModelView,
 )
 from flask_babel import lazy_gettext
 
 from airflow.security import permissions
-
-
-class ActionModelView(PermissionModelView):
-    """Customize permission names for FAB's builtin PermissionModelView."""
-
-    class_permission_name = permissions.RESOURCE_ACTION
-    route_base = "/actions"
-    method_permission_name = {
-        "list": "read",
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-    ]
-
-    list_title = lazy_gettext("List Actions")
-    show_title = lazy_gettext("Show Action")
-    add_title = lazy_gettext("Add Action")
-    edit_title = lazy_gettext("Edit Action")
-
-    label_columns = {"name": lazy_gettext("Name")}
-
-
-class PermissionPairModelView(PermissionViewModelView):
-    """Customize permission names for FAB's builtin PermissionViewModelView."""
-
-    class_permission_name = permissions.RESOURCE_PERMISSION
-    route_base = "/permissions"
-    method_permission_name = {
-        "list": "read",
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-    ]
-
-    list_title = lazy_gettext("List Permissions")
-    show_title = lazy_gettext("Show Permission")
-    add_title = lazy_gettext("Add Permission")
-    edit_title = lazy_gettext("Edit Permission")
-
-    label_columns = {
-        "action": lazy_gettext("Action"),
-        "resource": lazy_gettext("Resource"),
-    }
-    list_columns = ["action", "resource"]
-
-
-class CustomRoleModelView(RoleModelView):
-    """Customize permission names for FAB's builtin RoleModelView."""
-
-    class_permission_name = permissions.RESOURCE_ROLE
-    method_permission_name = {
-        "delete": "delete",
-        "download": "read",
-        "show": "read",
-        "list": "read",
-        "edit": "edit",
-        "add": "create",
-        "copy_role": "create",
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_CREATE,
-        permissions.ACTION_CAN_READ,
-        permissions.ACTION_CAN_EDIT,
-        permissions.ACTION_CAN_DELETE,
-    ]
 
 
 class ResourceModelView(ViewMenuModelView):
