@@ -113,11 +113,6 @@ class DependencyMixin:
         self.__rshift__(other)
         return self
 
-    @abstractmethod
-    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
-        """Add the task to the given task group."""
-        raise NotImplementedError()
-
     @classmethod
     def _iter_references(cls, obj: Any) -> Iterable[tuple[DependencyMixin, str]]:
         from airflow.models.baseoperator import AbstractOperator
