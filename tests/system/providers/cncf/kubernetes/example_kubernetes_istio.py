@@ -122,12 +122,11 @@ with DAG(
         name="airflow-test-pod",
         task_id="task",
         affinity=affinity,
-        is_delete_operator_pod=True,
         hostnetwork=False,
         tolerations=tolerations,
         init_containers=[init_container],
         priority_class_name="medium",
-        istio_enabled=True,
+        on_finish_action="delete_succeeded_pod_with_istio",
     )
 
     # [START howto_operator_k8s_private_image]
@@ -139,11 +138,10 @@ with DAG(
         arguments=["echo", "10", "echo pwd"],
         labels={"foo": "bar"},
         name="airflow-private-image-pod",
-        is_delete_operator_pod=True,
         in_cluster=True,
         task_id="task-two",
         get_logs=True,
-        istio_enabled=True,
+        on_finish_action="delete_succeeded_pod_with_istio",
     )
     # [END howto_operator_k8s_private_image]
 
@@ -158,7 +156,7 @@ with DAG(
         in_cluster=True,
         task_id="write-xcom",
         get_logs=True,
-        istio_enabled=True,
+        on_finish_action="delete_succeeded_pod_with_istio",
     )
 
     pod_task_xcom_result = BashOperator(

@@ -233,7 +233,8 @@ class KubernetesPodOperator(BaseOperator):
     :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
-        only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
+        only succeeded pod will be deleted. Use "delete_succeeded_pod_with_istio" if istio sidecar injection
+        is enabled in your environment. You can set to "keep_pod" to keep the pod.
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
@@ -751,9 +752,16 @@ class KubernetesPodOperator(BaseOperator):
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
-                should_delete_pod = (self.on_finish_action == OnFinishAction.DELETE_POD) or (
-                    self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
-                    and pod.status.phase == PodPhase.SUCCEEDED
+                should_delete_pod = (
+                    (self.on_finish_action == OnFinishAction.DELETE_POD)
+                    or (
+                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                        and pod.status.phase == PodPhase.SUCCEEDED
+                    )
+                    or (
+                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD_WITH_ISTIO
+                        and self.pod_manager.container_is_succeeded(pod, self.base_container_name)
+                    )
                 )
                 if should_delete_pod:
                     self.log.info("Deleting pod: %s", pod.metadata.name)

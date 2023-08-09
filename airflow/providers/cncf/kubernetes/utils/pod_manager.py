@@ -278,11 +278,7 @@ class PodLoggingStatus:
 class PodManager(LoggingMixin):
     """Create, monitor, and otherwise interact with Kubernetes pods for use with the KubernetesPodOperator."""
 
-    def __init__(
-        self,
-        kube_client: client.CoreV1Api,
-        istio_enabled: bool = False,
-    ):
+    def __init__(self, kube_client: client.CoreV1Api):
         """
         Creates the launcher.
 
@@ -291,7 +287,6 @@ class PodManager(LoggingMixin):
         super().__init__()
         self._client = kube_client
         self._watch = watch.Watch()
-        self._istio_enabled = istio_enabled
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Runs POD asynchronously."""
@@ -536,10 +531,8 @@ class PodManager(LoggingMixin):
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
 
-            if (
-                self._istio_enabled
-                and remote_pod.status.phase == PodPhase.RUNNING
-                and self.container_is_completed(remote_pod, "base")
+            if remote_pod.status.phase == PodPhase.RUNNING and self.container_is_completed(
+                remote_pod, "base"
             ):
                 break
             self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
@@ -760,3 +753,4 @@ class OnFinishAction(enum.Enum):
     KEEP_POD = "keep_pod"
     DELETE_POD = "delete_pod"
     DELETE_SUCCEEDED_POD = "delete_succeeded_pod"
+    DELETE_SUCCEEDED_POD_WITH_ISTIO = "delete_succeeded_pod_with_istio"
