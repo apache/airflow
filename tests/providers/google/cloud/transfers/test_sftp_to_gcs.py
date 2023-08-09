@@ -64,6 +64,7 @@ class TestSFTPToGCSOperator:
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+            sftp_prefetch=False,
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
@@ -71,11 +72,10 @@ class TestSFTPToGCSOperator:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
-
-        sftp_hook.return_value.retrieve_file.assert_called_once_with(
-            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY
-        )
-
+        sftp_hook.return_value.get_conn.return_value.get.assert_called_once_with(
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD),
+            mock.ANY,
+            prefetch=False)
         gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=TEST_BUCKET,
             object_name=DESTINATION_PATH_FILE,
@@ -99,6 +99,7 @@ class TestSFTPToGCSOperator:
             sftp_conn_id=SFTP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
             gzip=True,
+            sftp_prefetch=True,
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
@@ -107,9 +108,10 @@ class TestSFTPToGCSOperator:
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
-        sftp_hook.return_value.retrieve_file.assert_called_once_with(
-            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY
-        )
+        sftp_hook.return_value.get_conn.return_value.get.assert_called_once_with(
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD),
+            mock.ANY,
+            prefetch=True)
 
         gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=TEST_BUCKET,
@@ -141,9 +143,10 @@ class TestSFTPToGCSOperator:
         )
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
-        sftp_hook.return_value.retrieve_file.assert_called_once_with(
-            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY
-        )
+        sftp_hook.return_value.get_conn.return_value.get.assert_called_once_with(
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD),
+            mock.ANY,
+            prefetch=False)
 
         gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=TEST_BUCKET,
@@ -179,11 +182,11 @@ class TestSFTPToGCSOperator:
             "main_dir", prefix="main_dir/test_object", delimiter=".json"
         )
 
-        sftp_hook.return_value.retrieve_file.assert_has_calls(
-            [
-                mock.call("main_dir/test_object3.json", mock.ANY),
-                mock.call("main_dir/sub_dir/test_object3.json", mock.ANY),
-            ]
+        sftp_hook.return_value.get_conn.return_value.get.assert_has_calls(
+          [
+              mock.call("main_dir/test_object3.json", mock.ANY, prefetch=False),
+              mock.call("main_dir/sub_dir/test_object3.json", mock.ANY, prefetch=False),
+          ]
         )
 
         gcs_hook.return_value.upload.assert_has_calls(
