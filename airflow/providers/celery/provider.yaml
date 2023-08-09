@@ -46,6 +46,7 @@ dependencies:
   # Make sure that the limit here is synchronized with [celery] extra in the airflow core
   - celery>=5.2.3,<6
   - flower>=1.0.0
+  - google-re2>=1.0
 
 integrations:
   - integration-name: Celery

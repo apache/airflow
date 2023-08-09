@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,21 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
 
-if [[ $# == "0" ]]; then
-    echo "ERROR: Pass provider ids as list"
-    exit 1
-fi
+"""add include_deferred column to pool
 
-provider_filters=()
-for provider in "${@}"
-do
-    provider_filters+=("--package-filter" "apache-airflow-providers-${provider//./-}")
-done
+Revision ID: 405de8318b3a
+Revises: 788397e78828
+Create Date: 2023-07-20 04:22:21.007342
 
-breeze build-docs "${provider_filters[@]}"
+"""
 
-breeze release-management add-back-references "${@}"
+import sqlalchemy as sa
+from alembic import op
 
-cd "${AIRFLOW_SITE_DIRECTORY}"
+
+# revision identifiers, used by Alembic.
+revision = "405de8318b3a"
+down_revision = "788397e78828"
+branch_labels = None
+depends_on = None
+airflow_version = "2.7.0"
+
+
+def upgrade():
+    """Apply add include_deferred column to pool"""
+    with op.batch_alter_table("slot_pool") as batch_op:
+        batch_op.add_column(
+            sa.Column("include_deferred", sa.Boolean, nullable=False, server_default=sa.false())
+        )
+
+
+def downgrade():
+    """Unapply add include_deferred column to pool"""
+    with op.batch_alter_table("slot_pool") as batch_op:
+        batch_op.drop_column("include_deferred")

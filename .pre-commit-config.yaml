@@ -364,6 +364,14 @@ repos:
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-google-re2-as-dependency
+        name: Check google-re2 is declared as dependency when needed
+        entry: ./scripts/ci/pre_commit/pre_commit_check_google_re2_imports.py
+        language: python
+        pass_filenames: true
+        require_serial: true
+        files: ^airflow/providers/.*\.py$
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.py
