@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-04T13:06:04Z
+# This constraints file was automatically generated on 2023-08-09T09:16:09Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-7-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -28,19 +28,18 @@ Markdown==3.4.4
 MarkupSafe==2.1.3
 PyJWT==2.8.0
 PyYAML==6.0.1
-Pygments==2.15.1
+Pygments==2.16.1
 SQLAlchemy-JSONField==1.0.1.post0
 SQLAlchemy-Utils==0.41.1
 SQLAlchemy==1.4.49
 WTForms==3.0.1
 Werkzeug==2.2.3
-aiobotocore==2.5.2
+aiobotocore==2.5.4
 aiohttp==3.8.5
 aioitertools==0.11.0
 aiosignal==1.3.1
-alembic==1.11.1
+alembic==1.11.2
 amqp==5.1.1
-annotated-types==0.5.0
 anyio==3.7.1
 apispec==6.3.0
 argcomplete==3.1.1
@@ -51,7 +50,7 @@ backoff==2.2.1
 bcrypt==4.0.1
 billiard==4.1.0
 blinker==1.6.2
-botocore==1.29.161
+botocore==1.31.17
 cachelib==0.9.0
 cachetools==5.3.1
 cattrs==23.1.2
@@ -72,11 +71,11 @@ connexion==2.14.2
 cron-descriptor==1.4.0
 croniter==1.4.1
 cryptography==41.0.3
-dask==2023.7.1
+dask==2023.8.0
 decorator==5.1.1
 dill==0.3.7
 distlib==0.3.7
-distributed==2023.7.1
+distributed==2023.8.0
 dnspython==2.4.1
 docutils==0.20.1
 email-validator==1.3.1
@@ -100,12 +99,12 @@ httpx==0.24.1
 humanize==4.7.0
 idna==3.4
 importlib-metadata==6.8.0
-importlib-resources==6.0.0
+importlib-resources==6.0.1
 inflection==0.5.1
 itsdangerous==2.1.2
 jmespath==1.0.1
 jsonschema-specifications==2023.7.1
-jsonschema==4.18.6
+jsonschema==4.19.0
 kombu==5.3.1
 krb5==0.5.0
 kubernetes-asyncio==24.2.3
@@ -146,15 +145,14 @@ plyvel==1.5.0
 prison==0.2.1
 prometheus-client==0.17.1
 prompt-toolkit==3.0.39
-protobuf==4.23.4
+protobuf==4.24.0
 psutil==5.9.5
 pure-sasl==0.6.2
 pyarrow==12.0.1
 pyasn1-modules==0.3.0
 pyasn1==0.5.0
 pycparser==2.21
-pydantic==2.1.1
-pydantic_core==2.4.0
+pydantic==1.10.12
 pykerberos==1.2.4
 pyspnego==0.9.1
 python-daemon==3.0.1
@@ -164,7 +162,7 @@ python-nvd3==0.15.0
 python-slugify==8.0.1
 pytz==2023.3
 pytzdata==2020.1
-referencing==0.30.1
+referencing==0.30.2
 requests-kerberos==0.14.0
 requests-oauthlib==1.3.1
 requests==2.31.0
