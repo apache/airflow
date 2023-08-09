@@ -513,6 +513,9 @@ ARG_DB_RETRY_DELAY = Arg(
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
 ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
 ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
+ARG_POOL_INCLUDE_DEFERRED = Arg(
+    ("--include-deferred",), help="Include deferred tasks in calculations for Pool", action="store_true"
+)
 ARG_POOL_IMPORT = Arg(
     ("file",),
     metavar="FILEPATH",
@@ -521,8 +524,8 @@ ARG_POOL_IMPORT = Arg(
         textwrap.dedent(
             """
             {
-                "pool_1": {"slots": 5, "description": ""},
-                "pool_2": {"slots": 10, "description": "test"}
+                "pool_1": {"slots": 5, "description": "", "include_deferred": true},
+                "pool_2": {"slots": 10, "description": "test", "include_deferred": false}
             }"""
         ),
         " " * 4,
@@ -1456,7 +1459,14 @@ POOLS_COMMANDS = (
         name="set",
         help="Configure pool",
         func=lazy_load_command("airflow.cli.commands.pool_command.pool_set"),
-        args=(ARG_POOL_NAME, ARG_POOL_SLOTS, ARG_POOL_DESCRIPTION, ARG_OUTPUT, ARG_VERBOSE),
+        args=(
+            ARG_POOL_NAME,
+            ARG_POOL_SLOTS,
+            ARG_POOL_DESCRIPTION,
+            ARG_POOL_INCLUDE_DEFERRED,
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="delete",
