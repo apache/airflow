@@ -573,9 +573,9 @@ class DagFileProcessor(LoggingMixin):
             for task in tasks_missed_sla:
                 if task.email:
                     if isinstance(task.email, str):
-                        emails |= set(get_email_address_list(task.email))
+                        emails.update(get_email_address_list(task.email))
                     elif isinstance(task.email, (list, tuple)):
-                        emails |= set(task.email)
+                        emails.update(task.email)
             if emails:
                 try:
                     send_email(emails, f"[airflow] SLA miss on DAG={dag.dag_id}", email_content)
@@ -652,9 +652,7 @@ class DagFileProcessor(LoggingMixin):
             task_pools = {task.pool for task in dag.tasks}
             nonexistent_pools = task_pools - pools
             if nonexistent_pools:
-                return (
-                    f"Dag '{dag.dag_id}' references non-existent pools: {list(sorted(nonexistent_pools))!r}"
-                )
+                return f"Dag '{dag.dag_id}' references non-existent pools: {sorted(nonexistent_pools)!r}"
 
         pools = {p.pool for p in Pool.get_pools(session)}
         for dag in dagbag.dags.values():
@@ -679,9 +677,7 @@ class DagFileProcessor(LoggingMixin):
         """
         self._validate_task_pools(dagbag=dagbag)
 
-        stored_warnings = set(
-            session.query(DagWarning).filter(DagWarning.dag_id.in_(dagbag.dags.keys())).all()
-        )
+        stored_warnings = set(session.query(DagWarning).filter(DagWarning.dag_id.in_(dagbag.dags)).all())
 
         for warning_to_delete in stored_warnings - self.dag_warnings:
             session.delete(warning_to_delete)
