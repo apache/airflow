@@ -61,7 +61,6 @@ with DAG(
         task_id="stop_instance",
         instance_name=INSTANCE_NAME,
     )
-
     # [END howto_operator_sagemaker_notebook_stop]
 
     # [START howto_operator_sagemaker_notebook_start]
