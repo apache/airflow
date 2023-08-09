@@ -813,3 +813,7 @@ class SelectiveChecks:
     def mssql_parallelism(self) -> int:
         # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
         return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1
+
+    @cached_property
+    def has_migrations(self) -> bool:
+        return any([file.startswith("airflow/migrations/") for file in self._files])
