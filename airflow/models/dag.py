@@ -2941,7 +2941,10 @@ class DAG(LoggingMixin):
                     select(func.max(DagRun.execution_date).label("max_execution_date"))
                     .where(
                         DagRun.dag_id == existing_dags[0],
-                        or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+                        or_(
+                            DagRun.run_type == DagRunType.BACKFILL_JOB,
+                            DagRun.run_type == DagRunType.SCHEDULED,
+                        ),
                     )
                     .subquery()
                 )
@@ -2956,11 +2959,14 @@ class DAG(LoggingMixin):
                     select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
                     .where(
                         DagRun.dag_id.in_(existing_dags),
-                        or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+                        or_(
+                            DagRun.run_type == DagRunType.BACKFILL_JOB,
+                            DagRun.run_type == DagRunType.SCHEDULED,
+                        ),
                     )
                     .group_by(DagRun.dag_id)
                     .subquery()
-                    )
+                )
                 most_recent_runs_iter = session.scalars(
                     select(DagRun).where(
                         DagRun.dag_id == most_recent_subq.c.dag_id,
