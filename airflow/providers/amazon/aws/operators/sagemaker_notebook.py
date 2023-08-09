@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 class SageMakerCreateNotebookOperator(BaseOperator):
     """
     Create a SageMaker notebook.
+    
     More information regarding parameters of this operator can be found here
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker/client/create_notebook_instance.html.
 
