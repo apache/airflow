@@ -2093,7 +2093,6 @@ def test_operator_expand_serde():
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
-        "template_in_template": False,
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -2146,7 +2145,6 @@ def test_operator_expand_xcomarg_serde():
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "expand_input",
-        "template_in_template": False,
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -2202,7 +2200,6 @@ def test_operator_expand_kwargs_literal_serde(strict):
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
-        "template_in_template": False,
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -2249,7 +2246,6 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "ui_fgcolor": "#000",
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "expand_input",
-        "template_in_template": False,
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
@@ -2363,7 +2359,6 @@ def test_taskflow_expand_serde():
         "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
-        "template_in_template": False,
     }
 
     deserialized = SerializedBaseOperator.deserialize_operator(serialized)
@@ -2456,7 +2451,6 @@ def test_taskflow_expand_kwargs_serde(strict):
         "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "op_kwargs_expand_input",
-        "template_in_template": False,
     }
 
     deserialized = SerializedBaseOperator.deserialize_operator(serialized)
@@ -2578,7 +2572,6 @@ def test_mapped_task_with_operator_extra_links_property():
         "_task_module": "tests.serialization.test_dag_serialization",
         "_is_empty": False,
         "_is_mapped": True,
-        "template_in_template": False,
     }
     deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag)
     assert deserialized_dag.task_dict["task"].operator_extra_links == [AirflowLink2()]
