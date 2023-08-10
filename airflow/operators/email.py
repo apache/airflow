@@ -59,7 +59,7 @@ class EmailOperator(BaseOperator):
         mime_charset: str = "utf-8",
         conn_id: str | None = None,
         custom_headers: dict[str, Any] | None = None,
-        from_mail: str | None = None,
+        from_email: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -73,7 +73,7 @@ class EmailOperator(BaseOperator):
         self.mime_charset = mime_charset
         self.conn_id = conn_id
         self.custom_headers = custom_headers
-        self.from_mail = from_mail
+        self.from_email = from_email
 
     def execute(self, context: Context):
         send_email(
@@ -87,5 +87,5 @@ class EmailOperator(BaseOperator):
             mime_charset=self.mime_charset,
             conn_id=self.conn_id,
             custom_headers=self.custom_headers,
-            from_mail=self.from_mail,
+            from_email=self.from_email,
         )

@@ -49,7 +49,7 @@ def send_email(
     mime_charset: str = "utf-8",
     conn_id: str | None = None,
     custom_headers: dict[str, Any] | None = None,
-    from_mail: str | None = None,
+    from_email: str | None = None,
     **kwargs,
 ) -> None:
     """
@@ -73,11 +73,11 @@ def send_email(
     """
     backend = conf.getimport("email", "EMAIL_BACKEND")
     backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
-    conf_from_mail = conf.get("email", "from_email", fallback=None)
+    conf_from_email = conf.get("email", "from_email", fallback=None)
 
     # Prioritize User Provided mail over one which is defined in config
     # Use the config as fallback
-    from_email = from_mail if from_mail else conf_from_mail
+    sender_email = from_email if from_email else conf_from_email
 
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
@@ -93,7 +93,7 @@ def send_email(
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
         conn_id=backend_conn_id,
-        from_email=from_email,
+        from_email=sender_email,
         custom_headers=custom_headers,
         **kwargs,
     )
