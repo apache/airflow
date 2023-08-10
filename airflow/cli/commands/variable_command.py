@@ -91,7 +91,7 @@ def variables_export(args):
             var_dict[row.key] = value
 
     with args.file as f:
-        f.write(json.dumps(var_dict, sort_keys=True, indent=4))
+        json.dump(var_dict, f, sort_keys=True, indent=4)
     if is_stdout(args.file):
         print("\nVariables successfully exported.", file=sys.stderr)
     else:
