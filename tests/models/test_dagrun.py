@@ -1706,7 +1706,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
         (1, State.NONE),
         (2, State.NONE),
     ]
-    ti1 = [i for i in tis if i.map_index == 0][0]
+    ti1 = next(i for i in tis if i.map_index == 0)
     # Now "clear" and "reduce" the length to empty list
     dag.clear()
     Variable.set(key="arg1", value=[])
