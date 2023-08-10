@@ -1097,6 +1097,31 @@ secrets:
       sensitive: true
       example: ~
       default: ""
+    use_cache:
+      description: |
+        .. note:: |experimental|
+
+        Enables local caching of Variables, when parsing DAGs only.
+        Using this option can make dag parsing faster if Variables are used in top level code, at the expense
+        of longer propagation time for changes.
+        Please note that this cache concerns only the DAG parsing step. There is no caching in place when DAG
+        tasks are run.
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "False"
+    cache_ttl_seconds:
+      description: |
+        .. note:: |experimental|
+
+        When the cache is enabled, this is the duration for which we consider an entry in the cache to be
+        valid. Entries are refreshed if they are older than this many seconds.
+        It means that when the cache is enabled, this is the maximum amount of time you need to wait to see a
+        Variable change take effect.
+      version_added: 2.6.0
+      type: integer
+      example: ~
+      default: "900"
 cli:
   description: ~
   options:
