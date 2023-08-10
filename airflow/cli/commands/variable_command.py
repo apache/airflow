@@ -24,6 +24,7 @@ import sys
 from json import JSONDecodeError
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import is_stdout
 from airflow.models import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
@@ -91,7 +92,7 @@ def variables_export(args):
 
     with args.file as f:
         f.write(json.dumps(var_dict, sort_keys=True, indent=4))
-    if args.file.name == "<stdout>":
+    if is_stdout(args.file):
         print("\nVariables successfully exported.", file=sys.stderr)
     else:
         print(f"Variables successfully exported to {args.file.name}.")

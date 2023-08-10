@@ -17,7 +17,6 @@
 """Connection sub-commands."""
 from __future__ import annotations
 
-import io
 import json
 import os
 import sys
@@ -29,6 +28,7 @@ from urllib.parse import urlsplit, urlunsplit
 from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import is_stdout
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
@@ -127,10 +127,6 @@ def _format_connections(conns: list[Connection], file_format: str, serialization
     return json.dumps(connections_dict)
 
 
-def _is_stdout(fileio: io.TextIOWrapper) -> bool:
-    return fileio.name == "<stdout>"
-
-
 def _valid_uri(uri: str) -> bool:
     """Check if a URI is valid, by checking if scheme (conn_type) provided."""
     return urlsplit(uri).scheme != ""
@@ -159,8 +155,7 @@ def connections_export(args):
     if args.format or args.file_format:
         provided_file_format = f".{(args.format or args.file_format).lower()}"
 
-    file_is_stdout = _is_stdout(args.file)
-    if file_is_stdout:
+    if file_is_stdout := is_stdout(args.file):
         filetype = provided_file_format or default_format
     elif provided_file_format:
         filetype = provided_file_format
