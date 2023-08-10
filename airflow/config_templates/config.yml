@@ -1106,7 +1106,7 @@ secrets:
         of longer propagation time for changes.
         Please note that this cache concerns only the DAG parsing step. There is no caching in place when DAG
         tasks are run.
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
@@ -1118,7 +1118,7 @@ secrets:
         valid. Entries are refreshed if they are older than this many seconds.
         It means that when the cache is enabled, this is the maximum amount of time you need to wait to see a
         Variable change take effect.
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: integer
       example: ~
       default: "900"
