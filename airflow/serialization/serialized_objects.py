@@ -1187,7 +1187,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             #       }
             #   )
 
-            _operator_link_class_path, data = list(_operator_links_source.items())[0]
+            _operator_link_class_path, data = next(iter(_operator_links_source.items()))
             if _operator_link_class_path in get_operator_extra_links():
                 single_op_link_class = import_string(_operator_link_class_path)
             elif _operator_link_class_path in plugins_manager.registered_operator_link_classes:
