@@ -519,11 +519,13 @@ class PodManager(LoggingMixin):
             self.log.info("Waiting for container '%s' state to be completed", container_name)
             time.sleep(1)
 
-    def await_pod_completion(self, pod: V1Pod) -> V1Pod:
+    def await_pod_completion(self, istio_enabled: bool, pod: V1Pod, container_name: str) -> V1Pod:
         """
         Monitors a pod and returns the final state.
 
+        :param istio_enabled: whether istio is enabled in the namespace,
         :param pod: pod spec that will be monitored
+        :param container_name: name of the base container
         :return: tuple[State, str | None]
         """
         while True:
@@ -531,8 +533,10 @@ class PodManager(LoggingMixin):
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
 
-            if remote_pod.status.phase == PodPhase.RUNNING and self.container_is_completed(
-                remote_pod, "base"
+            if (
+                istio_enabled
+                and remote_pod.status.phase == PodPhase.RUNNING
+                and self.container_is_completed(remote_pod, container_name)
             ):
                 break
             self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
@@ -574,12 +578,12 @@ class PodManager(LoggingMixin):
         return container_is_terminated(pod=remote_pod, container_name=container_name)
 
     def container_is_completed(self, pod: V1Pod, container_name: str) -> bool:
-        """Reads pod and checks if container is completed"""
+        """Reads pod and checks if container is completed."""
         remote_pod = self.read_pod(pod)
         return container_is_completed(pod=remote_pod, container_name=container_name)
 
     def container_is_succeeded(self, pod: V1Pod, container_name: str) -> bool:
-        """Reads pod and checks if container is succeeded"""
+        """Reads pod and checks if container is succeeded."""
         remote_pod = self.read_pod(pod)
         return container_is_succeeded(pod=remote_pod, container_name=container_name)
 

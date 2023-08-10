@@ -22,6 +22,7 @@ import json
 import logging
 import re
 import secrets
+import shlex
 import string
 import warnings
 from collections.abc import Container
@@ -29,7 +30,8 @@ from contextlib import AbstractContextManager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
-from kubernetes.client import CoreV1Api, models as k8s
+from kubernetes.client import CoreV1Api, V1Pod, models as k8s
+from kubernetes.stream import stream
 from slugify import slugify
 from urllib3.exceptions import HTTPError
 
@@ -601,7 +603,11 @@ class KubernetesPodOperator(BaseOperator):
             if self.do_xcom_push:
                 self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
                 result = self.extract_xcom(pod=self.pod)
-            self.remote_pod = self.pod_manager.await_pod_completion(self.pod, self.base_container_name)
+
+            istio_enabled = is_istio_enabled(self.client, self.pod)
+            self.remote_pod = self.pod_manager.await_pod_completion(
+                istio_enabled, self.pod, self.base_container_name
+            )
         finally:
             self.cleanup(
                 pod=self.pod or self.pod_request_obj,
@@ -664,9 +670,12 @@ class KubernetesPodOperator(BaseOperator):
                     xcom_sidecar_output = self.extract_xcom(pod=pod)
                     return xcom_sidecar_output
         finally:
-            pod = self.pod_manager.await_pod_completion(pod, self.base_container_name)
+            istio_enabled = is_istio_enabled(self.client, pod)
+
+            pod = self.pod_manager.await_pod_completion(istio_enabled, pod, self.base_container_name)
             if pod is not None:
                 self.post_complete_action(
+                    istio_enabled=istio_enabled,
                     pod=pod,
                     remote_pod=pod,
                 )
@@ -750,6 +759,7 @@ class KubernetesPodOperator(BaseOperator):
                 self.log.error("Pod Event: %s - %s", event.reason, event.message)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
+        istio_enabled = is_istio_enabled(self.client, pod)
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
                 should_delete_pod = (
@@ -763,9 +773,30 @@ class KubernetesPodOperator(BaseOperator):
                         and self.pod_manager.container_is_succeeded(pod, self.base_container_name)
                     )
                 )
-                if should_delete_pod:
+                if should_delete_pod and not istio_enabled:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
+                elif should_delete_pod and istio_enabled:
+                    command = "/bin/sh -c curl -fsI -X POST http://localhost:15020/quitquitquit && exit 0"
+                    command_to_container = shlex.split(command)
+                    self.log.info("Deleting istio-proxy sidecar inside %s: ", pod.metadata.name)
+                    try:
+                        resp = stream(
+                            self.client.connect_get_namespaced_pod_exec,
+                            name=pod.metadata.name,
+                            namespace=pod.metadata.namespace,
+                            container="istio-proxy",
+                            command=command_to_container,
+                            stderr=True,
+                            stdin=True,
+                            stdout=True,
+                            tty=False,
+                            _preload_content=False,
+                        )
+                        resp.close()
+                    except Exception as e:
+                        self.log.error("Error while deleting istio-proxy sidecar: %s", e)
+                        raise e
                 else:
                     self.log.info("Skipping deleting pod: %s", pod.metadata.name)
 
@@ -958,3 +989,18 @@ class _optionally_suppress(AbstractContextManager):
             return True
         else:
             return True
+
+
+def is_istio_enabled(client: CoreV1Api, pod: V1Pod) -> bool:
+    """Checks if istio is enabled for the namespace of the pod by inspecting the namespace labels."""
+    if not pod:
+        return False
+
+    namespace_labels = client.read_namespace(name=pod.metadata.namespace).metadata.labels
+
+    istio_enabled = False
+    for key, value in namespace_labels.items():
+        if key == "istio-injection" and value == "enabled":
+            istio_enabled = True
+
+    return istio_enabled
