@@ -82,7 +82,7 @@ class TaskStateTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
+    async def run(self) -> TriggerEvent:
         """
         Checks periodically in the database to see if the dag exists and is in the running state. If found,
         wait until the task specified will reach one of the expected states. If dag with specified name was
@@ -98,17 +98,14 @@ class TaskStateTrigger(BaseTrigger):
                         self.log.info("Waiting for DAG to start execution...")
                         await asyncio.sleep(self.poll_interval)
                 else:
-                    yield TriggerEvent({"status": "timeout"})
-                    return
+                    return TriggerEvent({"status": "timeout"})
                 # mypy confuses typing here
                 if await self.count_tasks() == len(self.execution_dates):  # type: ignore[call-arg]
-                    yield TriggerEvent({"status": "success"})
-                    return
+                    return TriggerEvent({"status": "success"})
                 self.log.info("Task is still running, sleeping for %s seconds...", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
             except Exception:
-                yield TriggerEvent({"status": "failed"})
-                return
+                return TriggerEvent({"status": "failed"})
 
     @sync_to_async
     @provide_session
@@ -178,7 +175,7 @@ class DagStateTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
+    async def run(self) -> TriggerEvent:
         """
         Checks periodically in the database to see if the dag run exists, and has
         hit one of the states yet, or not.
@@ -187,7 +184,7 @@ class DagStateTrigger(BaseTrigger):
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]
             if num_dags == len(self.execution_dates):
-                yield TriggerEvent(self.serialize())
+                return TriggerEvent(self.serialize())
             await asyncio.sleep(self.poll_interval)
 
     @sync_to_async
