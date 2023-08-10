@@ -66,9 +66,16 @@ If you want to learn more about using TaskFlow, you should consult :doc:`the Tas
 Context
 -------
 
-When running your callable, Airflow will pass a set of keyword arguments that can be used in your function. This set of kwargs correspond exactly to the :ref:`context variables<templates:variables>` you can use in your Jinja templates.
+When running a ``@task`` decorated Python function, Airflow can pass a set of keyword arguments to the function.
+These keyword arguments correspond exactly to the :ref:`context variables<templates:variables>` that can be used in 
+Jinja templates.
 
-For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the keyword arguments you would like to get such as ``ti=None`` to have the task instance passed.
+To access all of these context variables, pass ``**kwargs`` to the function's parameters and access them from the ``kwargs`` 
+dictionary (e.g. ``kwargs["task_instance"]``). Alternatively, you can add a specific keyword argument you would like to access. 
+For example, to access a task's ``task_instance`` object at runtime, you could do so as follows:
+
+.. include:: ../../shared/template-examples/taskflow.rst
+
 
 Logging
 -------
