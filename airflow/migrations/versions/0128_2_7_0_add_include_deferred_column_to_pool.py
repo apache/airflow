@@ -40,7 +40,7 @@ def upgrade():
     """Apply add include_deferred column to pool"""
     with op.batch_alter_table("slot_pool") as batch_op:
         batch_op.add_column(sa.Column("include_deferred", sa.Boolean))
-    op.execute("UPDATE slot_pool SET include_deferred = FALSE")
+    op.execute("UPDATE slot_pool SET include_deferred = 0")
     with op.batch_alter_table("slot_pool") as batch_op:
         batch_op.alter_column("include_deferred", existing_type=sa.Boolean, nullable=False)
 
