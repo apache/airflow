@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 
 
 class DependencyMixin:
-    """Mixing implementing common dependency setting methods methods like >> and <<."""
+    """Mixing implementing common dependency setting methods like >> and <<."""
 
     @property
     def roots(self) -> Sequence[DependencyMixin]:
@@ -112,11 +112,6 @@ class DependencyMixin:
         """Called for Task << [Task] because list don't have __lshift__ operators."""
         self.__rshift__(other)
         return self
-
-    @abstractmethod
-    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
-        """Add the task to the given task group."""
-        raise NotImplementedError()
 
     @classmethod
     def _iter_references(cls, obj: Any) -> Iterable[tuple[DependencyMixin, str]]:

@@ -492,14 +492,14 @@ class RedshiftResumeClusterOperator(BaseOperator):
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Starting resume cluster")
-        while self._remaining_attempts >= 1:
+        while self._remaining_attempts:
             try:
                 redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
                 break
             except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
-                self._remaining_attempts = self._remaining_attempts - 1
+                self._remaining_attempts -= 1
 
-                if self._remaining_attempts > 0:
+                if self._remaining_attempts:
                     self.log.error(
                         "Unable to resume cluster. %d attempts remaining.", self._remaining_attempts
                     )
@@ -580,14 +580,14 @@ class RedshiftPauseClusterOperator(BaseOperator):
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
-        while self._remaining_attempts >= 1:
+        while self._remaining_attempts:
             try:
                 redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
                 break
             except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
-                self._remaining_attempts = self._remaining_attempts - 1
+                self._remaining_attempts -= 1
 
-                if self._remaining_attempts > 0:
+                if self._remaining_attempts:
                     self.log.error(
                         "Unable to pause cluster. %d attempts remaining.", self._remaining_attempts
                     )
@@ -669,7 +669,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self.max_attempts = max_attempts
 
     def execute(self, context: Context):
-        while self._attempts >= 1:
+        while self._attempts:
             try:
                 self.redshift_hook.delete_cluster(
                     cluster_identifier=self.cluster_identifier,
@@ -678,9 +678,9 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                 )
                 break
             except self.redshift_hook.get_conn().exceptions.InvalidClusterStateFault:
-                self._attempts = self._attempts - 1
+                self._attempts -= 1
 
-                if self._attempts > 0:
+                if self._attempts:
                     self.log.error("Unable to delete cluster. %d attempts remaining.", self._attempts)
                     time.sleep(self._attempt_interval)
                 else:

@@ -847,9 +847,11 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         kwargs["python_version"] = python_version
         return kwargs
 
+    @mock.patch("shutil.which")
     @mock.patch("airflow.operators.python.importlib")
-    def test_virtuenv_not_installed(self, importlib):
-        importlib.util.find_spec.return_value = None
+    def test_virtuenv_not_installed(self, importlib_mock, which_mock):
+        which_mock.return_value = None
+        importlib_mock.util.find_spec.return_value = None
         with pytest.raises(AirflowException, match="requires virtualenv"):
 
             def f():

@@ -54,7 +54,7 @@ class TestAzureDataExplorerHook:
         )
         with pytest.raises(AirflowException) as ctx:
             AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
-            assert "is missing: `extra__azure_data_explorer__auth_method`" in str(ctx.value)
+            assert "is missing: `data_explorer__auth_method`" in str(ctx.value)
 
     def test_conn_unknown_method(self):
         db.merge_conn(
@@ -64,7 +64,7 @@ class TestAzureDataExplorerHook:
                 login="client_id",
                 password="client secret",
                 host="https://help.kusto.windows.net",
-                extra=json.dumps({"extra__azure_data_explorer__auth_method": "AAD_OTHER"}),
+                extra=json.dumps({"auth_method": "AAD_OTHER"}),
             )
         )
         with pytest.raises(AirflowException) as ctx:
@@ -97,8 +97,8 @@ class TestAzureDataExplorerHook:
                 host="https://help.kusto.windows.net",
                 extra=json.dumps(
                     {
-                        "extra__azure_data_explorer__tenant": "tenant",
-                        "extra__azure_data_explorer__auth_method": "AAD_CREDS",
+                        "tenant": "tenant",
+                        "auth_method": "AAD_CREDS",
                     }
                 ),
             )
@@ -122,8 +122,8 @@ class TestAzureDataExplorerHook:
                 host="https://help.kusto.windows.net",
                 extra=json.dumps(
                     {
-                        "extra__azure_data_explorer__tenant": "tenant",
-                        "extra__azure_data_explorer__auth_method": "AAD_APP",
+                        "tenant": "tenant",
+                        "auth_method": "AAD_APP",
                     }
                 ),
             )
@@ -146,10 +146,10 @@ class TestAzureDataExplorerHook:
                 host="https://help.kusto.windows.net",
                 extra=json.dumps(
                     {
-                        "extra__azure_data_explorer__tenant": "tenant",
-                        "extra__azure_data_explorer__auth_method": "AAD_APP_CERT",
-                        "extra__azure_data_explorer__certificate": "PEM",
-                        "extra__azure_data_explorer__thumbprint": "thumbprint",
+                        "tenant": "tenant",
+                        "auth_method": "AAD_APP_CERT",
+                        "certificate": "PEM",
+                        "thumbprint": "thumbprint",
                     }
                 ),
             )
@@ -169,7 +169,7 @@ class TestAzureDataExplorerHook:
                 conn_id=ADX_TEST_CONN_ID,
                 conn_type="azure_data_explorer",
                 host="https://help.kusto.windows.net",
-                extra=json.dumps({"extra__azure_data_explorer__auth_method": "AAD_DEVICE"}),
+                extra=json.dumps({"auth_method": "AAD_DEVICE"}),
             )
         )
         AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
@@ -185,7 +185,7 @@ class TestAzureDataExplorerHook:
                 conn_id=ADX_TEST_CONN_ID,
                 conn_type="azure_data_explorer",
                 host="https://help.kusto.windows.net",
-                extra=json.dumps({"extra__azure_data_explorer__auth_method": "AAD_DEVICE"}),
+                extra=json.dumps({"auth_method": "AAD_DEVICE"}),
             )
         )
         hook = AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
@@ -203,10 +203,10 @@ class TestAzureDataExplorerHook:
         assert list(AzureDataExplorerHook.get_ui_field_behaviour()["placeholders"].keys()) == [
             "login",
             "password",
-            "extra__azure_data_explorer__auth_method",
-            "extra__azure_data_explorer__tenant",
-            "extra__azure_data_explorer__certificate",
-            "extra__azure_data_explorer__thumbprint",
+            "auth_method",
+            "tenant",
+            "certificate",
+            "thumbprint",
         ]
         if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
             raise Exception(

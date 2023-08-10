@@ -192,9 +192,10 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         the time you connect to Snowflake
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = tuple(set(SQLCheckOperator.template_fields) | {"snowflake_conn_id"})
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#ededed"
+    conn_id_field = "snowflake_conn_id"
 
     def __init__(
         self,
@@ -258,6 +259,10 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
     """
+
+    template_fields: Sequence[str] = tuple(set(SQLValueCheckOperator.template_fields) | {"snowflake_conn_id"})
+
+    conn_id_field = "snowflake_conn_id"
 
     def __init__(
         self,
@@ -332,6 +337,11 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
     """
+
+    template_fields: Sequence[str] = tuple(
+        set(SQLIntervalCheckOperator.template_fields) | {"snowflake_conn_id"}
+    )
+    conn_id_field = "snowflake_conn_id"
 
     def __init__(
         self,

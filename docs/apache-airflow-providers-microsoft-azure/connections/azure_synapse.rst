@@ -55,15 +55,13 @@ Secret
     It can be left out to fall back on ``DefaultAzureCredential``.
 
 Tenant ID
-    Specify the Azure tenant ID used for the initial connection.
+    Specify the ``tenantId`` used for the initial connection.
     This is needed for *token credentials* authentication mechanism.
     It can be left out to fall back on ``DefaultAzureCredential``.
-    Use the key ``extra__azure_synapse__tenantId`` to pass in the tenant ID.
 
 Subscription ID
-    A subscription ID is required for the connection.
+    ``subscriptionId`` is required for the connection.
     This is needed for all authentication mechanisms.
-    Use the key ``extra__azure_synapse__subscriptionId`` to pass in the Azure subscription ID.
 
 Synapse Workspace URL
     Specify the Azure Synapse endpoint to interface with.

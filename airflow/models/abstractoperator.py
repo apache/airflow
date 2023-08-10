@@ -360,14 +360,6 @@ class AbstractOperator(Templater, DAGNode):
                 yield parent
             parent = parent.task_group
 
-    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
-        """Add the task to the given task group.
-
-        :meta private:
-        """
-        if self.node_id not in task_group.children:
-            task_group.add(self)
-
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """Get the mapped task group "closest" to this task in the DAG.
 
