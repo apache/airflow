@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from airflow.utils.state import DagRunState
+
 if TYPE_CHECKING:
     from airflow.models.taskinstance import SimpleTaskInstance
 
@@ -116,14 +118,16 @@ class DagCallbackRequest(CallbackRequest):
         full_filepath: str,
         dag_id: str,
         run_id: str,
+        dagrun_state: DagRunState,
         processor_subdir: str | None,
-        is_failure_callback: bool | None = True,
+        sla_miss: bool | None = False,
         msg: str | None = None,
     ):
         super().__init__(full_filepath=full_filepath, processor_subdir=processor_subdir, msg=msg)
         self.dag_id = dag_id
         self.run_id = run_id
-        self.is_failure_callback = is_failure_callback
+        self.dagrun_state = dagrun_state
+        self.sla_miss = sla_miss
 
 
 class SlaCallbackRequest(CallbackRequest):
