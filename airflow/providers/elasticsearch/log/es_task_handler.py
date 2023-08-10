@@ -101,11 +101,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # For elasticsearch>8,arguments like retry_timeout have changed for elasticsearch to retry_on_timeout
         # in Elasticsearch() compared to previous versions.
         # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
-        if es_kwargs:
-            retry_timeout = es_kwargs.get("retry_timeout")
-            if retry_timeout:
-                es_kwargs["retry_on_timeout"] = retry_timeout
-                del es_kwargs["retry_timeout"]
+        if es_kwargs.get("retry_timeout"):
+            es_kwargs["retry_on_timeout"] = es_kwargs.pop("retry_timeout")
         host = self.format_url(host)
         super().__init__(base_log_folder, filename_template)
         self.closed = False
@@ -138,7 +135,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     @staticmethod
     def format_url(host: str) -> str:
         """
-        Formats the given host string to ensure it starts with 'http' or 'https'.
+        Formats the given host string to ensure it starts with 'http'.
         Checks if the host string represents a valid URL.
 
         :params host: The host string to format and check.
