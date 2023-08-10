@@ -33,6 +33,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Get failure information on EMR job failure (#32151)``
+* ``Fix get_log_events() in AWS logs hook (#33290)``
 
 Misc
 ~~~~

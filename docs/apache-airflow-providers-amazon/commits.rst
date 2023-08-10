@@ -36,6 +36,7 @@ Latest change: 2023-08-10
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`681ee46b21 <https://github.com/apache/airflow/commit/681ee46b21308e8cb38afda9722d3b1a8f91efa0>`_  2023-08-10   ``Fix get_log_events() in AWS logs hook (#33290)``
 `c14cb85f16 <https://github.com/apache/airflow/commit/c14cb85f16b6c9befd35866327fecb4ab9bc0fc4>`_  2023-08-10   ``Improve fetching logs from AWS (#33231)``
 `83bd60fd97 <https://github.com/apache/airflow/commit/83bd60fd97d4ca622adcbd7898d88880fee43054>`_  2023-08-09   ``Refactor: Simplify code in providers/amazon (#33222)``
 `741fb27f50 <https://github.com/apache/airflow/commit/741fb27f50a9fee7fca776abf24c32e22783aa03>`_  2023-08-08   ``Implement EventBridge enable and disable rule operators (#33226)``
