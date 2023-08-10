@@ -133,7 +133,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^setup.cfg",
             r"^setup.py",
             r"^generated/provider_dependencies.json$",
-            r"^airflow/providers/.*/provider.yaml$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
@@ -554,7 +553,7 @@ class SelectiveChecks:
 
     @cached_property
     def image_build(self) -> bool:
-        return self.run_tests or self.docs_build or self.run_kubernetes_tests
+        return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveUnitTestTypes
@@ -621,7 +620,7 @@ class SelectiveChecks:
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
-        sorted_candidate_test_types = list(sorted(candidate_test_types))
+        sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
@@ -723,15 +722,13 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any(
-            [file.startswith("airflow/") or file.startswith("docs/apache-airflow/") for file in self._files]
-        ):
+        if any(file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files):
             packages.append("apache-airflow")
-        if any([file.startswith("docs/apache-airflow-providers/") for file in self._files]):
+        if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
             packages.append("apache-airflow-providers")
-        if any([file.startswith("chart/") or file.startswith("docs/helm-chart") for file in self._files]):
+        if any(file.startswith(("chart/", "docs/helm-chart")) for file in self._files):
             packages.append("helm-chart")
-        if any([file.startswith("docs/docker-stack/") for file in self._files]):
+        if any(file.startswith("docs/docker-stack/") for file in self._files):
             packages.append("docker-stack")
         if providers_affected:
             for provider in providers_affected:
@@ -814,3 +811,7 @@ class SelectiveChecks:
     def mssql_parallelism(self) -> int:
         # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
         return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1
+
+    @cached_property
+    def has_migrations(self) -> bool:
+        return any([file.startswith("airflow/migrations/") for file in self._files])

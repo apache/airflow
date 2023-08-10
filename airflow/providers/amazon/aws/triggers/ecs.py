@@ -49,7 +49,7 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -88,7 +88,7 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -165,14 +165,15 @@ class TaskDoneTrigger(BaseTrigger):
             # fmt: on
             waiter = ecs_client.get_waiter("tasks_stopped")
             logs_token = None
-            while self.waiter_max_attempts >= 1:
-                self.waiter_max_attempts = self.waiter_max_attempts - 1
+            while self.waiter_max_attempts:
+                self.waiter_max_attempts -= 1
                 try:
                     await waiter.wait(
                         cluster=self.cluster, tasks=[self.task_arn], WaiterConfig={"MaxAttempts": 1}
                     )
                     # we reach this point only if the waiter met a success criteria
                     yield TriggerEvent({"status": "success", "task_arn": self.task_arn})
+                    return
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         raise

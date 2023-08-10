@@ -47,8 +47,8 @@ DAG_ID = "dataproc-gke"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 REGION = "us-central1"
-CLUSTER_NAME = f"cluster-test-build-in-gke{ENV_ID}"
-GKE_CLUSTER_NAME = f"test-dataproc-gke-cluster-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
+GKE_CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}-gke".replace("_", "-")
 WORKLOAD_POOL = f"{PROJECT_ID}.svc.id.goog"
 GKE_CLUSTER_CONFIG = {
     "name": GKE_CLUSTER_NAME,
@@ -68,6 +68,11 @@ VIRTUAL_CLUSTER_CONFIG = {
                 {
                     "node_pool": f"projects/{PROJECT_ID}/locations/{REGION}/clusters/{GKE_CLUSTER_NAME}/nodePools/dp",  # noqa
                     "roles": ["DEFAULT"],
+                    "node_pool_config": {
+                        "config": {
+                            "preemptible": True,
+                        }
+                    },
                 }
             ],
         },
@@ -84,7 +89,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "dataproc", "gke"],
 ) as dag:
     create_gke_cluster = GKECreateClusterOperator(
         task_id="create_gke_cluster",
@@ -127,11 +132,13 @@ with models.DAG(
     )
 
     (
+        # TEST SETUP
         create_gke_cluster
         >> add_iam_policy_binding
+        # TEST BODY
         >> create_cluster_in_gke
-        >> delete_gke_cluster
-        >> delete_dataproc_cluster
+        # TEST TEARDOWN
+        >> [delete_gke_cluster, delete_dataproc_cluster]
     )
 
     from tests.system.utils.watcher import watcher

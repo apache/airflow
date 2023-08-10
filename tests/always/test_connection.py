@@ -753,14 +753,14 @@ class TestConnection:
     @mock.patch.dict(
         "os.environ",
         {
-            "AIRFLOW_CONN_TEST_URI_NO_HOOK": "fs://",
+            "AIRFLOW_CONN_TEST_URI_NO_HOOK": "unknown://",
         },
     )
     def test_connection_test_no_hook(self):
-        conn = Connection(conn_id="test_uri_no_hook", conn_type="fs")
+        conn = Connection(conn_id="test_uri_no_hook", conn_type="unknown")
         res = conn.test_connection()
         assert res[0] is False
-        assert res[1] == 'Unknown hook type "fs"'
+        assert res[1] == 'Unknown hook type "unknown"'
 
     @mock.patch.dict(
         "os.environ",

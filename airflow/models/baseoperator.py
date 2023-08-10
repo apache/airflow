@@ -54,7 +54,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    FailStopDagInvalidTriggerRule,
+    RemovedInAirflow3Warning,
+    TaskDeferred,
+)
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -409,7 +414,7 @@ class BaseOperatorMeta(abc.ABCMeta):
                 if arg not in kwargs and arg in default_args:
                     kwargs[arg] = default_args[arg]
 
-            missing_args = non_optional_args - set(kwargs)
+            missing_args = non_optional_args.difference(kwargs)
             if len(missing_args) == 1:
                 raise AirflowException(f"missing keyword argument {missing_args.pop()!r}")
             elif missing_args:
@@ -801,8 +806,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
-        DagInvalidTriggerRule.check(dag, trigger_rule)
-
         self.task_id = task_group.child_id(task_id) if task_group else task_id
         if not self.__from_mapped and task_group:
             task_group.add(self)
@@ -868,6 +871,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
 
         self.trigger_rule: TriggerRule = TriggerRule(trigger_rule)
+        FailStopDagInvalidTriggerRule.check(dag=dag, trigger_rule=self.trigger_rule)
+
         self.depends_on_past: bool = depends_on_past
         self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
         self.wait_for_past_depends_before_skipping: bool = wait_for_past_depends_before_skipping
@@ -957,17 +962,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             self.template_fields = [self.template_fields]
 
+        self._is_setup = False
+        self._is_teardown = False
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
-
-    def __enter__(self):
-        if not self.is_setup and not self.is_teardown:
-            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
-        SetupTeardownContext.push_setup_teardown_task(self)
-        return SetupTeardownContext
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        SetupTeardownContext.set_work_task_roots_and_leaves()
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1287,16 +1285,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Get task instances related to this task for a specific date range."""
         from airflow.models import DagRun
 
-        end_date = end_date or timezone.utcnow()
-        return session.scalars(
+        query = (
             select(TaskInstance)
             .join(TaskInstance.dag_run)
             .where(TaskInstance.dag_id == self.dag_id)
             .where(TaskInstance.task_id == self.task_id)
-            .where(DagRun.execution_date >= start_date)
-            .where(DagRun.execution_date <= end_date)
-            .order_by(DagRun.execution_date)
-        ).all()
+        )
+        if start_date:
+            query = query.where(DagRun.execution_date >= start_date)
+        if end_date:
+            query = query.where(DagRun.execution_date <= end_date)
+        return session.scalars(query.order_by(DagRun.execution_date)).all()
 
     @provide_session
     def run(
@@ -1415,6 +1414,43 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         return XComArg(operator=self)
 
+    @property
+    def is_setup(self) -> bool:
+        """Whether the operator is a setup task.
+
+        :meta private:
+        """
+        return self._is_setup
+
+    @is_setup.setter
+    def is_setup(self, value: bool) -> None:
+        """Setter for is_setup property.
+
+        :meta private:
+        """
+        if self.is_teardown and value:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
+        self._is_setup = value
+
+    @property
+    def is_teardown(self) -> bool:
+        """Whether the operator is a teardown task.
+
+        :meta private:
+        """
+        return self._is_teardown
+
+    @is_teardown.setter
+    def is_teardown(self, value: bool) -> None:
+        """
+        Setter for is_teardown property.
+
+        :meta private:
+        """
+        if self.is_setup and value:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
+        self._is_teardown = value
+
     @staticmethod
     def xcom_push(
         context: Any,
@@ -1501,6 +1537,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "_BaseOperator__instantiated",
                     "_BaseOperator__init_kwargs",
                     "_BaseOperator__from_mapped",
+                    "_is_setup",
+                    "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
                 | {  # Class level defaults need to be added to this list
                     "start_date",

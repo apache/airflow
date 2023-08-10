@@ -39,12 +39,12 @@
                         "description": "Hook class name that implements the connection type",
                         "type": "string"
                     }
-                }
-            },
-            "required": [
-                "connection-type",
-                "hook-class-name"
-            ]
+                },
+                "required": [
+                    "connection-type",
+                    "hook-class-name"
+                ]
+            }
         },
         "extra-links": {
             "type": "array",

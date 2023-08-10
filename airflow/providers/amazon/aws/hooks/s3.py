@@ -57,7 +57,7 @@ from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import chunks
 
 if TYPE_CHECKING:
-    from mypy_boto3_s3.service_resource import Object as S3ResourceObject
+    from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
 
 T = TypeVar("T", bound=Callable)
 
@@ -298,7 +298,7 @@ class S3Hook(AwsBaseHook):
             return False
 
     @provide_bucket_name
-    def get_bucket(self, bucket_name: str | None = None) -> object:
+    def get_bucket(self, bucket_name: str | None = None) -> S3Bucket:
         """
         Returns a :py:class:`S3.Bucket` object.
 
@@ -1284,18 +1284,15 @@ class S3Hook(AwsBaseHook):
             bucket and trying to delete the bucket.
         :return: None
         """
-        tries_remaining = max_retries + 1
         if force_delete:
-            while tries_remaining:
+            for retry in range(max_retries):
                 bucket_keys = self.list_keys(bucket_name=bucket_name)
                 if not bucket_keys:
                     break
-                if tries_remaining <= max_retries:
-                    # Avoid first loop
+                if retry:  # Avoid first loop
                     sleep(500)
 
                 self.delete_objects(bucket=bucket_name, keys=bucket_keys)
-                tries_remaining -= 1
 
         self.conn.delete_bucket(Bucket=bucket_name)
 

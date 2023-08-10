@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 
     TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
-OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout", fallback=1.0)
+OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
@@ -298,7 +298,7 @@ class BulkStateFetcher(LoggingMixin):
         num_process = min(len(async_results), self._sync_parallelism)
 
         with ProcessPoolExecutor(max_workers=num_process) as sync_pool:
-            chunksize = max(1, math.floor(math.ceil(1.0 * len(async_results) / self._sync_parallelism)))
+            chunksize = max(1, math.ceil(len(async_results) / self._sync_parallelism))
 
             task_id_to_states_and_info = list(
                 sync_pool.map(fetch_celery_task_state, async_results, chunksize=chunksize)

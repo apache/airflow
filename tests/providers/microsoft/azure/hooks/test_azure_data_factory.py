@@ -799,9 +799,7 @@ class TestAzureDataFactoryAsyncHook:
         Test get_pipeline_run function without passing the resource name to check the decorator function and
         raise exception
         """
-        mock_connection = Connection(
-            extra=json.dumps({"extra__azure_data_factory__factory_name": DATAFACTORY_NAME})
-        )
+        mock_connection = Connection(extra=json.dumps({"factory_name": DATAFACTORY_NAME}))
         mock_get_connection.return_value = mock_connection
         mock_conn.return_value.pipeline_runs.get.return_value = mock_pipeline_run
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
@@ -819,10 +817,10 @@ class TestAzureDataFactoryAsyncHook:
             password="clientSecret",
             extra=json.dumps(
                 {
-                    "extra__azure_data_factory__tenantId": "tenantId",
-                    "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                    "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
-                    "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
+                    "tenantId": "tenantId",
+                    "subscriptionId": "subscriptionId",
+                    "resource_group_name": RESOURCE_GROUP_NAME,
+                    "factory_name": DATAFACTORY_NAME,
                 }
             ),
         )
@@ -840,10 +838,10 @@ class TestAzureDataFactoryAsyncHook:
             conn_type="azure_data_factory",
             extra=json.dumps(
                 {
-                    "extra__azure_data_factory__tenantId": "tenantId",
-                    "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                    "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
-                    "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
+                    "tenantId": "tenantId",
+                    "subscriptionId": "subscriptionId",
+                    "resource_group_name": RESOURCE_GROUP_NAME,
+                    "factory_name": DATAFACTORY_NAME,
                 }
             ),
         )
@@ -857,9 +855,9 @@ class TestAzureDataFactoryAsyncHook:
         "mock_connection_params",
         [
             {
-                "extra__azure_data_factory__tenantId": "tenantId",
-                "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
-                "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
+                "tenantId": "tenantId",
+                "resource_group_name": RESOURCE_GROUP_NAME,
+                "factory_name": DATAFACTORY_NAME,
             }
         ],
     )
@@ -883,9 +881,9 @@ class TestAzureDataFactoryAsyncHook:
         "mock_connection_params",
         [
             {
-                "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
-                "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
+                "subscriptionId": "subscriptionId",
+                "resource_group_name": RESOURCE_GROUP_NAME,
+                "factory_name": DATAFACTORY_NAME,
             },
         ],
     )
@@ -911,10 +909,10 @@ class TestAzureDataFactoryAsyncHook:
             conn_type="azure_data_factory",
             extra=json.dumps(
                 {
-                    "extra__azure_data_factory__tenantId": "tenantId",
-                    "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                    "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
-                    "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
+                    "tenantId": "tenantId",
+                    "subscriptionId": "subscriptionId",
+                    "resource_group_name": RESOURCE_GROUP_NAME,
+                    "factory_name": DATAFACTORY_NAME,
                 }
             ),
         )

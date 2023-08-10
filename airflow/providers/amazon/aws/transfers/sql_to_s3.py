@@ -194,7 +194,7 @@ class SqlToS3Operator(BaseOperator):
             yield "", df
         else:
             grouped_df = df.groupby(**self.groupby_kwargs)
-            for group_label in grouped_df.groups.keys():
+            for group_label in grouped_df.groups:
                 yield group_label, grouped_df.get_group(group_label).reset_index(drop=True)
 
     def _get_hook(self) -> DbApiHook:

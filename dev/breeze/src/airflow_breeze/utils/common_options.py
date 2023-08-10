@@ -450,6 +450,12 @@ argument_packages = click.argument(
     required=False,
     type=BetterChoice(get_available_documentation_packages(short_version=True)),
 )
+argument_packages_plus_all_providers = click.argument(
+    "packages_plus_all_providers",
+    nargs=-1,
+    required=False,
+    type=BetterChoice(["all-providers"] + get_available_documentation_packages(short_version=True)),
+)
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
@@ -569,4 +575,11 @@ option_historical_python_version = click.option(
     required=False,
     envvar="PYTHON_VERSION",
     help="Python version to update sbom from. (defaults to all historical python versions)",
+)
+option_commit_sha = click.option(
+    "--commit-sha",
+    default=None,
+    show_default=True,
+    envvar="COMMIT_SHA",
+    help="Commit SHA that is used to build the images.",
 )

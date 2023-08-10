@@ -33,9 +33,9 @@ from base64 import b64encode
 from collections import OrderedDict
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
+from copy import deepcopy
 from json.decoder import JSONDecodeError
-from threading import Lock
-from typing import IO, Any, Dict, Iterable, Pattern, Set, Tuple, Union
+from typing import IO, Any, Dict, Generator, Iterable, Pattern, Set, Tuple, Union
 from urllib.parse import urlsplit
 
 import re2
@@ -46,7 +46,9 @@ from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
+from airflow.utils.empty_set import _get_empty_set_for_configuration
 from airflow.utils.module_loading import import_string
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.weight_rule import WeightRule
 
 log = logging.getLogger(__name__)
@@ -64,8 +66,6 @@ ConfigSectionSourcesType = Dict[str, Union[str, Tuple[str, str]]]
 ConfigSourcesType = Dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
-
-EMPTY_SET: Set[tuple[str, str]] = set()  # noqa: UP006
 
 
 def _parse_sqlite_version(s: str) -> tuple[int, ...]:
@@ -151,15 +151,30 @@ def _default_config_file_path(file_name: str) -> str:
     return os.path.join(templates_dir, file_name)
 
 
-def retrieve_configuration_description() -> dict[str, dict[str, Any]]:
+def retrieve_configuration_description(
+    include_airflow: bool = True,
+    include_providers: bool = True,
+    selected_provider: str | None = None,
+) -> dict[str, dict[str, Any]]:
     """
     Read Airflow configuration description from YAML file.
 
+    :param include_airflow: Include Airflow configs
+    :param include_providers: Include provider configs
+    :param selected_provider: If specified, include selected provider only
     :return: Python dictionary containing configs & their info
     """
     base_configuration_description: dict[str, dict[str, Any]] = {}
-    with open(_default_config_file_path("config.yml")) as config_file:
-        base_configuration_description.update(yaml.safe_load(config_file))
+    if include_airflow:
+        with open(_default_config_file_path("config.yml")) as config_file:
+            base_configuration_description.update(yaml.safe_load(config_file))
+    if include_providers:
+        from airflow.providers_manager import ProvidersManager
+
+        for provider, config in ProvidersManager().provider_configs:
+            if selected_provider and provider != selected_provider:
+                continue
+            base_configuration_description.update(config)
     return base_configuration_description
 
 
@@ -183,7 +198,7 @@ class AirflowConfigParser(ConfigParser):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.configuration_description = retrieve_configuration_description()
+        self.configuration_description = retrieve_configuration_description(include_providers=False)
         self.upgraded_values = {}
         # For those who would like to use a different data structure to keep defaults:
         # We have to keep the default values in a ConfigParser rather than in any other
@@ -191,12 +206,13 @@ class AirflowConfigParser(ConfigParser):
         # interpolation placeholders. The _default_values config parser will interpolate them
         # properly when we call get() on it.
         self._default_values = create_default_config_parser(self.configuration_description)
+        self._pre_2_7_default_values = create_pre_2_7_defaults()
         if default_config is not None:
             self._update_defaults_from_string(default_config)
         self._update_logging_deprecated_template_to_one_from_defaults()
         self.is_validated = False
         self._suppress_future_warnings = False
-        self._interpolation_lock = Lock()
+        self._providers_configuration_loaded = False
 
     def _update_logging_deprecated_template_to_one_from_defaults(self):
         default = self.get_default_value("logging", "log_filename_template")
@@ -270,6 +286,10 @@ class AirflowConfigParser(ConfigParser):
             return value.replace("%", "%%")
         return value
 
+    def get_default_pre_2_7_value(self, section: str, key: str, **kwargs) -> Any:
+        """Get pre 2.7 default config values."""
+        return self._pre_2_7_default_values.get(section, key, fallback=None, **kwargs)
+
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}_cmd" pattern, the idea behind this
     # is to not store password on boxes in text files.
@@ -278,7 +298,9 @@ class AirflowConfigParser(ConfigParser):
     @functools.cached_property
     def sensitive_config_values(self) -> Set[tuple[str, str]]:  # noqa: UP006
         if self.configuration_description is None:
-            return EMPTY_SET.copy()  # we can't use set() here because set is defined below # ¯\_(ツ)_/¯
+            return (
+                _get_empty_set_for_configuration()
+            )  # we can't use set() here because set is defined below # ¯\_(ツ)_/¯
         flattened = {
             (s, k): item
             for s, s_c in self.configuration_description.items()
@@ -452,6 +474,7 @@ class AirflowConfigParser(ConfigParser):
         :return: list of section names
         """
         my_own_sections = self.sections()
+
         all_sections_from_defaults = list(self.configuration_description.keys())
         for section in my_own_sections:
             if section not in all_sections_from_defaults:
@@ -485,6 +508,129 @@ class AirflowConfigParser(ConfigParser):
         """
         return optionstr
 
+    @contextmanager
+    def make_sure_configuration_loaded(self, with_providers: bool) -> Generator[None, None, None]:
+        """
+        Make sure configuration is loaded with or without providers, regardless if the provider configuration
+        has been loaded before or not. Restores configuration to the state before entering the context.
+
+        :param with_providers: whether providers should be loaded
+        """
+        reload_providers_when_leaving = False
+        if with_providers and not self._providers_configuration_loaded:
+            # make sure providers are initialized
+            from airflow.providers_manager import ProvidersManager
+
+            # run internal method to initialize providers configuration in ordered to not trigger the
+            # initialize_providers_configuration cache (because we will be unloading it now
+            ProvidersManager()._initialize_providers_configuration()
+        elif not with_providers and self._providers_configuration_loaded:
+            reload_providers_when_leaving = True
+            self.restore_core_default_configuration()
+        yield
+        if reload_providers_when_leaving:
+            self.load_providers_configuration()
+
+    @staticmethod
+    def _write_section_header(
+        file: IO[str],
+        include_descriptions: bool,
+        section_config_description: dict[str, str],
+        section_to_write: str,
+    ) -> None:
+        """Writes header for configuration section."""
+        file.write(f"[{section_to_write}]\n")
+        section_description = section_config_description.get("description")
+        if section_description and include_descriptions:
+            for line in section_description.splitlines():
+                file.write(f"# {line}\n")
+            file.write("\n")
+
+    def _write_option_header(
+        self,
+        file: IO[str],
+        option: str,
+        extra_spacing: bool,
+        include_descriptions: bool,
+        include_env_vars: bool,
+        include_examples: bool,
+        include_sources: bool,
+        section_config_description: dict[str, dict[str, Any]],
+        section_to_write: str,
+        sources_dict: ConfigSourcesType,
+    ) -> tuple[bool, bool]:
+        """Writes header for configuration option.
+
+        Returns tuple of (should_continue, needs_separation) where needs_separation should be
+        set if the option needs additional separation to visually separate it from the next option.
+        """
+        from airflow import __version__ as airflow_version
+
+        option_config_description = (
+            section_config_description.get("options", {}).get(option, {})
+            if section_config_description
+            else {}
+        )
+        version_added = option_config_description.get("version_added")
+        if version_added is not None and parse_version(version_added) > parse_version(
+            parse_version(airflow_version).base_version
+        ):
+            # skip if option is going to be added in the future version
+            return False, False
+        description = option_config_description.get("description")
+        needs_separation = False
+        if description and include_descriptions:
+            for line in description.splitlines():
+                file.write(f"# {line}\n")
+            needs_separation = True
+        example = option_config_description.get("example")
+        if example is not None and include_examples:
+            if extra_spacing:
+                file.write("#\n")
+            file.write(f"# Example: {option} = {example}\n")
+            needs_separation = True
+        if include_sources and sources_dict:
+            sources_section = sources_dict.get(section_to_write)
+            value_with_source = sources_section.get(option) if sources_section else None
+            if value_with_source is None:
+                file.write("#\n# Source: not defined\n")
+            else:
+                file.write(f"#\n# Source: {value_with_source[1]}\n")
+            needs_separation = True
+        if include_env_vars:
+            file.write(f"#\n# Variable: AIRFLOW__{section_to_write.upper()}__{option.upper()}\n")
+            if extra_spacing:
+                file.write("#\n")
+            needs_separation = True
+        return True, needs_separation
+
+    def _write_value(
+        self,
+        file: IO[str],
+        option: str,
+        comment_out_everything: bool,
+        needs_separation: bool,
+        only_defaults: bool,
+        section_to_write: str,
+    ):
+        if self._default_values is None:
+            default_value = None
+        else:
+            default_value = self.get_default_value(section_to_write, option, raw=True)
+        if only_defaults:
+            value = default_value
+        else:
+            value = self.get(section_to_write, option, fallback=default_value, raw=True)
+        if value is None:
+            file.write(f"# {option} = \n")
+        else:
+            if comment_out_everything:
+                file.write(f"# {option} = {value}\n")
+            else:
+                file.write(f"{option} = {value}\n")
+        if needs_separation:
+            file.write("\n")
+
     def write(  # type: ignore[override]
         self,
         file: IO[str],
@@ -493,6 +639,7 @@ class AirflowConfigParser(ConfigParser):
         include_descriptions: bool = True,
         include_sources: bool = True,
         include_env_vars: bool = True,
+        include_providers: bool = True,
         comment_out_everything: bool = False,
         hide_sensitive_values: bool = False,
         extra_spacing: bool = True,
@@ -508,12 +655,12 @@ class AirflowConfigParser(ConfigParser):
         :param include_descriptions: Include descriptions in the output
         :param include_sources: Include the source of each config option
         :param include_env_vars: Include environment variables corresponding to each config option
+        :param include_providers: Include providers configuration
+        :param comment_out_everything: Comment out all values
         :param hide_sensitive_values: Include sensitive values in the output
         :param extra_spacing: Add extra spacing before examples and after variables
         :param only_defaults: Only include default values when writing the config, not the actual values
         """
-        from airflow import __version__ as airflow_version
-
         sources_dict = {}
         if include_sources:
             sources_dict = self.as_dict(display_source=True)
@@ -521,79 +668,54 @@ class AirflowConfigParser(ConfigParser):
             raise RuntimeError("Cannot write default config, no default config set")
         if self.configuration_description is None:
             raise RuntimeError("Cannot write default config, no default configuration description set")
-        for section_to_write in self.get_sections_including_defaults():
-            section_config_description = self.configuration_description.get(section_to_write, {})
-            if section_to_write != section and section is not None:
-                continue
-            if self._default_values.has_section(section_to_write) or self.has_section(section_to_write):
-                needs_separation = False
-                file.write(f"[{section_to_write}]\n")
-                section_description = section_config_description.get("description")
-                if section_description and include_descriptions:
-                    for line in section_description.splitlines():
-                        file.write(f"# {line}\n")
-                    file.write("\n")
-                for key in self.get_options_including_defaults(section_to_write):
-                    option_config_description = (
-                        section_config_description.get("options", {}).get(key, {})
-                        if section_config_description
-                        else {}
+        with self.make_sure_configuration_loaded(with_providers=include_providers):
+            for section_to_write in self.get_sections_including_defaults():
+                section_config_description = self.configuration_description.get(section_to_write, {})
+                if section_to_write != section and section is not None:
+                    continue
+                if self._default_values.has_section(section_to_write) or self.has_section(section_to_write):
+                    self._write_section_header(
+                        file, include_descriptions, section_config_description, section_to_write
                     )
-                    version_added = option_config_description.get("version_added")
-                    if version_added is not None and parse_version(version_added) > parse_version(
-                        parse_version(airflow_version).base_version
-                    ):
-                        # skip if option is going to be added in the future version
-                        continue
-                    description = option_config_description.get("description")
-                    needs_separation = False
-                    if description and include_descriptions:
-                        for line in description.splitlines():
-                            file.write(f"# {line}\n")
-                        needs_separation = True
-                    example = option_config_description.get("example")
-                    if example is not None and include_examples:
-                        if extra_spacing:
-                            file.write("#\n")
-                        file.write(f"# Example: {key} = {example}\n")
-                        needs_separation = True
-                    if include_sources and sources_dict:
-                        sources_section = sources_dict.get(section_to_write)
-                        value_with_source = sources_section.get(key) if sources_section else None
-                        if value_with_source is None:
-                            file.write("#\n# Source: not defined\n")
-                        else:
-                            file.write(f"#\n# Source: {value_with_source[1]}\n")
-                        needs_separation = True
-                    if include_env_vars:
-                        file.write(f"#\n# Variable: AIRFLOW__{section_to_write.upper()}__{key.upper()}\n")
-                        if extra_spacing:
-                            file.write("#\n")
-                        needs_separation = True
-                    if self._default_values is None:
-                        default_value = None
-                    else:
-                        default_value = self.get_default_value(section_to_write, key, raw=True)
-                    if only_defaults:
-                        value = default_value
-                    else:
-                        value = self.get(section_to_write, key, fallback=default_value, raw=True)
-                    if value is None:
-                        file.write(f"# {key} = \n")
-                    else:
-                        if comment_out_everything:
-                            file.write(f"# {key} = {value}\n")
-                        else:
-                            file.write(f"{key} = {value}\n")
-                    if needs_separation:
+                    for option in self.get_options_including_defaults(section_to_write):
+                        should_continue, needs_separation = self._write_option_header(
+                            file=file,
+                            option=option,
+                            extra_spacing=extra_spacing,
+                            include_descriptions=include_descriptions,
+                            include_env_vars=include_env_vars,
+                            include_examples=include_examples,
+                            include_sources=include_sources,
+                            section_config_description=section_config_description,
+                            section_to_write=section_to_write,
+                            sources_dict=sources_dict,
+                        )
+                        self._write_value(
+                            file=file,
+                            option=option,
+                            comment_out_everything=comment_out_everything,
+                            needs_separation=needs_separation,
+                            only_defaults=only_defaults,
+                            section_to_write=section_to_write,
+                        )
+                    if include_descriptions and not needs_separation:
+                        # extra separation between sections in case last option did not need it
                         file.write("\n")
-                if include_descriptions and not needs_separation:
-                    # extra separation between sections in case last option did not need it
-                    file.write("\n")
+
+    def restore_core_default_configuration(self) -> None:
+        """Restore default configuration for core Airflow.
+
+        It does not restore configuration for providers. If you want to restore configuration for
+        providers, you need to call ``load_providers_configuration`` method.
+        """
+        self.configuration_description = retrieve_configuration_description(include_providers=False)
+        self._default_values = create_default_config_parser(self.configuration_description)
+        self._providers_configuration_loaded = False
 
     def validate(self):
         self._validate_sqlite3_version()
         self._validate_enums()
+        self._validate_max_tis_per_query()
 
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
@@ -614,6 +736,25 @@ class AirflowConfigParser(ConfigParser):
         self._upgrade_auth_backends()
         self._upgrade_postgres_metastore_conn()
         self.is_validated = True
+
+    def _validate_max_tis_per_query(self) -> None:
+        """
+        Check if config ``scheduler.max_tis_per_query`` is not greater than ``core.parallelism``.
+        If not met, a warning message is printed to guide the user to correct it.
+
+        More info: https://github.com/apache/airflow/pull/32572
+        """
+        max_tis_per_query = self.getint("scheduler", "max_tis_per_query")
+        parallelism = self.getint("core", "parallelism")
+
+        if max_tis_per_query > parallelism:
+            warnings.warn(
+                f"Config scheduler.max_tis_per_query (value: {max_tis_per_query}) "
+                f"should NOT be greater than core.parallelism (value: {parallelism}). "
+                "Will now use core.parallelism as the max task instances per query "
+                "instead of specified value.",
+                UserWarning,
+            )
 
     def _upgrade_auth_backends(self):
         """
@@ -819,6 +960,14 @@ class AirflowConfigParser(ConfigParser):
         deprecated_section: str | None
         deprecated_key: str | None
 
+        option_description = self.configuration_description.get(section, {}).get(key, {})
+        if option_description.get("deprecated"):
+            deprecation_reason = option_description.get("deprecation_reason", "")
+            warnings.warn(
+                f"The '{key}' option in section {section} is deprecated. {deprecation_reason}",
+                DeprecationWarning,
+                stacklevel=2 + _extra_stacklevel,
+            )
         # For when we rename whole sections
         if section in self.inversed_deprecated_sections:
             deprecated_section, deprecated_key = (section, key)
@@ -854,7 +1003,6 @@ class AirflowConfigParser(ConfigParser):
             deprecated_section, deprecated_key, _ = self.deprecated_options.get(
                 (section, key), (None, None, None)
             )
-
         # first check environment variables
         option = self._get_environment_variables(
             deprecated_key,
@@ -907,6 +1055,11 @@ class AirflowConfigParser(ConfigParser):
         # ...then the default config
         if self.get_default_value(section, key) is not None or "fallback" in kwargs:
             return expand_env_var(self.get_default_value(section, key, **kwargs))
+
+        if self.get_default_pre_2_7_value(section, key) is not None:
+            # no expansion needed
+            return self.get_default_pre_2_7_value(section, key, **kwargs)
+
         if not suppress_warnings:
             log.warning("section/key [%s/%s] not found in config", section, key)
 
@@ -1266,7 +1419,10 @@ class AirflowConfigParser(ConfigParser):
                 )
 
         config_sources: ConfigSourcesType = {}
+
+        # We check sequentially all those sources and the last one we saw it in will "win"
         configs: Iterable[tuple[str, ConfigParser]] = [
+            ("default-pre-2-7", self._pre_2_7_default_values),
             ("default", self._default_values),
             ("airflow.cfg", self),
         ]
@@ -1597,7 +1753,14 @@ class AirflowConfigParser(ConfigParser):
                     ):
                         continue
             if display_source:
-                sect[k] = (val, source_name)
+                updated_source_name = source_name
+                if source_name == "default":
+                    # defaults can come from other sources (default-<PROVIDER>) that should be used here
+                    source_description_section = configuration_description.get(section, {})
+                    source_description_key = source_description_section.get("options", {}).get(k, {})
+                    if source_description_key is not None:
+                        updated_source_name = source_description_key.get("source", source_name)
+                sect[k] = (val, updated_source_name)
             else:
                 sect[k] = val
 
@@ -1643,6 +1806,61 @@ class AirflowConfigParser(ConfigParser):
         """Removes all read configurations, leaving only default values in the config."""
         for section in self.sections():
             self.remove_section(section)
+
+    @property
+    def providers_configuration_loaded(self) -> bool:
+        """Checks if providers have been loaded."""
+        return self._providers_configuration_loaded
+
+    def load_providers_configuration(self):
+        """
+        Loads configuration for providers.
+
+        This should be done after initial configuration have been performed. Initializing and discovering
+        providers is an expensive operation and cannot be performed when we load configuration for the first
+        time when airflow starts, because we initialize configuration very early, during importing of the
+        `airflow` package and the module is not yet ready to be used when it happens and until configuration
+        and settings are loaded. Therefore, in order to reload provider configuration we need to additionally
+        load provider - specific configuration.
+        """
+        log.debug("Loading providers configuration")
+        from airflow.providers_manager import ProvidersManager
+
+        self.restore_core_default_configuration()
+        for provider, config in ProvidersManager().already_initialized_provider_configs:
+            for provider_section, provider_section_content in config.items():
+                provider_options = provider_section_content["options"]
+                section_in_current_config = self.configuration_description.get(provider_section)
+                if not section_in_current_config:
+                    self.configuration_description[provider_section] = deepcopy(provider_section_content)
+                    section_in_current_config = self.configuration_description.get(provider_section)
+                    section_in_current_config["source"] = f"default-{provider}"
+                    for option in provider_options:
+                        section_in_current_config["options"][option]["source"] = f"default-{provider}"
+                else:
+                    section_source = section_in_current_config.get("source", "Airflow's core package").split(
+                        "default-"
+                    )[-1]
+                    raise AirflowConfigException(
+                        f"The provider {provider} is attempting to contribute "
+                        f"configuration section {provider_section} that "
+                        f"has already been added before. The source of it: {section_source}."
+                        "This is forbidden. A provider can only add new sections. It"
+                        "cannot contribute options to existing sections or override other "
+                        "provider's configuration.",
+                        UserWarning,
+                    )
+        self._default_values = create_default_config_parser(self.configuration_description)
+        # sensitive_config_values needs to be refreshed here. This is a cached_property, so we can delete
+        # the cached values, and it will be refreshed on next access. This has been an implementation
+        # detail in Python 3.8 but as of Python 3.9 it is documented behaviour.
+        # See https://docs.python.org/3/library/functools.html#functools.cached_property
+        try:
+            del self.sensitive_config_values
+        except AttributeError:
+            # no problem if cache is not set yet
+            pass
+        self._providers_configuration_loaded = True
 
     @staticmethod
     def _warn_deprecate(
@@ -1732,6 +1950,42 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
     return parser
 
 
+def create_pre_2_7_defaults() -> ConfigParser:
+    """
+    Creates parser using the old defaults from Airflow < 2.7.0, in order to be able to fall-back to those
+    defaults when old version of provider, not supporting "config contribution" is installed with Airflow
+    2.7.0+. This "default" configuration does not support variable expansion, those are pretty much
+    hard-coded defaults we want to fall-back to in such case.
+    """
+    config_parser = ConfigParser()
+    config_parser.read(_default_config_file_path("pre_2_7_defaults.cfg"))
+    return config_parser
+
+
+def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
+    if not os.path.isfile(AIRFLOW_CONFIG):
+        log.debug("Creating new Airflow config file in: %s", AIRFLOW_CONFIG)
+        pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
+        if conf.get("core", "fernet_key", fallback=None) is None:
+            # We know that FERNET_KEY is not set, so we can generate it, set as global key
+            # and also write it to the config file so that same key will be used next time
+            global FERNET_KEY
+            FERNET_KEY = _generate_fernet_key()
+            conf.remove_option("core", "fernet_key")
+            conf.set("core", "fernet_key", FERNET_KEY)
+        with open(AIRFLOW_CONFIG, "w") as file:
+            conf.write(
+                file,
+                include_sources=False,
+                include_env_vars=True,
+                include_providers=True,
+                extra_spacing=True,
+                only_defaults=True,
+            )
+        make_group_other_inaccessible(AIRFLOW_CONFIG)
+    return conf
+
+
 def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigParser):
     """
     Loads standard airflow configuration.
@@ -1743,23 +1997,7 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
     :param airflow_config_parser: parser to which the configuration will be loaded
 
     """
-    global FERNET_KEY, AIRFLOW_HOME
-    if not os.path.isfile(AIRFLOW_CONFIG):
-        from cryptography.fernet import Fernet
-
-        log.info("Creating new Airflow config file in: %s", AIRFLOW_CONFIG)
-        pathlib.Path(AIRFLOW_HOME).mkdir(parents=True, exist_ok=True)
-        FERNET_KEY = Fernet.generate_key().decode()
-        if airflow_config_parser._default_values and airflow_config_parser.configuration_description:
-            with open(AIRFLOW_CONFIG, "w") as file:
-                airflow_config_parser.write(
-                    file,
-                    include_sources=False,
-                    include_env_vars=True,
-                    extra_spacing=True,
-                    only_defaults=True,
-                )
-        make_group_other_inaccessible(AIRFLOW_CONFIG)
+    global AIRFLOW_HOME
     log.info("Reading the config from %s", AIRFLOW_CONFIG)
     airflow_config_parser.read(AIRFLOW_CONFIG)
     if airflow_config_parser.has_option("core", "AIRFLOW_HOME"):
@@ -1789,7 +2027,6 @@ def initialize_config() -> AirflowConfigParser:
 
     Called for you automatically as part of the Airflow boot process.
     """
-    global WEBSERVER_CONFIG
     airflow_config_parser = AirflowConfigParser()
     if airflow_config_parser.getboolean("core", "unit_test_mode"):
         airflow_config_parser.load_test_config()
@@ -1800,14 +2037,21 @@ def initialize_config() -> AirflowConfigParser:
         # file on top of it.
         if airflow_config_parser.getboolean("core", "unit_test_mode"):
             airflow_config_parser.load_test_config()
-
+    # Set the WEBSERVER_CONFIG variable
+    global WEBSERVER_CONFIG
     WEBSERVER_CONFIG = airflow_config_parser.get("webserver", "config_file")
-    if not os.path.isfile(WEBSERVER_CONFIG):
+    return airflow_config_parser
+
+
+@providers_configuration_loaded
+def write_webserver_configuration_if_needed(airflow_config_parser: AirflowConfigParser):
+    webserver_config = airflow_config_parser.get("webserver", "config_file")
+    if not os.path.isfile(webserver_config):
         import shutil
 
-        log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
-        shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
-    return airflow_config_parser
+        pathlib.Path(webserver_config).parent.mkdir(parents=True, exist_ok=True)
+        log.info("Creating new FAB webserver config file in: %s", webserver_config)
+        shutil.copy(_default_config_file_path("default_webserver_config.py"), webserver_config)
 
 
 def make_group_other_inaccessible(file_path: str):
@@ -1817,7 +2061,7 @@ def make_group_other_inaccessible(file_path: str):
     except Exception as e:
         log.warning(
             "Could not change permissions of config file to be group/other inaccessible. "
-            "Continuing with original permissions:",
+            "Continuing with original permissions: %s",
             e,
         )
 
@@ -1999,6 +2243,39 @@ def initialize_secrets_backends() -> list[BaseSecretsBackend]:
     return backend_list
 
 
+@functools.lru_cache(maxsize=None)
+def _DEFAULT_CONFIG() -> str:
+    path = _default_config_file_path("default_airflow.cfg")
+    with open(path) as fh:
+        return fh.read()
+
+
+@functools.lru_cache(maxsize=None)
+def _TEST_CONFIG() -> str:
+    path = _default_config_file_path("default_test.cfg")
+    with open(path) as fh:
+        return fh.read()
+
+
+_deprecated = {
+    "DEFAULT_CONFIG": _DEFAULT_CONFIG,
+    "TEST_CONFIG": _TEST_CONFIG,
+    "TEST_CONFIG_FILE_PATH": functools.partial(_default_config_file_path, "default_test.cfg"),
+    "DEFAULT_CONFIG_FILE_PATH": functools.partial(_default_config_file_path, "default_airflow.cfg"),
+}
+
+
+def __getattr__(name):
+    if name in _deprecated:
+        warnings.warn(
+            f"{__name__}.{name} is deprecated and will be removed in future",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return _deprecated[name]()
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
+
 def initialize_auth_manager() -> BaseAuthManager:
     """
     Initialize auth manager.
@@ -2045,7 +2322,6 @@ SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 FERNET_KEY = ""  # Set only if needed when generating a new file
 WEBSERVER_CONFIG = ""  # Set by initialize_config
 
-conf = initialize_config()
+conf: AirflowConfigParser = initialize_config()
 secrets_backend_list = initialize_secrets_backends()
-auth_manager = initialize_auth_manager()
 conf.validate()

@@ -125,17 +125,11 @@ class DataSyncHook(AwsBaseHook):
 
     def _refresh_locations(self) -> None:
         """Refresh the local list of Locations."""
-        self.locations = []
-        next_token = None
-        while True:
-            if next_token:
-                locations = self.get_conn().list_locations(NextToken=next_token)
-            else:
-                locations = self.get_conn().list_locations()
+        locations = self.get_conn().list_locations()
+        self.locations = locations["Locations"]
+        while "NextToken" in locations:
+            locations = self.get_conn().list_locations(NextToken=locations["NextToken"])
             self.locations.extend(locations["Locations"])
-            if "NextToken" not in locations:
-                break
-            next_token = locations["NextToken"]
 
     def create_task(
         self, source_location_arn: str, destination_location_arn: str, **create_task_kwargs
@@ -181,17 +175,11 @@ class DataSyncHook(AwsBaseHook):
 
     def _refresh_tasks(self) -> None:
         """Refreshes the local list of Tasks."""
-        self.tasks = []
-        next_token = None
-        while True:
-            if next_token:
-                tasks = self.get_conn().list_tasks(NextToken=next_token)
-            else:
-                tasks = self.get_conn().list_tasks()
+        tasks = self.get_conn().list_tasks()
+        self.tasks = tasks["Tasks"]
+        while "NextToken" in tasks:
+            tasks = self.get_conn().list_tasks(NextToken=tasks["NextToken"])
             self.tasks.extend(tasks["Tasks"])
-            if "NextToken" not in tasks:
-                break
-            next_token = tasks["NextToken"]
 
     def get_task_arns_for_location_arns(
         self,
