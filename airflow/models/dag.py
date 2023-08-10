@@ -434,6 +434,8 @@ class DAG(LoggingMixin):
         catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+        sla: timedelta | None = None,
+        on_sla_miss_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
         params: collections.abc.MutableMapping | None = None,
         access_control: dict | None = None,
@@ -487,6 +489,14 @@ class DAG(LoggingMixin):
         self._max_active_tasks = max_active_tasks
         self._pickle_id: int | None = None
 
+        if sla_miss_callback:
+            # TODO: Remove in Airflow 3.0
+            warnings.warn(
+                "The 'sla_miss_callback' parameter is deprecated and will be removed in a future release. "
+                "Please use `on_sla_miss_callback` with `sla` instead. ",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
         self._description = description
         # set file location to caller source path
         back = sys._getframe().f_back
@@ -610,6 +620,9 @@ class DAG(LoggingMixin):
         self.catchup = catchup
 
         self.partial = False
+
+        self.sla = sla
+        self.on_sla_miss_callback = on_sla_miss_callback
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
 
@@ -622,6 +635,7 @@ class DAG(LoggingMixin):
         # and identify if DAG has on_*_callback without actually storing them in Serialized JSON
         self.has_on_success_callback = self.on_success_callback is not None
         self.has_on_failure_callback = self.on_failure_callback is not None
+        self.has_on_sla_miss_callback = self.on_sla_miss_callback is not None
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
@@ -1374,7 +1388,7 @@ class DAG(LoggingMixin):
         return _schedule_interval
 
     @provide_session
-    def handle_callback(self, dagrun, success=True, reason=None, session=NEW_SESSION):
+    def handle_callback(self, dagrun, dagrun_state, sla_miss, reason=None, session=NEW_SESSION):
         """
         Triggers on_failure_callback or on_success_callback as appropriate.
 
@@ -1390,9 +1404,27 @@ class DAG(LoggingMixin):
         :param reason: Completion reason
         :param session: Database session
         """
-        callbacks = self.on_success_callback if success else self.on_failure_callback
+        callbacks = []
+        if dagrun_state == DagRunState.SUCCESS:
+            callbacks.extend(
+                self.on_success_callback
+                if isinstance(self.on_success_callback, list)
+                else [self.on_success_callback]
+            )
+        elif dagrun_state == DagRunState.FAILED:
+            callbacks.extend(
+                self.on_failure_callback
+                if isinstance(self.on_failure_callback, list)
+                else [self.on_failure_callback]
+            )
+        if sla_miss:
+            callbacks.extend(
+                self.on_sla_miss_callback
+                if isinstance(self.on_sla_miss_callback, list)
+                else [self.on_sla_miss_callback]
+            )
+
         if callbacks:
-            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
             tis = dagrun.get_task_instances(session=session)
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
@@ -3229,11 +3261,13 @@ class DAG(LoggingMixin):
                 "sla_miss_callback",
                 "on_success_callback",
                 "on_failure_callback",
+                "on_sla_miss_callback",
                 "template_undefined",
                 "jinja_environment_kwargs",
                 # has_on_*_callback are only stored if the value is True, as the default is False
                 "has_on_success_callback",
                 "has_on_failure_callback",
+                "has_on_sla_miss_callback",
                 "auto_register",
                 "fail_stop",
             }
@@ -3709,6 +3743,8 @@ def dag(
     catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
+    sla: timedelta | None = None,
+    on_sla_miss_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     doc_md: str | None = None,
     params: collections.abc.MutableMapping | None = None,
     access_control: dict | None = None,
