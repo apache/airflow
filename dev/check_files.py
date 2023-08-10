@@ -141,7 +141,7 @@ def check_release(files: list[str], version: str):
 
 
 def expand_name_variations(files):
-    return list(sorted(base + suffix for base, suffix in product(files, ["", ".asc", ".sha512"])))
+    return sorted(base + suffix for base, suffix in product(files, ["", ".asc", ".sha512"]))
 
 
 def check_upgrade_check(files: list[str], version: str):
