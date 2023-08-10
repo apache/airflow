@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import heapq
 import logging
 import math
 import pickle
@@ -346,9 +347,7 @@ def main(
     if load:
         console.print("Loading PRs from cache and recalculating scores.")
         selected_prs = pickle.load(load, encoding="bytes")
-        issue_num = 0
-        for pr in selected_prs:
-            issue_num += 1
+        for issue_num, pr in enumerate(selected_prs, 1):
             console.print(
                 f"[green]Loading PR: #{pr.pull_request.number} `{pr.pull_request.title}`.[/]"
                 f" Score: {pr.score}."
@@ -363,12 +362,10 @@ def main(
         repo = g.get_repo("apache/airflow")
         commits = repo.get_commits(since=date_start, until=date_end)
         pulls: list[PullRequest] = [pull for commit in commits for pull in commit.get_pulls()]
-        issue_num = 0
         scores: dict = {}
-        for pull in pulls:
+        for issue_num, pull in enumerate(pulls, 1):
             p = PrStat(g=g, pull_request=pull)  # type: ignore
             scores.update({pull.number: [p.score, pull.title]})
-            issue_num += 1
             console.print(
                 f"[green]Selecting PR: #{pull.number} `{pull.title}` as candidate.[/]"
                 f" Score: {scores[pull.number][0]}."
@@ -384,7 +381,7 @@ def main(
                 break
 
     console.print(f"Top {top_number} out of {issue_num} PRs:")
-    for pr_scored in sorted(scores.items(), key=lambda s: s[1], reverse=True)[:top_number]:
+    for pr_scored in heapq.nlargest(top_number, scores.items(), key=lambda s: s[1]):
         console.print(f"[green] * PR #{pr_scored[0]}: {pr_scored[1][1]}. Score: [magenta]{pr_scored[1][0]}")
 
     if save:
