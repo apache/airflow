@@ -21,6 +21,7 @@ import os
 from unittest import mock
 
 import pytest
+import yaml
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.ecs import (
@@ -31,6 +32,7 @@ from airflow.providers.amazon.aws.executors.ecs import (
     EcsTaskCollection,
 )
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
+from airflow.providers.amazon.aws.executors.ecs.utils import CONFIG_DEFAULTS
 from airflow.utils.state import State
 
 ARN1 = "arn1"
@@ -275,6 +277,22 @@ class TestAwsEcsExecutor:
 
     def teardown_method(self) -> None:
         self._unset_conf()
+
+    def test_validate_config_defaults(self):
+        curr_dir = os.path.dirname(os.path.abspath(__file__))
+        config_filename = curr_dir.replace("tests", "airflow").replace(
+            "executors/ecs", "config_templates/config.yml"
+        )
+
+        with open(config_filename) as config:
+            options = yaml.safe_load(config)[CONFIG_GROUP_NAME]["options"]
+            file_defaults = {
+                option: default for (option, value) in options.items() if (default := value.get("default"))
+            }
+
+        assert len(file_defaults) == len(CONFIG_DEFAULTS)
+        for key in file_defaults.keys():
+            assert file_defaults[key] == CONFIG_DEFAULTS[key]
 
     def test_execute(self):
         """Test execution from end-to-end."""
