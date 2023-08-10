@@ -23,12 +23,13 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.client import AppflowClient
-    from mypy_boto3_appflow.type_defs import TaskTypeDef
+    from mypy_boto3_appflow.type_defs import TaskOutputTypeDef, TaskTypeDef
 
 
 class AppflowHook(AwsBaseHook):
     """
     Interact with Amazon Appflow.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("appflow") <Appflow.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -80,8 +81,7 @@ class AppflowHook(AwsBaseHook):
         self, flow_name: str, filter_tasks: list[TaskTypeDef], set_trigger_ondemand: bool = False
     ) -> None:
         """
-        Update the flow task filter.
-        All filters will be removed if an empty array is passed to filter_tasks.
+        Update the flow task filter; all filters will be removed if an empty array is passed to filter_tasks.
 
         :param flow_name: The flow name
         :param filter_tasks: List flow tasks to be added
@@ -90,7 +90,7 @@ class AppflowHook(AwsBaseHook):
         """
         response = self.conn.describe_flow(flowName=flow_name)
         connector_type = response["sourceFlowConfig"]["connectorType"]
-        tasks: list[TaskTypeDef] = []
+        tasks: list[TaskTypeDef | TaskOutputTypeDef] = []
 
         # cleanup old filter tasks
         for task in response["tasks"]:

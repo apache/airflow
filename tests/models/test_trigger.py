@@ -141,35 +141,52 @@ def test_assign_unassigned(session, create_task_instance):
     """
     Tests that unassigned triggers of all appropriate states are assigned.
     """
-    finished_triggerer = Job(heartrate=10, state=State.SUCCESS)
+    time_now = timezone.utcnow()
+    triggerer_heartrate = 10
+    finished_triggerer = Job(heartrate=triggerer_heartrate, state=State.SUCCESS)
     TriggererJobRunner(finished_triggerer)
-    finished_triggerer.end_date = timezone.utcnow() - datetime.timedelta(hours=1)
+    finished_triggerer.end_date = time_now - datetime.timedelta(hours=1)
     session.add(finished_triggerer)
     assert not finished_triggerer.is_alive()
-    healthy_triggerer = Job(heartrate=10, state=State.RUNNING)
+    healthy_triggerer = Job(heartrate=triggerer_heartrate, state=State.RUNNING)
     TriggererJobRunner(healthy_triggerer)
     session.add(healthy_triggerer)
     assert healthy_triggerer.is_alive()
-    new_triggerer = Job(heartrate=10, state=State.RUNNING)
+    new_triggerer = Job(heartrate=triggerer_heartrate, state=State.RUNNING)
     TriggererJobRunner(new_triggerer)
     session.add(new_triggerer)
     assert new_triggerer.is_alive()
+    # This trigger's last heartbeat is older than the check threshold, expect
+    # its triggers to be taken by other healthy triggerers below
+    unhealthy_triggerer = Job(
+        heartrate=triggerer_heartrate,
+        state=State.RUNNING,
+        latest_heartbeat=time_now - datetime.timedelta(seconds=100),
+    )
+    TriggererJobRunner(unhealthy_triggerer)
+    session.add(unhealthy_triggerer)
+    # Triggerer is not healtht, its last heartbeat was too long ago
+    assert not unhealthy_triggerer.is_alive()
     session.commit()
     trigger_on_healthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_on_healthy_triggerer.id = 1
     trigger_on_healthy_triggerer.triggerer_id = healthy_triggerer.id
+    trigger_on_unhealthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    trigger_on_unhealthy_triggerer.id = 2
+    trigger_on_unhealthy_triggerer.triggerer_id = unhealthy_triggerer.id
     trigger_on_killed_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    trigger_on_killed_triggerer.id = 2
+    trigger_on_killed_triggerer.id = 3
     trigger_on_killed_triggerer.triggerer_id = finished_triggerer.id
     trigger_unassigned_to_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    trigger_unassigned_to_triggerer.id = 3
+    trigger_unassigned_to_triggerer.id = 4
     assert trigger_unassigned_to_triggerer.triggerer_id is None
     session.add(trigger_on_healthy_triggerer)
+    session.add(trigger_on_unhealthy_triggerer)
     session.add(trigger_on_killed_triggerer)
     session.add(trigger_unassigned_to_triggerer)
     session.commit()
-    assert session.query(Trigger).count() == 3
-    Trigger.assign_unassigned(new_triggerer.id, 100, session=session)
+    assert session.query(Trigger).count() == 4
+    Trigger.assign_unassigned(new_triggerer.id, 100, health_check_threshold=30)
     session.expire_all()
     # Check that trigger on killed triggerer and unassigned trigger are assigned to new triggerer
     assert (
@@ -184,6 +201,11 @@ def test_assign_unassigned(session, create_task_instance):
     assert (
         session.query(Trigger).filter(Trigger.id == trigger_on_healthy_triggerer.id).one().triggerer_id
         == healthy_triggerer.id
+    )
+    # Check that trigger on unhealthy triggerer is assigned to new triggerer
+    assert (
+        session.query(Trigger).filter(Trigger.id == trigger_on_unhealthy_triggerer.id).one().triggerer_id
+        == new_triggerer.id
     )
 
 

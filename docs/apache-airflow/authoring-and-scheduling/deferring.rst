@@ -20,7 +20,7 @@ Deferrable Operators & Triggers
 
 Standard :doc:`Operators </core-concepts/operators>` and :doc:`Sensors <../core-concepts/sensors>` take up a full *worker slot* for the entire time they are running, even if they are idle; for example, if you only have 100 worker slots available to run Tasks, and you have 100 DAGs waiting on a Sensor that's currently running but idle, then you *cannot run anything else* - even though your entire Airflow cluster is essentially idle. ``reschedule`` mode for Sensors solves some of this, allowing Sensors to only run at fixed intervals, but it is inflexible and only allows using time as the reason to resume, not anything else.
 
-This is where *Deferrable Operators* come in. A deferrable operator is one that is written with the ability to suspend itself and free up the worker when it knows it has to wait, and hand off the job of resuming it to something called a *Trigger*. As a result, while it is suspended (deferred), it is not taking up a worker slot and your cluster will have a lot less resources wasted on idle Operators or Sensors.
+This is where *Deferrable Operators* come in. A deferrable operator is one that is written with the ability to suspend itself and free up the worker when it knows it has to wait, and hand off the job of resuming it to something called a *Trigger*. As a result, while it is suspended (deferred), it is not taking up a worker slot and your cluster will have a lot less resources wasted on idle Operators or Sensors. Note that by default deferred tasks will not use up pool slots, if you would like them to, you can change this by editing the pool in question.
 
 *Triggers* are small, asynchronous pieces of Python code designed to be run all together in a single Python process; because they are asynchronous, they are able to all co-exist efficiently. As an overview of how this process works:
 
@@ -55,7 +55,44 @@ Writing a deferrable operator takes a bit more work. There are some main points 
 * Your Operator will be stopped and removed from its worker while deferred, and no state will persist automatically. You can persist state by asking Airflow to resume you at a certain method or pass certain kwargs, but that's it.
 * You can defer multiple times, and you can defer before/after your Operator does significant work, or only defer if certain conditions are met (e.g. a system does not have an immediate answer). Deferral is entirely under your control.
 * Any Operator can defer; no special marking on its class is needed, and it's not limited to Sensors.
+* In order for any changes to a Trigger to be reflected, the *triggerer* needs to be restarted whenever the Trigger is modified.
+* If you want to add an operator or sensor that supports both deferrable and non-deferrable modes, it's suggested to add ``deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False)`` to the ``__init__`` method of the operator and use it to decide whether to run the operator in deferrable mode. You'll be able to configure the default value of ``deferrable`` of all the operators and sensors that support switching between deferrable and non-deferrable mode through ``default_deferrable`` in the ``operator`` section. Here's an example of a sensor that supports both modes.
 
+.. code-block:: python
+
+    import time
+    from datetime import timedelta
+    from typing import Any
+
+    from airflow.configuration import conf
+    from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.temporal import TimeDeltaTrigger
+    from airflow.utils.context import Context
+
+
+    class WaitOneHourSensor(BaseSensorOperator):
+        def __init__(
+            self, deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False), **kwargs
+        ) -> None:
+            super().__init__(**kwargs)
+            self.deferrable = deferable
+
+        def execute(self, context: Context) -> None:
+            if self.deferrable:
+                self.defer(
+                    trigger=TimeDeltaTrigger(timedelta(hours=1)),
+                    method_name="execute_complete",
+                )
+            else:
+                time.sleep(3600)
+
+        def execute_complete(
+            self,
+            context: Context,
+            event: dict[str, Any] | None = None,
+        ) -> None:
+            # We have no more work to do here. Mark as complete.
+            return
 
 Triggering Deferral
 ~~~~~~~~~~~~~~~~~~~
@@ -75,19 +112,23 @@ If your Operator returns from either its first ``execute()`` method when it's ne
 
 You are free to set ``method_name`` to ``execute`` if you want your Operator to have one entrypoint, but it, too, will have to accept ``event`` as an optional keyword argument.
 
-Here's a basic example of how a sensor might trigger deferral::
+Here's a basic example of how a sensor might trigger deferral
+
+.. code-block:: python
 
     from datetime import timedelta
+    from typing import Any
 
     from airflow.sensors.base import BaseSensorOperator
     from airflow.triggers.temporal import TimeDeltaTrigger
+    from airflow.utils.context import Context
 
 
     class WaitOneHourSensor(BaseSensorOperator):
-        def execute(self, context):
+        def execute(self, context: Context) -> None:
             self.defer(trigger=TimeDeltaTrigger(timedelta(hours=1)), method_name="execute_complete")
 
-        def execute_complete(self, context, event=None):
+        def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
             # We have no more work to do here. Mark as complete.
             return
 
@@ -120,8 +161,9 @@ There's also some design constraints to be aware of:
     Currently Triggers are only used up to their first event, as they are only used for resuming deferred tasks (which happens on the first event fired). However, we plan to allow DAGs to be launched from triggers in future, which is where multi-event triggers will be more useful.
 
 
-Here's the structure of a basic Trigger::
+Here's the structure of a basic Trigger
 
+.. code-block:: python
 
     import asyncio
 
@@ -130,7 +172,6 @@ Here's the structure of a basic Trigger::
 
 
     class DateTimeTrigger(BaseTrigger):
-
         def __init__(self, moment):
             super().__init__()
             self.moment = moment
@@ -142,6 +183,7 @@ Here's the structure of a basic Trigger::
             while self.moment > timezone.utcnow():
                 await asyncio.sleep(1)
             yield TriggerEvent(self.moment)
+
 
 This is a very simplified version of Airflow's ``DateTimeTrigger``, and you can see several things here:
 
@@ -161,8 +203,30 @@ Triggers are designed from the ground-up to be highly-available; if you want to 
 
 Depending on how much work the triggers are doing, you can fit from hundreds to tens of thousands of triggers on a single ``triggerer`` host. By default, every ``triggerer`` will have a capacity of 1000 triggers it will try to run at once; you can change this with the ``--capacity`` argument. If you have more triggers trying to run than you have capacity across all of your ``triggerer`` processes, some triggers will be delayed from running until others have completed.
 
-Airflow tries to only run triggers in one place at once, and maintains a heartbeat to all ``triggerers`` that are currently running. If a ``triggerer`` dies, or becomes partitioned from the network where Airflow's database is running, Airflow will automatically re-schedule triggers that were on that host to run elsewhere (after waiting 30 seconds for the machine to re-appear).
+Airflow tries to only run triggers in one place at once, and maintains a heartbeat to all ``triggerers`` that are currently running. If a ``triggerer`` dies, or becomes partitioned from the network where Airflow's database is running, Airflow will automatically re-schedule triggers that were on that host to run elsewhere (after waiting (2.1 * ``triggerer.job_heartbeat_sec``) seconds for the machine to re-appear).
 
 This means it's possible, but unlikely, for triggers to run in multiple places at once; this is designed into the Trigger contract, however, and entirely expected. Airflow will de-duplicate events fired when a trigger is running in multiple places simultaneously, so this process should be transparent to your Operators.
 
 Note that every extra ``triggerer`` you run will result in an extra persistent connection to your database.
+
+
+Difference between Mode='reschedule' and Deferrable=True in Sensors
+-------------------------------------------------------------------
+
+In Airflow, Sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: mode='reschedule' and deferrable=True. As mode='reschedule' is a parameter specific to the BaseSensorOperator in Airflow, which allows the sensor to reschedule itself if the condition is not met, whereas, 'deferrable=True' is a convention used by some operators to indicate that the task can be retried (or deferred) later, but it is not a built-in parameter or mode in the Airflow. The actual behavior of retrying the task may vary depending on the specific operator implementation.
+
++--------------------------------------------------------+--------------------------------------------------------+
+|           mode='reschedule'                            |          deferrable=True                               |
++========================================================+========================================================+
+| Continuously reschedules itself until condition is met |  Pauses execution when idle, resumes when condition    |
+|                                                        |  changes                                               |
++--------------------------------------------------------+--------------------------------------------------------+
+| Resource Usage is Higher (repeated execution)          |  Resource Usage is Lower (pauses when idle, frees      |
+|                                                        |  up worker slots)                                      |
++--------------------------------------------------------+--------------------------------------------------------+
+| Conditions expected to change over time                |  Waiting for external events or resources              |
+| (e.g. file creation)                                   |  (e.g. API response)                                   |
++--------------------------------------------------------+--------------------------------------------------------+
+| Built-in functionality for rescheduling                |  Requires custom logic to defer task and handle        |
+|                                                        |  external changes                                      |
++--------------------------------------------------------+--------------------------------------------------------+

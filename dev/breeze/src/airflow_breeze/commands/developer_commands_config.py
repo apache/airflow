@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
-    "name": "Basic developer commands",
+    "name": "Developer commands",
     "commands": [
         "start-airflow",
         "static-checks",
@@ -44,6 +44,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--db-reset",
                 "--max-time",
                 "--github-repository",
+                "--builder",
             ],
         },
     ],
@@ -77,6 +78,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--image-tag",
                 "--github-repository",
+                "--builder",
             ],
         },
         {
@@ -144,6 +146,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--force-build",
                 "--image-tag",
                 "--github-repository",
+                "--builder",
             ],
         },
         {
@@ -182,10 +185,10 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--docs-only",
                 "--spellcheck-only",
                 "--clean-build",
-                "--for-production",
                 "--one-pass-only",
                 "--package-filter",
                 "--github-repository",
+                "--builder",
             ],
         },
     ],
@@ -197,7 +200,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--show-diff-on-failure",
                 "--initialize-environment",
                 "--max-initialization-attempts",
-                "--github-repository",
             ],
         },
         {
@@ -208,6 +210,16 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--commit-ref",
                 "--last-commit",
                 "--only-my-changes",
+            ],
+        },
+        {
+            "name": "Building image before running checks",
+            "options": [
+                "--skip-image-check",
+                "--force-build",
+                "--image-tag",
+                "--github-repository",
+                "--builder",
             ],
         },
     ],

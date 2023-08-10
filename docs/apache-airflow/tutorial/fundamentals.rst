@@ -82,7 +82,7 @@ of default parameters that we can use when creating tasks.
     :end-before: [END default_args]
 
 For more information about the BaseOperator's parameters and what they do,
-refer to the :py:class:`airflow.models.BaseOperator` documentation.
+refer to the :py:class:`airflow.models.baseoperator.BaseOperator` documentation.
 
 Also, note that you could easily define different sets of arguments that
 would serve different purposes. An example of that would be to have
@@ -298,7 +298,7 @@ Let's run a few commands to validate this script further.
 .. code-block:: bash
 
     # initialize the database tables
-    airflow db init
+    airflow db migrate
 
     # print the list of active DAGs
     airflow dags list

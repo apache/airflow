@@ -95,6 +95,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
                             "message": "Build completed",
                         }
                     )
+                    return
                 elif cloud_build_instance._pb.status in (
                     Build.Status.WORKING,
                     Build.Status.PENDING,
@@ -111,14 +112,17 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
                     Build.Status.EXPIRED,
                 ):
                     yield TriggerEvent({"status": "error", "message": cloud_build_instance.status_detail})
+                    return
                 else:
                     yield TriggerEvent(
                         {"status": "error", "message": "Unidentified status of Cloud Build instance"}
                     )
+                    return
 
             except Exception as e:
                 self.log.exception("Exception occurred while checking for Cloud Build completion")
                 yield TriggerEvent({"status": "error", "message": str(e)})
+                return
 
     def _get_async_hook(self) -> CloudBuildAsyncHook:
         return CloudBuildAsyncHook(gcp_conn_id=self.gcp_conn_id)

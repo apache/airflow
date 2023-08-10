@@ -21,8 +21,55 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+
+``apache-airflow-providers-apache-livy``
+
+
 Changelog
 ---------
+
+3.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'LivyHook' TypeError exception on 'session_id' log format (#32051)``
+
+Misc
+~~~~
+
+* ``Add default_deferrable config (#31712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+
+3.5.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Push Spark appId to XCOM for LivyOperator with deferrable mode (#31201)``
+
+Misc
+~~~~
+
+* ``Optimize deferred mode execution (#31685)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apache provider docstring improvements (#31730)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 3.5.0
 .....

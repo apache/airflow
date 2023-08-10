@@ -27,6 +27,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import PoolNotFound
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
 def _show_pools(pools, output):
@@ -37,11 +38,13 @@ def _show_pools(pools, output):
             "pool": x[0],
             "slots": x[1],
             "description": x[2],
+            "include_deferred": x[3],
         },
     )
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def pool_list(args):
     """Displays info of all the pools."""
     api_client = get_current_api_client()
@@ -50,6 +53,7 @@ def pool_list(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def pool_get(args):
     """Displays pool info by a given name."""
     api_client = get_current_api_client()
@@ -62,15 +66,19 @@ def pool_get(args):
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def pool_set(args):
     """Creates new pool with a given name and slots."""
     api_client = get_current_api_client()
-    api_client.create_pool(name=args.pool, slots=args.slots, description=args.description)
+    api_client.create_pool(
+        name=args.pool, slots=args.slots, description=args.description, include_deferred=args.include_deferred
+    )
     print(f"Pool {args.pool} created")
 
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def pool_delete(args):
     """Deletes pool by a given name."""
     api_client = get_current_api_client()
@@ -83,6 +91,7 @@ def pool_delete(args):
 
 @cli_utils.action_cli
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def pool_import(args):
     """Imports pools from the file."""
     if not os.path.exists(args.file):
@@ -93,6 +102,7 @@ def pool_import(args):
     print(f"Uploaded {len(pools)} pool(s)")
 
 
+@providers_configuration_loaded
 def pool_export(args):
     """Exports all the pools to the file."""
     pools = pool_export_helper(args.file)
@@ -112,8 +122,15 @@ def pool_import_helper(filepath):
     pools = []
     failed = []
     for k, v in pools_json.items():
-        if isinstance(v, dict) and len(v) == 2:
-            pools.append(api_client.create_pool(name=k, slots=v["slots"], description=v["description"]))
+        if isinstance(v, dict) and "slots" in v and "description" in v:
+            pools.append(
+                api_client.create_pool(
+                    name=k,
+                    slots=v["slots"],
+                    description=v["description"],
+                    include_deferred=v.get("include_deferred", False),
+                )
+            )
         else:
             failed.append(k)
     return pools, failed
@@ -125,7 +142,7 @@ def pool_export_helper(filepath):
     pool_dict = {}
     pools = api_client.get_pools()
     for pool in pools:
-        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2]}
+        pool_dict[pool[0]] = {"slots": pool[1], "description": pool[2], "include_deferred": pool[3]}
     with open(filepath, "w") as poolfile:
         poolfile.write(json.dumps(pool_dict, sort_keys=True, indent=4))
     return pools

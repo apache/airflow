@@ -24,10 +24,12 @@ import pendulum
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from logging import Logger
 
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.utils.edgemodifier import EdgeModifier
@@ -35,7 +37,7 @@ if TYPE_CHECKING:
 
 
 class DependencyMixin:
-    """Mixing implementing common dependency setting methods methods like >> and <<."""
+    """Mixing implementing common dependency setting methods like >> and <<."""
 
     @property
     def roots(self) -> Sequence[DependencyMixin]:
@@ -69,11 +71,25 @@ class DependencyMixin:
         """Set a task or a task list to be directly downstream from the current task."""
         raise NotImplementedError()
 
+    def as_setup(self) -> DependencyMixin:
+        """Mark a task as setup task."""
+        raise NotImplementedError()
+
+    def as_teardown(
+        self,
+        *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        on_failure_fail_dagrun=NOTSET,
+    ) -> DependencyMixin:
+        """Mark a task as teardown and set its setups as direct relatives."""
+        raise NotImplementedError()
+
     def update_relative(
         self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
     ) -> None:
         """
         Update relationship information about another TaskMixin. Default is no-op.
+
         Override if necessary.
         """
 
@@ -97,6 +113,19 @@ class DependencyMixin:
         self.__rshift__(other)
         return self
 
+    @classmethod
+    def _iter_references(cls, obj: Any) -> Iterable[tuple[DependencyMixin, str]]:
+        from airflow.models.baseoperator import AbstractOperator
+        from airflow.utils.mixins import ResolveMixin
+
+        if isinstance(obj, AbstractOperator):
+            yield obj, "operator"
+        elif isinstance(obj, ResolveMixin):
+            yield from obj.iter_references()
+        elif isinstance(obj, Sequence):
+            for o in obj:
+                yield from cls._iter_references(o)
+
 
 class TaskMixin(DependencyMixin):
     """Mixin to provide task-related things.
@@ -115,8 +144,9 @@ class TaskMixin(DependencyMixin):
 
 class DAGNode(DependencyMixin, metaclass=ABCMeta):
     """
-    A base class for a node in the graph of a workflow -- an Operator or a Task Group, either mapped or
-    unmapped.
+    A base class for a node in the graph of a workflow.
+
+    A node may be an Operator or a Task Group, either mapped or unmapped.
     """
 
     dag: DAG | None = None
@@ -253,20 +283,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
-        """
-        Get set of the direct relative ids to the current task, upstream or
-        downstream.
-        """
+        """Get set of the direct relative ids to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_task_ids
         else:
             return self.downstream_task_ids
 
     def get_direct_relatives(self, upstream: bool = False) -> Iterable[DAGNode]:
-        """
-        Get list of the direct relatives to the current task, upstream or
-        downstream.
-        """
+        """Get list of the direct relatives to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_list
         else:

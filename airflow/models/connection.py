@@ -30,6 +30,7 @@ from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException, RemovedInAirflow3Warning
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.secrets.cache import SecretCache
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
@@ -60,10 +61,10 @@ def _parse_netloc_to_hostname(uri_parts):
 
 class Connection(Base, LoggingMixin):
     """
-    Placeholder to store information about different database instances
-    connection information. The idea here is that scripts use references to
-    database instances (conn_id) instead of hard coding hostname, logins and
-    passwords when using operators or hooks.
+    Placeholder to store information about different database instances connection information.
+
+    The idea here is that scripts use references to database instances (conn_id)
+    instead of hard coding hostname, logins and passwords when using operators or hooks.
 
     .. seealso::
         For more information on how to use this class, see: :doc:`/howto/connection`
@@ -141,8 +142,9 @@ class Connection(Base, LoggingMixin):
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
         """
-        Here we verify that ``extra`` is a JSON-encoded Python dict.  From Airflow 3.0, we should no
-        longer suppress these errors but raise instead.
+        Here we verify that ``extra`` is a JSON-encoded Python dict.
+
+        From Airflow 3.0, we should no longer suppress these errors but raise instead.
         """
         if extra is None:
             return None
@@ -187,10 +189,22 @@ class Connection(Base, LoggingMixin):
         return conn_type
 
     def _parse_from_uri(self, uri: str):
+        schemes_count_in_uri = uri.count("://")
+        if schemes_count_in_uri > 2:
+            raise AirflowException(f"Invalid connection string: {uri}.")
+        host_with_protocol = schemes_count_in_uri == 2
         uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
         self.conn_type = self._normalize_conn_type(conn_type)
-        self.host = _parse_netloc_to_hostname(uri_parts)
+        rest_of_the_url = uri.replace(f"{conn_type}://", ("" if host_with_protocol else "//"))
+        if host_with_protocol:
+            uri_splits = rest_of_the_url.split("://", 1)
+            if "@" in uri_splits[0] or ":" in uri_splits[0]:
+                raise AirflowException(f"Invalid connection string: {uri}.")
+        uri_parts = urlsplit(rest_of_the_url)
+        protocol = uri_parts.scheme if host_with_protocol else None
+        host = _parse_netloc_to_hostname(uri_parts)
+        self.host = self._create_host(protocol, host)
         quoted_schema = uri_parts.path[1:]
         self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
         self.login = unquote(uri_parts.username) if uri_parts.username else uri_parts.username
@@ -202,6 +216,15 @@ class Connection(Base, LoggingMixin):
                 self.extra = query[self.EXTRA_KEY]
             else:
                 self.extra = json.dumps(query)
+
+    @staticmethod
+    def _create_host(protocol, host) -> str | None:
+        """Returns the connection host with the protocol."""
+        if not host:
+            return host
+        if protocol:
+            return f"{protocol}://{host}"
+        return host
 
     def get_uri(self) -> str:
         """Return connection in URI format."""
@@ -216,6 +239,14 @@ class Connection(Base, LoggingMixin):
         else:
             uri = "//"
 
+        if self.host and "://" in self.host:
+            protocol, host = self.host.split("://", 1)
+        else:
+            protocol, host = None, self.host
+
+        if protocol:
+            uri += f"{protocol}://"
+
         authority_block = ""
         if self.login is not None:
             authority_block += quote(self.login, safe="")
@@ -229,8 +260,8 @@ class Connection(Base, LoggingMixin):
             uri += authority_block
 
         host_block = ""
-        if self.host:
-            host_block += quote(self.host, safe="")
+        if host:
+            host_block += quote(host, safe="")
 
         if self.port:
             if host_block == "" and authority_block == "":
@@ -347,8 +378,9 @@ class Connection(Base, LoggingMixin):
 
     def log_info(self):
         """
-        This method is deprecated. You can read each field individually or use the
-        default representation (`__repr__`).
+        This method is deprecated.
+
+        You can read each field individually or use the default representation (`__repr__`).
         """
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
@@ -364,8 +396,9 @@ class Connection(Base, LoggingMixin):
 
     def debug_info(self):
         """
-        This method is deprecated. You can read each field individually or use the
-        default representation (`__repr__`).
+        This method is deprecated.
+
+        You can read each field individually or use the default representation (`__repr__`).
         """
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
@@ -419,10 +452,20 @@ class Connection(Base, LoggingMixin):
         :param conn_id: connection id
         :return: connection
         """
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        try:
+            uri = SecretCache.get_connection_uri(conn_id)
+            return Connection(conn_id=conn_id, uri=uri)
+        except SecretCache.NotPresentException:
+            pass  # continue business
+
+        # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
                 conn = secrets_backend.get_connection(conn_id=conn_id)
                 if conn:
+                    SecretCache.save_connection_uri(conn_id, conn.get_uri())
                     return conn
             except Exception:
                 log.exception(

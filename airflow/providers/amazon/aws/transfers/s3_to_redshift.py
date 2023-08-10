@@ -116,16 +116,19 @@ class S3ToRedshiftOperator(BaseOperator):
 
         if self.redshift_data_api_kwargs:
             for arg in ["sql", "parameters"]:
-                if arg in self.redshift_data_api_kwargs.keys():
+                if arg in self.redshift_data_api_kwargs:
                     raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
 
-    def _build_copy_query(self, copy_destination: str, credentials_block: str, copy_options: str) -> str:
+    def _build_copy_query(
+        self, copy_destination: str, credentials_block: str, region_info: str, copy_options: str
+    ) -> str:
         column_names = "(" + ", ".join(self.column_list) + ")" if self.column_list else ""
         return f"""
                     COPY {copy_destination} {column_names}
                     FROM 's3://{self.s3_bucket}/{self.s3_key}'
                     credentials
                     '{credentials_block}'
+                    {region_info}
                     {copy_options};
         """
 
@@ -139,7 +142,9 @@ class S3ToRedshiftOperator(BaseOperator):
         else:
             redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
-
+        region_info = ""
+        if conn.extra_dejson.get("region", False):
+            region_info = f"region '{conn.extra_dejson['region']}'"
         if conn.extra_dejson.get("role_arn", False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:
@@ -151,7 +156,9 @@ class S3ToRedshiftOperator(BaseOperator):
         destination = f"{self.schema}.{self.table}"
         copy_destination = f"#{self.table}" if self.method == "UPSERT" else destination
 
-        copy_statement = self._build_copy_query(copy_destination, credentials_block, copy_options)
+        copy_statement = self._build_copy_query(
+            copy_destination, credentials_block, region_info, copy_options
+        )
 
         sql: str | Iterable[str]
 
@@ -171,7 +178,7 @@ class S3ToRedshiftOperator(BaseOperator):
             where_statement = " AND ".join([f"{self.table}.{k} = {copy_destination}.{k}" for k in keys])
 
             sql = [
-                f"CREATE TABLE {copy_destination} (LIKE {destination});",
+                f"CREATE TABLE {copy_destination} (LIKE {destination} INCLUDING DEFAULTS);",
                 copy_statement,
                 "BEGIN;",
                 f"DELETE FROM {destination} USING {copy_destination} WHERE {where_statement};",

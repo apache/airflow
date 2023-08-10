@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from pandas import DataFrame
 from tabulate import tabulate
@@ -51,7 +51,7 @@ class BaseSqlToSlackOperator(BaseOperator):
         sql: str,
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -80,12 +80,15 @@ class BaseSqlToSlackOperator(BaseOperator):
 
 class SqlToSlackOperator(BaseSqlToSlackOperator):
     """
-    Executes an SQL statement in a given SQL connection and sends the results to Slack. The results of the
-    query are rendered into the 'slack_message' parameter as a Pandas dataframe using a JINJA variable called
-    '{{ results_df }}'. The 'results_df' variable name can be changed by specifying a different
-    'results_df_name' parameter. The Tabulate library is added to the JINJA environment as a filter to
-    allow the dataframe to be rendered nicely. For example, set 'slack_message' to {{ results_df |
-    tabulate(tablefmt="pretty", headers="keys") }} to send the results to Slack as an ascii rendered table.
+    Executes an SQL statement in a given SQL connection and sends the results to Slack.
+
+    The results of the query are rendered into the 'slack_message' parameter as a Pandas
+    dataframe using a JINJA variable called '{{ results_df }}'. The 'results_df' variable
+    name can be changed by specifying a different 'results_df_name' parameter. The Tabulate
+    library is added to the JINJA environment as a filter to allow the dataframe to be
+    rendered nicely. For example, set 'slack_message' to {{ results_df |
+    tabulate(tablefmt="pretty", headers="keys") }} to send the results to Slack as an ascii
+    rendered table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -122,7 +125,7 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         slack_channel: str | None = None,
         slack_message: str,
         results_df_name: str = "results_df",
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
 
@@ -243,7 +246,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         sql: str,
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         slack_conn_id: str,
         slack_filename: str,
         slack_channels: str | Sequence[str] | None = None,

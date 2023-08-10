@@ -15,18 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-A TaskGroup is a collection of closely related tasks on the same DAG that should be grouped
-together when the DAG is displayed graphically.
-"""
+"""A collection of closely related tasks on the same DAG that should be grouped together visually."""
 from __future__ import annotations
 
 import copy
 import functools
 import operator
-import re
 import weakref
 from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
+
+import re2
 
 from airflow.compat.functools import cache
 from airflow.exceptions import (
@@ -52,8 +50,10 @@ if TYPE_CHECKING:
 
 class TaskGroup(DAGNode):
     """
-    A collection of tasks. When set_downstream() or set_upstream() are called on the
-    TaskGroup, it is applied across all tasks within the group if necessary.
+    A collection of tasks.
+
+    When set_downstream() or set_upstream() are called on the TaskGroup, it is applied across
+    all tasks within the group if necessary.
 
     :param group_id: a unique, meaningful id for the TaskGroup. group_id must not conflict
         with group_id of TaskGroup or task_id of tasks in the DAG. Root TaskGroup has group_id
@@ -166,11 +166,11 @@ class TaskGroup(DAGNode):
         if self._group_id in self.used_group_ids:
             if not add_suffix_on_collision:
                 raise DuplicateTaskIdFound(f"group_id '{self._group_id}' has already been added to the DAG")
-            base = re.split(r"__\d+$", self._group_id)[0]
+            base = re2.split(r"__\d+$", self._group_id)[0]
             suffixes = sorted(
-                int(re.split(r"^.+__", used_group_id)[1])
+                int(re2.split(r"^.+__", used_group_id)[1])
                 for used_group_id in self.used_group_ids
-                if used_group_id is not None and re.match(rf"^{base}__\d+$", used_group_id)
+                if used_group_id is not None and re2.match(rf"^{base}__\d+$", used_group_id)
             )
             if not suffixes:
                 self._group_id += "__1"
@@ -206,13 +206,17 @@ class TaskGroup(DAGNode):
             else:
                 yield child
 
-    def add(self, task: DAGNode) -> None:
+    def add(self, task: DAGNode) -> DAGNode:
         """Add a task to this TaskGroup.
 
         :meta private:
         """
         from airflow.models.abstractoperator import AbstractOperator
 
+        if TaskGroupContext.active:
+            if task.task_group and task.task_group != self:
+                task.task_group.children.pop(task.node_id, None)
+                task.task_group = self
         existing_tg = task.task_group
         if isinstance(task, AbstractOperator) and existing_tg is not None and existing_tg != self:
             raise TaskAlreadyInTaskGroup(task.node_id, existing_tg.node_id, self.node_id)
@@ -236,6 +240,7 @@ class TaskGroup(DAGNode):
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
+        return task
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
@@ -312,6 +317,7 @@ class TaskGroup(DAGNode):
     ) -> None:
         """
         Call set_upstream/set_downstream for all root/leaf tasks within this TaskGroup.
+
         Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids.
         """
         if not isinstance(task_or_task_list, Sequence):
@@ -352,28 +358,40 @@ class TaskGroup(DAGNode):
         return list(self.get_leaves())
 
     def get_roots(self) -> Generator[BaseOperator, None, None]:
-        """
-        Returns a generator of tasks that are root tasks, i.e. those with no upstream
-        dependencies within the TaskGroup.
-        """
-        for task in self:
-            if not any(self.has_task(parent) for parent in task.get_direct_relatives(upstream=True)):
+        """Return a generator of tasks with no upstream dependencies within the TaskGroup."""
+        tasks = list(self)
+        ids = {x.task_id for x in tasks}
+        for task in tasks:
+            if task.upstream_task_ids.isdisjoint(ids):
                 yield task
 
     def get_leaves(self) -> Generator[BaseOperator, None, None]:
-        """
-        Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
-        dependencies within the TaskGroup.
-        """
-        for task in self:
-            if not any(self.has_task(child) for child in task.get_direct_relatives(upstream=False)):
-                yield task
+        """Return a generator of tasks with no downstream dependencies within the TaskGroup."""
+        tasks = list(self)
+        ids = {x.task_id for x in tasks}
+
+        def recurse_for_first_non_teardown(task):
+            for upstream_task in task.upstream_list:
+                if upstream_task.task_id not in ids:
+                    # upstream task is not in task group
+                    continue
+                elif upstream_task.is_teardown:
+                    yield from recurse_for_first_non_teardown(upstream_task)
+                elif task.is_teardown and upstream_task.is_setup:
+                    # don't go through the teardown-to-setup path
+                    continue
+                else:
+                    yield upstream_task
+
+        for task in tasks:
+            if task.downstream_task_ids.isdisjoint(ids):
+                if not task.is_teardown:
+                    yield task
+                else:
+                    yield from recurse_for_first_non_teardown(task)
 
     def child_id(self, label):
-        """
-        Prefix label with group_id if prefix_group_id is True. Otherwise return the label
-        as-is.
-        """
+        """Prefix label with group_id if prefix_group_id is True. Otherwise return the label as-is."""
         if self.prefix_group_id:
             group_id = self.group_id
             if group_id:
@@ -384,6 +402,8 @@ class TaskGroup(DAGNode):
     @property
     def upstream_join_id(self) -> str:
         """
+        Creates a unique ID for upstream dependencies of this TaskGroup.
+
         If this TaskGroup has immediate upstream TaskGroups or tasks, a proxy node called
         upstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
@@ -393,6 +413,8 @@ class TaskGroup(DAGNode):
     @property
     def downstream_join_id(self) -> str:
         """
+        Creates a unique ID for downstream dependencies of this TaskGroup.
+
         If this TaskGroup has immediate downstream TaskGroups or tasks, a proxy node called
         downstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
@@ -425,10 +447,22 @@ class TaskGroup(DAGNode):
 
         return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
 
+    def hierarchical_alphabetical_sort(self):
+        """
+        Sorts children in hierarchical alphabetical order.
+
+        - groups in alphabetical order first
+        - tasks in alphabetical order after them.
+
+        :return: list of tasks in hierarchical alphabetical order
+        """
+        return sorted(
+            self.children.values(), key=lambda node: (not isinstance(node, TaskGroup), node.node_id)
+        )
+
     def topological_sort(self, _include_subdag_tasks: bool = False):
         """
-        Sorts children in topographical order, such that a task comes after any of its
-        upstream dependencies.
+        Sorts children in topographical order, such that a task comes after any of its upstream dependencies.
 
         :return: list of tasks in topological order
         """
@@ -587,6 +621,7 @@ class MappedTaskGroup(TaskGroup):
 class TaskGroupContext:
     """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
 
+    active: bool = False
     _context_managed_task_group: TaskGroup | None = None
     _previous_context_managed_task_groups: list[TaskGroup] = []
 
@@ -596,6 +631,7 @@ class TaskGroupContext:
         if cls._context_managed_task_group:
             cls._previous_context_managed_task_groups.append(cls._context_managed_task_group)
         cls._context_managed_task_group = task_group
+        cls.active = True
 
     @classmethod
     def pop_context_managed_task_group(cls) -> TaskGroup | None:
@@ -605,6 +641,7 @@ class TaskGroupContext:
             cls._context_managed_task_group = cls._previous_context_managed_task_groups.pop()
         else:
             cls._context_managed_task_group = None
+        cls.active = False
         return old_task_group
 
     @classmethod
@@ -622,21 +659,24 @@ class TaskGroupContext:
 
 
 def task_group_to_dict(task_item_or_group):
-    """
-    Create a nested dict representation of this TaskGroup and its children used to construct
-    the Graph.
-    """
+    """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     from airflow.models.abstractoperator import AbstractOperator
 
-    if isinstance(task_item_or_group, AbstractOperator):
+    if isinstance(task := task_item_or_group, AbstractOperator):
+        setup_teardown_type = {}
+        if task.is_setup is True:
+            setup_teardown_type["setupTeardownType"] = "setup"
+        elif task.is_teardown is True:
+            setup_teardown_type["setupTeardownType"] = "teardown"
         return {
-            "id": task_item_or_group.task_id,
+            "id": task.task_id,
             "value": {
-                "label": task_item_or_group.label,
-                "labelStyle": f"fill:{task_item_or_group.ui_fgcolor};",
-                "style": f"fill:{task_item_or_group.ui_color};",
+                "label": task.label,
+                "labelStyle": f"fill:{task.ui_fgcolor};",
+                "style": f"fill:{task.ui_color};",
                 "rx": 5,
                 "ry": 5,
+                **setup_teardown_type,
             },
         }
     task_group = task_item_or_group

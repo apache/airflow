@@ -44,8 +44,7 @@ MetaData = Sequence[Tuple[str, str]]
 
 
 class CloudVisionCreateProductSetOperator(GoogleCloudBaseOperator):
-    """
-    Creates a new ProductSet resource.
+    """Create a new ProductSet resource.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -137,8 +136,7 @@ class CloudVisionCreateProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionGetProductSetOperator(GoogleCloudBaseOperator):
-    """
-    Gets information associated with a ProductSet.
+    """Get information associated with a ProductSet.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -215,19 +213,21 @@ class CloudVisionGetProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionUpdateProductSetOperator(GoogleCloudBaseOperator):
-    """
-    Makes changes to a `ProductSet` resource. Only display_name can be updated currently.
+    """Make changes to a `ProductSet` resource.
 
-    .. note:: To locate the `ProductSet` resource, its `name` in the form
+    Only ``display_name`` can be updated currently.
+
+    .. note:: To locate the ``ProductSet`` resource, its ``name`` in the form
         `projects/PROJECT_ID/locations/LOC_ID/productSets/PRODUCT_SET_ID` is necessary.
 
-    You can provide the `name` directly as an attribute of the `product_set` object.
-    However, you can leave it blank and provide `location` and `product_set_id` instead
-    (and optionally `project_id` - if not present, the connection default will be used)
-    and the `name` will be created by the operator itself.
+    You can provide the ``name` directly as an attribute of the ``product_set``
+    object. You can also leave it blank, in which case ``name`` will be created
+    by the operator from ``location`` and ``product_set_id`` instead (and
+    optionally ``project_id``; if not present, the connection default will be
+    used).
 
-    This mechanism exists for your convenience, to allow leaving the `project_id` empty
-    and having Airflow use the connection default `project_id`.
+    This mechanism exists for your convenience, to allow leaving the
+    ``project_id`` empty and having Airflow use the connection default.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -319,17 +319,17 @@ class CloudVisionUpdateProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDeleteProductSetOperator(GoogleCloudBaseOperator):
-    """
-    Permanently deletes a `ProductSet`. `Products` and `ReferenceImages` in the
-    `ProductSet` are not deleted. The actual image files are not deleted from Google
-    Cloud Storage.
+    """Permanently deletes a ``ProductSet``.
+
+    ``Products`` and ``ReferenceImages`` in the ``ProductSet`` are not deleted.
+    The actual image files are not deleted from Google Cloud Storage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudVisionDeleteProductSetOperator`
 
-    :param location: (Required) The region where the ProductSet is located. Valid regions (as of 2019-02-05)
-        are: us-east1, us-west1, europe-west1, asia-east1
+    :param location: (Required) The region where the ProductSet is located.
+        Valid regions (as of 2019-02-05) are: us-east1, us-west1, europe-west1, asia-east1
     :param product_set_id: (Required) The resource id of this ProductSet.
     :param project_id: (Optional) The project in which the ProductSet should be created.
         If set to None or missing, the default project_id from the Google Cloud connection is used.
@@ -399,14 +399,13 @@ class CloudVisionDeleteProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionCreateProductOperator(GoogleCloudBaseOperator):
-    """
-    Creates and returns a new product resource.
+    """Create and return a new product resource.
 
-    Possible errors regarding the `Product` object provided:
+    Possible errors regarding the ``Product`` object provided:
 
-    - Returns `INVALID_ARGUMENT` if `display_name` is missing or longer than 4096 characters.
-    - Returns `INVALID_ARGUMENT` if `description` is longer than 4096 characters.
-    - Returns `INVALID_ARGUMENT` if `product_category` is missing or invalid.
+    - Returns ``INVALID_ARGUMENT`` if ``display_name`` is missing or longer than 4096 characters.
+    - Returns ``INVALID_ARGUMENT`` if ``description`` is longer than 4096 characters.
+    - Returns ``INVALID_ARGUMENT`` if ``product_category`` is missing or invalid.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -497,8 +496,7 @@ class CloudVisionCreateProductOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionGetProductOperator(GoogleCloudBaseOperator):
-    """
-    Gets information associated with a `Product`.
+    """Get information associated with a ``Product``.
 
     Possible errors:
 
@@ -579,9 +577,9 @@ class CloudVisionGetProductOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionUpdateProductOperator(GoogleCloudBaseOperator):
-    """
-    Makes changes to a Product resource. Only the display_name, description, and labels fields can be
-    updated right now.
+    """Make changes to a Product resource.
+
+    Only the display_name, description, and labels fields can be updated right now.
 
     If labels are updated, the change will not be reflected in queries until the next index time.
 
@@ -692,11 +690,11 @@ class CloudVisionUpdateProductOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDeleteProductOperator(GoogleCloudBaseOperator):
-    """
-    Permanently deletes a product and its reference images.
+    """Permanently delete a product and its reference images.
 
-    Metadata of the product and all its images will be deleted right away, but search queries against
-    ProductSets containing the product may still work until all related caches are refreshed.
+    Metadata of the product and all its images will be deleted right away, but
+    search queries against ProductSets containing the product may still work
+    until all related caches are refreshed.
 
     Possible errors:
 
@@ -777,8 +775,7 @@ class CloudVisionDeleteProductOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionImageAnnotateOperator(GoogleCloudBaseOperator):
-    """
-    Run image detection and annotation for an image or a batch of images.
+    """Run image detection and annotation for an image or a batch of images.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -845,8 +842,7 @@ class CloudVisionImageAnnotateOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionCreateReferenceImageOperator(GoogleCloudBaseOperator):
-    """
-    Creates and returns a new ReferenceImage ID resource.
+    """Create and return a new ReferenceImage ID resource.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -949,8 +945,7 @@ class CloudVisionCreateReferenceImageOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDeleteReferenceImageOperator(GoogleCloudBaseOperator):
-    """
-    Deletes a ReferenceImage ID resource.
+    """Delete a ReferenceImage ID resource.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1035,10 +1030,10 @@ class CloudVisionDeleteReferenceImageOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionAddProductToProductSetOperator(GoogleCloudBaseOperator):
-    """
-    Adds a Product to the specified ProductSet. If the Product is already present, no change is made.
+    """Add a Product to the specified ProductSet.
 
-    One Product can be added to at most 100 ProductSets.
+    If the Product is already present, no change is made. One Product can be
+    added to at most 100 ProductSets.
 
     Possible errors:
 
@@ -1124,8 +1119,7 @@ class CloudVisionAddProductToProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionRemoveProductFromProductSetOperator(GoogleCloudBaseOperator):
-    """
-    Removes a Product from the specified ProductSet.
+    """Remove a Product from the specified ProductSet.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1207,8 +1201,7 @@ class CloudVisionRemoveProductFromProductSetOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDetectTextOperator(GoogleCloudBaseOperator):
-    """
-    Detects Text in the image.
+    """Detect Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1289,8 +1282,7 @@ class CloudVisionDetectTextOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionTextDetectOperator(GoogleCloudBaseOperator):
-    """
-    Detects Document Text in the image.
+    """Detect Document Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1370,8 +1362,7 @@ class CloudVisionTextDetectOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDetectImageLabelsOperator(GoogleCloudBaseOperator):
-    """
-    Detects Document Text in the image.
+    """Detect Document Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1441,8 +1432,7 @@ class CloudVisionDetectImageLabelsOperator(GoogleCloudBaseOperator):
 
 
 class CloudVisionDetectImageSafeSearchOperator(GoogleCloudBaseOperator):
-    """
-    Detects Document Text in the image.
+    """Detect Document Text in the image.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1514,9 +1504,10 @@ class CloudVisionDetectImageSafeSearchOperator(GoogleCloudBaseOperator):
 def prepare_additional_parameters(
     additional_properties: dict | None, language_hints: Any, web_detection_params: Any
 ) -> dict | None:
-    """
-    Creates additional_properties parameter based on language_hints, web_detection_params and
-    additional_properties parameters specified by the user.
+    """Create a value for the ``additional_properties`` parameter.
+
+    The new value is based on ``language_hints``, ``web_detection_params``, and
+    ``additional_properties`` parameters specified by the user.
     """
     if language_hints is None and web_detection_params is None:
         return additional_properties

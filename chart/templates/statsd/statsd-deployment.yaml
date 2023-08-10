@@ -27,7 +27,7 @@
 {{- $topologySpreadConstraints := or .Values.statsd.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.statsd.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "localPodSecurityContext" .Values.statsd }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.statsd) }}
+{{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.statsd }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -97,6 +97,13 @@ spec:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
+          {{- if .Values.statsd.env }}
+          env:
+            {{- range $i, $config := .Values.statsd.env }}
+            - value: {{ $config.value | quote }}
+              name: {{ $config.name | quote }}
+            {{- end }}
+          {{- end }}
           ports:
             - name: statsd-ingest
               protocol: UDP

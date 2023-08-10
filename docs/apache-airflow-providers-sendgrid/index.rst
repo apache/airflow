@@ -19,16 +19,25 @@
 ``apache-airflow-providers-sendgrid``
 =====================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/sendgrid/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -39,6 +48,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -51,7 +61,7 @@ Package apache-airflow-providers-sendgrid
 `Sendgrid <https://sendgrid.com/>`__
 
 
-Release: 3.2.0
+Release: 3.2.1
 
 Provider package
 ----------------
@@ -77,5 +87,3 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.4.0``
 ``sendgrid``        ``>=6.0.0``
 ==================  ==================
-
-.. include:: ../../airflow/providers/sendgrid/CHANGELOG.rst

@@ -22,6 +22,7 @@ import click
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
+    ALL_HISTORICAL_PYTHON_VERSIONS,
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
     ALLOWED_CELERY_BROKERS,
@@ -449,6 +450,12 @@ argument_packages = click.argument(
     required=False,
     type=BetterChoice(get_available_documentation_packages(short_version=True)),
 )
+argument_packages_plus_all_providers = click.argument(
+    "packages_plus_all_providers",
+    nargs=-1,
+    required=False,
+    type=BetterChoice(["all-providers"] + get_available_documentation_packages(short_version=True)),
+)
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
@@ -501,7 +508,8 @@ option_builder = click.option(
     "--builder",
     help="Buildx builder used to perform `docker buildx build` commands.",
     envvar="BUILDER",
-    default="default",
+    show_default=True,
+    default="autodetect",
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
@@ -560,4 +568,18 @@ option_skip_constraints = click.option(
     is_flag=True,
     help="Do not use constraints when installing providers.",
     envvar="SKIP_CONSTRAINTS",
+)
+option_historical_python_version = click.option(
+    "--python",
+    type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
+    required=False,
+    envvar="PYTHON_VERSION",
+    help="Python version to update sbom from. (defaults to all historical python versions)",
+)
+option_commit_sha = click.option(
+    "--commit-sha",
+    default=None,
+    show_default=True,
+    envvar="COMMIT_SHA",
+    help="Commit SHA that is used to build the images.",
 )

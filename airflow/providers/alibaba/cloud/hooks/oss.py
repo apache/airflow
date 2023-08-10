@@ -35,10 +35,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def provide_bucket_name(func: T) -> T:
-    """
-    Function decorator that unifies bucket name and key taken from the key
-    in case no bucket name and at least a key has been passed to the function.
-    """
+    """Function decorator that unifies bucket name and key  is a key is provided but not a bucket name."""
     function_signature = signature(func)
 
     @wraps(func)
@@ -56,10 +53,7 @@ def provide_bucket_name(func: T) -> T:
 
 
 def unify_bucket_name_and_key(func: T) -> T:
-    """
-    Function decorator that unifies bucket name and key taken from the key
-    in case no bucket name and at least a key has been passed to the function.
-    """
+    """Function decorator that unifies bucket name and key  is a key is provided but not a bucket name."""
     function_signature = signature(func)
 
     @wraps(func)
@@ -72,7 +66,7 @@ def unify_bucket_name_and_key(func: T) -> T:
             raise ValueError("Missing key parameter!")
 
         key_name = get_key()
-        if "bucket_name" not in bound_args.arguments or bound_args.arguments["bucket_name"] is None:
+        if bound_args.arguments.get("bucket_name") is None:
             bound_args.arguments["bucket_name"], bound_args.arguments["key"] = OSSHook.parse_oss_url(
                 bound_args.arguments[key_name]
             )

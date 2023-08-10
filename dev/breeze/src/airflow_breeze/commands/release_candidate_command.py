@@ -20,6 +20,7 @@ import os
 
 import click
 
+from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.common_options import option_answer
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
@@ -202,7 +203,10 @@ def push_packages_to_test_pypi(version):
             "environment. The package download link is available at: "
             "https://test.pypi.org/project/apache-airflow/#files "
             "Install it with the appropriate constraint file, adapt python version: "
-            f"pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/apache-airflow=={version} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-{version}/constraints-3.8.txt"  # noqa: 501
+            f"pip install -i https://test.pypi.org/simple/ --extra-index-url "
+            f"https://pypi.org/simple/apache-airflow=={version} --constraint "
+            f"https://raw.githubusercontent.com/apache/airflow/"
+            f"constraints-{version}/constraints-3.8.txt"
         )
 
 
@@ -294,11 +298,10 @@ def remove_old_releases(version, repo_root):
     os.chdir(repo_root)
 
 
-@click.command(
+@release_management.command(
     name="start-rc-process",
     short_help="Start RC process",
     help="Start the process for releasing a new RC.",
-    hidden=True,
 )
 @click.option("--version", required=True, help="The release candidate version e.g. 2.4.3rc1")
 @click.option("--previous-version", required=True, help="Previous version released e.g. 2.4.2")

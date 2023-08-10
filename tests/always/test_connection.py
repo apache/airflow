@@ -484,6 +484,50 @@ class TestConnection:
                     schema="",
                 ),
             ),
+            (
+                "spark://k8s%3a%2F%2F100.68.0.1:443?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login=None,
+                    password=None,
+                    host="k8s://100.68.0.1",
+                    port=443,
+                    schema="",
+                ),
+            ),
+            (
+                "spark://user:password@k8s%3a%2F%2F100.68.0.1:443?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login="user",
+                    password="password",
+                    host="k8s://100.68.0.1",
+                    port=443,
+                    schema="",
+                ),
+            ),
+            (
+                "spark://user@k8s%3a%2F%2F100.68.0.1:443?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login="user",
+                    password=None,
+                    host="k8s://100.68.0.1",
+                    port=443,
+                    schema="",
+                ),
+            ),
+            (
+                "spark://k8s%3a%2F%2Fno.port.com?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login=None,
+                    password=None,
+                    host="k8s://no.port.com",
+                    port=None,
+                    schema="",
+                ),
+            ),
         ],
     )
     def test_connection_from_with_auth_info(self, uri, uri_parts):
@@ -709,14 +753,14 @@ class TestConnection:
     @mock.patch.dict(
         "os.environ",
         {
-            "AIRFLOW_CONN_TEST_URI_NO_HOOK": "fs://",
+            "AIRFLOW_CONN_TEST_URI_NO_HOOK": "unknown://",
         },
     )
     def test_connection_test_no_hook(self):
-        conn = Connection(conn_id="test_uri_no_hook", conn_type="fs")
+        conn = Connection(conn_id="test_uri_no_hook", conn_type="unknown")
         res = conn.test_connection()
         assert res[0] is False
-        assert res[1] == 'Unknown hook type "fs"'
+        assert res[1] == 'Unknown hook type "unknown"'
 
     @mock.patch.dict(
         "os.environ",

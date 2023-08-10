@@ -26,6 +26,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.triggers.external_task import DagStateTrigger, TaskStateTrigger
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.timezone import utcnow
 
 
 class TestTaskStateTrigger:
@@ -40,6 +41,7 @@ class TestTaskStateTrigger:
         Asserts that the TaskStateTrigger only goes off on or after a TaskInstance
         reaches an allowed state (i.e. SUCCESS).
         """
+        trigger_start_time = utcnow()
         dag = DAG(self.DAG_ID, start_date=timezone.datetime(2022, 1, 1))
         dag_run = DagRun(
             dag_id=dag.dag_id,
@@ -61,6 +63,7 @@ class TestTaskStateTrigger:
             states=self.STATES,
             execution_dates=[timezone.datetime(2022, 1, 1)],
             poll_interval=0.2,
+            trigger_start_time=trigger_start_time,
         )
 
         task = asyncio.create_task(trigger.run().__anext__())
@@ -83,12 +86,14 @@ class TestTaskStateTrigger:
         Asserts that the TaskStateTrigger correctly serializes its arguments
         and classpath.
         """
+        trigger_start_time = utcnow()
         trigger = TaskStateTrigger(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
             states=self.STATES,
             execution_dates=[timezone.datetime(2022, 1, 1)],
             poll_interval=5,
+            trigger_start_time=trigger_start_time,
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.triggers.external_task.TaskStateTrigger"
@@ -98,6 +103,7 @@ class TestTaskStateTrigger:
             "states": self.STATES,
             "execution_dates": [timezone.datetime(2022, 1, 1)],
             "poll_interval": 5,
+            "trigger_start_time": trigger_start_time,
         }
 
 

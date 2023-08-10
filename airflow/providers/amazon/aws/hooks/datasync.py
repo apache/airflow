@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class DataSyncHook(AwsBaseHook):
     """
     Interact with AWS DataSync.
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("datasync") <DataSync.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -124,17 +125,11 @@ class DataSyncHook(AwsBaseHook):
 
     def _refresh_locations(self) -> None:
         """Refresh the local list of Locations."""
-        self.locations = []
-        next_token = None
-        while True:
-            if next_token:
-                locations = self.get_conn().list_locations(NextToken=next_token)
-            else:
-                locations = self.get_conn().list_locations()
+        locations = self.get_conn().list_locations()
+        self.locations = locations["Locations"]
+        while "NextToken" in locations:
+            locations = self.get_conn().list_locations(NextToken=locations["NextToken"])
             self.locations.extend(locations["Locations"])
-            if "NextToken" not in locations:
-                break
-            next_token = locations["NextToken"]
 
     def create_task(
         self, source_location_arn: str, destination_location_arn: str, **create_task_kwargs
@@ -180,17 +175,11 @@ class DataSyncHook(AwsBaseHook):
 
     def _refresh_tasks(self) -> None:
         """Refreshes the local list of Tasks."""
-        self.tasks = []
-        next_token = None
-        while True:
-            if next_token:
-                tasks = self.get_conn().list_tasks(NextToken=next_token)
-            else:
-                tasks = self.get_conn().list_tasks()
+        tasks = self.get_conn().list_tasks()
+        self.tasks = tasks["Tasks"]
+        while "NextToken" in tasks:
+            tasks = self.get_conn().list_tasks(NextToken=tasks["NextToken"])
             self.tasks.extend(tasks["Tasks"])
-            if "NextToken" not in tasks:
-                break
-            next_token = tasks["NextToken"]
 
     def get_task_arns_for_location_arns(
         self,
@@ -198,8 +187,7 @@ class DataSyncHook(AwsBaseHook):
         destination_location_arns: list,
     ) -> list:
         """
-        Return list of TaskArns for which use any one of the specified
-        source LocationArns and any one of the specified destination LocationArns.
+        Return list of TaskArns which use both a specified source and destination LocationArns.
 
         :param source_location_arns: List of source LocationArns.
         :param destination_location_arns: List of destination LocationArns.
@@ -224,6 +212,7 @@ class DataSyncHook(AwsBaseHook):
     def start_task_execution(self, task_arn: str, **kwargs) -> str:
         """
         Start a TaskExecution for the specified task_arn.
+
         Each task can have at most one TaskExecution.
         Additional keyword arguments send to ``start_task_execution`` boto3 method.
 
@@ -300,6 +289,7 @@ class DataSyncHook(AwsBaseHook):
     def wait_for_task_execution(self, task_execution_arn: str, max_iterations: int = 60) -> bool:
         """
         Wait for Task Execution status to be complete (SUCCESS/ERROR).
+
         The ``task_execution_arn`` must exist, or a boto3 ClientError will be raised.
 
         :param task_execution_arn: TaskExecutionArn

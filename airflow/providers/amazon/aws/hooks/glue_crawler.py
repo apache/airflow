@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.sts import StsHook
 class GlueCrawlerHook(AwsBaseHook):
     """
     Interacts with AWS Glue Crawler.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -86,7 +87,9 @@ class GlueCrawlerHook(AwsBaseHook):
         crawler_name = crawler_kwargs["Name"]
         current_crawler = self.get_crawler(crawler_name)
 
-        tags_updated = self.update_tags(crawler_name, crawler_kwargs.pop("Tags", {}))
+        tags_updated = (
+            self.update_tags(crawler_name, crawler_kwargs.pop("Tags")) if "Tags" in crawler_kwargs else False
+        )
 
         update_config = {
             key: value
@@ -169,9 +172,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def wait_for_crawler_completion(self, crawler_name: str, poll_interval: int = 5) -> str:
         """
-        Waits until Glue crawler completes and
-        returns the status of the latest crawl run.
-        Raises AirflowException if the crawler fails or is cancelled.
+        Wait until Glue crawler completes; returns the status of the latest crawl or raises AirflowException.
 
         :param crawler_name: unique crawler name per AWS account
         :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status

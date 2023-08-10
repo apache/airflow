@@ -290,9 +290,6 @@ class MappedOperator(AbstractOperator):
 
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
     supports_lineage: bool = False
-    is_setup: bool = False
-    is_teardown: bool = False
-    on_failure_fail_dagrun: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         (
@@ -339,9 +336,9 @@ class MappedOperator(AbstractOperator):
             "task_group",
             "upstream_task_ids",
             "supports_lineage",
-            "is_setup",
-            "is_teardown",
-            "on_failure_fail_dagrun",
+            "_is_setup",
+            "_is_teardown",
+            "_on_failure_fail_dagrun",
         }
 
     @staticmethod
@@ -390,6 +387,26 @@ class MappedOperator(AbstractOperator):
     @property
     def trigger_rule(self) -> TriggerRule:
         return self.partial_kwargs.get("trigger_rule", DEFAULT_TRIGGER_RULE)
+
+    @trigger_rule.setter
+    def trigger_rule(self, value):
+        self.partial_kwargs["trigger_rule"] = value
+
+    @property
+    def is_setup(self) -> bool:
+        return bool(self.partial_kwargs.get("is_setup"))
+
+    @is_setup.setter
+    def is_setup(self, value: bool) -> None:
+        self.partial_kwargs["is_setup"] = value
+
+    @property
+    def is_teardown(self) -> bool:
+        return bool(self.partial_kwargs.get("is_teardown"))
+
+    @is_teardown.setter
+    def is_teardown(self, value: bool) -> None:
+        self.partial_kwargs["is_teardown"] = value
 
     @property
     def depends_on_past(self) -> bool:
@@ -620,12 +637,18 @@ class MappedOperator(AbstractOperator):
             else:
                 raise RuntimeError("cannot unmap a non-serialized operator without context")
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
+            is_setup = kwargs.pop("is_setup", False)
+            is_teardown = kwargs.pop("is_teardown", False)
+            on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
             op = self.operator_class(**kwargs, _airflow_from_mapped=True)
             # We need to overwrite task_id here because BaseOperator further
             # mangles the task_id based on the task hierarchy (namely, group_id
             # is prepended, and '__N' appended to deduplicate). This is hacky,
             # but better than duplicating the whole mangling logic.
             op.task_id = self.task_id
+            op.is_setup = is_setup
+            op.is_teardown = is_teardown
+            op.on_failure_fail_dagrun = on_failure_fail_dagrun
             return op
 
         # After a mapped operator is serialized, there's no real way to actually
@@ -636,6 +659,8 @@ class MappedOperator(AbstractOperator):
 
         op = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
         SerializedBaseOperator.populate_operator(op, self.operator_class)
+        if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
+            SerializedBaseOperator.set_task_dag_references(op, self.dag)
         return op
 
     def _get_specified_expand_input(self) -> ExpandInput:

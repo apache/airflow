@@ -19,10 +19,18 @@
 ``apache-airflow-providers-cncf-kubernetes``
 ============================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -30,18 +38,23 @@ Content
     Operators <operators>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
+    CLI <cli-ref>
     Python API <_api/airflow/providers/cncf/kubernetes/index>
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/cncf/kubernetes/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -53,6 +66,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -65,7 +79,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 7.0.0
+Release: 7.4.1
 
 Provider package
 ----------------
@@ -94,5 +108,3 @@ PIP package             Version required
 ``kubernetes``          ``>=21.7.0,<24``
 ``kubernetes_asyncio``  ``>=18.20.1,<25``
 ======================  ==================
-
-.. include:: ../../airflow/providers/cncf/kubernetes/CHANGELOG.rst

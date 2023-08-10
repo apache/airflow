@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import tempfile
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generator
@@ -30,8 +31,8 @@ from urllib3.exceptions import HTTPError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.utils import yaml
 
@@ -99,6 +100,12 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
             "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
+            "xcom_sidecar_container_image": StringField(
+                lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
+            ),
+            "xcom_sidecar_container_resources": StringField(
+                lazy_gettext("XCom sidecar resources (JSON format)"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -162,6 +169,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     def _get_field(self, field_name):
         """
+        Handles backcompat for extra fields.
+
         Prior to Airflow 2.3, in order to make use of UI customizations for extra fields,
         we needed to store them with the prefix ``extra__kubernetes__``. This method
         handles the backcompat, i.e. if the extra dict contains prefixed fields.
@@ -354,6 +363,17 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             return self._get_field("namespace")
         return None
 
+    def get_xcom_sidecar_container_image(self):
+        """Returns the xcom sidecar image that defined in the connection."""
+        return self._get_field("xcom_sidecar_container_image")
+
+    def get_xcom_sidecar_container_resources(self):
+        """Returns the xcom sidecar resources that defined in the connection."""
+        field = self._get_field("xcom_sidecar_container_resources")
+        if not field:
+            return None
+        return json.loads(field)
+
     def get_pod_log_stream(
         self,
         pod_name: str,
@@ -429,10 +449,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
 
 def _get_bool(val) -> bool | None:
-    """
-    Converts val to bool if can be done with certainty.
-    If we cannot infer intention we return None.
-    """
+    """Converts val to bool if can be done with certainty; if we cannot infer intention we return None."""
     if isinstance(val, bool):
         return val
     elif isinstance(val, str):
@@ -569,9 +586,12 @@ class AsyncKubernetesHook(KubernetesHook):
 
     async def read_logs(self, name: str, namespace: str):
         """
-        Reads logs inside the pod while starting containers inside. All the logs will be outputted with its
-        timestamp to track the logs after the execution of the pod is completed. The method is used for async
-        output of the logs only in the pod failed it execution or the task was cancelled by the user.
+        Reads logs inside the pod while starting containers inside.
+
+        All the logs will be outputted with its timestamp to track
+        the logs after the execution of the pod is completed. The
+        method is used for async output of the logs only in the pod
+        failed it execution or the task was cancelled by the user.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.

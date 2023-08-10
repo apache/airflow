@@ -36,8 +36,11 @@ if TYPE_CHECKING:
 
 class MySqlToHiveOperator(BaseOperator):
     """
-    Moves data from MySql to Hive. The operator runs your query against
-    MySQL, stores the file locally before loading it into a Hive table.
+    Moves data from MySql to Hive.
+
+    The operator runs your query against MySQL, stores the file locally
+    before loading it into a Hive table.
+
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
     Hive data types are inferred from the cursor's metadata. Note that the
@@ -148,7 +151,7 @@ class MySqlToHiveOperator(BaseOperator):
                     if cursor.description is not None:
                         for field in cursor.description:
                             field_dict[field[0]] = self.type_map(field[1])
-                    csv_writer.writerows(cursor)
+                    csv_writer.writerows(cursor)  # type: ignore[arg-type]
             f.flush()
             self.log.info("Loading file into Hive")
             hive.load_file(

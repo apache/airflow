@@ -21,16 +21,28 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-apache-hdfs``
+
+
 Changelog
 ---------
 
 4.1.0
 -----
 
+.. note::
+  This release dropped support for Python 3.7
+
 Features
 ~~~~~~~~
 
 * Add ability to read/write task instance logs from HDFS (#31512)
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates release notes for snakebite-py3 incompatibility with protobuf (#31756)``
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 4.0.0
 -----

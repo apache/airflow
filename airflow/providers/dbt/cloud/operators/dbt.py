@@ -22,6 +22,7 @@ import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.dbt.cloud.hooks.dbt import (
@@ -37,10 +38,7 @@ if TYPE_CHECKING:
 
 
 class DbtCloudRunJobOperatorLink(BaseOperatorLink):
-    """
-    Operator link for DbtCloudRunJobOperator. This link allows users to monitor the triggered job run
-    directly in dbt Cloud.
-    """
+    """Allows users to monitor the triggered job run directly in dbt Cloud."""
 
     name = "Monitor Job Run"
 
@@ -102,7 +100,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
         additional_run_config: dict[str, Any] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -192,8 +190,8 @@ class DbtCloudRunJobOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])

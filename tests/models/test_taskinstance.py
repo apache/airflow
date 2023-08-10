@@ -86,7 +86,6 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
@@ -97,7 +96,7 @@ from tests.test_utils.mock_operators import MockOperator
 @pytest.fixture
 def test_pool():
     with create_session() as session:
-        test_pool = Pool(pool="test_pool", slots=1)
+        test_pool = Pool(pool="test_pool", slots=1, include_deferred=False)
         session.add(test_pool)
         session.flush()
         yield test_pool
@@ -1304,7 +1303,7 @@ class TestTaskInstance:
                 task = EmptyOperator(task_id=f"work_{i}", dag=dag)
                 task.set_downstream(downstream)
             for i in range(upstream_setups):
-                task = EmptyOperator.as_setup(task_id=f"setup_{i}", dag=dag)
+                task = EmptyOperator(task_id=f"setup_{i}", dag=dag).as_setup()
                 task.set_downstream(downstream)
             assert task.start_date is not None
             run_date = task.start_date + datetime.timedelta(days=5)
@@ -3000,86 +2999,6 @@ class TestTaskInstance:
         with create_session() as session:
             session.query(RenderedTaskInstanceFields).delete()
 
-    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    @mock.patch("airflow.settings.pod_mutation_hook")
-    def test_render_k8s_pod_yaml(self, pod_mutation_hook, create_task_instance):
-        ti = create_task_instance(
-            dag_id="test_render_k8s_pod_yaml",
-            run_id="test_run_id",
-            task_id="op1",
-            execution_date=DEFAULT_DATE,
-        )
-
-        expected_pod_spec = {
-            "metadata": {
-                "annotations": {
-                    "dag_id": "test_render_k8s_pod_yaml",
-                    "run_id": "test_run_id",
-                    "task_id": "op1",
-                    "try_number": "1",
-                },
-                "labels": {
-                    "airflow-worker": "0",
-                    "airflow_version": version,
-                    "dag_id": "test_render_k8s_pod_yaml",
-                    "run_id": "test_run_id",
-                    "kubernetes_executor": "True",
-                    "task_id": "op1",
-                    "try_number": "1",
-                },
-                "name": mock.ANY,
-                "namespace": "default",
-            },
-            "spec": {
-                "containers": [
-                    {
-                        "args": [
-                            "airflow",
-                            "tasks",
-                            "run",
-                            "test_render_k8s_pod_yaml",
-                            "op1",
-                            "test_run_id",
-                            "--subdir",
-                            __file__,
-                        ],
-                        "name": "base",
-                        "env": [{"name": "AIRFLOW_IS_K8S_EXECUTOR_POD", "value": "True"}],
-                    }
-                ]
-            },
-        }
-
-        assert ti.render_k8s_pod_yaml() == expected_pod_spec
-        pod_mutation_hook.assert_called_once_with(mock.ANY)
-
-    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    @mock.patch.object(RenderedTaskInstanceFields, "get_k8s_pod_yaml")
-    def test_get_rendered_k8s_spec(self, rtif_get_k8s_pod_yaml, create_task_instance):
-        # Create new TI for the same Task
-        ti = create_task_instance()
-
-        patcher = mock.patch.object(ti, "render_k8s_pod_yaml", autospec=True)
-
-        fake_spec = {"ermagawds": "pods"}
-
-        session = mock.Mock()
-
-        with patcher as render_k8s_pod_yaml:
-            rtif_get_k8s_pod_yaml.return_value = fake_spec
-            assert ti.get_rendered_k8s_spec(session) == fake_spec
-
-            rtif_get_k8s_pod_yaml.assert_called_once_with(ti, session=session)
-            render_k8s_pod_yaml.assert_not_called()
-
-            # Now test that when we _dont_ find it in the DB, it calls render_k8s_pod_yaml
-            rtif_get_k8s_pod_yaml.return_value = None
-            render_k8s_pod_yaml.return_value = fake_spec
-
-            assert ti.get_rendered_k8s_spec(session) == fake_spec
-
-            render_k8s_pod_yaml.assert_called_once()
-
     def test_set_state_up_for_retry(self, create_task_instance):
         ti = create_task_instance(state=State.RUNNING)
 
@@ -3114,6 +3033,7 @@ class TestTaskInstance:
             "queue": "some_queue_id",
             "priority_weight": 123,
             "operator": "some_custom_operator",
+            "custom_operator_name": "some_custom_operator",
             "queued_dttm": run_date + datetime.timedelta(hours=1),
             "queued_by_job_id": 321,
             "pid": 123,

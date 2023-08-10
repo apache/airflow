@@ -28,13 +28,24 @@ from flask_babel import lazy_gettext
 from wtforms import BooleanField, Field, StringField
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers_manager import HookClassProvider, ProviderInfo, ProvidersManager
+from airflow.providers_manager import (
+    HookClassProvider,
+    LazyDictWithCache,
+    PluginInfo,
+    ProviderInfo,
+    ProvidersManager,
+)
 
 
 class TestProviderManager:
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
+
+    @pytest.fixture(autouse=True, scope="function")
+    def clean(self):
+        """The tests depend on a clean state of a ProvidersManager."""
+        ProvidersManager().__init__()
 
     def test_providers_are_loaded(self):
         with self._caplog.at_level(logging.WARNING):
@@ -151,6 +162,28 @@ class TestProviderManager:
             "different class names: 'airflow.providers.dummy.hooks.dummy.DummyHook'"
             " and 'airflow.providers.dummy.hooks.dummy.DummyHook2'."
         ) in self._caplog.records[0].message
+
+    def test_providers_manager_register_plugins(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict["apache-airflow-providers-apache-hive"] = ProviderInfo(
+            version="0.0.1",
+            data={
+                "plugins": [
+                    {
+                        "name": "plugin1",
+                        "plugin-class": "airflow.providers.apache.hive.plugins.hive.HivePlugin",
+                    }
+                ]
+            },
+            package_or_source="package",
+        )
+        providers_manager._discover_plugins()
+        assert len(providers_manager._plugins_set) == 1
+        assert providers_manager._plugins_set.pop() == PluginInfo(
+            name="plugin1",
+            plugin_class="airflow.providers.apache.hive.plugins.hive.HivePlugin",
+            provider_name="apache-airflow-providers-apache-hive",
+        )
 
     def test_hooks(self):
         with pytest.warns(expected_warning=None) as warning_records:
@@ -346,6 +379,11 @@ class TestProviderManager:
         trigger_class_names = list(provider_manager.trigger)
         assert len(trigger_class_names) > 10
 
+    def test_notification(self):
+        provider_manager = ProvidersManager()
+        notification_class_names = list(provider_manager.notification)
+        assert len(notification_class_names) > 5
+
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_no_warning(self, mock_importlib_import_string):
         with self._caplog.at_level(logging.WARNING):
@@ -373,3 +411,32 @@ class TestProviderManager:
             assert [
                 "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"
             ] == self._caplog.messages
+
+
+@pytest.mark.parametrize(
+    "value, expected_outputs,",
+    [
+        ("a", "a"),
+        (1, 1),
+        (None, None),
+        (lambda: 0, 0),
+        (lambda: None, None),
+        (lambda: "z", "z"),
+    ],
+)
+def test_lazy_cache_dict_resolving(value, expected_outputs):
+    lazy_cache_dict = LazyDictWithCache()
+    lazy_cache_dict["key"] = value
+    assert lazy_cache_dict["key"] == expected_outputs
+    # Retrieve it again to see if it is correctly returned again
+    assert lazy_cache_dict["key"] == expected_outputs
+
+
+def test_lazy_cache_dict_raises_error():
+    def raise_method():
+        raise Exception("test")
+
+    lazy_cache_dict = LazyDictWithCache()
+    lazy_cache_dict["key"] = raise_method
+    with pytest.raises(Exception, match="test"):
+        _ = lazy_cache_dict["key"]

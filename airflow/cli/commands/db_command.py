@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import os
 import textwrap
+import warnings
 from tempfile import NamedTemporaryFile
 
 from packaging.version import parse as parse_version
@@ -31,17 +32,25 @@ from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.process_utils import execute_interactive
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
 
 
+@providers_configuration_loaded
 def initdb(args):
     """Initializes the metadata database."""
+    warnings.warn(
+        "`db init` is deprecated.  Use `db migrate` instead to migrate the db and/or "
+        "airflow connections create-default-connections to create the default connections",
+        DeprecationWarning,
+    )
     print("DB: " + repr(settings.engine.url))
     db.initdb()
     print("Initialization done")
 
 
+@providers_configuration_loaded
 def resetdb(args):
     """Resets the metadata database."""
     print("DB: " + repr(settings.engine.url))
@@ -50,9 +59,16 @@ def resetdb(args):
     db.resetdb(skip_init=args.skip_init)
 
 
-@cli_utils.action_cli(check_db=False)
 def upgradedb(args):
     """Upgrades the metadata database."""
+    warnings.warn("`db updgrade` is deprecated. Use `db migrate` instead.", DeprecationWarning)
+    migratedb(args)
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def migratedb(args):
+    """Migrates the metadata database."""
     print("DB: " + repr(settings.engine.url))
     if args.to_revision and args.to_version:
         raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
@@ -81,7 +97,7 @@ def upgradedb(args):
         to_revision = args.to_revision
 
     if not args.show_sql_only:
-        print("Performing upgrade with database " + repr(settings.engine.url))
+        print("Performing upgrade to the metadata database " + repr(settings.engine.url))
     else:
         print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
 
@@ -92,10 +108,11 @@ def upgradedb(args):
         reserialize_dags=args.reserialize_dags,
     )
     if not args.show_sql_only:
-        print("Upgrades done")
+        print("Database migrating done!")
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def downgrade(args):
     """Downgrades the metadata database."""
     if args.to_revision and args.to_version:
@@ -142,12 +159,14 @@ def downgrade(args):
         raise SystemExit("Cancelled")
 
 
+@providers_configuration_loaded
 def check_migrations(args):
     """Function to wait for all airflow migrations to complete. Used for launching airflow in k8s."""
     db.check_migrations(timeout=args.migration_wait_timeout)
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def shell(args):
     """Run a shell that allows to access metadata database."""
     url = settings.engine.url
@@ -191,6 +210,7 @@ def shell(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def check(args):
     """Runs a check command that checks if db is available."""
     retries: int = args.retry
@@ -215,6 +235,7 @@ all_tables = sorted(config_dict)
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def cleanup_tables(args):
     """Purges old records in metadata database."""
     run_cleanup(
@@ -228,6 +249,7 @@ def cleanup_tables(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def export_archived(args):
     """Exports archived records from metadata database."""
     export_archived_records(
@@ -240,6 +262,7 @@ def export_archived(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def drop_archived(args):
     """Drops archived tables from metadata database."""
     drop_archived_tables(

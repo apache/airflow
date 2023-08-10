@@ -23,7 +23,7 @@ Google Cloud SQL Operators
 Prerequisite Tasks
 ------------------
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:CloudSQLCreateInstanceDatabaseOperator:
 
@@ -240,6 +240,14 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_export]
     :end-before: [END howto_operator_cloudsql_export]
+
+Also for all this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloudsql_export_async]
+    :end-before: [END howto_operator_cloudsql_export_async]
 
 Templating
 """"""""""

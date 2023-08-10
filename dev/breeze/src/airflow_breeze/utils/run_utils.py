@@ -361,10 +361,7 @@ def commit_sha():
 
 def filter_out_none(**kwargs) -> dict:
     """Filters out all None values from parameters passed."""
-    for key in list(kwargs):
-        if kwargs[key] is None:
-            kwargs.pop(key)
-    return kwargs
+    return {key: val for key, val in kwargs.items() if val is not None}
 
 
 def check_if_image_exists(image: str) -> bool:
@@ -444,6 +441,18 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
             sys.exit(1)
 
 
+def kill_process_group(gid: int):
+    """
+    Kills all processes in the process group and ignore if the group is missing.
+
+    :param gid: process group id
+    """
+    try:
+        os.killpg(gid, signal.SIGTERM)
+    except OSError:
+        pass
+
+
 def run_compile_www_assets(
     dev: bool,
     run_in_background: bool,
@@ -474,12 +483,13 @@ def run_compile_www_assets(
         pid = os.fork()
         if pid:
             # Parent process - send signal to process group of the child process
-            atexit.register(os.killpg, pid, signal.SIGTERM)
+            atexit.register(kill_process_group, pid)
         else:
             # Check if we are not a group leader already (We should not be)
             if os.getpid() != os.getsid(0):
                 # and create a new process group where we are the leader
                 os.setpgid(0, 0)
             _run_compile_internally(command_to_execute, dev)
+            sys.exit(0)
     else:
         return _run_compile_internally(command_to_execute, dev)

@@ -264,10 +264,7 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         return hyperparameter_tuning_job
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_hyperparameter_tuning_job()
 

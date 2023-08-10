@@ -63,7 +63,7 @@ Those are just examples, see further for more explanation why those are the best
 .. note::
 
    Generally speaking, Python community established practice is to perform application installation in a
-   virtualenv created with ``virtualenv`` or ``venv`` tools. You can also use ``pipx`` to install Airflow in a
+   virtualenv created with ``virtualenv`` or ``venv`` tools. You can also use ``pipx`` to install Airflow™ in a
    application dedicated virtual environment created for you. There are also other tools that can be used
    to manage your virtualenv installation and you are free to choose how you are managing the environments.
    Airflow has no limitation regarding to the tool of your choice when it comes to virtual environment.
@@ -80,7 +80,7 @@ Constraints files
 Why we need constraints
 =======================
 
-Airflow installation can be tricky because Airflow is both a library and an application.
+Airflow™ installation can be tricky because Airflow is both a library and an application.
 
 Libraries usually keep their dependencies open and applications usually pin them, but we should do neither
 and both at the same time. We decided to keep our dependencies as open as possible
@@ -239,10 +239,10 @@ Installation and upgrade scenarios
 
 In order to simplify the installation, we have prepared examples of how to upgrade Airflow and providers.
 
-Installing Airflow with extras and providers
-============================================
+Installing Airflow™ with extras and providers
+=============================================
 
-If you need to install extra dependencies of Airflow, you can use the script below to make an installation
+If you need to install extra dependencies of Airflow™, you can use the script below to make an installation
 a one-liner (the example below installs Postgres and Google providers, as well as ``async`` extra).
 
 .. code-block:: bash
@@ -272,6 +272,7 @@ released and tested together when the version of Airflow you are installing was 
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
+.. _installing-from-pypi-managing-providers-separately-from-airflow-core:
 
 Managing providers separately from Airflow core
 ===============================================
@@ -335,8 +336,8 @@ Troubleshooting
 
 This section describes how to troubleshoot installation issues with PyPI installation.
 
-Airflow command is not recognized
-=================================
+The 'airflow' command is not recognized
+=======================================
 
 If the ``airflow`` command is not getting recognized (can happen on Windows when using WSL), then
 ensure that ``~/.local/bin`` is in your ``PATH`` environment variable, and add it in if necessary:
@@ -350,7 +351,7 @@ You can also start airflow with ``python -m airflow``
 Symbol not found: ``_Py_GetArgcArgv``
 =====================================
 
-If you see ``Symbol not found: _Py_GetArgcArgv`` while starting or importing Airflow, this may mean that you are using an incompatible version of Python.
+If you see ``Symbol not found: _Py_GetArgcArgv`` while starting or importing ``airflow``, this may mean that you are using an incompatible version of Python.
 For a homebrew installed version of Python, this is generally caused by using Python in ``/usr/local/opt/bin`` rather than the Frameworks installation (e.g. for ``python 3.8``: ``/usr/local/opt/python@3.8/Frameworks/Python.framework/Versions/3.8``).
 
 The crux of the issue is that a library Airflow depends on, ``setproctitle``, uses a non-public Python API
