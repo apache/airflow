@@ -39,7 +39,10 @@ airflow_version = "2.7.0"
 def upgrade():
     """Apply add include_deferred column to pool"""
     with op.batch_alter_table("slot_pool") as batch_op:
-        batch_op.add_column(sa.Column("include_deferred", sa.Boolean, default=False))
+        batch_op.add_column(sa.Column("include_deferred", sa.Boolean))
+    op.execute("UPDATE slot_pool SET include_deferred = FALSE")
+    with op.batch_alter_table("slot_pool") as batch_op:
+        batch_op.alter_column("include_deferred", existing_type=sa.Boolean, nullable=False)
 
 
 def downgrade():
