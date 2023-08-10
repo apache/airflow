@@ -265,9 +265,8 @@ class ListOfDictsExpandInput(NamedTuple):
                     f"expand_kwargs() input dict keys must all be str, "
                     f"but {key!r} is of type {_describe_type(key)}"
                 )
-        parse_time_resolved_kwargs = ((k, v) for k, v in mapping.items() if _is_parse_time_mappable(v))
-        literal_keys = {k for k, _ in parse_time_resolved_kwargs}
-        resolved_oids = {id(v) for k, v in mapping.items() if k not in literal_keys}
+        # filter out parse time resolved values from the resolved_oids
+        resolved_oids = {id(v) for k, v in mapping.items() if not _is_parse_time_mappable(v)}
 
         return mapping, resolved_oids
 
