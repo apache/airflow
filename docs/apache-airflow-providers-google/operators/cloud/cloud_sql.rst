@@ -243,7 +243,7 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
 
 Also for all this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql_deferrable.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_cloudsql_export_async]
