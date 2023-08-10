@@ -118,7 +118,7 @@ from airflow_breeze.utils.run_utils import (
     run_command,
     run_compile_www_assets,
 )
-from airflow_breeze.utils.shared_options import get_forced_answer
+from airflow_breeze.utils.shared_options import get_dry_run, get_forced_answer
 from airflow_breeze.utils.suspended_providers import get_suspended_provider_ids
 
 option_debug_release_management = click.option(
@@ -1275,3 +1275,164 @@ def generate_providers_metadata(refresh_constraints: bool, python: str | None):
     import json
 
     PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4, sort_keys=True))
+
+
+def fetch_remote(constraints_repo: Path, remote_name: str) -> None:
+    run_command(["git", "fetch", remote_name], cwd=constraints_repo)
+
+
+def checkout_constraint_tag_and_reset_branch(constraints_repo: Path, airflow_version: str) -> None:
+    run_command(
+        ["git", "reset", "--hard"],
+        cwd=constraints_repo,
+    )
+    # Switch to tag
+    run_command(
+        ["git", "checkout", f"constraints-{airflow_version}"],
+        cwd=constraints_repo,
+    )
+    # Create or reset branch to point
+    run_command(
+        ["git", "checkout", "-B", f"constraints-{airflow_version}-fix"],
+        cwd=constraints_repo,
+    )
+    get_console().print(
+        f"[info]Checked out constraints tag: constraints-{airflow_version} and "
+        f"reset branch constraints-{airflow_version}-fix to it.[/]"
+    )
+    result = run_command(
+        ["git", "show", "-s", "--format=%H"],
+        cwd=constraints_repo,
+        text=True,
+        capture_output=True,
+    )
+    get_console().print(f"[info]The hash commit of the tag:[/] {result.stdout}")
+
+
+def modify_single_file_constraints(constraints_file: Path, updated_constraints: tuple[str]) -> bool:
+    constraint_content = constraints_file.read_text()
+    original_content = constraint_content
+    for constraint in updated_constraints:
+        package, version = constraint.split("==")
+        constraint_content = re.sub(
+            rf"^{package}==.*$", f"{package}=={version}", constraint_content, flags=re.MULTILINE
+        )
+    if constraint_content != original_content:
+        if not get_dry_run():
+            constraints_file.write_text(constraint_content)
+        get_console().print("[success]Updated.[/]")
+        return True
+    else:
+        get_console().print("[warning]The file has not been modified.[/]")
+        return False
+
+
+def modify_all_constraint_files(constraints_repo: Path, updated_constraint: tuple[str]) -> bool:
+    get_console().print("[info]Updating constraints files:[/]")
+    modified = False
+    for constraints_file in constraints_repo.glob("constraints-*.txt"):
+        get_console().print(f"[info]Updating {constraints_file.name}")
+        if modify_single_file_constraints(constraints_file, updated_constraint):
+            modified = True
+    return modified
+
+
+def confirm_modifications(constraints_repo: Path) -> bool:
+    run_command(["git", "diff"], cwd=constraints_repo, env={"PAGER": ""})
+    confirm = user_confirm("Do you want to continue?")
+    if confirm == Answer.YES:
+        return True
+    elif confirm == Answer.NO:
+        return False
+    else:
+        sys.exit(1)
+
+
+def commit_constraints_and_tag(constraints_repo: Path, airflow_version: str, commit_message: str) -> None:
+    run_command(
+        ["git", "commit", "-a", "--no-verify", "-m", commit_message],
+        cwd=constraints_repo,
+    )
+    run_command(
+        ["git", "tag", f"constraints-{airflow_version}", "--force", "-s", "-m", commit_message, "HEAD"],
+        cwd=constraints_repo,
+    )
+
+
+def push_constraints_and_tag(constraints_repo: Path, remote_name: str, airflow_version: str) -> None:
+    run_command(
+        ["git", "push", remote_name, f"constraints-{airflow_version}-fix"],
+        cwd=constraints_repo,
+    )
+    run_command(
+        ["git", "push", remote_name, f"constraints-{airflow_version}", "--force"],
+        cwd=constraints_repo,
+    )
+
+
+@release_management.command(
+    name="update-constraints", help="Update released constraints with manual changes."
+)
+@click.option(
+    "--constraints-repo",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=Path, exists=True),
+    required=True,
+    envvar="CONSTRAINTS_REPO",
+    help="Path where airflow repository is checked out, with ``constraints-main`` branch checked out.",
+)
+@click.option(
+    "--remote-name",
+    type=str,
+    default="apache",
+    envvar="REMOTE_NAME",
+    help="Name of the remote to push the changes to.",
+)
+@click.option(
+    "--airflow-versions",
+    type=str,
+    required=True,
+    envvar="AIRFLOW_VERSIONS",
+    help="Comma separated list of Airflow versions to update constraints for.",
+)
+@click.option(
+    "--commit-message",
+    type=str,
+    required=True,
+    envvar="COMMIT_MESSAGE",
+    help="Commit message to use for the constraints update.",
+)
+@click.option(
+    "--updated-constraint",
+    required=True,
+    envvar="UPDATED_CONSTRAINT",
+    multiple=True,
+    help="Constraints to be set - in the form of `package==version`. Can be repeated",
+)
+@option_verbose
+@option_dry_run
+@option_answer
+def update_constraints(
+    constraints_repo: Path,
+    remote_name: str,
+    airflow_versions: str,
+    commit_message: str,
+    updated_constraint: tuple[str],
+) -> None:
+    airflow_versions_array = airflow_versions.split(",")
+    if len(airflow_versions_array) == 0:
+        get_console().print("[error]No airflow versions specified - you provided empty string[/]")
+        sys.exit(1)
+
+    get_console().print(f"Updating constraints for {airflow_versions_array} with {updated_constraint}")
+    if (
+        user_confirm(f"The {constraints_repo.name} repo will be reset. Continue?", quit_allowed=False)
+        != Answer.YES
+    ):
+        sys.exit(1)
+    fetch_remote(constraints_repo, remote_name)
+    for airflow_version in airflow_versions_array:
+        checkout_constraint_tag_and_reset_branch(constraints_repo, airflow_version)
+        if modify_all_constraint_files(constraints_repo, updated_constraint):
+            if confirm_modifications(constraints_repo):
+                commit_constraints_and_tag(constraints_repo, airflow_version, commit_message)
+                push_constraints_and_tag(constraints_repo, remote_name, airflow_version)
