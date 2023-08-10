@@ -65,7 +65,7 @@ merges to `main` branch builds (also known as `canary` builds) have separate mai
 take care about refreshing the cache that is used to speed up our builds and to speed up
 rebuilding of [Breeze](../BREEZE.rst) images for development purpose. This is all happening automatically, usually:
 
-* The latest [constraints](../CONTRIBUTING.rst#pinned-constraint-files) are pushed to appropriate branch  after all tests succeed in the
+* The latest [constraints](../CONTRIBUTING.rst#pinned-constraint-files) are pushed to appropriate branch after all tests succeed in the
   `canary` build.
 
 * The [images](../IMAGES.rst) in `ghcr.io` registry are refreshed early at the beginning of the `canary` build. This
@@ -145,7 +145,7 @@ docker buildx ls
 ## How to refresh the image cache
 
 The images can be rebuilt and refreshed after the constraints are pushed. Refreshing image for all
-python version is a simple as running the [refresh_images.sh](refresh_images.sh) script which will
+python version is as simple as running the [refresh_images.sh](refresh_images.sh) script which will
 rebuild all the images in parallel and push them to the registry.
 
 Note that you need to run `docker login ghcr.io` before you run the script and you need to be
@@ -226,7 +226,7 @@ git push
 The slight risk is that if there is a constraint problem that impacts regular PRs and tests then it might
 make all PRs "red" until the constraint is fixed. However, if this is the case then usually we should fix
 the problem by fixing the tests or dependencies and the automated CI process should be able to self-heal.
-The main build does not use constraints and it will attempt to upgrade (or downgradea) the dependencies to
+The main build does not use constraints and it will attempt to upgrade (or downgrade) the dependencies to
 the latest version matching the dependency specification we have in setup.cfg/setup.py/provider.yaml files.
 Also the constraints are pushed without `--force` so there is no risk of destroying anything.
 The history is kept in Git, so you can always revert to the previous version if needed.
@@ -240,7 +240,7 @@ constraints that were used in the past. This happened already several times and 
 there is a backwards-incompatible change in the build environment in Python installation toolchain
 (pip, setuptools, wheel, Cython etc.). The Python build environment is not controllable by us - by default
 pip uses `build isolation` which means that it will install the latest version of the build tools. Those
-tools versions are chosen by `pip` separately for each package. However. this might mean that new versions of
+tools versions are chosen by `pip` separately for each package. However, this might mean that new versions of
 such tools, released after the package has been released can break the installation. This happened for
 example in July 2023 when major (3.0.0) version of Cython has been released and it
 broke `pymssql` installation. We had to update the constraint files to use `pymssql==2.2.8` instead
