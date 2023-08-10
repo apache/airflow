@@ -61,10 +61,10 @@ class AwsLogsHook(AwsBaseHook):
         log_group: str,
         log_stream_name: str,
         start_time: int = 0,
-        end_time: int | None = None,
         skip: int = 0,
         start_from_head: bool | None = None,
         continuation_token: ContinuationToken | None = None,
+        end_time: int | None = None,
     ) -> Generator:
         """
         A generator for log items in a single stream; yields all items available at the current moment.
@@ -75,14 +75,14 @@ class AwsLogsHook(AwsBaseHook):
         :param log_group: The name of the log group.
         :param log_stream_name: The name of the specific stream.
         :param start_time: The timestamp value in ms to start reading the logs from (default: 0).
-        :param end_time: The timestamp value in ms to stop reading the logs from (default: None).
-            If None is provided, reads it until the end of the log stream
         :param skip: The number of log entries to skip at the start (default: 0).
             This is for when there are multiple entries at the same timestamp.
         :param start_from_head: Deprecated. Do not use with False, logs would be retrieved out of order.
             If possible, retrieve logs in one query, or implement pagination yourself.
         :param continuation_token: a token indicating where to read logs from.
             Will be updated as this method reads new logs, to be reused in subsequent calls.
+        :param end_time: The timestamp value in ms to stop reading the logs from (default: None).
+            If None is provided, reads it until the end of the log stream
         :return: | A CloudWatch log event with the following key-value pairs:
                  |   'timestamp' (int): The time in milliseconds of the event.
                  |   'message' (str): The log event data.
