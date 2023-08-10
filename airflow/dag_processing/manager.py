@@ -51,6 +51,7 @@ from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths, might_contain_dag
@@ -1073,6 +1074,10 @@ class DagFileProcessorManager(LoggingMixin):
 
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
+        # initialize cache to mutualize calls to Variable.get in DAGs
+        # needs to be done before this process is forked to create the DAG parsing processes.
+        SecretCache.init()
+
         while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
             file_path = self._file_path_queue.popleft()
             # Stop creating duplicate processor i.e. processor with the same filepath
