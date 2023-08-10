@@ -364,7 +364,6 @@ def filter_out_none(**kwargs) -> dict:
     return {key: val for key, val in kwargs.items() if val is not None}
 
 
-
 def check_if_image_exists(image: str) -> bool:
     cmd_result = run_command(
         ["docker", "inspect", image],
