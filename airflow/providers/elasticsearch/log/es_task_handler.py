@@ -143,7 +143,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         parsed_url = urlparse(host)
 
         # Check if the scheme is either http or https
-        if not parsed_url.scheme:
+        # Handles also the Python 3.9+ case where urlparse understands "localhost:9200"
+        # differently than urlparse in Python 3.8 and below (https://github.com/psf/requests/issues/6455)
+        if parsed_url.scheme not in ("http", "https"):
             host = "http://" + host
             parsed_url = urlparse(host)
 
