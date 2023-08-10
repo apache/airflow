@@ -25,7 +25,7 @@ from datetime import datetime
 from operator import attrgetter
 from time import time
 from typing import TYPE_CHECKING, Any, Callable, List, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
@@ -105,7 +105,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             retry_timeout = es_kwargs.get("retry_timeout")
             if retry_timeout:
                 es_kwargs["retry_on_timeout"] = retry_timeout
-            del es_kwargs["retry_timeout"]
+                del es_kwargs["retry_timeout"]
         host = self.format_url(host)
         super().__init__(base_log_folder, filename_template)
         self.closed = False
