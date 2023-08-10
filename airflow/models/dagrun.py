@@ -179,6 +179,7 @@ class DagRun(Base, LoggingMixin):
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
     clear_number = Column(Integer, default=0, nullable=False)
+    sla_missed = Column(Boolean, default=True, server_default=False, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -249,6 +250,7 @@ class DagRun(Base, LoggingMixin):
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
+        sla_missed: bool | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -277,6 +279,7 @@ class DagRun(Base, LoggingMixin):
         self.dag_hash = dag_hash
         self.creating_job_id = creating_job_id
         self.clear_number = 0
+        self.sla_missed = sla_missed
         super().__init__()
 
     def __repr__(self):
@@ -752,6 +755,34 @@ class DagRun(Base, LoggingMixin):
 
         tis_for_dagrun_state = self._tis_for_dagrun_state(dag=dag, tis=tis)
 
+        # check if sla has just been missed for this dagrun
+        if dag.sla and not self.sla_missed and not self.run_type == DagRunType.BACKFILL_JOB:
+            start_time = self.start_date
+            ts = timezone.utcnow()
+            if dag.sla > ts - start_time:
+                self.sla_missed = True
+
+                if execute_callbacks:
+                    dag.handle_callback(
+                        self,
+                        dagrun_state=DagRunState.RUNNING,
+                        sla_miss=True,
+                        reason="sla_missed",
+                        session=session,
+                    )
+                elif dag.has_on_sla_miss_callback:
+                    from airflow.models.dag import DagModel
+
+                    dag_model = DagModel.get_dagmodel(dag.dag_id, session)
+                    callback = DagCallbackRequest(
+                        full_filepath=dag.fileloc,
+                        dag_id=self.dag_id,
+                        run_id=self.run_id,
+                        dagrun_state=DagRunState.RUNNING,
+                        sla_miss=True,
+                        processor_subdir=None if dag_model is None else dag_model.processor_subdir,
+                        msg="sla_missed",
+                    )
         # if all tasks finished and at least one failed, the run failed
         if not unfinished.tis and any(x.state in State.failed_states for x in tis_for_dagrun_state):
             self.log.error("Marking run %s failed", self)
@@ -759,19 +790,30 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="task_failure")
 
             if execute_callbacks:
-                dag.handle_callback(self, success=False, reason="task_failure", session=session)
-            elif dag.has_on_failure_callback:
-                from airflow.models.dag import DagModel
-
-                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
-                callback = DagCallbackRequest(
-                    full_filepath=dag.fileloc,
-                    dag_id=self.dag_id,
-                    run_id=self.run_id,
-                    is_failure_callback=True,
-                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
-                    msg="task_failure",
+                dag.handle_callback(
+                    self,
+                    dagrun_state=DagRunState.FAILED,
+                    sla_miss=True,
+                    reason="task_failure",
+                    session=session,
                 )
+            elif dag.has_on_failure_callback:
+                if callback:
+                    callback.dagrun_state = DagRunState.FAILED
+                    callback.msg = callback.msg + "task_failure"
+                else:
+                    from airflow.models.dag import DagModel
+
+                    dag_model = DagModel.get_dagmodel(dag.dag_id, session)
+                    callback = DagCallbackRequest(
+                        full_filepath=dag.fileloc,
+                        dag_id=self.dag_id,
+                        run_id=self.run_id,
+                        dagrun_state=DagRunState.FAILED,
+                        sla_miss=False,
+                        processor_subdir=None if dag_model is None else dag_model.processor_subdir,
+                        msg="task_failure",
+                    )
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
         elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
@@ -780,19 +822,26 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="success")
 
             if execute_callbacks:
-                dag.handle_callback(self, success=True, reason="success", session=session)
-            elif dag.has_on_success_callback:
-                from airflow.models.dag import DagModel
-
-                dag_model = DagModel.get_dagmodel(dag.dag_id, session)
-                callback = DagCallbackRequest(
-                    full_filepath=dag.fileloc,
-                    dag_id=self.dag_id,
-                    run_id=self.run_id,
-                    is_failure_callback=False,
-                    processor_subdir=None if dag_model is None else dag_model.processor_subdir,
-                    msg="success",
+                dag.handle_callback(
+                    self, dagrun_state=DagRunState.SUCCESS, sla_miss=True, reason="success", session=session
                 )
+            elif dag.has_on_success_callback:
+                if callback:
+                    callback.dagrun_state = DagRunState.SUCCESS
+                    callback.msg = callback.msg + "success"
+                else:
+                    from airflow.models.dag import DagModel
+
+                    dag_model = DagModel.get_dagmodel(dag.dag_id, session)
+                    callback = DagCallbackRequest(
+                        full_filepath=dag.fileloc,
+                        dag_id=self.dag_id,
+                        run_id=self.run_id,
+                        dagrun_state=DagRunState.SUCCESS,
+                        sla_miss=False,
+                        processor_subdir=None if dag_model is None else dag_model.processor_subdir,
+                        msg="success",
+                    )
 
         # if *all tasks* are deadlocked, the run failed
         elif unfinished.should_schedule and not are_runnable_tasks:
