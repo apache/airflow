@@ -27,10 +27,10 @@ from sqlalchemy.orm import Session, joinedload
 from airflow.auth.managers.fab.models import Permission, Resource, Role, User
 from airflow.auth.managers.fab.views.permissions import (
     ActionModelView,
-    CustomRoleModelView,
     PermissionPairModelView,
     ResourceModelView,
 )
+from airflow.auth.managers.fab.views.roles_list import CustomRoleModelView
 from airflow.auth.managers.fab.views.user import (
     CustomUserDBModelView,
     CustomUserLDAPModelView,

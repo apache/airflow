@@ -19,7 +19,6 @@ from __future__ import annotations
 from flask_appbuilder.security.views import (
     PermissionModelView,
     PermissionViewModelView,
-    RoleModelView,
     ViewMenuModelView,
 )
 from flask_babel import lazy_gettext
@@ -69,27 +68,6 @@ class PermissionPairModelView(PermissionViewModelView):
         "resource": lazy_gettext("Resource"),
     }
     list_columns = ["action", "resource"]
-
-
-class CustomRoleModelView(RoleModelView):
-    """Customize permission names for FAB's builtin RoleModelView."""
-
-    class_permission_name = permissions.RESOURCE_ROLE
-    method_permission_name = {
-        "delete": "delete",
-        "download": "read",
-        "show": "read",
-        "list": "read",
-        "edit": "edit",
-        "add": "create",
-        "copy_role": "create",
-    }
-    base_permissions = [
-        permissions.ACTION_CAN_CREATE,
-        permissions.ACTION_CAN_READ,
-        permissions.ACTION_CAN_EDIT,
-        permissions.ACTION_CAN_DELETE,
-    ]
 
 
 class ResourceModelView(ViewMenuModelView):
