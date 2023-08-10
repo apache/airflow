@@ -50,7 +50,7 @@ The Project ID and Location will be used to build the parent name, which is wher
 
 You can run a Data Pipelines instance by running the above parameters with RunDataPipelineOperator:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datapipelines/google-datapipeline.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/datapipelines/example_datapipeline.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_run_data_pipeline]
