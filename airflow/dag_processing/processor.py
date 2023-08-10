@@ -30,7 +30,7 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import TYPE_CHECKING, Iterable, Iterator
 
 from setproctitle import setproctitle
-from sqlalchemy import delete, exc, func, or_
+from sqlalchemy import delete, exc, func, or_, select
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
@@ -428,20 +428,20 @@ class DagFileProcessor(LoggingMixin):
         if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
             cls.logger().info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
-
         qry = (
-            session.query(TI.task_id, func.max(DR.execution_date).label("max_ti"))
+            select(TI.task_id, func.max(DR.execution_date).label("max_ti"))
             .join(TI.dag_run)
-            .filter(TI.dag_id == dag.dag_id)
-            .filter(or_(TI.state == TaskInstanceState.SUCCESS, TI.state == TaskInstanceState.SKIPPED))
-            .filter(TI.task_id.in_(dag.task_ids))
+            .where(TI.dag_id == dag.dag_id)
+            .where(or_(TI.state == TaskInstanceState.SUCCESS, TI.state == TaskInstanceState.SKIPPED))
+            .where(TI.task_id.in_(dag.task_ids))
             .group_by(TI.task_id)
-            .subquery("sq")
         )
         # get recorded SlaMiss
         recorded_slas_query = set(
-            session.query(SlaMiss.dag_id, SlaMiss.task_id, SlaMiss.execution_date).filter(
-                SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id.in_(dag.task_ids)
+            session.scalars(
+                select(SlaMiss.dag_id, SlaMiss.task_id, SlaMiss.execution_date).where(
+                    SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id.in_(dag.task_ids)
+                )
             )
         )
 
