@@ -1617,6 +1617,7 @@ Url
 url
 urlencoded
 urlparse
+urls
 useHCatalog
 useLegacySQL
 useQueryCache
@@ -1637,6 +1638,7 @@ vCPU
 ve
 vendored
 Vendorize
+venv
 venvs
 versionable
 Vertica
@@ -1646,6 +1648,7 @@ Vevo
 videointelligence
 VideoIntelligenceServiceClient
 virtualenv
+virtualenvs
 vm
 VolumeMount
 volumeMounts
