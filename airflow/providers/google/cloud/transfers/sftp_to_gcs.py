@@ -69,7 +69,7 @@ class SFTPToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param sftp_prefetch: Whether to enable SFTP prefetch, the default is False.
+    :param sftp_prefetch: Whether to enable SFTP prefetching, the default is True.
     """
 
     template_fields: Sequence[str] = (
@@ -91,7 +91,7 @@ class SFTPToGCSOperator(BaseOperator):
         gzip: bool = False,
         move_object: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
-        sftp_prefetch: bool = False,
+        sftp_prefetch: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -154,7 +154,7 @@ class SFTPToGCSOperator(BaseOperator):
         )
 
         with NamedTemporaryFile("w") as tmp:
-            sftp_hook.get_conn().get(source_path, tmp.name, prefetch=self.sftp_prefetch)
+            sftp_hook.retrieve_file(source_path, tmp.name, prefetch=self.sftp_prefetch)
 
             gcs_hook.upload(
                 bucket_name=self.destination_bucket,
