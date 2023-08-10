@@ -2146,7 +2146,7 @@ config:
   elasticsearch_configs:
     max_retries: 3
     timeout: 30
-    retry_timeout: 'True'
+    retry_on_timeout: 'True'
   kerberos:
     keytab: '{{ .Values.kerberos.keytabPath }}'
     reinit_frequency: '{{ .Values.kerberos.reinitFrequency }}'
