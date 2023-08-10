@@ -25,7 +25,7 @@ from datetime import datetime
 from operator import attrgetter
 from time import time
 from typing import TYPE_CHECKING, Any, Callable, List, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
@@ -98,6 +98,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         log_id_template: str | None = None,
     ):
         es_kwargs = es_kwargs or {}
+        # For elasticsearch>8,arguments like retry_timeout have changed for elasticsearch to retry_on_timeout
+        # in Elasticsearch() compared to previous versions.
+        # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
+        if es_kwargs.get("retry_timeout"):
+            es_kwargs["retry_on_timeout"] = es_kwargs.pop("retry_timeout")
+        host = self.format_url(host)
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
@@ -125,6 +131,27 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
+
+    @staticmethod
+    def format_url(host: str) -> str:
+        """
+        Formats the given host string to ensure it starts with 'http'.
+        Checks if the host string represents a valid URL.
+
+        :params host: The host string to format and check.
+        """
+        parsed_url = urlparse(host)
+
+        # Check if the scheme is either http or https
+        if not parsed_url.scheme:
+            host = "http://" + host
+            parsed_url = urlparse(host)
+
+        # Basic validation for a valid URL
+        if not parsed_url.netloc:
+            raise ValueError(f"'{host}' is not a valid URL.")
+
+        return host
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:

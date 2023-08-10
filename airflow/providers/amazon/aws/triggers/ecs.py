@@ -165,8 +165,8 @@ class TaskDoneTrigger(BaseTrigger):
             # fmt: on
             waiter = ecs_client.get_waiter("tasks_stopped")
             logs_token = None
-            while self.waiter_max_attempts >= 1:
-                self.waiter_max_attempts = self.waiter_max_attempts - 1
+            while self.waiter_max_attempts:
+                self.waiter_max_attempts -= 1
                 try:
                     await waiter.wait(
                         cluster=self.cluster, tasks=[self.task_arn], WaiterConfig={"MaxAttempts": 1}

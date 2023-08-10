@@ -125,6 +125,69 @@ class TestElasticsearchTaskHandler:
             "on 2023-07-09 07:47:32+00:00"
         )
 
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            ("http://localhost:9200", "http://localhost:9200"),
+            ("https://localhost:9200", "https://localhost:9200"),
+            ("localhost:9200", "http://localhost:9200"),
+            ("someurl", "http://someurl"),
+            ("https://", "ValueError"),
+        ],
+    )
+    def test_format_url(self, host, expected):
+        """
+        Test the format_url method of the ElasticsearchTaskHandler class.
+        """
+        if expected == "ValueError":
+            with pytest.raises(ValueError):
+                assert ElasticsearchTaskHandler.format_url(host) == expected
+        else:
+            assert ElasticsearchTaskHandler.format_url(host) == expected
+
+    def test_elasticsearch_constructor_retry_timeout_handling(self):
+        """
+        Test if the ElasticsearchTaskHandler constructor properly handles the retry_timeout argument.
+        """
+        # Mock the Elasticsearch client
+        with mock.patch(
+            "airflow.providers.elasticsearch.log.es_task_handler.elasticsearch.Elasticsearch"
+        ) as mock_es:
+            # Test when 'retry_timeout' is present in es_kwargs
+            es_kwargs = {"retry_timeout": 10}
+            ElasticsearchTaskHandler(
+                base_log_folder="dummy_folder",
+                end_of_log_mark="end_of_log_mark",
+                write_stdout=False,
+                json_format=False,
+                json_fields="fields",
+                host_field="host",
+                offset_field="offset",
+                es_kwargs=es_kwargs,
+            )
+
+            # Check the arguments with which the Elasticsearch client is instantiated
+            mock_es.assert_called_once_with("http://localhost:9200", retry_on_timeout=10)
+
+            # Reset the mock for the next test
+            mock_es.reset_mock()
+
+            # Test when 'retry_timeout' is not present in es_kwargs
+            es_kwargs = {}
+            ElasticsearchTaskHandler(
+                base_log_folder="dummy_folder",
+                end_of_log_mark="end_of_log_mark",
+                write_stdout=False,
+                json_format=False,
+                json_fields="fields",
+                host_field="host",
+                offset_field="offset",
+                es_kwargs=es_kwargs,
+            )
+
+            # Check that the Elasticsearch client is instantiated without the 'retry_on_timeout' argument
+            mock_es.assert_called_once_with("http://localhost:9200")
+
     def test_client(self):
         assert isinstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
         assert self.es_task_handler.index_patterns == "_all"
