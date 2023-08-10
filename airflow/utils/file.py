@@ -22,7 +22,6 @@ import io
 import logging
 import os
 import zipfile
-from collections import OrderedDict
 from pathlib import Path
 from typing import Generator, NamedTuple, Pattern, Protocol, overload
 
@@ -230,7 +229,7 @@ def _find_path_from_directory(
                 ]
                 # evaluation order of patterns is important with negation
                 # so that later patterns can override earlier patterns
-                patterns = list(OrderedDict.fromkeys(patterns).keys())
+                patterns = list(dict.fromkeys(patterns))
 
         dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(Path(root) / subdir, patterns)]
 
