@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
-from pendulum import DateTime, instance
+from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowTimetableInvalid
@@ -31,23 +31,6 @@ from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-
-
-def _is_schedule_fixed(expression: str) -> bool:
-    """Figures out if the schedule has a fixed time (e.g. 3 AM every day).
-
-    :return: True if the schedule has a fixed time, False if not.
-
-    Detection is done by "peeking" the next two cron trigger time; if the
-    two times have the same minute and hour value, the schedule is fixed,
-    and we *don't* need to perform the DST fix.
-
-    This assumes DST happens on whole minute changes (e.g. 12:59 -> 12:00).
-    """
-    cron = croniter(expression)
-    next_a = cron.get_next(datetime.datetime)
-    next_b = cron.get_next(datetime.datetime)
-    return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
 
 class CronMixin:
@@ -91,12 +74,6 @@ class CronMixin:
             croniter(self._expression)
         except (CroniterBadCronError, CroniterBadDateError) as e:
             raise AirflowTimetableInvalid(str(e))
-
-    @cached_property
-    def _should_fix_dst(self) -> bool:
-        # This is lazy so instantiating a schedule does not immediately raise
-        # an exception. Validity is checked with validate() during DAG-bagging.
-        return False
 
     def _get_next(self, current: DateTime) -> DateTime:
         """Get the first schedule after specified time, with DST fixed."""
