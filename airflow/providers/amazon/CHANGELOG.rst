@@ -41,7 +41,7 @@ Misc
 * ``Improve fetching logs from AWS (#33231)``
 * ``Refactor: Simplify code in providers/amazon (#33222)``
 * ``Implement EventBridge enable and disable rule operators (#33226)``
-* ``Update mypy-boto3-appflow dependency (#32930)`
+* ``Update mypy-boto3-appflow dependency (#32930)``
 * ``use 'cached_property' from functools in 'RdsBaseOperator' (#33133)``
 * ``Use set for 'template_fields' of 'EcsDeregisterTaskDefinitionOperator' (#33129)``
 
