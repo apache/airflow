@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-10T05:54:49Z
+# This constraints file was automatically generated on 2023-08-10T15:17:21Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-7-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -107,7 +107,7 @@ apache-airflow-providers-exasol==4.2.2
 apache-airflow-providers-facebook==3.2.1
 apache-airflow-providers-ftp==3.5.0
 apache-airflow-providers-github==2.3.1
-apache-airflow-providers-google==10.5.0
+apache-airflow-providers-google==10.6.0
 apache-airflow-providers-grpc==3.2.1
 apache-airflow-providers-hashicorp==3.4.2
 apache-airflow-providers-http==4.5.0
@@ -165,7 +165,7 @@ async-timeout==4.0.2
 atlasclient==1.0.0
 atlassian-python-api==3.40.0
 attrs==23.1.0
-aws-sam-translator==1.72.0
+aws-sam-translator==1.73.0
 aws-xray-sdk==2.12.0
 azure-batch==14.0.0
 azure-common==1.1.28
@@ -235,7 +235,7 @@ croniter==1.4.1
 cryptography==41.0.3
 curlify==2.2.1
 dask==2023.8.0
-databricks-sql-connector==2.8.0
+databricks-sql-connector==2.9.0
 datadog==0.46.0
 db-dtypes==1.1.1
 decorator==5.1.1
@@ -531,7 +531,7 @@ python-telegram-bot==20.2
 pytz==2023.3
 pytzdata==2020.1
 pywinrm==0.4.3
-pyzmq==25.1.0
+pyzmq==25.1.1
 qds-sdk==1.16.1
 reactivex==4.0.4
 readme-renderer==40.0
@@ -619,7 +619,7 @@ tomlkit==0.12.1
 toolz==0.12.0
 tornado==6.3.2
 towncrier==23.6.0
-tqdm==4.66.0
+tqdm==4.66.1
 traitlets==5.9.0
 trino==0.326.0
 twine==4.0.2
