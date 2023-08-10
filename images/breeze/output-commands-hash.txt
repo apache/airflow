@@ -24,7 +24,7 @@ k8s:delete-cluster:76a40b5a9001d8a933672ae3175ad59f
 k8s:deploy-airflow:fef15f2f5d122a1d11bb602896ff36fa
 k8s:k9s:f25f0df6b0fdb2604822e0c8d5b64d06
 k8s:logs:547c07e859eafcf67591952b785d381d
-k8s:run-complete-tests:199a57b59c76f230116ad2c8bdfeda5b
+k8s:run-complete-tests:7c427590c9bfd15f238cc0a53742477f
 k8s:setup-env:a34e94744ca4e0592371fe55478c3d54
 k8s:shell:ced753917db3d1bd89e7ea3314ac0d69
 k8s:status:1529ccd444b41c4b0b5f943289957100
