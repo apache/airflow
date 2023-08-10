@@ -3264,8 +3264,7 @@ class Airflow(AirflowBaseView):
                 y=scale_time_units(cumulative_y[task_id], cum_y_unit),
             )
 
-        dates = sorted({ti.execution_date for ti in task_instances})
-        max_date = max(ti.execution_date for ti in task_instances) if dates else None
+        max_date = max((ti.execution_date for ti in task_instances), default=None)
 
         session.commit()
 
@@ -3364,8 +3363,7 @@ class Airflow(AirflowBaseView):
             if x_points:
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
-        tries = sorted({ti.try_number for ti in tis})
-        max_date = max(ti.execution_date for ti in tis) if tries else None
+        max_date = max((ti.execution_date for ti in tis), default=None)
         chart.create_y_axis("yAxis", format=".02f", custom_format=False, label="Tries")
         chart.axislist["yAxis"]["axisLabelDistance"] = "-15"
 
@@ -3890,7 +3888,7 @@ class Airflow(AirflowBaseView):
         updated_before = _safe_parse_datetime(request.args.get("updated_before"), allow_empty=True)
 
         # Check and clean up query parameters
-        limit = 50 if limit > 50 else limit
+        limit = min(50, limit)
 
         uri_pattern = uri_pattern[:4000]
 
