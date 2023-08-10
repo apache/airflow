@@ -171,19 +171,47 @@ def test_assign_unassigned(session, create_task_instance):
     trigger_on_healthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_on_healthy_triggerer.id = 1
     trigger_on_healthy_triggerer.triggerer_id = healthy_triggerer.id
+    session.add(trigger_on_healthy_triggerer)
+    ti_trigger_on_healthy_triggerer = create_task_instance(
+        task_id="ti_trigger_on_healthy_triggerer",
+        execution_date=time_now,
+        run_id="trigger_on_healthy_triggerer_run_id",
+    )
+    ti_trigger_on_healthy_triggerer.trigger_id = trigger_on_healthy_triggerer.id
+    session.add(ti_trigger_on_healthy_triggerer)
     trigger_on_unhealthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_on_unhealthy_triggerer.id = 2
     trigger_on_unhealthy_triggerer.triggerer_id = unhealthy_triggerer.id
+    session.add(trigger_on_unhealthy_triggerer)
+    ti_trigger_on_unhealthy_triggerer = create_task_instance(
+        task_id="ti_trigger_on_unhealthy_triggerer",
+        execution_date=time_now + datetime.timedelta(hours=1),
+        run_id="trigger_on_unhealthy_triggerer_run_id",
+    )
+    ti_trigger_on_unhealthy_triggerer.trigger_id = trigger_on_unhealthy_triggerer.id
+    session.add(ti_trigger_on_unhealthy_triggerer)
     trigger_on_killed_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_on_killed_triggerer.id = 3
     trigger_on_killed_triggerer.triggerer_id = finished_triggerer.id
+    session.add(trigger_on_killed_triggerer)
+    ti_trigger_on_killed_triggerer = create_task_instance(
+        task_id="ti_trigger_on_killed_triggerer",
+        execution_date=time_now + datetime.timedelta(hours=2),
+        run_id="trigger_on_killed_triggerer_run_id",
+    )
+    ti_trigger_on_killed_triggerer.trigger_id = trigger_on_killed_triggerer.id
+    session.add(ti_trigger_on_killed_triggerer)
     trigger_unassigned_to_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
     trigger_unassigned_to_triggerer.id = 4
-    assert trigger_unassigned_to_triggerer.triggerer_id is None
-    session.add(trigger_on_healthy_triggerer)
-    session.add(trigger_on_unhealthy_triggerer)
-    session.add(trigger_on_killed_triggerer)
     session.add(trigger_unassigned_to_triggerer)
+    ti_trigger_unassigned_to_triggerer = create_task_instance(
+        task_id="ti_trigger_unassigned_to_triggerer",
+        execution_date=time_now + datetime.timedelta(hours=3),
+        run_id="trigger_unassigned_to_triggerer_run_id",
+    )
+    ti_trigger_unassigned_to_triggerer.trigger_id = trigger_unassigned_to_triggerer.id
+    session.add(ti_trigger_unassigned_to_triggerer)
+    assert trigger_unassigned_to_triggerer.triggerer_id is None
     session.commit()
     assert session.query(Trigger).count() == 4
     Trigger.assign_unassigned(new_triggerer.id, 100, health_check_threshold=30)
