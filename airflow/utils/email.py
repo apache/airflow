@@ -49,6 +49,7 @@ def send_email(
     mime_charset: str = "utf-8",
     conn_id: str | None = None,
     custom_headers: dict[str, Any] | None = None,
+    from_mail: str | None = None,
     **kwargs,
 ) -> None:
     """
@@ -72,7 +73,11 @@ def send_email(
     """
     backend = conf.getimport("email", "EMAIL_BACKEND")
     backend_conn_id = conn_id or conf.get("email", "EMAIL_CONN_ID")
-    from_email = conf.get("email", "from_email", fallback=None)
+    conf_from_mail = conf.get("email", "from_email", fallback=None)
+
+    # Prioritize User Provided mail over one which is defined in config
+    # Use the config as fallback
+    from_email = from_mail if from_mail else conf_from_mail
 
     to_list = get_email_address_list(to)
     to_comma_separated = ", ".join(to_list)
@@ -129,14 +134,15 @@ def send_email_smtp(
     """
     smtp_mail_from = conf.get("smtp", "SMTP_MAIL_FROM")
 
-    if smtp_mail_from is not None:
-        mail_from = smtp_mail_from
-    else:
-        if from_email is None:
-            raise Exception(
-                "You should set from email - either by smtp/smtp_mail_from config or `from_email` parameter"
-            )
-        mail_from = from_email
+    # Prioritize User Provided mail over one which is defined in config
+    # Use the config as fallback
+    mail_from = from_email if from_email else smtp_mail_from
+
+    # Raise Exception if neither user provide mail nor there is one defined in config
+    if not mail_from:
+        raise Exception(
+            "You should set from email - either by smtp/smtp_mail_from config or `from_email` parameter"
+        )
 
     msg, recipients = build_mime_message(
         mail_from=mail_from,
