@@ -605,8 +605,8 @@ class TestSchedulerJob:
         for ti in tis:
             ti.state = State.SCHEDULED
             session.merge(ti)
-        pool = Pool(pool="a", slots=1, description="haha")
-        pool2 = Pool(pool="b", slots=100, description="haha")
+        pool = Pool(pool="a", slots=1, description="haha", include_deferred=False)
+        pool2 = Pool(pool="b", slots=100, description="haha", include_deferred=False)
         session.add(pool)
         session.add(pool2)
         session.flush()
@@ -732,8 +732,8 @@ class TestSchedulerJob:
 
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_order_priority_with_pools"
 
-        session.add(Pool(pool="pool1", slots=32))
-        session.add(Pool(pool="pool2", slots=32))
+        session.add(Pool(pool="pool1", slots=32, include_deferred=False))
+        session.add(Pool(pool="pool2", slots=32, include_deferred=False))
 
         with dag_maker(dag_id=dag_id, max_active_tasks=2):
             op1 = EmptyOperator(task_id="dummy1", priority_weight=1, pool="pool1")
@@ -888,7 +888,12 @@ class TestSchedulerJob:
         ti = dr.task_instances[0]
         ti.state = State.SCHEDULED
         session.merge(ti)
-        infinite_pool = Pool(pool="infinite_pool", slots=-1, description="infinite pool")
+        infinite_pool = Pool(
+            pool="infinite_pool",
+            slots=-1,
+            description="infinite pool",
+            include_deferred=False,
+        )
         session.add(infinite_pool)
         session.commit()
 
@@ -913,7 +918,7 @@ class TestSchedulerJob:
         ti = dr.task_instances[1]
         ti.state = State.SCHEDULED
         session.merge(ti)
-        some_pool = Pool(pool="some_pool", slots=2, description="my pool")
+        some_pool = Pool(pool="some_pool", slots=2, description="my pool", include_deferred=False)
         session.add(some_pool)
         session.commit()
         with caplog.at_level(logging.WARNING):
@@ -1336,8 +1341,8 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
 
-        pool1 = Pool(pool="pool1", slots=1)
-        pool2 = Pool(pool="pool2", slots=1)
+        pool1 = Pool(pool="pool1", slots=1, include_deferred=False)
+        pool2 = Pool(pool="pool2", slots=1, include_deferred=False)
 
         session.add(pool1)
         session.add(pool2)
@@ -2578,7 +2583,7 @@ class TestSchedulerJob:
                 )
 
             session = settings.Session()
-            pool = Pool(pool="test_scheduler_verify_pool_full", slots=1)
+            pool = Pool(pool="test_scheduler_verify_pool_full", slots=1, include_deferred=False)
             session.add(pool)
             session.flush()
 
@@ -2619,7 +2624,7 @@ class TestSchedulerJob:
                 bash_command="echo hi",
             )
 
-        pool = Pool(pool="test_scheduler_verify_pool_full_2_slots_per_task", slots=6)
+        pool = Pool(pool="test_scheduler_verify_pool_full_2_slots_per_task", slots=6, include_deferred=False)
         session.add(pool)
         session.flush()
 
@@ -2673,8 +2678,8 @@ class TestSchedulerJob:
         dag_d2 = dag_maker.dag
 
         session = settings.Session()
-        pool_p1 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p1", slots=1)
-        pool_p2 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p2", slots=10)
+        pool_p1 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p1", slots=1, include_deferred=False)
+        pool_p2 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p2", slots=10, include_deferred=False)
         session.add(pool_p1)
         session.add(pool_p2)
         session.flush()
@@ -2751,7 +2756,7 @@ class TestSchedulerJob:
             )
 
         session = settings.Session()
-        pool = Pool(pool="test_scheduler_verify_priority_and_slots", slots=2)
+        pool = Pool(pool="test_scheduler_verify_priority_and_slots", slots=2, include_deferred=False)
         session.add(pool)
         session.flush()
 

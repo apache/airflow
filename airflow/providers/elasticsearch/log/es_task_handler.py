@@ -25,12 +25,12 @@ from datetime import datetime
 from operator import attrgetter
 from time import time
 from typing import TYPE_CHECKING, Any, Callable, List, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
 import pendulum
-from elasticsearch.exceptions import ElasticsearchException, NotFoundError
+from elasticsearch.exceptions import NotFoundError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -89,7 +89,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         json_fields: str,
         host_field: str = "host",
         offset_field: str = "offset",
-        host: str = "localhost:9200",
+        host: str = "http://localhost:9200",
         frontend: str = "localhost:5601",
         index_patterns: str | None = conf.get("elasticsearch", "index_patterns", fallback="_all"),
         es_kwargs: dict | None = conf.getsection("elasticsearch_configs"),
@@ -98,11 +98,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         log_id_template: str | None = None,
     ):
         es_kwargs = es_kwargs or {}
+        # For elasticsearch>8,arguments like retry_timeout have changed for elasticsearch to retry_on_timeout
+        # in Elasticsearch() compared to previous versions.
+        # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
+        if es_kwargs.get("retry_timeout"):
+            es_kwargs["retry_on_timeout"] = es_kwargs.pop("retry_timeout")
+        host = self.format_url(host)
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(host.split(";"), **es_kwargs)  # type: ignore[attr-defined]
-
+        self.client = elasticsearch.Elasticsearch(host, **es_kwargs)  # type: ignore[attr-defined]
+        # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
         if USE_PER_RUN_LOG_ID and log_id_template is not None:
             warnings.warn(
                 "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
@@ -125,6 +131,29 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
+
+    @staticmethod
+    def format_url(host: str) -> str:
+        """
+        Formats the given host string to ensure it starts with 'http'.
+        Checks if the host string represents a valid URL.
+
+        :params host: The host string to format and check.
+        """
+        parsed_url = urlparse(host)
+
+        # Check if the scheme is either http or https
+        # Handles also the Python 3.9+ case where urlparse understands "localhost:9200"
+        # differently than urlparse in Python 3.8 and below (https://github.com/psf/requests/issues/6455)
+        if parsed_url.scheme not in ("http", "https"):
+            host = "http://" + host
+            parsed_url = urlparse(host)
+
+        # Basic validation for a valid URL
+        if not parsed_url.netloc:
+            raise ValueError(f"'{host}' is not a valid URL.")
+
+        return host
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
@@ -292,27 +321,24 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         }
 
         try:
-            max_log_line = self.client.count(index=self.index_patterns, body=query)["count"]
+            max_log_line = self.client.count(index=self.index_patterns, body=query)["count"]  # type: ignore
         except NotFoundError as e:
             self.log.exception("The target index pattern %s does not exist", self.index_patterns)
-            raise e
-        except ElasticsearchException as e:
-            self.log.exception("Could not get current log size with log_id: %s", log_id)
             raise e
 
         logs: list[Any] | ElasticSearchResponse = []
         if max_log_line != 0:
             try:
                 query.update({"sort": [self.offset_field]})
-                res = self.client.search(
+                res = self.client.search(  # type: ignore
                     index=self.index_patterns,
                     body=query,
                     size=self.MAX_LINE_PER_PAGE,
                     from_=self.MAX_LINE_PER_PAGE * self.PAGE,
                 )
                 logs = ElasticSearchResponse(self, res)
-            except elasticsearch.exceptions.ElasticsearchException:
-                self.log.exception("Could not read log with log_id: %s", log_id)
+            except Exception as err:
+                self.log.exception("Could not read log with log_id: %s. Exception: %s", log_id, err)
 
         return logs
 

@@ -123,6 +123,8 @@ class BaseSQLOperator(BaseOperator):
     :param conn_id: reference to a specific database
     """
 
+    conn_id_field = "conn_id"
+
     def __init__(
         self,
         *,
@@ -141,8 +143,9 @@ class BaseSQLOperator(BaseOperator):
     @cached_property
     def _hook(self):
         """Get DB Hook based on connection type."""
-        self.log.debug("Get connection for %s", self.conn_id)
-        conn = BaseHook.get_connection(self.conn_id)
+        conn_id = getattr(self, self.conn_id_field)
+        self.log.debug("Get connection for %s", conn_id)
+        conn = BaseHook.get_connection(conn_id)
         hook = conn.get_hook(hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
             from airflow.hooks.dbapi_hook import DbApiHook as _DbApiHook
@@ -411,7 +414,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLColumnCheckOperator`
     """
 
-    template_fields = ("partition_clause", "table", "sql")
+    template_fields: Sequence[str] = ("partition_clause", "table", "sql")
     template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
@@ -639,7 +642,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLTableCheckOperator`
     """
 
-    template_fields = ("partition_clause", "table", "sql", "conn_id")
+    template_fields: Sequence[str] = ("partition_clause", "table", "sql", "conn_id")
 
     template_fields_renderers = {"sql": "sql"}
 

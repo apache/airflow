@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import itertools as it
 from functools import cached_property
 from typing import Any
 
@@ -161,9 +162,7 @@ class BatchSensorTrigger(BaseTrigger):
         """
         async with self.hook.async_conn as client:
             waiter = self.hook.get_waiter("batch_job_complete", deferrable=True, client=client)
-            attempt = 0
-            while True:
-                attempt = attempt + 1
+            for attempt in it.count(1):
                 try:
                     await waiter.wait(
                         jobs=[self.job_id],
@@ -172,7 +171,6 @@ class BatchSensorTrigger(BaseTrigger):
                             "MaxAttempts": 1,
                         },
                     )
-                    break
                 except WaiterError as error:
                     if "error" in str(error):
                         yield TriggerEvent({"status": "failure", "message": f"Job Failed: {error}"})
@@ -183,6 +181,8 @@ class BatchSensorTrigger(BaseTrigger):
                         attempt,
                     )
                     await asyncio.sleep(int(self.poke_interval))
+                else:
+                    break
 
             yield TriggerEvent(
                 {

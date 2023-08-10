@@ -124,6 +124,7 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
             pool=Pool.DEFAULT_POOL_NAME,
             slots=conf.getint(section="core", key="default_pool_task_slot_count"),
             description="Default pool",
+            include_deferred=False,
         )
         session.add(default_pool)
         session.commit()

@@ -121,6 +121,7 @@ jobs:
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       runs-on: ${{ steps.selective-checks.outputs.runs-on }}
+      has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
@@ -1153,7 +1154,8 @@ jobs:
     if: >
       needs.build-info.outputs.run-tests == 'true' &&
       (needs.build-info.outputs.runs-on == 'self-hosted' ||
-      needs.build-info.outputs.full-tests-needed == 'true')
+      needs.build-info.outputs.full-tests-needed == 'true' ||
+      needs.build-info.outputs.has-migrations == 'true')
     steps:
       - name: Cleanup repo
         shell: bash

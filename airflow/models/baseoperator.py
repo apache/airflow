@@ -414,7 +414,7 @@ class BaseOperatorMeta(abc.ABCMeta):
                 if arg not in kwargs and arg in default_args:
                     kwargs[arg] = default_args[arg]
 
-            missing_args = non_optional_args - set(kwargs)
+            missing_args = non_optional_args.difference(kwargs)
             if len(missing_args) == 1:
                 raise AirflowException(f"missing keyword argument {missing_args.pop()!r}")
             elif missing_args:

@@ -41,18 +41,18 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_automl_text"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+DAG_ID = "example_automl_text_extr"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_AUTOML_LOCATION = "us-central1"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-RESOURCE_DATA_BUCKET = "system-tests-resources"
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 
-DATASET_NAME = "test_entity_extr"
+DATASET_NAME = f"ds_extr_{ENV_ID}".replace("-", "_")
 DATASET = {"display_name": DATASET_NAME, "text_extraction_dataset_metadata": {}}
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-text/dataset.csv"
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/text_extraction.csv"
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
 
 MODEL_NAME = "entity_extr_test_model"
@@ -70,7 +70,7 @@ with models.DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
-    tags=["example", "automl"],
+    tags=["example", "automl", "text-extraction"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
@@ -82,23 +82,23 @@ with models.DAG(
     move_dataset_file = GCSSynchronizeBucketsOperator(
         task_id="move_data_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="automl-text",
+        source_object="automl/datasets/text",
         destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        destination_object="automl-text",
+        destination_object="automl",
         recursive=True,
     )
 
-    create_dataset_task = AutoMLCreateDatasetOperator(
-        task_id="create_dataset_task",
+    create_dataset = AutoMLCreateDatasetOperator(
+        task_id="create_dataset",
         dataset=DATASET,
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
 
-    dataset_id = cast(str, XComArg(create_dataset_task, key="dataset_id"))
+    dataset_id = cast(str, XComArg(create_dataset, key="dataset_id"))
     MODEL["dataset_id"] = dataset_id
-    import_dataset_task = AutoMLImportDataOperator(
-        task_id="import_dataset_task",
+    import_dataset = AutoMLImportDataOperator(
+        task_id="import_dataset",
         dataset_id=dataset_id,
         location=GCP_AUTOML_LOCATION,
         input_config=IMPORT_INPUT_CONFIG,
@@ -137,11 +137,9 @@ with models.DAG(
 
     (
         # TEST SETUP
-        create_bucket
-        >> move_dataset_file
-        >> create_dataset_task
-        >> import_dataset_task
+        [create_bucket >> move_dataset_file, create_dataset]
         # TEST BODY
+        >> import_dataset
         >> create_model
         # TEST TEARDOWN
         >> delete_model_task
