@@ -410,7 +410,7 @@ def get_command_hash_dict(hash_file_content: str) -> dict[str, str]:
     results = {}
     for line in hash_file_content.splitlines():
         strip_line = line.strip()
-        if strip_line.strip() == "" or strip_line.startswith("#"):
+        if not strip_line or strip_line.startswith("#"):
             continue
         command = ":".join(strip_line.split(":")[:-1])
         the_hash = strip_line.split(":")[-1]

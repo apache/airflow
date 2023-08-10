@@ -621,7 +621,7 @@ class SelectiveChecks:
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
-        sorted_candidate_test_types = list(sorted(candidate_test_types))
+        sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
@@ -714,15 +714,13 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any(
-            [file.startswith("airflow/") or file.startswith("docs/apache-airflow/") for file in self._files]
-        ):
+        if any(file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files):
             packages.append("apache-airflow")
-        if any([file.startswith("docs/apache-airflow-providers/") for file in self._files]):
+        if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
             packages.append("apache-airflow-providers")
-        if any([file.startswith("chart/") or file.startswith("docs/helm-chart") for file in self._files]):
+        if any(file.startswith(("chart/", "docs/helm-chart")) for file in self._files):
             packages.append("helm-chart")
-        if any([file.startswith("docs/docker-stack/") for file in self._files]):
+        if any(file.startswith("docs/docker-stack/") for file in self._files):
             packages.append("docker-stack")
         if providers_affected:
             for provider in providers_affected:

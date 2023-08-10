@@ -361,10 +361,7 @@ def commit_sha():
 
 def filter_out_none(**kwargs) -> dict:
     """Filters out all None values from parameters passed."""
-    for key in list(kwargs):
-        if kwargs[key] is None:
-            kwargs.pop(key)
-    return kwargs
+    return {key: val for key, val in kwargs.items() if val is not None}
 
 
 def check_if_image_exists(image: str) -> bool:
