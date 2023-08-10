@@ -48,7 +48,7 @@ This document contains explanation of a few manual procedures we might use at ce
 our CI and constraints manually when the automation of our CI is not enough. There are some edge cases
 and events that might trigger the need of refreshing the information stored in our GitHub Repository.
 
-We are storing two things we are storing in our GitHub Registry that are needed for both - our contributors
+We are storing two things in our GitHub Registry that are needed for both our contributors
 and users:
 
 * `CI and PROD image cache` - used by our CI jobs to speed up building of images while CI jobs are running
