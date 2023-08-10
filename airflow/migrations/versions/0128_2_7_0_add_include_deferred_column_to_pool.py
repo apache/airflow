@@ -40,7 +40,8 @@ def upgrade():
     """Apply add include_deferred column to pool"""
     with op.batch_alter_table("slot_pool") as batch_op:
         batch_op.add_column(sa.Column("include_deferred", sa.Boolean))
-    op.execute("UPDATE slot_pool SET include_deferred = 0")
+    # Different databases support different literal for FALSE. This is fine.
+    op.execute(f"UPDATE slot_pool SET include_deferred = {sa.false().compile(op.get_bind())}")
     with op.batch_alter_table("slot_pool") as batch_op:
         batch_op.alter_column("include_deferred", existing_type=sa.Boolean, nullable=False)
 
