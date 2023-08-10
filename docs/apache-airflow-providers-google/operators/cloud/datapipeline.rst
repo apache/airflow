@@ -49,7 +49,7 @@ The project id and location will be used to build the parent name needed to crea
 
 Here is an example of how you can create a Data Pipelines instance by running the above parameters with CreateDataPipelineOperator:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/google-datapipeline.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/datapipelines/example_datapipeline.py
    :language: python
    :dedent: 4
    :start-after: [START howto_operator_create_data_pipeline]
