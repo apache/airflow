@@ -161,7 +161,6 @@ class ConsumeFromTopicOperator(BaseOperator):
                 batch_size = self.max_batch_size
 
             msgs = consumer.consume(num_messages=batch_size, timeout=self.poll_timeout)
-            self.log.info("Messages count is %s", len(msgs))
             if not self.read_to_end:
                 messages_left -= len(msgs)
 
