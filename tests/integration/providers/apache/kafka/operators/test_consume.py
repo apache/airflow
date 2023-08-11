@@ -65,7 +65,7 @@ class TestConsumeFromTopic:
                     extra=json.dumps(
                         {
                             "socket.timeout.ms": 10,
-                            "bootstrap.servers": "localhost:9092",
+                            "bootstrap.servers": "broker:29092",
                             "group.id": f"operator.consumer.test.integration.test_{num}",
                             "enable.auto.commit": False,
                             "auto.offset.reset": "beginning",
@@ -135,7 +135,7 @@ class TestConsumeFromTopic:
         operator = ConsumeFromTopicOperator(
             kafka_config_id=TOPIC,
             topics=[TOPIC],
-            apply_function=_batch_tester,
+            apply_function_batch=_batch_tester,
             apply_function_kwargs={"test_string": TOPIC},
             task_id="test",
             poll_timeout=0.0001,
