@@ -1090,8 +1090,7 @@ while true; do
     -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
     xargs -0 rm -f
 
-  find "${DIRECTORY}"/logs \
-    -type d -mtime +"${RETENTION}" -empty -delete
+  find "${DIRECTORY}"/logs -type d -empty -delete
 
   seconds=$(( $(date -u +%s) % EVERY))
   (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
