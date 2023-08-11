@@ -181,7 +181,10 @@ class BaseSetupTeardownContext:
 
     @classmethod
     def _update_teardown_downstream(cls, operator: AbstractOperator | list[AbstractOperator]):
-        """This recursively goes through the tasks downstream of the setup in the context manager,
+        """
+        Update _teardown_downstream_of_setup.
+
+        This recursively goes through the tasks downstream of the setup in the context manager,
         if found, updates the _teardown_downstream_of_setup accordingly.
         """
         operator = operator[0] if isinstance(operator, list) else operator
@@ -209,7 +212,10 @@ class BaseSetupTeardownContext:
 
     @classmethod
     def _update_setup_upstream(cls, operator: AbstractOperator | list[AbstractOperator]):
-        """This recursively goes through the tasks upstream of the teardown task in the context manager,
+        """
+        Updates _setup_upstream_of_teardown.
+
+        This recursively goes through the tasks upstream of the teardown task in the context manager,
         if found, updates the _setup_upstream_of_teardown accordingly.
         """
         operator = operator[0] if isinstance(operator, list) else operator
@@ -293,8 +299,7 @@ class BaseSetupTeardownContext:
     @classmethod
     def set_setup_teardown_relationships(cls):
         """
-        Here we set relationship between setup to setup and
-        teardown to teardown.
+        Here we set relationship between setup to setup and teardown to teardown.
 
         code:: python
             with setuptask >> teardowntask:

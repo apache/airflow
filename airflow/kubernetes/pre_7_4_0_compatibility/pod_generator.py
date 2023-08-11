@@ -15,8 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Pod generator compatible with cncf-providers released before 2.7.0 of airflow (so pre-7.4.0 of
-the cncf.kubernetes provider).
+Pod generator compatible with cncf-providers released before 2.7.0 of airflow.
+
+Compatible with pre-7.4.0 of the cncf.kubernetes provider.
 
 This module provides an interface between the previous Pod
 API and outputs a kubernetes.client.models.V1Pod.

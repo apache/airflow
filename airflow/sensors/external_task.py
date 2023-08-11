@@ -329,10 +329,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         return count_allowed == len(dttm_filter)
 
     def execute(self, context: Context) -> None:
-        """
-        Airflow runs this method on the worker and defers using the triggers
-        if deferrable is set to True.
-        """
+        """Runs on the worker and defers using the triggers if deferrable is set to True."""
         if not self.deferrable:
             super().execute(context)
         else:
