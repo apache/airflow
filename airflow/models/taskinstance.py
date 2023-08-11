@@ -116,7 +116,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_dangling_session, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
@@ -2039,7 +2039,7 @@ class TaskInstance(Base, LoggingMixin):
         """Return TI Context."""
         # Do not use provide_session here -- it expunges everything on exit!
         if not session:
-            session = settings.Session()
+            session = create_dangling_session()
 
         from airflow import macros
         from airflow.models.abstractoperator import NotMapped

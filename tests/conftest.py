@@ -951,3 +951,8 @@ def close_all_sqlalchemy_sessions():
     close_all_sessions()
     yield
     close_all_sessions()
+
+
+@pytest.fixture(autouse=True)
+def patch_dangling_session_creator(monkeypatch: pytest.MonkeyPatch, session) -> None:
+    monkeypatch.setattr("airflow.utils.session._create_session", lambda: session)

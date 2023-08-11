@@ -29,7 +29,6 @@ import attr
 import pendulum
 from sqlalchemy.orm.session import Session
 
-from airflow import settings
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
@@ -64,6 +63,7 @@ from airflow.typing_compat import Literal
 from airflow.utils.context import Context, context_update_for_unmapped
 from airflow.utils.helpers import is_container, prevent_duplicates
 from airflow.utils.operator_resources import Resources
+from airflow.utils.session import create_dangling_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -719,7 +719,7 @@ class MappedOperator(AbstractOperator):
         # could override this. We can't use @provide_session since it closes and
         # expunges everything, which we don't want to do when we are so "deep"
         # in the weeds here. We don't close this session for the same reason.
-        session = settings.Session()
+        session = create_dangling_session()
 
         mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
         unmapped_task = self.unmap(mapped_kwargs)

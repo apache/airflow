@@ -25,6 +25,42 @@ from airflow import settings
 from airflow.typing_compat import ParamSpec
 
 
+def _create_session() -> settings.SASession:
+    """Helper for :func:`create_dangling_session`.
+
+    This second indirection layer exists so modules can do
+
+    .. code-block:: python
+
+        from airflow.utils.session import create_dangling_session
+
+    but we can simply mock this value instead of having to mock every
+    ``create_dangling_session`` reference in every module.
+
+    Note that ``settings.Session`` may not be available when this module is
+    imported, so we need to define this as a function, instead of directly
+    aliasing like ``_create_session = settings.Session``.
+    """
+    return settings.Session()
+
+
+def create_dangling_session() -> settings.SASession:
+    """Create a session that is not closed automatically.
+
+    This is used to intentionally create a long-lasting database session to be
+    used in a worker. Lazy accessors to ORM model instances are created against
+    this session, so the user can access them at any time during a task's
+    execution without needing to worry about session management. Since a session
+    will be automatically picked up and close when the worker process exits, we
+    don't explicitly close it (and there's no good place to do that anyway).
+
+    This function exists so contexts where we don't want a dangling session (in
+    tests, for example, where tasks are not run in a separate worker process)
+    can monkey-patch to return a managed session to be closed appropriately.
+    """
+    return _create_session()
+
+
 @contextlib.contextmanager
 def create_session() -> Generator[settings.SASession, None, None]:
     """Contextmanager that will create and teardown a session."""
