@@ -97,7 +97,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
-        
+
         logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
         try:
             logger.setLevel(os.environ.get("AZURE_HTTP_LOGGING_LEVEL", logging.WARNING))
