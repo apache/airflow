@@ -388,6 +388,7 @@ class BeamHook(BaseHook):
 class BeamAsyncHook(BeamHook):
     """
     Asynchronous hook for Apache Beam.
+
     :param runner: Runner type.
     """
 
@@ -411,6 +412,7 @@ class BeamAsyncHook(BeamHook):
     async def _cleanup_tmp_dir(tmp_dir: str) -> None:
         """
         Helper method to delete temporary directory after finishing work with it.
+
         Is uses `rmtree` method to recursively remove the temporary directory.
         """
         shutil.rmtree(tmp_dir)
