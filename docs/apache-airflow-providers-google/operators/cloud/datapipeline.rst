@@ -16,7 +16,7 @@
     under the License.
 
 Google Cloud Data Pipelines Operators
-===============================
+=====================================
 
 Data Pipelines is a Dataflow feature that allows customers to create
 and schedule recurring jobs, view aggregated job metrics, and define
@@ -31,7 +31,7 @@ Prerequisite Tasks
 .. include:: /operators/_partials/prerequisite_tasks.rst
 
 Creating a Data Pipeline
-^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 To create a new Data Pipelines instance using a request body and parent name, use :class:`~airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator`.
 The operator accesses Google Cloud's Data Pipelines API and calls upon the
