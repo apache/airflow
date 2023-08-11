@@ -2427,29 +2427,100 @@ If you set these variables, next time when you enter the environment the new por
 Managing Dependencies
 ---------------------
 
-If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py``
-for airflow and in provider.yaml for packages. If you add any "node" dependencies in ``airflow/www``
-, you need to compile them in the host with ``breeze compile-www-assets`` command.
+There are couple of things you might want to do when adding/changing dependencies when developing with
+Breeze. You can add dependencies temporarily (which will last until you exit Breeze shell), or you might
+want to add them permanently (which require you to rebuild the image). Also there are different things
+you need to do when you are adding system level (debian) level, Python (pip) dependencies or Node (yarn)
+dependencies for the webserver.
 
-Adding Dependencies Permanently
-...............................
+Python dependencies
+~~~~~~~~~~~~~~~~~~~
 
-You can add dependencies to the ``Dockerfile.ci``, ``setup.py``.
-After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
-asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
-if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the
-``build`` command to only rebuild CI image and not to go into shell.
+For temporary adding and modifying the dependencies, you just (in Breeze shell) run
+``pip install <dependency>`` or similar - in the same way as you would do it
+in your local environment. You can also use ``pip install -r /files/requirements.txt`` to install several
+dependencies - if you place your requirements file in ``files`` directory. Those dependencies will
+disappear when you exit Breeze shell.
 
-Incremental apt Dependencies in the Dockerfile.ci during development
-....................................................................
+When you want to add dependencies permanently, then it depends what kind of dependency you add.
 
-During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile.ci``
-invalidates cache for most of the image. It takes long time for Breeze to rebuild the image.
-So, it is a recommended practice to add new dependencies initially closer to the end
-of the ``Dockerfile.ci``. This way dependencies will be added incrementally.
+If you want to add core dependency that should always be installed - you need to add it to ``setup.cfg``
+to ``install_requires`` section. If you want to add it to one of the optional core extras, you should
+add it in the extra definition in ``setup.py`` (you need to find out where it is defined). If you want
+to add it to one of the providers, you need to add it to the ``provider.yaml`` file in the provider
+directory - but remember that this should be followed by running pre-commit that will automatically update
+the ``generated/provider_dependencies.json`` directory with the new dependencies:
 
-Before merge, these dependencies should be moved to the appropriate ``apt-get install`` command,
-which is already in the ``Dockerfile.ci``.
+```
+pre-commit run update-providers-dependencies  --all-files
+```
+
+You can also run the pre-commit by ``breeze static-checks --type update-providers-dependencies --all-files``
+command - which provides autocomplete.
+
+After you've updated the dependencies, you need to rebuild the image:
+
+Breeze will automatically detect when you updated dependencies and it will propose you to build image next
+time when you enter it. You can answer ``y`` during 10 seconds to get it done for you.
+
+```
+breeze ci-image build
+```
+
+Sometimes, when you have conflicting change in dependencies (i.e. dependencies in the old constraints
+are conflicting with the new specification, you might want to build the image with
+``--upgrade-to-newer-dependencies`` flag:
+
+```
+breeze ci-image build --upgrade-to-newer-dependencies
+```
+
+
+System (debian) dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can install ``apt-get`` dependencies temporarily by running ``apt-get install <dependency>`` in
+Breeze shell. Those dependencies will disappear when you exit Breeze shell.
+
+When you want to add dependencies permanently, you need to add them to ``Dockerfile.ci``. But you need to
+do it indirectly via shell scripts that get automatically inlined in the ``Dockerfile.ci``. Those
+scripts are present in ``scripts/docker`` directory and are aptly (!) named ``install*.sh``. Most
+of the apt dependencies are installed in the ``install_os_dependencies.sh``, but some are installed in
+other scripts (for example ``install_postgres.sh`` or ``install_mysql.sh``).
+
+After you modify the dependencies in the scripts, you need to inline them by running pre-commit:
+
+```
+pre-commit run update-inlined-dockerfile-scripts --all-files
+```
+
+You can also run the pre-commit by ``breeze static-checks --type update-inlined-dockerfile-scripts --all-files``
+command - which provides autocomplete.
+
+
+After you've updated the dependencies, you need to rebuild the image:
+
+Breeze will automatically detect when you updated dependencies and it will propose you to build image next
+time when you enter it. You can answer ``y`` during 10 seconds to get it done for you.
+
+```
+breeze ci-image build
+```
+
+Sometimes, when you have conflicting change in dependencies (i.e. dependencies in the old constraints
+are conflicting with the new specification, you might want to build the image with
+``--upgrade-to-newer-dependencies`` flag:
+
+```
+breeze ci-image build --upgrade-to-newer-dependencies
+```
+
+Node (yarn) dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you need to change "node" dependencies in ``airflow/www``, you need to compile them in the
+host with ``breeze compile-www-assets`` command. No need to rebuild the image.
+
 
 Recording command output
 ========================
