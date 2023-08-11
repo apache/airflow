@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import TYPE_CHECKING, Any, Union
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -164,6 +165,10 @@ class MySqlHook(DbApiHook):
 
         return conn_config
 
+    @staticmethod
+    def _sanitize_filename(filename: str) -> str:
+        return re.sub(r"(;.*)$", "", filename)
+
     def get_conn(self) -> MySQLConnectionTypes:
         """
         Connection to a MySQL database.
@@ -208,7 +213,7 @@ class MySqlHook(DbApiHook):
         cur = conn.cursor()
         cur.execute(
             f"""
-            LOAD DATA LOCAL INFILE '{tmp_file}'
+            LOAD DATA LOCAL INFILE '{self._sanitize_filename(tmp_file)}'
             INTO TABLE {table}
             """
         )
@@ -221,7 +226,7 @@ class MySqlHook(DbApiHook):
         cur = conn.cursor()
         cur.execute(
             f"""
-            SELECT * INTO OUTFILE '{tmp_file}'
+            SELECT * INTO OUTFILE '{self._sanitize_filename(tmp_file)}'
             FROM {table}
             """
         )
@@ -288,7 +293,7 @@ class MySqlHook(DbApiHook):
 
         cursor.execute(
             f"""
-            LOAD DATA LOCAL INFILE '{tmp_file}'
+            LOAD DATA LOCAL INFILE '{self._sanitize_filename(tmp_file)}'
             {duplicate_key_handling}
             INTO TABLE {table}
             {extra_options}
