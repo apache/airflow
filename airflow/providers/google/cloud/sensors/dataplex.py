@@ -220,8 +220,6 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
             raise AirflowException(
                 f"Error occurred when trying to retrieve Data Quality scan job: {self.data_scan_id}", e
             )
-        except Exception as e:
-            raise AirflowException(e)
 
         job_status = job.state
         self.log.info(

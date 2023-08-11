@@ -694,8 +694,10 @@ class DataplexCreateOrUpdateDataQualityScanOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             hook.wait_for_operation(timeout=self.timeout, operation=operation)
+            self.log.info("Dataplex Data Quality scan %s created successfully!", self.data_scan_id)
         except AlreadyExists:
-            self.log.info("Data Quality scan already exists: %s", {self.data_scan_id})
+            self.log.info("Dataplex Data Quality scan already exists: %s", {self.data_scan_id})
+
             operation = hook.update_data_scan(
                 project_id=self.project_id,
                 region=self.region,
@@ -707,11 +709,10 @@ class DataplexCreateOrUpdateDataQualityScanOperator(GoogleCloudBaseOperator):
                 metadata=self.metadata,
             )
             hook.wait_for_operation(timeout=self.timeout, operation=operation)
-
+            self.log.info("Dataplex Data Quality scan %s updated successfully!", self.data_scan_id)
         except GoogleAPICallError as e:
             raise AirflowException(f"Error creating Data Quality scan {self.data_scan_id}", e)
 
-        self.log.info("Dataplex Data Quality scan %s created successfully!", self.data_scan_id)
         return self.data_scan_id
 
 
@@ -775,7 +776,7 @@ class DataplexGetDataQualityScanOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info("Gets the details of Dataplex Data Quality scan %s", self.data_scan_id)
+        self.log.info("Retrieving the details of Dataplex Data Quality scan %s", self.data_scan_id)
         data_quality_scan = hook.get_data_scan(
             project_id=self.project_id,
             region=self.region,
@@ -891,8 +892,9 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
     :param fail_on_dq_failure: If set to true and not all Data Quality scan rules have been passed,
         an exception is thrown. If set to false and not all Data Quality scan rules have been passed,
         execution will finish with success.
-    :param: result_timeout: Value in seconds for which operator will wait for the Data Quality scan result.
-            Throws exception if there is no result found after specified amount of seconds.
+    :param result_timeout: Value in seconds for which operator will wait for the Data Quality scan result
+        when the flag `asynchronous = False`.
+        Throws exception if there is no result found after specified amount of seconds.
 
     :return: Dataplex Data Quality scan job id.
     """
@@ -912,7 +914,7 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous: bool = False,
         fail_on_dq_failure: bool = False,
-        result_timeout: float = 60 * 10,
+        result_timeout: float = 60.0 * 10,
         *args,
         **kwargs,
     ) -> None:
@@ -1001,7 +1003,8 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         execution will finish with success.
     :param wait_for_result: Flag indicating whether to wait for the result of a job execution
         or to return the job in its current state.
-    :param: result_timeout: Value in seconds for which operator will wait for the Data Quality scan result.
+    :param result_timeout: Value in seconds for which operator will wait for the Data Quality scan result
+        when the flag `wait_for_result = True`.
         Throws exception if there is no result found after specified amount of seconds.
 
     :return: Dict representing DataScanJob.
@@ -1025,7 +1028,7 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         fail_on_dq_failure: bool = False,
         wait_for_results: bool = True,
-        result_timeout: float = 60 * 10,
+        result_timeout: float = 60.0 * 10,
         *args,
         **kwargs,
     ) -> None:
@@ -1189,8 +1192,6 @@ class DataplexCreateZoneOperator(GoogleCloudBaseOperator):
 
         except GoogleAPICallError as e:
             raise AirflowException(f"Error occurred when creating zone {self.zone_id}", e)
-        except Exception as e:
-            raise AirflowException(e)
 
         self.log.info("Dataplex zone %s created successfully!", self.zone_id)
         return Zone.to_dict(zone)
@@ -1367,8 +1368,6 @@ class DataplexCreateAssetOperator(GoogleCloudBaseOperator):
             result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
         except GoogleAPICallError as e:
             raise AirflowException(f"Error occurred when creating asset {self.asset_id}", e)
-        except Exception as e:
-            raise AirflowException(e)
 
         self.log.info("Dataplex asset %s created successfully!", self.asset_id)
         return Asset.to_dict(result)

@@ -774,7 +774,7 @@ class DataplexHook(GoogleBaseHook):
 
         if not update_mask:
             update_mask = FieldMask(
-                paths=["data", "data_quality_spec", "labels", "description", "displayName", "executionSpec"]
+                paths=["data_quality_spec", "labels", "description", "display_name", "execution_spec"]
             )
 
         result = client.update_data_scan(
