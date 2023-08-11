@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import re
 import logging
 import os
+import re
 import warnings
 from functools import cached_property
 
