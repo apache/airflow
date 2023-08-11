@@ -22,7 +22,7 @@ import collections.abc
 import functools
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
-from sqlalchemy import and_, case, func, or_, true
+from sqlalchemy import and_, func, or_, select
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.dep_context import DepContext
@@ -225,14 +225,16 @@ class TriggerRuleDep(BaseTIDep):
         # "simple" tasks (no task or task group mapping involved).
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
-            upstream_setup = len([x for x in upstream_tasks.values() if x.is_setup])
+            upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
         else:
-            upstream, upstream_setup = (
-                session.query(func.count(), func.sum(case((TaskInstance.is_setup == true(), 1), else_=0)))
-                .filter(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
-                .filter(or_(*_iter_upstream_conditions()))
-                .one()
-            )
+            task_id_counts = session.execute(
+                select(TaskInstance.task_id, func.count(TaskInstance.task_id))
+                .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                .where(or_(*_iter_upstream_conditions()))
+                .group_by(TaskInstance.task_id)
+            ).all()
+            upstream = sum(count for _, count in task_id_counts)
+            upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
 
         upstream_done = done >= upstream
 

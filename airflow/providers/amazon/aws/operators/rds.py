@@ -20,9 +20,9 @@ from __future__ import annotations
 import json
 import warnings
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from astroid.decorators import cachedproperty
 from mypy_boto3_rds.type_defs import TagTypeDef
 
 from airflow.configuration import conf
@@ -74,7 +74,7 @@ class RdsBaseOperator(BaseOperator):
 
         self._await_interval = 60  # seconds
 
-    @cachedproperty
+    @cached_property
     def hook(self) -> RdsHook:
         return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, **self.hook_params)
 

@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``openlineage: disable running listener if not configured (#33120)``
+* ``Don't use database as fallback when no schema parsed. (#32959)``
+
+Misc
+~~~~
+
+* ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
+* ``Move openlineage configuration to provider (#33124)``
+
 1.0.0
 .....
 

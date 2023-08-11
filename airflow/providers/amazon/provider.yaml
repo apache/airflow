@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 8.5.1
+  - 8.5.0
   - 8.4.0
   - 8.3.1
   - 8.3.0
@@ -77,9 +79,7 @@ dependencies:
   - sqlalchemy_redshift>=0.8.6
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
-  # exclude 1.28.12 and 1.28.15 as it causes strange typing inconsistency
-  # https://github.com/youtype/mypy_boto3_builder/issues/209
-  - mypy-boto3-appflow>=1.24.0,<1.28.12
+  - mypy-boto3-appflow>=1.28.16
   - asgiref
   - mypy-boto3-s3>=1.24.0
 
@@ -572,6 +572,9 @@ triggers:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.triggers.step_function
+  - integration-name: Amazon Simple Queue Service (SQS)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.sqs
 
 transfers:
   - source-integration-name: Amazon DynamoDB

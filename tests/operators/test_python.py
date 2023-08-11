@@ -847,9 +847,11 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         kwargs["python_version"] = python_version
         return kwargs
 
+    @mock.patch("shutil.which")
     @mock.patch("airflow.operators.python.importlib")
-    def test_virtuenv_not_installed(self, importlib):
-        importlib.util.find_spec.return_value = None
+    def test_virtuenv_not_installed(self, importlib_mock, which_mock):
+        which_mock.return_value = None
+        importlib_mock.util.find_spec.return_value = None
         with pytest.raises(AirflowException, match="requires virtualenv"):
 
             def f():
@@ -929,6 +931,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pip_install_options=["--no-deps"],
         )
         mocked_prepare_virtualenv.assert_called_with(
+            index_urls=None,
             venv_directory=mock.ANY,
             python_bin=mock.ANY,
             system_site_packages=False,
@@ -968,6 +971,18 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             return a
 
         self.run_as_task(f, system_site_packages=False, use_dill=False, op_args=[4])
+
+    def test_with_index_urls(self):
+        def f(a):
+            import sys
+            from pathlib import Path
+
+            pip_conf = (Path(sys.executable).parent.parent / "pip.conf").read_text()
+            assert "abc.def.de" in pip_conf
+            assert "xyz.abc.de" in pip_conf
+            return a
+
+        self.run_as_task(f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4])
 
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).

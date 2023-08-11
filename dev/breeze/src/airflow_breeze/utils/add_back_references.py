@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import enum
 import os
+import re
 import tempfile
 from pathlib import Path
 from urllib.error import URLError
@@ -25,17 +25,12 @@ from urllib.request import urlopen
 
 from rich import print
 
+from airflow_breeze.utils.console import get_console
+
 airflow_redirects_link = (
     "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/redirects.txt"
 )
 helm_redirects_link = "https://raw.githubusercontent.com/apache/airflow/main/docs/helm-chart/redirects.txt"
-
-
-# types of generations supported
-class GenerationType(enum.Enum):
-    airflow = 1
-    helm = 2
-    providers = 3
 
 
 def download_file(url):
@@ -89,24 +84,31 @@ def get_github_redirects_url(provider_name: str):
     return f"https://raw.githubusercontent.com/apache/airflow/main/docs/{provider_name}/redirects.txt"
 
 
-def get_provider_docs_path(docs_archive_path, provider_name: str):
-    return docs_archive_path + "/" + provider_name
+def crete_redirect_html_if_not_exist(path: Path, content: str):
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+        print(f"[green]Created back reference redirect: {path}")
+    else:
+        print(f"Skipping file:{path}, redirects already exist")
 
 
-def create_back_reference_html(back_ref_url, path):
+def create_back_reference_html(back_ref_url: str, target_path: Path):
     content = get_redirect_content(back_ref_url)
 
-    if Path(path).exists():
-        print(f"Skipping file:{path}, redirects already exist")
-        return
+    version_match = re.compile(r"[0-9]+.[0-9]+.[0-9]+")
+    target_path_as_posix = target_path.as_posix()
+    if "/stable/" in target_path_as_posix:
+        prefix, postfix = target_path_as_posix.split("/stable/")
+        base_folder = Path(prefix)
+        for folder in base_folder.iterdir():
+            if folder.is_dir() and version_match.match(folder.name):
+                crete_redirect_html_if_not_exist(folder / postfix, content)
+    else:
+        crete_redirect_html_if_not_exist(Path(target_path), content)
 
-    # creating a back reference html file
-    with open(path, "w") as f:
-        f.write(content)
-    print(f"[green]Created back reference redirect: {path}")
 
-
-def generate_back_references(link: str, base_path: str):
+def generate_back_references(link: str, base_path: Path):
     is_downloaded, file_name = download_file(link)
     if not is_downloaded:
         old_to_new: list[tuple[str, str]] = []
@@ -115,48 +117,47 @@ def generate_back_references(link: str, base_path: str):
         old_to_new = construct_old_to_new_tuple_mapping(file_name)
     old_to_new.append(("index.html", "changelog.html"))
     old_to_new.append(("index.html", "security.html"))
+    old_to_new.append(("security.html", "security/security-model.html"))
 
     versions = [f.path.split("/")[-1] for f in os.scandir(base_path) if f.is_dir()]
-
     for version in versions:
         print(f"Processing {base_path}, version: {version}")
-        versioned_provider_path = base_path + "/" + version
+        versioned_provider_path = base_path / version
 
         for old, new in old_to_new:
             # only if old file exists, add the back reference
-            if os.path.exists(versioned_provider_path + "/" + old):
+            if os.path.exists(versioned_provider_path / old):
                 split_new_path = new.split("/")
                 file_name = new.split("/")[-1]
-                dest_dir = versioned_provider_path + "/" + "/".join(split_new_path[: len(split_new_path) - 1])
+                dest_dir = versioned_provider_path.joinpath(*split_new_path[: len(split_new_path) - 1])
 
                 # finds relative path of old file with respect to new and handles case of different file
                 # names also
                 relative_path = os.path.relpath(old, new)
                 # remove one directory level because file path was used above
                 relative_path = relative_path.replace("../", "", 1)
-
                 os.makedirs(dest_dir, exist_ok=True)
-                dest_file_path = dest_dir + "/" + file_name
+                dest_file_path = dest_dir / file_name
                 create_back_reference_html(relative_path, dest_file_path)
 
 
-def start_generating_back_references(gen_type, airflow_site_directory):
-    docs_archive_path = airflow_site_directory + "/docs-archive"
-    airflow_docs_path = docs_archive_path + "/apache-airflow"
-    helm_docs_path = docs_archive_path + "/helm-chart"
-
-    if gen_type == GenerationType.airflow:
+def start_generating_back_references(airflow_site_directory: Path, short_provider_package_ids: list[str]):
+    docs_archive_path = airflow_site_directory / "docs-archive"
+    airflow_docs_path = docs_archive_path / "apache-airflow"
+    helm_docs_path = docs_archive_path / "helm-chart"
+    if "apache-airflow" in short_provider_package_ids:
         generate_back_references(airflow_redirects_link, airflow_docs_path)
-    elif gen_type == GenerationType.helm:
+        short_provider_package_ids.remove("apache-airflow")
+    if "helm-chart" in short_provider_package_ids:
         generate_back_references(helm_redirects_link, helm_docs_path)
-    elif gen_type == GenerationType.providers:
+        short_provider_package_ids.remove("helm-chart")
+    if "docker-stack" in short_provider_package_ids:
+        get_console().print("[info]Skipping docker-stack package. No back-reference needed.")
+        short_provider_package_ids.remove("docker-stack")
+    if short_provider_package_ids:
         all_providers = [
-            f.path.split("/")[-1]
-            for f in os.scandir(docs_archive_path)
-            if f.is_dir() and "providers" in f.name
+            f"apache-airflow-providers-{package.replace('.','-')}" for package in short_provider_package_ids
         ]
         for p in all_providers:
             print(f"Processing airflow provider: {p}")
-            generate_back_references(
-                get_github_redirects_url(p), get_provider_docs_path(docs_archive_path, p)
-            )
+            generate_back_references(get_github_redirects_url(p), docs_archive_path / p)

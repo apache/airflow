@@ -67,12 +67,10 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from pygments import highlight, lexers
-from pygments.formatters import HtmlFormatter
 from sqlalchemy import Date, and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
-from wtforms import SelectField, validators
+from wtforms import BooleanField, validators
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -100,7 +98,6 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, Trigger, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
-from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.mappedoperator import MappedOperator
@@ -136,7 +133,6 @@ from airflow.www.forms import (
     DagRunEditForm,
     DateTimeForm,
     DateTimeWithNumRunsForm,
-    DateTimeWithNumRunsWithDagRunsForm,
     TaskInstanceEditForm,
     create_connection_form_class,
 )
@@ -943,7 +939,7 @@ class Airflow(AirflowBaseView):
                 "error",
             )
 
-        num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
+        num_of_pages = math.ceil(num_of_all_dags / dags_per_page)
 
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
@@ -1321,31 +1317,13 @@ class Airflow(AirflowBaseView):
     @provide_session
     def code(self, dag_id, session: Session = NEW_SESSION):
         """Dag Code."""
-        dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag or not dag_model:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
+        kwargs = {
+            **sanitize_args(request.args),
+            "dag_id": dag_id,
+            "tab": "code",
+        }
 
-        wwwutils.check_import_errors(dag_model.fileloc, session)
-        wwwutils.check_dag_warnings(dag_model.dag_id, session)
-
-        try:
-            code = DagCode.get_code_by_fileloc(dag_model.fileloc)
-            html_code = Markup(highlight(code, lexers.PythonLexer(), HtmlFormatter(linenos=True)))
-        except Exception as e:
-            error = f"Exception encountered during dag code retrieval/code highlighting:\n\n{e}\n"
-            html_code = Markup("<p>Failed to load DAG file Code.</p><p>Details: {}</p>").format(escape(error))
-
-        return self.render_template(
-            "airflow/dag_code.html",
-            html_code=html_code,
-            dag=dag,
-            dag_model=dag_model,
-            title=dag_id,
-            root=request.args.get("root"),
-            wrapped=conf.getboolean("webserver", "default_wrap"),
-        )
+        return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/dag_details")
     @auth.has_access(
@@ -1948,15 +1926,15 @@ class Airflow(AirflowBaseView):
             flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
             return redirect(url_for("Airflow.index"))
 
-        xcom_query = session.execute(
-            select(XCom.key, XCom.value).where(
+        xcom_query = session.scalars(
+            select(XCom).where(
                 XCom.dag_id == dag_id,
                 XCom.task_id == task_id,
                 XCom.execution_date == dttm,
                 XCom.map_index == map_index,
             )
         )
-        attributes = [(k, v) for k, v in xcom_query if not k.startswith("_")]
+        attributes = [(xcom.key, xcom.value) for xcom in xcom_query if not xcom.key.startswith("_")]
 
         title = "XCom"
         return self.render_template(
@@ -3125,105 +3103,21 @@ class Airflow(AirflowBaseView):
     @action_logging
     @provide_session
     def graph(self, dag_id: str, session: Session = NEW_SESSION):
-        """Get DAG as Graph."""
+        """Redirect to the replacement - grid + graph. Kept for backwards compatibility."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
-        dag_model = DagModel.get_dagmodel(dag_id, session=session)
-        if not dag:
-            flash(f'DAG "{dag_id}" seems to be missing.', "error")
-            return redirect(url_for("Airflow.index"))
-
-        wwwutils.check_import_errors(dag.fileloc, session)
-        wwwutils.check_dag_warnings(dag.dag_id, session)
-
-        root = request.args.get("root")
-        if root:
-            filter_upstream = request.args.get("filter_upstream") == "true"
-            filter_downstream = request.args.get("filter_downstream") == "true"
-            dag = dag.partial_subset(
-                task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
-            )
-        arrange = request.args.get("arrange", dag.orientation)
-
-        nodes = task_group_to_dict(dag.task_group)
-        edges = dag_edges(dag)
-
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
-
-        dt_nr_dr_data["arrange"] = arrange
         dttm = dt_nr_dr_data["dttm"]
         dag_run = dag.get_dagrun(execution_date=dttm)
         dag_run_id = dag_run.run_id if dag_run else None
 
-        class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
-            """Graph Form class."""
-
-            arrange = SelectField(
-                "Layout",
-                choices=(
-                    ("LR", "Left > Right"),
-                    ("RL", "Right > Left"),
-                    ("TB", "Top > Bottom"),
-                    ("BT", "Bottom > Top"),
-                ),
-            )
-
-        form = GraphForm(data=dt_nr_dr_data)
-        form.execution_date.choices = dt_nr_dr_data["dr_choices"]
-
-        task_instances = {}
-        for ti in dag.get_task_instances(dttm, dttm):
-            if ti.task_id not in task_instances:
-                task_instances[ti.task_id] = wwwutils.get_instance_with_map(ti, session)
-                # Need to add operator_name explicitly because it's not a column in task_instances model.
-                task_instances[ti.task_id]["operator_name"] = ti.operator_name
-        tasks = {
-            t.task_id: {
-                "dag_id": t.dag_id,
-                "task_type": t.task_type,
-                "operator_name": t.operator_name,
-                "extra_links": t.extra_links,
-                "is_mapped": isinstance(t, MappedOperator),
-                "trigger_rule": t.trigger_rule,
-            }
-            for t in dag.tasks
+        kwargs = {
+            **sanitize_args(request.args),
+            "dag_id": dag_id,
+            "tab": "graph",
+            "dag_run_id": dag_run_id,
         }
-        if not tasks:
-            flash("No tasks found", "error")
-        session.commit()
-        doc_md = wwwutils.wrapped_markdown(getattr(dag, "doc_md", None))
 
-        task_log_reader = TaskLogReader()
-        if task_log_reader.supports_external_link:
-            external_log_name = task_log_reader.log_handler.log_name
-        else:
-            external_log_name = None
-
-        state_priority = ["no_status" if p is None else p for p in wwwutils.priority]
-
-        return self.render_template(
-            "airflow/graph.html",
-            dag=dag,
-            form=form,
-            dag_run_id=dag_run_id,
-            execution_date=dttm.isoformat(),
-            state_token=wwwutils.state_token(dt_nr_dr_data["dr_state"]),
-            doc_md=doc_md,
-            arrange=arrange,
-            operators=sorted(
-                {op.operator_name: op for op in dag.tasks}.values(), key=lambda x: x.operator_name
-            ),
-            root=root or "",
-            task_instances=task_instances,
-            tasks=tasks,
-            nodes=nodes,
-            edges=edges,
-            show_external_log_redirect=task_log_reader.supports_external_link,
-            external_log_name=external_log_name,
-            dag_run_state=dt_nr_dr_data["dr_state"],
-            dag_model=dag_model,
-            auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
-            state_priority=state_priority,
-        )
+        return redirect(url_for("Airflow.grid", **kwargs))
 
     @expose("/duration")
     @auth.has_access(
@@ -3357,8 +3251,7 @@ class Airflow(AirflowBaseView):
                 y=scale_time_units(cumulative_y[task_id], cum_y_unit),
             )
 
-        dates = sorted({ti.execution_date for ti in task_instances})
-        max_date = max(ti.execution_date for ti in task_instances) if dates else None
+        max_date = max((ti.execution_date for ti in task_instances), default=None)
 
         session.commit()
 
@@ -3456,8 +3349,7 @@ class Airflow(AirflowBaseView):
             if x_points:
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
-        tries = sorted({ti.try_number for ti in tis})
-        max_date = max(ti.execution_date for ti in tis) if tries else None
+        max_date = max((ti.execution_date for ti in tis), default=None)
         chart.create_y_axis("yAxis", format=".02f", custom_format=False, label="Tries")
         chart.axislist["yAxis"]["axisLabelDistance"] = "-15"
 
@@ -3980,7 +3872,7 @@ class Airflow(AirflowBaseView):
         updated_before = _safe_parse_datetime(request.args.get("updated_before"), allow_empty=True)
 
         # Check and clean up query parameters
-        limit = 50 if limit > 50 else limit
+        limit = min(50, limit)
 
         uri_pattern = uri_pattern[:4000]
 
@@ -4109,7 +4001,7 @@ class Airflow(AirflowBaseView):
 
         logs_per_page = PAGE_SIZE
         audit_logs_count = get_query_count(query, session=session)
-        num_of_pages = int(math.ceil(audit_logs_count / float(logs_per_page)))
+        num_of_pages = math.ceil(audit_logs_count / logs_per_page)
 
         start = current_page * logs_per_page
         end = start + logs_per_page
@@ -4980,9 +4872,17 @@ class PoolModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ["pool", "slots", "running_slots", "queued_slots", "scheduled_slots"]
-    add_columns = ["pool", "slots", "description"]
-    edit_columns = ["pool", "slots", "description"]
+    list_columns = ["pool", "slots", "running_slots", "queued_slots", "scheduled_slots", "deferred_slots"]
+    add_columns = ["pool", "slots", "description", "include_deferred"]
+    edit_columns = ["pool", "slots", "description", "include_deferred"]
+
+    # include_deferred is non-nullable, but as a checkbox in the resulting form we want to allow it unchecked
+    include_deferred_field = BooleanField(
+        validators=[validators.Optional()],
+        description="Check to include deferred tasks when calculating open pool slots.",
+    )
+    edit_form_extra_fields = {"include_deferred": include_deferred_field}
+    add_form_extra_fields = {"include_deferred": include_deferred_field}
 
     base_order = ("pool", "asc")
 
@@ -5049,11 +4949,24 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
+    def fdeferred_slots(self):
+        """Deferred slots rendering."""
+        pool_id = self.get("pool")
+        deferred_slots = self.get("deferred_slots")
+        if pool_id is not None and deferred_slots is not None:
+            url = url_for("TaskInstanceModelView.list", _flt_3_pool=pool_id, _flt_3_state="deferred")
+            return Markup("<a href='{url}'>{deferred_slots}</a>").format(
+                url=url, deferred_slots=deferred_slots
+            )
+        else:
+            return Markup('<span class="label label-danger">Invalid</span>')
+
     formatters_columns = {
         "pool": pool_link,
         "running_slots": frunning_slots,
         "queued_slots": fqueued_slots,
         "scheduled_slots": fscheduled_slots,
+        "deferred_slots": fdeferred_slots,
     }
 
     validators_columns = {"pool": [validators.DataRequired()], "slots": [validators.NumberRange(min=-1)]}

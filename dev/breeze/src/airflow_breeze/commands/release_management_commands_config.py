@@ -174,7 +174,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management add-back-references": [
         {
             "name": "Add Back References to Docs",
-            "options": ["--airflow-site-directory", "--gen-type"],
+            "options": ["--airflow-site-directory"],
         },
     ],
     "breeze release-management generate-issue-content-providers": [
@@ -212,5 +212,17 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze release-management start-release": [
         {"name": "Start release flags", "options": ["--release-candidate", "--previous-release"]}
+    ],
+    "breeze release-management update-constraints": [
+        {
+            "name": "Update constraints flags",
+            "options": [
+                "--constraints-repo",
+                "--remote-name",
+                "--airflow-versions",
+                "--commit-message",
+                "--updated-constraint",
+            ],
+        },
     ],
 }

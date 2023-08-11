@@ -29,6 +29,7 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
@@ -175,6 +176,10 @@ class Variable(Base, LoggingMixin):
         Variable.delete(key, session=session)
         session.add(Variable(key=key, val=stored_value, description=description))
         session.flush()
+        # invalidate key in cache for faster propagation
+        # we cannot save the value set because it's possible that it's shadowed by a custom backend
+        # (see call to check_for_write_conflict above)
+        SecretCache.invalidate_variable(key)
 
     @staticmethod
     @provide_session
@@ -210,7 +215,9 @@ class Variable(Base, LoggingMixin):
 
         :param key: Variable Keys
         """
-        return session.execute(delete(Variable).where(Variable.key == key)).rowcount
+        rows = session.execute(delete(Variable).where(Variable.key == key)).rowcount
+        SecretCache.invalidate_variable(key)
+        return rows
 
     def rotate_fernet_key(self):
         """Rotate Fernet Key."""
@@ -256,15 +263,26 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :return: Variable Value
         """
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        try:
+            return SecretCache.get_variable(key)
+        except SecretCache.NotPresentException:
+            pass  # continue business
+
+        var_val = None
+        # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
                 var_val = secrets_backend.get_variable(key=key)
                 if var_val is not None:
-                    return var_val
+                    break
             except Exception:
                 log.exception(
                     "Unable to retrieve variable from secrets backend (%s). "
                     "Checking subsequent secrets backend.",
                     type(secrets_backend).__name__,
                 )
-        return None
+
+        SecretCache.save_variable(key, var_val)  # we save None as well
+        return var_val

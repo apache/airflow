@@ -225,7 +225,7 @@ extensions for running Dataflow streaming jobs.
 Here is an example of running Dataflow SQL job with
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartSqlJobOperator`:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow_sql.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_sql.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_sql_job]
@@ -247,7 +247,7 @@ To stop one or more Dataflow pipelines you can use
 Streaming pipelines are drained by default, setting ``drain_pipeline`` to ``False`` will cancel them instead.
 Provide ``job_id`` to stop a specific job, or ``job_name_prefix`` to stop all jobs with provided name prefix.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataflow.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_native_python.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_stop_dataflow_job]

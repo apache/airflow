@@ -24,11 +24,9 @@ from tests.charts.helm_template_generator import render_chart
 
 class TestAirflowCommon:
     """
-    This class holds tests that apply to more than 1 Airflow component so
-    we don't have to repeat tests everywhere.
+    Tests that apply to more than 1 Airflow component so we don't have to repeat tests everywhere.
 
-    The one general exception will be the KubernetesExecutor PodTemplateFile,
-    as it requires extra test setup.
+    The one general exception will be the KubernetesExecutor PodTemplateFile, as it requires extra test setup.
     """
 
     @pytest.mark.parametrize(
@@ -126,8 +124,9 @@ class TestAirflowCommon:
 
     def test_annotations(self):
         """
-        Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker
-        deployments.
+        Test Annotations are correctly applied.
+
+        Verifies all pods created Scheduler, Webserver & Worker deployments.
         """
         release_name = "test-basic"
         k8s_objects = render_chart(

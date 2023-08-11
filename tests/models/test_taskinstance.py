@@ -96,7 +96,7 @@ from tests.test_utils.mock_operators import MockOperator
 @pytest.fixture
 def test_pool():
     with create_session() as session:
-        test_pool = Pool(pool="test_pool", slots=1)
+        test_pool = Pool(pool="test_pool", slots=1, include_deferred=False)
         session.add(test_pool)
         session.flush()
         yield test_pool
@@ -3026,7 +3026,6 @@ class TestTaskInstance:
             "_try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
-            "is_setup": False,
             "unixname": "some_unique_unixname",
             "job_id": 1234,
             "pool": "some_fake_pool_id",

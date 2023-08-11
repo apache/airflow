@@ -85,8 +85,8 @@ from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
     AirflowSkipException,
-    DagInvalidTriggerRule,
     DuplicateTaskIdFound,
+    FailStopDagInvalidTriggerRule,
     RemovedInAirflow3Warning,
     TaskNotFound,
 )
@@ -717,11 +717,7 @@ class DAG(LoggingMixin):
         :meta private:
         """
         for task in self.tasks:
-            if task.is_teardown and all(x.is_setup for x in task.upstream_list):
-                raise AirflowDagInconsistent(
-                    f"Dag has teardown task without an upstream work task: dag='{self.dag_id}',"
-                    f" task='{task.task_id}'"
-                )
+            FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -744,7 +740,7 @@ class DAG(LoggingMixin):
         for c in self._comps:
             # task_ids returns a list and lists can't be hashed
             if c == "task_ids":
-                val = tuple(self.task_dict.keys())
+                val = tuple(self.task_dict)
             else:
                 val = getattr(self, c, None)
             try:
@@ -1260,7 +1256,7 @@ class DAG(LoggingMixin):
 
     @property
     def task_ids(self) -> list[str]:
-        return list(self.task_dict.keys())
+        return list(self.task_dict)
 
     @property
     def teardowns(self) -> list[Operator]:
@@ -2223,9 +2219,7 @@ class DAG(LoggingMixin):
             return 0
         if confirm_prompt:
             ti_list = "\n".join(str(t) for t in tis)
-            question = (
-                "You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? [y/n]"
-            ).format(count=count, ti_list=ti_list)
+            question = f"You are about to delete these {count} tasks:\n{ti_list}\n\nAre you sure? [y/n]"
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
@@ -2520,7 +2514,7 @@ class DAG(LoggingMixin):
 
         :param task: the task you want to add
         """
-        DagInvalidTriggerRule.check(self, task.trigger_rule)
+        FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
         from airflow.utils.task_group import TaskGroupContext
 
@@ -2711,6 +2705,7 @@ class DAG(LoggingMixin):
             secrets_backend_list.insert(0, local_secrets)
 
         execution_date = execution_date or timezone.utcnow()
+        self.validate()
         self.log.debug("Clearing existing task instances for execution date %s", execution_date)
         self.clear(
             start_date=execution_date,
@@ -2902,7 +2897,7 @@ class DAG(LoggingMixin):
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
 
-        dag_ids = set(dag_by_ids.keys())
+        dag_ids = set(dag_by_ids)
         query = (
             select(DagModel)
             .options(joinedload(DagModel.tags, innerjoin=False))
@@ -3240,7 +3235,7 @@ class DAG(LoggingMixin):
                 "auto_register",
                 "fail_stop",
             }
-            cls.__serialized_fields = frozenset(vars(DAG(dag_id="test")).keys()) - exclusion_list
+            cls.__serialized_fields = frozenset(vars(DAG(dag_id="test"))) - exclusion_list
         return cls.__serialized_fields
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
@@ -3599,21 +3594,18 @@ class DagModel(Base):
                 .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
             )
         }
-        dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
+        dataset_triggered_dag_ids = set(dataset_triggered_dag_info)
         if dataset_triggered_dag_ids:
-            exclusion_list = {
-                x
-                for x in (
-                    session.scalars(
-                        select(DagModel.dag_id)
-                        .join(DagRun.dag_model)
-                        .where(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
-                        .where(DagModel.dag_id.in_(dataset_triggered_dag_ids))
-                        .group_by(DagModel.dag_id)
-                        .having(func.count() >= func.max(DagModel.max_active_runs))
-                    )
+            exclusion_list = set(
+                session.scalars(
+                    select(DagModel.dag_id)
+                    .join(DagRun.dag_model)
+                    .where(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
+                    .where(DagModel.dag_id.in_(dataset_triggered_dag_ids))
+                    .group_by(DagModel.dag_id)
+                    .having(func.count() >= func.max(DagModel.max_active_runs))
                 )
-            }
+            )
             if exclusion_list:
                 dataset_triggered_dag_ids -= exclusion_list
                 dataset_triggered_dag_info = {

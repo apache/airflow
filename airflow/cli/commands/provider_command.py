@@ -103,10 +103,22 @@ def triggers_list(args):
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
+def notifications_list(args):
+    AirflowConsole().print_as(
+        data=ProvidersManager().notification,
+        output=args.output,
+        mapper=lambda x: {
+            "notification_class_name": x,
+        },
+    )
+
+
+@suppress_logs_and_warning
+@providers_configuration_loaded
 def connection_form_widget_list(args):
     """Lists all custom connection form fields at the command line."""
     AirflowConsole().print_as(
-        data=list(sorted(ProvidersManager().connection_form_widgets.items())),
+        data=sorted(ProvidersManager().connection_form_widgets.items()),
         output=args.output,
         mapper=lambda x: {
             "connection_parameter_name": x[0],
@@ -122,7 +134,7 @@ def connection_form_widget_list(args):
 def connection_field_behaviours(args):
     """Lists field behaviours."""
     AirflowConsole().print_as(
-        data=list(ProvidersManager().field_behaviours.keys()),
+        data=list(ProvidersManager().field_behaviours),
         output=args.output,
         mapper=lambda x: {
             "field_behaviours": x,

@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+.. note::
+  Upgrade to Elasticsearch 8. The ElasticsearchTaskHandler & ElasticsearchSQLHook will now use Elasticsearch 8 package.
+  As explained https://elasticsearch-py.readthedocs.io/en/stable , Elasticsearch language clients are only backwards
+  compatible with default distributions and without guarantees made, we recommend upgrading the version of
+  Elasticsearch database to 8 to ensure compatibility with the language client.
+
 5.0.0
 .....
 

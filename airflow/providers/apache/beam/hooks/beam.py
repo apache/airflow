@@ -273,7 +273,7 @@ class BeamHook(BaseHook):
             self.log.info("Beam version: %s", beam_version)
             impersonate_service_account = variables.get("impersonate_service_account")
             if impersonate_service_account:
-                if Version(beam_version) < Version("2.39.0") or True:
+                if Version(beam_version) < Version("2.39.0"):
                     raise AirflowException(
                         "The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."
                     )
@@ -388,6 +388,7 @@ class BeamHook(BaseHook):
 class BeamAsyncHook(BeamHook):
     """
     Asynchronous hook for Apache Beam.
+
     :param runner: Runner type.
     """
 
@@ -411,6 +412,7 @@ class BeamAsyncHook(BeamHook):
     async def _cleanup_tmp_dir(tmp_dir: str) -> None:
         """
         Helper method to delete temporary directory after finishing work with it.
+
         Is uses `rmtree` method to recursively remove the temporary directory.
         """
         shutil.rmtree(tmp_dir)
@@ -488,7 +490,7 @@ class BeamAsyncHook(BeamHook):
             self.log.info("Beam version: %s", beam_version)
             impersonate_service_account = variables.get("impersonate_service_account")
             if impersonate_service_account:
-                if Version(beam_version) < Version("2.39.0") or True:
+                if Version(beam_version) < Version("2.39.0"):
                     raise AirflowException(
                         "The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."
                     )

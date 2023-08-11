@@ -69,7 +69,7 @@ def get_id_collation_args():
         # We cannot use session/dialect as at this point we are trying to determine the right connection
         # parameters, so we use the connection
         conn = conf.get("database", "sql_alchemy_conn", fallback="")
-        if conn.startswith("mysql") or conn.startswith("mariadb"):
+        if conn.startswith(("mysql", "mariadb")):
             return {"collation": "utf8mb3_bin"}
         return {}
 

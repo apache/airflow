@@ -28,7 +28,7 @@
       "asgiref",
       "boto3>=1.24.0",
       "jsonpath_ng>=1.5.3",
-      "mypy-boto3-appflow>=1.24.0,<1.28.12",
+      "mypy-boto3-appflow>=1.28.16",
       "mypy-boto3-rds>=1.24.0",
       "mypy-boto3-redshift-data>=1.24.0",
       "mypy-boto3-s3>=1.24.0",
@@ -47,6 +47,7 @@
       "imap",
       "microsoft.azure",
       "mongo",
+      "openlineage",
       "salesforce",
       "ssh"
     ],
@@ -245,7 +246,8 @@
     "deps": [
       "apache-airflow>=2.4.0",
       "celery>=5.2.3,<6",
-      "flower>=1.0.0"
+      "flower>=1.0.0",
+      "google-re2>=1.0"
     ],
     "cross-providers-deps": [
       "cncf.kubernetes"
@@ -265,6 +267,7 @@
       "apache-airflow>=2.4.0",
       "asgiref>=3.5.2",
       "cryptography>=2.0.0",
+      "google-re2>=1.0",
       "kubernetes>=21.7.0,<24",
       "kubernetes_asyncio>=18.20.1,<25"
     ],
@@ -296,7 +299,7 @@
       "aiohttp>=3.6.3, <4",
       "apache-airflow-providers-common-sql>=1.5.0",
       "apache-airflow>=2.4.0",
-      "databricks-sql-connector>=2.0.0, <3.0.0",
+      "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
       "requests>=2.27,<3"
     ],
     "cross-providers-deps": [
@@ -357,7 +360,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.4.0",
-      "elasticsearch>7,<7.15.0"
+      "elasticsearch>8,<9"
     ],
     "cross-providers-deps": [
       "common.sql"
@@ -614,6 +617,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.4.0",
+      "mysql-connector-python>=8.0.11",
       "mysqlclient>=1.3.6"
     ],
     "cross-providers-deps": [
