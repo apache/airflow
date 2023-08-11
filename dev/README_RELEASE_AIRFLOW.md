@@ -613,7 +613,7 @@ Only in /Users/jarek/code/airflow: .bash_history
 Check if .whl is the same as in tag:
 
 ```
-unzip -d a *-.whl
+unzip -d a *.whl
 pushd a
 diff -r airflow "${SOURCE_DIR}"
 popd && rm -rf a
