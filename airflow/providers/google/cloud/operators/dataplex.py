@@ -31,7 +31,6 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataplex_v1.types import Asset, DataScan, DataScanJob, Lake, Task, Zone
 from google.protobuf.field_mask_pb2 import FieldMask
-from google.protobuf.json_format import MessageToDict
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanException, DataplexHook
@@ -1100,7 +1099,10 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         else:
             self.log.info("Data Quality job execution returned status: %s", job.state)
 
-        return MessageToDict(job._pb)
+        result = DataScanJob.to_dict(job)
+        result["state"] = DataScanJob.State(result["state"]).name
+
+        return result
 
 
 class DataplexCreateZoneOperator(GoogleCloudBaseOperator):

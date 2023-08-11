@@ -292,7 +292,8 @@ class TestDataplexRunDataQualityScanOperator:
 
 class TestDataplexGetDataQualityScanResultOperator:
     @mock.patch(HOOK_STR)
-    def test_execute(self, hook_mock):
+    @mock.patch(DATASCANJOB_STR)
+    def test_execute(self, mock_data_scan_job, hook_mock):
         op = DataplexGetDataQualityScanResultOperator(
             task_id="get_data_scan",
             project_id=PROJECT_ID,
