@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.2.4
+.....
+
+Latest change: 2023-08-07
+
+=================================================================================================  ===========  ================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================
+`8da1ff573b <https://github.com/apache/airflow/commit/8da1ff573bf598225f79899636efa0f9c55c4881>`_  2023-08-07   ``Clean microsoft azure provider by deleting the custom prefix from conn extra fields (#30558)``
+=================================================================================================  ===========  ================================================================================================
+
 6.2.3
 .....
 
-Latest change: 2023-08-03
+Latest change: 2023-08-05
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `a069965df8 <https://github.com/apache/airflow/commit/a069965df84273c65e23d1fda9ffa47a58ed6732>`_  2023-08-03   ``Add issue link for TODO wrt Azure integration pinned dependencies (#33064)``
 `fea8c9024f <https://github.com/apache/airflow/commit/fea8c9024f3930aeba6bcf95d346fefd3ca8a016>`_  2023-08-02   ``Delete azure cosmos DB sensor example_dag (#32906)``
 `df74553ec4 <https://github.com/apache/airflow/commit/df74553ec484ad729fcd75ccbc1f5f18e7f34dc8>`_  2023-08-02   ``Refactor account_url use in WasbHook (#32980)``

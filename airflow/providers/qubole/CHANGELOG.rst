@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+3.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Upgrade ruff to latest 0.0.282 version in pre-commits (#33152)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``D205 Support - Providers: Pagerduty to SMTP (inclusive) (#32358)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 3.4.1
 .....
 
