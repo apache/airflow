@@ -40,10 +40,7 @@ class TestScheduler:
         ],
     )
     def test_scheduler_kind(self, executor, persistence, kind):
-        """
-        Test scheduler kind is StatefulSet only when using a local executor &
-        worker persistence is enabled.
-        """
+        """Test scheduler kind is StatefulSet only with a local executor & worker persistence is enabled."""
         docs = render_chart(
             values={
                 "executor": executor,
@@ -676,6 +673,7 @@ class TestScheduler:
     ):
         """
         DAG Processor can move gitsync and DAGs mount from the scheduler to the DAG Processor only.
+
         The only exception is when we have a Local executor.
         In these cases, the scheduler does the worker role and needs access to DAGs anyway.
         """

@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+7.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+* ``Make the 'OnFinishAction' enum inherit from str to support passing it to 'KubernetesPodOperatpor' (#33228)``
+* ``Refactor: Simplify code in providers/cncf (#33230)``
+* ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+
 7.4.1
 .....
 
