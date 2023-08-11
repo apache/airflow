@@ -4872,7 +4872,6 @@ class ProviderView(AirflowBaseView):
 
         cd = escape(description)
         cd = re2.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
-        cd = re2.sub(r"\n", r"<br>", cd)
         return Markup(cd)
 
 
