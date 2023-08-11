@@ -52,7 +52,7 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
     Creates a new workflow.
 
     If a workflow with the specified name already exists in the specified
-    project and location, the long running operation will return
+    project and location, the long-running operation will return
     [ALREADY_EXISTS][google.rpc.Code.ALREADY_EXISTS] error.
 
     .. seealso::
@@ -606,7 +606,7 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
 
     :param workflow_id: Required. The ID of the workflow to be created.
     :param start_date_filter: If passed only executions older that this date will be returned.
-        By default operators return executions from last 60 minutes
+        By default, operators return executions from last 60 minutes
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
     :param location: Required. The GCP region in which to handle the request.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
