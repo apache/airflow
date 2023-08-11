@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+5.2.1
+.....
+
+Misc
+~~~~
+
+* ``Allow downloading requirements file from GCS in 'BeamRunPythonPipelineOperator' (#31645)``
+
 5.2.0
 .....
 
