@@ -17,18 +17,19 @@
 from __future__ import annotations
 
 import re
+import logging
+import os
 import warnings
-from functools import cached_property
 
 from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.version import version as airflow_version
-
 
 def _parse_version(val):
     val = re.sub(r"(\d+\.\d+\.\d+).*", lambda x: x.group(1), val)
@@ -95,6 +96,13 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
+
+        logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
+        try:
+            logger.setLevel(os.environ.get("AZURE_HTTP_LOGGING_LEVEL", logging.WARNING))
+        except ValueError:
+            logger.setLevel(logging.WARNING)
+
         self.sep = sep
         self.kwargs = kwargs
 
@@ -107,7 +115,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_conn_value(self, conn_id: str) -> str | None:
         """
-        Get a serialized representation of Airflow Connection from an Azure Key Vault secret.
+        Get a serialized representation of Airflow Connection from an Azure Key Vault secret
 
         :param conn_id: The Airflow connection id to retrieve
         """
@@ -148,7 +156,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_config(self, key: str) -> str | None:
         """
-        Get Airflow Configuration.
+        Get Airflow Configuration
 
         :param key: Configuration Option Key
         :return: Configuration Option Value
@@ -162,7 +170,6 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
     def build_path(path_prefix: str, secret_id: str, sep: str = "-") -> str:
         """
         Given a path_prefix and secret_id, build a valid secret name for the Azure Key Vault Backend.
-
         Also replaces underscore in the path with dashes to support easy switching between
         environment variables, so ``connection_default`` becomes ``connection-default``.
 
@@ -179,7 +186,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def _get_secret(self, path_prefix: str, secret_id: str) -> str | None:
         """
-        Get an Azure Key Vault secret value.
+        Get an Azure Key Vault secret value
 
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
