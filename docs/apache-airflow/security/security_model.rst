@@ -73,7 +73,11 @@ capabilities authenticated users may have:
    They also have the ability to create a Webserver Denial of Service
    situation and should be trusted not to misuse this capability.
 
-2. **Connection configuration users**: They configure connections and
+2. **Operations users**: The primary difference between an operator and admin
+   if the ability to manage and grant permissions to other users - only admins
+   are able to do this. Otherwise assume they have the same access as an admin.
+
+3. **Connection configuration users**: They configure connections and
    potentially execute code on workers during DAG execution. Trust is
    required to prevent misuse of these privileges. They have full access
    to sensitive credentials stored in connections and can modify them.
@@ -81,10 +85,6 @@ capabilities authenticated users may have:
    should be trusted not to be abused. They also have the ability to
    create a Webserver Denial of Service situation and should be trusted
    not to misuse this capability.
-
-3. **Operations users**: The primary difference between an operator and admin
-   if the ability to manage and grant permissions to other users - only admins
-   are able to do this. Otherwise assume they have the same access as an admin.
 
 4. **Normal Users**: They can view and interact with the UI and API.
    They are able to view and edit DAGs, task instances, and DAG runs, and view task logs.
