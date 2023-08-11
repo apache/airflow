@@ -543,7 +543,11 @@ ARG_DEFAULT = Arg(
 ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
 ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
 ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
-ARG_VAR_EXPORT = Arg(("file",), help="Export all variables to JSON file")
+ARG_VAR_EXPORT = Arg(
+    ("file",),
+    help="Export all variables to JSON file",
+    type=argparse.FileType("w", encoding="UTF-8"),
+)
 
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
@@ -1521,6 +1525,10 @@ VARIABLES_COMMANDS = (
     ActionCommand(
         name="export",
         help="Export all variables",
+        description=(
+            "All variables can be exported in STDOUT using the following command:\n"
+            "airflow variables export -\n"
+        ),
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_export"),
         args=(ARG_VAR_EXPORT, ARG_VERBOSE),
     ),

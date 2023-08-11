@@ -17,7 +17,6 @@
 """Connection sub-commands."""
 from __future__ import annotations
 
-import io
 import json
 import os
 import sys
@@ -30,6 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import is_stdout
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
@@ -138,10 +138,6 @@ def _format_connections(conns: list[Connection], file_format: str, serialization
     return json.dumps(connections_dict)
 
 
-def _is_stdout(fileio: io.TextIOWrapper) -> bool:
-    return fileio.name == "<stdout>"
-
-
 def _valid_uri(uri: str) -> bool:
     """Check if a URI is valid, by checking if scheme (conn_type) provided."""
     return urlsplit(uri).scheme != ""
@@ -171,32 +167,30 @@ def connections_export(args):
     if args.format or args.file_format:
         provided_file_format = f".{(args.format or args.file_format).lower()}"
 
-    file_is_stdout = _is_stdout(args.file)
-    if file_is_stdout:
-        filetype = provided_file_format or default_format
-    elif provided_file_format:
-        filetype = provided_file_format
-    else:
-        filetype = Path(args.file.name).suffix
-        filetype = filetype.lower()
-        if filetype not in file_formats:
-            raise SystemExit(
-                f"Unsupported file format. The file must have the extension {', '.join(file_formats)}."
-            )
-
-    if args.serialization_format and not filetype == ".env":
-        raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
-
-    with create_session() as session:
-        connections = session.scalars(select(Connection).order_by(Connection.conn_id)).all()
-
-    msg = _format_connections(
-        conns=connections,
-        file_format=filetype,
-        serialization_format=args.serialization_format or "uri",
-    )
-
     with args.file as f:
+        if file_is_stdout := is_stdout(f):
+            filetype = provided_file_format or default_format
+        elif provided_file_format:
+            filetype = provided_file_format
+        else:
+            filetype = Path(args.file.name).suffix.lower()
+            if filetype not in file_formats:
+                raise SystemExit(
+                    f"Unsupported file format. The file must have the extension {', '.join(file_formats)}."
+                )
+
+        if args.serialization_format and not filetype == ".env":
+            raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
+
+        with create_session() as session:
+            connections = session.scalars(select(Connection).order_by(Connection.conn_id)).all()
+
+        msg = _format_connections(
+            conns=connections,
+            file_format=filetype,
+            serialization_format=args.serialization_format or "uri",
+        )
+
         f.write(msg)
 
     if file_is_stdout:
