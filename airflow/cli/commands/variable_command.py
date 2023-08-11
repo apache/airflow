@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from json import JSONDecodeError
 
@@ -77,6 +78,8 @@ def variables_delete(args):
 @providers_configuration_loaded
 def variables_import(args):
     """Imports variables from a given file."""
+    if not os.path.exists(args.file):
+        raise SystemExit("Missing variables file.")
     with open(args.file) as varfile:
         try:
             var_json = json.load(varfile)
