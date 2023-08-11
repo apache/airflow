@@ -25,6 +25,11 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from airflow.auth.managers.fab.models import Permission, Resource, Role, User
+from airflow.auth.managers.fab.views.permissions import (
+    ActionModelView,
+    PermissionPairModelView,
+    ResourceModelView,
+)
 from airflow.auth.managers.fab.views.roles_list import CustomRoleModelView
 from airflow.auth.managers.fab.views.user import (
     CustomUserDBModelView,
@@ -46,11 +51,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.fab_security.sqla.manager import SecurityManager
-from airflow.www.fab_security.views import (
-    ActionModelView,
-    PermissionPairModelView,
-    ResourceModelView,
-)
 from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = {
