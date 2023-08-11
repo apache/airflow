@@ -25,6 +25,7 @@ apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
   name: {{ .Release.Name }}-worker
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: worker-horizontalpodautoscaler

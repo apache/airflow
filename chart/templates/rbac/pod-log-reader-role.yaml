@@ -30,7 +30,7 @@ kind: Role
 metadata:
   name: {{ .Release.Name }}-pod-log-reader-role
   {{- if not .Values.multiNamespaceMode }}
-  namespace: "{{ .Release.Namespace }}"
+  namespace: {{ .Release.Namespace | quote }}
   {{- end }}
   labels:
     tier: airflow

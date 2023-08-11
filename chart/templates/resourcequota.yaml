@@ -25,6 +25,7 @@ apiVersion: v1
 kind: ResourceQuota
 metadata:
   name: {{ .Release.Name }}-resource-quota
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: resources
     component: resourcequota

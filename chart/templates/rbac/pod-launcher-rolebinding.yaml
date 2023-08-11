@@ -31,7 +31,7 @@ kind: RoleBinding
 {{- end }}
 metadata:
   {{- if not .Values.multiNamespaceMode }}
-  namespace: "{{ .Release.Namespace }}"
+  namespace: {{ .Release.Namespace | quote }}
   {{- end }}
   name: {{ .Release.Name }}-pod-launcher-rolebinding
   labels:
@@ -54,11 +54,11 @@ subjects:
   {{- if has .Values.executor $schedulerLaunchExecutors }}
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- end }}
   {{- if has .Values.executor $workerLaunchExecutors }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- end }}
 {{- end }}

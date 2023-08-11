@@ -31,6 +31,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ .Release.Name }}-redis
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: redis

@@ -30,7 +30,7 @@ kind: RoleBinding
 {{- end }}
 metadata:
   {{- if not .Values.multiNamespaceMode }}
-  namespace: "{{ .Release.Namespace }}"
+  namespace: {{ .Release.Namespace | quote }}
   {{- end }}
   name: {{ .Release.Name }}-scc-rolebinding
   labels:
@@ -48,41 +48,41 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: {{ include "webserver.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- if $hasWorkers }}
   - kind: ServiceAccount
     name: {{ include "worker.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- end }}
   - kind: ServiceAccount
     name: {{ include "scheduler.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- if and .Values.statsd.enabled }}
   - kind: ServiceAccount
     name: {{ include "statsd.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- end }}
   {{- if and .Values.flower.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
   - kind: ServiceAccount
     name: {{ include "flower.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- end }}
   {{- if and (semverCompare ">=2.2.0" .Values.airflowVersion) }}
   - kind: ServiceAccount
     name: {{ include "triggerer.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- end }}
   - kind: ServiceAccount
     name: {{ include "migrateDatabaseJob.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- if .Values.webserver.defaultUser.enabled }}
   - kind: ServiceAccount
     name: {{ include "createUserJob.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- end }}
   {{- if and .Values.cleanup.enabled }}
   - kind: ServiceAccount
     name: {{ include "cleanup.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
   {{- end }}
 {{- end }}

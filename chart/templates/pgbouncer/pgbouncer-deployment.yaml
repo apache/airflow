@@ -33,6 +33,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-pgbouncer
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: pgbouncer
