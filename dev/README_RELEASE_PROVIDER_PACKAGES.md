@@ -407,6 +407,8 @@ If you have providers as list of provider ids because you just released them you
 cd "${AIRFLOW_REPO_ROOT}"
 
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
+
+breeze release-management add-back-references amazon apache.beam google ....
 ```
 
 
