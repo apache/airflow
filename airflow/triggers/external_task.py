@@ -84,10 +84,11 @@ class TaskStateTrigger(BaseTrigger):
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """
-        Checks periodically in the database to see if the dag exists and is in the running state. If found,
-        wait until the task specified will reach one of the expected states. If dag with specified name was
-        not in the running state after _timeout_sec seconds after starting execution process of the trigger,
-        terminate with status 'timeout'.
+        Checks periodically in the database to see if the dag exists and is in the running state.
+
+        If found,wait until the task specified will reach one of the expected states.
+        If dag with specified name was not in the running state after _timeout_sec
+        seconds after starting execution process of the trigger, terminate with status 'timeout'.
         """
         while True:
             try:
