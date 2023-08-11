@@ -58,9 +58,10 @@ api_experimental = Blueprint("api_experimental", __name__)
 
 def add_deprecation_headers(response: Response):
     """
-    Add `Deprecation HTTP Header Field.
+    Add Deprecation HTTP Header Field.
 
-    See also: <https://tools.ietf.org/id/draft-dalal-deprecation-header-03.html>`__.
+    .. seealso:: IETF proposal for the header field
+        `here <https://datatracker.ietf.org/doc/draft-dalal-deprecation-header/>`_.
     """
     response.headers["Deprecation"] = "true"
     doc_url = get_docs_url("upgrading-to-2.html#migration-guide-from-experimental-api-to-stable-api-v1")
