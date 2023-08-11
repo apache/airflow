@@ -273,7 +273,7 @@ class BeamHook(BaseHook):
             self.log.info("Beam version: %s", beam_version)
             impersonate_service_account = variables.get("impersonate_service_account")
             if impersonate_service_account:
-                if Version(beam_version) < Version("2.39.0") or True:
+                if Version(beam_version) < Version("2.39.0"):
                     raise AirflowException(
                         "The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."
                     )
@@ -490,7 +490,7 @@ class BeamAsyncHook(BeamHook):
             self.log.info("Beam version: %s", beam_version)
             impersonate_service_account = variables.get("impersonate_service_account")
             if impersonate_service_account:
-                if Version(beam_version) < Version("2.39.0") or True:
+                if Version(beam_version) < Version("2.39.0"):
                     raise AirflowException(
                         "The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."
                     )
