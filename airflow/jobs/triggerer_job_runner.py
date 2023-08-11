@@ -31,6 +31,7 @@ from queue import SimpleQueue
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -54,7 +55,7 @@ from airflow.utils.log.trigger_handler import (
     ctx_trigger_id,
 )
 from airflow.utils.module_loading import import_string
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -279,6 +280,10 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
             self.listener = setup_queue_listener()
         # Set up runner async thread
         self.trigger_runner = TriggerRunner()
+
+    @provide_session
+    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
+        Stats.incr("triggerer_heartbeat", 1, 1)
 
     def register_signals(self) -> None:
         """Register signals that stop child processes."""
