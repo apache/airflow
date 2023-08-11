@@ -77,26 +77,23 @@ def variables_delete(args):
 @providers_configuration_loaded
 def variables_import(args):
     """Imports variables from a given file."""
-    with args.file as varfile:
-        data = varfile.read()
-
-    try:
-        var_json = json.loads(data)
-    except JSONDecodeError:
-        raise SystemExit("Invalid variables file.")
-    else:
-        suc_count = fail_count = 0
-        for k, v in var_json.items():
-            try:
-                Variable.set(k, v, serialize_json=not isinstance(v, str))
-            except Exception as e:
-                print(f"Variable import failed: {repr(e)}")
-                fail_count += 1
-            else:
-                suc_count += 1
-        print(f"{suc_count} of {len(var_json)} variables successfully updated.")
-        if fail_count:
-            print(f"{fail_count} variable(s) failed to be updated.")
+    with open(args.file) as varfile:
+        try:
+            var_json = json.load(varfile)
+        except JSONDecodeError:
+            raise SystemExit("Invalid variables file.")
+    suc_count = fail_count = 0
+    for k, v in var_json.items():
+        try:
+            Variable.set(k, v, serialize_json=not isinstance(v, str))
+        except Exception as e:
+            print(f"Variable import failed: {repr(e)}")
+            fail_count += 1
+        else:
+            suc_count += 1
+    print(f"{suc_count} of {len(var_json)} variables successfully updated.")
+    if fail_count:
+        print(f"{fail_count} variable(s) failed to be updated.")
 
 
 @providers_configuration_loaded
@@ -116,7 +113,7 @@ def variables_export(args):
 
     with args.file as varfile:
         json.dump(var_dict, varfile, sort_keys=True, indent=4)
-    if is_stdout(args.file):
-        print("\nVariables successfully exported.", file=sys.stderr)
-    else:
-        print(f"Variables successfully exported to {args.file.name}.")
+        if is_stdout(varfile):
+            print("\nVariables successfully exported.", file=sys.stderr)
+        else:
+            print(f"Variables successfully exported to {varfile.name}.")
