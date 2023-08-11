@@ -16,19 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
 
-class AthenaTrigger(AwsBaseWaiterTrigger):
+class LambdaCreateFunctionCompleteTrigger(AwsBaseWaiterTrigger):
     """
-    Trigger for AthenaOperator.
+    Trigger to poll for the completion of a Lambda function creation.
 
-    The trigger will asynchronously poll the boto3 API and wait for the
-    Redshift cluster to be in the `available` state.
-
-    :param query_execution_id:  ID of the Athena query execution to watch
+    :param function_name: The function name
+    :param function_arn: The function ARN
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
@@ -36,23 +34,31 @@ class AthenaTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
-        query_execution_id: str,
-        waiter_delay: int,
-        waiter_max_attempts: int,
-        aws_conn_id: str,
-    ):
+        *,
+        function_name: str,
+        function_arn: str,
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 30,
+        aws_conn_id: str | None = None,
+    ) -> None:
+
         super().__init__(
-            serialized_fields={"query_execution_id": query_execution_id},
-            waiter_name="query_complete",
-            waiter_args={"QueryExecutionId": query_execution_id},
-            failure_message=f"Error while waiting for query {query_execution_id} to complete",
-            status_message=f"Query execution id: {query_execution_id}",
-            status_queries=["QueryExecution.Status"],
-            return_value=query_execution_id,
+            serialized_fields={"function_name": function_name, "function_arn": function_arn},
+            waiter_name="function_active_v2",
+            waiter_args={"FunctionName": function_name},
+            failure_message="Lambda function creation failed",
+            status_message="Status of Lambda function creation is",
+            status_queries=[
+                "Configuration.LastUpdateStatus",
+                "Configuration.LastUpdateStatusReason",
+                "Configuration.LastUpdateStatusReasonCode",
+            ],
+            return_key="function_arn",
+            return_value=function_arn,
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
         )
 
     def hook(self) -> AwsGenericHook:
-        return AthenaHook(self.aws_conn_id)
+        return LambdaHook(aws_conn_id=self.aws_conn_id)
