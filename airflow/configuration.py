@@ -240,6 +240,7 @@ class AirflowConfigParser(ConfigParser):
     def _update_defaults_from_string(self, config_string: str):
         """
         The defaults in _default_values are updated based on values in config_string ("ini" format).
+
         Note that those values are not validated and cannot contain variables because we are using
         regular config parser to load them. This method is used to test the config parser in unit tests.
 
@@ -477,8 +478,9 @@ class AirflowConfigParser(ConfigParser):
 
     def get_options_including_defaults(self, section: str) -> list[str]:
         """
-        Retrieves all possible option from the configuration parser for the section given,
-        including options defined by built-in defaults.
+        Retrieves all possible option from the configuration parser for the section given.
+
+        Includes options defined by built-in defaults.
 
         :return: list of option names for the section given
         """
@@ -489,6 +491,7 @@ class AirflowConfigParser(ConfigParser):
     def optionxform(self, optionstr: str) -> str:
         """
         This method transforms option names on every read, get, or set operation.
+
         This changes from the default behaviour of ConfigParser from lower-casing
         to instead be case-preserving.
 
@@ -500,8 +503,10 @@ class AirflowConfigParser(ConfigParser):
     @contextmanager
     def make_sure_configuration_loaded(self, with_providers: bool) -> Generator[None, None, None]:
         """
-        Make sure configuration is loaded with or without providers, regardless if the provider configuration
-        has been loaded before or not. Restores configuration to the state before entering the context.
+        Make sure configuration is loaded with or without providers.
+
+        This happens regardless if the provider configuration has been loaded before or not.
+        Restores configuration to the state before entering the context.
 
         :param with_providers: whether providers should be loaded
         """
@@ -729,6 +734,7 @@ class AirflowConfigParser(ConfigParser):
     def _validate_max_tis_per_query(self) -> None:
         """
         Check if config ``scheduler.max_tis_per_query`` is not greater than ``core.parallelism``.
+
         If not met, a warning message is printed to guide the user to correct it.
 
         More info: https://github.com/apache/airflow/pull/32572
@@ -1941,10 +1947,12 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
 
 def create_pre_2_7_defaults() -> ConfigParser:
     """
-    Creates parser using the old defaults from Airflow < 2.7.0, in order to be able to fall-back to those
-    defaults when old version of provider, not supporting "config contribution" is installed with Airflow
-    2.7.0+. This "default" configuration does not support variable expansion, those are pretty much
-    hard-coded defaults we want to fall-back to in such case.
+    Creates parser using the old defaults from Airflow < 2.7.0.
+
+    This is used in order to be able to fall-back to those defaults when old version of provider,
+    not supporting "config contribution" is installed with Airflow 2.7.0+. This "default"
+    configuration does not support variable expansion, those are pretty much hard-coded defaults '
+    we want to fall-back to in such case.
     """
     config_parser = ConfigParser()
     config_parser.read(_default_config_file_path("pre_2_7_defaults.cfg"))

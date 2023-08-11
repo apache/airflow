@@ -63,6 +63,8 @@ CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 def apply_pypi_suffix_to_airflow_packages(dependencies: list[str]) -> None:
     """
+    Apply version suffix to dependencies that do not have one.
+
     Looks through the list of dependencies, finds which one are airflow or airflow providers packages
     and applies the version suffix to those of them that do not have the suffix applied yet.
 
@@ -130,6 +132,7 @@ def airflow_test_suite() -> unittest.TestSuite:
 class CleanCommand(Command):
     """
     Command to tidy up the project root.
+
     Registered as cmdclass in setup() so it can be called with ``python setup.py extra_clean``.
     """
 
@@ -166,6 +169,7 @@ class CleanCommand(Command):
 class CompileAssets(Command):
     """
     Compile and build the frontend assets using yarn and webpack.
+
     Registered as cmdclass in setup() so it can be called with ``python setup.py compile_assets``.
     """
 
@@ -187,7 +191,8 @@ class CompileAssets(Command):
 
 class ListExtras(Command):
     """
-    List all available extras
+    List all available extras.
+
     Registered as cmdclass in setup() so it can be called with ``python setup.py list_extras``.
     """
 
@@ -207,11 +212,12 @@ class ListExtras(Command):
 
 def git_version() -> str:
     """
-    Return a version to identify the state of the underlying git repo. The version will
-    indicate whether the head of the current git-backed working directory is tied to a
-    release tag or not : it will indicate the former with a 'release:{version}' prefix
-    and the latter with a '.dev0' suffix. Following the prefix will be a sha of the current
-    branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
+    Return a version to identify the state of the underlying git repo.
+
+    The version will indicate whether the head of the current git-backed working directory
+    is tied to a release tag or not : it will indicate the former with a 'release:{version}'
+    prefix and the latter with a '.dev0' suffix. Following the prefix will be a sha of the
+    current branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
 
     :return: Found Airflow version in Git repo
@@ -596,8 +602,9 @@ EXTRAS_DEPRECATED_ALIASES_IGNORED_FROM_REF_DOCS: list[str] = [
 
 def add_extras_for_all_deprecated_aliases() -> None:
     """
-    Add extras for all deprecated aliases. Requirements for those deprecated aliases are the same
-    as the extras they are replaced with.
+    Add extras for all deprecated aliases.
+
+    Requirements for those deprecated aliases are the same as the extras they are replaced with.
     The dependencies are not copies - those are the same lists as for the new extras. This is intended.
     Thanks to that if the original extras are later extended with providers, aliases are extended as well.
     """
@@ -610,8 +617,7 @@ def add_extras_for_all_deprecated_aliases() -> None:
 
 def add_all_deprecated_provider_packages() -> None:
     """
-    For deprecated aliases that are providers, we will swap the providers dependencies to instead
-    be the provider itself.
+    For deprecated aliases that are providers, swap the providers dependencies to be the provider itself.
 
     e.g. {"kubernetes": ["kubernetes>=3.0.0, <12.0.0", ...]} becomes
     {"kubernetes": ["apache-airflow-provider-cncf-kubernetes"]}
@@ -744,6 +750,7 @@ EXTRAS_DEPENDENCIES["devel_ci"] = devel_ci
 def sort_extras_dependencies() -> dict[str, list[str]]:
     """
     The dictionary order remains when keys() are retrieved.
+
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
     """
@@ -812,8 +819,8 @@ class AirflowDistribution(Distribution):
 
     def parse_config_files(self, *args, **kwargs) -> None:
         """
-        Ensure that when we have been asked to install providers from sources
-        that we don't *also* try to install those providers from PyPI.
+        When asked to install providers from sources, ensure we don't *also* try to install from PyPI.
+
         Also we should make sure that in this case we copy provider.yaml files so that
         Providers manager can find package information.
         """
@@ -837,11 +844,13 @@ class AirflowDistribution(Distribution):
 
 def replace_extra_dependencies_with_provider_packages(extra: str, providers: list[str]) -> None:
     """
-    Replaces extra dependencies with provider package. The intention here is that when
-    the provider is added as dependency of extra, there is no need to add the dependencies
-    separately. This is not needed and even harmful, because in case of future versions of
-    the provider, the dependencies might change, so hard-coding dependencies from the version
-    that was available at the release time might cause dependency conflicts in the future.
+    Replaces extra dependencies with provider package.
+
+    The intention here is that when the provider is added as dependency of extra, there is no
+    need to add the dependencies separately. This is not needed and even harmful, because in
+    case of future versions of the provider, the dependencies might change, so hard-coding
+    dependencies from the version that was available at the release time might cause dependency
+    conflicts in the future.
 
     Say for example that you have salesforce provider with those deps:
 
@@ -888,9 +897,11 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
 
 def add_provider_packages_to_extra_dependencies(extra: str, providers: list[str]) -> None:
     """
-    Adds provider packages as dependencies to extra. This is used to add provider packages as dependencies
-    to the "bulk" kind of extras. Those bulk extras do not have the detailed 'extra' dependencies as
-    initial values, so instead of replacing them (see previous function) we can extend them.
+    Adds provider packages as dependencies to extra.
+
+    This is used to add provider packages as dependencies to the "bulk" kind of extras.
+    Those bulk extras do not have the detailed 'extra' dependencies as initial values,
+    so instead of replacing them (see previous function) we can extend them.
 
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
@@ -902,6 +913,8 @@ def add_provider_packages_to_extra_dependencies(extra: str, providers: list[str]
 
 def add_all_provider_packages() -> None:
     """
+    Add extra dependencies when providers are installed from packages.
+
     In case of regular installation (providers installed from packages), we should add extra dependencies to
     Airflow - to get the providers automatically installed when those extras are installed.
 
@@ -965,8 +978,9 @@ def do_setup() -> None:
 
     def include_provider_namespace_packages_when_installing_from_sources() -> None:
         """
-        When installing providers from sources we install all namespace packages found below airflow,
-        including airflow and provider packages, otherwise defaults from setup.cfg control this.
+        When installing providers from sources we install all namespace packages found below airflow.
+
+        Includes airflow and provider packages, otherwise defaults from setup.cfg control this.
         The kwargs in setup() call override those that are specified in setup.cfg.
         """
         if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == "true":
