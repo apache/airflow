@@ -63,6 +63,8 @@ CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 def apply_pypi_suffix_to_airflow_packages(dependencies: list[str]) -> None:
     """
+    Apply version suffix to dependencies that do not have one.
+
     Looks through the list of dependencies, finds which one are airflow or airflow providers packages
     and applies the version suffix to those of them that do not have the suffix applied yet.
 
