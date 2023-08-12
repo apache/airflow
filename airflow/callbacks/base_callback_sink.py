@@ -24,5 +24,5 @@ class BaseCallbackSink:
     """Base class for Callbacks Sinks."""
 
     def send(self, callback: CallbackRequest) -> None:
-        """Sends callback for execution."""
+        """Send callback for execution."""
         raise NotImplementedError()

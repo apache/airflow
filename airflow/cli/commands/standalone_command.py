@@ -59,7 +59,6 @@ class StandaloneCommand:
 
     @providers_configuration_loaded
     def run(self):
-        """Main run loop."""
         self.print_output("standalone", "Starting Airflow Standalone")
         # Silence built-in logging at INFO
         logging.getLogger("").setLevel(logging.WARNING)
@@ -130,7 +129,7 @@ class StandaloneCommand:
 
     def print_output(self, name: str, output):
         """
-        Prints an output line with name and colouring.
+        Print an output line with name and colouring.
 
         You can pass multiple lines to output if you wish; it will be split for you.
         """
@@ -146,7 +145,7 @@ class StandaloneCommand:
 
     def print_error(self, name: str, output):
         """
-        Prints an error message to the console.
+        Print an error message to the console.
 
         This is the same as print_output but with the text red
         """
@@ -172,7 +171,7 @@ class StandaloneCommand:
         return env
 
     def initialize_database(self):
-        """Makes sure all the tables are created."""
+        """Make sure all the tables are created."""
         # Set up DB tables
         self.print_output("standalone", "Checking database is initialized")
         db.initdb()
@@ -214,7 +213,7 @@ class StandaloneCommand:
 
     def is_ready(self):
         """
-        Detects when all Airflow components are ready to serve.
+        Detect when all Airflow components are ready to serve.
 
         For now, it's simply time-based.
         """
@@ -226,7 +225,7 @@ class StandaloneCommand:
 
     def port_open(self, port):
         """
-        Checks if the given port is listening on the local machine.
+        Check if the given port is listening on the local machine.
 
         Used to tell if webserver is alive.
         """
@@ -242,7 +241,7 @@ class StandaloneCommand:
 
     def job_running(self, job_runner_class: type[BaseJobRunner]):
         """
-        Checks if the given job name is running and heartbeating correctly.
+        Check if the given job name is running and heartbeating correctly.
 
         Used to tell if scheduler is alive.
         """
@@ -253,7 +252,7 @@ class StandaloneCommand:
 
     def print_ready(self):
         """
-        Prints the banner shown when Airflow is ready to go.
+        Print the banner shown when Airflow is ready to go.
 
         Include with login details.
         """
@@ -288,7 +287,7 @@ class SubCommand(threading.Thread):
         self.env = env
 
     def run(self):
-        """Runs the actual process and captures it output to a queue."""
+        """Run the actual process and captures it output to a queue."""
         self.process = subprocess.Popen(
             ["airflow"] + self.command,
             stdout=subprocess.PIPE,

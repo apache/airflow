@@ -39,7 +39,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 @cli_utils.action_cli
 @providers_configuration_loaded
 def generate_pod_yaml(args):
-    """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
+    """Generate yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
     execution_date = args.execution_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
@@ -151,7 +151,11 @@ def cleanup_pods(args):
 
 
 def _delete_pod(name, namespace):
-    """Helper Function for cleanup_pods."""
+    """
+    Delete a namespaced pod.
+
+    Helper Function for cleanup_pods.
+    """
     kube_client = get_kube_client()
     delete_options = client.V1DeleteOptions()
     print(f'Deleting POD "{name}" from "{namespace}" namespace')

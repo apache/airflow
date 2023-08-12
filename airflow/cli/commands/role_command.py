@@ -34,7 +34,7 @@ from airflow.www.security import EXISTING_ROLES
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def roles_list(args):
-    """Lists all existing roles."""
+    """List all existing roles."""
     from airflow.utils.cli_app_builder import get_application_builder
 
     with get_application_builder() as appbuilder:
@@ -62,7 +62,7 @@ def roles_list(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def roles_create(args):
-    """Creates new empty role in DB."""
+    """Create new empty role in DB."""
     from airflow.utils.cli_app_builder import get_application_builder
 
     with get_application_builder() as appbuilder:
@@ -75,7 +75,7 @@ def roles_create(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def roles_delete(args):
-    """Deletes role in DB."""
+    """Delete role in DB."""
     from airflow.utils.cli_app_builder import get_application_builder
 
     with get_application_builder() as appbuilder:
@@ -144,7 +144,7 @@ def __roles_add_or_remove_permissions(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def roles_add_perms(args):
-    """Adds permissions to role in DB."""
+    """Add permissions to role in DB."""
     __roles_add_or_remove_permissions(args)
 
 
@@ -152,7 +152,7 @@ def roles_add_perms(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def roles_del_perms(args):
-    """Deletes permissions from role in DB."""
+    """Delete permissions from role in DB."""
     __roles_add_or_remove_permissions(args)
 
 
@@ -160,7 +160,7 @@ def roles_del_perms(args):
 @providers_configuration_loaded
 def roles_export(args):
     """
-    Exports all the roles from the database to a file.
+    Export all the roles from the database to a file.
 
     Note, this function does not export the permissions associated for each role.
     Strictly, it exports the role names into the passed role json file.
