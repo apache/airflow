@@ -42,7 +42,7 @@ from airflow.www.security import AirflowSecurityManager
 
 def _check_action_and_resource(sm: AirflowSecurityManager, perms: list[tuple[str, str]]) -> None:
     """
-    Checks if the action or resource exists and otherwise raise 400.
+    Check if the action or resource exists and otherwise raise 400.
 
     This function is intended for use in the REST API because it raise 400
     """

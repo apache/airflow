@@ -135,7 +135,7 @@ function handleTestConnection(connectionType, testableConnections) {
     $(testButton).hide();
     return;
   }
-  if (configTestConnection === "disabled") {
+  if (configTestConnection !== "enabled") {
     // If test connection is not enabled in config, disable button and display toolip
     // alerting the user.
     $(testButton)

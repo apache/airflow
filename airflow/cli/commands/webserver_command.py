@@ -132,7 +132,7 @@ class GunicornMonitor(LoggingMixin):
         return hash_md5.hexdigest()
 
     def _get_num_ready_workers_running(self) -> int:
-        """Returns number of ready Gunicorn workers by looking for READY_PREFIX in process name."""
+        """Return number of ready Gunicorn workers by looking for READY_PREFIX in process name."""
         workers = psutil.Process(self.gunicorn_master_proc.pid).children()
 
         def ready_prefix_on_cmdline(proc):
@@ -148,12 +148,12 @@ class GunicornMonitor(LoggingMixin):
         return len(ready_workers)
 
     def _get_num_workers_running(self) -> int:
-        """Returns number of running Gunicorn workers processes."""
+        """Return number of running Gunicorn workers processes."""
         workers = psutil.Process(self.gunicorn_master_proc.pid).children()
         return len(workers)
 
     def _wait_until_true(self, fn, timeout: int = 0) -> None:
-        """Sleeps until fn is true."""
+        """Sleep until fn is true."""
         start_time = time.monotonic()
         while not fn():
             if 0 < timeout <= time.monotonic() - start_time:
@@ -207,7 +207,7 @@ class GunicornMonitor(LoggingMixin):
         )
 
     def start(self) -> NoReturn:
-        """Starts monitoring the webserver."""
+        """Start monitoring the webserver."""
         try:
             self._wait_until_true(
                 lambda: self.num_workers_expected == self._get_num_workers_running(),
@@ -323,7 +323,7 @@ class GunicornMonitor(LoggingMixin):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def webserver(args):
-    """Starts Airflow Webserver."""
+    """Start Airflow Webserver."""
     print(settings.HEADER)
 
     # Check for old/insecure config, and fail safe (i.e. don't launch) if the config is wildly insecure.
