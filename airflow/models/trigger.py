@@ -92,7 +92,7 @@ class Trigger(Base):
     @internal_api_call
     @provide_session
     def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
-        """Fetches all the Triggers by ID and returns a dict mapping ID -> Trigger instance."""
+        """Fetch all the Triggers by ID and return a dict mapping ID -> Trigger instance."""
         query = session.scalars(
             select(cls)
             .where(cls.id.in_(ids))
@@ -108,7 +108,7 @@ class Trigger(Base):
     @internal_api_call
     @provide_session
     def clean_unused(cls, session: Session = NEW_SESSION) -> None:
-        """Deletes all triggers that have no tasks dependent on them.
+        """Delete all triggers that have no tasks dependent on them.
 
         Triggers have a one-to-many relationship to task instances, so we need
         to clean those up first. Afterwards we can drop the triggers not
@@ -141,7 +141,7 @@ class Trigger(Base):
     @internal_api_call
     @provide_session
     def submit_event(cls, trigger_id, event, session: Session = NEW_SESSION) -> None:
-        """Takes an event from an instance of itself, and triggers all dependent tasks to resume."""
+        """Take an event from an instance of itself, and trigger all dependent tasks to resume."""
         for task_instance in session.scalars(
             select(TaskInstance).where(
                 TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
@@ -193,7 +193,7 @@ class Trigger(Base):
     @internal_api_call
     @provide_session
     def ids_for_triggerer(cls, triggerer_id, session: Session = NEW_SESSION) -> list[int]:
-        """Retrieves a list of triggerer_ids."""
+        """Retrieve a list of triggerer_ids."""
         return session.scalars(select(cls.id).where(cls.triggerer_id == triggerer_id)).all()
 
     @classmethod
