@@ -1383,7 +1383,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             expected_tasks = {dag.task_dict[x] for x in expected}
         if should_skip:
@@ -1414,7 +1414,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
@@ -1441,7 +1441,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_kwargs = op1.skip.call_args.kwargs
@@ -1476,7 +1476,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_kwargs = op1.skip.call_args.kwargs

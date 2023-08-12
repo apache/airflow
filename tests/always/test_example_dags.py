@@ -61,16 +61,15 @@ def example_not_suspended_dags():
     for example_dir in example_dirs:
         candidates = glob(f"{AIRFLOW_SOURCES_ROOT.as_posix()}/{example_dir}", recursive=True)
         for candidate in candidates:
-            if any(candidate.startswith(s) for s in suspended_providers_folders):
-                continue
-            yield candidate
+            if not candidate.startswith(tuple(suspended_providers_folders)):
+                yield candidate
 
 
 def example_dags_except_db_exception():
     return [
         dag_file
         for dag_file in example_not_suspended_dags()
-        if not any(dag_file.endswith(e) for e in NO_DB_QUERY_EXCEPTION)
+        if not dag_file.endswith(tuple(NO_DB_QUERY_EXCEPTION))
     ]
 
 

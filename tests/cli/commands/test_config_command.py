@@ -194,9 +194,7 @@ class TestCliConfigList:
             )
         output = temp_stdout.getvalue()
         lines = output.split("\n")
-        assert all(
-            line.startswith("#") or line.strip() == "" or line.startswith("[") for line in lines if line
-        )
+        assert all(not line.strip() or line.startswith(("#", "[")) for line in lines if line)
 
 
 class TestCliConfigGetValue:

@@ -154,7 +154,7 @@ def working_dags(tmpdir):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
 
     with create_session() as session:
-        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
+        for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
             filename = os.path.join(tmpdir, f"{dag_id}.py")
             with open(filename, "w") as f:
                 f.writelines(dag_contents_template.format(dag_id, tag))
@@ -169,7 +169,7 @@ def working_dags_with_read_perm(tmpdir):
         "access_control={{'role_single_dag':{{'can_read'}}}}) "
     )
     with create_session() as session:
-        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
+        for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
             filename = os.path.join(tmpdir, f"{dag_id}.py")
             if dag_id == "filter_test_1":
                 with open(filename, "w") as f:
@@ -188,7 +188,7 @@ def working_dags_with_edit_perm(tmpdir):
         "access_control={{'role_single_dag':{{'can_edit'}}}}) "
     )
     with create_session() as session:
-        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
+        for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
             filename = os.path.join(tmpdir, f"{dag_id}.py")
             if dag_id == "filter_test_1":
                 with open(filename, "w") as f:
