@@ -991,7 +991,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # including lineage information
     def __or__(self, other):
         """
-        Called for [This Operator] | [Operator].
+        Return [This Operator] | [Operator].
 
         The inlets of other will be set to pick up the outlets from this operator.
         Other will be set as a downstream task of this operator.
@@ -1010,7 +1010,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __gt__(self, other):
         """
-        Called for [Operator] > [Outlet].
+        Return [Operator] > [Outlet].
 
         If other is an attr annotated object it is set as an outlet of this Operator.
         """
@@ -1026,7 +1026,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __lt__(self, other):
         """
-        Called for [Inlet] > [Operator] or [Operator] < [Inlet].
+        Return [Inlet] > [Operator] or [Operator] < [Inlet].
 
         If other is an attr annotated object it is set as an inlet to this operator.
         """
@@ -1054,22 +1054,22 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self.set_xcomargs_dependencies()
 
     def add_inlets(self, inlets: Iterable[Any]):
-        """Sets inlets to this operator."""
+        """Set inlets to this operator."""
         self.inlets.extend(inlets)
 
     def add_outlets(self, outlets: Iterable[Any]):
-        """Defines the outlets of this operator."""
+        """Define the outlets of this operator."""
         self.outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """Gets inlet definitions on this task.
+        """Get inlet definitions on this task.
 
         :meta private:
         """
         return self.inlets
 
     def get_outlet_defs(self):
-        """Gets outlet definitions on this task.
+        """Get outlet definitions on this task.
 
         :meta private:
         """
@@ -1109,7 +1109,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._dag = dag
 
     def has_dag(self):
-        """Returns True if the Operator has been assigned to a DAG."""
+        """Return True if the Operator has been assigned to a DAG."""
         return self._dag is not None
 
     deps: frozenset[BaseTIDep] = frozenset(
@@ -1134,7 +1134,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def set_xcomargs_dependencies(self) -> None:
         """
-        Resolves upstream dependencies of a task.
+        Resolve upstream dependencies of a task.
 
         In this way passing an ``XComArg`` as value for a template field
         will result in creating upstream relation between two tasks.
@@ -1163,13 +1163,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @prepare_lineage
     def pre_execute(self, context: Any):
-        """This hook is triggered right before self.execute() is called."""
+        """Execute right before self.execute() is called."""
         if self._pre_execute_hook is not None:
             self._pre_execute_hook(context)
 
     def execute(self, context: Context) -> Any:
         """
-        This is the main method to derive when creating an operator.
+        Derive when creating an operator.
 
         Context is the same dictionary used as when rendering jinja templates.
 
@@ -1180,7 +1180,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     @apply_lineage
     def post_execute(self, context: Any, result: Any = None):
         """
-        This hook is triggered right after self.execute() is called.
+        Execute right after self.execute() is called.
 
         It is passed the execution context and any results returned by the operator.
         """
@@ -1252,7 +1252,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         downstream: bool = False,
         session: Session = NEW_SESSION,
     ):
-        """Clears the state of task instances associated with the task, following the parameters specified."""
+        """Clear the state of task instances associated with the task, following the parameters specified."""
         qry = select(TaskInstance).where(TaskInstance.dag_id == self.dag_id)
 
         if start_date:
@@ -1355,7 +1355,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
 
     def dry_run(self) -> None:
-        """Performs dry run for the operator - just render template fields."""
+        """Perform dry run for the operator - just render template fields."""
         self.log.info("Dry run")
         for field in self.template_fields:
             try:
@@ -1563,7 +1563,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return cls.__serialized_fields
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Required by DAGNode."""
+        """Serialize; required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
     @property
@@ -1837,7 +1837,7 @@ def cross_downstream(
 
 def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
     """
-    Helper to simplify task dependency definition.
+    Simplify task dependency definition.
 
     E.g.: suppose you want precedence like so::
 

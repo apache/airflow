@@ -150,7 +150,7 @@ class SafeStatsdLogger:
 
 
 def get_statsd_logger(cls) -> SafeStatsdLogger:
-    """Returns logger for StatsD."""
+    """Return logger for StatsD."""
     # no need to check for the scheduler/statsd_on -> this method is only called when it is set
     # and previously it would crash with None is callable if it was called without it.
     from statsd import StatsClient

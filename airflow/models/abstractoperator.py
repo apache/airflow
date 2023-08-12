@@ -463,7 +463,8 @@ class AbstractOperator(Templater, DAGNode):
 
     @cache
     def get_parse_time_mapped_ti_count(self) -> int:
-        """Number of mapped task instances that can be created on DAG run creation.
+        """
+        Return the number of mapped task instances that can be created on DAG run creation.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.
@@ -479,7 +480,8 @@ class AbstractOperator(Templater, DAGNode):
         return group.get_parse_time_mapped_ti_count()
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        """Number of mapped TaskInstances that can be created at run time.
+        """
+        Return the number of mapped TaskInstances that can be created at run time.
 
         This considers both literal and non-literal mapped arguments, and the
         result is therefore available when all depended tasks have finished. The

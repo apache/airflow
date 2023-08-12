@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 
 def is_venv_installed() -> bool:
     """
-    Checks if the virtualenv package is installed via checking if it is on the path or installed as package.
+    Check if the virtualenv package is installed via checking if it is on the path or installed as package.
 
     :return: True if it is. Whichever way of checking it works, is fine.
     """
@@ -67,7 +67,7 @@ def is_venv_installed() -> bool:
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """Deprecated. Use :func:`airflow.decorators.task` instead.
+    """Use :func:`airflow.decorators.task` instead, this is deprecated.
 
     Calls ``@task.python`` and allows users to turn a Python function into
     an Airflow task.
@@ -202,7 +202,7 @@ class PythonOperator(BaseOperator):
 
     def execute_callable(self) -> Any:
         """
-        Calls the python callable with the given arguments.
+        Call the python callable with the given arguments.
 
         :return: the return value of the call.
         """

@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
-    """This method is deprecated."""
+    """Do not use, this method is deprecated."""
     warnings.warn("This method is deprecated.", RemovedInAirflow3Warning)
     return _parse_netloc_to_hostname(*args, **kwargs)
 
@@ -142,7 +142,7 @@ class Connection(Base, LoggingMixin):
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
         """
-        Here we verify that ``extra`` is a JSON-encoded Python dict.
+        Verify that ``extra`` is a JSON-encoded Python dict.
 
         From Airflow 3.0, we should no longer suppress these errors but raise instead.
         """
@@ -173,7 +173,7 @@ class Connection(Base, LoggingMixin):
             mask_secret(self.password)
 
     def parse_from_uri(self, **uri):
-        """This method is deprecated. Please use uri parameter in constructor."""
+        """Use uri parameter in constructor, this method is deprecated."""
         warnings.warn(
             "This method is deprecated. Please use uri parameter in constructor.",
             RemovedInAirflow3Warning,
@@ -219,7 +219,7 @@ class Connection(Base, LoggingMixin):
 
     @staticmethod
     def _create_host(protocol, host) -> str | None:
-        """Returns the connection host with the protocol."""
+        """Return the connection host with the protocol."""
         if not host:
             return host
         if protocol:
@@ -378,9 +378,9 @@ class Connection(Base, LoggingMixin):
 
     def log_info(self):
         """
-        This method is deprecated.
+        Read each field individually or use the default representation (`__repr__`).
 
-        You can read each field individually or use the default representation (`__repr__`).
+        This method is deprecated.
         """
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
@@ -396,9 +396,9 @@ class Connection(Base, LoggingMixin):
 
     def debug_info(self):
         """
-        This method is deprecated.
+        Read each field individually or use the default representation (`__repr__`).
 
-        You can read each field individually or use the default representation (`__repr__`).
+        This method is deprecated.
         """
         warnings.warn(
             "This method is deprecated. You can read each field individually or "

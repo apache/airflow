@@ -100,7 +100,7 @@ class Param:
 
     def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
         """
-        Runs the validations and returns the Param's final value.
+        Run the validations and returns the Param's final value.
 
         May raise ValueError on failed validations, or TypeError
         if no value is passed and no value already exists.
@@ -267,11 +267,11 @@ class ParamsDict(MutableMapping[str, Any]):
         super().update(*args, **kwargs)
 
     def dump(self) -> dict[str, Any]:
-        """Dumps the ParamsDict object as a dictionary, while suppressing exceptions."""
+        """Dump the ParamsDict object as a dictionary, while suppressing exceptions."""
         return {k: v.resolve(suppress_exception=True) for k, v in self.items()}
 
     def validate(self) -> dict[str, Any]:
-        """Validates & returns all the Params object stored in the dictionary."""
+        """Validate & returns all the Params object stored in the dictionary."""
         resolved_dict = {}
         try:
             for k, v in self.items():

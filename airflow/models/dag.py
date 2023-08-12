@@ -219,7 +219,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     """
-    Returns the last dag run for a dag, None if there was none.
+    Return the last dag run for a dag, None if there was none.
 
     Last dag run can be any type of run e.g. scheduled or backfilled.
     Overridden DagRuns are ignored.
@@ -825,7 +825,7 @@ class DAG(LoggingMixin):
 
     def following_schedule(self, dttm):
         """
-        Calculates the following schedule for this dag in UTC.
+        Calculate the following schedule for this dag in UTC.
 
         :param dttm: utc datetime
         :return: utc datetime
@@ -1103,7 +1103,7 @@ class DAG(LoggingMixin):
 
     def get_run_dates(self, start_date, end_date=None) -> list:
         """
-        Returns a list of dates between the interval received as parameter using this dag's schedule interval.
+        Return a list of dates between the interval received as parameter using this dag's schedule interval.
 
         Returned dates can be used for execution dates.
 
@@ -1318,7 +1318,7 @@ class DAG(LoggingMixin):
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
-        """Returns a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
+        """Return a boolean indicating whether the max_active_tasks limit for this DAG has been reached."""
         TI = TaskInstance
         total_tasks = session.scalar(
             select(func.count(TI.task_id)).where(
@@ -1330,7 +1330,7 @@ class DAG(LoggingMixin):
 
     @property
     def concurrency_reached(self):
-        """This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method."""
+        """Use `airflow.models.DAG.get_concurrency_reached`, this attribute is deprecated."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_concurrency_reached` method.",
             RemovedInAirflow3Warning,
@@ -1340,17 +1340,17 @@ class DAG(LoggingMixin):
 
     @provide_session
     def get_is_active(self, session=NEW_SESSION) -> None:
-        """Returns a boolean indicating whether this DAG is active."""
+        """Return a boolean indicating whether this DAG is active."""
         return session.scalar(select(DagModel.is_active).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> None:
-        """Returns a boolean indicating whether this DAG is paused."""
+        """Return a boolean indicating whether this DAG is paused."""
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
 
     @property
     def is_paused(self):
-        """This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method."""
+        """Use `airflow.models.DAG.get_is_paused`, this attribute is deprecated."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.",
             RemovedInAirflow3Warning,
@@ -1408,7 +1408,7 @@ class DAG(LoggingMixin):
 
     def get_active_runs(self):
         """
-        Returns a list of dag run execution dates currently running.
+        Return a list of dag run execution dates currently running.
 
         :return: List of execution dates
         """
@@ -1423,7 +1423,7 @@ class DAG(LoggingMixin):
     @provide_session
     def get_num_active_runs(self, external_trigger=None, only_running=True, session=NEW_SESSION):
         """
-        Returns the number of active "running" dag runs.
+        Return the number of active "running" dag runs.
 
         :param external_trigger: True for externally triggered active dag runs
         :param session:
@@ -1450,7 +1450,7 @@ class DAG(LoggingMixin):
         session: Session = NEW_SESSION,
     ):
         """
-        Returns the dag run for a given execution date or run_id if it exists, otherwise none.
+        Return the dag run for a given execution date or run_id if it exists, otherwise none.
 
         :param execution_date: The execution date of the DagRun to find.
         :param run_id: The run_id of the DagRun to find.
@@ -1469,7 +1469,7 @@ class DAG(LoggingMixin):
     @provide_session
     def get_dagruns_between(self, start_date, end_date, session=NEW_SESSION):
         """
-        Returns the list of dag runs between start_date (inclusive) and end_date (inclusive).
+        Return the list of dag runs between start_date (inclusive) and end_date (inclusive).
 
         :param start_date: The starting execution date of the DagRun to find.
         :param end_date: The ending execution date of the DagRun to find.
@@ -1488,12 +1488,12 @@ class DAG(LoggingMixin):
 
     @provide_session
     def get_latest_execution_date(self, session: Session = NEW_SESSION) -> pendulum.DateTime | None:
-        """Returns the latest date for which at least one dag run exists."""
+        """Return the latest date for which at least one dag run exists."""
         return session.scalar(select(func.max(DagRun.execution_date)).where(DagRun.dag_id == self.dag_id))
 
     @property
     def latest_execution_date(self):
-        """This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date`."""
+        """Use `airflow.models.DAG.get_latest_execution_date`, this attribute is deprecated."""
         warnings.warn(
             "This attribute is deprecated. Please use `airflow.models.DAG.get_latest_execution_date`.",
             RemovedInAirflow3Warning,
@@ -1503,7 +1503,7 @@ class DAG(LoggingMixin):
 
     @property
     def subdags(self):
-        """Returns a list of the subdag objects associated to this DAG."""
+        """Return a list of the subdag objects associated to this DAG."""
         # Check SubDag for class but don't check class directly
         from airflow.operators.subdag import SubDagOperator
 
@@ -2147,7 +2147,7 @@ class DAG(LoggingMixin):
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
     ) -> int | Iterable[TaskInstance]:
         """
-        Clears a set of task instances associated with the current dag for a specified date range.
+        Clear a set of task instances associated with the current dag for a specified date range.
 
         :param task_ids: List of task ids or (``task_id``, ``map_index``) tuples to clear
         :param start_date: The minimum execution_date to clear
@@ -2312,7 +2312,7 @@ class DAG(LoggingMixin):
         return result
 
     def sub_dag(self, *args, **kwargs):
-        """This method is deprecated in favor of partial_subset."""
+        """Use `airflow.models.DAG.partial_subset`, this method is deprecated."""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use partial_subset",
             RemovedInAirflow3Warning,
@@ -2605,7 +2605,7 @@ class DAG(LoggingMixin):
         disable_retry=False,
     ):
         """
-        Runs the DAG.
+        Run the DAG.
 
         :param start_date: the start date of the range to run
         :param end_date: the end date of the range to run
@@ -2771,7 +2771,7 @@ class DAG(LoggingMixin):
         data_interval: tuple[datetime, datetime] | None = None,
     ):
         """
-        Creates a dag run from this dag including the tasks associated with this dag.
+        Create a dag run from this dag including the tasks associated with this dag.
 
         Returns the dag run.
 
@@ -2877,7 +2877,7 @@ class DAG(LoggingMixin):
         dags: Collection[DAG],
         session=NEW_SESSION,
     ):
-        """This method is deprecated in favor of bulk_write_to_db."""
+        """Use `airflow.models.DAG.bulk_write_to_db`, this method is deprecated."""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
             RemovedInAirflow3Warning,
@@ -3132,7 +3132,7 @@ class DAG(LoggingMixin):
         self.bulk_write_to_db([self], processor_subdir=processor_subdir, session=session)
 
     def get_default_view(self):
-        """This is only there for backward compatible jinja2 templates."""
+        """Allow backward compatible jinja2 templates."""
         if self.default_view is None:
             return airflow_conf.get("webserver", "dag_default_view").lower()
         else:
@@ -3181,7 +3181,7 @@ class DAG(LoggingMixin):
     @provide_session
     def get_num_task_instances(dag_id, run_id=None, task_ids=None, states=None, session=NEW_SESSION) -> int:
         """
-        Returns the number of task instances in the given DAG.
+        Return the number of task instances in the given DAG.
 
         :param session: ORM session
         :param dag_id: ID of the DAG to get the task concurrency of
@@ -3259,7 +3259,7 @@ class DAG(LoggingMixin):
 
     def set_edge_info(self, upstream_task_id: str, downstream_task_id: str, info: EdgeInfoType):
         """
-        Sets the given edge information on the DAG.
+        Set the given edge information on the DAG.
 
         Note that this will overwrite, rather than merge with, existing info.
         """
@@ -3267,7 +3267,7 @@ class DAG(LoggingMixin):
 
     def validate_schedule_and_params(self):
         """
-        Validates Param values when the schedule_interval is not None.
+        Validate Param values when the schedule_interval is not None.
 
         Raise exception if there are any Params in the DAG which neither have a default value nor
         have the null in schema['type'] list, but the DAG have a schedule_interval which is not None.
@@ -3284,7 +3284,7 @@ class DAG(LoggingMixin):
 
     def iter_invalid_owner_links(self) -> Iterator[tuple[str, str]]:
         """
-        Parses a given link, and verifies if it's a valid URL, or a 'mailto' link.
+        Parse a given link, and verifies if it's a valid URL, or a 'mailto' link.
 
         Returns an iterator of invalid (owner, link) pairs.
         """

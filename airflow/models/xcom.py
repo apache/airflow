@@ -122,7 +122,7 @@ class BaseXCom(Base, LoggingMixin):
     @reconstructor
     def init_on_load(self):
         """
-        Called by the ORM after the instance has been loaded from the DB or otherwise reconstituted.
+        Execute after the instance has been loaded from the DB or otherwise reconstituted; called by the ORM.
 
         i.e automatically deserialize Xcom value when loading from DB.
         """
@@ -838,7 +838,7 @@ def _patch_outdated_serializer(clazz: type[BaseXCom], params: Iterable[str]) -> 
 
 def _get_function_params(function) -> list[str]:
     """
-    Returns the list of variables names of a function.
+    Return the list of variables names of a function.
 
     :param function: The function to inspect
     """
@@ -850,10 +850,10 @@ def _get_function_params(function) -> list[str]:
 
 
 def resolve_xcom_backend() -> type[BaseXCom]:
-    """Resolves custom XCom class.
+    """Resolve custom XCom class.
 
-    Confirms that custom XCom class extends the BaseXCom.
-    Compares the function signature of the custom XCom serialize_value to the base XCom serialize_value.
+    Confirm that custom XCom class extends the BaseXCom.
+    Compare the function signature of the custom XCom serialize_value to the base XCom serialize_value.
     """
     clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
     if not clazz:
