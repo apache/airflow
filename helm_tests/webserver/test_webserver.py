@@ -779,6 +779,20 @@ class TestWebserverDeployment:
         assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
         assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
 
+    def test_should_add_annotations_to_webserver_configmap(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
+                    "configMapAnnotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/configmaps/webserver-configmap.yaml"],
+        )
+
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
 
 class TestWebserverService:
     """Tests webserver service."""
