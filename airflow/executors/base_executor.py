@@ -188,7 +188,7 @@ class BaseExecutor(LoggingMixin):
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
-        Checks if a task is either queued or running in this executor.
+        Check if a task is either queued or running in this executor.
 
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
@@ -250,7 +250,7 @@ class BaseExecutor(LoggingMixin):
 
     def trigger_tasks(self, open_slots: int) -> None:
         """
-        Initiates async execution of the queued tasks, up to the number of available slots.
+        Initiate async execution of the queued tasks, up to the number of available slots.
 
         :param open_slots: Number of open slots
         """
@@ -298,7 +298,7 @@ class BaseExecutor(LoggingMixin):
 
     def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
         """
-        Changes state of the task.
+        Change state of the task.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
@@ -358,7 +358,7 @@ class BaseExecutor(LoggingMixin):
         executor_config: Any | None = None,
     ) -> None:  # pragma: no cover
         """
-        This method will execute the command asynchronously.
+        Execute the command asynchronously.
 
         :param key: Unique key for the task instance
         :param command: Command to run
@@ -369,7 +369,7 @@ class BaseExecutor(LoggingMixin):
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         """
-        This method can be implemented by any child class to return the task logs.
+        Return the task logs.
 
         :param ti: A TaskInstance object
         :param try_number: current try_number to read log from
@@ -382,7 +382,7 @@ class BaseExecutor(LoggingMixin):
         raise NotImplementedError()
 
     def terminate(self):
-        """This method is called when the daemon receives a SIGTERM."""
+        """Get called when the daemon receives a SIGTERM."""
         raise NotImplementedError()
 
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
@@ -458,7 +458,7 @@ class BaseExecutor(LoggingMixin):
         return None, None
 
     def debug_dump(self):
-        """Called in response to SIGUSR2 by the scheduler."""
+        """Get called in response to SIGUSR2 by the scheduler."""
         self.log.info(
             "executor.queued (%d)\n\t%s",
             len(self.queued_tasks),
@@ -472,7 +472,7 @@ class BaseExecutor(LoggingMixin):
         )
 
     def send_callback(self, request: CallbackRequest) -> None:
-        """Sends callback for execution.
+        """Send callback for execution.
 
         Provides a default implementation which sends the callback to the `callback_sink` object.
 
@@ -493,7 +493,7 @@ class BaseExecutor(LoggingMixin):
 
     @classmethod
     def _get_parser(cls) -> argparse.ArgumentParser:
-        """This method is used by Sphinx argparse to generate documentation.
+        """Generate documentation; used by Sphinx argparse.
 
         :meta private:
         """

@@ -22,7 +22,7 @@ from airflow.hooks.base import BaseHook
 
 class FSHook(BaseHook):
     """
-    Allows for interaction with an file server.
+    Allow for interaction with an file server.
 
     Connection should have a name and a path specified under extra:
 

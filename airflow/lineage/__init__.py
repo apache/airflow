@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 
 
 def get_backend() -> LineageBackend | None:
-    """Gets the lineage backend if defined in the configs."""
+    """Get the lineage backend if defined in the configs."""
     clazz = conf.getimport("lineage", "backend", fallback=None)
 
     if clazz:
@@ -99,7 +99,7 @@ def apply_lineage(func: T) -> T:
 
 def prepare_lineage(func: T) -> T:
     """
-    Prepares the lineage inlets and outlets.
+    Prepare the lineage inlets and outlets.
 
     Inlets can be:
 

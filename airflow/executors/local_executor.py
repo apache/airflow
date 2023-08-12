@@ -75,7 +75,7 @@ class LocalWorkerBase(Process, LoggingMixin):
 
     def execute_work(self, key: TaskInstanceKey, command: CommandType) -> None:
         """
-        Executes command received and stores result state in queue.
+        Execute command received and stores result state in queue.
 
         :param key: the key to identify the task instance
         :param command: the command to execute
@@ -141,7 +141,7 @@ class LocalWorkerBase(Process, LoggingMixin):
 
     @abstractmethod
     def do_work(self):
-        """Called in the subprocess and should then execute tasks."""
+        """Execute tasks; called in the subprocess."""
         raise NotImplementedError()
 
 
@@ -236,7 +236,7 @@ class LocalExecutor(BaseExecutor):
             self.executor: LocalExecutor = executor
 
         def start(self) -> None:
-            """Starts the executor."""
+            """Start the executor."""
             self.executor.workers_used = 0
             self.executor.workers_active = 0
 
@@ -248,7 +248,7 @@ class LocalExecutor(BaseExecutor):
             executor_config: Any | None = None,
         ) -> None:
             """
-            Executes task asynchronously.
+            Execute task asynchronously.
 
             :param key: the key to identify the task instance
             :param command: the command to execute
@@ -291,7 +291,7 @@ class LocalExecutor(BaseExecutor):
             self.queue: Queue[ExecutorWorkType] | None = None
 
         def start(self) -> None:
-            """Starts limited parallelism implementation."""
+            """Start limited parallelism implementation."""
             if TYPE_CHECKING:
                 assert self.executor.manager
                 assert self.executor.result_queue
@@ -315,7 +315,7 @@ class LocalExecutor(BaseExecutor):
             executor_config: Any | None = None,
         ) -> None:
             """
-            Executes task asynchronously.
+            Execute task asynchronously.
 
             :param key: the key to identify the task instance
             :param command: the command to execute
@@ -340,7 +340,11 @@ class LocalExecutor(BaseExecutor):
                     break
 
         def end(self):
-            """Ends the executor. Sends the poison pill to all workers."""
+            """
+            End the executor.
+
+            Sends the poison pill to all workers.
+            """
             for _ in self.executor.workers:
                 self.queue.put((None, None))
 
@@ -349,7 +353,7 @@ class LocalExecutor(BaseExecutor):
             self.executor.sync()
 
     def start(self) -> None:
-        """Starts the executor."""
+        """Start the executor."""
         old_proctitle = getproctitle()
         setproctitle("airflow executor -- LocalExecutor")
         self.manager = Manager()
@@ -389,7 +393,7 @@ class LocalExecutor(BaseExecutor):
         self.impl.sync()
 
     def end(self) -> None:
-        """Ends the executor."""
+        """End the executor."""
         if TYPE_CHECKING:
             assert self.impl
             assert self.manager

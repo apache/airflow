@@ -111,13 +111,13 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
-            """Setting kill signal handler."""
+            """Set kill signal handler."""
             self.log.error("Received SIGTERM. Terminating subprocesses")
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)
 
         def segfault_signal_handler(signum, frame):
-            """Setting sigmentation violation signal handler."""
+            """Set sigmentation violation signal handler."""
             self.log.critical(SIGSEGV_MESSAGE)
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)

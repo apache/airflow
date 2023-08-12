@@ -289,14 +289,18 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
     @provide_session
     def is_needed(cls, session) -> bool:
         """
-        Tests if the triggerer job needs to be run (i.e., if there are triggers in the trigger table).
+        Test if the triggerer job needs to be run (i.e., if there are triggers in the trigger table).
 
         This is used for the warning boxes in the UI.
         """
         return session.query(func.count(Trigger.id)).scalar() > 0
 
     def on_kill(self):
-        """Called when there is an external kill command (via the heartbeat mechanism, for example)."""
+        """
+        Stop the trigger runner.
+
+        Called when there is an external kill command (via the heartbeat mechanism, for example).
+        """
         self.trigger_runner.stop = True
 
     def _kill_listener(self):
@@ -306,7 +310,7 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
             self.listener.stop()
 
     def _exit_gracefully(self, signum, frame) -> None:
-        """Helper method to clean up processor_agent to avoid leaving orphan processes."""
+        """Clean up processor_agent to avoid leaving orphan processes."""
         # The first time, try to exit nicely
         if not self.trigger_runner.stop:
             self.log.info("Exiting gracefully upon receiving signal %s", signum)
@@ -340,11 +344,7 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         return None
 
     def _run_trigger_loop(self) -> None:
-        """
-        The main-thread trigger loop.
-
-        This runs synchronously and handles all database reads/writes.
-        """
+        """Run synchronously and handle all database reads/writes; the main-thread trigger loop."""
         while not self.trigger_runner.stop:
             if not self.trigger_runner.is_alive():
                 self.log.error("Trigger runner thread has died! Exiting.")
@@ -381,7 +381,7 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
 
     def handle_failed_triggers(self):
         """
-        Handles "failed" triggers. - ones that errored or exited before they sent an event.
+        Handle "failed" triggers. - ones that errored or exited before they sent an event.
 
         Task Instances that depend on them need failing.
         """
@@ -449,15 +449,14 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         self.job_id = None
 
     def run(self):
-        """Sync entrypoint - just runs arun in an async loop."""
+        """Sync entrypoint - just run a run in an async loop."""
         asyncio.run(self.arun())
 
     async def arun(self):
         """
-        Main (asynchronous) logic loop.
+        Run trigger addition/deletion/cleanup; main (asynchronous) logic loop.
 
-        The loop in here runs trigger addition/deletion/cleanup. Actual
-        triggers run in their own separate coroutines.
+        Actual triggers run in their own separate coroutines.
         """
         watchdog = asyncio.create_task(self.block_watchdog())
         last_status = time.time()
@@ -634,7 +633,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
     def update_triggers(self, requested_trigger_ids: set[int]):
         """
-        Called from the main thread to request that we update what triggers we're running.
+        Request that we update what triggers we're running.
 
         Works out the differences - ones to add, and ones to remove - then
         adds them to the deques so the subthread can actually mutate the running
@@ -701,7 +700,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
     def get_trigger_by_classpath(self, classpath: str) -> type[BaseTrigger]:
         """
-        Gets a trigger class by its classpath ("path.to.module.classname").
+        Get a trigger class by its classpath ("path.to.module.classname").
 
         Uses a cache dictionary to speed up lookups after the first time.
         """

@@ -165,7 +165,7 @@ class PodGenerator:
         self.extract_xcom = extract_xcom
 
     def gen_pod(self) -> k8s.V1Pod:
-        """Generates pod."""
+        """Generate pod."""
         warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
         result = self.ud_pod
 
@@ -178,7 +178,7 @@ class PodGenerator:
 
     @staticmethod
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Adds sidecar."""
+        """Add sidecar."""
         warnings.warn(
             "This function is deprecated. "
             "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
@@ -194,7 +194,7 @@ class PodGenerator:
 
     @staticmethod
     def from_obj(obj) -> dict | k8s.V1Pod | None:
-        """Converts to pod from obj."""
+        """Convert to pod from obj."""
         if obj is None:
             return None
 
@@ -228,7 +228,7 @@ class PodGenerator:
 
     @staticmethod
     def from_legacy_obj(obj) -> k8s.V1Pod | None:
-        """Converts to pod from obj."""
+        """Convert to pod from obj."""
         if obj is None:
             return None
 

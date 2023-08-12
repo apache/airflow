@@ -240,7 +240,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
-        """Helper method to clean up processor_agent to avoid leaving orphan processes."""
+        """Clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
             return
@@ -905,7 +905,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     def _run_scheduler_loop(self) -> None:
         """
-        The actual scheduler loop.
+        Harvest DAG parsing results, queue tasks, and perform executor heartbeat; the actual scheduler loop.
 
         The main steps in the loop are:
             #. Harvest DAG parsing results through DagFileProcessorAgent
@@ -1021,7 +1021,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     def _do_scheduling(self, session: Session) -> int:
         """
-        This function is where the main scheduling decisions take places.
+        Make the main scheduling decisions.
 
         It:
         - Creates any necessary DAG runs by examining the next_dagrun_create_after column of DagModel
@@ -1378,7 +1378,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         dag_runs: Iterable[DagRun],
         session: Session,
     ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
-        """Makes scheduling decisions for all `dag_runs`."""
+        """Make scheduling decisions for all `dag_runs`."""
         callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
         guard.commit()
         return callback_tuples
@@ -1504,7 +1504,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             self.log.debug("callback is empty")
 
     def _send_sla_callbacks_to_processor(self, dag: DAG) -> None:
-        """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True."""
+        """Send SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True."""
         if not settings.CHECK_SLAS:
             return
 

@@ -170,7 +170,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     def _update_counters(self, ti_status: _DagRunTaskStatus, session: Session) -> None:
         """
-        Updates the counters per state of the tasks that were running.
+        Update the counters per state of the tasks that were running.
 
         Can re-add to tasks to run when required.
 
