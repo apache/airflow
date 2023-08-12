@@ -117,7 +117,7 @@ class DAGDetailSchema(DAGSchema):
 
     @staticmethod
     def get_tags(obj: DAG):
-        """Dumps tags as objects."""
+        """Dump tags as objects."""
         tags = obj.tags
         if tags:
             return [DagTagSchema().dump(dict(name=tag)) for tag in tags]
@@ -132,12 +132,12 @@ class DAGDetailSchema(DAGSchema):
 
     @staticmethod
     def get_is_paused(obj: DAG):
-        """Checks entry in DAG table to see if this DAG is paused."""
+        """Check entry in DAG table to see if this DAG is paused."""
         return obj.get_is_paused()
 
     @staticmethod
     def get_is_active(obj: DAG):
-        """Checks entry in DAG table to see if this DAG is active."""
+        """Check entry in DAG table to see if this DAG is active."""
         return obj.get_is_active()
 
     @staticmethod
