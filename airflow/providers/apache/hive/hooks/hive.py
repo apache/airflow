@@ -123,7 +123,7 @@ class HiveCliHook(BaseHook):
         self.mapred_job_name = mapred_job_name
 
     def _get_proxy_user(self) -> str:
-        """This function set the proper proxy_user value in case the user overwrite the default."""
+        """Set the proper proxy_user value in case the user overwrite the default."""
         conn = self.conn
 
         proxy_user_value: str = conn.extra_dejson.get("proxy_user", "")
@@ -136,7 +136,7 @@ class HiveCliHook(BaseHook):
         return proxy_user_value  # The default proxy user (undefined)
 
     def _prepare_cli_cmd(self) -> list[Any]:
-        """This function creates the command list from available information."""
+        """Create the command list from available information."""
         conn = self.conn
         hive_bin = "hive"
         cmd_extra = []
@@ -189,7 +189,7 @@ class HiveCliHook(BaseHook):
     @staticmethod
     def _prepare_hiveconf(d: dict[Any, Any]) -> list[Any]:
         """
-        Prepares a list of hiveconf params from a dictionary of key value pairs.
+        Prepare a list of hiveconf params from a dictionary of key value pairs.
 
         :param d:
 
@@ -345,7 +345,7 @@ class HiveCliHook(BaseHook):
         **kwargs: Any,
     ) -> None:
         """
-        Loads a pandas DataFrame into hive.
+        Load a pandas DataFrame into hive.
 
         Hive data types will be inferred if not passed but column names will
         not be sanitized.
@@ -416,7 +416,7 @@ class HiveCliHook(BaseHook):
         tblproperties: dict[str, Any] | None = None,
     ) -> None:
         """
-        Loads a local file into Hive.
+        Load a local file into Hive.
 
         Note that the table generated in Hive uses ``STORED AS textfile``
         which isn't the most efficient serialization format. If a
@@ -518,7 +518,7 @@ class HiveMetastoreHook(BaseHook):
         self.__dict__["metastore"] = self.get_metastore_client()
 
     def get_metastore_client(self) -> Any:
-        """Returns a Hive thrift client."""
+        """Return a Hive thrift client."""
         import hmsclient
         from thrift.protocol import TBinaryProtocol
         from thrift.transport import TSocket, TTransport
@@ -588,7 +588,7 @@ class HiveMetastoreHook(BaseHook):
 
     def check_for_partition(self, schema: str, table: str, partition: str) -> bool:
         """
-        Checks whether a partition exists.
+        Check whether a partition exists.
 
         :param schema: Name of hive schema (database) @table belongs to
         :param table: Name of hive table @partition belongs to
@@ -609,7 +609,7 @@ class HiveMetastoreHook(BaseHook):
 
     def check_for_named_partition(self, schema: str, table: str, partition_name: str) -> Any:
         """
-        Checks whether a partition with a given name exists.
+        Check whether a partition with a given name exists.
 
         :param schema: Name of hive schema (database) @table belongs to
         :param table: Name of hive table @partition belongs to
@@ -653,7 +653,7 @@ class HiveMetastoreHook(BaseHook):
 
     def get_partitions(self, schema: str, table_name: str, partition_filter: str | None = None) -> list[Any]:
         """
-        Returns a list of all partitions in a table.
+        Return a list of all partitions in a table.
 
         Works only for tables with less than 32767 (java short max val).
         For subpartitioned table, the number might easily exceed this.
@@ -691,7 +691,7 @@ class HiveMetastoreHook(BaseHook):
         part_specs: list[Any], partition_key: str | None, filter_map: dict[str, Any] | None
     ) -> Any:
         """
-        Helper method to get max partition of partitions with partition_key from part specs.
+        Get max partition of partitions with partition_key from part specs.
 
         key:value pair in filter_map will be used to filter out partitions.
 
@@ -737,7 +737,7 @@ class HiveMetastoreHook(BaseHook):
         filter_map: dict[Any, Any] | None = None,
     ) -> Any:
         """
-        Returns the maximum value for all partitions with given field in a table.
+        Return the maximum value for all partitions with given field in a table.
 
         If only one partition key exist in the table, the key will be used as field.
         filter_map should be a partition_key:partition_value map and will be used to
@@ -840,7 +840,7 @@ class HiveServer2Hook(DbApiHook):
     supports_autocommit = False
 
     def get_conn(self, schema: str | None = None) -> Any:
-        """Returns a Hive connection object."""
+        """Return a Hive connection object."""
         username: str | None = None
         password: str | None = None
 

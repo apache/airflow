@@ -60,7 +60,7 @@ class BeamRunnerType:
 
 def beam_options_to_args(options: dict) -> list[str]:
     """
-    Returns a formatted pipeline options from a dictionary of arguments.
+    Return a formatted pipeline options from a dictionary of arguments.
 
     The logic of this method should be compatible with Apache Beam:
     https://github.com/apache/beam/blob/b56740f0e8cd80c2873412847d0b336837429fb9/sdks/python/
@@ -90,7 +90,7 @@ def process_fd(
     process_line_callback: Callable[[str], None] | None = None,
 ):
     """
-    Prints output to logs.
+    Print output to logs.
 
     :param proc: subprocess.
     :param fd: File descriptor.
@@ -120,7 +120,7 @@ def run_beam_command(
     working_directory: str | None = None,
 ) -> None:
     """
-    Function responsible for running pipeline command in subprocess.
+    Run pipeline command in subprocess.
 
     :param cmd: Parts of the command to be run in subprocess
     :param process_line_callback: Optional callback which can be used to process
@@ -211,7 +211,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
     ):
         """
-        Starts Apache Beam python pipeline.
+        Start Apache Beam python pipeline.
 
         :param variables: Variables passed to the pipeline.
         :param py_file: Path to the python file to execute.
@@ -291,7 +291,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
     ) -> None:
         """
-        Starts Apache Beam Java pipeline.
+        Start Apache Beam Java pipeline.
 
         :param variables: Variables passed to the job.
         :param jar: Name of the jar for the pipeline
@@ -317,7 +317,7 @@ class BeamHook(BaseHook):
         should_init_module: bool = False,
     ) -> None:
         """
-        Starts Apache Beam Go pipeline with a source file.
+        Start Apache Beam Go pipeline with a source file.
 
         :param variables: Variables passed to the job.
         :param go_file: Path to the Go file with your beam pipeline.
@@ -361,7 +361,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
     ) -> None:
         """
-        Starts Apache Beam Go pipeline with an executable binary.
+        Start Apache Beam Go pipeline with an executable binary.
 
         :param variables: Variables passed to the job.
         :param launcher_binary: Path to the binary compiled for the launching platform.
@@ -401,7 +401,7 @@ class BeamAsyncHook(BeamHook):
 
     @staticmethod
     async def _create_tmp_dir(prefix: str) -> str:
-        """Helper method to create temporary directory."""
+        """Create temporary directory."""
         # Creating separate thread to create temporary directory
         loop = asyncio.get_running_loop()
         partial_func = functools.partial(tempfile.mkdtemp, prefix=prefix)
@@ -411,7 +411,7 @@ class BeamAsyncHook(BeamHook):
     @staticmethod
     async def _cleanup_tmp_dir(tmp_dir: str) -> None:
         """
-        Helper method to delete temporary directory after finishing work with it.
+        Delete temporary directory after finishing work with it.
 
         Is uses `rmtree` method to recursively remove the temporary directory.
         """
@@ -427,7 +427,7 @@ class BeamAsyncHook(BeamHook):
         py_system_site_packages: bool = False,
     ):
         """
-        Starts Apache Beam python pipeline.
+        Start Apache Beam python pipeline.
 
         :param variables: Variables passed to the pipeline.
         :param py_file: Path to the python file to execute.
@@ -524,7 +524,7 @@ class BeamAsyncHook(BeamHook):
         working_directory: str | None = None,
     ) -> int:
         """
-        Function responsible for running pipeline command in subprocess.
+        Run pipeline command in subprocess.
 
         :param cmd: Parts of the command to be run in subprocess
         :param working_directory: Working directory

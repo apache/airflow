@@ -471,7 +471,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @classmethod
     def _get_provider_version(cls) -> str:
-        """Checks the Providers Manager for the package version."""
+        """Check the Providers Manager for the package version."""
         try:
             manager = ProvidersManager()
             hook = manager.hooks[cls.conn_type]
@@ -774,7 +774,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom UI field behaviour for AWS Connection."""
+        """Return custom UI field behaviour for AWS Connection."""
         return {
             "hidden_fields": ["host", "schema", "port"],
             "relabeling": {
@@ -890,7 +890,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @staticmethod
     def _apply_parameters_value(config: dict, waiter_name: str, parameters: dict[str, str] | None) -> dict:
-        """Replaces potential jinja templates in acceptors definition."""
+        """Replace potential jinja templates in acceptors definition."""
         # only process the waiter we're going to use to not raise errors for missing params for other waiters.
         acceptors = config["waiters"][waiter_name]["acceptors"]
         for a in acceptors:
@@ -905,7 +905,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return config
 
     def list_waiters(self) -> list[str]:
-        """Returns a list containing the names of all waiters for the service, official and custom."""
+        """Return a list containing the names of all waiters for the service, official and custom."""
         return [*self._list_official_waiters(), *self._list_custom_waiters()]
 
     def _list_official_waiters(self) -> list[str]:
@@ -944,7 +944,7 @@ class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
 
 
 def resolve_session_factory() -> type[BaseSessionFactory]:
-    """Resolves custom SessionFactory class."""
+    """Resolve custom SessionFactory class."""
     clazz = conf.getimport("aws", "session_factory", fallback=None)
     if not clazz:
         return BaseSessionFactory
