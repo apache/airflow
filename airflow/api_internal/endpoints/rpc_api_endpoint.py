@@ -65,7 +65,7 @@ def _initialize_map() -> dict[str, Callable]:
 
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
-    """Handler for Internal API /internal_api/v1/rpcapi endpoint."""
+    """Handle Internal API /internal_api/v1/rpcapi endpoint."""
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,21 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from sqlalchemy.orm import Session
-
-from airflow.callbacks.base_callback_sink import BaseCallbackSink
-from airflow.callbacks.callback_requests import CallbackRequest
-from airflow.models.db_callback_request import DbCallbackRequest
-from airflow.utils.session import NEW_SESSION, provide_session
+import io
+import sys
 
 
-class DatabaseCallbackSink(BaseCallbackSink):
-    """Sends callbacks to database."""
+def is_stdout(fileio: io.IOBase) -> bool:
+    """Check whether a file IO is stdout.
 
-    @provide_session
-    def send(self, callback: CallbackRequest, session: Session = NEW_SESSION) -> None:
-        """Send callback for execution."""
-        db_callback = DbCallbackRequest(callback=callback, priority_weight=10)
-        session.add(db_callback)
+    The intended use case for this helper is to check whether an argument parsed
+    with argparse.FileType points to stdout (by setting the path to ``-``). This
+    is why there is no equivalent for stderr; argparse does not allow using it.
+
+    .. warning:: *fileio* must be open for this check to be successful.
+    """
+    return fileio.fileno() == sys.stdout.fileno()

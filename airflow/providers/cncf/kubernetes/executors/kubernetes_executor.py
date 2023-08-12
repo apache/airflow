@@ -182,6 +182,7 @@ class KubernetesExecutor(BaseExecutor):
     def _make_safe_label_value(self, input_value: str | datetime) -> str:
         """
         Normalize a provided label to be of valid length and characters.
+
         See airflow.providers.cncf.kubernetes.pod_generator.make_safe_label_value for more details.
         """
         # airflow.providers.cncf.kubernetes is an expensive import, locally import it here to

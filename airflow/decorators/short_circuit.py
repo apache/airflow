@@ -34,7 +34,8 @@ def short_circuit_task(
     multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
-    """Wraps a function into an ShortCircuitOperator.
+    """
+    Wrap a function into an ShortCircuitOperator.
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 

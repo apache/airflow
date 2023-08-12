@@ -1051,6 +1051,8 @@ migrateDatabaseJob:
 
 # Airflow webserver settings
 webserver:
+  # Add custom annotations to the webserver configmap
+  configMapAnnotations: {}
   #  hostAliases for the webserver pod
   hostAliases: []
   #  - ip: "127.0.0.1"
@@ -1671,6 +1673,9 @@ flower:
 
 # StatsD settings
 statsd:
+  # Add custom annotations to the statsd configmap
+  configMapAnnotations: {}
+
   enabled: true
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
