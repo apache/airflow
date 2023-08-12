@@ -683,8 +683,18 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.8 --backend postgres
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres
 ```
+
+You can also choose different executors and extras to install when you are installing airflow this way. For
+example in order to run Airflow with CeleryExecutor and install celery, google and amazon provider (as of
+Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
+
+```shell script
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres \
+  --executor CeleryExecutor --airflow-extras "celery,google,amazon"
+```
+
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
 that the Airflow works as you expected.
