@@ -140,7 +140,7 @@ def round_time(
     delta: str | timedelta | relativedelta,
     start_date: datetime = timezone.make_aware(datetime.min),
 ):
-    """Returns ``start_date + i * delta`` for given ``i`` where the result is closest to ``dt``.
+    """Return ``start_date + i * delta`` for given ``i`` where the result is closest to ``dt``.
 
     .. code-block:: pycon
 

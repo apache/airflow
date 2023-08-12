@@ -48,7 +48,7 @@ S = TypeVar("S")
 
 
 def validate_key(k: str, max_length: int = 250):
-    """Validates value used as a key."""
+    """Validate value used as a key."""
     if not isinstance(k, str):
         raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
     if len(k) > max_length:
@@ -61,7 +61,7 @@ def validate_key(k: str, max_length: int = 250):
 
 
 def validate_group_key(k: str, max_length: int = 200):
-    """Validates value used as a group key."""
+    """Validate value used as a group key."""
     if not isinstance(k, str):
         raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
     if len(k) > max_length:
@@ -73,7 +73,7 @@ def validate_group_key(k: str, max_length: int = 200):
 
 
 def alchemy_to_dict(obj: Any) -> dict | None:
-    """Transforms a SQLAlchemy model instance into a dictionary."""
+    """Transform a SQLAlchemy model instance into a dictionary."""
     if not obj:
         return None
     output = {}
@@ -86,7 +86,7 @@ def alchemy_to_dict(obj: Any) -> dict | None:
 
 
 def ask_yesno(question: str, default: bool | None = None) -> bool:
-    """Helper to get a yes or no answer from the user."""
+    """Get a yes or no answer from the user."""
     yes = {"yes", "y"}
     no = {"no", "n"}
 
@@ -162,7 +162,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
 
 
 def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Template | None]:
-    """Parses Jinja template string."""
+    """Parse Jinja template string."""
     import jinja2
 
     if "{{" in template_string:  # jinja mode
@@ -195,7 +195,7 @@ def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
 
 
 def convert_camel_to_snake(camel_str: str) -> str:
-    """Converts CamelCase to snake_case."""
+    """Convert CamelCase to snake_case."""
     return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r"_\1", camel_str).lower()
 
 
@@ -221,7 +221,7 @@ def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterabl
 
 
 def chain(*args, **kwargs):
-    """This function is deprecated. Please use `airflow.models.baseoperator.chain`."""
+    """Use `airflow.models.baseoperator.chain`, this function is deprecated."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.chain`.",
         RemovedInAirflow3Warning,
@@ -231,7 +231,7 @@ def chain(*args, **kwargs):
 
 
 def cross_downstream(*args, **kwargs):
-    """This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
+    """Use `airflow.models.baseoperator.cross_downstream`, this function is deprecated."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
         RemovedInAirflow3Warning,
@@ -296,7 +296,7 @@ def render_template_as_native(template: jinja2.Template, context: Context) -> An
 
 def exactly_one(*args) -> bool:
     """
-    Returns True if exactly one of *args is "truthy", and False otherwise.
+    Return True if exactly one of *args is "truthy", and False otherwise.
 
     If user supplies an iterable, we raise ValueError and force them to unpack.
     """
@@ -309,7 +309,7 @@ def exactly_one(*args) -> bool:
 
 def at_most_one(*args) -> bool:
     """
-    Returns True if at most one of *args is "truthy", and False otherwise.
+    Return True if at most one of *args is "truthy", and False otherwise.
 
     NOTSET is treated the same as None.
 

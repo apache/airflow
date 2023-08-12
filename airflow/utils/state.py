@@ -134,7 +134,7 @@ class State:
 
     @classmethod
     def color(cls, state):
-        """Returns color for a state."""
+        """Return color for a state."""
         return cls.state_color.get(state, "white")
 
     @classmethod

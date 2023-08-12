@@ -193,7 +193,7 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def add_triggerer_suffix(full_path, job_id=None):
         """
-        Helper for deriving trigger log filename from task log filename.
+        Derive trigger log filename from task log filename.
 
         E.g. given /path/to/file.log returns /path/to/file.log.trigger.123.log, where 123
         is the triggerer id.  We use the triggerer ID instead of trigger ID to distinguish
@@ -219,7 +219,7 @@ class FileTaskHandler(logging.Handler):
             self.handler.close()
 
     def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
-        """Returns the worker log filename."""
+        """Return the worker log filename."""
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename

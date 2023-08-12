@@ -119,7 +119,7 @@ class _GlobIgnoreRule(NamedTuple):
 
 
 def TemporaryDirectory(*args, **kwargs):
-    """This function is deprecated. Please use `tempfile.TemporaryDirectory`."""
+    """Use `tempfile.TemporaryDirectory`, this function is deprecated."""
     import warnings
     from tempfile import TemporaryDirectory as TmpDir
 
@@ -134,7 +134,7 @@ def TemporaryDirectory(*args, **kwargs):
 
 def mkdirs(path, mode):
     """
-    Creates the directory specified by path, creating intermediate directories as necessary.
+    Create the directory specified by path, creating intermediate directories as necessary.
 
     If directory already exists, this is a no-op.
 
@@ -180,7 +180,7 @@ def correct_maybe_zipped(fileloc: None | str | Path) -> None | str | Path:
 
 def open_maybe_zipped(fileloc, mode="r"):
     """
-    Opens the given file.
+    Open the given file.
 
     If the path contains a folder with a .zip suffix, then the folder
     is treated as a zip archive, opening the file inside the archive.
@@ -306,7 +306,7 @@ def list_py_file_paths(
 
 
 def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> list[str]:
-    """Finds file paths of all DAG files."""
+    """Find file paths of all DAG files."""
     file_paths = []
 
     for file_path in find_path_from_directory(directory, ".airflowignore"):

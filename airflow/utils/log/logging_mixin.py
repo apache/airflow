@@ -77,12 +77,12 @@ class LoggingMixin:
 
     @classmethod
     def logger(cls) -> Logger:
-        """Returns a logger."""
+        """Return a logger."""
         return LoggingMixin._get_log(cls, cls)
 
     @property
     def log(self) -> Logger:
-        """Returns a logger."""
+        """Return a logger."""
         return LoggingMixin._get_log(self, self.__class__)
 
     def _set_context(self, context):
@@ -171,7 +171,7 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
 
     def isatty(self):
         """
-        Returns False to indicate the fd is not connected to a tty(-like) device.
+        Return False to indicate the fd is not connected to a tty(-like) device.
 
         For compatibility reasons.
         """
@@ -218,7 +218,7 @@ class RedirectStdHandler(StreamHandler):
 
 def set_context(logger, value):
     """
-    Walks the tree of loggers and tries to set the context for each handler.
+    Walk the tree of loggers and try to set the context for each handler.
 
     :param logger: logger
     :param value: value to set

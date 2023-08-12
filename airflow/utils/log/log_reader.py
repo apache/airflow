@@ -41,7 +41,7 @@ class TaskLogReader:
         self, ti: TaskInstance, try_number: int | None, metadata
     ) -> tuple[list[tuple[tuple[str, str]]], dict[str, str]]:
         """
-        Reads chunks of Task Instance logs.
+        Read chunks of Task Instance logs.
 
         :param ti: The taskInstance
         :param try_number: If provided, logs for the given try will be returned.
@@ -65,7 +65,7 @@ class TaskLogReader:
 
     def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
         """
-        Used to continuously read log to the end.
+        Continuously read log to the end.
 
         :param ti: The Task Instance
         :param try_number: the task try number
@@ -134,7 +134,7 @@ class TaskLogReader:
         session: Session = NEW_SESSION,
     ) -> str:
         """
-        Renders the log attachment filename.
+        Render the log attachment filename.
 
         :param ti: The task instance
         :param try_number: The task try number

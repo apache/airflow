@@ -287,7 +287,7 @@ def send_mime_email(
 
 def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
     """
-    Returns a list of email addresses from the provided input.
+    Return a list of email addresses from the provided input.
 
     :param addresses: A string or iterable of strings containing email addresses.
     :return: A list of email addresses.
@@ -305,7 +305,7 @@ def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
 
 def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> smtplib.SMTP:
     """
-    Returns an SMTP connection to the specified host and port, with optional SSL encryption.
+    Return an SMTP connection to the specified host and port, with optional SSL encryption.
 
     :param host: The hostname or IP address of the SMTP server.
     :param port: The port number to connect to on the SMTP server.

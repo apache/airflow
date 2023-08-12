@@ -60,7 +60,7 @@ def find_session_idx(func: Callable[PS, RT]) -> int:
 
 def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
     """
-    Function decorator that provides a session if it isn't provided.
+    Provide a session if it isn't provided.
 
     If you want to reuse a session or run the function as part of a
     database transaction, you pass it to the function, if not this wrapper

@@ -68,7 +68,8 @@ def prepare_virtualenv(
     requirements_file_path: str | None = None,
     pip_install_options: list[str] | None = None,
 ) -> str:
-    """Creates a virtual environment and installs the additional python packages.
+    """
+    Create a virtual environment and install the additional python packages.
 
     :param venv_directory: The path for directory where the environment will be created.
     :param python_bin: Path to the Python executable.
@@ -107,7 +108,7 @@ def write_python_script(
     render_template_as_native_obj: bool = False,
 ):
     """
-    Renders the python script to a file to execute in the virtual environment.
+    Render the python script to a file to execute in the virtual environment.
 
     :param jinja_context: The jinja context variables to unpack and replace with its placeholders in the
         template file.

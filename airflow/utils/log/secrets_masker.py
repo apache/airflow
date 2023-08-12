@@ -86,7 +86,11 @@ def get_sensitive_variables_fields():
 
 
 def should_hide_value_for_key(name):
-    """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden."""
+    """
+    Return if the value for this given name should be hidden.
+
+    Name might be a Variable name, or key in conn.extra_dejson, for example.
+    """
     from airflow import settings
 
     if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
@@ -313,7 +317,7 @@ class SecretsMasker(logging.Filter):
         return conf.getboolean("core", "unit_test_mode")
 
     def _adaptations(self, secret: str) -> Generator[str, None, None]:
-        """Yields the secret along with any adaptations to the secret that should be masked."""
+        """Yield the secret along with any adaptations to the secret that should be masked."""
         yield secret
 
         if self._mask_adapter:
