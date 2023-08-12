@@ -68,7 +68,7 @@ class BeamPipelineTrigger(BaseTrigger):
         self.runner = runner
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BeamPipelineTrigger arguments and classpath."""
+        """Serialize BeamPipelineTrigger arguments and classpath."""
         return (
             "airflow.providers.apache.beam.triggers.beam.BeamPipelineTrigger",
             {
@@ -83,7 +83,7 @@ class BeamPipelineTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current pipeline status and yields a TriggerEvent."""
+        """Get current pipeline status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         while True:
             try:

@@ -146,7 +146,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
     def get_export_task_state(self, export_task_id: str) -> str:
         """
-        Gets the current state of an RDS snapshot export to Amazon S3.
+        Get the current state of an RDS snapshot export to Amazon S3.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_export_tasks`
@@ -187,7 +187,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
     def get_event_subscription_state(self, subscription_name: str) -> str:
         """
-        Gets the current state of an RDS snapshot export to Amazon S3.
+        Get the current state of an RDS snapshot export to Amazon S3.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_event_subscriptions`
@@ -335,7 +335,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         max_attempts: int,
     ) -> None:
         """
-        Polls the poke function for the current state until it reaches the target_state.
+        Poll the poke function for the current state until it reaches the target_state.
 
         :param poke: A function that returns the current state of the target resource as a string.
         :param target_state: Wait until this state is reached
