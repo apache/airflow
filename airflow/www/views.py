@@ -2030,7 +2030,8 @@ class Airflow(AirflowBaseView):
                 form_fields[k]["schema"]["custom_html_form"] = Markup(
                     form_fields[k]["schema"]["custom_html_form"]
                 )
-        ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
+        # Hotfix for #33344 - needs further discussion how to handle this post 2.7.0
+        # ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
 
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
@@ -2057,7 +2058,7 @@ class Airflow(AirflowBaseView):
             if isinstance(run_conf, dict) and any(run_conf)
         }
 
-        if request.method == "GET" and ui_fields_defined:
+        if request.method == "GET":  # Hotfix: Force always display form: `and ui_fields_defined:`
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ""
 
@@ -2170,7 +2171,7 @@ class Airflow(AirflowBaseView):
                 )
 
         if dag.get_is_paused():
-            if unpause or not ui_fields_defined:
+            if unpause:  # Hotfix: unpause if no form field: `or not ui_fields_defined:``
                 flash(f"Unpaused DAG {dag_id}.")
                 dag_model = models.DagModel.get_dagmodel(dag_id)
                 if dag_model is not None:
