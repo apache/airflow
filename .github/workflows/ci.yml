@@ -61,15 +61,9 @@ jobs:
   build-info:
     name: "Build info"
     # The runs-on cannot refer to env. or secrets. context, so we have no
-    # option but to specify a hard-coded list here. This is "safe", as the list
-    # is checked again by the runner using it's own list, so a PR author cannot
-    # change this and get access to our self-hosted runners
-    #
-    # This list is kept up-to-date from the list of authors found in the
-    # 'airflow-ci-infra' by the 'sync_authors' Github workflow. It uses a regexp
-    # to find the list of authors and replace them, so any changes to the
-    # formatting of the contains(fromJSON()) structure below will need to be
-    # reflected in that workflow too.
+    # option but to specify a hard-coded list here. This is "safe", the
+    # runner checks if the user is an owner or collaborator of the repo
+    # before running the workflow.
     runs-on: "ubuntu-22.04"
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
