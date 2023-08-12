@@ -565,12 +565,12 @@ USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=Tru
 
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
 # if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
-LAZY_LOAD_PLUGINS = conf.getboolean("core", "lazy_load_plugins", fallback=True)
+LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=True)
 
 # By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
 # Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
 # loaded from module.
-LAZY_LOAD_PROVIDERS = conf.getboolean("core", "lazy_discover_providers", fallback=True)
+LAZY_LOAD_PROVIDERS: bool = conf.getboolean("core", "lazy_discover_providers", fallback=True)
 
 # Determines if the executor utilizes Kubernetes
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get("core", "EXECUTOR") in {
@@ -610,4 +610,10 @@ DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
 
 # AIP-44: internal_api (experimental)
 # This feature is not complete yet, so we disable it by default.
-_ENABLE_AIP_44 = os.environ.get("AIRFLOW_ENABLE_AIP_44", "false").lower() in {"true", "t", "yes", "y", "1"}
+_ENABLE_AIP_44: bool = os.environ.get("AIRFLOW_ENABLE_AIP_44", "false").lower() in {
+    "true",
+    "t",
+    "yes",
+    "y",
+    "1",
+}

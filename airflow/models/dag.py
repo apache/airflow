@@ -507,7 +507,7 @@ class DAG(LoggingMixin):
 
             tzinfo = None if date.tzinfo else settings.TIMEZONE
             tz = pendulum.instance(date, tz=tzinfo).timezone
-        self.timezone = tz or settings.TIMEZONE
+        self.timezone: Timezone = tz or settings.TIMEZONE
 
         # Apply the timezone we settled on to end_date if it wasn't supplied
         if "end_date" in self.default_args and self.default_args["end_date"]:
@@ -607,9 +607,9 @@ class DAG(LoggingMixin):
                 f"Invalid values of dag.orientation: only support "
                 f"{ORIENTATION_PRESETS}, but get {orientation}"
             )
-        self.catchup = catchup
+        self.catchup: bool = catchup
 
-        self.partial = False
+        self.partial: bool = False
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
 
@@ -627,7 +627,7 @@ class DAG(LoggingMixin):
         self.is_paused_upon_creation = is_paused_upon_creation
         self.auto_register = auto_register
 
-        self.fail_stop = fail_stop
+        self.fail_stop: bool = fail_stop
 
         self.jinja_environment_kwargs = jinja_environment_kwargs
         self.render_template_as_native_obj = render_template_as_native_obj
