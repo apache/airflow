@@ -85,7 +85,7 @@ class TestKeda:
 
     @staticmethod
     def build_query(executor, concurrency=16, queue=None):
-        """Builds the query used by KEDA autoscaler to determine how many workers there should be."""
+        """Build the query used by KEDA autoscaler to determine how many workers there should be."""
         query = (
             f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
             "FROM task_instance WHERE (state='running' OR state='queued')"

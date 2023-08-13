@@ -704,7 +704,7 @@ PACKAGES_EXCLUDED_FOR_ALL: list[str] = []
 
 def is_package_excluded(package: str, exclusion_list: list[str]) -> bool:
     """
-    Checks if package should be excluded.
+    Check if package should be excluded.
 
     :param package: package name (beginning of it)
     :param exclusion_list: list of excluded packages
@@ -715,7 +715,7 @@ def is_package_excluded(package: str, exclusion_list: list[str]) -> bool:
 
 def remove_provider_limits(package: str) -> str:
     """
-    Removes the limit for providers in devel_all to account for pre-release and development packages.
+    Remove the limit for providers in devel_all to account for pre-release and development packages.
 
     :param package: package name (beginning of it)
     :return: true if package should be excluded
@@ -749,7 +749,7 @@ EXTRAS_DEPENDENCIES["devel_ci"] = devel_ci
 
 def sort_extras_dependencies() -> dict[str, list[str]]:
     """
-    The dictionary order remains when keys() are retrieved.
+    Sort dependencies; the dictionary order remains when keys() are retrieved.
 
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
@@ -777,7 +777,7 @@ PREINSTALLED_PROVIDERS = [
 
 def get_provider_package_name_from_package_id(package_id: str) -> str:
     """
-    Builds the name of provider package out of the package id provided/.
+    Build the name of provider package out of the package id provided.
 
     :param package_id: id of the package (like amazon or microsoft.azure)
     :return: full name of package in PyPI
@@ -796,12 +796,12 @@ def get_provider_package_name_from_package_id(package_id: str) -> str:
 
 
 def get_excluded_providers() -> list[str]:
-    """Returns packages excluded for the current python version."""
+    """Return packages excluded for the current python version."""
     return []
 
 
 def get_all_provider_packages() -> str:
-    """Returns all provider packages configured in setup.py."""
+    """Return all provider packages configured in setup.py."""
     excluded_providers = get_excluded_providers()
     return " ".join(
         get_provider_package_name_from_package_id(package)
@@ -844,7 +844,7 @@ class AirflowDistribution(Distribution):
 
 def replace_extra_dependencies_with_provider_packages(extra: str, providers: list[str]) -> None:
     """
-    Replaces extra dependencies with provider package.
+    Replace extra dependencies with provider package.
 
     The intention here is that when the provider is added as dependency of extra, there is no
     need to add the dependencies separately. This is not needed and even harmful, because in
@@ -897,7 +897,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
 
 def add_provider_packages_to_extra_dependencies(extra: str, providers: list[str]) -> None:
     """
-    Adds provider packages as dependencies to extra.
+    Add provider packages as dependencies to extra.
 
     This is used to add provider packages as dependencies to the "bulk" kind of extras.
     Those bulk extras do not have the detailed 'extra' dependencies as initial values,
