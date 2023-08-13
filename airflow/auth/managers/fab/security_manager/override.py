@@ -266,7 +266,7 @@ class FabAirflowSecurityManagerOverride:
                     "warning",
                 )
             else:
-                for s in session.query(user_session_model).all():
+                for s in session.query(user_session_model):
                     session_details = interface.serializer.loads(want_bytes(s.data))
                     if session_details.get("_user_id") == user.id:
                         session.delete(s)
