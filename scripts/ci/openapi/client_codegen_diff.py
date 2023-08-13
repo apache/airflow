@@ -2,7 +2,7 @@ import subprocess
 
 
 def run_command(commands: list):
-    result = subprocess.run(commands, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
+    result = subprocess.run(commands, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if result.returncode != 0:
         print(f"Error running command: {result.stderr}")
         exit(1)
@@ -21,7 +21,7 @@ def run_command(commands: list):
 
 
 def client_codegen_diff():
-    previous_mainline_commit = run_command(["git", "rev-parse", "--short", "HEAD^1"])
+    previous_mainline_commit = run_command(["git", "rev-parse", "--short", "HEAD^1"]).strip()
     print(f"Diffing openapi spec against {previous_mainline_commit}...")
 
     SPEC_FILE = "airflow/api_connexion/openapi/v1.yaml"
@@ -30,15 +30,17 @@ def client_codegen_diff():
 
     GO_TARGET_CLIENT_PATH = "clients/go_target_branch/airflow"
 
+    # generate client for current patch
     run_command(["mkdir", "-p", f"{GO_CLIENT_PATH}"])
+
     run_command(["./clients/gen/go.sh", f"{SPEC_FILE}", f"{GO_CLIENT_PATH}"])
-
     # generate client for target patch
-    run_command(["mkdir" "-p" f"{GO_TARGET_CLIENT_PATH}"])
+    run_command(["mkdir", "-p", f"{GO_TARGET_CLIENT_PATH}"])
 
-    run_command(["git", "checkout", f"{previous_mainline_commit}", "--", "{SPEC_FILE}"])
+    run_command(["git", "checkout", f"{previous_mainline_commit}", "--", f"{SPEC_FILE}"])
     run_command(["./clients/gen/go.sh", f"{SPEC_FILE}", f"{GO_TARGET_CLIENT_PATH}"])
-    run_command(["diff", "-u", f"{GO_TARGET_CLIENT_PATH}", f"{GO_CLIENT_PATH}", "||", "true"])
+
+    run_command(["diff", "-u", f"{GO_TARGET_CLIENT_PATH}", f"{GO_CLIENT_PATH}"])
 
 
 if __name__ == '__main__':
