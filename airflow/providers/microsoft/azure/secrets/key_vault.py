@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import os
 import re
 import warnings
 from functools import cached_property
@@ -95,6 +97,13 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
+
+        logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
+        try:
+            logger.setLevel(os.environ.get("AZURE_HTTP_LOGGING_LEVEL", logging.WARNING))
+        except ValueError:
+            logger.setLevel(logging.WARNING)
+
         self.sep = sep
         self.kwargs = kwargs
 
