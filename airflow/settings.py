@@ -465,11 +465,23 @@ def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file."""
     try:
         import airflow_local_settings
-
-        if hasattr(airflow_local_settings, "__all__"):
-            names = list(airflow_local_settings.__all__)
+    except ModuleNotFoundError as e:
+        if e.name == "airflow_local_settings":
+            log.debug("No airflow_local_settings to import.", exc_info=True)
         else:
-            names = list(filter(lambda n: not n.startswith("__"), airflow_local_settings.__dict__.keys()))
+            log.critical(
+                "Failed to import airflow_local_settings due to a transitive module not found error.",
+                exc_info=True,
+            )
+            raise
+    except ImportError:
+        log.critical("Failed to import airflow_local_settings.", exc_info=True)
+        raise
+    else:
+        if hasattr(airflow_local_settings, "__all__"):
+            names = set(airflow_local_settings.__all__)
+        else:
+            names = {n for n in airflow_local_settings.__dict__ if not n.startswith("__")}
 
         if "policy" in names and "task_policy" not in names:
             warnings.warn(
@@ -485,30 +497,15 @@ def import_local_settings():
             POLICY_PLUGIN_MANAGER, airflow_local_settings, names
         )
 
-        for name in names:
-            # If we have already handled a function by adding it to the plugin, then don't clobber the global
-            # function
-            if name in plugin_functions:
-                continue
-
+        # If we have already handled a function by adding it to the plugin,
+        # then don't clobber the global function
+        for name in names - plugin_functions:
             globals()[name] = getattr(airflow_local_settings, name)
 
         if POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook.get_hookimpls():
             task_instance_mutation_hook.is_noop = False
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
-    except ModuleNotFoundError as e:
-        if e.name == "airflow_local_settings":
-            log.debug("No airflow_local_settings to import.", exc_info=True)
-        else:
-            log.critical(
-                "Failed to import airflow_local_settings due to a transitive module not found error.",
-                exc_info=True,
-            )
-            raise
-    except ImportError:
-        log.critical("Failed to import airflow_local_settings.", exc_info=True)
-        raise
 
 
 def initialize():

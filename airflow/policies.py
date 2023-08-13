@@ -138,7 +138,7 @@ class DefaultPolicy:
         return {}
 
 
-def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: list[str]):
+def make_plugin_from_local_settings(pm: pluggy.PluginManager, module, names: set[str]):
     """
     Turn the functions from airflow_local_settings module into a custom/local plugin.
 
