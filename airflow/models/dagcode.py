@@ -61,7 +61,7 @@ class DagCode(Base):
 
     @provide_session
     def sync_to_db(self, session: Session = NEW_SESSION) -> None:
-        """Writes code into database.
+        """Write code into database.
 
         :param session: ORM Session
         """
@@ -70,7 +70,7 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def bulk_sync_to_db(cls, filelocs: Iterable[str], session: Session = NEW_SESSION) -> None:
-        """Writes code in bulk into database.
+        """Write code in bulk into database.
 
         :param filelocs: file paths of DAGs to sync
         :param session: ORM Session
@@ -126,7 +126,7 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def remove_deleted_code(cls, alive_dag_filelocs: Collection[str], session: Session = NEW_SESSION) -> None:
-        """Deletes code not included in alive_dag_filelocs.
+        """Delete code not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
         :param session: ORM Session
@@ -144,7 +144,7 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def has_dag(cls, fileloc: str, session: Session = NEW_SESSION) -> bool:
-        """Checks a file exist in dag_code table.
+        """Check a file exist in dag_code table.
 
         :param fileloc: the file to check
         :param session: ORM Session
@@ -157,7 +157,7 @@ class DagCode(Base):
 
     @classmethod
     def get_code_by_fileloc(cls, fileloc: str) -> str:
-        """Returns source code for a given fileloc.
+        """Return source code for a given fileloc.
 
         :param fileloc: file path of a DAG
         :return: source code as string
@@ -166,7 +166,7 @@ class DagCode(Base):
 
     @classmethod
     def code(cls, fileloc) -> str:
-        """Returns source code for this DagCode object.
+        """Return source code for this DagCode object.
 
         :return: source code as string
         """

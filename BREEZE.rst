@@ -572,13 +572,28 @@ When you are starting airflow from local sources, www asset compilation is autom
 
     breeze --python 3.8 --backend mysql start-airflow
 
-
-You can also use it to start any released version of Airflow from ``PyPI`` with the
-``--use-airflow-version`` flag.
+You can also use it to start different executor.
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.8 --backend mysql --use-airflow-version 2.2.5
+    breeze start-airflow --executor CeleryExecutor
+
+You can also use it to start any released version of Airflow from ``PyPI`` with the
+``--use-airflow-version`` flag - useful for testing and looking at issues raised for specific version.
+
+.. code-block:: bash
+
+    breeze start-airflow --python 3.8 --backend mysql --use-airflow-version 2.7.0
+
+When you are installing version from PyPI, it's also possible to specify extras that should be used
+when installing Airflow - you can provide several extras separated by coma - for example to install
+providers together with Airflow that you are installing. For example when you are using celery executor
+in Airflow 2.7.0+ you need to add ``celery`` extra.
+
+.. code-block:: bash
+
+    breeze start-airflow --use-airflow-version 2.7.0 --executor CeleryExecutor --airflow-extras celery
+
 
 These are all available flags of ``start-airflow`` command:
 

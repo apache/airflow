@@ -76,7 +76,7 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         self.database_name = database_name
 
     def poke(self, context: Context):
-        """Checks for existence of the partition in the AWS Glue Catalog table."""
+        """Check for existence of the partition in the AWS Glue Catalog table."""
         if "." in self.table_name:
             self.database_name, self.table_name = self.table_name.split(".")
         self.log.info(
@@ -87,7 +87,7 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> GlueCatalogHook:
-        """Gets the GlueCatalogHook."""
+        """Get the GlueCatalogHook."""
         return self.hook
 
     @cached_property

@@ -58,7 +58,7 @@ class BatchOperatorTrigger(BaseTrigger):
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BatchOperatorTrigger arguments and classpath."""
+        """Serialize BatchOperatorTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.batch.BatchOperatorTrigger",
             {
@@ -139,7 +139,7 @@ class BatchSensorTrigger(BaseTrigger):
         self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BatchSensorTrigger arguments and classpath."""
+        """Serialize BatchSensorTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.batch.BatchSensorTrigger",
             {

@@ -74,10 +74,9 @@ class ChimeWebhookHook(HttpHook):
 
     def _build_chime_payload(self, message: str) -> str:
         """
-        Builds payload for Chime and ensures messages do not exceed max length allowed.
+        Build payload for Chime and ensures messages do not exceed max length allowed.
 
-        :param message: The message you want to send to your Chime room.
-                    (max 4096 characters)
+        :param message: The message you want to send to your Chime room. (max 4096 characters)
         """
         payload: dict[str, Any] = {}
         # We need to make sure that the message does not exceed the max length for Chime
@@ -88,11 +87,10 @@ class ChimeWebhookHook(HttpHook):
         return json.dumps(payload)
 
     def send_message(self, message: str) -> None:
-        """Execute calling the Chime webhook endpoint.
+        """
+        Execute calling the Chime webhook endpoint.
 
-        :param message: The message you want to send to your Chime room.
-                    (max 4096 characters)
-
+        :param message: The message you want to send to your Chime room.(max 4096 characters)
         """
         chime_payload = self._build_chime_payload(message)
         self.run(
@@ -101,7 +99,7 @@ class ChimeWebhookHook(HttpHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour to only get what is needed for Chime webhooks to function."""
+        """Return custom field behaviour to only get what is needed for Chime webhooks to function."""
         return {
             "hidden_fields": ["login", "port", "extra"],
             "relabeling": {
