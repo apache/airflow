@@ -40,8 +40,8 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
+    BranchExternalPythonOperator,
     BranchPythonOperator,
-    ExternalBranchPythonOperator,
     ExternalPythonOperator,
     PythonOperator,
     PythonVirtualenvOperator,
@@ -1108,8 +1108,8 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
             task._read_result(path=mock.Mock())
 
 
-class TestExternalBranchPythonOperator(BaseTestPythonVirtualenvOperator):
-    opcls = ExternalBranchPythonOperator
+class TestBranchExternalPythonOperator(BaseTestPythonVirtualenvOperator):
+    opcls = BranchExternalPythonOperator
 
     @pytest.fixture(autouse=True)
     def setup_tests(self):
