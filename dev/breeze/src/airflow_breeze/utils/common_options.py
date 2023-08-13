@@ -477,7 +477,12 @@ option_airflow_constraints_reference_build = click.option(
     help="Constraint reference to use when building the image.",
     envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
 )
-
+option_airflow_constraints_mode_update = click.option(
+    "--airflow-constraints-mode",
+    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
+    required=False,
+    help="Limit constraint update to only selected constraint mode - if selected.",
+)
 option_airflow_constraints_mode_ci = click.option(
     "--airflow-constraints-mode",
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
