@@ -2364,14 +2364,14 @@ class DAG(LoggingMixin):
                     if rel not in matched_tasks:  # if it's in there, we're already processing it
                         # need to include setups and teardowns for tasks that are in multiple
                         # non-collinear setup/teardown paths
-                        if not rel.is_setup and not rel.is_teardown:
+                        if not rel.is_setup:
                             also_include_ids.update(
                                 x.task_id for x in rel.get_upstreams_only_setups_and_teardowns()
                             )
             if include_upstream:
                 also_include_ids.update(x.task_id for x in t.get_upstreams_follow_setups())
             else:
-                if not t.is_teardown and not t.is_setup:
+                if not t.is_setup:
                     also_include_ids.update(x.task_id for x in t.get_upstreams_only_setups_and_teardowns())
             if t.is_setup and not include_downstream:
                 also_include_ids.update(x.task_id for x in t.downstream_list if x.is_teardown)
