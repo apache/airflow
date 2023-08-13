@@ -49,7 +49,7 @@ Default Connection IDs
 -----------------------
 
 The default connection ID is ``aws_default``. If the environment/machine where you are running Airflow has the
-file credentials in ``/home/.aws/``, and the default connection has user and pass fields empty, it will take
+file credentials in ``${HOME}/.aws/``, and the default connection has user and pass fields empty, it will take
 automatically the credentials from there.
 
 .. important:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}``

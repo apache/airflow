@@ -169,7 +169,7 @@ class LambdaInvokeFunctionOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Invokes the target AWS Lambda function from Airflow.
+        Invoke the target AWS Lambda function from Airflow.
 
         :return: The response payload from the function, or an error object.
         """

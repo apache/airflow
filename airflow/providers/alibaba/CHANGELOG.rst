@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+2.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in providers/alibaba (#33225)``
+
 2.5.0
 .....
 

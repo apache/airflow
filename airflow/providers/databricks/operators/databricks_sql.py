@@ -77,6 +77,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
 
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
+    conn_id_field = "databricks_conn_id"
 
     def __init__(
         self,

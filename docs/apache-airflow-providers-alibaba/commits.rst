@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.5.1
+.....
+
+Latest change: 2023-08-08
+
+=================================================================================================  ===========  =========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================
+`4e83660f4c <https://github.com/apache/airflow/commit/4e83660f4c713d5a00ad9a583ba3a56c374d7e92>`_  2023-08-08   ``Refactor: Simplify code in providers/alibaba (#33225)``
+=================================================================================================  ===========  =========================================================
+
 2.5.0
 .....
 
-Latest change: 2023-07-05
+Latest change: 2023-07-06
 
 =================================================================================================  ===========  ================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `0bc689ee6d <https://github.com/apache/airflow/commit/0bc689ee6d4b6967d7ae99a202031aac14d181a2>`_  2023-06-28   ``D205 Support - Providers: Airbyte and Alibaba (#32214)``

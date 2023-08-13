@@ -587,7 +587,6 @@ def helm_tests(
         env_variables["HELM_TEST_PACKAGE"] = helm_test_package
     perform_environment_checks()
     cleanup_python_generated_files()
-    cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "--rm", "airflow"]
-    cmd.extend(list(extra_pytest_args))
+    cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "--rm", "airflow", *extra_pytest_args]
     result = run_command(cmd, env=env_variables, check=False, output_outside_the_group=True)
     sys.exit(result.returncode)

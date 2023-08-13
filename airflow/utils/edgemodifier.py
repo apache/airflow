@@ -154,7 +154,7 @@ class EdgeModifier(DependencyMixin):
     def update_relative(
         self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
     ) -> None:
-        """Called if we're not the "main" side of a relationship; we still run the same logic, though."""
+        """Update relative if we're not the "main" side of a relationship; still run the same logic."""
         if upstream:
             self.set_upstream(other)
         else:
@@ -162,24 +162,15 @@ class EdgeModifier(DependencyMixin):
 
     def add_edge_info(self, dag, upstream_id: str, downstream_id: str):
         """
-        Adds or updates task info on the DAG for this specific pair of tasks.
+        Add or update task info on the DAG for this specific pair of tasks.
 
         Called either from our relationship trigger methods above, or directly
         by set_upstream/set_downstream in operators.
         """
         dag.set_edge_info(upstream_id, downstream_id, {"label": self.label})
 
-    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
-        """No-op, since we're not a task.
-
-        We only add tasks to TaskGroups and not EdgeModifiers, but we need
-        this to satisfy the interface.
-
-        :meta private:
-        """
-
 
 # Factory functions
 def Label(label: str):
-    """Creates an EdgeModifier that sets a human-readable label on the edge."""
+    """Create an EdgeModifier that sets a human-readable label on the edge."""
     return EdgeModifier(label=label)

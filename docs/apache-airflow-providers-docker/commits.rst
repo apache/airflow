@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.3
+.....
+
+Latest change: 2023-08-08
+
+=================================================================================================  ===========  ========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================
+`55424d41b4 <https://github.com/apache/airflow/commit/55424d41b446270539a6c5b00d0d376f951893b8>`_  2023-08-08   ``Refactor: Simplify code in providers/docker (#33232)``
+=================================================================================================  ===========  ========================================================
+
 3.7.2
 .....
 
-Latest change: 2023-08-04
+Latest change: 2023-08-05
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `e3d82c6be0 <https://github.com/apache/airflow/commit/e3d82c6be0e0e1468ade053c37690aa1e0e4882d>`_  2023-08-04   ``Get rid of Python2 numeric relics (#33050)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``

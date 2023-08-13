@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+6.2.4
+.....
+
+Misc
+~~~~~
+
+* ``Clean microsoft azure provider by deleting the custom prefix from conn extra fields (#30558)``
+
 6.2.3
 .....
 
