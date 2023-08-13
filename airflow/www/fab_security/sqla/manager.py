@@ -42,8 +42,7 @@ log = logging.getLogger(__name__)
 
 class SecurityManager(BaseSecurityManager):
     """
-    Responsible for authentication, registering security views,
-    role and permission auto management.
+    Responsible for authentication, registering security views, role and permission auto management.
 
     If you want to change anything just inherit and override, then
     pass your own security manager to AppBuilder.
@@ -281,8 +280,7 @@ class SecurityManager(BaseSecurityManager):
         self, resource_name: str, action_name: str, role_ids: list[int]
     ) -> bool:
         """
-            Method to efficiently check if a certain permission exists
-            on a list of role id's. This is used by `has_access`.
+        Efficiently check if a certain permission exists on a list of role ids; used by `has_access`.
 
         :param resource_name: The view's name to check if exists on one of the roles
         :param action_name: The permission name to check if exists
@@ -507,8 +505,9 @@ class SecurityManager(BaseSecurityManager):
 
     def delete_permission(self, action_name: str, resource_name: str) -> None:
         """
-        Deletes the permission linking an action->resource pair. Doesn't delete the
-        underlying action or resource.
+        Deletes the permission linking an action->resource pair.
+
+        Doesn't delete the underlying action or resource.
 
         :param action_name: Name of existing action
         :param resource_name: Name of existing resource
