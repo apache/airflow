@@ -790,7 +790,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return None
 
 
-class ExternalBranchPythonOperator(ExternalPythonOperator, SkipMixin):
+class BranchExternalPythonOperator(ExternalPythonOperator, SkipMixin):
     """
     A workflow can "branch" or follow a path after the execution of this task,
     Extends ExternalPythonOperator, so expects to get Python:
