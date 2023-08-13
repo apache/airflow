@@ -347,7 +347,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context, event=None):
-        """Callback for when the trigger fires - returns immediately."""
+        """Execute when the trigger fires - return immediately."""
         if event["status"] == "success":
             self.log.info("External task %s has executed successfully.", self.external_task_id)
             return None
@@ -528,7 +528,7 @@ class ExternalTaskMarker(EmptyOperator):
 
     @classmethod
     def get_serialized_fields(cls):
-        """Serialized ExternalTaskMarker contain exactly these fields + templated_fields ."""
+        """Serialize ExternalTaskMarker to contain exactly these fields + templated_fields ."""
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"recursion_depth"})
         return cls.__serialized_fields

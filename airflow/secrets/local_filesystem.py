@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
 
 def get_connection_parameter_names() -> set[str]:
-    """Returns :class:`airflow.models.connection.Connection` constructor parameters."""
+    """Return :class:`airflow.models.connection.Connection` constructor parameters."""
     from airflow.models.connection import Connection
 
     return {k for k in signature(Connection.__init__).parameters.keys() if k != "self"}
@@ -186,7 +186,7 @@ def _parse_secret_file(file_path: str) -> dict[str, Any]:
 
 
 def _create_connection(conn_id: str, value: Any):
-    """Creates a connection based on a URL or JSON object."""
+    """Create a connection based on a URL or JSON object."""
     from airflow.models.connection import Connection
 
     if isinstance(value, str):
@@ -243,7 +243,7 @@ def load_variables(file_path: str) -> dict[str, str]:
 
 
 def load_connections(file_path) -> dict[str, list[Any]]:
-    """Deprecated: Please use `airflow.secrets.local_filesystem.load_connections_dict`."""
+    """Use `airflow.secrets.local_filesystem.load_connections_dict`, this is deprecated."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
         RemovedInAirflow3Warning,

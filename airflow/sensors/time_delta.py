@@ -67,5 +67,5 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
         self.defer(trigger=DateTimeTrigger(moment=target_dttm), method_name="execute_complete")
 
     def execute_complete(self, context, event=None):
-        """Callback for when the trigger fires - returns immediately."""
+        """Execute for when the trigger fires - return immediately."""
         return None

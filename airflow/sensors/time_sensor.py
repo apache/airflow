@@ -76,5 +76,5 @@ class TimeSensorAsync(BaseSensorOperator):
         )
 
     def execute_complete(self, context, event=None):
-        """Callback for when the trigger fires - returns immediately."""
+        """Execute when the trigger fires - returns immediately."""
         return None

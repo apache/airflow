@@ -69,7 +69,7 @@ class TaskStateTrigger(BaseTrigger):
         self._timeout_sec = 60
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
-        """Serializes TaskStateTrigger arguments and classpath."""
+        """Serialize TaskStateTrigger arguments and classpath."""
         return (
             "airflow.triggers.external_task.TaskStateTrigger",
             {
@@ -84,10 +84,11 @@ class TaskStateTrigger(BaseTrigger):
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """
-        Checks periodically in the database to see if the dag exists and is in the running state. If found,
-        wait until the task specified will reach one of the expected states. If dag with specified name was
-        not in the running state after _timeout_sec seconds after starting execution process of the trigger,
-        terminate with status 'timeout'.
+        Check periodically in the database to see if the dag exists and is in the running state.
+
+        If found, wait until the task specified will reach one of the expected states.
+        If dag with specified name was not in the running state after _timeout_sec seconds
+        after starting execution process of the trigger, terminate with status 'timeout'.
         """
         while True:
             try:
@@ -167,7 +168,7 @@ class DagStateTrigger(BaseTrigger):
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
-        """Serializes DagStateTrigger arguments and classpath."""
+        """Serialize DagStateTrigger arguments and classpath."""
         return (
             "airflow.triggers.external_task.DagStateTrigger",
             {
@@ -179,10 +180,7 @@ class DagStateTrigger(BaseTrigger):
         )
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
-        """
-        Checks periodically in the database to see if the dag run exists, and has
-        hit one of the states yet, or not.
-        """
+        """Check the database to see if the dag run exists, and has hit one of the states yet, or not."""
         while True:
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]

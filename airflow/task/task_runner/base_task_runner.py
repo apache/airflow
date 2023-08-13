@@ -178,7 +178,7 @@ class BaseTaskRunner(LoggingMixin):
         raise NotImplementedError()
 
     def on_finish(self) -> None:
-        """A callback that should be called when this is done running."""
+        """Execute when this is done running."""
         if self._cfg_path and os.path.isfile(self._cfg_path):
             if self.run_as_user:
                 subprocess.call(["sudo", "rm", self._cfg_path], close_fds=True)
