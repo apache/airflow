@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from typing import TYPE_CHECKING, Any, Union
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -172,10 +171,6 @@ class MySqlHook(DbApiHook):
 
         return conn_config
 
-    @staticmethod
-    def _sanitize_filename(filename: str) -> str:
-        return re.sub(r"(;.*)$", "", filename)
-
     def get_conn(self) -> MySQLConnectionTypes:
         """
         Connection to a MySQL database.
@@ -217,12 +212,13 @@ class MySqlHook(DbApiHook):
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Load a tab-delimited file into a database table."""
         conn = self.get_conn()
-        cur = conn.cursor()
+        cur = conn.cursor(prepared=True)
         cur.execute(
-            f"""
-            LOAD DATA LOCAL INFILE '{self._sanitize_filename(tmp_file)}'
-            INTO TABLE {table}
             """
+            LOAD DATA LOCAL INFILE '%s'
+            INTO TABLE %s
+            """,
+            (tmp_file, table),
         )
         conn.commit()
         conn.close()  # type: ignore[misc]
@@ -230,12 +226,13 @@ class MySqlHook(DbApiHook):
     def bulk_dump(self, table: str, tmp_file: str) -> None:
         """Dump a database table into a tab-delimited file."""
         conn = self.get_conn()
-        cur = conn.cursor()
+        cur = conn.cursor(prepared=True)
         cur.execute(
-            f"""
-            SELECT * INTO OUTFILE '{self._sanitize_filename(tmp_file)}'
-            FROM {table}
             """
+            SELECT * INTO OUTFILE '%s'
+            FROM %s
+            """,
+            (tmp_file, table),
         )
         conn.commit()
         conn.close()  # type: ignore[misc]
@@ -296,15 +293,16 @@ class MySqlHook(DbApiHook):
             .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/load-data.html
         """
         conn = self.get_conn()
-        cursor = conn.cursor()
+        cursor = conn.cursor(prepared=True)
 
         cursor.execute(
-            f"""
-            LOAD DATA LOCAL INFILE '{self._sanitize_filename(tmp_file)}'
-            {duplicate_key_handling}
-            INTO TABLE {table}
-            {extra_options}
             """
+            LOAD DATA LOCAL INFILE '%s'
+            %s
+            INTO TABLE %s
+            %s
+            """,
+            (tmp_file, duplicate_key_handling, table, extra_options),
         )
 
         cursor.close()
