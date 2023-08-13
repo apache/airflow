@@ -1779,6 +1779,15 @@ webserver:
       type: string
       example: "sha256"
       default: "md5"
+    show_trigger_form_if_no_params:
+      description: |
+        Behavior of the trigger DAG run button for DAGs without params. False to skip and trigger
+        without displaying a form to add a dag_run.conf, True to always display the form.
+        The form is displayed always if parameters are defined.
+      version_added: 2.7.0
+      type: boolean
+      example: ~
+      default: "False"
 email:
   description: |
     Configuration email backend and whether to

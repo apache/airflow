@@ -2031,6 +2031,7 @@ class Airflow(AirflowBaseView):
                     form_fields[k]["schema"]["custom_html_form"]
                 )
         ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
+        show_trigger_form_if_no_params = conf.getboolean("webserver", "show_trigger_form_if_no_params")
 
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
@@ -2057,7 +2058,7 @@ class Airflow(AirflowBaseView):
             if isinstance(run_conf, dict) and any(run_conf)
         }
 
-        if request.method == "GET" and ui_fields_defined:
+        if request.method == "GET" and (ui_fields_defined or show_trigger_form_if_no_params):
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ""
 
