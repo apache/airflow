@@ -2356,17 +2356,27 @@ class DAG(LoggingMixin):
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
 
-        also_include: list[Operator] = []
+        also_include_ids: set[str] = set()
         for t in matched_tasks:
             if include_downstream:
-                also_include.extend(t.get_flat_relatives(upstream=False))
+                for rel in t.get_flat_relatives(upstream=False):
+                    also_include_ids.add(rel.task_id)
+                    if rel not in matched_tasks:  # if it's in there, we're already processing it
+                        # need to include setups and teardowns for tasks that are in multiple
+                        # non-collinear setup/teardown paths
+                        if not rel.is_setup and not rel.is_teardown:
+                            also_include_ids.update(
+                                x.task_id for x in rel.get_upstreams_only_setups_and_teardowns()
+                            )
             if include_upstream:
-                also_include.extend(t.get_upstreams_follow_setups())
+                also_include_ids.update(x.task_id for x in t.get_upstreams_follow_setups())
             else:
-                also_include.extend(t.get_upstreams_only_setups_and_teardowns())
+                if not t.is_setup and not t.is_teardown:
+                    also_include_ids.update(x.task_id for x in t.get_upstreams_only_setups_and_teardowns())
             if t.is_setup and not include_downstream:
-                also_include.extend(x for x in t.downstream_list if x.is_teardown)
+                also_include_ids.update(x.task_id for x in t.downstream_list if x.is_teardown)
 
+        also_include: list[Operator] = [self.task_dict[x] for x in also_include_ids]
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
