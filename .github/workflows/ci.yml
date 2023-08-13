@@ -434,7 +434,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
       - name: "Generate client codegen diff"
-        run: ./scripts/ci/openapi/client_codegen_diff.sh
+        run: python ./scripts/ci/openapi/client_codegen_diff.py
 
   test-examples-of-prod-image-building:
     timeout-minutes: 60
