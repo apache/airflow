@@ -131,12 +131,12 @@ def positive_int(*, allow_zero):
 
 
 def string_list_type(val):
-    """Parses comma-separated list and returns list of string (strips whitespace)."""
+    """Parse comma-separated list and returns list of string (strips whitespace)."""
     return [x.strip() for x in val.split(",")]
 
 
 def string_lower_type(val):
-    """Lowers arg."""
+    """Lower arg."""
     if not val:
         return
     return val.strip().lower()
@@ -513,6 +513,9 @@ ARG_DB_RETRY_DELAY = Arg(
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
 ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
 ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
+ARG_POOL_INCLUDE_DEFERRED = Arg(
+    ("--include-deferred",), help="Include deferred tasks in calculations for Pool", action="store_true"
+)
 ARG_POOL_IMPORT = Arg(
     ("file",),
     metavar="FILEPATH",
@@ -521,8 +524,8 @@ ARG_POOL_IMPORT = Arg(
         textwrap.dedent(
             """
             {
-                "pool_1": {"slots": 5, "description": ""},
-                "pool_2": {"slots": 10, "description": "test"}
+                "pool_1": {"slots": 5, "description": "", "include_deferred": true},
+                "pool_2": {"slots": 10, "description": "test", "include_deferred": false}
             }"""
         ),
         " " * 4,
@@ -540,7 +543,11 @@ ARG_DEFAULT = Arg(
 ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
 ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
 ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
-ARG_VAR_EXPORT = Arg(("file",), help="Export all variables to JSON file")
+ARG_VAR_EXPORT = Arg(
+    ("file",),
+    help="Export all variables to JSON file",
+    type=argparse.FileType("w", encoding="UTF-8"),
+)
 
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
@@ -1456,7 +1463,14 @@ POOLS_COMMANDS = (
         name="set",
         help="Configure pool",
         func=lazy_load_command("airflow.cli.commands.pool_command.pool_set"),
-        args=(ARG_POOL_NAME, ARG_POOL_SLOTS, ARG_POOL_DESCRIPTION, ARG_OUTPUT, ARG_VERBOSE),
+        args=(
+            ARG_POOL_NAME,
+            ARG_POOL_SLOTS,
+            ARG_POOL_DESCRIPTION,
+            ARG_POOL_INCLUDE_DEFERRED,
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="delete",
@@ -1511,6 +1525,10 @@ VARIABLES_COMMANDS = (
     ActionCommand(
         name="export",
         help="Export all variables",
+        description=(
+            "All variables can be exported in STDOUT using the following command:\n"
+            "airflow variables export -\n"
+        ),
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_export"),
         args=(ARG_VAR_EXPORT, ARG_VERBOSE),
     ),

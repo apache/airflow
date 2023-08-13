@@ -51,7 +51,7 @@ class GlueCatalogHook(AwsBaseHook):
         max_items: int | None = None,
     ) -> set[tuple]:
         """
-        Retrieves the partition values for a table.
+        Retrieve the partition values for a table.
 
         .. seealso::
             - :external+boto3:py:class:`Glue.Paginator.GetPartitions`
@@ -86,7 +86,7 @@ class GlueCatalogHook(AwsBaseHook):
 
     def check_for_partition(self, database_name: str, table_name: str, expression: str) -> bool:
         """
-        Checks whether a partition exists.
+        Check whether a partition exists.
 
         .. code-block:: python
 
@@ -138,7 +138,7 @@ class GlueCatalogHook(AwsBaseHook):
 
     def get_partition(self, database_name: str, table_name: str, partition_values: list[str]) -> dict:
         """
-        Gets a Partition.
+        Get a Partition.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.get_partition`
@@ -167,7 +167,7 @@ class GlueCatalogHook(AwsBaseHook):
 
     def create_partition(self, database_name: str, table_name: str, partition_input: dict) -> dict:
         """
-        Creates a new Partition.
+        Create a new Partition.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.create_partition`

@@ -258,7 +258,7 @@ class BaseSecurityManager:
         """Returns FAB builtin roles."""
         return self.appbuilder.get_app.config.get("FAB_ROLES", {})
 
-    def get_roles_from_keys(self, role_keys: list[str]) -> set[RoleModelView]:
+    def get_roles_from_keys(self, role_keys: list[str]) -> set[Role]:
         """
         Construct a list of FAB role objects, from a list of keys.
 
@@ -267,7 +267,7 @@ class BaseSecurityManager:
         - we use AUTH_ROLES_MAPPING to map from keys, to FAB role names
 
         :param role_keys: the list of FAB role keys
-        :return: a list of RoleModelView
+        :return: a list of Role
         """
         _roles = set()
         _role_keys = set(role_keys)

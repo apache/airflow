@@ -193,7 +193,7 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def add_triggerer_suffix(full_path, job_id=None):
         """
-        Helper for deriving trigger log filename from task log filename.
+        Derive trigger log filename from task log filename.
 
         E.g. given /path/to/file.log returns /path/to/file.log.trigger.123.log, where 123
         is the triggerer id.  We use the triggerer ID instead of trigger ID to distinguish
@@ -219,7 +219,7 @@ class FileTaskHandler(logging.Handler):
             self.handler.close()
 
     def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
-        """Returns the worker log filename."""
+        """Return the worker log filename."""
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
@@ -491,12 +491,11 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def _read_from_local(worker_log_path: Path) -> tuple[list[str], list[str]]:
         messages = []
-        logs = []
-        files = list(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        if files:
-            messages.extend(["Found local files:", *[f"  * {x}" for x in sorted(files)]])
-        for file in sorted(files):
-            logs.append(Path(file).read_text())
+        paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
+        if paths:
+            messages.append("Found local files:")
+            messages.extend(f"  * {x}" for x in paths)
+        logs = [file.read_text() for file in paths]
         return messages, logs
 
     def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:

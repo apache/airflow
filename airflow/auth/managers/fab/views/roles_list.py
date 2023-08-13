@@ -16,37 +16,24 @@
 # under the License.
 from __future__ import annotations
 
-from flask_appbuilder.security.views import UserDBModelView
+from flask_appbuilder.security.views import RoleModelView
 
 from airflow.security import permissions
-from airflow.www.fab_security.views import MultiResourceUserMixin
 
 
-class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
-    """Customize permission names for FAB's builtin UserDBModelView."""
+class CustomRoleModelView(RoleModelView):
+    """Customize permission names for FAB's builtin RoleModelView."""
 
-    _class_permission_name = permissions.RESOURCE_USER
-
-    class_permission_name_mapping = {
-        "resetmypassword": permissions.RESOURCE_MY_PASSWORD,
-        "resetpasswords": permissions.RESOURCE_PASSWORD,
-        "userinfoedit": permissions.RESOURCE_MY_PROFILE,
-        "userinfo": permissions.RESOURCE_MY_PROFILE,
-    }
-
+    class_permission_name = permissions.RESOURCE_ROLE
     method_permission_name = {
-        "add": "create",
+        "delete": "delete",
         "download": "read",
         "show": "read",
         "list": "read",
         "edit": "edit",
-        "delete": "delete",
-        "resetmypassword": "read",
-        "resetpasswords": "read",
-        "userinfo": "read",
-        "userinfoedit": "read",
+        "add": "create",
+        "copy_role": "create",
     }
-
     base_permissions = [
         permissions.ACTION_CAN_CREATE,
         permissions.ACTION_CAN_READ,

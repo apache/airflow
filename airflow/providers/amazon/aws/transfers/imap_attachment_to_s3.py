@@ -77,7 +77,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         """
-        This function executes the transfer from the email server (via imap) into s3.
+        Execute the transfer from the email server (via imap) into s3.
 
         :param context: The context while executing.
         """

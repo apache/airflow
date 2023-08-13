@@ -34,6 +34,11 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Move redis subscribe to poke() method in Redis Sensor (#32984)``
+* ``Fix oversubsription of Redis pubsub sensor (#33139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 
 3.3.0
 .....

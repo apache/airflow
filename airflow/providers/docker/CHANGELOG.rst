@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+3.7.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in providers/docker (#33232)``
+
 3.7.2
 .....
 

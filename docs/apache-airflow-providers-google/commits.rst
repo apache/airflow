@@ -38,11 +38,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.6.0
 ......
 
-Latest change: 2023-08-04
+Latest change: 2023-08-09
 
-=================================================================================================  ===========  ===================================================================================================
+=================================================================================================  ===========  ================================================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ===================================================================================================
+=================================================================================================  ===========  ================================================================================================================================================
+`e1af008711 <https://github.com/apache/airflow/commit/e1af008711039f7f53b2a21cad70a08b514cd8f6>`_  2023-08-09   ``make 'sql' a cached property in 'BigQueryInsertJobOperator' (#33218)``
+`e43206eb2e <https://github.com/apache/airflow/commit/e43206eb2e055a78814fcff7e8c35c6fd9c11e85>`_  2023-08-08   ``refactor(providers.google): use module level __getattr__ for DATAPROC_JOB_LOG_LINK to DATAPROC_JOB_LINK and add deprecation warning (#33189)``
+`8f27d3ff47 <https://github.com/apache/airflow/commit/8f27d3ff472e6ddd52c08a948d51901adb8a1f1a>`_  2023-08-08   ``Prepare docs for RC2 providers (google, redis) (#33185)``
+`15ede4a1a1 <https://github.com/apache/airflow/commit/15ede4a1a1af8bebb52799420bf2f328406c126e>`_  2023-08-07   ``Fix DataflowStartSqlJobOperator system test (#32823)``
+`9736143468 <https://github.com/apache/airflow/commit/9736143468cfe034e65afb3df3031ab3626f0f6d>`_  2023-08-07   ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+`0e076dceaf <https://github.com/apache/airflow/commit/0e076dceaf169174bbd4d8ee46911b60505eb098>`_  2023-08-07   ``Fix catching 409 error (#33173)``
+`8997b5e95f <https://github.com/apache/airflow/commit/8997b5e95f67a14d5e5fdbcb131643d702059359>`_  2023-08-07   ``Alias 'DATAPROC_JOB_LOG_LINK' to 'DATAPROC_JOB_LINK' (#33148)``
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `e10aa6ae6a <https://github.com/apache/airflow/commit/e10aa6ae6ad07830cbf5ec59d977654c52012c22>`_  2023-08-04   ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
 `e3d82c6be0 <https://github.com/apache/airflow/commit/e3d82c6be0e0e1468ade053c37690aa1e0e4882d>`_  2023-08-04   ``Get rid of Python2 numeric relics (#33050)``
 `1ea7ae809b <https://github.com/apache/airflow/commit/1ea7ae809bf0b8d1c8edf97e4d456b3753a1feca>`_  2023-08-03   ``Refactor of links in Dataproc. (#31895)``
@@ -52,7 +60,7 @@ Commit                                                                          
 `f9cddf332d <https://github.com/apache/airflow/commit/f9cddf332db712ce2121d355dd94c78b392a7bb9>`_  2023-07-31   ``openlineage,gcs: use proper name for openlineage methods (#32956)``
 `ce5eebd004 <https://github.com/apache/airflow/commit/ce5eebd00403beabc23b4f0b4bedba5b5c397c42>`_  2023-07-31   ``Fix system test for MetastoreHivePartitionSensor (#32861)``
 `c422920c6e <https://github.com/apache/airflow/commit/c422920c6ef9ac2cceb0369cd0ec0989887688d9>`_  2023-07-31   ``Add system test and docs for CloudDataTransferServiceGCSToGCSOperator (#32960)``
-=================================================================================================  ===========  ===================================================================================================
+=================================================================================================  ===========  ================================================================================================================================================
 
 10.5.0
 ......

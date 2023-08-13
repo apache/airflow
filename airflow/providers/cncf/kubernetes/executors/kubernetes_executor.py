@@ -79,7 +79,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annota
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes import client
@@ -182,6 +182,7 @@ class KubernetesExecutor(BaseExecutor):
     def _make_safe_label_value(self, input_value: str | datetime) -> str:
         """
         Normalize a provided label to be of valid length and characters.
+
         See airflow.providers.cncf.kubernetes.pod_generator.make_safe_label_value for more details.
         """
         # airflow.providers.cncf.kubernetes is an expensive import, locally import it here to
@@ -371,7 +372,7 @@ class KubernetesExecutor(BaseExecutor):
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
         resource_instance = ResourceVersion()
-        for ns in resource_instance.resource_version.keys():
+        for ns in resource_instance.resource_version:
             resource_instance.resource_version[ns] = (
                 last_resource_version[ns] or resource_instance.resource_version[ns]
             )
@@ -426,7 +427,7 @@ class KubernetesExecutor(BaseExecutor):
     def _change_state(
         self,
         key: TaskInstanceKey,
-        state: str | None,
+        state: TaskInstanceState | None,
         pod_name: str,
         namespace: str,
         session: Session = NEW_SESSION,
@@ -434,12 +435,12 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_scheduler
 
-        if state == State.RUNNING:
+        if state == TaskInstanceState.RUNNING:
             self.event_buffer[key] = state, None
             return
 
         if self.kube_config.delete_worker_pods:
-            if state != State.FAILED or self.kube_config.delete_worker_pods_on_failure:
+            if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
                 self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
         else:
@@ -456,6 +457,7 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.models.taskinstance import TaskInstance
 
             state = session.query(TaskInstance.state).filter(TaskInstance.filter_for_tis([key])).scalar()
+            state = TaskInstanceState(state)
 
         self.event_buffer[key] = state, None
 

@@ -227,6 +227,19 @@ spec:
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold }}
             periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds }}
+          startupProbe:
+            httpGet:
+              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
+              port: {{ .Values.ports.airflowUI }}
+              {{- if .Values.config.webserver.base_url}}
+              httpHeaders:
+                - name: Host
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
+              {{- end }}
+              scheme: {{ .Values.webserver.startupProbe.scheme | default "http" }}
+            timeoutSeconds: {{ .Values.webserver.startupProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.webserver.startupProbe.failureThreshold }}
+            periodSeconds: {{ .Values.webserver.startupProbe.periodSeconds }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}

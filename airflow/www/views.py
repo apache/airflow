@@ -70,7 +70,7 @@ from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import Date, and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
-from wtforms import validators
+from wtforms import BooleanField, validators
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -1926,15 +1926,15 @@ class Airflow(AirflowBaseView):
             flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
             return redirect(url_for("Airflow.index"))
 
-        xcom_query = session.execute(
-            select(XCom.key, XCom.value).where(
+        xcom_query = session.scalars(
+            select(XCom).where(
                 XCom.dag_id == dag_id,
                 XCom.task_id == task_id,
                 XCom.execution_date == dttm,
                 XCom.map_index == map_index,
             )
         )
-        attributes = [(k, v) for k, v in xcom_query if not k.startswith("_")]
+        attributes = [(xcom.key, xcom.value) for xcom in xcom_query if not xcom.key.startswith("_")]
 
         title = "XCom"
         return self.render_template(
@@ -2031,6 +2031,7 @@ class Airflow(AirflowBaseView):
                     form_fields[k]["schema"]["custom_html_form"]
                 )
         ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
+        show_trigger_form_if_no_params = conf.getboolean("webserver", "show_trigger_form_if_no_params")
 
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
@@ -2057,7 +2058,7 @@ class Airflow(AirflowBaseView):
             if isinstance(run_conf, dict) and any(run_conf)
         }
 
-        if request.method == "GET" and ui_fields_defined:
+        if request.method == "GET" and (ui_fields_defined or show_trigger_form_if_no_params):
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ""
 
@@ -3251,8 +3252,7 @@ class Airflow(AirflowBaseView):
                 y=scale_time_units(cumulative_y[task_id], cum_y_unit),
             )
 
-        dates = sorted({ti.execution_date for ti in task_instances})
-        max_date = max(ti.execution_date for ti in task_instances) if dates else None
+        max_date = max((ti.execution_date for ti in task_instances), default=None)
 
         session.commit()
 
@@ -3350,8 +3350,7 @@ class Airflow(AirflowBaseView):
             if x_points:
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
-        tries = sorted({ti.try_number for ti in tis})
-        max_date = max(ti.execution_date for ti in tis) if tries else None
+        max_date = max((ti.execution_date for ti in tis), default=None)
         chart.create_y_axis("yAxis", format=".02f", custom_format=False, label="Tries")
         chart.axislist["yAxis"]["axisLabelDistance"] = "-15"
 
@@ -3874,7 +3873,7 @@ class Airflow(AirflowBaseView):
         updated_before = _safe_parse_datetime(request.args.get("updated_before"), allow_empty=True)
 
         # Check and clean up query parameters
-        limit = 50 if limit > 50 else limit
+        limit = min(50, limit)
 
         uri_pattern = uri_pattern[:4000]
 
@@ -4846,7 +4845,6 @@ class ProviderView(AirflowBaseView):
 
         cd = escape(description)
         cd = re2.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
-        cd = re2.sub(r"\n", r"<br>", cd)
         return Markup(cd)
 
 
@@ -4874,9 +4872,17 @@ class PoolModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ["pool", "slots", "running_slots", "queued_slots", "scheduled_slots"]
-    add_columns = ["pool", "slots", "description"]
-    edit_columns = ["pool", "slots", "description"]
+    list_columns = ["pool", "slots", "running_slots", "queued_slots", "scheduled_slots", "deferred_slots"]
+    add_columns = ["pool", "slots", "description", "include_deferred"]
+    edit_columns = ["pool", "slots", "description", "include_deferred"]
+
+    # include_deferred is non-nullable, but as a checkbox in the resulting form we want to allow it unchecked
+    include_deferred_field = BooleanField(
+        validators=[validators.Optional()],
+        description="Check to include deferred tasks when calculating open pool slots.",
+    )
+    edit_form_extra_fields = {"include_deferred": include_deferred_field}
+    add_form_extra_fields = {"include_deferred": include_deferred_field}
 
     base_order = ("pool", "asc")
 
@@ -4943,11 +4949,24 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
+    def fdeferred_slots(self):
+        """Deferred slots rendering."""
+        pool_id = self.get("pool")
+        deferred_slots = self.get("deferred_slots")
+        if pool_id is not None and deferred_slots is not None:
+            url = url_for("TaskInstanceModelView.list", _flt_3_pool=pool_id, _flt_3_state="deferred")
+            return Markup("<a href='{url}'>{deferred_slots}</a>").format(
+                url=url, deferred_slots=deferred_slots
+            )
+        else:
+            return Markup('<span class="label label-danger">Invalid</span>')
+
     formatters_columns = {
         "pool": pool_link,
         "running_slots": frunning_slots,
         "queued_slots": fqueued_slots,
         "scheduled_slots": fscheduled_slots,
+        "deferred_slots": fdeferred_slots,
     }
 
     validators_columns = {"pool": [validators.DataRequired()], "slots": [validators.NumberRange(min=-1)]}
