@@ -118,7 +118,7 @@ def _get_rich_console(file):
 
 
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
-    """Custom function to print rich and visible warnings."""
+    """Print rich and visible warnings."""
     # Delay imports until we need it
     from rich.markup import escape
 
@@ -432,7 +432,7 @@ def prepare_syspath():
 
 
 def get_session_lifetime_config():
-    """Gets session timeout configs and handles outdated configs gracefully."""
+    """Get session timeout configs and handle outdated configs gracefully."""
     session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
     session_lifetime_days = conf.get("webserver", "session_lifetime_days", fallback=None)
     uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
