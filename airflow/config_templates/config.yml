@@ -467,7 +467,7 @@ core:
         Before setting this to Enabled, make sure that you review the users who are able to add/edit
         connections and ensure they are trusted. Connection testing can be done maliciously leading to
         undesired and insecure outcomes. For more information on capabilities of users, see the documentation:
-        https://airflow.apache.org/docs/apache-airflow/stable/security/index.html#capabilities-of-authenticated-ui-users
+        https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users
       version_added: 2.7.0
       type: string
       example: ~
