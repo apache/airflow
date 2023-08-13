@@ -100,10 +100,7 @@ class DateTimeForm(FlaskForm):
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
-    """
-    Date time and number of runs form for tree view, task duration
-    and landing times.
-    """
+    """Date time and number of runs form for tree view, task duration and landing times."""
 
     base_date = DateTimeWithTimezoneField(
         "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow()

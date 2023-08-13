@@ -71,6 +71,7 @@ def dynamic_class_import(class_path):
 class AirflowAppBuilder:
     """
     This is the base class for all the framework.
+
     This is where you will register all your views
     and create the menu structure.
     Will hold your flask app object, all your views, and security classes.
@@ -235,10 +236,7 @@ class AirflowAppBuilder:
         app.extensions["appbuilder"] = self
 
     def _swap_url_filter(self):
-        """
-        Use our url filtering util function so there is consistency between
-        FAB and Airflow routes.
-        """
+        """Use our url filtering util function so there is consistency between FAB and Airflow routes."""
         from flask_appbuilder.security import views as fab_sec_views
 
         from airflow.www.views import get_safe_url
@@ -537,9 +535,9 @@ class AirflowAppBuilder:
 
     def add_view_no_menu(self, baseview, endpoint=None, static_folder=None):
         """
-            Add your views without creating a menu.
-        :param baseview:
-            A BaseView type class instantiated.
+        Add your views without creating a menu.
+
+        :param baseview: A BaseView type class instantiated.
         """
         baseview = self._check_and_init(baseview)
         log.info(LOGMSG_INF_FAB_ADD_VIEW.format(baseview.__class__.__name__, ""))

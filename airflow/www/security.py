@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -454,8 +453,9 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
 
     def has_access(self, action_name: str, resource_name: str, user=None) -> bool:
         """
-        Verify whether a given user could perform a certain action
-        (e.g can_read, can_write, can_delete) on the given resource.
+        Verify whether a given user could perform a certain action on the given resource.
+
+        Example actions might include can_read, can_write, can_delete, etc.
 
         :param action_name: action_name on resource (e.g can_read, can_edit).
         :param resource_name: name of view-menu or resource.
@@ -483,7 +483,8 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
 
     def has_all_dags_access(self, user) -> bool:
         """
-        Has all the dag access in any of the 3 cases:
+        Has all the dag access in any of the 3 cases.
+
         1. Role needs to be in (Admin, Viewer, User, Op).
         2. Has can_read action on dags resource.
         3. Has can_edit action on dags resource.
@@ -529,6 +530,7 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
     def _merge_perm(self, action_name: str, resource_name: str) -> None:
         """
         Add the new (action, resource) to assoc_permission_role if it doesn't exist.
+
         It will add the related entry to ab_permission and ab_resource two meta tables as well.
 
         :param action_name: Name of the action
@@ -572,6 +574,8 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
 
     def _get_all_non_dag_permissions(self) -> dict[tuple[str, str], Permission]:
         """
+        Get permissions except those that are for specific DAGs.
+
         Returns a dict with a key of (action_name, resource_name) and value of permission
         with all permissions except those that are for specific DAGs.
         """
@@ -598,6 +602,8 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
 
     def create_dag_specific_permissions(self) -> None:
         """
+        Add permissions to all DAGs.
+
         Creates 'can_read', 'can_edit', and 'can_delete' permissions for all
         DAGs, along with any `access_control` permissions provided in them.
 
@@ -623,7 +629,9 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
 
     def update_admin_permission(self) -> None:
         """
-        Admin should have all the permissions, except the dag permissions.
+        Add missing permissions to the table for admin.
+
+        Admin should get all the permissions, except the dag permissions
         because Admin already has Dags permission.
         Add the missing ones to the table for admin.
 
@@ -645,6 +653,8 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
 
     def sync_roles(self) -> None:
         """
+        Initialize default and custom roles with related permissions.
+
         1. Init the default role(Admin, Viewer, User, Op, public)
            with related permissions.
         2. Init the custom role(dag-user) with related permissions.
@@ -677,8 +687,9 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         access_control: dict[str, Collection[str]] | None = None,
     ) -> None:
         """
-        Sync permissions for given dag id. The dag id surely exists in our dag bag
-        as only / refresh button or DagBag will call this function.
+        Sync permissions for given dag id.
+
+        The dag id surely exists in our dag bag as only / refresh button or DagBag will call this function.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
         :param access_control: a dict where each key is a rolename and
