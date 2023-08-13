@@ -199,7 +199,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 )
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
-        """Function defined by the sensors while deriving this class should override."""
+        """Override when deriving this class."""
         raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
@@ -287,7 +287,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         run_duration: Callable[[], float],
         try_number: int,
     ) -> float:
-        """Using the similar logic which is used for exponential backoff retry delay for operators."""
+        """Use similar logic which is used for exponential backoff retry delay for operators."""
         if not self.exponential_backoff:
             return self.poke_interval
 
