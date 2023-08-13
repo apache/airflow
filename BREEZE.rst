@@ -2449,7 +2449,7 @@ you need to do when you are adding system level (debian) level, Python (pip) dep
 dependencies for the webserver.
 
 Python dependencies
-~~~~~~~~~~~~~~~~~~~
+...................
 
 For temporary adding and modifying the dependencies, you just (in Breeze shell) run
 ``pip install <dependency>`` or similar - in the same way as you would do it
@@ -2492,7 +2492,7 @@ breeze ci-image build --upgrade-to-newer-dependencies
 
 
 System (debian) dependencies
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+............................
 
 You can install ``apt-get`` dependencies temporarily by running ``apt-get install <dependency>`` in
 Breeze shell. Those dependencies will disappear when you exit Breeze shell.
@@ -2531,7 +2531,7 @@ breeze ci-image build --upgrade-to-newer-dependencies
 ```
 
 Node (yarn) dependencies
-~~~~~~~~~~~~~~~~~~~~~~~~
+........................
 
 If you need to change "node" dependencies in ``airflow/www``, you need to compile them in the
 host with ``breeze compile-www-assets`` command. No need to rebuild the image.
