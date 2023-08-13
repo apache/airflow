@@ -69,25 +69,11 @@ def summarize_changes(results: list[str]) -> tuple[int, int]:
     """
     removals, additions = 0, 0
     for line in results:
-        if (
-            line.startswith("+")
-            or line.startswith("[green]+")
-            and not (
-                # Skip additions of comments in counting removals
-                line.startswith("+#")
-                or line.startswith("[green]+#")
-            )
-        ):
+        if line.startswith(("+", "[green]+")) and not line.startswith(("+#", "[green]+#")):
+            # Skip additions of comments in counting removals
             additions += 1
-        if (
-            line.startswith("-")
-            or line.startswith("[red]-")
-            and not (
-                # Skip removals of comments in counting removals
-                line.startswith("-#")
-                or line.startswith("[red]-#")
-            )
-        ):
+        if line.startswith(("-", "[red]+")) and not line.startswith(("-#", "[red]+#")):
+            # Skip removals of comments in counting removals
             removals += 1
     return removals, additions
 

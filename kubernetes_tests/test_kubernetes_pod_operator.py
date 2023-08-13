@@ -925,7 +925,7 @@ class TestKubernetesPodOperatorSystem:
                 "  creation_timestamp: null",
                 "  deletion_grace_period_seconds: null",
             ]
-            actual = [x.getMessage() for x in caplog.records if x.msg == "Starting pod:\n%s"][0].splitlines()
+            actual = next(x.getMessage() for x in caplog.records if x.msg == "Starting pod:\n%s").splitlines()
             assert actual[: len(expected_lines)] == expected_lines
 
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)

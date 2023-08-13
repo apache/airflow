@@ -181,7 +181,7 @@ def import_all_classes(
 
     for path, prefix in walkable_paths_and_prefixes.items():
         for modinfo in pkgutil.walk_packages(path=[path], prefix=prefix, onerror=onerror):
-            if not any(modinfo.name.startswith(provider_prefix) for provider_prefix in provider_prefixes):
+            if not modinfo.name.startswith(tuple(provider_prefixes)):
                 if print_skips:
                     console.print(f"Skipping module: {modinfo.name}")
                 continue
@@ -326,8 +326,7 @@ def get_details_about_classes(
     :param wrong_entities: wrong entities found for that type
     :param full_package_name: full package name
     """
-    all_entities = list(entities)
-    all_entities.sort()
+    all_entities = sorted(entities)
     TOTALS[entity_type] += len(all_entities)
     return EntityTypeSummary(
         entities=all_entities,
