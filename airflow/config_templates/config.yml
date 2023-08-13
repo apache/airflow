@@ -1387,7 +1387,19 @@ webserver:
       default: ""
     session_backend:
       description: |
-        The type of backend used to store web session data, can be 'database' or 'securecookie'
+        The type of backend used to store web session data, can be `database` or `securecookie`. For the
+        `database` backend, sessions are store in the database (in `session` table) and they can be
+        managed there (for example when you reset password of the user, all sessions for that user are
+        deleted). For the `securecookie` backend, sessions are stored in encrypted cookies on the client
+        side. The `securecookie` mechanism is 'lighter' than database backend, but sessions are not deleted
+        when you reset password of the user, which means that other than waiting for expiry time, the only
+        way to invalidate all sessions for a user is to change secret_key and restart webserver (which
+        also invalidates and logs out all other user's sessions).
+
+        When you are using `database` backend, make sure to keep your database session table small
+        by periodically running `airflow db clean --table session` command, especially if you have
+        automated API calls that will create a new session for each call rather than reuse the sessions
+        stored in browser cookies.
       version_added: 2.2.4
       type: string
       example: securecookie
