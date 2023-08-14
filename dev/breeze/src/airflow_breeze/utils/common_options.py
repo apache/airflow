@@ -350,12 +350,6 @@ option_push = click.option(
     is_flag=True,
     envvar="PUSH",
 )
-option_empty_image = click.option(
-    "--empty-image",
-    help="Prepare empty image tagged with the same name as the Airflow image.",
-    is_flag=True,
-    envvar="EMPTY_IMAGE",
-)
 option_wait_for_image = click.option(
     "--wait-for-image",
     help="Wait until image is available.",
@@ -576,4 +570,19 @@ option_commit_sha = click.option(
     show_default=True,
     envvar="COMMIT_SHA",
     help="Commit SHA that is used to build the images.",
+)
+option_build_timeout_minutes = click.option(
+    "--build-timeout-minutes",
+    required=False,
+    type=int,
+    envvar="BUILD_TIMEOUT_MINUTES",
+    help="Optional timeout for the build in minutes. Useful to detect `pip` backtracking problems.",
+)
+option_eager_upgrade_additional_requirements = click.option(
+    "--eager-upgrade-additional-requirements",
+    required=False,
+    type=str,
+    envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
+    help="Optional additional requirements to upgrade eagerly to avoid backtracking "
+    "(see `breeze ci find-backtracking-candidates`).",
 )

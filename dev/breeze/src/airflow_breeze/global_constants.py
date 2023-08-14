@@ -204,7 +204,6 @@ BREEZE_INIT_COMMAND = ""
 DRY_RUN_DOCKER = False
 INSTALL_AIRFLOW_VERSION = ""
 
-
 COMMITTERS = [
     "BasPH",
     "Fokko",
@@ -264,11 +263,16 @@ COMMITTERS = [
 
 
 def get_airflow_version():
-    airflow_setup_file = AIRFLOW_SOURCES_ROOT / "setup.py"
-    with open(airflow_setup_file) as setup_file:
-        for line in setup_file.readlines():
-            if "version =" in line:
-                return line.split()[2][1:-1]
+    airflow_init_py_file = AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py"
+    airflow_version = "unknown"
+    with open(airflow_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                airflow_version = line.split()[2][1:-1]
+                break
+    if airflow_version == "unknown":
+        raise Exception("Unable to determine Airflow version")
+    return airflow_version
 
 
 def get_airflow_extras():

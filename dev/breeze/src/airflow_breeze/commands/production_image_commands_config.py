@@ -94,7 +94,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             "options": [
                 "--platform",
                 "--push",
-                "--empty-image",
                 "--prepare-buildx-cache",
             ],
         },

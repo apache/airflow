@@ -1726,6 +1726,23 @@ These are all available flags of ``get-workflow-info`` command:
   :width: 100%
   :alt: Breeze ci get-workflow-info
 
+Finding backtracking candidates
+...............................
+
+Sometimes the CI build fails because ``pip`` timeouts when trying to resolve the latest set of dependencies
+for that we have the ``find-backtracking-candidates`` command. This command will try to find the
+backtracking candidates that might cause the backtracking.
+
+The details on how to use that command are explained in
+`Figuring out backtracking dependencies <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md#figuring-out-backtracking-dependencies>`_.
+
+These are all available flags of ``find-backtracking-candidates`` command:
+
+.. image:: ./images/breeze/output_ci_find-backtracking-candidates.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-backtracking-candidates.svg
+  :width: 100%
+  :alt: Breeze ci find-backtracking-candidates
+
 Release management tasks
 ------------------------
 

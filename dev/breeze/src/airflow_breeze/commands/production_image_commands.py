@@ -47,7 +47,6 @@ from airflow_breeze.utils.common_options import (
     option_dev_apt_deps,
     option_docker_cache,
     option_dry_run,
-    option_empty_image,
     option_github_repository,
     option_github_token,
     option_image_name,
@@ -84,7 +83,6 @@ from airflow_breeze.utils.docker_command_utils import (
     make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
-    prepare_docker_build_from_input,
     warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
@@ -167,7 +165,6 @@ def prod_image():
 @option_image_tag_for_building
 @option_prepare_buildx_cache
 @option_push
-@option_empty_image
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_prod
 @click.option(
@@ -500,50 +497,34 @@ def run_build_production_image(
     else:
         env = os.environ.copy()
         env["DOCKER_BUILDKIT"] = "1"
-        if prod_image_params.empty_image:
-            get_console(output=output).print(
-                f"\n[info]Building empty PROD Image for Python {prod_image_params.python}\n"
-            )
-            build_command_result = run_command(
-                prepare_docker_build_from_input(image_params=prod_image_params),
-                input="FROM scratch\n",
-                cwd=AIRFLOW_SOURCES_ROOT,
-                check=False,
-                text=True,
-                env=env,
-                output=output,
-            )
-        else:
+        build_command_result = run_command(
+            prepare_docker_build_command(
+                image_params=prod_image_params,
+            ),
+            cwd=AIRFLOW_SOURCES_ROOT,
+            check=False,
+            env=env,
+            text=True,
+            output=output,
+        )
+        if (
+            build_command_result.returncode != 0
+            and prod_image_params.upgrade_on_failure
+            and not prod_image_params.upgrade_to_newer_dependencies
+        ):
+            prod_image_params.upgrade_to_newer_dependencies = True
+            get_console().print("[warning]Attempting to build with upgrade_to_newer_dependencies on failure")
             build_command_result = run_command(
                 prepare_docker_build_command(
                     image_params=prod_image_params,
                 ),
                 cwd=AIRFLOW_SOURCES_ROOT,
                 check=False,
-                env=env,
                 text=True,
+                env=env,
                 output=output,
             )
-            if (
-                build_command_result.returncode != 0
-                and prod_image_params.upgrade_on_failure
-                and not prod_image_params.upgrade_to_newer_dependencies
-            ):
-                prod_image_params.upgrade_to_newer_dependencies = True
-                get_console().print(
-                    "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
-                )
-                build_command_result = run_command(
-                    prepare_docker_build_command(
-                        image_params=prod_image_params,
-                    ),
-                    cwd=AIRFLOW_SOURCES_ROOT,
-                    check=False,
-                    text=True,
-                    env=env,
-                    output=output,
-                )
-            if build_command_result.returncode == 0:
-                if prod_image_params.tag_as_latest:
-                    build_command_result = tag_image_as_latest(image_params=prod_image_params, output=output)
+        if build_command_result.returncode == 0:
+            if prod_image_params.tag_as_latest:
+                build_command_result = tag_image_as_latest(image_params=prod_image_params, output=output)
     return build_command_result.returncode, f"Image build: {prod_image_params.python}"
