@@ -20,7 +20,7 @@ from unittest import mock
 
 from sqlalchemy import Column, MetaData, String, Table
 
-from airflow.www.fab_security.sqla.models import (
+from airflow.auth.managers.fab.models import (
     add_index_on_ab_register_user_username_postgres,
     add_index_on_ab_user_username_postgres,
 )
