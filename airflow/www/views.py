@@ -992,6 +992,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/dags.html",
             dags=dags,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             dashboard_alerts=dashboard_alerts,
             migration_moved_data_alerts=sorted(set(_iter_parsed_moved_data_table_names())),
             current_page=current_page,
@@ -1408,6 +1409,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/dag_details.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             dag_model=dag_model,
             title=title,
             root=root,
@@ -2928,6 +2930,7 @@ class Airflow(AirflowBaseView):
 
         return self.render_template(
             "airflow/grid.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             root=root,
             dag=dag,
             doc_md=doc_md,
@@ -3075,6 +3078,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/calendar.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             doc_md=wwwutils.wrapped_markdown(getattr(dag, "doc_md", None)),
             data=htmlsafe_json_dumps(data, separators=(",", ":")),  # Avoid spaces to reduce payload size.
             root=root,
@@ -3277,6 +3281,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/duration_chart.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -3371,6 +3376,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/chart.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -3477,6 +3483,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/chart.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             chart=Markup(chart.htmlcontent),
             height=f"{chart_height + 100}px",
             root=root,
@@ -4024,6 +4031,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/dag_audit_log.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             dag_model=dag_model,
             root=request.args.get("root"),
             dag_id=dag_id,
