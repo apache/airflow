@@ -119,7 +119,11 @@ class DagBag(LoggingMixin):
 
         self.service_instance = os.environ.get('SERVICE_INSTANCE', '').lower()
 
-        if self.service_instance == "production":
+        # Set is_tars and is_kyte rather than import from lyft_etl to avoid any circular import errors.
+        self.is_tars = "tars" in os.environ.get("SERVICE", "")
+        self.is_kyte = "kyte" in os.environ.get("SERVICE", "")
+
+        if self.service_instance == "production" and not self.is_tars and not self.is_kyte:
 
             from airflowinfra.multi_cluster_utils import get_cluster_id_from_env
             
@@ -414,7 +418,7 @@ class DagBag(LoggingMixin):
             dag.fileloc = mod.__file__
             
             # When in production, restrict the DagBag to the appropriate set of DAGs.
-            if self.service_instance == "production":
+            if self.service_instance == "production" and not self.is_kyte and not self.is_tars:
 
                 from airflowinfra.multi_cluster_utils import include_dag_in_dag_bag
 
