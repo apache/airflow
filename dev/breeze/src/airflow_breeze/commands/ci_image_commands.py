@@ -174,6 +174,8 @@ def build_timout_handler(build_process_group_id: int, signum, frame):
     os.waitpid(build_process_group_id, 0)
     # give the output a little time to flush so that the helpful error message is not hidden
     time.sleep(5)
+    if os.environ.get("GITHUB_ACTIONS", "false") != "true":
+        get_console().print("::endgroup::")
     get_console().print()
     get_console().print(
         "[error]The build timed out. This is likely because `pip` "
