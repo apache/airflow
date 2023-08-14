@@ -222,6 +222,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
+        self._skipping_message_postfix = " Skipping due to soft_fail."
+
     def _get_dttm_filter(self, context):
         if self.execution_delta:
             dttm = context["logical_date"] - self.execution_delta
@@ -274,32 +276,28 @@ class ExternalTaskSensor(BaseSensorOperator):
         # Fail if anything in the list has failed.
         if count_failed > 0:
             if self.external_task_ids:
-                if self.soft_fail:
-                    raise AirflowSkipException(
-                        f"Some of the external tasks {self.external_task_ids} "
-                        f"in DAG {self.external_dag_id} failed. Skipping due to soft_fail."
-                    )
-                raise AirflowException(
+                failed_message = (
                     f"Some of the external tasks {self.external_task_ids} "
                     f"in DAG {self.external_dag_id} failed."
                 )
-            elif self.external_task_group_id:
-                if self.soft_fail:
-                    raise AirflowSkipException(
-                        f"The external task_group '{self.external_task_group_id}' "
-                        f"in DAG '{self.external_dag_id}' failed. Skipping due to soft_fail."
-                    )
-                raise AirflowException(
-                    f"The external task_group '{self.external_task_group_id}' "
-                    f"in DAG '{self.external_dag_id}' failed."
-                )
 
-            else:
-                if self.soft_fail:
-                    raise AirflowSkipException(
-                        f"The external DAG {self.external_dag_id} failed. Skipping due to soft_fail."
+                self.raise_failed_or_skiping_exception(
+                    failed_message=failed_message,
+                    skipping_message=f"{failed_message}{self._skipping_message_postfix}",
+                )
+            elif self.external_task_group_id:
+                self.raise_failed_or_skiping_exception(
+                    failed_message=(
+                        f"The external task_group '{self.external_task_group_id}' "
+                        f"in DAG '{self.external_dag_id}' failed."
                     )
-                raise AirflowException(f"The external DAG {self.external_dag_id} failed.")
+                )
+            else:
+                failed_message = f"The external DAG {self.external_dag_id} failed."
+                self.raise_failed_or_skiping_exception(
+                    failed_message=failed_message,
+                    skipping_message=f"{failed_message}{self._skipping_message_postfix}",
+                )
 
         count_skipped = -1
         if self.skipped_states:
@@ -349,16 +347,24 @@ class ExternalTaskSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context, event=None):
-        """Callback for when the trigger fires - returns immediately."""
+        """Execute when the trigger fires - return immediately."""
         if event["status"] == "success":
             self.log.info("External task %s has executed successfully.", self.external_task_id)
             return None
         elif event["status"] == "timeout":
-            raise AirflowException("Dag was not started within 1 minute, assuming fail.")
+            failed_message = "Dag was not started within 1 minute, assuming fail."
+            self.raise_failed_or_skiping_exception(
+                failed_message=failed_message,
+                skipping_message=f"{failed_message}{self._skipping_message_postfix}",
+            )
         else:
-            raise AirflowException(
+            failed_message = (
                 "Error occurred while trying to retrieve task status. Please, check the "
                 "name of executed task and Dag."
+            )
+            self.raise_failed_or_skiping_exception(
+                failed_message=failed_message,
+                skipping_message=f"{failed_message}{self._skipping_message_postfix}",
             )
 
     def _check_for_existence(self, session) -> None:
@@ -522,7 +528,7 @@ class ExternalTaskMarker(EmptyOperator):
 
     @classmethod
     def get_serialized_fields(cls):
-        """Serialized ExternalTaskMarker contain exactly these fields + templated_fields ."""
+        """Serialize ExternalTaskMarker to contain exactly these fields + templated_fields ."""
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"recursion_depth"})
         return cls.__serialized_fields

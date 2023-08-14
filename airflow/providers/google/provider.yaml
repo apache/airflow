@@ -321,6 +321,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/dataflow.rst
     logo: /integration-logos/gcp/Cloud-Dataflow.png
     tags: [gcp]
+  - integration-name: Google Data Pipelines
+    external-doc-url: https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/datapipeline.rst
+    tags: [gcp]
   - integration-name: Google Data Fusion
     external-doc-url: https://cloud.google.com/data-fusion/
     how-to-guide:
@@ -496,6 +501,9 @@ operators:
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.operators.dataflow
+  - integration-name: Google Data Pipelines
+    python-modules:
+      - airflow.providers.google.cloud.operators.datapipeline
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.operators.datafusion
@@ -710,6 +718,9 @@ hooks:
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.hooks.dataflow
+  - integration-name: Google Data Pipelines
+    python-modules:
+      - airflow.providers.google.cloud.hooks.datapipeline
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.hooks.datafusion

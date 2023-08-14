@@ -33,7 +33,7 @@ function install_additional_dependencies() {
         set -x
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         common::install_pip_version
         set +x
         echo

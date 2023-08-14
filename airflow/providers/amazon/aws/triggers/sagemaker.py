@@ -59,7 +59,7 @@ class SageMakerTrigger(BaseTrigger):
         self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes SagemakerTrigger arguments and classpath."""
+        """Serialize SagemakerTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger",
             {

@@ -63,7 +63,7 @@ class DataSyncHook(AwsBaseHook):
 
     def create_location(self, location_uri: str, **create_location_kwargs) -> str:
         """
-        Creates a new location.
+        Create a new location.
 
         .. seealso::
             - :external+boto3:py:meth:`DataSync.Client.create_location_s3`
@@ -174,7 +174,7 @@ class DataSyncHook(AwsBaseHook):
         self.get_conn().delete_task(TaskArn=task_arn)
 
     def _refresh_tasks(self) -> None:
-        """Refreshes the local list of Tasks."""
+        """Refresh the local list of Tasks."""
         tasks = self.get_conn().list_tasks()
         self.tasks = tasks["Tasks"]
         while "NextToken" in tasks:

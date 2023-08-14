@@ -135,7 +135,7 @@ class ClearTaskInstanceFormSchema(Schema):
 
     @validates_schema
     def validate_form(self, data, **kwargs):
-        """Validates clear task instance form."""
+        """Validate clear task instance form."""
         if data["only_failed"] and data["only_running"]:
             raise ValidationError("only_failed and only_running both are set to True")
         if data["start_date"] and data["end_date"]:
@@ -169,7 +169,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     @validates_schema
     def validate_form(self, data, **kwargs):
-        """Validates set task instance state form."""
+        """Validate set task instance state form."""
         if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
             raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 

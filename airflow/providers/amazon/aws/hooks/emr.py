@@ -207,7 +207,7 @@ class EmrHook(AwsBaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom UI field behaviour for Amazon Elastic MapReduce Connection."""
+        """Return custom UI field behaviour for Amazon Elastic MapReduce Connection."""
         return {
             "hidden_fields": ["host", "schema", "port", "login", "password"],
             "relabeling": {
