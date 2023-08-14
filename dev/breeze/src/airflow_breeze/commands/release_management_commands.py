@@ -54,6 +54,7 @@ from airflow_breeze.utils.common_options import (
     argument_packages,
     argument_packages_plus_all_providers,
     option_airflow_constraints_mode_ci,
+    option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
@@ -1309,14 +1310,35 @@ def checkout_constraint_tag_and_reset_branch(constraints_repo: Path, airflow_ver
     get_console().print(f"[info]The hash commit of the tag:[/] {result.stdout}")
 
 
-def modify_single_file_constraints(constraints_file: Path, updated_constraints: tuple[str]) -> bool:
+def update_comment(content: str, comment_file: Path) -> str:
+    comment_text = comment_file.read_text()
+    if comment_text in content:
+        return content
+    comment_lines = comment_text.splitlines()
+    content_lines = content.splitlines()
+    updated_lines: list[str] = []
+    updated = False
+    for line in content_lines:
+        if not line.strip().startswith("#") and not updated:
+            updated_lines.extend(comment_lines)
+            updated = True
+        updated_lines.append(line)
+    return "\n".join(updated_lines) + "\n"
+
+
+def modify_single_file_constraints(
+    constraints_file: Path, updated_constraints: tuple[str] | None, comment_file: Path | None
+) -> bool:
     constraint_content = constraints_file.read_text()
     original_content = constraint_content
-    for constraint in updated_constraints:
-        package, version = constraint.split("==")
-        constraint_content = re.sub(
-            rf"^{package}==.*$", f"{package}=={version}", constraint_content, flags=re.MULTILINE
-        )
+    if comment_file:
+        constraint_content = update_comment(constraint_content, comment_file)
+    if updated_constraints:
+        for constraint in updated_constraints:
+            package, version = constraint.split("==")
+            constraint_content = re.sub(
+                rf"^{package}==.*$", f"{package}=={version}", constraint_content, flags=re.MULTILINE
+            )
     if constraint_content != original_content:
         if not get_dry_run():
             constraints_file.write_text(constraint_content)
@@ -1327,12 +1349,26 @@ def modify_single_file_constraints(constraints_file: Path, updated_constraints: 
         return False
 
 
-def modify_all_constraint_files(constraints_repo: Path, updated_constraint: tuple[str]) -> bool:
+def modify_all_constraint_files(
+    constraints_repo: Path,
+    updated_constraint: tuple[str] | None,
+    comit_file: Path | None,
+    airflow_constrains_mode: str | None,
+) -> bool:
     get_console().print("[info]Updating constraints files:[/]")
     modified = False
-    for constraints_file in constraints_repo.glob("constraints-*.txt"):
+    select_glob = "constraints-*.txt"
+    if airflow_constrains_mode == "constraints":
+        select_glob = "constraints-[0-9.]*.txt"
+    elif airflow_constrains_mode == "constraints-source-providers":
+        select_glob = "constraints-source-providers-[0-9.]*.txt"
+    elif airflow_constrains_mode == "constraints-no-providers":
+        select_glob = "constraints-no-providers-[0-9.]*.txt"
+    else:
+        raise RuntimeError(f"Invalid airflow-constraints-mode: {airflow_constrains_mode}")
+    for constraints_file in constraints_repo.glob(select_glob):
         get_console().print(f"[info]Updating {constraints_file.name}")
-        if modify_single_file_constraints(constraints_file, updated_constraint):
+        if modify_single_file_constraints(constraints_file, updated_constraint, comit_file):
             modified = True
     return modified
 
@@ -1403,11 +1439,20 @@ def push_constraints_and_tag(constraints_repo: Path, remote_name: str, airflow_v
 )
 @click.option(
     "--updated-constraint",
-    required=True,
+    required=False,
     envvar="UPDATED_CONSTRAINT",
     multiple=True,
     help="Constraints to be set - in the form of `package==version`. Can be repeated",
 )
+@click.option(
+    "--comment-file",
+    required=False,
+    type=click.Path(file_okay=True, dir_okay=False, path_type=Path, exists=True),
+    envvar="COMMENT_FILE",
+    help="File containing comment to be added to the constraint "
+    "file before the first package (if not added yet).",
+)
+@option_airflow_constraints_mode_update
 @option_verbose
 @option_dry_run
 @option_answer
@@ -1416,13 +1461,17 @@ def update_constraints(
     remote_name: str,
     airflow_versions: str,
     commit_message: str,
-    updated_constraint: tuple[str],
+    airflow_constraints_mode: str | None,
+    updated_constraint: tuple[str] | None,
+    comment_file: Path | None,
 ) -> None:
+    if not updated_constraint and not comment_file:
+        get_console().print("[error]You have to provide one of --updated-constraint or --comment-file[/]")
+        sys.exit(1)
     airflow_versions_array = airflow_versions.split(",")
     if len(airflow_versions_array) == 0:
         get_console().print("[error]No airflow versions specified - you provided empty string[/]")
         sys.exit(1)
-
     get_console().print(f"Updating constraints for {airflow_versions_array} with {updated_constraint}")
     if (
         user_confirm(f"The {constraints_repo.name} repo will be reset. Continue?", quit_allowed=False)
@@ -1432,7 +1481,9 @@ def update_constraints(
     fetch_remote(constraints_repo, remote_name)
     for airflow_version in airflow_versions_array:
         checkout_constraint_tag_and_reset_branch(constraints_repo, airflow_version)
-        if modify_all_constraint_files(constraints_repo, updated_constraint):
+        if modify_all_constraint_files(
+            constraints_repo, updated_constraint, comment_file, airflow_constraints_mode
+        ):
             if confirm_modifications(constraints_repo):
                 commit_constraints_and_tag(constraints_repo, airflow_version, commit_message)
                 push_constraints_and_tag(constraints_repo, remote_name, airflow_version)

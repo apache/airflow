@@ -37,7 +37,7 @@ from airflow.utils.session import create_session
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_list(args):
-    """Displays all the variables."""
+    """Display all the variables."""
     with create_session() as session:
         variables = session.scalars(select(Variable)).all()
     AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
@@ -46,7 +46,7 @@ def variables_list(args):
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_get(args):
-    """Displays variable by a given name."""
+    """Display variable by a given name."""
     try:
         if args.default is None:
             var = Variable.get(args.key, deserialize_json=args.json)
@@ -61,7 +61,7 @@ def variables_get(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def variables_set(args):
-    """Creates new variable with a given name and value."""
+    """Create new variable with a given name and value."""
     Variable.set(args.key, args.value, serialize_json=args.json)
     print(f"Variable {args.key} created")
 
@@ -69,7 +69,7 @@ def variables_set(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def variables_delete(args):
-    """Deletes variable by a given name."""
+    """Delete variable by a given name."""
     Variable.delete(args.key)
     print(f"Variable {args.key} deleted")
 
@@ -77,7 +77,7 @@ def variables_delete(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def variables_import(args):
-    """Imports variables from a given file."""
+    """Import variables from a given file."""
     if not os.path.exists(args.file):
         raise SystemExit("Missing variables file.")
     with open(args.file) as varfile:
@@ -101,7 +101,7 @@ def variables_import(args):
 
 @providers_configuration_loaded
 def variables_export(args):
-    """Exports all the variables to the file."""
+    """Export all the variables to the file."""
     var_dict = {}
     with create_session() as session:
         qry = session.scalars(select(Variable))

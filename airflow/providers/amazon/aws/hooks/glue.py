@@ -162,7 +162,7 @@ class GlueJobHook(AwsBaseHook):
         run_kwargs: dict | None = None,
     ) -> dict[str, str]:
         """
-        Initializes connection with AWS Glue to run job.
+        Initialize connection with AWS Glue to run job.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.start_job_run`
@@ -196,7 +196,11 @@ class GlueJobHook(AwsBaseHook):
         return job_run["JobRun"]["JobRunState"]
 
     async def async_get_job_state(self, job_name: str, run_id: str) -> str:
-        """The async version of get_job_state."""
+        """
+        Get state of the Glue job; the job state can be running, finished, failed, stopped or timeout.
+
+        The async version of get_job_state.
+        """
         async with self.async_conn as client:
             job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
         return job_run["JobRun"]["JobRunState"]
@@ -208,7 +212,7 @@ class GlueJobHook(AwsBaseHook):
         continuation_tokens: LogContinuationTokens,
     ):
         """
-        Prints the latest job logs to the Airflow task log and updates the continuation tokens.
+        Print the latest job logs to the Airflow task log and updates the continuation tokens.
 
         :param continuation_tokens: the tokens where to resume from when reading logs.
             The object gets updated with the new tokens by this method.
@@ -217,7 +221,7 @@ class GlueJobHook(AwsBaseHook):
         paginator = log_client.get_paginator("filter_log_events")
 
         def display_logs_from(log_group: str, continuation_token: str | None) -> str | None:
-            """Internal method to mutualize iteration over the 2 different log streams glue jobs write to."""
+            """Mutualize iteration over the 2 different log streams glue jobs write to."""
             fetched_logs = []
             next_token = continuation_token
             try:
@@ -305,7 +309,7 @@ class GlueJobHook(AwsBaseHook):
         verbose: bool,
         next_log_tokens: GlueJobHook.LogContinuationTokens,
     ) -> dict | None:
-        """Helper function to process Glue Job state while polling. Used by both sync and async methods."""
+        """Process Glue Job state while polling; used by both sync and async methods."""
         failed_states = ["FAILED", "TIMEOUT"]
         finished_states = ["SUCCEEDED", "STOPPED"]
 
@@ -333,7 +337,7 @@ class GlueJobHook(AwsBaseHook):
 
     def has_job(self, job_name) -> bool:
         """
-        Checks if the job already exists.
+        Check if the job already exists.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.get_job`
@@ -351,7 +355,7 @@ class GlueJobHook(AwsBaseHook):
 
     def update_job(self, **job_kwargs) -> bool:
         """
-        Updates job configurations.
+        Update job configurations.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.update_job`
@@ -393,7 +397,7 @@ class GlueJobHook(AwsBaseHook):
 
     def create_or_update_glue_job(self) -> str | None:
         """
-        Creates (or updates) and returns the Job name.
+        Create (or update) and return the Job name.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.update_job`

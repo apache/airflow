@@ -182,6 +182,7 @@ Name                                                                   Descripti
 ``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given dag (i.e. task instance which was
                                                                        previously in REMOVED state in the DB is added to DAG file)
 ``task_instance_created_<operator_name>``                              Number of tasks instances created for a given Operator
+``triggerer_heartbeat``                                                Triggerer heartbeats
 ``triggers.blocked_main_thread``                                       Number of triggers that blocked the main thread (likely due to not being
                                                                        fully asynchronous)
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event

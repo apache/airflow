@@ -87,7 +87,7 @@ def _generate_key_name(name: str, attributes: Attributes = None):
 
 def name_is_otel_safe(prefix: str, name: str) -> bool:
     """
-    Returns True if the provided name and prefix would result in a name that meets the OpenTelemetry standard.
+    Return True if the provided name and prefix would result in a name that meets the OpenTelemetry standard.
 
     Legal names are defined here:
     https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
@@ -110,7 +110,7 @@ def _type_as_str(obj: Instrument) -> str:
 
 def _get_otel_safe_name(name: str) -> str:
     """
-    Verifies that the provided name does not exceed OpenTelemetry's maximum length for metric names.
+    Verify that the provided name does not exceed OpenTelemetry's maximum length for metric names.
 
     :param name: The original metric name
     :returns: The name, truncated to an OTel-acceptable length if required.
@@ -290,7 +290,7 @@ class MetricsMap:
         self.map.clear()
 
     def _create_counter(self, name):
-        """Creates a new counter or up_down_counter for the provided name."""
+        """Create a new counter or up_down_counter for the provided name."""
         otel_safe_name = _get_otel_safe_name(name)
 
         if _is_up_down_counter(name):
@@ -303,7 +303,7 @@ class MetricsMap:
 
     def get_counter(self, name: str, attributes: Attributes = None):
         """
-        Returns the counter; creates a new one if it did not exist.
+        Return the counter; creates a new one if it did not exist.
 
         :param name: The name of the counter to fetch or create.
         :param attributes:  Counter attributes, used to generate a unique key to store the counter.
@@ -315,7 +315,7 @@ class MetricsMap:
 
     def del_counter(self, name: str, attributes: Attributes = None) -> None:
         """
-        Deletes a counter.
+        Delete a counter.
 
         :param name: The name of the counter to delete.
         :param attributes: Counter attributes which were used to generate a unique key to store the counter.
@@ -326,7 +326,7 @@ class MetricsMap:
 
     def set_gauge_value(self, name: str, value: float | None, delta: bool, tags: Attributes):
         """
-        Overrides the last reading for a Gauge with a new value.
+        Override the last reading for a Gauge with a new value.
 
         :param name: The name of the gauge to record.
         :param value: The new reading to record.
@@ -344,7 +344,7 @@ class MetricsMap:
 
     def _create_gauge(self, name: str, attributes: Attributes = None):
         """
-        Creates a new Observable Gauge with the provided name and the default value.
+        Create a new Observable Gauge with the provided name and the default value.
 
         :param name: The name of the gauge to fetch or create.
         :param attributes:  Gauge attributes, used to generate a unique key to store the gauge.
@@ -361,12 +361,12 @@ class MetricsMap:
         return gauge
 
     def read_gauge(self, key: str, *args) -> Iterable[Observation]:
-        """Callback for the Observable Gauges, returns the Observation for the provided key."""
+        """Return the Observation for the provided key; callback for the Observable Gauges."""
         yield self.map[key]
 
     def poke_gauge(self, name: str, attributes: Attributes = None) -> GaugeValues:
         """
-        Returns the value of the gauge; creates a new one with the default value if it did not exist.
+        Return the value of the gauge; creates a new one with the default value if it did not exist.
 
         :param name: The name of the gauge to fetch or create.
         :param attributes:  Gauge attributes, used to generate a unique key to store the gauge.
