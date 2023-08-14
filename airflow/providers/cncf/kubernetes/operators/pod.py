@@ -296,8 +296,8 @@ class KubernetesPodOperator(BaseOperator):
         service_account_name: str | None = None,
         hostnetwork: bool = False,
         tolerations: list[k8s.V1Toleration] | None = None,
-        security_context: dict | None = None,
-        container_security_context: dict | None = None,
+        security_context: k8s.V1PodSecurityContext | None = None,
+        container_security_context: k8s.V1SecurityContext | None = None,
         dnspolicy: str | None = None,
         dns_config: k8s.V1PodDNSConfig | None = None,
         hostname: str | None = None,
@@ -374,7 +374,7 @@ class KubernetesPodOperator(BaseOperator):
         self.tolerations = (
             [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
         )
-        self.security_context = security_context or {}
+        self.security_context = security_context or k8s.V1PodSecurityContext()
         self.container_security_context = container_security_context
         self.dnspolicy = dnspolicy
         self.dns_config = dns_config
