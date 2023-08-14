@@ -44,14 +44,17 @@ with DAG(
 ) as dag:
 
     test_context = sys_test_context_task()
-    INSTANCE_NAME = f"{test_context[ENV_ID_KEY]}-test-notebook"
+
+    instance_name: str = f"{test_context[ENV_ID_KEY]}-test-notebook"
+
+    role_arn = test_context[ROLE_ARN_KEY]
 
     # [START howto_operator_sagemaker_notebook_create]
     instance = SageMakerCreateNotebookOperator(
         task_id="create_instance",
-        instance_name=INSTANCE_NAME,
+        instance_name=instance_name,
         instance_type="ml.t3.medium",
-        role_arn=test_context[ROLE_ARN_KEY],
+        role_arn=role_arn,
         wait_for_completion=True,
     )
     # [END howto_operator_sagemaker_notebook_create]
@@ -59,14 +62,14 @@ with DAG(
     # [START howto_operator_sagemaker_notebook_stop]
     stop_instance = SageMakerStopNotebookOperator(
         task_id="stop_instance",
-        instance_name=INSTANCE_NAME,
+        instance_name=instance_name,
     )
     # [END howto_operator_sagemaker_notebook_stop]
 
     # [START howto_operator_sagemaker_notebook_start]
     start_instance = SageMakerStartNoteBookOperator(
         task_id="start_instance",
-        instance_name=INSTANCE_NAME,
+        instance_name=instance_name,
     )
 
     # [END howto_operator_sagemaker_notebook_start]
@@ -75,12 +78,13 @@ with DAG(
     # Instance must be stopped before it can be deleted.
     stop_instance_before_delete = SageMakerStopNotebookOperator(
         task_id="stop_instance_before_delete",
-        instance_name=INSTANCE_NAME,
+        instance_name=instance_name,
     )
-    delete_instance = SageMakerDeleteNotebookOperator(task_id="delete_instance", instance_name=INSTANCE_NAME)
+    delete_instance = SageMakerDeleteNotebookOperator(task_id="delete_instance", instance_name=instance_name)
     # [END howto_operator_sagemaker_notebook_delete]
 
     chain(
+        test_context,
         # create a new instance
         instance,
         # stop the instance
