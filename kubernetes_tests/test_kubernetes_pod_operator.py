@@ -30,7 +30,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from kubernetes import client, config
+from kubernetes import client
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
@@ -1351,7 +1351,6 @@ class TestKubernetesPodOperator(BaseK8STest):
         pod = k.find_pod("default", context, exclude_checked=False)
 
         k8s_client = client.CoreV1Api()
-        config.load_kube_config()
 
         time.sleep(active_deadline_seconds)
 
