@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import functools
 import io
+import itertools as it
 import json
 import logging
 import multiprocessing
@@ -172,9 +173,8 @@ def retrieve_configuration_description(
         from airflow.providers_manager import ProvidersManager
 
         for provider, config in ProvidersManager().provider_configs:
-            if selected_provider and provider != selected_provider:
-                continue
-            base_configuration_description.update(config)
+            if not selected_provider or provider == selected_provider:
+                base_configuration_description.update(config)
     return base_configuration_description
 
 
@@ -473,13 +473,7 @@ class AirflowConfigParser(ConfigParser):
 
         :return: list of section names
         """
-        my_own_sections = self.sections()
-
-        all_sections_from_defaults = list(self.configuration_description.keys())
-        for section in my_own_sections:
-            if section not in all_sections_from_defaults:
-                all_sections_from_defaults.append(section)
-        return all_sections_from_defaults
+        return list(dict.fromkeys(it.chain(self.configuration_description, self.sections())))
 
     def get_options_including_defaults(self, section: str) -> list[str]:
         """
@@ -489,13 +483,8 @@ class AirflowConfigParser(ConfigParser):
         :return: list of option names for the section given
         """
         my_own_options = self.options(section) if self.has_section(section) else []
-        all_options_from_defaults = list(
-            self.configuration_description.get(section, {}).get("options", {}).keys()
-        )
-        for option in my_own_options:
-            if option not in all_options_from_defaults:
-                all_options_from_defaults.append(option)
-        return all_options_from_defaults
+        all_options_from_defaults = self.configuration_description.get(section, {}).get("options", {})
+        return list(dict.fromkeys(it.chain(all_options_from_defaults, my_own_options)))
 
     def optionxform(self, optionstr: str) -> str:
         """
@@ -1537,7 +1526,7 @@ class AirflowConfigParser(ConfigParser):
                 continue
             if not display_sensitive and env_var != self._env_var_name("core", "unit_test_mode"):
                 # Don't hide cmd/secret values here
-                if not env_var.lower().endswith("cmd") and not env_var.lower().endswith("secret"):
+                if not env_var.lower().endswith(("cmd", "secret")):
                     if (section, key) in self.sensitive_config_values:
                         opt = "< hidden >"
             elif raw:
