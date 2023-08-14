@@ -188,7 +188,6 @@ class TestDagProcessorJobRunner:
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_max_runs_when_no_files(self):
-
         child_pipe, parent_pipe = multiprocessing.Pipe()
 
         with TemporaryDirectory(prefix="empty-airflow-dags-") as dags_folder:
@@ -1000,6 +999,40 @@ class TestDagProcessorJobRunner:
         assert not DagCode.has_dag(dag.fileloc)
         # assert dag deactivated
         assert not dag.get_is_active()
+
+    def test_refresh_dags_dir_does_not_interfer_with_dags_outside_its_subdir(self, tmpdir):
+        """Test DagProcessorJobRunner._refresh_dag_dir should not update dags outside its processor_subdir"""
+
+        dagbag = DagBag(dag_folder=tmpdir, include_examples=False)
+        dag_path = os.path.join(TEST_DAGS_FOLDER, "test_miscellaneous.py")
+        dagbag.process_file(dag_path)
+        dag = dagbag.get_dag("miscellaneous_test_dag")
+        dag.sync_to_db(processor_subdir=str(TEST_DAG_FOLDER))
+        SerializedDagModel.write_dag(dag, processor_subdir=str(TEST_DAG_FOLDER))
+
+        assert SerializedDagModel.has_dag("miscellaneous_test_dag")
+        assert dag.get_is_active()
+        assert DagCode.has_dag(dag.fileloc)
+
+        manager = DagProcessorJobRunner(
+            job=Job(),
+            processor=DagFileProcessorManager(
+                dag_directory=TEST_DAG_FOLDER / "subdir2" / "subdir3",
+                max_runs=1,
+                processor_timeout=timedelta(days=365),
+                signal_conn=MagicMock(),
+                dag_ids=[],
+                pickle_dags=False,
+                async_mode=True,
+            ),
+        )
+        manager.processor.last_dag_dir_refresh_time = timezone.utcnow() - timedelta(minutes=10)
+
+        manager.processor._refresh_dag_dir()
+
+        assert SerializedDagModel.has_dag("miscellaneous_test_dag")
+        assert dag.get_is_active()
+        assert DagCode.has_dag(dag.fileloc)
 
     @conf_vars(
         {
