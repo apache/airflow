@@ -69,7 +69,7 @@ class SFTPToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param sftp_prefetch: Whether to enable SFTP prefetching, the default is True.
+    :param sftp_prefetch: Whether to enable SFTP prefetch, the default is True.
     """
 
     template_fields: Sequence[str] = (

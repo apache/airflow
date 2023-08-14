@@ -231,7 +231,7 @@ class SFTPHook(SSHHook):
 
         :param remote_full_path: full path to the remote file
         :param local_full_path: full path to the local file
-        :param prefetch: controls whether prefetching is performed (default: True)
+        :param prefetch: controls whether prefetch is performed (default: True)
         """
         conn = self.get_conn()
         conn.get(remote_full_path, local_full_path, prefetch=prefetch)
