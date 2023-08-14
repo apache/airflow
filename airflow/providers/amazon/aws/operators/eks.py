@@ -735,7 +735,7 @@ class EksDeleteClusterOperator(BaseOperator):
 
     def delete_any_nodegroups(self, eks_hook) -> None:
         """
-        Deletes all Amazon EKS managed node groups for a provided Amazon EKS Cluster.
+        Delete all Amazon EKS managed node groups for a provided Amazon EKS Cluster.
 
         Amazon EKS managed node groups can be deleted in parallel, so we can send all
         delete commands in bulk and move on once the count of nodegroups is zero.
@@ -752,7 +752,7 @@ class EksDeleteClusterOperator(BaseOperator):
 
     def delete_any_fargate_profiles(self, eks_hook) -> None:
         """
-        Deletes all EKS Fargate profiles for a provided Amazon EKS Cluster.
+        Delete all EKS Fargate profiles for a provided Amazon EKS Cluster.
 
         EKS Fargate profiles must be deleted one at a time, so we must wait
         for one to be deleted before sending the next delete command.

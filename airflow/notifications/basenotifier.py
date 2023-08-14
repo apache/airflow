@@ -73,7 +73,7 @@ class BaseNotifier(Templater):
     @abstractmethod
     def notify(self, context: Context) -> None:
         """
-        Sends a notification.
+        Send a notification.
 
         :param context: The airflow context
         """

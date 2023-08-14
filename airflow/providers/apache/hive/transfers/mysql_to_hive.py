@@ -114,7 +114,7 @@ class MySqlToHiveOperator(BaseOperator):
 
     @classmethod
     def type_map(cls, mysql_type: int) -> str:
-        """Maps MySQL type to Hive type."""
+        """Map MySQL type to Hive type."""
         types = MySQLdb.constants.FIELD_TYPE
         type_map = {
             types.BIT: "INT",

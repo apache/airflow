@@ -80,10 +80,7 @@ log = logging.getLogger(__name__)
 
 
 def _oauth_tokengetter(token=None):
-    """
-    Default function to return the current user oauth token
-    from session cookie.
-    """
+    """Default function to return the current user oauth token from session cookie."""
     token = session.get("oauth")
     log.debug("Token Get: %s", token)
     return token
@@ -470,11 +467,10 @@ class BaseSecurityManager:
 
     def oauth_user_info_getter(self, f):
         """
-        Decorator function to be the OAuth user info getter
-        for all the providers, receives provider and response
-        return a dict with the information returned from the provider.
-        The returned user info dict should have it's keys with the same
-        name as the User Model.
+        Decorator function to be the OAuth user info getter for all the providers.
+
+        Receives provider and response return a dict with the information returned from the provider.
+        The returned user info dict should have it's keys with the same name as the User Model.
 
         Use it like this an example for GitHub ::
 
@@ -500,8 +496,9 @@ class BaseSecurityManager:
 
     def get_oauth_token_key_name(self, provider):
         """
-        Returns the token_key name for the oauth provider
-        if none is configured defaults to oauth_token
+        Returns the token_key name for the oauth provider.
+
+        If none is configured defaults to oauth_token
         this is configured using OAUTH_PROVIDERS and token_key key.
         """
         for _provider in self.oauth_providers:
@@ -1504,8 +1501,9 @@ class BaseSecurityManager:
 
     def delete_permission(self, action_name: str, resource_name: str) -> None:
         """
-        Deletes the permission linking an action->resource pair. Doesn't delete the
-        underlying action or resource.
+        Deletes the permission linking an action->resource pair.
+
+        Doesn't delete the underlying action or resource.
 
         :param action_name: Name of existing action
         :param resource_name: Name of existing resource

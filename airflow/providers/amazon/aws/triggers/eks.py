@@ -138,7 +138,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
 
     async def delete_any_nodegroups(self, client) -> None:
         """
-        Deletes all EKS Nodegroups for a provided Amazon EKS Cluster.
+        Delete all EKS Nodegroups for a provided Amazon EKS Cluster.
 
         All the EKS Nodegroups are deleted simultaneously. We wait for
         all Nodegroups to be deleted before returning.
@@ -167,7 +167,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
 
     async def delete_any_fargate_profiles(self, client) -> None:
         """
-        Deletes all EKS Fargate profiles for a provided Amazon EKS Cluster.
+        Delete all EKS Fargate profiles for a provided Amazon EKS Cluster.
 
         EKS Fargate profiles must be deleted one at a time, so we must wait
         for one to be deleted before sending the next delete command.

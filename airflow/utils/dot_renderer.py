@@ -37,7 +37,7 @@ from airflow.utils.task_group import TaskGroup
 
 def _refine_color(color: str):
     """
-    Converts color in #RGB (12 bits) format to #RRGGBB (32 bits), if it possible.
+    Convert color in #RGB (12 bits) format to #RRGGBB (32 bits), if it possible.
 
     Otherwise, it returns the original value. Graphviz does not support colors in #RGB format.
 
@@ -144,7 +144,7 @@ def _draw_nodes(
 
 def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Digraph:
     """
-    Renders the DAG dependency to the DOT object.
+    Render the DAG dependency to the DOT object.
 
     :param deps: List of DAG dependencies
     :return: Graphviz object
@@ -169,7 +169,7 @@ def render_dag_dependencies(deps: dict[str, list[DagDependency]]) -> graphviz.Di
 
 def render_dag(dag: DAG, tis: list[TaskInstance] | None = None) -> graphviz.Digraph:
     """
-    Renders the DAG object to the DOT object.
+    Render the DAG object to the DOT object.
 
     If an task instance list is passed, the nodes will be painted according to task statuses.
 

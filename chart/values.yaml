@@ -183,6 +183,7 @@ ingress:
 
     # The hostnames or hosts configuration for the flower Ingress
     hosts: []
+    #   # The hostname for the flower Ingress (can be templated)
     # - name: ""
     #   tls:
     #     # Enable TLS termination for the flower Ingress

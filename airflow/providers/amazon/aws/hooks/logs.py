@@ -67,7 +67,7 @@ class AwsLogsHook(AwsBaseHook):
         end_time: int | None = None,
     ) -> Generator:
         """
-        A generator for log items in a single stream; yields all items available at the current moment.
+        Return a generator for log items in a single stream; yields all items available at the current moment.
 
         .. seealso::
             - :external+boto3:py:meth:`CloudWatchLogs.Client.get_log_events`

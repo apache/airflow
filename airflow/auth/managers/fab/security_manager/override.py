@@ -19,14 +19,26 @@ from __future__ import annotations
 
 from functools import cached_property
 
-from flask import g
+from flask import flash, g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
+from itsdangerous import want_bytes
+from markupsafe import Markup
 from werkzeug.security import generate_password_hash
 
+from airflow.auth.managers.fab.models import User
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
+from airflow.www.session import AirflowDatabaseSessionInterface
+
+# This is the limit of DB user sessions that we consider as "healthy". If you have more sessions that this
+# number then we will refuse to delete sessions that have expired and old user sessions when resetting
+# user's password, and raise a warning in the UI instead. Usually when you have that many sessions, it means
+# that there is something wrong with your deployment - for example you have an automated API call that
+# continuously creates new sessions. Such setup should be fixed by reusing sessions or by periodically
+# purging the old sessions by using `airflow db clean` command.
+MAX_NUM_DATABASE_USER_SESSIONS = 50000
 
 
 class FabAirflowSecurityManagerOverride:
@@ -230,7 +242,46 @@ class FabAirflowSecurityManagerOverride:
         """
         user = self.get_user_by_id(userid)
         user.password = generate_password_hash(password)
+        self.reset_user_sessions(user)
         self.update_user(user)
+
+    def reset_user_sessions(self, user: User) -> None:
+        if isinstance(self.appbuilder.get_app.session_interface, AirflowDatabaseSessionInterface):
+            interface = self.appbuilder.get_app.session_interface
+            session = interface.db.session
+            user_session_model = interface.sql_session_model
+            num_sessions = session.query(user_session_model).count()
+            if num_sessions > MAX_NUM_DATABASE_USER_SESSIONS:
+                flash(
+                    Markup(
+                        f"The old sessions for user {user.username} have <b>NOT</b> been deleted!<br>"
+                        f"You have a lot ({num_sessions}) of user sessions in the 'SESSIONS' table in "
+                        f"your database.<br> "
+                        "This indicates that this deployment might have an automated API calls that create "
+                        "and not reuse sessions.<br>You should consider reusing sessions or cleaning them "
+                        "periodically using db clean.<br>"
+                        "Make sure to reset password for the user again after cleaning the session table "
+                        "to remove old sessions of the user."
+                    ),
+                    "warning",
+                )
+            else:
+                for s in session.query(user_session_model):
+                    session_details = interface.serializer.loads(want_bytes(s.data))
+                    if session_details.get("_user_id") == user.id:
+                        session.delete(s)
+        else:
+            flash(
+                Markup(
+                    "Since you are using `securecookie` session backend mechanism, we cannot prevent "
+                    f"some old sessions for user {user.username} to be reused.<br> If you want to make sure "
+                    "that the user is logged out from all sessions, you should consider using "
+                    "`database` session backend mechanism.<br> You can also change the 'secret_key` "
+                    "webserver configuration for all your webserver instances and restart the webserver. "
+                    "This however will logout all users from all sessions."
+                ),
+                "warning",
+            )
 
     def load_user(self, user_id):
         """Load user by ID."""
