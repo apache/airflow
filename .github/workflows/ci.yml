@@ -324,6 +324,7 @@ jobs:
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+          BUILD_TIMEOUT_MINUTES: 70
 
   build-prod-images:
     timeout-minutes: 80

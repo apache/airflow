@@ -147,6 +147,7 @@ KUBERNETES_COMMANDS = (
 class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes."""
 
+    RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
 
     def __init__(self):
@@ -502,7 +503,7 @@ class KubernetesExecutor(BaseExecutor):
                 namespace=namespace,
                 container="base",
                 follow=False,
-                tail_lines=100,
+                tail_lines=self.RUNNING_POD_LOG_LINES,
                 _preload_content=False,
             )
             for line in res:

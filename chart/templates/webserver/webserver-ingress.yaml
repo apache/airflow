@@ -101,7 +101,7 @@ spec:
       {{- $hostname = .name -}}
       {{- end }}
       {{- if $hostname }}
-      host: {{ $hostname | quote }}
+      host: {{ include "common.tplvalues.render" ( dict "value" $hostname "context" $ ) | quote }}
       {{- end }}
     {{- end }}
   {{- if .Values.ingress.web.ingressClassName }}
