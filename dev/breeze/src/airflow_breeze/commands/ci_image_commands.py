@@ -44,6 +44,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference_build,
     option_answer,
     option_build_timeout_minutes,
+    option_builder,
     option_commit_sha,
     option_debug_resources,
     option_dev_apt_command,
@@ -222,6 +223,7 @@ def kill_process_group(build_process_group_id: int):
 @option_additional_python_deps
 @option_additional_dev_apt_command
 @option_additional_dev_apt_env
+@option_builder
 @option_build_timeout_minutes
 @option_commit_sha
 @option_dev_apt_command

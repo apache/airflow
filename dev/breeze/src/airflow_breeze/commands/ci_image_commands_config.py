@@ -79,6 +79,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
+                "--builder",
                 "--platform",
                 "--push",
                 "--prepare-buildx-cache",

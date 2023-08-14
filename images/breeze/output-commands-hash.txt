@@ -10,10 +10,10 @@ ci:get-workflow-info:8246038093359b9c3c110043419473e2
 ci:resource-check:bfcca92f18a403ca630955074eb5e9ad
 ci:selective-check:6657ed5d42affb7264b5efcc86f17a2a
 ci:5315c29bd9f68725ef92e4db8aff5cda
-ci-image:build:8df92262a37c15f61cd3e350ea9897c0
+ci-image:build:93537e0c8f99923fe9e958884c36af38
 ci-image:pull:7f14482a588f018f76df84719e77723f
 ci-image:verify:c90dc7e20fce2351eb89d8d1ebbd35e7
-ci-image:5fe8c2239bc9a00d02ece53ab8163179
+ci-image:1b912129939634c0e67f648e7a854998
 cleanup:8d92d453a6700f6d8cb11fb6a8b50461
 compile-www-assets:0963f1409f0aa1e3b137cddd4cc52e87
 down:4580f5b3b178ea00182694f134a751f3
@@ -32,7 +32,7 @@ k8s:status:1529ccd444b41c4b0b5f943289957100
 k8s:tests:2a1e2928faea2eddafaff94176a46690
 k8s:upload-k8s-image:6b3a20cdeb692f3c3d727f6b9e68c901
 k8s:8c1e4287deb0533a74f3b302f9c574be
-prod-image:build:89b05dcdece0cb94c025d26dfd17b2ea
+prod-image:build:d577e6666008b1b1d5097563fcccc9fa
 prod-image:pull:76f1f27e6119928412abecf153fce4bb
 prod-image:verify:bd2b78738a7c388dbad6076c41a9f906
 prod-image:117674c83c188c7afca068575fa5314d
