@@ -125,10 +125,16 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def remove_deleted_code(cls, alive_dag_filelocs: Collection[str], session: Session = NEW_SESSION) -> None:
+    def remove_deleted_code(
+        cls,
+        alive_dag_filelocs: Collection[str],
+        processor_subdir: str,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """Delete code not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
+        :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
         alive_fileloc_hashes = [cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
@@ -137,7 +143,11 @@ class DagCode(Base):
 
         session.execute(
             delete(cls)
-            .where(cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs))
+            .where(
+                cls.fileloc_hash.notin_(alive_fileloc_hashes),
+                cls.fileloc.notin_(alive_dag_filelocs),
+                cls.fileloc.contains(processor_subdir),
+            )
             .execution_options(synchronize_session="fetch")
         )
 

@@ -3565,16 +3565,27 @@ class DagModel(Base):
     def deactivate_deleted_dags(
         cls,
         alive_dag_filelocs: Container[str],
+        processor_subdir: str,
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
         :param alive_dag_filelocs: file paths of alive DAGs
+        :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
-        dag_models = session.scalars(select(cls).where(cls.fileloc.is_not(None)))
+        dag_models = session.scalars(
+            select(cls).where(
+                cls.fileloc.is_not(None),
+                or_(
+                    cls.processor_subdir.is_(None),
+                    cls.processor_subdir == processor_subdir,
+                ),
+            )
+        )
+
         for dag_model in dag_models:
             if dag_model.fileloc not in alive_dag_filelocs:
                 dag_model.is_active = False
