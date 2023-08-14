@@ -3555,7 +3555,7 @@ class DagModel(Base):
     def deactivate_deleted_dags(
         cls,
         alive_dag_filelocs: Container[str],
-        processor_subdir: str | None = None,
+        processor_subdir: str,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -3575,6 +3575,7 @@ class DagModel(Base):
                 ),
             )
         )
+
         for dag_model in dag_models:
             if dag_model.fileloc not in alive_dag_filelocs:
                 dag_model.is_active = False

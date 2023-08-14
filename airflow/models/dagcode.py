@@ -128,7 +128,7 @@ class DagCode(Base):
     def remove_deleted_code(
         cls,
         alive_dag_filelocs: Collection[str],
-        processor_subdir: str | None = None,
+        processor_subdir: str,
         session: Session = NEW_SESSION,
     ) -> None:
         """Delete code not included in alive_dag_filelocs.
