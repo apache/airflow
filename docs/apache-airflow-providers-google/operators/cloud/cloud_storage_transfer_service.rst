@@ -383,7 +383,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_gcp_to_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/storage_transfer/example_cloud_storage_transfer_service_gcs_to_gcs.py
       :language: python
       :dedent: 4
       :start-after: [START howto_operator_transfer_gcs_to_gcs]

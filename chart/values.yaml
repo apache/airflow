@@ -140,6 +140,7 @@ ingress:
 
     # The hostnames or hosts configuration for the web Ingress
     hosts: []
+    #   # The hostname for the web Ingress (can be templated)
     # - name: ""
     #   # configs for web Ingress TLS
     #   tls:
