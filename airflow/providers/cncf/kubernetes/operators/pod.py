@@ -374,7 +374,7 @@ class KubernetesPodOperator(BaseOperator):
         self.tolerations = (
             [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
         )
-        self.security_context = security_context or k8s.V1PodSecurityContext()
+        self.security_context = security_context or {}
         self.container_security_context = container_security_context
         self.dnspolicy = dnspolicy
         self.dns_config = dns_config

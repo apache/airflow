@@ -579,7 +579,9 @@ class TestKubernetesPodOperatorSystem:
         context = create_context(k)
         k.execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["containers"][0]["securityContext"] = container_security_context
+        self.expected_pod["spec"]["containers"][0]["securityContext"] = {
+            "allowPrivilegeEscalation": container_security_context.allow_privilege_escalation
+        }
         assert self.expected_pod == actual_pod
 
     def test_faulty_image(self, mock_get_connection):
