@@ -55,7 +55,7 @@ class BotoTaskSchema(Schema):
     def make_task(self, data, **kwargs):
         """Overwrites marshmallow load() to return an instance of EcsExecutorTask instead of a dictionary."""
         # Imported here to avoid circular import.
-        from airflow.providers.amazon.aws.executors.ecs import EcsExecutorTask
+        from airflow.providers.amazon.aws.executors.ecs.utils import EcsExecutorTask
 
         return EcsExecutorTask(**data)
 

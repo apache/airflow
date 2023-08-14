@@ -25,72 +25,26 @@ from __future__ import annotations
 import time
 from collections import defaultdict, deque
 from copy import deepcopy
-from typing import Any
-
-import boto3
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.taskinstance import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_GROUP_NAME,
-    CommandType,
     EcsConfigKeys,
     EcsExecutorException,
     EcsQueuedTask,
-    EcsTaskInfo,
-    ExecutorConfigType,
+    EcsTaskCollection,
 )
 from airflow.utils.state import State
 
-
-class EcsExecutorTask:
-    """Data Transfer Object for an ECS Fargate Task."""
-
-    def __init__(
-        self,
-        task_arn: str,
-        last_status: str,
-        desired_status: str,
-        containers: list[dict[str, Any]],
-        started_at: Any | None = None,
-        stopped_reason: str | None = None,
-    ):
-        self.task_arn = task_arn
-        self.last_status = last_status
-        self.desired_status = desired_status
-        self.containers = containers
-        self.started_at = started_at
-        self.stopped_reason = stopped_reason
-
-    def get_task_state(self) -> str:
-        """
-        This is the primary logic that handles state in an ECS task.
-
-        It will determine if a status is:
-            QUEUED - Task is being provisioned.
-            RUNNING - Task is launched on ECS.
-            REMOVED - Task provisioning has failed for some reason. See `stopped_reason`.
-            FAILED - Task is completed and at least one container has failed.
-            SUCCESS - Task is completed and all containers have succeeded.
-        """
-        if self.last_status == "RUNNING":
-            return State.RUNNING
-        elif self.desired_status == "RUNNING":
-            return State.QUEUED
-        is_finished = self.desired_status == "STOPPED"
-        has_exit_codes = all(["exit_code" in x for x in self.containers])
-        # Sometimes ECS tasks may time out.
-        if not self.started_at and is_finished:
-            return State.REMOVED
-        if not is_finished or not has_exit_codes:
-            return State.RUNNING
-        all_containers_succeeded = all([x["exit_code"] == 0 for x in self.containers])
-        return State.SUCCESS if all_containers_succeeded else State.FAILED
-
-    def __repr__(self):
-        return f"({self.task_arn}, {self.last_status}->{self.desired_status}, {self.get_task_state()})"
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.providers.amazon.aws.executors.ecs.utils import (
+        CommandType,
+        ExecutorConfigType,
+    )
 
 
 class AwsEcsExecutor(BaseExecutor):
@@ -141,6 +95,10 @@ class AwsEcsExecutor(BaseExecutor):
         #        next two commented lines.
         # self.active_workers = EcsTaskCollection()
         # self.pending_tasks = deque()
+        # Boto3 is a bit slow to import, it's only used once so locally import
+        # it here to keep module load times down.
+        import boto3
+
         self.ecs = boto3.client("ecs", region_name=region)
         self.run_task_kwargs = self._load_run_kwargs()
 
@@ -327,82 +285,3 @@ class AwsEcsExecutor(BaseExecutor):
             if container["name"] == self.container_name:
                 return container
         raise KeyError(f"No such container found by container name: {self.container_name}")
-
-
-class EcsTaskCollection:
-    """A five-way dictionary between Airflow task ids, Airflow cmds, ECS ARNs, and ECS task objects."""
-
-    def __init__(self):
-        self.key_to_arn: dict[TaskInstanceKey, str] = {}
-        self.arn_to_key: dict[str, TaskInstanceKey] = {}
-        self.tasks: dict[str, EcsExecutorTask] = {}
-        self.key_to_failure_counts: dict[TaskInstanceKey, int] = defaultdict(int)
-        self.key_to_task_info: dict[TaskInstanceKey, EcsTaskInfo] = {}
-
-    def add_task(
-        self,
-        task: EcsExecutorTask,
-        airflow_task_key: TaskInstanceKey,
-        queue: str,
-        airflow_cmd: CommandType,
-        exec_config: ExecutorConfigType,
-    ):
-        """Adds a task to the collection."""
-        arn = task.task_arn
-        self.tasks[arn] = task
-        self.key_to_arn[airflow_task_key] = arn
-        self.arn_to_key[arn] = airflow_task_key
-        self.key_to_task_info[airflow_task_key] = EcsTaskInfo(airflow_cmd, queue, exec_config)
-
-    def update_task(self, task: EcsExecutorTask):
-        """Updates the state of the given task based on task ARN."""
-        self.tasks[task.task_arn] = task
-
-    def task_by_key(self, task_key: TaskInstanceKey) -> EcsExecutorTask:
-        """Get a task by Airflow Instance Key."""
-        arn = self.key_to_arn[task_key]
-        return self.task_by_arn(arn)
-
-    def task_by_arn(self, arn) -> EcsExecutorTask:
-        """Get a task by AWS ARN."""
-        return self.tasks[arn]
-
-    def pop_by_key(self, task_key: TaskInstanceKey) -> EcsExecutorTask:
-        """Deletes task from collection based off of Airflow Task Instance Key."""
-        arn = self.key_to_arn[task_key]
-        task = self.tasks[arn]
-        del self.key_to_arn[task_key]
-        del self.key_to_task_info[task_key]
-        del self.arn_to_key[arn]
-        del self.tasks[arn]
-        if task_key in self.key_to_failure_counts:
-            del self.key_to_failure_counts[task_key]
-        return task
-
-    def get_all_arns(self) -> list[str]:
-        """Get all AWS ARNs in collection."""
-        return list(self.key_to_arn.values())
-
-    def get_all_task_keys(self) -> list[TaskInstanceKey]:
-        """Get all Airflow Task Keys in collection."""
-        return list(self.key_to_arn.keys())
-
-    def failure_count_by_key(self, task_key: TaskInstanceKey) -> int:
-        """Get the number of times a task has failed given an Airflow Task Key."""
-        return self.key_to_failure_counts[task_key]
-
-    def increment_failure_count(self, task_key: TaskInstanceKey):
-        """Increment the failure counter given an Airflow Task Key."""
-        self.key_to_failure_counts[task_key] += 1
-
-    def info_by_key(self, task_key: TaskInstanceKey) -> EcsTaskInfo:
-        """Get the Airflow Command given an Airflow task key."""
-        return self.key_to_task_info[task_key]
-
-    def __getitem__(self, value):
-        """Gets a task by AWS ARN."""
-        return self.task_by_arn(value)
-
-    def __len__(self):
-        """Determines the number of tasks in collection."""
-        return len(self.tasks)

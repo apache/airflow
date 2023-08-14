@@ -28,11 +28,10 @@ from airflow.providers.amazon.aws.executors.ecs import (
     CONFIG_GROUP_NAME,
     AwsEcsExecutor,
     EcsConfigKeys,
-    EcsExecutorTask,
     EcsTaskCollection,
 )
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
-from airflow.providers.amazon.aws.executors.ecs.utils import CONFIG_DEFAULTS
+from airflow.providers.amazon.aws.executors.ecs.utils import CONFIG_DEFAULTS, EcsExecutorTask
 from airflow.utils.state import State
 
 ARN1 = "arn1"
