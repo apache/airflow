@@ -51,7 +51,6 @@ class CeleryKubernetesExecutor(LoggingMixin):
     otherwise, CeleryExecutor is used.
     """
 
-    supports_ad_hoc_ti_run: bool = True
     supports_pickling: bool = True
     supports_sentry: bool = False
 

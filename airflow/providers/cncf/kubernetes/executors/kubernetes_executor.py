@@ -148,7 +148,6 @@ class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes."""
 
     RUNNING_POD_LOG_LINES = 100
-    supports_ad_hoc_ti_run: bool = True
 
     def __init__(self):
         self.kube_config = KubeConfig()

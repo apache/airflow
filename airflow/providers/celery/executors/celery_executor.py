@@ -237,7 +237,6 @@ class CeleryExecutor(BaseExecutor):
     required to maintain such a system.
     """
 
-    supports_ad_hoc_ti_run: bool = True
     supports_sentry: bool = True
 
     def __init__(self):

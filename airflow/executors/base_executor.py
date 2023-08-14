@@ -104,7 +104,6 @@ class BaseExecutor(LoggingMixin):
     :param parallelism: how many jobs should run at one time. Set to ``0`` for infinity.
     """
 
-    supports_ad_hoc_ti_run: bool = False
     supports_pickling: bool = True
     supports_sentry: bool = False
 
