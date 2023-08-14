@@ -449,7 +449,7 @@ class DagFileProcessor(LoggingMixin):
             select(TI)
             .join(TI.dag_run)
             .where(TI.dag_id == dag.dag_id, TI.task_id == qry.c.task_id, DR.execution_date == qry.c.max_ti)
-        ).all()
+        )
 
         ts = timezone.utcnow()
 
@@ -487,7 +487,7 @@ class DagFileProcessor(LoggingMixin):
                 session.add_all(sla_misses)
         session.commit()
         slas: list[SlaMiss] = session.scalars(
-            select(SlaMiss).where(SlaMiss.notification_sent is False, SlaMiss.dag_id == dag.dag_id)
+            select(SlaMiss).where(~SlaMiss.notification_sent, SlaMiss.dag_id == dag.dag_id)
         ).all()
         if slas:
             sla_dates: list[datetime] = [sla.execution_date for sla in slas]
