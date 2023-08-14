@@ -330,6 +330,12 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     def get_serialized_fields(cls):
         return super().get_serialized_fields() | {"reschedule"}
 
+    def raise_failed_or_skiping_exception(self, *, failed_message: str, skipping_message: str = "") -> None:
+        """Raise AirflowSkipException if self.soft_fail is set to True. Otherwise raise AirflowException."""
+        if self.soft_fail:
+            raise AirflowSkipException(skipping_message or failed_message)
+        raise AirflowException(failed_message)
+
 
 def poke_mode_only(cls):
     """
