@@ -94,22 +94,22 @@ class DependencyMixin:
         """
 
     def __lshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Implements Task << Task."""
+        """Implement Task << Task."""
         self.set_upstream(other)
         return other
 
     def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Implements Task >> Task."""
+        """Implement Task >> Task."""
         self.set_downstream(other)
         return other
 
     def __rrshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Called for Task >> [Task] because list don't have __rshift__ operators."""
+        """Implement Task >> [Task] because list don't have __rshift__ operators."""
         self.__lshift__(other)
         return self
 
     def __rlshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Called for Task << [Task] because list don't have __lshift__ operators."""
+        """Implement Task << [Task] because list don't have __lshift__ operators."""
         self.__rshift__(other)
         return self
 
@@ -201,7 +201,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         upstream: bool = False,
         edge_modifier: EdgeModifier | None = None,
     ) -> None:
-        """Sets relatives for the task or task list."""
+        """Set relatives for the task or task list."""
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
 
@@ -297,5 +297,5 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             return self.downstream_list
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """This is used by TaskGroupSerialization to serialize a task group's content."""
+        """Serialize a task group's content; used by TaskGroupSerialization."""
         raise NotImplementedError()

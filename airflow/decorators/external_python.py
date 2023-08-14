@@ -35,7 +35,8 @@ def external_python_task(
     multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
-    """Wraps a callable into an Airflow operator to run via a Python virtual environment.
+    """
+    Wrap a callable into an Airflow operator to run via a Python virtual environment.
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 

@@ -170,7 +170,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     def s3_read(self, remote_log_location: str, return_error: bool = False) -> str:
         """
-        Returns the log found at the remote_log_location. Return '' if no logs are found or there is an error.
+        Return the log found at the remote_log_location or '' if no logs are found or there is an error.
 
         :param remote_log_location: the log's location in remote storage
         :param return_error: if True, returns a string error message if an

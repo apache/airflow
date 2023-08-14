@@ -196,7 +196,7 @@ def _get_ti(
 
 def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | TaskReturnCode:
     """
-    Runs the task based on a mode.
+    Run the task based on a mode.
 
     Any of the 3 modes are available:
 
@@ -214,7 +214,7 @@ def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | Tas
 
 def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
     """
-    Sends the task to the executor for execution.
+    Send the task to the executor for execution.
 
     This can result in the task being started by another host if the executor implementation does.
     """
@@ -285,7 +285,7 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 
 
 def _run_raw_task(args, ti: TaskInstance) -> None | TaskReturnCode:
-    """Runs the main task handling code."""
+    """Run the main task handling code."""
     return ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
@@ -473,7 +473,7 @@ def task_failed_deps(args) -> None:
 @providers_configuration_loaded
 def task_state(args) -> None:
     """
-    Returns the state of a TaskInstance at the command line.
+    Return the state of a TaskInstance at the command line.
 
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
@@ -488,7 +488,7 @@ def task_state(args) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
-    """Lists the tasks within a DAG at the command line."""
+    """List the tasks within a DAG at the command line."""
     dag = dag or get_dag(args.subdir, args.dag_id)
     if args.tree:
         dag.tree_view()
@@ -512,7 +512,7 @@ SUPPORTED_DEBUGGER_MODULES = [
 
 def _guess_debugger() -> _SupportedDebugger:
     """
-    Trying to guess the debugger used by the user.
+    Try to guess the debugger used by the user.
 
     When it doesn't find any user-installed debugger, returns ``pdb``.
 
@@ -576,7 +576,7 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
 
 @cli_utils.action_cli(check_db=False)
 def task_test(args, dag: DAG | None = None) -> None:
-    """Tests task for a given dag_id."""
+    """Test task for a given dag_id."""
     # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
@@ -638,7 +638,7 @@ def task_test(args, dag: DAG | None = None) -> None:
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
-    """Renders and displays templated fields for a given task."""
+    """Render and displays templated fields for a given task."""
     if not dag:
         dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
@@ -661,7 +661,7 @@ def task_render(args, dag: DAG | None = None) -> None:
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_clear(args) -> None:
-    """Clears all task instances or only those matched by regex for a DAG(s)."""
+    """Clear all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:

@@ -23,6 +23,14 @@
 
 ------
 
+1.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
 1.6.2
 .....
 

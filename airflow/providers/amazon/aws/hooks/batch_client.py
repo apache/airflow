@@ -552,13 +552,10 @@ class BatchClientHook(AwsBaseHook):
     @staticmethod
     def exponential_delay(tries: int) -> float:
         """
-        An exponential back-off delay, with random jitter.
+        Apply an exponential back-off delay, with random jitter.
 
         There is a maximum interval of 10 minutes (with random jitter between 3 and 10 minutes).
         This is used in the :py:meth:`.poll_for_job_status` method.
-
-        :param tries: Number of tries
-
 
         Examples of behavior:
 
@@ -589,6 +586,8 @@ class BatchClientHook(AwsBaseHook):
 
             - https://docs.aws.amazon.com/general/latest/gr/api-retries.html
             - https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+
+        :param tries: Number of tries
         """
         max_interval = 600.0  # results in 3 to 10 minute delay
         delay = 1 + pow(tries * 0.6, 2)

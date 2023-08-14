@@ -101,7 +101,7 @@ spec:
       {{- $hostname = .name -}}
       {{- end }}
       {{- if $hostname }}
-      host: {{ $hostname | quote }}
+      host: {{ tpl $hostname $ | quote }}
       {{- end }}
     {{- end }}
   {{- if .Values.ingress.web.ingressClassName }}

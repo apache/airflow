@@ -147,6 +147,7 @@ KUBERNETES_COMMANDS = (
 class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes."""
 
+    RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
 
     def __init__(self):
@@ -182,6 +183,7 @@ class KubernetesExecutor(BaseExecutor):
     def _make_safe_label_value(self, input_value: str | datetime) -> str:
         """
         Normalize a provided label to be of valid length and characters.
+
         See airflow.providers.cncf.kubernetes.pod_generator.make_safe_label_value for more details.
         """
         # airflow.providers.cncf.kubernetes is an expensive import, locally import it here to
@@ -501,7 +503,7 @@ class KubernetesExecutor(BaseExecutor):
                 namespace=namespace,
                 container="base",
                 follow=False,
-                tail_lines=100,
+                tail_lines=self.RUNNING_POD_LOG_LINES,
                 _preload_content=False,
             )
             for line in res:

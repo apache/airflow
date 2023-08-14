@@ -311,6 +311,20 @@ class TestStatsd:
 
         assert jmespath.search("spec.template.spec.containers[0].env", docs) == [env1]
 
+    def test_should_add_annotations_to_statsd_configmap(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "enabled": True,
+                    "configMapAnnotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/configmaps/statsd-configmap.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
+
 
 class TestStatsdServiceAccount:
     """Tests statsd service account."""

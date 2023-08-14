@@ -164,7 +164,7 @@ class S3KeySensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> bool | None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -355,7 +355,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

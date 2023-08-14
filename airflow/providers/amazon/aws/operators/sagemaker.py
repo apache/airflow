@@ -96,7 +96,7 @@ class SageMakerBaseOperator(BaseOperator):
             self.parse_integer(self.config, field)
 
     def expand_role(self) -> None:
-        """Placeholder for calling boto3's `expand_role`, which expands an IAM role name into an ARN."""
+        """Call boto3's `expand_role`, which expands an IAM role name into an ARN."""
 
     def preprocess_config(self) -> None:
         """Process the config into a usable form."""
@@ -122,7 +122,7 @@ class SageMakerBaseOperator(BaseOperator):
         self, proposed_name: str, fail_if_exists: bool, describe_func: Callable[[str], Any]
     ) -> str:
         """
-        Returns the proposed name if it doesn't already exist, otherwise returns it with a timestamp suffix.
+        Return the proposed name if it doesn't already exist, otherwise returns it with a timestamp suffix.
 
         :param proposed_name: Base name.
         :param fail_if_exists: Will throw an error if a job with that name already exists
@@ -142,7 +142,7 @@ class SageMakerBaseOperator(BaseOperator):
         return job_name
 
     def _check_if_job_exists(self, job_name, describe_func: Callable[[str], Any]) -> bool:
-        """Returns True if job exists, False otherwise."""
+        """Return True if job exists, False otherwise."""
         try:
             describe_func(job_name)
             self.log.info("Found existing job with name '%s'.", job_name)
@@ -248,7 +248,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             self.integer_fields.append(["StoppingCondition", "MaxRuntimeInSeconds"])
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "RoleArn" in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type="iam")
             self.config["RoleArn"] = hook.expand_role(self.config["RoleArn"])
@@ -306,7 +306,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         return {"Processing": self.serialized_job}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
-        """Returns OpenLineage data gathered from SageMaker's API response saved by processing job."""
+        """Return OpenLineage data gathered from SageMaker's API response saved by processing job."""
         from airflow.providers.openlineage.extractors.base import OperatorLineage
 
         inputs = []
@@ -462,7 +462,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
             ]
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "Model" not in self.config:
             return
         hook = AwsBaseHook(self.aws_conn_id, client_type="iam")
@@ -640,7 +640,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 field.pop(0)
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "Model" not in self.config:
             return
         config = self.config["Model"]
@@ -717,7 +717,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         return {"Model": self.serialized_model, "Transform": self.serialized_tranform}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
-        """Returns OpenLineage data gathered from SageMaker's API response saved by transform job."""
+        """Return OpenLineage data gathered from SageMaker's API response saved by transform job."""
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         model_package_arn = None
@@ -815,7 +815,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         self.deferrable = deferrable
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "TrainingJobDefinition" in self.config:
             config = self.config["TrainingJobDefinition"]
             if "RoleArn" in config:
@@ -905,7 +905,7 @@ class SageMakerModelOperator(SageMakerBaseOperator):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "ExecutionRoleArn" in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type="iam")
             self.config["ExecutionRoleArn"] = hook.expand_role(self.config["ExecutionRoleArn"])
@@ -995,7 +995,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         self.serialized_training_data: dict
 
     def expand_role(self) -> None:
-        """Expands an IAM role name into an ARN."""
+        """Expand an IAM role name into an ARN."""
         if "RoleArn" in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type="iam")
             self.config["RoleArn"] = hook.expand_role(self.config["RoleArn"])
@@ -1069,7 +1069,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         return {"Training": self.serialized_training_data}
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
-        """Returns OpenLineage data gathered from SageMaker's API response saved by training job."""
+        """Return OpenLineage data gathered from SageMaker's API response saved by training job."""
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         inputs = []

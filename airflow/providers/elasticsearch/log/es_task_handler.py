@@ -136,6 +136,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def format_url(host: str) -> str:
         """
         Formats the given host string to ensure it starts with 'http'.
+
         Checks if the host string represents a valid URL.
 
         :params host: The host string to format and check.
@@ -444,6 +445,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:
         """
         Resolves nested hits from Elasticsearch by iteratively navigating the `_nested` field.
+
         The result is used to fetch the appropriate document class to handle the hit.
 
         This method can be used with nested Elasticsearch fields which are structured
@@ -468,8 +470,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def _get_result(self, hit: dict[Any, Any], parent_class=None) -> Hit:
         """
-        This method processes a hit (i.e., a result) from an Elasticsearch response and transforms it into an
-        appropriate class instance.
+        Process a hit (i.e., a result) from an Elasticsearch response and transform it into a class instance.
 
         The transformation depends on the contents of the hit. If the document in hit contains a nested field,
         the '_resolve_nested' method is used to determine the appropriate class (based on the nested path).

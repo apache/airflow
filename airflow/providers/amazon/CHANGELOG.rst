@@ -26,6 +26,25 @@
 Changelog
 ---------
 
+8.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Get failure information on EMR job failure (#32151)``
+* ``Fix get_log_events() in AWS logs hook (#33290)``
+
+Misc
+~~~~
+
+* ``Improve fetching logs from AWS (#33231)``
+* ``Refactor: Simplify code in providers/amazon (#33222)``
+* ``Implement EventBridge enable and disable rule operators (#33226)``
+* ``Update mypy-boto3-appflow dependency (#32930)``
+* ``use 'cached_property' from functools in 'RdsBaseOperator' (#33133)``
+* ``Use set for 'template_fields' of 'EcsDeregisterTaskDefinitionOperator' (#33129)``
+
 8.5.0
 .....
 

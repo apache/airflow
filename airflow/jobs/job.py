@@ -147,7 +147,7 @@ class Job(Base, LoggingMixin):
 
     @provide_session
     def kill(self, session: Session = NEW_SESSION) -> NoReturn:
-        """Handles on_kill callback and updates state in database."""
+        """Handle on_kill callback and updates state in database."""
         job = session.scalar(select(Job).where(Job.id == self.id).limit(1))
         job.end_date = timezone.utcnow()
         try:
@@ -222,7 +222,7 @@ class Job(Base, LoggingMixin):
 
     @provide_session
     def prepare_for_execution(self, session: Session = NEW_SESSION):
-        """Prepares the job for execution."""
+        """Prepare the job for execution."""
         Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
         self.state = JobState.RUNNING
         self.start_date = timezone.utcnow()
@@ -240,7 +240,7 @@ class Job(Base, LoggingMixin):
 
     @provide_session
     def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:
-        """Returns the most recent job of this type, if any, based on last heartbeat received."""
+        """Return the most recent job of this type, if any, based on last heartbeat received."""
         return most_recent_job(self.job_type, session=session)
 
 
@@ -272,7 +272,7 @@ def run_job(
     job: Job | JobPydantic, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
 ) -> int | None:
     """
-    Runs the job.
+    Run the job.
 
     The Job is always an ORM object and setting the state is happening within the
     same DB session and the session is kept open throughout the whole execution.
@@ -293,7 +293,7 @@ def run_job(
 
 def execute_job(job: Job | JobPydantic, execute_callable: Callable[[], int | None]) -> int | None:
     """
-    Executes the job.
+    Execute the job.
 
     Job execution requires no session as generally executing session does not require an
     active database connection. The session might be temporary acquired and used if the job
@@ -331,7 +331,7 @@ def perform_heartbeat(
     job: Job | JobPydantic, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
 ) -> None:
     """
-    Performs heartbeat for the Job passed to it,optionally checking if it is necessary.
+    Perform heartbeat for the Job passed to it,optionally checking if it is necessary.
 
     :param job: job to perform heartbeat for
     :param heartbeat_callback: callback to run by the heartbeat

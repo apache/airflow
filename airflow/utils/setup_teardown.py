@@ -182,10 +182,9 @@ class BaseSetupTeardownContext:
     @classmethod
     def _update_teardown_downstream(cls, operator: AbstractOperator | list[AbstractOperator]):
         """
-        Update _teardown_downstream_of_setup.
+        Recursively go through the tasks downstream of the setup in the context manager.
 
-        This recursively goes through the tasks downstream of the setup in the context manager,
-        if found, updates the _teardown_downstream_of_setup accordingly.
+        If found, update the _teardown_downstream_of_setup accordingly.
         """
         operator = operator[0] if isinstance(operator, list) else operator
 
@@ -213,10 +212,9 @@ class BaseSetupTeardownContext:
     @classmethod
     def _update_setup_upstream(cls, operator: AbstractOperator | list[AbstractOperator]):
         """
-        Updates _setup_upstream_of_teardown.
+        Recursively go through the tasks upstream of the teardown task in the context manager.
 
-        This recursively goes through the tasks upstream of the teardown task in the context manager,
-        if found, updates the _setup_upstream_of_teardown accordingly.
+        If found, updates the _setup_upstream_of_teardown accordingly.
         """
         operator = operator[0] if isinstance(operator, list) else operator
 
@@ -259,7 +257,7 @@ class BaseSetupTeardownContext:
 
     @classmethod
     def set_work_task_roots_and_leaves(cls):
-        """Sets the work task roots and leaves."""
+        """Set the work task roots and leaves."""
         if setup_task := cls._context_managed_setup_task:
             if isinstance(setup_task, list):
                 setup_task = tuple(setup_task)
@@ -299,7 +297,7 @@ class BaseSetupTeardownContext:
     @classmethod
     def set_setup_teardown_relationships(cls):
         """
-        Here we set relationship between setup to setup and teardown to teardown.
+        Set relationship between setup to setup and teardown to teardown.
 
         code:: python
             with setuptask >> teardowntask:
