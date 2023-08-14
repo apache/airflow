@@ -21,6 +21,7 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from airflow.auth.managers.models.base_user import BaseUser
+from airflow.cli.cli_config import GroupCommand
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -37,6 +38,14 @@ class BaseAuthManager(LoggingMixin):
 
     def __init__(self):
         self._security_manager: AirflowSecurityManager | None = None
+
+    @staticmethod
+    def get_cli_commands() -> list[GroupCommand]:
+        """Vends CLI commands to be included in Airflow CLI.
+
+        Override this method to expose commands via Airflow CLI to manage this auth manager.
+        """
+        return []
 
     @abstractmethod
     def get_user_name(self) -> str:
