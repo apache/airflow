@@ -37,6 +37,13 @@ Old Graph View is removed (#32958)
 """"""""""""""""""""""""""""""""""
 The old Graph View is removed. The new Graph View is the default view now.
 
+The trigger UI form is skipped in web UI if no parameters are defined in a DAG (#33351)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+If you are using ``dag_run.conf`` dictionary and web UI JSON entry to run your DAG you should either:
+
+* `Add params to your DAG <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/params.html#use-params-to-provide-a-trigger-ui-form>`_
+* Enable the new configuration ``show_trigger_form_if_no_params`` to bring back old behaviour
 
 The "db init", "db upgrade" commands and "[database] load_default_connections" configuration options are deprecated (#33136).
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -141,9 +148,8 @@ New Features
 - Allows to choose SSL context for SMTP connection (#33070)
 - New gantt tab (#31806)
 - Load plugins from providers (#32692)
-- Add ``ExternalBranchPythonOperator`` (#32787)
+- Add ``BranchExternalPythonOperator`` (#32787, #33360)
 - Add option for storing configuration description in providers (#32629)
-- Add an option to use a direct DB connection in KEDA when ``pgbouncer`` is enabled (#32608)
 - Introduce Heartbeat Parameter to Allow ``Per-LocalTaskJob`` Configuration (#32313)
 - Add Executors discovery and documentation (#32532)
 - Add JobState for job state constants (#32549)
@@ -175,6 +181,7 @@ New Features
 
 Improvements
 """"""""""""
+- Improve graph nesting logic (#33421)
 - Configurable health check threshold for triggerer (#33089, #33084)
 - add dag_run_ids and task_ids filter for the batch task instance API endpoint (#32705)
 - Ensure DAG-level references are filled on unmap (#33083)
@@ -194,7 +201,7 @@ Improvements
 - Kubernetes Executor Load Time Optimizations (#30727)
 - Save DAG parsing time if dag is not schedulable (#30911)
 - Updates health check endpoint to include ``dag_processor`` status. (#32382)
-- Disable default allowing the testing of connections in UI, API and CLI (#32052)
+- Disable default allowing the testing of connections in UI, API and CLI (#32052, #33342)
 - Fix config var types under the scheduler section (#32132)
 - Allow to sort Grid View alphabetically (#32179)
 - Add hostname to triggerer metric ``[triggers.running]`` (#32050)
@@ -226,6 +233,7 @@ Improvements
 
 Bug Fixes
 """""""""
+- Remove user sessions when resetting password (#33347)
 - ``Gantt chart:`` Use earliest/oldest ti dates if different than dag run start/end (#33215)
 - Fix ``virtualenv`` detection for Python ``virtualenv`` operator (#33223)
 - Correctly log when there are problems trying to ``chmod`` ``airflow.cfg`` (#33118)
@@ -281,6 +289,7 @@ Bug Fixes
 
 Misc/Internal
 """""""""""""
+- Modify pathspec version restriction (#33349)
 - Refactor: Simplify code in ``dag_processing`` (#33161)
 - For now limit ``Pydantic`` to ``< 2.0.0`` (#33235)
 - Refactor: Simplify code in models (#33181)
@@ -332,6 +341,7 @@ Misc/Internal
 
 Docs only changes
 """""""""""""""""
+- Clarify UI user types in security model (#33021)
 - Add links to ``DAGRun / DAG / Task`` in templates-ref.rst (#33013)
 - Add docs of how to test for DAG Import Errors (#32811)
 - Clean-up of our new security page (#32951)
