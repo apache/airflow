@@ -22,6 +22,7 @@ from typing import Any, Iterable
 
 from sqlalchemy import Column, Integer, String, delete, func, or_, select, update
 from sqlalchemy.orm import Session, joinedload, relationship
+from sqlalchemy.sql.functions import coalesce
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base
@@ -244,8 +245,9 @@ class Trigger(Base):
     def get_sorted_triggers(cls, capacity, alive_triggerer_ids, session):
         query = with_row_locks(
             select(cls.id)
+            .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=False)
             .where(or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)))
-            .order_by(cls.created_date)
+            .order_by(coalesce(TaskInstance.priority_weight, 0).desc(), cls.created_date)
             .limit(capacity),
             session,
             skip_locked=True,
