@@ -56,14 +56,15 @@ class Templater(LoggingMixin):
         return SandboxedEnvironment(cache_size=0)
 
     def prepare_template(self) -> None:
-        """Hook triggered after the templated fields get replaced by their content.
+        """
+        Execute after the templated fields get replaced by their content.
 
         If you need your object to alter the content of the file before the
         template is rendered, it should override this method to do so.
         """
 
     def resolve_template_files(self) -> None:
-        """Getting the content of files for template_field / template_ext."""
+        """Get the content of files for template_field / template_ext."""
         if self.template_ext:
             for field in self.template_fields:
                 content = getattr(self, field, None)

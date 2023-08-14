@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.4.2
+.....
+
+Latest change: 2023-08-09
+
+=================================================================================================  ===========  ==============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================================
+`1f6257110d <https://github.com/apache/airflow/commit/1f6257110d28b638290c95c47fb4971450f0b4db>`_  2023-08-09   ``Make the 'OnFinishAction' enum inherit from str to support passing it to 'KubernetesPodOperatpor' (#33228)``
+`0b528e2b2e <https://github.com/apache/airflow/commit/0b528e2b2e0a9942b38a78cf79e0995d9eb8a8d8>`_  2023-08-09   ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+`056f1670fe <https://github.com/apache/airflow/commit/056f1670fe85a6f9d70cd72ec2e88287e20e6827>`_  2023-08-08   ``Refactor: Simplify code in providers/cncf (#33230)``
+`9556d6d5f6 <https://github.com/apache/airflow/commit/9556d6d5f611428ac8a3a5891647b720d4498ace>`_  2023-08-08   ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+=================================================================================================  ===========  ==============================================================================================================
+
 7.4.1
 .....
 
-Latest change: 2023-08-04
+Latest change: 2023-08-05
 
 =================================================================================================  ===========  =======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `f4542a30b0 <https://github.com/apache/airflow/commit/f4542a30b03a9d02f58d03899ee8a5c37d6a3a9a>`_  2023-08-04   ``Fix waiting the base container when reading the logs of other containers (#33127)``
 `4fbbdbc9b1 <https://github.com/apache/airflow/commit/4fbbdbc9b16650b4f1086804b12dc60b08627356>`_  2023-08-04   ``Revert "Fix waiting the base container when reading the logs of other containers (#33092)" (#33125)``
 `164526d4c7 <https://github.com/apache/airflow/commit/164526d4c798a72dba3087d71f30f60f60595b0e>`_  2023-08-04   ``Consider custom pod labels on pod finding process on 'KubernetesPodOperator' (#33057)``

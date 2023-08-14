@@ -408,8 +408,9 @@ class TestBaseChartTest:
 
     def test_annotations_on_airflow_pods_in_deployment(self):
         """
-        Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker
-        deployments.
+        Test Annotations are correctly applied.
+
+        Verifies all pods created Scheduler, Webserver & Worker deployments.
         """
         release_name = "test-basic"
         k8s_objects = render_chart(
@@ -441,10 +442,7 @@ class TestBaseChartTest:
 
     def test_chart_is_consistent_with_official_airflow_image(self):
         def get_k8s_objs_with_image(obj: list[Any] | dict[str, Any]) -> list[dict[str, Any]]:
-            """
-            Recursive helper to retrieve all the k8s objects that have an "image" key
-            inside k8s obj or list of k8s obj.
-            """
+            """Retrieve all the k8s objects that have an "image" key inside k8s obj or list of k8s obj."""
             out = []
             if isinstance(obj, list):
                 for item in obj:

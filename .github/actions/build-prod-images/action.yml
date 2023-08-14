@@ -63,10 +63,6 @@ runs:
         --install-packages-from-context --upgrade-on-failure
       env:
         COMMIT_SHA: ${{ github.sha }}
-    - name: Push empty PROD images ${{ env.IMAGE_TAG }}
-      shell: bash
-      run: breeze prod-image build --cleanup-context --push --empty-image --run-in-parallel
-      if: failure() || cancelled()
     - name: "Fix ownership"
       shell: bash
       run: breeze ci fix-ownership

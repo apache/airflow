@@ -46,7 +46,11 @@ class SecretCache:
 
     @classmethod
     def init(cls):
-        """Initializes the cache, provided the configuration allows it. Safe to call several times."""
+        """
+        Initialize the cache, provided the configuration allows it.
+
+        Safe to call several times.
+        """
         if cls._cache is not None:
             return
         use_cache = conf.getboolean(section="secrets", key="use_cache", fallback=False)
@@ -62,13 +66,13 @@ class SecretCache:
 
     @classmethod
     def reset(cls):
-        """For test purposes only."""
+        """Use for test purposes only."""
         cls._cache = None
 
     @classmethod
     def get_variable(cls, key: str) -> str | None:
         """
-        Tries to get the value associated with the key from the cache.
+        Try to get the value associated with the key from the cache.
 
         :return: The saved value (which can be None) if present in cache and not expired,
             a NotPresent exception otherwise.
@@ -78,7 +82,7 @@ class SecretCache:
     @classmethod
     def get_connection_uri(cls, conn_id: str) -> str:
         """
-        Tries to get the uri associated with the conn_id from the cache.
+        Try to get the uri associated with the conn_id from the cache.
 
         :return: The saved uri if present in cache and not expired,
             a NotPresent exception otherwise.
@@ -101,12 +105,12 @@ class SecretCache:
 
     @classmethod
     def save_variable(cls, key: str, value: str | None):
-        """Saves the value for that key in the cache, if initialized."""
+        """Save the value for that key in the cache, if initialized."""
         cls._save(key, value, cls._VARIABLE_PREFIX)
 
     @classmethod
     def save_connection_uri(cls, conn_id: str, uri: str):
-        """Saves the uri representation for that connection in the cache, if initialized."""
+        """Save the uri representation for that connection in the cache, if initialized."""
         if uri is None:
             # connections raise exceptions if not present, so we shouldn't have any None value to save.
             return
@@ -119,7 +123,7 @@ class SecretCache:
 
     @classmethod
     def invalidate_variable(cls, key: str):
-        """Invalidates (actually removes) the value stored in the cache for that Variable."""
+        """Invalidate (actually removes) the value stored in the cache for that Variable."""
         if cls._cache is not None:
             # second arg ensures no exception if key is absent
             cls._cache.pop(f"{cls._VARIABLE_PREFIX}{key}", None)

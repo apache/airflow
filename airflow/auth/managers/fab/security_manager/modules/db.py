@@ -490,8 +490,9 @@ class FabAirflowSecurityManagerOverrideDb:
 
     def delete_permission(self, action_name: str, resource_name: str) -> None:
         """
-        Deletes the permission linking an action->resource pair. Doesn't delete the
-        underlying action or resource.
+        Deletes the permission linking an action->resource pair.
+
+        Doesn't delete the underlying action or resource.
 
         :param action_name: Name of existing action
         :param resource_name: Name of existing resource

@@ -144,7 +144,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         poll_interval: int = 10,
     ) -> list[str] | None:
         """
-        Helper method that returns the table primary key.
+        Return the table primary key.
 
         Copied from ``RedshiftSQLHook.get_table_primary_key()``
 

@@ -3706,6 +3706,14 @@
             "x-docsSection": "Webserver",
             "additionalProperties": false,
             "properties": {
+                "configMapAnnotations": {
+                    "description": "Extra annotations to apply to the webserver configmap.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "hostAliases": {
                     "description": "HostAliases for the webserver pod.",
                     "items": {
@@ -4807,6 +4815,14 @@
             "x-docsSection": "StatsD",
             "additionalProperties": false,
             "properties": {
+                "configMapAnnotations": {
+                    "description": "Extra annotations to apply to the statsd configmap.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "enabled": {
                     "description": "Enable StatsD.",
                     "type": "boolean",
