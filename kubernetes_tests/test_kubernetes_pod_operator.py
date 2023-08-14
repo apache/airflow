@@ -21,7 +21,6 @@ import logging
 import os
 import shutil
 import sys
-import time
 from copy import copy
 from tempfile import NamedTemporaryFile
 from unittest import mock
@@ -1343,20 +1342,23 @@ class TestKubernetesPodOperator(BaseK8STest):
             task_id="test_task",
             active_deadline_seconds=active_deadline_seconds,
             image="busybox",
-            cmds=["sh", "-c", "echo 'hello world' && sleep 20"],
+            cmds=["sh", "-c", "echo 'hello world' && sleep 60"],
             namespace="default",
+            on_finish_action="keep_pod",
         )
 
         context = create_context(k)
-        k.execute(context)
+
+        with pytest.raises(AirflowException):
+            k.execute(context)
 
         pod = k.find_pod("default", context, exclude_checked=False)
 
         k8s_client = client.CoreV1Api()
 
-        time.sleep(active_deadline_seconds)
-
         pod_status = k8s_client.read_namespaced_pod_status(name=pod.metadata.name, namespace="default")
         phase = pod_status.status.phase
+        reason = pod_status.status
 
         assert phase == "Failed"
+        assert reason == "DeadlineExceeded"
