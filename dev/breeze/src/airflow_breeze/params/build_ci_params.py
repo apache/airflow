@@ -58,12 +58,13 @@ class BuildCiParams(CommonBuildParams):
             )
         if self.upgrade_to_newer_dependencies:
             eager_upgrade_arg = self.eager_upgrade_additional_requirements.strip().replace("\n", "")
-            extra_ci_flags.extend(
-                [
-                    "--build-arg",
-                    f"EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS={eager_upgrade_arg}",
-                ]
-            )
+            if eager_upgrade_arg:
+                extra_ci_flags.extend(
+                    [
+                        "--build-arg",
+                        f"EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS={eager_upgrade_arg}",
+                    ]
+                )
         return extra_ci_flags
 
     @property
