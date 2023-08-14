@@ -632,7 +632,7 @@ logging:
         This path must be absolute.
         There are a few existing configurations that assume this is set to the default.
         If you choose to override this you may need to update the dag_processor_manager_log_location and
-        dag_processor_manager_log_location settings as well.
+        child_process_log_directory settings as well.
       version_added: 2.0.0
       type: string
       example: ~
