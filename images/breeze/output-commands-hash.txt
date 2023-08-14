@@ -10,10 +10,10 @@ ci:get-workflow-info:8246038093359b9c3c110043419473e2
 ci:resource-check:bfcca92f18a403ca630955074eb5e9ad
 ci:selective-check:6657ed5d42affb7264b5efcc86f17a2a
 ci:5315c29bd9f68725ef92e4db8aff5cda
-ci-image:build:b19182720382dca4da561e52fba7c231
+ci-image:build:5606d9d3c3db807228b6c6458e4c5018
 ci-image:pull:7f14482a588f018f76df84719e77723f
 ci-image:verify:c90dc7e20fce2351eb89d8d1ebbd35e7
-ci-image:0ec1757e0b03eb67a38f366f708df3b9
+ci-image:627399747ac8a202cd8a8c03c9bdabbf
 cleanup:8d92d453a6700f6d8cb11fb6a8b50461
 compile-www-assets:0963f1409f0aa1e3b137cddd4cc52e87
 down:4580f5b3b178ea00182694f134a751f3
@@ -32,7 +32,7 @@ k8s:status:1529ccd444b41c4b0b5f943289957100
 k8s:tests:2a1e2928faea2eddafaff94176a46690
 k8s:upload-k8s-image:6b3a20cdeb692f3c3d727f6b9e68c901
 k8s:8c1e4287deb0533a74f3b302f9c574be
-prod-image:build:ed9542bccd40fbfb75993504d08e7257
+prod-image:build:aba06a4d6543c41b5996de0d8738b6c7
 prod-image:pull:76f1f27e6119928412abecf153fce4bb
 prod-image:verify:bd2b78738a7c388dbad6076c41a9f906
 prod-image:993e54af79b73d7a9e6cfb6fc51a6e34
