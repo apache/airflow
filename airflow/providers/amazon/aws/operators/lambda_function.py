@@ -144,7 +144,7 @@ class LambdaCreateFunctionOperator(BaseOperator):
 
         return response.get("FunctionArn")
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         if not event or event["status"] != "success":
             raise AirflowException(f"Trigger error: event is {event}")
 
