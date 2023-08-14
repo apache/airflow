@@ -344,8 +344,7 @@ class FabAirflowSecurityManagerOverride(
     @cached_property
     def resourcemodelview(self):
         """Return the resource model view."""
-        from airflow.www.fab_security.views import ResourceModelView
-
+        from airflow.auth.managers.fab.views.permissions import ResourceModelView
         return ResourceModelView
 
     @property
