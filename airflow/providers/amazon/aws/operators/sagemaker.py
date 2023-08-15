@@ -1668,9 +1668,9 @@ class SageMakerStopNotebookOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
 
     @cached_property
-    def hook(self) -> SageMakerNotebookHook:
-        """Create and return SageMakerNotebookHook."""
-        return SageMakerNotebookHook(aws_conn_id=self.aws_conn_id)
+    def hook(self) -> SageMakerHook:
+        """Create and return SageMakerHook."""
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context):
         self.log.info("Stopping SageMaker notebook %s.", self.instance_name)
