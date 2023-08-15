@@ -241,12 +241,6 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
 
-    def create_db(self) -> None:
-        if not self.appbuilder.update_perms:
-            self.log.debug("Skipping db since appbuilder disables update_perms")
-            return
-        super().create_db()
-
     def _get_root_dag_id(self, dag_id: str) -> str:
         if "." in dag_id:
             dm = (
@@ -289,21 +283,6 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
 
                 if perm not in role.permissions:
                     self.add_permission_to_role(role, perm)
-
-    def delete_role(self, role_name: str) -> None:
-        """
-        Delete the given Role.
-
-        :param role_name: the name of a role in the ab_role table
-        """
-        session = self.appbuilder.get_session
-        role = session.query(Role).filter(Role.name == role_name).first()
-        if role:
-            self.log.info("Deleting role '%s'", role_name)
-            session.delete(role)
-            session.commit()
-        else:
-            raise AirflowException(f"Role named '{role_name}' does not exist")
 
     @staticmethod
     def get_user_roles(user=None):
