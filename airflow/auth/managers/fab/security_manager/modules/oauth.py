@@ -29,11 +29,11 @@ log = logging.getLogger(__name__)
 
 class FabAirflowSecurityManagerOverrideOauth:
     """
+    FabAirflowSecurityManagerOverride is split into multiple classes to avoid having one massive class.
+
     This class contains all methods in
     airflow.auth.managers.fab.security_manager.override.FabAirflowSecurityManagerOverride related to the
     oauth authentication.
-
-    FabAirflowSecurityManagerOverride is split into multiple classes to avoid having one massive class.
     """
 
     def get_oauth_user_info(self, provider, resp):
