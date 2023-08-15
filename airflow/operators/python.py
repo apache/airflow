@@ -624,12 +624,16 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             # Ensure that cache is not build by parallel workers
             fcntl.flock(f, fcntl.LOCK_EX)
 
-            if venv_path.exists():
+            if venv_path.exists() and (venv_path / "install_complete_marker").exists():
                 self.log.info("Re-using cached Python Virtualenv in %s", venv_path)
             else:
                 try:
+                    if venv_path.exists():
+                        self.log.warning("Found a previous partial venv in %s", venv_path)
+                        shutil.rmtree(venv_path)
                     venv_path.mkdir(parents=True)
                     self._prepare_venv(venv_path)
+                    (venv_path / "install_complete_marker").touch()
                 except Exception as e:
                     shutil.rmtree(venv_path)
                     raise AirflowException(f"Unable to create new virtualenv in {venv_path}") from e
