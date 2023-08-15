@@ -255,11 +255,15 @@ class RegisterUser(Model):
 def add_index_on_ab_user_username_postgres(table, conn, **kw):
     if conn.dialect.name != "postgresql":
         return
-    table.indexes.add(Index("idx_ab_user_username", func.lower(table.c.username), unique=True))
+    index_name = "idx_ab_user_username"
+    if not any(table_index.name == index_name for table_index in table.indexes):
+        table.indexes.add(Index(index_name, func.lower(table.c.username), unique=True))
 
 
 @event.listens_for(RegisterUser.__table__, "before_create")
 def add_index_on_ab_register_user_username_postgres(table, conn, **kw):
     if conn.dialect.name != "postgresql":
         return
-    table.indexes.add(Index("idx_ab_register_user_username", func.lower(table.c.username), unique=True))
+    index_name = "idx_ab_register_user_username"
+    if not any(table_index.name == index_name for table_index in table.indexes):
+        table.indexes.add(Index(index_name, func.lower(table.c.username), unique=True))

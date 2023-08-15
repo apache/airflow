@@ -289,8 +289,9 @@ def node_dict(node_id, label, node_class):
 
 def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
     """
-    Create a nested dict representation of the DAG's TaskGroup and its children
-    used to construct the Graph and Grid views.
+    Create a nested dict representation of the DAG's TaskGroup and its children.
+
+    Used to construct the Graph and Grid views.
     """
     query = session.execute(
         select(
@@ -593,8 +594,9 @@ def get_task_stats_from_query(qry):
 
 def redirect_or_json(origin, msg, status="", status_code=200):
     """
-    Some endpoints are called by javascript,
-    returning json will allow us to more elegantly handle side-effects in-page.
+    Returning json will allow us to more elegantly handle side effects in-page.
+
+    This is useful because some endpoints are called by javascript.
     """
     if request.headers.get("Accept") == "application/json":
         if status == "error" and status_code == 200:
@@ -705,8 +707,9 @@ class Airflow(AirflowBaseView):
     @expose("/health")
     def health(self):
         """
-        An endpoint helping check the health status of the Airflow instance,
-        including metadatabase, scheduler and triggerer.
+        An endpoint helping check the health status of the Airflow instance.
+
+        Includes metadatabase, scheduler and triggerer.
         """
         airflow_health_status = get_airflow_health()
 
@@ -989,6 +992,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/dags.html",
             dags=dags,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             dashboard_alerts=dashboard_alerts,
             migration_moved_data_alerts=sorted(set(_iter_parsed_moved_data_table_names())),
             current_page=current_page,
@@ -1405,6 +1409,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/dag_details.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             dag_model=dag_model,
             title=title,
             root=root,
@@ -1460,6 +1465,9 @@ class Airflow(AirflowBaseView):
                 flash(f"there is no task instance with the provided map_index {map_index}", "error")
                 return self.render_template(
                     "airflow/ti_code.html",
+                    show_trigger_form_if_no_params=conf.getboolean(
+                        "webserver", "show_trigger_form_if_no_params"
+                    ),
                     html_dict=html_dict,
                     dag=dag,
                     task_id=task_id,
@@ -1518,6 +1526,7 @@ class Airflow(AirflowBaseView):
 
         return self.render_template(
             "airflow/ti_code.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             html_dict=html_dict,
             dag=dag,
             task_id=task_id,
@@ -1582,6 +1591,7 @@ class Airflow(AirflowBaseView):
 
         return self.render_template(
             "airflow/ti_code.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             html_dict={"k8s": content},
             dag=dag,
             task_id=task_id,
@@ -1717,6 +1727,7 @@ class Airflow(AirflowBaseView):
         root = request.args.get("root", "")
         return self.render_template(
             "airflow/ti_log.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             logs=logs,
             dag=dag_model,
             title="Log by attempts",
@@ -1884,6 +1895,7 @@ class Airflow(AirflowBaseView):
         title = "Task Instance Details"
         return self.render_template(
             "airflow/task.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             task_attrs=task_attrs,
             ti_attrs=ti_attrs,
             failed_dep_reasons=failed_dep_reasons or no_failed_deps_result,
@@ -1939,6 +1951,7 @@ class Airflow(AirflowBaseView):
         title = "XCom"
         return self.render_template(
             "airflow/xcom.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             attributes=attributes,
             task_id=task_id,
             execution_date=execution_date,
@@ -2031,6 +2044,7 @@ class Airflow(AirflowBaseView):
                     form_fields[k]["schema"]["custom_html_form"]
                 )
         ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
+        show_trigger_form_if_no_params = conf.getboolean("webserver", "show_trigger_form_if_no_params")
 
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
@@ -2057,7 +2071,7 @@ class Airflow(AirflowBaseView):
             if isinstance(run_conf, dict) and any(run_conf)
         }
 
-        if request.method == "GET" and ui_fields_defined:
+        if request.method == "GET" and (ui_fields_defined or show_trigger_form_if_no_params):
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ""
 
@@ -2924,6 +2938,7 @@ class Airflow(AirflowBaseView):
 
         return self.render_template(
             "airflow/grid.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             root=root,
             dag=dag,
             doc_md=doc_md,
@@ -3071,6 +3086,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/calendar.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             doc_md=wwwutils.wrapped_markdown(getattr(dag, "doc_md", None)),
             data=htmlsafe_json_dumps(data, separators=(",", ":")),  # Avoid spaces to reduce payload size.
             root=root,
@@ -3273,6 +3289,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/duration_chart.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -3367,6 +3384,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/chart.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -3473,6 +3491,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/chart.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             chart=Markup(chart.htmlcontent),
             height=f"{chart_height + 100}px",
             root=root,
@@ -3857,8 +3876,10 @@ class Airflow(AirflowBaseView):
     @expose("/object/datasets_summary")
     @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
     def datasets_summary(self):
-        """Get a summary of datasets, including the datetime they were last updated and how many updates
-        they've ever had.
+        """
+        Get a summary of datasets.
+
+        Includes the datetime they were last updated and how many updates they've ever had.
         """
         allowed_attrs = ["uri", "last_dataset_update"]
 
@@ -3952,9 +3973,11 @@ class Airflow(AirflowBaseView):
     @action_logging
     def robots(self):
         """
-        Returns a robots.txt file for blocking certain search engine crawlers. This mitigates some
-        of the risk associated with exposing Airflow to the public internet, however it does not
-        address the real security risks associated with such a deployment.
+        Returns a robots.txt file for blocking certain search engine crawlers.
+
+        This mitigates some of the risk associated with exposing Airflow to the public
+        internet, however it does not address the real security risks associated with
+        such a deployment.
         """
         return send_from_directory(get_airflow_app().static_folder, "robots.txt")
 
@@ -4016,6 +4039,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/dag_audit_log.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             dag_model=dag_model,
             root=request.args.get("root"),
             dag_id=dag_id,
@@ -4137,7 +4161,8 @@ class DagFilter(BaseFilter):
 
 
 class AirflowModelView(ModelView):
-    """Airflow Mode View.
+    """
+    Airflow Mode View.
 
     Overridden `__getattribute__` to wraps REST methods with action_logger
     """
@@ -4148,7 +4173,9 @@ class AirflowModelView(ModelView):
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
     def __getattribute__(self, attr):
-        """Wraps action REST methods with `action_logging` wrapper
+        """
+        Wraps action REST methods with `action_logging` wrapper.
+
         Overriding enables differentiating resource and generation of event name at the decorator level.
 
         if attr in ["show", "list", "read", "get", "get_list"]:
@@ -4170,8 +4197,9 @@ class AirflowModelView(ModelView):
 
 class AirflowPrivilegeVerifierModelView(AirflowModelView):
     """
-    This ModelView prevents ability to pass primary keys of objects relating to DAGs you shouldn't be able to
-    edit. This only holds for the add, update and delete operations.
+    Prevents ability to pass primary keys of objects relating to DAGs you shouldn't be able to edit.
+
+    This only holds for the add, update and delete operations.
     You will still need to use the `action_has_dag_edit_access()` for actions.
     """
 
@@ -5906,10 +5934,9 @@ class DagDependenciesView(AirflowBaseView):
 
 def add_user_permissions_to_dag(sender, template, context, **extra):
     """
-    Adds `.can_edit`, `.can_trigger`, and `.can_delete` properties
-    to DAG based on current user's permissions.
-    Located in `views.py` rather than the DAG model to keep
-    permissions logic out of the Airflow core.
+    Adds `.can_edit`, `.can_trigger`, and `.can_delete` properties to DAG based on current user's permissions.
+
+    Located in `views.py` rather than the DAG model to keep permissions logic out of the Airflow core.
     """
     if "dag" not in context:
         return

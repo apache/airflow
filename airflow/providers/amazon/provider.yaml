@@ -544,6 +544,9 @@ triggers:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.triggers.ec2
+  - integration-name: AWS Lambda
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.lambda_function
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.triggers.redshift_cluster

@@ -30,7 +30,7 @@ T = TypeVar("T", bound=Callable)
 
 def apply_defaults(func: T) -> T:
     """
-    This decorator is deprecated.
+    Use apply_default decorator for the `default_args` feature to work properly; deprecated.
 
     In previous versions, all subclasses of BaseOperator must use apply_default decorator for the"
     `default_args` feature to work properly.
@@ -58,7 +58,7 @@ def apply_defaults(func: T) -> T:
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     """
-    Removes @task or similar decorators as well as @setup and @teardown.
+    Remove @task or similar decorators as well as @setup and @teardown.
 
     :param python_source: The python source code
     :param task_decorator_name: the decorator name

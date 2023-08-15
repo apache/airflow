@@ -41,9 +41,10 @@ logger = logging.getLogger(__name__)
 
 def _mask_variable_fields(extra_fields):
     """
+    Mask the 'val_content' field if 'key_content' is in the mask list.
+
     The variable requests values and args comes in this form:
     [('key', 'key_content'),('val', 'val_content'), ('description', 'description_content')]
-    So we need to mask the 'val_content' field if 'key_content' is in the mask list.
     """
     result = []
     keyname = None

@@ -59,7 +59,7 @@ if TYPE_CHECKING:
 
 def is_venv_installed() -> bool:
     """
-    Checks if the virtualenv package is installed via checking if it is on the path or installed as package.
+    Check if the virtualenv package is installed via checking if it is on the path or installed as package.
 
     :return: True if it is. Whichever way of checking it works, is fine.
     """
@@ -69,7 +69,7 @@ def is_venv_installed() -> bool:
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """Deprecated. Use :func:`airflow.decorators.task` instead.
+    """Use :func:`airflow.decorators.task` instead, this is deprecated.
 
     Calls ``@task.python`` and allows users to turn a Python function into
     an Airflow task.
@@ -204,7 +204,7 @@ class PythonOperator(BaseOperator):
 
     def execute_callable(self) -> Any:
         """
-        Calls the python callable with the given arguments.
+        Call the python callable with the given arguments.
 
         :return: the return value of the call.
         """
@@ -593,7 +593,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         )
 
     def _requirements_list(self) -> list[str]:
-        """Prepares a list of requirements that need to be installed for the venv."""
+        """Prepare a list of requirements that need to be installed for the venv."""
         requirements = [str(dependency) for dependency in self.requirements]
         if not self.system_site_packages and self.use_dill and "dill" not in requirements:
             requirements.append("dill")
@@ -601,7 +601,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         return requirements
 
     def _prepare_venv(self, venv_path: Path) -> None:
-        """Prepares the requirements and installs the venv."""
+        """Prepare the requirements and installs the venv."""
         requirements_file = venv_path / "requirements.txt"
         requirements_file.write_text("\n".join(self._requirements_list()))
         prepare_virtualenv(
@@ -821,9 +821,10 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return None
 
 
-class ExternalBranchPythonOperator(ExternalPythonOperator, SkipMixin):
+class BranchExternalPythonOperator(ExternalPythonOperator, SkipMixin):
     """
-    A workflow can "branch" or follow a path after the execution of this task,
+    A workflow can "branch" or follow a path after the execution of this task.
+
     Extends ExternalPythonOperator, so expects to get Python:
     virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path,
     so it can run on separate virtualenv similarly to ExternalPythonOperator.

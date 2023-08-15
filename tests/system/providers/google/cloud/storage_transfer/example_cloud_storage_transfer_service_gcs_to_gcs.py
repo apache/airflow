@@ -18,14 +18,6 @@
 
 """
 Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
-
-
-This DAG relies on the following OS environment variables
-
-* GCP_PROJECT_ID - Google Cloud Project to use for the Google Cloud Transfer Service.
-* GCP_TRANSFER_FIRST_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied from AWS.
-  It is also a source bucket in next step
-* GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied
 """
 
 from __future__ import annotations
@@ -45,13 +37,13 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "example_transfer_gcs_to_gcs"
 
-BUCKET_NAME_SRC = f"src-bucket-{DAG_ID}-{ENV_ID}"
-BUCKET_NAME_DST = f"dst-bucket-{DAG_ID}-{ENV_ID}"
-FILE_NAME = "file"
+BUCKET_NAME_SRC = f"src-bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
+BUCKET_NAME_DST = f"dst-bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
+FILE_NAME = "transfer_service_gcs_to_gcs_file"
 FILE_URI = f"gs://{BUCKET_NAME_SRC}/{FILE_NAME}"
 
 CURRENT_FOLDER = Path(__file__).parent
@@ -63,7 +55,7 @@ with models.DAG(
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "transfer", "gcs"],
+    tags=["example", "transfer", "gcs-to-gcs"],
 ) as dag:
 
     create_bucket_src = GCSCreateBucketOperator(

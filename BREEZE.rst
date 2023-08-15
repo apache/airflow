@@ -572,13 +572,28 @@ When you are starting airflow from local sources, www asset compilation is autom
 
     breeze --python 3.8 --backend mysql start-airflow
 
-
-You can also use it to start any released version of Airflow from ``PyPI`` with the
-``--use-airflow-version`` flag.
+You can also use it to start different executor.
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.8 --backend mysql --use-airflow-version 2.2.5
+    breeze start-airflow --executor CeleryExecutor
+
+You can also use it to start any released version of Airflow from ``PyPI`` with the
+``--use-airflow-version`` flag - useful for testing and looking at issues raised for specific version.
+
+.. code-block:: bash
+
+    breeze start-airflow --python 3.8 --backend mysql --use-airflow-version 2.7.0
+
+When you are installing version from PyPI, it's also possible to specify extras that should be used
+when installing Airflow - you can provide several extras separated by coma - for example to install
+providers together with Airflow that you are installing. For example when you are using celery executor
+in Airflow 2.7.0+ you need to add ``celery`` extra.
+
+.. code-block:: bash
+
+    breeze start-airflow --use-airflow-version 2.7.0 --executor CeleryExecutor --airflow-extras celery
+
 
 These are all available flags of ``start-airflow`` command:
 
@@ -1726,6 +1741,23 @@ These are all available flags of ``get-workflow-info`` command:
   :width: 100%
   :alt: Breeze ci get-workflow-info
 
+Finding backtracking candidates
+...............................
+
+Sometimes the CI build fails because ``pip`` timeouts when trying to resolve the latest set of dependencies
+for that we have the ``find-backtracking-candidates`` command. This command will try to find the
+backtracking candidates that might cause the backtracking.
+
+The details on how to use that command are explained in
+`Figuring out backtracking dependencies <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md#figuring-out-backtracking-dependencies>`_.
+
+These are all available flags of ``find-backtracking-candidates`` command:
+
+.. image:: ./images/breeze/output_ci_find-backtracking-candidates.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-backtracking-candidates.svg
+  :width: 100%
+  :alt: Breeze ci find-backtracking-candidates
+
 Release management tasks
 ------------------------
 
@@ -2434,7 +2466,7 @@ you need to do when you are adding system level (debian) level, Python (pip) dep
 dependencies for the webserver.
 
 Python dependencies
-~~~~~~~~~~~~~~~~~~~
+...................
 
 For temporary adding and modifying the dependencies, you just (in Breeze shell) run
 ``pip install <dependency>`` or similar - in the same way as you would do it
@@ -2477,7 +2509,7 @@ breeze ci-image build --upgrade-to-newer-dependencies
 
 
 System (debian) dependencies
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+............................
 
 You can install ``apt-get`` dependencies temporarily by running ``apt-get install <dependency>`` in
 Breeze shell. Those dependencies will disappear when you exit Breeze shell.
@@ -2516,7 +2548,7 @@ breeze ci-image build --upgrade-to-newer-dependencies
 ```
 
 Node (yarn) dependencies
-~~~~~~~~~~~~~~~~~~~~~~~~
+........................
 
 If you need to change "node" dependencies in ``airflow/www``, you need to compile them in the
 host with ``breeze compile-www-assets`` command. No need to rebuild the image.

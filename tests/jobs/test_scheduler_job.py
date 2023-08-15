@@ -3123,7 +3123,7 @@ class TestSchedulerJob:
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:
-                if file_name.endswith(".py") or file_name.endswith(".zip"):
+                if file_name.endswith((".py", ".zip")):
                     if file_name not in ignored_files:
                         expected_files.add(f"{root}/{file_name}")
         for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=False):
@@ -3136,7 +3136,7 @@ class TestSchedulerJob:
         example_dag_folder = airflow.example_dags.__path__[0]
         for root, _, files in os.walk(example_dag_folder):
             for file_name in files:
-                if file_name.endswith(".py") or file_name.endswith(".zip"):
+                if file_name.endswith((".py", ".zip")):
                     if file_name not in ["__init__.py"] and file_name not in ignored_files:
                         expected_files.add(os.path.join(root, file_name))
         detected_files.clear()

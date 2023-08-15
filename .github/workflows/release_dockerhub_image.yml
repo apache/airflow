@@ -149,13 +149,6 @@ jobs:
           --slim-image
           --image-name
           ${{github.repository}}:slim-${{github.event.inputs.airflowVersion}}-python${{matrix.python-version}}
-      - name: >
-          Update docker hub repo description
-        uses: peter-evans/dockerhub-description@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USER }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: apache/airflow
       - name: "Docker logout"
         run: docker logout
         if: always()

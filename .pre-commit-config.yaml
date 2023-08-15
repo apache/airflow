@@ -499,6 +499,7 @@ repos:
         exclude: >
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
+          ^airflow/auth/managers/fab/security_manager/|
           ^airflow/cli/commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
@@ -849,7 +850,6 @@ repos:
         language: python
         pass_filenames: true
         files: ^\.github/workflows/.*\.yml$
-        exclude: ^\.github/workflows/sync_authors\.yml$
         additional_dependencies: ['PyYAML', 'rich>=12.4.4']
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types

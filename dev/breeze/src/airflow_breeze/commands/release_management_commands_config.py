@@ -218,10 +218,22 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Update constraints flags",
             "options": [
                 "--constraints-repo",
-                "--remote-name",
-                "--airflow-versions",
                 "--commit-message",
+                "--remote-name",
+            ],
+        },
+        {
+            "name": "Selection criteria",
+            "options": [
+                "--airflow-versions",
+                "--airflow-constraints-mode",
+            ],
+        },
+        {
+            "name": "Action to perform",
+            "options": [
                 "--updated-constraint",
+                "--comment-file",
             ],
         },
     ],
