@@ -1685,7 +1685,6 @@ class SageMakerStopNotebookOperator(BaseOperator):
 
 class SageMakerDeleteNotebookOperator(BaseOperator):
     """
-
     Delete a notebook instance.
 
     .. seealso:
