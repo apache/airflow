@@ -21,6 +21,7 @@ import logging
 import os
 import subprocess
 import sys
+import tempfile
 
 import pytest
 
@@ -55,18 +56,7 @@ def check_original_docker_image():
             "and only allow to run the test there. This is done by checking /.dockerenv file "
             "(always present inside container) and checking for PYTHON_BASE_IMAGE variable."
         )
-
-
-@pytest.fixture
-def set_permissions(check_original_docker_image):
-    airflow_home = os.environ["AIRFLOW_HOME"]
-    subprocess.check_call(
-        'find "%s" -exec sudo chmod og+w {} +; sudo chmod og+rx /root' % airflow_home, shell=True
-    )
     yield
-    subprocess.check_call(
-        'find "%s" -exec sudo chmod og-w {} +; sudo chmod og-rx /root' % airflow_home, shell=True
-    )
 
 
 @pytest.fixture
@@ -84,15 +74,37 @@ def create_user(check_original_docker_image):
                 f"{command!r} without a password prompt (check sudoers file)?\n"
                 f"{e.stdout.decode() if e.stdout else ''}"
             )
-    yield
+    yield TEST_USER
     subprocess.check_call(["sudo", "userdel", "-r", TEST_USER])
+
+
+@pytest.fixture
+def create_airflow_home(create_user, tmp_path, monkeypatch):
+    username = create_user
+    airflow_home = tmp_path / "airflow-home"
+    monkeypatch.setenv("AIRFLOW_HOME", str(airflow_home))
+
+    if not airflow_home.exists():
+        airflow_home.mkdir(mode=755, parents=True, exist_ok=True)
+    subprocess.check_call(["sudo", "chown", f"{username}:root", str(airflow_home), "-R"], close_fds=True)
+
+    # By default, ``tmp_path`` save temporary files/directories in user temporary directory
+    # something like: `/tmp/pytest-of-root` and other users might be limited to access to it,
+    # so we need to grant at least r/o access to everyone.
+    current_temp_path = airflow_home.parent
+    while len(current_temp_path.parts) > 2:
+        subprocess.check_call(["sudo", "chmod", "755", str(current_temp_path)], close_fds=True)
+        current_temp_path = current_temp_path.parent
+    # Set 777 for system-wide temporary directory
+    subprocess.check_call(["sudo", "chmod", "777", tempfile.gettempdir()], close_fds=True)
+    yield airflow_home
 
 
 class BaseImpersonationTest:
     dagbag: DagBag
 
     @pytest.fixture(autouse=True)
-    def setup_impersonation_tests(self, set_permissions, create_user):
+    def setup_impersonation_tests(self, create_airflow_home):
         """Setup test cases for all impersonation tests."""
         db.clear_db_runs()
         db.clear_db_jobs()
