@@ -226,7 +226,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
     def __init__(
         self,
         *,
-        json: Any | None = None,
+        json: dict | None = None,
         name: str | None = None,
         tags: dict[str, str] | None = None,
         tasks: list[jobs.JobTaskSettings] | None = None,
