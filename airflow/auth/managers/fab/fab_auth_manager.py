@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import itertools
-
 from flask import url_for
 from flask_login import current_user
 
@@ -40,13 +38,10 @@ from airflow.security.permissions import (
 )
 
 _MAP_ACTION_NAME_TO_FAB_ACTION_NAME = {
-    ResourceAction.POST: [ACTION_CAN_CREATE],
-    # ACTION_CAN_READ and ACTION_CAN_ACCESS_MENU are merged into because they are very similar.
-    # We can assume that if a user has permissions to read variables, they also have permissions to access
-    # the menu "Variables".
-    ResourceAction.GET: [ACTION_CAN_READ, ACTION_CAN_ACCESS_MENU],
-    ResourceAction.PUT: [ACTION_CAN_EDIT],
-    ResourceAction.DELETE: [ACTION_CAN_DELETE],
+    ResourceAction.POST: ACTION_CAN_CREATE,
+    ResourceAction.GET: ACTION_CAN_READ,
+    ResourceAction.PUT: ACTION_CAN_EDIT,
+    ResourceAction.DELETE: ACTION_CAN_DELETE,
 }
 
 
@@ -99,27 +94,21 @@ class FabAuthManager(BaseAuthManager):
         if not user:
             user = self.get_user()
 
-        fab_actions = self._get_fab_actions(action)
-        # `permissions` is a list of tuples. Each tuple contains a FAB action name and a resource name.
-        # For example, if the user has permission to create a task, the tuple will be ("can_create", "task").
-        # It contains all combinations from the list of FAB actions and the resource name.
-        permissions = list(itertools.product(fab_actions, [resource_type]))
+        fab_action = self._get_fab_action(action)
+        user_permissions = self._get_user_permissions(user)
 
-        if any((action_name, resource_name) in user.perms for action_name, resource_name in permissions):
+        if (fab_action, resource_type) in user_permissions:
             return True
 
         if self.is_dag_resource(resource_type):
             # Check whether the user has permissions to access all DAGs
-            if any((action_name, RESOURCE_DAG) in user.perms for action_name, resource_name in permissions):
+            if (fab_action, RESOURCE_DAG) in user_permissions:
                 return True
 
             if resource_details and resource_details.id:
                 # Check whether the user has permissions to access a specific DAG
                 resource_dag_name = self._resource_name_for_dag(resource_details.id)
-                return any(
-                    (action_name, resource_dag_name) in user.perms
-                    for action_name, resource_name in permissions
-                )
+                return (fab_action, resource_dag_name) in user_permissions
 
         return False
 
@@ -149,9 +138,9 @@ class FabAuthManager(BaseAuthManager):
         return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
 
     @staticmethod
-    def _get_fab_actions(action: ResourceAction) -> list[str]:
+    def _get_fab_action(action: ResourceAction) -> str:
         """
-        Convert the action to a list of FAB actions.
+        Convert the action to a FAB action.
 
         :param action: the action to convert
 
@@ -175,3 +164,21 @@ class FabAuthManager(BaseAuthManager):
         if root_dag_id.startswith(RESOURCE_DAG_PREFIX):
             return root_dag_id
         return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
+
+    @staticmethod
+    def _get_user_permissions(user: BaseUser):
+        """
+        Return the user permissions.
+
+        ACTION_CAN_READ and ACTION_CAN_ACCESS_MENU are merged into because they are very similar.
+        We can assume that if a user has permissions to read variables, they also have permissions to access
+        the menu "Variables".
+
+        :param user: the user to get permissions for
+
+        :meta private:
+        """
+        return [
+            (ACTION_CAN_READ if perm[0] == ACTION_CAN_ACCESS_MENU else perm[0], perm[1])
+            for perm in user.perms
+        ]
