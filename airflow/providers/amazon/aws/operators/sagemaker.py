@@ -1596,7 +1596,7 @@ class SageMakerCreateNotebookOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.create_instance_kwargs = create_instance_kwargs
 
-        if "tags" in self.create_instance_kwargs and self.create_instance_kwargs["tags"] is not None:
+        if self.create_instance_kwargs.get("tags") is not None:
             self.create_instance_kwargs["tags"] = format_tags(self.create_instance_kwargs["tags"])
 
     @cached_property
