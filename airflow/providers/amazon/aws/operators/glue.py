@@ -73,7 +73,7 @@ class GlueJobOperator(BaseOperator):
         "create_job_kwargs",
         "s3_bucket",
         "iam_role_name",
-        "iam_role_arn"
+        "iam_role_arn",
     )
     template_ext: Sequence[str] = ()
     template_fields_renderers = {
