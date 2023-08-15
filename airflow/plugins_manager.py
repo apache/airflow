@@ -206,6 +206,7 @@ def is_valid_plugin(plugin_obj):
 def register_plugin(plugin_instance):
     """
     Start plugin load and register it after success initialization.
+
     If plugin is already registered, do nothing.
 
     :param plugin_instance: subclass of AirflowPlugin

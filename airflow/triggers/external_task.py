@@ -180,7 +180,7 @@ class DagStateTrigger(BaseTrigger):
         )
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
-        """Check the database to see if the dag run exists, and has hit one of the states yet, or not."""
+        """Check periodically if the dag run exists, and has hit one of the states yet, or not."""
         while True:
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]
