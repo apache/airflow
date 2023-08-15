@@ -51,7 +51,7 @@ def get_log_uri(
     *, cluster: dict[str, Any] | None = None, emr_client: boto3.client = None, job_flow_id: str | None = None
 ) -> str | None:
     """
-    Retrieves the S3 URI to the EMR Job logs.
+    Retrieve the S3 URI to the EMR Job logs.
 
     Requires either the output of a describe_cluster call or both an EMR Client and a job_flow_id..
     """

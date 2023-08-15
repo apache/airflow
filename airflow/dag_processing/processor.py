@@ -415,7 +415,7 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def manage_slas(cls, dag_folder, dag_id: str, session: Session = NEW_SESSION) -> None:
         """
-        Finding all tasks that have SLAs defined, and sending alert emails when needed.
+        Find all tasks that have SLAs defined, and send alert emails when needed.
 
         New SLA misses are also recorded in the database.
 
@@ -645,7 +645,7 @@ class DagFileProcessor(LoggingMixin):
 
     @provide_session
     def _validate_task_pools(self, *, dagbag: DagBag, session: Session = NEW_SESSION):
-        """Validates and raise exception if any task in a dag is using a non-existent pool."""
+        """Validate and raise exception if any task in a dag is using a non-existent pool."""
         from airflow.models.pool import Pool
 
         def check_pools(dag):

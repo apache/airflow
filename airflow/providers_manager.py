@@ -37,6 +37,7 @@ from packaging.utils import canonicalize_name
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.hooks.filesystem import FSHook
+from airflow.hooks.package_index import PackageIndexHook
 from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -306,6 +307,7 @@ def _correctness_check(
 ) -> type[BaseHook] | None:
     """
     Performs coherence check on provider classes.
+
     For apache-airflow providers - it checks if it starts with appropriate package. For all providers
     it tries to import the provider - checking that there are no exceptions during importing.
     It logs appropriate warning in case it detects any problems.
@@ -458,7 +460,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 connection_type=None,
                 connection_testable=False,
             )
-        for cls in [FSHook]:
+        for cls in [FSHook, PackageIndexHook]:
             package_name = cls.__module__
             hook_class_name = f"{cls.__module__}.{cls.__name__}"
             hook_info = self._import_hook(
@@ -614,6 +616,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def _discover_all_airflow_builtin_providers_from_local_sources(self) -> None:
         """
         Finds all built-in airflow providers if airflow is run from the local sources.
+
         It finds `provider.yaml` files for all such providers and registers the providers using those.
 
         This 'provider.yaml' scanning takes precedence over scanning packages installed
@@ -1173,6 +1176,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def connection_form_widgets(self) -> dict[str, ConnectionFormWidgetInfo]:
         """
         Returns widgets for connection forms.
+
         Dictionary keys in the same order that it defined in Hook.
         """
         self.initialize_providers_hooks()

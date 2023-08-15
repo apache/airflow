@@ -213,4 +213,28 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze release-management start-release": [
         {"name": "Start release flags", "options": ["--release-candidate", "--previous-release"]}
     ],
+    "breeze release-management update-constraints": [
+        {
+            "name": "Update constraints flags",
+            "options": [
+                "--constraints-repo",
+                "--commit-message",
+                "--remote-name",
+            ],
+        },
+        {
+            "name": "Selection criteria",
+            "options": [
+                "--airflow-versions",
+                "--airflow-constraints-mode",
+            ],
+        },
+        {
+            "name": "Action to perform",
+            "options": [
+                "--updated-constraint",
+                "--comment-file",
+            ],
+        },
+    ],
 }

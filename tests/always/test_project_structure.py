@@ -150,7 +150,7 @@ class ProjectStructureTest:
             if not isinstance(current_node, ast.ClassDef):
                 continue
             name = current_node.name
-            if not any(name.endswith(suffix) for suffix in self.CLASS_SUFFIXES):
+            if not name.endswith(tuple(self.CLASS_SUFFIXES)):
                 continue
             results[f"{module}.{name}"] = current_node
         return results
@@ -463,6 +463,6 @@ class TestOperatorsHooks:
             )
         )
 
-        invalid_files = [f for f in files if any(f.endswith(suffix) for suffix in illegal_suffixes)]
+        invalid_files = [f for f in files if f.endswith(tuple(illegal_suffixes))]
 
         assert [] == invalid_files

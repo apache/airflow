@@ -82,7 +82,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     pip install "${pip_flags[@]}" --root-user-action ignore --upgrade --upgrade-strategy eager \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
-        ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+        ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
     set +x
 
     common::install_pip_version
