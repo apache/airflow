@@ -97,7 +97,7 @@ class GlueJobHook(AwsBaseHook):
         num_workers_exists = "NumberOfWorkers" in self.create_job_kwargs
 
         if self.role_arn and self.role_name:
-            raise ValueError("Must use iam_role_name or iam_role_arn, but not both")
+            raise ValueError("Cannot set iam_role_arn and iam_role_name simultaneously")
         if worker_type_exists and num_workers_exists:
             if num_of_dpus is not None:
                 raise ValueError("Cannot specify num_of_dpus with custom WorkerType")
