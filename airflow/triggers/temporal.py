@@ -20,6 +20,7 @@ import asyncio
 import datetime
 from typing import Any
 
+from airflow.exceptions import AirflowSkipException
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
 
@@ -34,18 +35,29 @@ class DateTimeTrigger(BaseTrigger):
     The provided datetime MUST be in UTC.
     """
 
-    def __init__(self, moment: datetime.datetime):
+    def __init__(self, moment: datetime.datetime, soft_fail: bool = False):
         super().__init__()
         if not isinstance(moment, datetime.datetime):
-            raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
+            exc = TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
+            if soft_fail:
+                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from exc
+            raise exc
         # Make sure it's in UTC
         elif moment.tzinfo is None:
-            raise ValueError("You cannot pass naive datetimes")
+            exc = ValueError("You cannot pass naive datetimes")
+            if soft_fail:
+                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from exc
+            raise exc
         else:
             self.moment = timezone.convert_to_utc(moment)
 
+        self.soft_fail = soft_fail
+
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        return ("airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment})
+        return (
+            "airflow.triggers.temporal.DateTimeTrigger",
+            {"moment": self.moment, "soft_fail": self.soft_fail},
+        )
 
     async def run(self):
         """

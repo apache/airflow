@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import datetime
 
-from airflow.exceptions import AirflowSkipException
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
@@ -71,15 +70,8 @@ class TimeSensorAsync(BaseSensorOperator):
         self.target_datetime = timezone.convert_to_utc(aware_time)
 
     def execute(self, context: Context):
-        try:
-            datetime_trigger = DateTimeTrigger(moment=self.target_datetime)
-        except Exception as e:
-            if self.soft_fail:
-                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
-            raise e
-
         self.defer(
-            trigger=datetime_trigger,
+            trigger=DateTimeTrigger(moment=self.target_datetime, soft_fail=self.soft_fail),
             method_name="execute_complete",
         )
 
