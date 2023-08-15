@@ -1549,7 +1549,7 @@ class SageMakerCreateNotebookOperator(BaseOperator):
     :param create_instance_kwargs: Additional configuration options for the create call.
     :param aws_conn_id: The AWS connection ID to use.
 
-    This operator returns The ARN of the created notebook.
+    :return: The ARN of the created notebook.
     """
 
     template_fields: Sequence[str] = (
