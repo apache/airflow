@@ -1734,7 +1734,6 @@ class SageMakerDeleteNotebookOperator(BaseOperator):
 
 class SageMakerStartNoteBookOperator(BaseOperator):
     """
-
     Start a notebook instance.
 
     .. seealso:
