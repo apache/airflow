@@ -29,6 +29,7 @@ import re2
 from marshmallow import Schema, fields, validate
 from marshmallow.exceptions import ValidationError
 
+from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
@@ -50,8 +51,6 @@ class UserSchema(Schema):
 @providers_configuration_loaded
 def users_list(args):
     """List users at the command line."""
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         users = appbuilder.sm.get_all_users()
         fields = ["id", "username", "email", "first_name", "last_name", "roles"]
@@ -65,8 +64,6 @@ def users_list(args):
 @providers_configuration_loaded
 def users_create(args):
     """Create new user in the DB."""
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         role = appbuilder.sm.find_role(args.role)
         if not role:
@@ -101,8 +98,6 @@ def _find_user(args):
     if args.username and args.email:
         raise SystemExit("Conflicting args: must supply either --username or --email, but not both")
 
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         user = appbuilder.sm.find_user(username=args.username, email=args.email)
         if not user:
@@ -119,8 +114,6 @@ def users_delete(args):
     # Clear the associated user roles first.
     user.roles.clear()
 
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         if appbuilder.sm.del_register_user(user):
             print(f'User "{user.username}" deleted')
@@ -133,8 +126,6 @@ def users_delete(args):
 def users_manage_role(args, remove=False):
     """Delete or appends user roles."""
     user = _find_user(args)
-
-    from airflow.utils.cli_app_builder import get_application_builder
 
     with get_application_builder() as appbuilder:
         role = appbuilder.sm.find_role(args.role)
@@ -161,8 +152,6 @@ def users_manage_role(args, remove=False):
 @providers_configuration_loaded
 def users_export(args):
     """Export all users to the json file."""
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         users = appbuilder.sm.get_all_users()
         fields = ["id", "username", "email", "first_name", "last_name", "roles"]
@@ -211,8 +200,6 @@ def users_import(args):
 
 
 def _import_users(users_list: list[dict[str, Any]]):
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         users_created = []
         users_updated = []
