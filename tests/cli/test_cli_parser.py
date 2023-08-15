@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import importlib
 import io
 import os
 import re
@@ -29,13 +30,15 @@ import timeit
 from collections import Counter
 from importlib import reload
 from pathlib import Path
-from unittest.mock import patch
+from unittest import mock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.cli import cli_config, cli_parser
 from airflow.cli.cli_config import ActionCommand, lazy_load_command
 from airflow.configuration import AIRFLOW_HOME
+from airflow.executors.local_executor import LocalExecutor
 from tests.test_utils.config import conf_vars
 
 # Can not be `--snake_case` or contain uppercase letter
@@ -132,6 +135,22 @@ class TestCli:
                     f"Command group {group} function {com.name} have conflict "
                     f"short option flags {conflict_short_option}"
                 )
+
+    @mock.patch.object(LocalExecutor, "get_cli_commands")
+    def test_dynamic_conflict_detection(self, cli_commands_mock: MagicMock, caplog):
+        cli_commands_mock.return_value = [
+            ActionCommand(
+                name="webserver",
+                help="just a command that'll conflict with one defined in core",
+                func=lambda: None,
+                args=[],
+            )
+        ]
+        with caplog.at_level("WARN"):
+            # force re-evaluation of cli commands (done in top level code)
+            importlib.reload(cli_parser)
+        assert len(caplog.messages) == 1
+        assert "webserver" in caplog.messages[0]  # message mentions the command that's in conflict
 
     def test_falsy_default_value(self):
         arg = cli_parser.Arg(("--test",), default=0, type=int)

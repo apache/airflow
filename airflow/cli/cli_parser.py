@@ -65,6 +65,22 @@ except Exception:
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
 
+# Check if sub-commands are defined twice, which could be an issue.
+if len(ALL_COMMANDS_DICT) < len(airflow_commands):
+    seen = set()
+    dup = []
+    for command in airflow_commands:
+        if command.name not in seen:
+            seen.add(command.name)
+        else:
+            dup.append(command.name)
+    log.warning(
+        "The following CLI %d command(s) are defined more than once, "
+        "CLI behavior when using those will be unpredictable: %s",
+        len(dup),
+        dup,
+    )
+
 
 class AirflowHelpFormatter(RichHelpFormatter):
     """
