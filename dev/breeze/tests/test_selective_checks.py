@@ -926,7 +926,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
         pytest.param(
             ("airflow/providers/microsoft/azure/provider.yaml",),
             {
-                "upgrade-to-newer-dependencies": "true",
+                "upgrade-to-newer-dependencies": "false",
             },
             id="Provider.yaml changed",
         ),
@@ -1299,3 +1299,30 @@ def test_runs_on(
         default_branch="main",
     )
     assert_outputs_are_printed({"runs-on": runs_on}, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, has_migrations",
+    [
+        pytest.param(
+            ("airflow/test.py",),
+            False,
+            id="No migrations",
+        ),
+        pytest.param(
+            ("airflow/migrations/test_sql", "aiflow/test.py"),
+            True,
+            id="With migrations",
+        ),
+    ],
+)
+def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
+    stderr = str(
+        SelectiveChecks(
+            files=files,
+            commit_ref="HEAD",
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        )
+    )
+    assert_outputs_are_printed({"has-migrations": str(has_migrations).lower()}, str(stderr))

@@ -100,10 +100,7 @@ class DateTimeForm(FlaskForm):
 
 
 class DateTimeWithNumRunsForm(FlaskForm):
-    """
-    Date time and number of runs form for tree view, task duration
-    and landing times.
-    """
+    """Date time and number of runs form for tree view, task duration and landing times."""
 
     base_date = DateTimeWithTimezoneField(
         "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow()
@@ -119,12 +116,6 @@ class DateTimeWithNumRunsForm(FlaskForm):
             (365, "365"),
         ),
     )
-
-
-class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
-    """Date time and number of runs and dag runs form for graph and gantt view."""
-
-    execution_date = SelectField("DAG run")
 
 
 class DagRunEditForm(DynamicForm):
@@ -195,10 +186,6 @@ def create_connection_form_class() -> type[DynamicForm]:
 
     def _iter_connection_types() -> Iterator[tuple[str, str]]:
         """List available connection types."""
-        yield ("email", "Email")
-        yield ("fs", "File (path)")
-        yield ("generic", "Generic")
-        yield ("mesos_framework-id", "Mesos Framework ID")
         for connection_type, provider_info in providers_manager.hooks.items():
             if provider_info:
                 yield (connection_type, provider_info.hook_name)

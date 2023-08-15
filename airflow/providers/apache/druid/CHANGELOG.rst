@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``DruidHook add SQL-based task support (#32795)``
+
 3.4.2
 .....
 

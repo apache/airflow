@@ -61,15 +61,9 @@ jobs:
   build-info:
     name: "Build info"
     # The runs-on cannot refer to env. or secrets. context, so we have no
-    # option but to specify a hard-coded list here. This is "safe", as the list
-    # is checked again by the runner using it's own list, so a PR author cannot
-    # change this and get access to our self-hosted runners
-    #
-    # This list is kept up-to-date from the list of authors found in the
-    # 'airflow-ci-infra' by the 'sync_authors' Github workflow. It uses a regexp
-    # to find the list of authors and replace them, so any changes to the
-    # formatting of the contains(fromJSON()) structure below will need to be
-    # reflected in that workflow too.
+    # option but to specify a hard-coded list here. This is "safe", the
+    # runner checks if the user is an owner or collaborator of the repo
+    # before running the workflow.
     runs-on: "ubuntu-22.04"
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
@@ -121,6 +115,7 @@ jobs:
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       runs-on: ${{ steps.selective-checks.outputs.runs-on }}
+      has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
@@ -329,6 +324,7 @@ jobs:
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+          BUILD_TIMEOUT_MINUTES: 70
 
   build-prod-images:
     timeout-minutes: 80
@@ -907,8 +903,14 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
         run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
-      - name: "Post Helm Tests"
-        uses: ./.github/actions/post_tests
+      - name: >
+          Post Tests success: Helm"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Helm"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-postgres:
     timeout-minutes: 130
@@ -957,9 +959,13 @@ jobs:
         run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
         if: matrix.postgres-version == needs.build-info.outputs.default-postgres-version
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: Postgres"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Postgres"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-postgres-boto:
     timeout-minutes: 130
@@ -1002,9 +1008,13 @@ jobs:
           ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Boto"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:Boto"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-postgres-in-progress-features-disabled:
     timeout-minutes: 130
@@ -1047,9 +1057,13 @@ jobs:
           ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: ${{needs.build-info.outputs.default-python-version}}:FeaturesDisabled"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: ${{needs.build-info.outputs.default-python-version}}:FeaturesDisabled"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-mysql:
     timeout-minutes: 130
@@ -1094,9 +1108,14 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: MySQL"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: MySQL"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
 
   tests-mssql:
     timeout-minutes: 130
@@ -1130,7 +1149,8 @@ jobs:
     if: >
       needs.build-info.outputs.run-tests == 'true' &&
       (needs.build-info.outputs.runs-on == 'self-hosted' ||
-      needs.build-info.outputs.full-tests-needed == 'true')
+      needs.build-info.outputs.full-tests-needed == 'true' ||
+      needs.build-info.outputs.has-migrations == 'true')
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1149,9 +1169,13 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: MsSQL"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: MsSQL"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-sqlite:
     timeout-minutes: 130
@@ -1194,9 +1218,13 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: breeze testing tests --run-in-parallel
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: Sqlite"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Sqlite"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   tests-integration-postgres:
     timeout-minutes: 130
@@ -1261,9 +1289,14 @@ jobs:
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
+          Post Tests success: Integration Postgres"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: >
+          Post Tests failure: Integration Postgres"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
 
   tests-integration-mysql:
     timeout-minutes: 130
@@ -1301,10 +1334,13 @@ jobs:
         run: breeze testing integration-tests --integration all-testable
         if: needs.build-info.outputs.runs-on == 'self-hosted'
       - name: >
-          Post Tests:
-          ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        uses: ./.github/actions/post_tests
-        if: needs.build-info.outputs.runs-on == 'self-hosted'
+          Post Tests success: Integration MySQL"
+        uses: ./.github/actions/post_tests_success
+        if: success() && needs.build-info.outputs.runs-on == 'self-hosted'
+      - name: >
+          Post Tests failure: Integration MySQL"
+        uses: ./.github/actions/post_tests_failure
+        if: failure() && needs.build-info.outputs.runs-on == 'self-hosted'
 
 
   tests-quarantined:
@@ -1341,18 +1377,12 @@ jobs:
           BACKEND_VERSION: "11"
           POSTGRES_VERSION: "11"
       - name: >
-          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze down
-      - name: >
           Tests: mysql:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
         env:
           BACKEND: "mysql"
           BACKEND_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
           MYSQL_VERSION: ${{needs.build-info.outputs.default-mysql-version}}
-      - name: >
-          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze down
       - name: >
           Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
@@ -1361,21 +1391,21 @@ jobs:
           BACKEND_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
           MSSQL_VERSION: ${{needs.build-info.outputs.default-mssql-version}}
       - name: >
-          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze down
-      - name: >
-          Tests: mssql:${{needs.build-info.outputs.default-python-version}}:Quarantined
+          Tests: sqlite:${{needs.build-info.outputs.default-python-version}}:Quarantined
         run: breeze testing tests || true
         env:
           BACKEND: "sqlite"
           BACKEND_VERSION: ""
           MSSQL_VERSION: ""
       - name: >
-          Cleaning up ${{needs.build-info.outputs.default-python-version}}:Quarantined
-        run: breeze down
+          Post Tests success: Quarantined"
+        uses: ./.github/actions/post_tests_success
+        if: success()
       - name: >
-          Post Tests: ${{needs.build-info.outputs.default-python-version}}:Quarantined"
-        uses: ./.github/actions/post_tests
+          Post Tests failure: Quarantined"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
+
 
   summarize-warnings:
     timeout-minutes: 15
@@ -1413,7 +1443,7 @@ jobs:
 
   wait-for-prod-images:
     timeout-minutes: 80
-    name: "Wait for PROD images"
+    name: "Wait for & verify PROD images"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images, build-prod-images]
     if: needs.build-info.outputs.image-build == 'true'
@@ -1436,14 +1466,22 @@ jobs:
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
         # or from build-prod-images above.
         # We are utilising single job to wait for all images because this job merely waits
-        # For the images to be available and test them.
-        run: breeze prod-image pull --verify --wait-for-image --run-in-parallel
+        # For the images to be available.
+        run: breeze prod-image pull --wait-for-image --run-in-parallel
+        env:
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      - name: Verify PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        # We pull images again (which is a NOOP) but this time we also verify the images
+        # Having it as a separate step allows us to see if the problem was with waiting or verification
+        run: breeze prod-image pull --verify --run-in-parallel
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
+
 
   test-docker-compose-quick-start:
     timeout-minutes: 60

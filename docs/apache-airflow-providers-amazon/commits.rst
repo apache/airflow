@@ -28,14 +28,53 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.5.1
+.....
+
+Latest change: 2023-08-10
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`681ee46b21 <https://github.com/apache/airflow/commit/681ee46b21308e8cb38afda9722d3b1a8f91efa0>`_  2023-08-10   ``Fix get_log_events() in AWS logs hook (#33290)``
+`c14cb85f16 <https://github.com/apache/airflow/commit/c14cb85f16b6c9befd35866327fecb4ab9bc0fc4>`_  2023-08-10   ``Improve fetching logs from AWS (#33231)``
+`83bd60fd97 <https://github.com/apache/airflow/commit/83bd60fd97d4ca622adcbd7898d88880fee43054>`_  2023-08-09   ``Refactor: Simplify code in providers/amazon (#33222)``
+`741fb27f50 <https://github.com/apache/airflow/commit/741fb27f50a9fee7fca776abf24c32e22783aa03>`_  2023-08-08   ``Implement EventBridge enable and disable rule operators (#33226)``
+`8bbea9217a <https://github.com/apache/airflow/commit/8bbea9217ae0a3f1049cd10bac838b041b07b7af>`_  2023-08-08   ``Get failure information on EMR job failure (#32151)``
+`46862cfa94 <https://github.com/apache/airflow/commit/46862cfa948cbea885d691ad662109bfcaf2fc8a>`_  2023-08-06   ``Update mypy-boto3-appflow dependency (#32930)``
+`76ca94d2f2 <https://github.com/apache/airflow/commit/76ca94d2f23de298bb46668998c227a86b4ecbd0>`_  2023-08-05   ``use 'cached_property' from functools in 'RdsBaseOperator' (#33133)``
+`03fcbcc96e <https://github.com/apache/airflow/commit/03fcbcc96efb3f34c2d4e219dbaccb7771197670>`_  2023-08-05   ``Use set for 'template_fields' of 'EcsDeregisterTaskDefinitionOperator' (#33129)``
+=================================================================================================  ===========  ===================================================================================
+
+8.5.0
+.....
+
+Latest change: 2023-08-05
+
+=================================================================================================  ===========  =========================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+`519d99baee <https://github.com/apache/airflow/commit/519d99baee058dfa56f293f94222309c493ba3c4>`_  2023-08-04   ``Check google provider version in GCSToS3Operator before provide match_glob param (#32925)``
+`bbc0968905 <https://github.com/apache/airflow/commit/bbc096890512ba2212f318558ca1e954ab399657>`_  2023-08-04   ``openlineage, sagemaker: add missing OpenLineage type signature (#33114)``
+`087d14ada2 <https://github.com/apache/airflow/commit/087d14ada24e87fdf9db58a13acf0f2753191256>`_  2023-08-03   ``Deferrable mode for Sqs Sensor (#32809)``
+`4e42edb203 <https://github.com/apache/airflow/commit/4e42edb203a0fa0958830ac3aa56a37b8eb678e8>`_  2023-08-03   ``Set longer default 'waiter_max_attempts' for deferred BatchJobOperator (#33045)``
+`44234c2bf0 <https://github.com/apache/airflow/commit/44234c2bf05f93a9772b7c9320a69a5c150c1d56>`_  2023-08-03   ``Add S3Bucket for mypy (#33028)``
+`62f9e68a54 <https://github.com/apache/airflow/commit/62f9e68a54d1223d169551ed301651cf0068e004>`_  2023-08-02   ``openlineage, sagemaker: add OpenLineage support for SageMaker's Processing, Transform and Training operators (#31816)``
+`86193f5608 <https://github.com/apache/airflow/commit/86193f560815507b9abf1008c19b133d95c4da9f>`_  2023-07-31   ``Increase the number of attempts in AWS system test 'example_rds_export' (#32976)``
+`196d336585 <https://github.com/apache/airflow/commit/196d3365852452f1651e0091aad1451564da453b>`_  2023-07-31   ``Add Amazon EventBridge PutRule hook and operator (#32869)``
+`915f9e4060 <https://github.com/apache/airflow/commit/915f9e40601fbfa3ebcf2fe82ced14191b12ab18>`_  2023-07-31   ``Add GCS Requester Pays bucket support to GCSToS3Operator (#32760)``
+=================================================================================================  ===========  =========================================================================================================================
+
 8.4.0
 .....
 
-Latest change: 2023-07-28
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  ====================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `ddb685cf26 <https://github.com/apache/airflow/commit/ddb685cf2669f9debf1a8ed8c6b5204be7071893>`_  2023-07-28   ``Further limit mypy-boto3-appflow as the fix is not in sight (#32927)``
 `25124dfd8b <https://github.com/apache/airflow/commit/25124dfd8bccad2385f72cff332fe9deb8d921bc>`_  2023-07-28   ``Limit Appflow mypy to 1.28.12 as it introduces strange typing issue (#32901)``
 `e93460383f <https://github.com/apache/airflow/commit/e93460383f287f9b2af4b6bda3ea6ba17ba3c08b>`_  2023-07-26   ``Move all k8S classes to cncf.kubernetes provider (#32767)``

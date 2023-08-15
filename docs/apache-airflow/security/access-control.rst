@@ -34,9 +34,9 @@ regarding its security model.
 Default Roles
 '''''''''''''
 Airflow ships with a set of roles by default: Admin, User, Op, Viewer, and Public.
-Only ``Admin`` users could configure/alter the permissions for other roles. But it is not recommended
-that ``Admin`` users alter these default roles in any way by removing
-or adding permissions to these roles.
+By default, only ``Admin`` users can configure/alter permissions for roles. However,
+it is recommended that these default roles remain unaltered, and instead ``Admin`` users
+create new roles with the desired permissions if changes are necessary.
 
 Admin
 ^^^^^
@@ -49,37 +49,30 @@ Public
 
 Viewer
 ^^^^^^
-``Viewer`` users have limited viewer permissions
+``Viewer`` users have limited read permissions:
 
 .. exampleinclude:: /../../airflow/www/security.py
     :language: python
     :start-after: [START security_viewer_perms]
     :end-before: [END security_viewer_perms]
 
-on limited web views.
-
 User
 ^^^^
-``User`` users have ``Viewer`` permissions plus additional user permissions
+``User`` users have ``Viewer`` permissions plus additional permissions:
 
 .. exampleinclude:: /../../airflow/www/security.py
     :language: python
     :start-after: [START security_user_perms]
     :end-before: [END security_user_perms]
 
-on User web views which is the same as Viewer web views.
-
 Op
 ^^
-``Op`` users have ``User`` permissions plus additional op permissions
+``Op`` users have ``User`` permissions plus additional permissions:
 
 .. exampleinclude:: /../../airflow/www/security.py
     :language: python
     :start-after: [START security_op_perms]
     :end-before: [END security_op_perms]
-
-on ``User`` web views.
-
 
 Custom Roles
 '''''''''''''

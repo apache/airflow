@@ -556,6 +556,7 @@ class GCSToGCSOperator(BaseOperator):
     def get_openlineage_facets_on_complete(self, task_instance):
         """
         Implementing _on_complete because execute method does preprocessing on internals.
+
         This means we won't have to normalize self.source_object and self.source_objects,
         destination bucket and so on.
         """

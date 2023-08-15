@@ -259,7 +259,7 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
         of the task definition to deregister. If you use a family name, you must specify a revision.
     """
 
-    template_fields: Sequence[str] = "task_definition"
+    template_fields: Sequence[str] = ("task_definition",)
 
     def __init__(
         self,
