@@ -1623,7 +1623,7 @@ class SageMakerCreateNotebookOperator(BaseOperator):
     def execute(self, context: Context):
         self.log.info("Creating SageMaker notebook %s.", self.instance_name)
         response = self.hook.conn.create_notebook_instance(
-            **trim_none_values(self.create_notebook_instance_kwargs)
+            **prune_dict(self.create_notebook_instance_kwargs)
         )
 
         self.log.info("SageMaker notebook created: %s", response["NotebookInstanceArn"])
