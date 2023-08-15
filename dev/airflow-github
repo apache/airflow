@@ -83,27 +83,31 @@ def get_issue_type(issue):
 def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue) -> str | None:
     """For a PR, find the associated merged commit & return its SHA"""
     if issue.pull_request:
-        commit = repo.git.log("--reverse", f"--grep=#{issue.number}", "origin/main", "--format=%H")
-        if commit:
-            # We only want the oldest commit that referenced this PR number
-            return commit.splitlines()[0]
+        log_output = repo.git.log(f"--grep=(#{issue.number})$", "origin/main", "--format=%H %s")
+        if log_output:
+            for commit_line in log_output.splitlines():
+                # We only want the commit for the PR where squash-merge added (#PR) at the end of subject
+                if commit_line and commit_line.endswith(f"(#{issue.number})"):
+                    return commit_line.split(" ")[0]
+            return None
         else:
             pr: PullRequest = issue.as_pull_request()
             if pr.is_merged():
-                commit = pr.merge_commit_sha
-                return commit
+                return pr.merge_commit_sha
     return None
 
 
 def is_cherrypicked(repo: git.Repo, issue: Issue, previous_version: str | None = None) -> bool:
     """Check if a given issue is cherry-picked in the current branch or not"""
-    log_args = ["--format=%H", f"--grep=(#{issue.number})$"]
+    log_args = ["--format=%H %s", f"--grep=(#{issue.number})$"]
     if previous_version:
         log_args.append(previous_version + "..")
-    log = repo.git.log(*log_args)
+    log_output = repo.git.log(*log_args)
 
-    if log:
-        return True
+    for commit_line in log_output.splitlines():
+        # We only want the commit for the PR where squash-merge added (#PR) at the end of subject
+        if commit_line and commit_line.endswith(f"(#{issue.number})"):
+            return True
     return False
 
 
