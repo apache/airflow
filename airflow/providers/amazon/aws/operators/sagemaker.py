@@ -1641,7 +1641,6 @@ class SageMakerStopNotebookOperator(BaseOperator):
         :ref:`howto/operator:SageMakerStopNotebookOperator`
 
     :param instance_name: The name of the notebook instance to stop.
-    :param config: Additional configuration options for the stop call.
     :param aws_conn_id: The AWS connection ID to use.
     """
 
