@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 from moto import mock_sagemaker
 
-from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerNotebookHook
+from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerCreateNotebookOperator,
     SageMakerDeleteNotebookOperator,
@@ -36,9 +36,9 @@ ROLE_ARN = "arn:aws:iam:role/role"
 
 
 @pytest.fixture
-def hook() -> SageMakerNotebookHook:
+def hook() -> SageMakerHook:
     with mock_sagemaker():
-        yield SageMakerNotebookHook(aws_conn_id="aws_default")
+        yield SageMakerHook(aws_conn_id="aws_default")
 
 
 @pytest.fixture
@@ -50,12 +50,12 @@ def create_instance_args():
     }
 
 
-class TestSageMakerNotebookHook:
+class TestSageMakerHook:
     def test_conn(self):
-        hook = SageMakerNotebookHook(aws_conn_id="sagemaker_test_conn_id")
+        hook = SageMakerHook(aws_conn_id="sagemaker_test_conn_id")
         assert hook.aws_conn_id == "sagemaker_test_conn_id"
 
-    def test_create_instance(self, hook: SageMakerNotebookHook, create_instance_args, capsys):
+    def test_create_instance(self, hook: SageMakerHook, create_instance_args, capsys):
         # create a notebook
         resp = hook.conn.create_notebook_instance(**create_instance_args)
         assert resp["NotebookInstanceArn"]
@@ -78,7 +78,7 @@ class TestSageMakerNotebookHook:
 
 
 class TestSagemakerCreateNotebookOperator:
-    @mock.patch.object(SageMakerNotebookHook, "conn")
+    @mock.patch.object(SageMakerHook, "conn")
     def test_create_notebook_without_wait_for_completion(self, mock_hook_conn):
         operator = SageMakerCreateNotebookOperator(
             task_id="task_test",
@@ -92,8 +92,7 @@ class TestSagemakerCreateNotebookOperator:
         mock_hook_conn.create_notebook_instance.assert_called_once()
         mock_hook_conn.get_waiter.assert_not_called()
 
-
-    @mock.patch.object(SageMakerNotebookHook, "conn")
+    @mock.patch.object(SageMakerHook, "conn")
     def test_create_notebook_wait_for_completion(self, mock_hook_conn):
         operator = SageMakerCreateNotebookOperator(
             task_id="task_test",
@@ -107,7 +106,7 @@ class TestSagemakerCreateNotebookOperator:
 
 
 class TestSageMakerStopNotebookOperator:
-    @mock.patch.object(SageMakerNotebookHook, "conn")
+    @mock.patch.object(SageMakerHook, "conn")
     def test_stop_notebook_without_wait_for_completion(self, mock_hook_conn, hook):
         operator = SageMakerStopNotebookOperator(
             task_id="stop_test", instance_name=INSTANCE_NAME, wait_for_completion=False
@@ -116,7 +115,7 @@ class TestSageMakerStopNotebookOperator:
         hook.conn.stop_notebook_instance.assert_called_once()
         mock_hook_conn.get_waiter.assert_not_called()
 
-    @mock.patch.object(SageMakerNotebookHook, "conn")
+    @mock.patch.object(SageMakerHook, "conn")
     def test_stop_notebook_wait_for_completion(self, mock_hook_conn, hook):
         operator = SageMakerStopNotebookOperator(
             task_id="stop_test", instance_name=INSTANCE_NAME, wait_for_completion=True
@@ -127,7 +126,7 @@ class TestSageMakerStopNotebookOperator:
 
 
 class TestSageMakerDeleteNotebookOperator:
-    @mock.patch.object(SageMakerNotebookHook, "conn")
+    @mock.patch.object(SageMakerHook, "conn")
     def test_delete_notebook_without_wait_for_completion(self, mock_hook_conn, hook):
         operator = SageMakerDeleteNotebookOperator(
             task_id="delete_test", instance_name=INSTANCE_NAME, wait_for_completion=False
@@ -136,7 +135,7 @@ class TestSageMakerDeleteNotebookOperator:
         hook.conn.delete_notebook_instance.assert_called_once()
         mock_hook_conn.get_waiter.assert_not_called()
 
-    @mock.patch.object(SageMakerNotebookHook, "conn")
+    @mock.patch.object(SageMakerHook, "conn")
     def test_delete_notebook_wait_for_completion(self, mock_hook_conn, hook):
         operator = SageMakerDeleteNotebookOperator(
             task_id="delete_test", instance_name=INSTANCE_NAME, wait_for_completion=True
@@ -147,7 +146,7 @@ class TestSageMakerDeleteNotebookOperator:
 
 
 class TestSageMakerStartNotebookOperator:
-    @mock.patch.object(SageMakerNotebookHook, "conn")
+    @mock.patch.object(SageMakerHook, "conn")
     def test_start_notebook_without_wait_for_completion(self, mock_hook_conn, hook):
         operator = SageMakerStartNoteBookOperator(
             task_id="start_test", instance_name=INSTANCE_NAME, wait_for_completion=False
@@ -156,7 +155,7 @@ class TestSageMakerStartNotebookOperator:
         hook.conn.start_notebook_instance.assert_called_once()
         mock_hook_conn.get_waiter.assert_not_called()
 
-    @mock.patch.object(SageMakerNotebookHook, "conn")
+    @mock.patch.object(SageMakerHook, "conn")
     def test_start_notebook_wait_for_completion(self, mock_hook_conn, hook):
         operator = SageMakerStartNoteBookOperator(
             task_id="start_test", instance_name=INSTANCE_NAME, wait_for_completion=True
