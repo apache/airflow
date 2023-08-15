@@ -1358,7 +1358,7 @@ class TestKubernetesPodOperator(BaseK8STest):
 
         pod_status = k8s_client.read_namespaced_pod_status(name=pod.metadata.name, namespace="default")
         phase = pod_status.status.phase
-        reason = pod_status.status
+        reason = pod_status.status.reason
 
         assert phase == "Failed"
         assert reason == "DeadlineExceeded"
