@@ -605,7 +605,7 @@ class KubernetesPodOperator(BaseOperator):
                 result = self.extract_xcom(pod=self.pod)
             istio_enabled = self.is_istio_enabled(self.pod)
             self.remote_pod = self.pod_manager.await_pod_completion(
-                istio_enabled, self.pod, self.base_container_name
+                self.pod, istio_enabled, self.base_container_name
             )
         finally:
             self.cleanup(
@@ -670,7 +670,7 @@ class KubernetesPodOperator(BaseOperator):
                     return xcom_sidecar_output
         finally:
             istio_enabled = self.is_istio_enabled(pod)
-            pod = self.pod_manager.await_pod_completion(istio_enabled, pod, self.base_container_name)
+            pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
             if pod is not None:
                 self.post_complete_action(
                     pod=pod,
