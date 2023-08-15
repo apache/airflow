@@ -79,7 +79,7 @@ class TestGlueJobHook:
                 desc="This is test case job from Airflow",
                 s3_bucket="some-bucket",
                 iam_role_name="my_test_role_name",
-                iam_role_ar="my_test_role",
+                iam_role_arn="my_test_role",
             )
 
     @mock.patch.object(AwsBaseHook, "conn")
