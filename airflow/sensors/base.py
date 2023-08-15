@@ -281,6 +281,16 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
 
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        try:
+            return super().resume_execution(next_method, next_kwargs, context)
+        except AirflowException as e:
+            if self.soft_fail:
+                raise AirflowSkipException(e.args[0][1])
+            raise
+        except Exception:
+            raise
+
     def _get_next_poke_interval(
         self,
         started_at: datetime.datetime | float,
