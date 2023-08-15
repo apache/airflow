@@ -83,9 +83,10 @@ def get_issue_type(issue):
 def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue) -> str | None:
     """For a PR, find the associated merged commit & return its SHA"""
     if issue.pull_request:
-        commit = repo.git.log(f"--grep=#{issue.number}", "origin/main", "--format=%H")
+        commit = repo.git.log("--reverse", f"--grep=#{issue.number}", "origin/main", "--format=%H")
         if commit:
-            return commit
+            # We only want the oldest commit that referenced this PR number
+            return commit.splitlines()[0]
         else:
             pr: PullRequest = issue.as_pull_request()
             if pr.is_merged():
