@@ -1733,7 +1733,6 @@ class SageMakerStartNoteBookOperator(BaseOperator):
 
     :param instance_name: The name of the notebook instance to start.
     :param wait_for_completion: Whether or not to wait for notebook to be InService before returning
-    :param config: Additional configuration options for the start call.
     :param aws_conn_id: The AWS connection ID to use.
     """
 
