@@ -40,6 +40,9 @@ class TestBatchSensor:
             task_id="batch_job_sensor",
             job_id=JOB_ID,
         )
+        self.deferrable_batch_sensor = BatchSensor(
+            task_id="task", job_id=JOB_ID, region_name=AWS_REGION, deferrable=True
+        )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
     def test_poke_on_success_state(self, mock_get_job_description):
@@ -72,6 +75,22 @@ class TestBatchSensor:
         mock_get_job_description.return_value = {"status": job_status}
         assert self.batch_sensor.poke({}) is False
         mock_get_job_description.assert_called_once_with(JOB_ID)
+
+    def test_execute_in_deferrable_mode(self):
+        """
+        Asserts that a task is deferred and a BatchSensorTrigger will be fired
+        when the BatchSensor is executed in deferrable mode.
+        """
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.deferrable_batch_sensor.execute({})
+        assert isinstance(exc.value.trigger, BatchJobTrigger), "Trigger is not a BatchJobTrigger"
+
+    def test_execute_failure_in_deferrable_mode(self):
+        """Tests that an AirflowException is raised in case of error event"""
+
+        with pytest.raises(AirflowException):
+            self.deferrable_batch_sensor.execute_complete(context={}, event={"status": "failure"})
 
 
 class TestBatchComputeEnvironmentSensor:
@@ -197,23 +216,3 @@ class TestBatchJobQueueSensor:
             jobQueues=[self.job_queue],
         )
         assert "AWS Batch job queue failed" in str(ctx.value)
-
-
-class TestBatchAsyncSensor:
-    TASK = BatchSensor(task_id="task", job_id=JOB_ID, region_name=AWS_REGION, deferrable=True)
-
-    def test_batch_sensor_async(self):
-        """
-        Asserts that a task is deferred and a BatchSensorTrigger will be fired
-        when the BatchSensorAsync is executed.
-        """
-
-        with pytest.raises(TaskDeferred) as exc:
-            self.TASK.execute({})
-        assert isinstance(exc.value.trigger, BatchJobTrigger), "Trigger is not a BatchJobTrigger"
-
-    def test_batch_sensor_async_execute_failure(self):
-        """Tests that an AirflowException is raised in case of error event"""
-
-        with pytest.raises(AirflowException):
-            self.TASK.execute_complete(context={}, event={"status": "failure"})
