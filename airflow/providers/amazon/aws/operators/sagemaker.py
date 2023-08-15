@@ -1704,7 +1704,6 @@ class SageMakerDeleteNotebookOperator(BaseOperator):
         self,
         instance_name: str,
         wait_for_completion: bool = True,
-        config: dict = {},
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
