@@ -121,12 +121,14 @@ class GlueJobHook(AwsBaseHook):
         command = self.create_job_kwargs.pop("Command", default_command)
         if not self.role_arn:
             execution_role = self.get_iam_execution_role()
-            self.role_arn = execution_role["Role"]["Arn"]
+            role_arn = execution_role["Role"]["Arn"]
+        else:
+            role_arn = self.role_arn
 
         config = {
             "Name": self.job_name,
             "Description": self.desc,
-            "Role": self.role_arn,
+            "Role": role_arn,
             "ExecutionProperty": {"MaxConcurrentRuns": self.concurrent_run_limit},
             "Command": command,
             "MaxRetries": self.retry_limit,
