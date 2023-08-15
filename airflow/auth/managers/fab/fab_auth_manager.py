@@ -115,8 +115,7 @@ class FabAuthManager(BaseAuthManager):
 
             if resource_details and resource_details.id:
                 # Check whether the user has permissions to access a specific DAG
-                root_dag_id = self._get_root_dag_id(resource_details.id)
-                resource_dag_name = self._resource_name_for_dag(root_dag_id)
+                resource_dag_name = self._resource_name_for_dag(resource_details.id)
                 return any(
                     (action_name, resource_dag_name) in user.perms
                     for action_name, resource_name in permissions
@@ -162,21 +161,17 @@ class FabAuthManager(BaseAuthManager):
             raise AirflowException(f"Unknown action: {action}")
         return _MAP_ACTION_NAME_TO_FAB_ACTION_NAME[action]
 
-    @staticmethod
-    def _resource_name_for_dag(dag_id: str) -> str:
+    def _resource_name_for_dag(self, dag_id: str) -> str:
         """
         Returns the FAB resource name for a DAG id.
-
-        Note that since a sub-DAG should follow the permission of its parent DAG, you should pass
-        ``DagModel.root_dag_id`` to this function, for a subdag. A normal dag should pass the
-        ``DagModel.dag_id``.
 
         :param dag_id: the DAG id
 
         :meta private:
         """
-        if dag_id == RESOURCE_DAG:
-            return dag_id
-        if dag_id.startswith(RESOURCE_DAG_PREFIX):
-            return dag_id
-        return f"{RESOURCE_DAG_PREFIX}{dag_id}"
+        root_dag_id = self._get_root_dag_id(dag_id)
+        if root_dag_id == RESOURCE_DAG:
+            return root_dag_id
+        if root_dag_id.startswith(RESOURCE_DAG_PREFIX):
+            return root_dag_id
+        return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
