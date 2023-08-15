@@ -91,6 +91,56 @@ class TestGlueJobHook:
         mock_conn.get_job.assert_called_once_with(JobName=job_name)
 
     @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(AwsBaseHook, "conn")
+    def test_role_arn_has_job_exists(self, mock_conn, mock_get_iam_execution_role):
+        """
+        Calls 'create_or_update_glue_job' with no existing job.
+        Should create a new job.
+        """
+
+        class JobNotFoundException(Exception):
+            pass
+
+        expected_job_name = "aws_test_glue_job"
+        job_description = "This is test case job from Airflow"
+        role_name = "my_test_role"
+        role_name_arn = "test_role"
+        some_s3_bucket = "bucket"
+
+        mock_conn.exceptions.EntityNotFoundException = JobNotFoundException
+        mock_conn.get_job.side_effect = JobNotFoundException()
+        mock_get_iam_execution_role.return_value = {"Role": {"RoleName": role_name, "Arn": role_name_arn}}
+
+        hook = GlueJobHook(
+            s3_bucket=some_s3_bucket,
+            job_name=expected_job_name,
+            desc=job_description,
+            concurrent_run_limit=2,
+            retry_limit=3,
+            num_of_dpus=5,
+            iam_role_arn=role_name_arn,
+            create_job_kwargs={"Command": {}},
+            region_name=self.some_aws_region,
+            update_config=True,
+        )
+
+        result = hook.create_or_update_glue_job()
+
+        mock_conn.get_job.assert_called_once_with(JobName=expected_job_name)
+        mock_conn.create_job.assert_called_once_with(
+            Command={},
+            Description=job_description,
+            ExecutionProperty={"MaxConcurrentRuns": 2},
+            LogUri=f"s3://{some_s3_bucket}/logs/glue-logs/{expected_job_name}",
+            MaxCapacity=5,
+            MaxRetries=3,
+            Name=expected_job_name,
+            Role=role_name_arn,
+        )
+        mock_conn.update_job.assert_not_called()
+        assert result == expected_job_name
+
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
     @mock.patch.object(GlueJobHook, "conn")
     def test_create_or_update_glue_job_create_new_job(self, mock_conn, mock_get_iam_execution_role):
         """
