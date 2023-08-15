@@ -21,6 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.auth.managers.models.authorized_action import AuthorizedAction
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
@@ -77,22 +78,22 @@ class TestBaseAuthManager:
             ),
             # One action with permissions
             (
-                [(ResourceAction.GET, "test_resource")],
+                [AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource")],
                 [True],
                 True,
             ),
             # One action without permissions
             (
-                [(ResourceAction.GET, "test_resource")],
+                [AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource")],
                 [False],
                 False,
             ),
             # Several actions, one without permission
             (
                 [
-                    (ResourceAction.GET, "test_resource"),
-                    (ResourceAction.POST, "test_resource"),
-                    (ResourceAction.GET, "test_resource2"),
+                    AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource"),
+                    AuthorizedAction(action=ResourceAction.POST, resource_type="test_resource"),
+                    AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource2"),
                 ],
                 [True, True, False],
                 False,
@@ -100,9 +101,9 @@ class TestBaseAuthManager:
             # Several actions, all with permission
             (
                 [
-                    (ResourceAction.GET, "test_resource"),
-                    (ResourceAction.POST, "test_resource"),
-                    (ResourceAction.GET, "test_resource2"),
+                    AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource"),
+                    AuthorizedAction(action=ResourceAction.POST, resource_type="test_resource"),
+                    AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource2"),
                 ],
                 [True, True, True],
                 True,

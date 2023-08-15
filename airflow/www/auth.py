@@ -21,6 +21,7 @@ from typing import Callable, Sequence, TypeVar, cast
 
 from flask import flash, g, redirect, render_template, request
 
+from airflow.auth.managers.models.authorized_action import AuthorizedAction
 from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
 from airflow.configuration import conf
@@ -50,7 +51,10 @@ def has_access(permissions: Sequence[tuple[ResourceAction, str]] | None = None) 
                 or None
             )
             resource_details = ResourceDetails(id=dag_id)
-            actions = [(perm[0], perm[1], resource_details) for perm in permissions]
+            actions = [
+                AuthorizedAction(action=perm[0], resource_type=perm[1], resource_details=resource_details)
+                for perm in permissions
+            ]
             if get_auth_manager().is_all_authorized(actions):
                 return func(*args, **kwargs)
             elif get_auth_manager().is_logged_in() and not g.user.perms:

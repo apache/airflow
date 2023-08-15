@@ -20,6 +20,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.auth.managers.models.authorized_action import AuthorizedAction
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
@@ -88,18 +89,20 @@ class BaseAuthManager(LoggingMixin):
 
     def is_all_authorized(
         self,
-        actions: Sequence[tuple[ResourceAction, str, ResourceDetails | None]],
+        actions: Sequence[AuthorizedAction],
     ) -> bool:
         """
         Wrapper around `is_authorized` to check whether the user is authorized to perform several actions.
 
-        :param actions: the list of actions to check. Each tuple is a list of parameters of `is_authorized`
+        :param actions: the list of actions to check. Each item represents the list of parameters of
+            `is_authorized`
         """
         return all(
             self.is_authorized(
-                action=action[0],
-                resource_type=action[1],
-                resource_details=action[2] if len(action) == 3 else None,
+                action=action.action,
+                resource_type=action.resource_type,
+                resource_details=action.resource_details,
+                user=action.user,
             )
             for action in actions
         )
