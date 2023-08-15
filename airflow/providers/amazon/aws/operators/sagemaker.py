@@ -1714,9 +1714,9 @@ class SageMakerDeleteNotebookOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
 
     @cached_property
-    def hook(self) -> SageMakerNotebookHook:
-        """Create and return SageMakerNotebookHook."""
-        return SageMakerNotebookHook(aws_conn_id=self.aws_conn_id)
+    def hook(self) -> SageMakerHook:
+        """Create and return SageMakerHook."""
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context):
         self.log.info("Deleting SageMaker notebook %s....", self.instance_name)
