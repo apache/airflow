@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.sagemaker_notebook import (
+from airflow.providers.amazon.aws.hooks.sagemaker import (
     SageMakerNotebookHook,
 )
 

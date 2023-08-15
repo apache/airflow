@@ -1305,3 +1305,23 @@ class SageMakerHook(AwsBaseHook):
             if "BestCandidate" in res:
                 return res["BestCandidate"]
         return None
+
+
+class SageMakerNotebookHook(AwsBaseHook):
+    """
+
+    Interact with Amazon SageMaker to execute notebooks.
+
+    Provide thick wrapper around
+    :external+boto3:py:class:`boto3.client('sagemaker') <SageMaker.Client>`
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs["client_type"] = "sagemaker"
+        super().__init__(*args, **kwargs)

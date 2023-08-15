@@ -20,7 +20,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.operators.sagemaker_notebook import (
+from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerCreateNotebookOperator,
     SageMakerDeleteNotebookOperator,
     SageMakerStartNoteBookOperator,

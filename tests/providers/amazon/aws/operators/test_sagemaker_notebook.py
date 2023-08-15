@@ -22,8 +22,8 @@ from unittest import mock
 import pytest
 from moto import mock_sagemaker
 
-from airflow.providers.amazon.aws.hooks.sagemaker_notebook import SageMakerNotebookHook
-from airflow.providers.amazon.aws.operators.sagemaker_notebook import (
+from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerNotebookHook
+from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerCreateNotebookOperator,
     SageMakerDeleteNotebookOperator,
     SageMakerStartNoteBookOperator,
