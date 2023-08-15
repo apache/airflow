@@ -92,7 +92,6 @@ class TestSagemakerCreateNotebookOperator:
         mock_hook_conn.create_notebook_instance.assert_called_once()
         mock_hook_conn.get_waiter.assert_not_called()
 
-    # test wait_for_completion
 
     @mock.patch.object(SageMakerNotebookHook, "conn")
     def test_create_notebook_wait_for_completion(self, mock_hook_conn):
