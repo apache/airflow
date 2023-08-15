@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-14T14:35:42Z
+# This constraints file was automatically generated on 2023-08-15T06:41:19Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-7-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -88,7 +88,7 @@ aws-sam-translator==1.73.0
 aws-xray-sdk==2.12.0
 azure-batch==14.0.0
 azure-common==1.1.28
-azure-core==1.29.1
+azure-core==1.29.2
 azure-cosmos==4.5.0
 azure-datalake-store==0.0.53
 azure-identity==1.14.0
@@ -220,7 +220,7 @@ google-cloud-dataproc-metastore==1.12.0
 google-cloud-dataproc==5.4.3
 google-cloud-dlp==3.12.2
 google-cloud-kms==2.19.1
-google-cloud-language==2.10.1
+google-cloud-language==2.11.0
 google-cloud-logging==3.6.0
 google-cloud-memcache==1.7.2
 google-cloud-monitoring==2.15.1
@@ -379,7 +379,7 @@ pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
 pinotdb==0.5.0
-pipdeptree==2.12.0
+pipdeptree==2.13.0
 pipx==1.2.0
 pkginfo==1.9.6
 platformdirs==3.8.1
@@ -500,15 +500,15 @@ sphinx-autoapi==2.1.1
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
 sphinx-rtd-theme==1.2.2
-sphinxcontrib-applehelp==1.0.6
-sphinxcontrib-devhelp==1.0.4
-sphinxcontrib-htmlhelp==2.0.3
+sphinxcontrib-applehelp==1.0.7
+sphinxcontrib-devhelp==1.0.5
+sphinxcontrib-htmlhelp==2.0.4
 sphinxcontrib-httpdomain==1.8.1
 sphinxcontrib-jquery==4.1
 sphinxcontrib-jsmath==1.0.1
-sphinxcontrib-qthelp==1.0.5
+sphinxcontrib-qthelp==1.0.6
 sphinxcontrib-redoc==1.6.0
-sphinxcontrib-serializinghtml==1.1.7
+sphinxcontrib-serializinghtml==1.1.8
 sphinxcontrib-spelling==8.0.0
 spython==0.3.0
 sqlalchemy-bigquery==1.7.0
