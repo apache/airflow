@@ -66,6 +66,22 @@ class TestGlueJobHook:
         assert "Arn" in iam_role["Role"]
         assert iam_role["Role"]["Arn"] == f"arn:aws:iam::123456789012:role{role_path}{expected_role}"
 
+    @mock.patch.object(GlueJobHook, "get_iam_execution_role")
+    @mock.patch.object(GlueJobHook, "conn")
+    def test_init_iam_role_value_error(self, mock_conn, mock_get_iam_execution_role):
+        mock_get_iam_execution_role.return_value = mock.MagicMock(
+            Role={"RoleName": "my_test_role_name", "RoleArn": "my_test_role"}
+        )
+
+        with pytest.raises(ValueError, match="Cannot set iam_role_arn and iam_role_name simultaneously"):
+            GlueJobHook(
+                job_name="aws_test_glue_job",
+                desc="This is test case job from Airflow",
+                s3_bucket="some-bucket",
+                iam_role_name="my_test_role_name",
+                iam_role_ar="my_test_role",
+            )
+
     @mock.patch.object(AwsBaseHook, "conn")
     def test_has_job_exists(self, mock_conn):
         job_name = "aws_test_glue_job"
