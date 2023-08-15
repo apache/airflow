@@ -34,16 +34,16 @@ log = logging.getLogger(__name__)
 
 class FabAirflowSecurityManagerOverrideDb:
     """
+    FabAirflowSecurityManagerOverride is split into multiple classes to avoid having one massive class.
+
     This class contains all methods in
     airflow.auth.managers.fab.security_manager.override.FabAirflowSecurityManagerOverride related to the
     database.
 
-    FabAirflowSecurityManagerOverride is split into multiple classes to avoid having one massive class.
-
     :param appbuilder: The appbuilder.
     """
 
-    """ Models """
+    # Models
     role_model = Role
     permission_model = Permission
     action_model = Action
