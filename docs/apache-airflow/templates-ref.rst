@@ -81,6 +81,18 @@ Variable                                    Type                  Description
     The DAG run's logical date, and values derived from it, such as ``ds`` and
     ``ts``, **should not** be considered unique in a DAG. Use ``run_id`` instead.
 
+Accessing Airflow context variables from TaskFlow tasks
+-------------------------------------------------------
+
+While ``@task`` decorated tasks don't support rendering jinja templates passed as arguments,
+all of the variables listed above can be accessed directly from tasks. The following code block
+is an example of accessing a ``task_instance`` object from its task:
+
+.. include:: ../shared/template-examples/taskflow.rst
+
+Deprecated variables
+-------------------------------------------------------
+
 The following variables are deprecated. They are kept for backward compatibility, but you should convert
 existing code to use other variables instead.
 

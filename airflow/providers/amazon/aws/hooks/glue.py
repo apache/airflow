@@ -44,7 +44,8 @@ class GlueJobHook(AwsBaseHook):
     :param retry_limit: Maximum number of times to retry this job if it fails
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job
     :param region_name: aws region name (example: us-east-1)
-    :param iam_role_name: AWS IAM Role for Glue Job Execution
+    :param iam_role_name: AWS IAM Role for Glue Job Execution. If set `iam_role_arn` must equal None.
+    :param iam_role_arn: AWS IAM Role ARN for Glue Job Execution, If set `iam_role_name` must equal None.
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :param update_config: Update job configuration on Glue (default: False)
 
@@ -72,6 +73,7 @@ class GlueJobHook(AwsBaseHook):
         retry_limit: int = 0,
         num_of_dpus: int | float | None = None,
         iam_role_name: str | None = None,
+        iam_role_arn: str | None = None,
         create_job_kwargs: dict | None = None,
         update_config: bool = False,
         job_poll_interval: int | float = 6,
@@ -85,6 +87,7 @@ class GlueJobHook(AwsBaseHook):
         self.retry_limit = retry_limit
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
+        self.role_arn = iam_role_arn
         self.s3_glue_logs = "logs/glue-logs/"
         self.create_job_kwargs = create_job_kwargs or {}
         self.update_config = update_config
@@ -93,6 +96,8 @@ class GlueJobHook(AwsBaseHook):
         worker_type_exists = "WorkerType" in self.create_job_kwargs
         num_workers_exists = "NumberOfWorkers" in self.create_job_kwargs
 
+        if self.role_arn and self.role_name:
+            raise ValueError("Cannot set iam_role_arn and iam_role_name simultaneously")
         if worker_type_exists and num_workers_exists:
             if num_of_dpus is not None:
                 raise ValueError("Cannot specify num_of_dpus with custom WorkerType")
@@ -114,12 +119,16 @@ class GlueJobHook(AwsBaseHook):
             "ScriptLocation": self.script_location,
         }
         command = self.create_job_kwargs.pop("Command", default_command)
-        execution_role = self.get_iam_execution_role()
+        if not self.role_arn:
+            execution_role = self.get_iam_execution_role()
+            role_arn = execution_role["Role"]["Arn"]
+        else:
+            role_arn = self.role_arn
 
         config = {
             "Name": self.job_name,
             "Description": self.desc,
-            "Role": execution_role["Role"]["Arn"],
+            "Role": role_arn,
             "ExecutionProperty": {"MaxConcurrentRuns": self.concurrent_run_limit},
             "Command": command,
             "MaxRetries": self.retry_limit,
@@ -144,7 +153,6 @@ class GlueJobHook(AwsBaseHook):
         return self.conn.get_jobs()
 
     def get_iam_execution_role(self) -> dict:
-        """Get IAM Role for job execution."""
         try:
             iam_client = self.get_session(region_name=self.region_name).client(
                 "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify

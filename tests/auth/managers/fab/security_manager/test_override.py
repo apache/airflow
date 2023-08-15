@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 import pytest
 
+from airflow.auth.managers.fab.models import User
 from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 
 appbuilder = Mock()
@@ -39,7 +40,7 @@ registeruseroidview = Mock()
 resetmypasswordview = Mock()
 resetpasswordview = Mock()
 rolemodelview = Mock()
-user_model = Mock()
+user_model = User
 userinfoeditview = Mock()
 userdbmodelview = Mock()
 userldapmodelview = Mock()
@@ -88,11 +89,15 @@ def security_manager_override():
         "airflow.auth.managers.fab.security_manager.override.LoginManager"
     ) as mock_login_manager, mock.patch(
         "airflow.auth.managers.fab.security_manager.override.JWTManager"
-    ) as mock_jwt_manager:
+    ) as mock_jwt_manager, mock.patch.object(
+        FabAirflowSecurityManagerOverride, "create_db"
+    ):
         mock_login_manager_instance = Mock()
         mock_login_manager.return_value = mock_login_manager_instance
         mock_jwt_manager_instance = Mock()
         mock_jwt_manager.return_value = mock_jwt_manager_instance
+
+        appbuilder.app.config = MagicMock()
 
         security_manager_override = EmptySecurityManager(appbuilder)
 
