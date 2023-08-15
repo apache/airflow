@@ -1686,7 +1686,6 @@ class SageMakerDeleteNotebookOperator(BaseOperator):
         :ref:`howto/operator:SageMakerDeleteNotebookOperator`
 
     :param instance_name: The name of the notebook instance to delete.
-    :param config: Additional configuration options for the delete call.
     :param wait_for_completion: Whether or not to wait for the notebook to delete before returning.
     :param aws_conn_id: The AWS connection ID to use.
     """
