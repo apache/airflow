@@ -115,7 +115,15 @@ class BatchSensor(BaseSensorOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+            message = f"Error while running job: {event}"
+            # TODO: remove this if-else block when min_airflow_version is set to higher than the version that
+            # raise_failed_or_skiping_exception is introduced in BaseSensorOperator
+            if getattr(self, "raise_failed_or_skiping_exception"):
+                self.raise_failed_or_skiping_exception(failed_message=message)
+            else:
+                from airflow.providers.amazon.aws.sensors import raise_failed_or_skiping_exception
+
+                raise_failed_or_skiping_exception(soft_fail=self.soft_fail, failed_message=message)
         job_id = event["job_id"]
         self.log.info("Batch Job %s complete", job_id)
 
