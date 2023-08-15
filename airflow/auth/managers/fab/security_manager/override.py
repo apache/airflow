@@ -17,10 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import warnings
 from functools import cached_property
 
 from flask import flash, g
+from flask_appbuilder import const
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
+from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
@@ -28,9 +32,13 @@ from itsdangerous import want_bytes
 from markupsafe import Markup
 from werkzeug.security import generate_password_hash
 
-from airflow.auth.managers.fab.models import User
+from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role, User
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
+from airflow.auth.managers.fab.security_manager.modules.db import FabAirflowSecurityManagerOverrideDb
+from airflow.auth.managers.fab.security_manager.modules.oauth import FabAirflowSecurityManagerOverrideOauth
 from airflow.www.session import AirflowDatabaseSessionInterface
+
+log = logging.getLogger(__name__)
 
 # This is the limit of DB user sessions that we consider as "healthy". If you have more sessions that this
 # number then we will refuse to delete sessions that have expired and old user sessions when resetting
@@ -41,7 +49,9 @@ from airflow.www.session import AirflowDatabaseSessionInterface
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
 
 
-class FabAirflowSecurityManagerOverride:
+class FabAirflowSecurityManagerOverride(
+    FabAirflowSecurityManagerOverrideDb, FabAirflowSecurityManagerOverrideOauth
+):
     """
     This security manager overrides the default AirflowSecurityManager security manager.
 
@@ -79,6 +89,15 @@ class FabAirflowSecurityManagerOverride:
     auth_view = None
     """ The obj instance for user view """
     user_view = None
+    """ Models """
+    role_model = Role
+    action_model = Action
+    resource_model = Resource
+    permission_model = Permission
+    registeruser_model = RegisterUser
+
+    """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
+    oauth_allow_list: dict[str, list] = {}
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -107,6 +126,14 @@ class FabAirflowSecurityManagerOverride:
         self.useroidmodelview = kwargs["useroidmodelview"]
         self.userremoteusermodelview = kwargs["userremoteusermodelview"]
         self.userstatschartview = kwargs["userstatschartview"]
+
+        self._init_config()
+        self._init_auth()
+        self._init_data_model()
+
+        self._builtin_roles: dict = self.create_builtin_roles()
+
+        self.create_db()
 
         # Setup Flask login
         self.lm = self.create_login_manager()
@@ -294,32 +321,152 @@ class FabAirflowSecurityManagerOverride:
         g.user = user
         return user
 
-    def get_user_by_id(self, pk):
-        return self.appbuilder.get_session.get(self.user_model, pk)
-
     @property
     def auth_user_registration(self):
         """Will user self registration be allowed."""
-        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION"]
+        return self.appbuilder.app.config["AUTH_USER_REGISTRATION"]
 
     @property
     def auth_type(self):
         """Get the auth type."""
-        return self.appbuilder.get_app.config["AUTH_TYPE"]
+        return self.appbuilder.app.config["AUTH_TYPE"]
 
     @property
     def is_auth_limited(self) -> bool:
         """Is the auth rate limited."""
-        return self.appbuilder.get_app.config["AUTH_RATE_LIMITED"]
+        return self.appbuilder.app.config["AUTH_RATE_LIMITED"]
 
     @property
     def auth_rate_limit(self) -> str:
         """Get the auth rate limit."""
-        return self.appbuilder.get_app.config["AUTH_RATE_LIMIT"]
+        return self.appbuilder.app.config["AUTH_RATE_LIMIT"]
 
     @cached_property
     def resourcemodelview(self):
         """Return the resource model view."""
-        from airflow.www.views import ResourceModelView
+        from airflow.auth.managers.fab.views.permissions import ResourceModelView
 
         return ResourceModelView
+
+    @property
+    def auth_role_public(self):
+        """Gets the public role."""
+        return self.appbuilder.app.config["AUTH_ROLE_PUBLIC"]
+
+    @property
+    def oauth_providers(self):
+        """Oauth providers."""
+        return self.appbuilder.app.config["OAUTH_PROVIDERS"]
+
+    @property
+    def oauth_whitelists(self):
+        warnings.warn(
+            "The 'oauth_whitelists' property is deprecated. Please use 'oauth_allow_list' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.oauth_allow_list
+
+    def create_builtin_roles(self):
+        """Returns FAB builtin roles."""
+        return self.appbuilder.app.config.get("FAB_ROLES", {})
+
+    def _init_config(self):
+        """
+        Initialize config.
+
+        :meta private:
+        """
+        app = self.appbuilder.get_app
+        # Base Security Config
+        app.config.setdefault("AUTH_ROLE_ADMIN", "Admin")
+        app.config.setdefault("AUTH_ROLE_PUBLIC", "Public")
+        app.config.setdefault("AUTH_TYPE", AUTH_DB)
+        # Self Registration
+        app.config.setdefault("AUTH_USER_REGISTRATION", False)
+        app.config.setdefault("AUTH_USER_REGISTRATION_ROLE", self.auth_role_public)
+        app.config.setdefault("AUTH_USER_REGISTRATION_ROLE_JMESPATH", None)
+        # Role Mapping
+        app.config.setdefault("AUTH_ROLES_MAPPING", {})
+        app.config.setdefault("AUTH_ROLES_SYNC_AT_LOGIN", False)
+        app.config.setdefault("AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS", False)
+
+        # LDAP Config
+        if self.auth_type == AUTH_LDAP:
+            if "AUTH_LDAP_SERVER" not in app.config:
+                raise Exception("No AUTH_LDAP_SERVER defined on config with AUTH_LDAP authentication type.")
+            app.config.setdefault("AUTH_LDAP_SEARCH", "")
+            app.config.setdefault("AUTH_LDAP_SEARCH_FILTER", "")
+            app.config.setdefault("AUTH_LDAP_APPEND_DOMAIN", "")
+            app.config.setdefault("AUTH_LDAP_USERNAME_FORMAT", "")
+            app.config.setdefault("AUTH_LDAP_BIND_USER", "")
+            app.config.setdefault("AUTH_LDAP_BIND_PASSWORD", "")
+            # TLS options
+            app.config.setdefault("AUTH_LDAP_USE_TLS", False)
+            app.config.setdefault("AUTH_LDAP_ALLOW_SELF_SIGNED", False)
+            app.config.setdefault("AUTH_LDAP_TLS_DEMAND", False)
+            app.config.setdefault("AUTH_LDAP_TLS_CACERTDIR", "")
+            app.config.setdefault("AUTH_LDAP_TLS_CACERTFILE", "")
+            app.config.setdefault("AUTH_LDAP_TLS_CERTFILE", "")
+            app.config.setdefault("AUTH_LDAP_TLS_KEYFILE", "")
+            # Mapping options
+            app.config.setdefault("AUTH_LDAP_UID_FIELD", "uid")
+            app.config.setdefault("AUTH_LDAP_GROUP_FIELD", "memberOf")
+            app.config.setdefault("AUTH_LDAP_FIRSTNAME_FIELD", "givenName")
+            app.config.setdefault("AUTH_LDAP_LASTNAME_FIELD", "sn")
+            app.config.setdefault("AUTH_LDAP_EMAIL_FIELD", "mail")
+
+        # Rate limiting
+        app.config.setdefault("AUTH_RATE_LIMITED", True)
+        app.config.setdefault("AUTH_RATE_LIMIT", "5 per 40 second")
+
+    def _init_auth(self):
+        """
+        Initialize authentication configuration.
+
+        :meta private:
+        """
+        app = self.appbuilder.get_app
+        if self.auth_type == AUTH_OID:
+            from flask_openid import OpenID
+
+            self.oid = OpenID(app)
+        if self.auth_type == AUTH_OAUTH:
+            from authlib.integrations.flask_client import OAuth
+
+            self.oauth = OAuth(app)
+            self.oauth_remotes = {}
+            for provider in self.oauth_providers:
+                provider_name = provider["name"]
+                log.debug("OAuth providers init %s", provider_name)
+                obj_provider = self.oauth.register(provider_name, **provider["remote_app"])
+                obj_provider._tokengetter = FabAirflowSecurityManagerOverrideOauth.oauth_token_getter
+                if not self.oauth_user_info:
+                    self.oauth_user_info = self.get_oauth_user_info
+                # Whitelist only users with matching emails
+                if "whitelist" in provider:
+                    self.oauth_allow_list[provider_name] = provider["whitelist"]
+                self.oauth_remotes[provider_name] = obj_provider
+
+    def _init_data_model(self):
+        user_data_model = SQLAInterface(self.user_model)
+        if self.auth_type == const.AUTH_DB:
+            self.userdbmodelview.datamodel = user_data_model
+        elif self.auth_type == const.AUTH_LDAP:
+            self.userldapmodelview.datamodel = user_data_model
+        elif self.auth_type == const.AUTH_OID:
+            self.useroidmodelview.datamodel = user_data_model
+        elif self.auth_type == const.AUTH_OAUTH:
+            self.useroauthmodelview.datamodel = user_data_model
+        elif self.auth_type == const.AUTH_REMOTE_USER:
+            self.userremoteusermodelview.datamodel = user_data_model
+
+        if self.userstatschartview:
+            self.userstatschartview.datamodel = user_data_model
+        if self.auth_user_registration:
+            self.registerusermodelview.datamodel = SQLAInterface(self.registeruser_model)
+
+        self.rolemodelview.datamodel = SQLAInterface(self.role_model)
+        self.actionmodelview.datamodel = SQLAInterface(self.action_model)
+        self.resourcemodelview.datamodel = SQLAInterface(self.resource_model)
+        self.permissionmodelview.datamodel = SQLAInterface(self.permission_model)
