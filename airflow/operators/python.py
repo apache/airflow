@@ -627,8 +627,12 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             if venv_path.exists():
                 self.log.info("Re-using cached Python Virtualenv in %s", venv_path)
             else:
-                venv_path.mkdir(parents=True)
-                self._prepare_venv(venv_path)
+                try:
+                    venv_path.mkdir(parents=True)
+                    self._prepare_venv(venv_path)
+                except Exception as e:
+                    shutil.rmtree(venv_path)
+                    raise AirflowException(f"Unable to create new virtualenv in {venv_path}") from e
                 self.log.info("New Python Virtualenv created in %s", venv_path)
             return venv_path
 
