@@ -53,8 +53,8 @@ class GlueJobOperator(BaseOperator):
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job.
     :param region_name: aws region name (example: us-east-1)
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
-    :param iam_role_name: AWS IAM Role for Glue Job Execution. If set iam_role_arn must equal None.
-    :param iam_role_arn: AWS IAM ARN for Glue Job Execution. If set iam_role_name must equal None.
+    :param iam_role_name: AWS IAM Role for Glue Job Execution. If set `iam_role_arn` must equal None.
+    :param iam_role_arn: AWS IAM ARN for Glue Job Execution. If set `iam_role_name` must equal None.
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :param run_job_kwargs: Extra arguments for Glue Job Run
     :param wait_for_completion: Whether to wait for job run completion. (default: True)
