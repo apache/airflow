@@ -29,7 +29,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook, SageMakerNotebookHook
+from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.sagemaker import (
     SageMakerPipelineTrigger,
     SageMakerTrigger,
@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.triggers.sagemaker import (
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
+from airflow.utils.helpers import prune_dict
 from airflow.utils.json import AirflowJsonEncoder
 
 if TYPE_CHECKING:
@@ -1546,7 +1547,6 @@ class SageMakerCreateNotebookOperator(BaseOperator):
     :param root_access: Whether to give the notebook instance root access to the Amazon S3 bucket.
     :param wait_for_completion: Whether or not to wait for the notebook to be InService before returning
     :param create_instance_kwargs: Additional configuration options for the create call.
-    :param config: Additional configuration options for the create call.
     :param aws_conn_id: The AWS connection ID to use.
 
     This operator returns The ARN of the created notebook.
@@ -1563,7 +1563,6 @@ class SageMakerCreateNotebookOperator(BaseOperator):
         "root_access",
         "wait_for_completion",
         "create_instance_kwargs",
-        "config",
     )
 
     ui_color = "#ff7300"
@@ -1581,7 +1580,6 @@ class SageMakerCreateNotebookOperator(BaseOperator):
         root_access: str | None = None,
         create_instance_kwargs: dict[str, Any] = {},
         wait_for_completion: bool = True,
-        config: dict = {},
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -1595,14 +1593,20 @@ class SageMakerCreateNotebookOperator(BaseOperator):
         self.direct_internet_access = direct_internet_access
         self.root_access = root_access
         self.wait_for_completion = wait_for_completion
-        self.config = config
         self.aws_conn_id = aws_conn_id
         self.create_instance_kwargs = create_instance_kwargs
 
         if "tags" in self.create_instance_kwargs and self.create_instance_kwargs["tags"] is not None:
             self.create_instance_kwargs["tags"] = format_tags(self.create_instance_kwargs["tags"])
 
-        self.create_notebook_instance_kwargs = {
+    @cached_property
+    def hook(self) -> SageMakerHook:
+        """Create and return SageMakerHook."""
+        return SageMakerHook(aws_conn_id=self.aws_conn_id)
+
+    def execute(self, context: Context):
+
+        create_notebook_instance_kwargs = {
             "NotebookInstanceName": self.instance_name,
             "InstanceType": self.instance_type,
             "RoleArn": self.role_arn,
@@ -1613,18 +1617,10 @@ class SageMakerCreateNotebookOperator(BaseOperator):
             "RootAccess": self.root_access,
         }
         if len(self.create_instance_kwargs) > 0:
-            self.create_notebook_instance_kwargs.update(self.create_instance_kwargs)
+            create_notebook_instance_kwargs.update(self.create_instance_kwargs)
 
-    @cached_property
-    def hook(self) -> SageMakerNotebookHook:
-        """Create and return SageMakerNotebookHook."""
-        return SageMakerNotebookHook(aws_conn_id=self.aws_conn_id)
-
-    def execute(self, context: Context):
         self.log.info("Creating SageMaker notebook %s.", self.instance_name)
-        response = self.hook.conn.create_notebook_instance(
-            **prune_dict(self.create_notebook_instance_kwargs)
-        )
+        response = self.hook.conn.create_notebook_instance(**prune_dict(create_notebook_instance_kwargs))
 
         self.log.info("SageMaker notebook created: %s", response["NotebookInstanceArn"])
 
@@ -1662,7 +1658,6 @@ class SageMakerStopNotebookOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.instance_name = instance_name
-        self.config = config
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
 
@@ -1709,7 +1704,6 @@ class SageMakerDeleteNotebookOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.instance_name = instance_name
-        self.config = config
         self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
 
@@ -1756,7 +1750,6 @@ class SageMakerStartNoteBookOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.instance_name = instance_name
-        self.config = config
         self.aws_conn_id = aws_conn_id
         self.wait_for_completion = wait_for_completion
 
