@@ -21,6 +21,7 @@ from __future__ import annotations
 from flask import Blueprint
 from flask_appbuilder import BaseView, expose
 
+from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
 from airflow.www.auth import has_access
@@ -34,7 +35,7 @@ class EmptyPluginView(BaseView):
     @expose("/")
     @has_access(
         [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (ResourceAction.GET, permissions.RESOURCE_WEBSITE),
         ]
     )
     def index(self):

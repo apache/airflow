@@ -17,32 +17,20 @@
 # under the License.
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Any
+from enum import Enum
 
 
-class BaseUser:
-    """User model interface."""
+class ResourceAction(Enum):
+    """
+    This is used when doing authorization check to define the type of action/operation
+    the user is doing.
+    """
 
-    @property
-    def is_authenticated(self) -> bool:
-        return not self.is_anonymous
-
-    @property
-    @abstractmethod
-    def is_active(self) -> bool:
-        ...
-
-    @property
-    @abstractmethod
-    def is_anonymous(self) -> bool:
-        ...
-
-    @property
-    @abstractmethod
-    def perms(self) -> Any:
-        ...
-
-    @abstractmethod
-    def get_id(self) -> str:
-        ...
+    # Create a resource
+    POST = "POST"
+    # Read a resource
+    GET = "GET"
+    # Update a resource
+    PUT = "PUT"
+    # Delete a resource
+    DELETE = "DELETE"

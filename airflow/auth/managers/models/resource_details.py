@@ -17,32 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Any
+from dataclasses import dataclass
 
 
-class BaseUser:
-    """User model interface."""
+@dataclass
+class ResourceDetails:
+    """
+    Represents the details of a resource.
 
-    @property
-    def is_authenticated(self) -> bool:
-        return not self.is_anonymous
+    All fields must be optional. These details can be used in authorization decision.
+    """
 
-    @property
-    @abstractmethod
-    def is_active(self) -> bool:
-        ...
-
-    @property
-    @abstractmethod
-    def is_anonymous(self) -> bool:
-        ...
-
-    @property
-    @abstractmethod
-    def perms(self) -> Any:
-        ...
-
-    @abstractmethod
-    def get_id(self) -> str:
-        ...
+    id: str | None = None

@@ -18,10 +18,14 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.auth.managers.models.base_user import BaseUser
+from airflow.auth.managers.models.resource_action import ResourceAction
+from airflow.auth.managers.models.resource_details import ResourceDetails
 from airflow.exceptions import AirflowException
+from airflow.models.dag import DagModel
+from airflow.security.permissions import RESOURCE_DAG, RESOURCE_DAG_PREFIX
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -53,6 +57,67 @@ class BaseAuthManager(LoggingMixin):
     @abstractmethod
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
+
+    @abstractmethod
+    def is_authorized(
+        self,
+        action: ResourceAction,
+        resource_type: str,
+        resource_details: ResourceDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action.
+
+        .. code-block:: python
+
+            # Check whether the logged-in user has permission to read the DAG "my_dag_id"
+            get_auth_manager().is_authorized(
+                Action.GET,
+                Resource.DAG,
+                ResourceDetails(
+                    id="my_dag_id",
+                ),
+            )
+
+        :param action: the action to perform
+        :param resource_type: the type of resource the user attempts to perform the action on
+        :param resource_details: optional details about the resource itself
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    def is_all_authorized(
+        self,
+        actions: Sequence[tuple[ResourceAction, str, ResourceDetails | None]],
+    ) -> bool:
+        """
+        Wrapper around `is_authorized` to check whether the user is authorized to perform several actions.
+
+        :param actions: the list of actions to check. Each tuple is a list of parameters of `is_authorized`
+        """
+        return all(
+            self.is_authorized(
+                action=action[0],
+                resource_type=action[1],
+                resource_details=action[2] if len(action) == 3 else None,
+            )
+            for action in actions
+        )
+
+    def _get_root_dag_id(self, dag_id: str) -> str:
+        """
+        Return the root DAG id in case of sub DAG, return the DAG id otherwise.
+
+        :param dag_id: the DAG id
+        """
+        if "." in dag_id:
+            dm = (
+                self.security_manager.appbuilder.get_session.query(DagModel.dag_id, DagModel.root_dag_id)
+                .filter(DagModel.dag_id == dag_id)
+                .first()
+            )
+            return dm.root_dag_id or dm.dag_id
+        return dag_id
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
@@ -93,3 +158,8 @@ class BaseAuthManager(LoggingMixin):
         :param security_manager: the security manager
         """
         self._security_manager = security_manager
+
+    @staticmethod
+    def is_dag_resource(resource_name: str) -> bool:
+        """Determines if a resource relates to a DAG."""
+        return resource_name == RESOURCE_DAG or resource_name.startswith(RESOURCE_DAG_PREFIX)

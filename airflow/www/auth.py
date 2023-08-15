@@ -19,8 +19,10 @@ from __future__ import annotations
 from functools import wraps
 from typing import Callable, Sequence, TypeVar, cast
 
-from flask import current_app, flash, g, redirect, render_template, request
+from flask import flash, g, redirect, render_template, request
 
+from airflow.auth.managers.models.resource_action import ResourceAction
+from airflow.auth.managers.models.resource_details import ResourceDetails
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -32,15 +34,13 @@ def get_access_denied_message():
     return conf.get("webserver", "access_denied_message")
 
 
-def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
+def has_access(permissions: Sequence[tuple[ResourceAction, str]] | None = None) -> Callable[[T], T]:
     """Factory for decorator that checks current user's permissions against required permissions."""
 
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
             __tracebackhide__ = True  # Hide from pytest traceback.
-
-            appbuilder = current_app.appbuilder
 
             dag_id = (
                 kwargs.get("dag_id")
@@ -49,7 +49,9 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
                 or (request.is_json and request.json.get("dag_id"))
                 or None
             )
-            if appbuilder.sm.check_authorization(permissions, dag_id):
+            resource_details = ResourceDetails(id=dag_id)
+            actions = [(perm[0], perm[1], resource_details) for perm in permissions]
+            if get_auth_manager().is_all_authorized(actions):
                 return func(*args, **kwargs)
             elif get_auth_manager().is_logged_in() and not g.user.perms:
                 return (

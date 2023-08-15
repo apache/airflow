@@ -16,29 +16,107 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.auth.managers.models.base_user import BaseUser
+from airflow.auth.managers.models.resource_action import ResourceAction
+from airflow.auth.managers.models.resource_details import ResourceDetails
 from airflow.exceptions import AirflowException
 from airflow.www.security import ApplessAirflowSecurityManager
 
 
+class EmptyAuthManager(BaseAuthManager):
+    def get_user_name(self) -> str:
+        raise NotImplementedError()
+
+    def get_user(self) -> BaseUser:
+        raise NotImplementedError()
+
+    def get_user_id(self) -> str:
+        raise NotImplementedError()
+
+    def is_logged_in(self) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized(
+        self,
+        action: ResourceAction,
+        resource_type: str,
+        resource_details: ResourceDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        raise NotImplementedError()
+
+    def get_url_login(self, **kwargs) -> str:
+        raise NotImplementedError()
+
+    def get_url_logout(self) -> str:
+        raise NotImplementedError()
+
+    def get_url_user_profile(self) -> str | None:
+        raise NotImplementedError()
+
+
 @pytest.fixture
 def auth_manager():
-    class EmptyAuthManager(BaseAuthManager):
-        def get_user_name(self) -> str:
-            raise NotImplementedError()
-
-        def is_logged_in(self) -> bool:
-            raise NotImplementedError()
-
-        def get_url_login(self, **kwargs) -> str:
-            raise NotImplementedError()
-
     return EmptyAuthManager()
 
 
 class TestBaseAuthManager:
+    @pytest.mark.parametrize(
+        "actions, is_authorized_per_action, expected_result",
+        [
+            # Edge case: empty list of actions
+            (
+                [],
+                [],
+                True,
+            ),
+            # One action with permissions
+            (
+                [(ResourceAction.GET, "test_resource")],
+                [True],
+                True,
+            ),
+            # One action without permissions
+            (
+                [(ResourceAction.GET, "test_resource")],
+                [False],
+                False,
+            ),
+            # Several actions, one without permission
+            (
+                [
+                    (ResourceAction.GET, "test_resource"),
+                    (ResourceAction.POST, "test_resource"),
+                    (ResourceAction.GET, "test_resource2"),
+                ],
+                [True, True, False],
+                False,
+            ),
+            # Several actions, all with permission
+            (
+                [
+                    (ResourceAction.GET, "test_resource"),
+                    (ResourceAction.POST, "test_resource"),
+                    (ResourceAction.GET, "test_resource2"),
+                ],
+                [True, True, True],
+                True,
+            ),
+        ],
+    )
+    @mock.patch.object(EmptyAuthManager, "is_authorized")
+    def test_is_all_authorized(
+        self, mock_is_authorized, actions, is_authorized_per_action, expected_result, auth_manager
+    ):
+        mock_is_authorized.side_effect = is_authorized_per_action
+        result = auth_manager.is_all_authorized(actions)
+        assert result is expected_result
+
     def test_get_security_manager_override_class_return_empty_class(self, auth_manager):
         assert auth_manager.get_security_manager_override_class() is object
 
@@ -50,3 +128,15 @@ class TestBaseAuthManager:
         auth_manager.security_manager = ApplessAirflowSecurityManager()
         _security_manager = auth_manager.security_manager
         assert type(_security_manager) is ApplessAirflowSecurityManager
+
+    @pytest.mark.parametrize(
+        "resource_name, result",
+        [
+            ("DAGs", True),
+            ("DAG:test", True),
+            ("DAG:dag_id", True),
+            ("test", False),
+        ],
+    )
+    def test_is_dag_resource(self, resource_name, result):
+        assert BaseAuthManager.is_dag_resource(resource_name) is result

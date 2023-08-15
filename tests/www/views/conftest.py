@@ -112,7 +112,6 @@ def app(examples_dag_bag):
 
 @pytest.fixture()
 def admin_client(app):
-
     return client_with_login(app, username="test_admin", password="test_admin")
 
 
