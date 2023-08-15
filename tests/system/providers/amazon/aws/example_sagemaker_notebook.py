@@ -74,12 +74,12 @@ with DAG(
 
     # [END howto_operator_sagemaker_notebook_start]
 
-    # [START howto_operator_sagemaker_notebook_delete]
     # Instance must be stopped before it can be deleted.
     stop_instance_before_delete = SageMakerStopNotebookOperator(
         task_id="stop_instance_before_delete",
         instance_name=instance_name,
     )
+    # [START howto_operator_sagemaker_notebook_delete]
     delete_instance = SageMakerDeleteNotebookOperator(task_id="delete_instance", instance_name=instance_name)
     # [END howto_operator_sagemaker_notebook_delete]
 
