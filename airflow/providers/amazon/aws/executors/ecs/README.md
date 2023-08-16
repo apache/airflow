@@ -36,9 +36,10 @@ Remote logging can be employed when using the ECS executor to persist your Airfl
 There are many ways to configure remote logging and several supported destinations. A general overview of Airflow Task logging can be found [here](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/logging-tasks.html). Instructions for configuring S3 remote logging can be found [here](https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/logging/s3-task-handler.html) and Cloudwatch remote logging [here](https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/logging/cloud-watch-task-handlers.html).
 Some important things to point out for remote logging in the context of the ECS executor:
 
- - The configuration options for Airflow remote logging must be configured on the host running the Airflow Webserver (so that it can fetch logs from the remote location) as well as within the ECS container running the Airflow Tasks (so that it can upload the logs to the remote location).
+ - The configuration options for Airflow remote logging must be configured on the host running the Airflow Webserver (so that it can fetch logs from the remote location) as well as within the ECS container running the Airflow Tasks (so that it can upload the logs to the remote location). See [here](https://airflow.apache.org/docs/apache-airflow/stable/howto/set-config.html) to read more about how to set Airflow configuration via config file or environment variable exports.
  - Adding the Airflow remote logging config to the container can be done in many ways. Some examples include, but are not limited to:
-    - Exported directly in the Dockerfile (see the [Dockerfile Section above](#dockerfile-and-image-building))
+    - Exported as environment variables directly in the Dockerfile (see the [Dockerfile Section above](#dockerfile-and-image-building))
+    - Updating the `airflow.cfg` file or copy/mounting/downloading a custom `ariflow.cfg` in the Dockerfile.
     - Added in the ECS Task Definition in plain text or via [Secrets/System Manager](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar.html)
     - Or, using [ECS Task Environment Files](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/taskdef-envfiles.html)
  - You must have credentials configured within the container to be able to interact with the remote service for your logs (e.g. S3, CloudWatch Logs, etc). This can be done in many ways. Some examples include, but are not limited to:
