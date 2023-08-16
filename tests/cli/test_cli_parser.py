@@ -272,15 +272,16 @@ class TestCli:
         [
             ("CeleryExecutor", ["celery"]),
             ("CeleryKubernetesExecutor", ["celery", "kubernetes"]),
-            ("custom_executor.CustomCeleryExecutor", ["celery"]),
-            ("custom_executor.CustomCeleryKubernetesExecutor", ["celery", "kubernetes"]),
             ("KubernetesExecutor", ["kubernetes"]),
-            ("custom_executor.KubernetesExecutor", ["kubernetes"]),
             ("LocalExecutor", []),
             ("LocalKubernetesExecutor", ["kubernetes"]),
-            ("custom_executor.LocalExecutor", []),
-            ("custom_executor.LocalKubernetesExecutor", ["kubernetes"]),
             ("SequentialExecutor", []),
+            # custom executors are mapped to the regular ones in `conftest.py`
+            ("custom_executor.CustomLocalExecutor", []),
+            ("custom_executor.CustomLocalKubernetesExecutor", ["kubernetes"]),
+            ("custom_executor.CustomCeleryExecutor", ["celery"]),
+            ("custom_executor.CustomCeleryKubernetesExecutor", ["celery", "kubernetes"]),
+            ("custom_executor.CustomKubernetesExecutor", ["kubernetes"]),
         ],
     )
     def test_cli_parser_executors(self, executor, expected_args):
@@ -291,9 +292,9 @@ class TestCli:
             ) as stderr:
                 reload(cli_parser)
                 parser = cli_parser.get_parser()
-                with pytest.raises(SystemExit) as e:
+                with pytest.raises(SystemExit) as e:  # running the help command exits, so we prevent that
                     parser.parse_args([expected_arg, "--help"])
-                assert e.value.code == 0, stderr.getvalue()
+                assert e.value.code == 0, stderr.getvalue()  # return code 0 == no problem
                 stderr = stderr.getvalue()
                 assert "airflow command error" not in stderr
 
