@@ -1513,12 +1513,15 @@ jobs:
 
   tests-kubernetes:
     timeout-minutes: 240
-    name: "Helm: ${{matrix.executor}} - ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}"
+    name: "\
+      Helm: ${{matrix.executor}} - ${{matrix.use-standard-naming}} - \
+      ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-prod-images]
     strategy:
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
+        use-standard-naming: [true, false]
       fail-fast: false
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1555,12 +1558,13 @@ jobs:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
           EXECUTOR: ${{matrix.executor}}
+          USE_STANDARD_NAMING: ${{matrix.use-standard-naming}}
           VERBOSE: false
       - name: Upload KinD logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         uses: actions/upload-artifact@v3
         if: failure() || cancelled()
         with:
-          name: kind-logs-${{matrix.executor}}
+          name: kind-logs-${{matrix.executor}}-${{matrix.use-standard-naming}}
           path: /tmp/kind_logs_*
           retention-days: 7
       - name: >
@@ -1568,7 +1572,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: failure() || cancelled()
         with:
-          name: k8s-test-resources-${{matrix.executor}}
+          name: k8s-test-resources-${{matrix.executor}}-${{matrix.use-standard-naming}}
           path: /tmp/k8s_test_resources_*
           retention-days: 7
       - name: "Delete clusters just in case they are left"

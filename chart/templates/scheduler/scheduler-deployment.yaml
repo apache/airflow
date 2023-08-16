@@ -44,7 +44,7 @@
 apiVersion: apps/v1
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
-  name: {{ .Release.Name }}-scheduler
+  name: {{ include "airflow.fullname" . }}-scheduler
   labels:
     tier: airflow
     component: scheduler
@@ -60,7 +60,7 @@ metadata:
   {{- end }}
 spec:
   {{- if $stateful }}
-  serviceName: {{ .Release.Name }}-scheduler
+  serviceName: {{ include "airflow.fullname" . }}-scheduler
   {{- end }}
   replicas: {{ .Values.scheduler.replicas }}
   {{- if $revisionHistoryLimit }}
