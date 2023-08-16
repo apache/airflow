@@ -40,6 +40,7 @@ class S3ToMySqlOperator(BaseOperator):
             https://dev.mysql.com/doc/refman/8.0/en/load-data.html#load-data-duplicate-key-handling
     :param mysql_extra_options: MySQL options to specify exactly how to load the data.
     :param aws_conn_id: The S3 connection that contains the credentials to the S3 Bucket.
+    :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     :param mysql_local_infile: flag to enable local_infile option on the MySQLHook. This
         loads MySQL directly using the LOAD DATA LOCAL INFILE command. Defaults to False.
     """
