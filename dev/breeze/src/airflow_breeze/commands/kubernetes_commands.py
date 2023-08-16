@@ -160,6 +160,13 @@ option_force_venv_setup = click.option(
     envvar="FORCE_VENV_SETUP",
 )
 
+option_use_standard_naming = click.option(
+    "--use-standard-naming",
+    help="Use standard naming.",
+    is_flag=True,
+    envvar="USE_STANDARD_NAMING",
+)
+
 option_rebuild_base_image = click.option(
     "--rebuild-base-image",
     help="Rebuilds base Airflow image before building K8S image.",
@@ -946,6 +953,7 @@ def _deploy_helm_chart(
     kubernetes_version: str,
     output: Output | None,
     executor: str,
+    use_standard_naming: bool,
     extra_options: tuple[str, ...] | None = None,
 ) -> RunCommandResult:
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
@@ -991,6 +999,8 @@ def _deploy_helm_chart(
         if upgrade:
             # force upgrade
             helm_command.append("--force")
+        if use_standard_naming:
+            helm_command.extend(["--set", "useStandardNaming=true"])
         if extra_options:
             helm_command.extend(extra_options)
         get_console(output=output).print(f"[info]Deploying Airflow from {tmp_chart_path}")
@@ -1013,6 +1023,7 @@ def _deploy_airflow(
     executor: str,
     upgrade: bool,
     wait_time_in_seconds: int,
+    use_standard_naming: bool,
     extra_options: tuple[str, ...] | None = None,
 ) -> tuple[int, str]:
     action = "Deploying" if not upgrade else "Upgrading"
@@ -1024,6 +1035,7 @@ def _deploy_airflow(
         output=output,
         upgrade=upgrade,
         executor=executor,
+        use_standard_naming=use_standard_naming,
         extra_options=extra_options,
     )
     if result.returncode == 0:
@@ -1061,6 +1073,7 @@ def _deploy_airflow(
 @option_skip_cleanup
 @option_debug_resources
 @option_include_success_outputs
+@option_use_standard_naming
 @option_python_versions
 @option_kubernetes_versions
 @option_verbose
@@ -1077,6 +1090,7 @@ def deploy_airflow(
     skip_cleanup: bool,
     debug_resources: bool,
     include_success_outputs: bool,
+    use_standard_naming: bool,
     python_versions: str,
     kubernetes_versions: str,
     extra_options: tuple[str, ...],
@@ -1104,6 +1118,7 @@ def deploy_airflow(
                             "kubernetes_version": combo.kubernetes_version,
                             "executor": executor,
                             "upgrade": upgrade,
+                            "use_standard_naming": use_standard_naming,
                             "wait_time_in_seconds": wait_time_in_seconds,
                             "extra_options": extra_options,
                             "output": outputs[index],
@@ -1125,6 +1140,7 @@ def deploy_airflow(
             output=None,
             executor=executor,
             upgrade=upgrade,
+            use_standard_naming=use_standard_naming,
             wait_time_in_seconds=wait_time_in_seconds,
             extra_options=extra_options,
         )
@@ -1410,6 +1426,7 @@ def _run_complete_tests(
     upgrade: bool,
     wait_time_in_seconds: int,
     force_recreate_cluster: bool,
+    use_standard_naming: bool,
     num_tries: int,
     extra_options: tuple[str, ...] | None,
     test_args: tuple[str, ...],
@@ -1467,6 +1484,7 @@ def _run_complete_tests(
             output=output,
             executor=executor,
             upgrade=False,
+            use_standard_naming=use_standard_naming,
             wait_time_in_seconds=wait_time_in_seconds,
             extra_options=extra_options,
         )
@@ -1496,6 +1514,7 @@ def _run_complete_tests(
                 output=output,
                 executor=executor,
                 upgrade=True,
+                use_standard_naming=use_standard_naming,
                 wait_time_in_seconds=wait_time_in_seconds,
                 extra_options=extra_options,
             )
@@ -1543,6 +1562,7 @@ def _run_complete_tests(
 @option_skip_cleanup
 @option_debug_resources
 @option_include_success_outputs
+@option_use_standard_naming
 @option_python_versions
 @option_kubernetes_versions
 @option_verbose
@@ -1563,6 +1583,7 @@ def run_complete_tests(
     skip_cleanup: bool,
     debug_resources: bool,
     include_success_outputs: bool,
+    use_standard_naming: bool,
     python_versions: str,
     kubernetes_versions: str,
     test_args: tuple[str, ...],
@@ -1598,6 +1619,7 @@ def run_complete_tests(
                             "upgrade": upgrade,
                             "wait_time_in_seconds": wait_time_in_seconds,
                             "force_recreate_cluster": force_recreate_cluster,
+                            "use_standard_naming": use_standard_naming,
                             "num_tries": 3,  # when creating cluster in parallel, sometimes we need to retry
                             "extra_options": None,
                             "test_args": pytest_args,
@@ -1623,6 +1645,7 @@ def run_complete_tests(
             upgrade=upgrade,
             wait_time_in_seconds=wait_time_in_seconds,
             force_recreate_cluster=force_recreate_cluster,
+            use_standard_naming=use_standard_naming,
             num_tries=1,
             extra_options=None,
             test_args=test_args,

@@ -31,7 +31,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-statsd
+  name: {{ include "airflow.fullname" . }}-statsd
   labels:
     tier: airflow
     component: statsd
@@ -131,5 +131,5 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: {{ .Release.Name }}-statsd
+            name: {{ include "airflow.fullname" . }}-statsd
 {{- end }}

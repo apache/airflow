@@ -319,7 +319,7 @@ class TestPodTemplateFile:
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert {"configMap": {"name": "release-name-airflow-config"}, "name": "config"} in jmespath.search(
+        assert {"configMap": {"name": "release-name-config"}, "name": "config"} in jmespath.search(
             "spec.volumes", docs[0]
         )
         assert {
