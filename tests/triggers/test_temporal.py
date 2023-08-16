@@ -40,7 +40,13 @@ def test_input_validation_with_soft_fail():
     """
     Tests that DateTimeTrigger raises AirflowSkipException when soft_fail is set to True
     """
-    with pytest.raises(AirflowSkipException, match="Skipping due to soft_fail is set to True"):
+    with pytest.raises(
+        AirflowSkipException,
+        match=(
+            "Expected datetime.datetime type for moment. Got <class 'str'>. "
+            "Skipping due to soft_fail is set to True"
+        ),
+    ):
         DateTimeTrigger("2012-01-01T03:03:03+00:00", soft_fail=True)
 
 
