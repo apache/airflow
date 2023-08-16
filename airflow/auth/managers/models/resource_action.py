@@ -22,6 +22,8 @@ from enum import Enum
 
 class ResourceAction(Enum):
     """
+    Define the type of action/operation the user is doing.
+
     This is used when doing authorization check to define the type of action/operation
     the user is doing.
     """
