@@ -1641,10 +1641,11 @@ class SageMakerStopNotebookOperator(BaseOperator):
         :ref:`howto/operator:SageMakerStopNotebookOperator`
 
     :param instance_name: The name of the notebook instance to stop.
+    :param wait_for_completion: Whether or not to wait for the notebook to be stopped before returning
     :param aws_conn_id: The AWS connection ID to use.
     """
 
-    template_fields: Sequence[str] = ("instance_name", "wait_for_completion", "config")
+    template_fields: Sequence[str] = ("instance_name", "wait_for_completion")
 
     ui_color = "#ff7300"
 
@@ -1689,7 +1690,7 @@ class SageMakerDeleteNotebookOperator(BaseOperator):
     :param aws_conn_id: The AWS connection ID to use.
     """
 
-    template_fields: Sequence[str] = ("instance_name", "wait_for_completion", "config")
+    template_fields: Sequence[str] = ("instance_name", "wait_for_completion")
 
     ui_color = "#ff7300"
 
@@ -1734,7 +1735,7 @@ class SageMakerStartNoteBookOperator(BaseOperator):
     :param aws_conn_id: The AWS connection ID to use.
     """
 
-    template_fields: Sequence[str] = ("instance_name", "wait_for_completion", "config")
+    template_fields: Sequence[str] = ("instance_name", "wait_for_completion")
 
     ui_color = "#ff7300"
 
