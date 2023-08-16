@@ -17,13 +17,12 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import warnings
 from asyncio import CancelledError
-from datetime import datetime
 from enum import Enum
 from typing import Any, AsyncIterator
 
-import pytz
 from kubernetes_asyncio.client.models import V1Pod
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -74,7 +73,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self,
         pod_name: str,
         pod_namespace: str,
-        trigger_start_time: datetime,
+        trigger_start_time: datetime.datetime,
         base_container_name: str,
         kubernetes_conn_id: str | None = None,
         poll_interval: float = 2,
@@ -167,7 +166,7 @@ class KubernetesPodTrigger(BaseTrigger):
                     self.log.info("Container is not completed and still working.")
 
                     if pod_status == PodPhase.PENDING and container_state == ContainerState.UNDEFINED:
-                        delta = datetime.now(tz=pytz.UTC) - self.trigger_start_time
+                        delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
                         if delta.total_seconds() >= self.startup_timeout:
                             message = (
                                 f"Pod took longer than {self.startup_timeout} seconds to start. "

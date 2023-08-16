@@ -19,7 +19,6 @@ from __future__ import annotations
 import datetime
 from unittest import mock
 
-import pytz
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from airflow.providers.google.cloud.operators.workflows import (
@@ -171,7 +170,9 @@ class TestWorkflowsListWorkflowsOperator:
     @mock.patch(BASE_PATH.format("WorkflowsHook"))
     def test_execute(self, mock_hook, mock_object):
         timestamp = Timestamp()
-        timestamp.FromDatetime(datetime.datetime.now(tz=pytz.UTC) + datetime.timedelta(minutes=5))
+        timestamp.FromDatetime(
+            datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(minutes=5)
+        )
         workflow_mock = mock.MagicMock()
         workflow_mock.start_time = timestamp
         mock_hook.return_value.list_workflows.return_value = [workflow_mock]
@@ -334,7 +335,9 @@ class TestWorkflowExecutionsListExecutionsOperator:
     @mock.patch(BASE_PATH.format("WorkflowsHook"))
     def test_execute(self, mock_hook, mock_object):
         timestamp = Timestamp()
-        timestamp.FromDatetime(datetime.datetime.now(tz=pytz.UTC) + datetime.timedelta(minutes=5))
+        timestamp.FromDatetime(
+            datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(minutes=5)
+        )
         execution_mock = mock.MagicMock()
         execution_mock.start_time = timestamp
         mock_hook.return_value.list_executions.return_value = [execution_mock]

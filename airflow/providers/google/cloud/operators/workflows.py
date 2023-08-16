@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import json
 import re
 import uuid
-from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Sequence
 
-import pytz
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -624,7 +623,7 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
         *,
         workflow_id: str,
         location: str,
-        start_date_filter: datetime | None = None,
+        start_date_filter: datetime.datetime | None = None,
         project_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -637,7 +636,9 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
 
         self.workflow_id = workflow_id
         self.location = location
-        self.start_date_filter = start_date_filter or datetime.now(tz=pytz.UTC) - timedelta(minutes=60)
+        self.start_date_filter = start_date_filter or datetime.datetime.now(
+            tz=datetime.timezone.utc
+        ) - datetime.timedelta(minutes=60)
         self.project_id = project_id
         self.retry = retry
         self.timeout = timeout
@@ -668,7 +669,7 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
         return [
             Execution.to_dict(e)
             for e in execution_iter
-            if e.start_time.ToDatetime(tzinfo=pytz.UTC) > self.start_date_filter
+            if e.start_time.ToDatetime(tzinfo=datetime.timezone.utc) > self.start_date_filter
         ]
 
 
