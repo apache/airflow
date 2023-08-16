@@ -5082,7 +5082,7 @@
             "additionalProperties": false,
             "properties": {
                 "env": {
-                    "description": "Add additional env vars to pgbouncer container.",
+                    "description": "Add additional env vars to `pgbouncer` container.",
                     "type": "array",
                     "default": [],
                     "items": {
