@@ -65,6 +65,7 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -489,6 +490,8 @@ class BaseSerialization:
                 return cls._encode(DatasetPydantic.from_orm(var).dict(), type_=DAT.DATA_SET)
             else:
                 return cls.default_serialization(strict, var)
+        elif isinstance(var, ArgNotSet):
+            return cls._encode(None, type_=DAT.ARG_NOT_SET)
         else:
             return cls.default_serialization(strict, var)
 
@@ -561,6 +564,8 @@ class BaseSerialization:
                 return DagRunPydantic.parse_obj(var)
             elif type_ == DAT.DATA_SET:
                 return DatasetPydantic.parse_obj(var)
+        elif type_ == DAT.ARG_NOT_SET:
+            return NOTSET
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
