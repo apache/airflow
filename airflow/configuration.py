@@ -1324,6 +1324,8 @@ class AirflowConfigParser(ConfigParser):
         If both of config have the same option, this removes the option
         in both configs unless remove_default=False.
         """
+        section = str(section).lower()
+        option = str(option).lower()
         if super().has_option(section, option):
             super().remove_option(section, option)
 
