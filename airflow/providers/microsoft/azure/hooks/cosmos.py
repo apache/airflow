@@ -31,6 +31,7 @@ from typing import Any
 
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
+from azure.identity import DefaultAzureCredential
 
 from airflow.exceptions import AirflowBadRequest
 from airflow.hooks.base import BaseHook
@@ -109,13 +110,18 @@ class AzureCosmosDBHook(BaseHook):
             conn = self.get_connection(self.conn_id)
             extras = conn.extra_dejson
             endpoint_uri = conn.login
-            master_key = conn.password
+            credential: dict[str, Any] | DefaultAzureCredential
+            if conn.password:
+                master_key = conn.password
+                credential = {"masterKey": master_key}
+            else:
+                credential = DefaultAzureCredential()
 
             self.default_database_name = self._get_field(extras, "database_name")
             self.default_collection_name = self._get_field(extras, "collection_name")
 
             # Initialize the Python Azure Cosmos DB client
-            self._conn = CosmosClient(endpoint_uri, {"masterKey": master_key})
+            self._conn = CosmosClient(endpoint_uri, credential=credential)
         return self._conn
 
     def __get_database_name(self, database_name: str | None = None) -> str:
