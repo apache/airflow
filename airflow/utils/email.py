@@ -340,4 +340,4 @@ def _get_email_list_from_str(addresses: str) -> list[str]:
     :return: A list of email addresses.
     """
     pattern = r"\s*[,;]\s*"
-    return [address for address in re2.split(pattern, addresses)]
+    return re2.split(pattern, addresses)

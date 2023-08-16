@@ -58,7 +58,7 @@ def _generate_pip_conf(conf_file: Path, index_urls: list[str]) -> None:
     else:
         pip_conf_options = f"index-url = {index_urls[0]}"
         if len(index_urls) > 1:
-            pip_conf_options += f"\nextra-index-url = {' '.join(x for x in index_urls[1:])}"
+            pip_conf_options += f"\nextra-index-url = {' '.join(index_urls[1:])}"
     conf_file.write_text(f"[global]\n{pip_conf_options}")
 
 
