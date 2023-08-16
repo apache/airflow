@@ -335,7 +335,6 @@ operators:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.operators.sagemaker
-      - airflow.providers.amazon.aws.operators.sagemaker_notebook
   - integration-name: Amazon Simple Notification Service (SNS)
     python-modules:
       - airflow.providers.amazon.aws.operators.sns
@@ -504,7 +503,6 @@ hooks:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.hooks.sagemaker
-      - airflow.providers.amazon.aws.hooks.sagemaker_notebook
   - integration-name: Amazon Simple Email Service (SES)
     python-modules:
       - airflow.providers.amazon.aws.hooks.ses
