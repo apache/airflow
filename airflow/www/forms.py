@@ -121,7 +121,7 @@ class DateTimeWithNumRunsForm(FlaskForm):
 class DagRunEditForm(DynamicForm):
     """Form for editing DAG Run.
 
-    We don't actually want to allow editing, so everything is read-only here.
+    Only note field is editable, so everything else is read-only here.
     """
 
     dag_id = StringField(lazy_gettext("Dag Id"), validators=[ReadOnly()], widget=BS3TextFieldROWidget())
@@ -152,7 +152,10 @@ class DagRunEditForm(DynamicForm):
 
 
 class TaskInstanceEditForm(DynamicForm):
-    """Form for editing TaskInstance."""
+    """Form for editing TaskInstance.
+
+    Only note and state fields are editable, so everything else is read-only here.
+    """
 
     dag_id = StringField(
         lazy_gettext("Dag Id"), validators=[InputRequired(), ReadOnly()], widget=BS3TextFieldROWidget()
