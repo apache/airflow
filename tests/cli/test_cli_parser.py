@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import importlib
 import io
 import os
 import re
@@ -37,6 +36,7 @@ import pytest
 
 from airflow.cli import cli_config, cli_parser
 from airflow.cli.cli_config import ActionCommand, core_commands, lazy_load_command
+from airflow.cli.utils import CliConflictError
 from airflow.configuration import AIRFLOW_HOME
 from airflow.executors.local_executor import LocalExecutor
 from tests.test_utils.config import conf_vars
@@ -137,7 +137,7 @@ class TestCli:
                 )
 
     @mock.patch.object(LocalExecutor, "get_cli_commands")
-    def test_dynamic_conflict_detection(self, cli_commands_mock: MagicMock, caplog):
+    def test_dynamic_conflict_detection(self, cli_commands_mock: MagicMock):
         core_commands.append(
             ActionCommand(
                 name="test_command",
@@ -154,11 +154,9 @@ class TestCli:
                 args=[],
             )
         ]
-        with caplog.at_level("WARN"):
+        with pytest.raises(CliConflictError, match="test_command"):
             # force re-evaluation of cli commands (done in top level code)
-            importlib.reload(cli_parser)
-        assert len(caplog.messages) == 1
-        assert "test_command" in caplog.messages[0]  # message mentions the command that's in conflict
+            reload(cli_parser)
 
     def test_falsy_default_value(self):
         arg = cli_parser.Arg(("--test",), default=0, type=int)
@@ -295,7 +293,7 @@ class TestCli:
                 parser = cli_parser.get_parser()
                 with pytest.raises(SystemExit) as e:
                     parser.parse_args([expected_arg, "--help"])
-                    assert e.value.code == 0
+                assert e.value.code == 0, stderr.getvalue()
                 stderr = stderr.getvalue()
                 assert "airflow command error" not in stderr
 

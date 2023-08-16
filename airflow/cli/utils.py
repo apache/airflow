@@ -21,6 +21,12 @@ import io
 import sys
 
 
+class CliConflictError(Exception):
+    """Error for when CLI commands are defined twice by different sources."""
+
+    pass
+
+
 def is_stdout(fileio: io.IOBase) -> bool:
     """Check whether a file IO is stdout.
 
