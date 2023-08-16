@@ -230,42 +230,22 @@ class TestCli:
             cli_config.positive_int(allow_zero=True)("-1")
 
     @pytest.mark.parametrize(
-        "executor",
+        "command",
         [
             "celery",
             "kubernetes",
         ],
     )
-    def test_dag_parser_require_celery_executor(self, executor):
+    def test_executor_specific_commands_not_accessible(self, command):
         with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
             io.StringIO()
         ) as stderr:
             reload(cli_parser)
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args([executor])
+                parser.parse_args([command])
             stderr = stderr.getvalue()
-        assert (f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{executor}'") in stderr
-
-    @pytest.mark.parametrize(
-        "executor",
-        [
-            "CeleryExecutor",
-            "CeleryKubernetesExecutor",
-            "custom_executor.CustomCeleryExecutor",
-            "custom_executor.CustomCeleryKubernetesExecutor",
-        ],
-    )
-    def test_dag_parser_celery_command_accept_celery_executor(self, executor):
-        with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
-            reload(cli_parser)
-            parser = cli_parser.get_parser()
-            with pytest.raises(SystemExit):
-                parser.parse_args(["celery"])
-            stderr = stderr.getvalue()
-        assert (
-            "airflow celery command error: the following arguments are required: COMMAND, see help above."
-        ) in stderr
+        assert (f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{command}'") in stderr
 
     @pytest.mark.parametrize(
         "executor,expected_args",
@@ -297,14 +277,6 @@ class TestCli:
                 assert e.value.code == 0, stderr.getvalue()  # return code 0 == no problem
                 stderr = stderr.getvalue()
                 assert "airflow command error" not in stderr
-
-    def test_dag_parser_config_command_dont_required_celery_executor(self):
-        with conf_vars({("core", "executor"): "CeleryExecutor"}), contextlib.redirect_stderr(
-            io.StringIO()
-        ) as stdout:
-            parser = cli_parser.get_parser()
-            parser.parse_args(["config", "get-value", "celery", "broker-url"])
-        assert stdout is not None
 
     def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
         """Test that the error message is correct when the directory does not exist."""
