@@ -413,7 +413,7 @@ class DockerOperator(BaseOperator):
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
             elif self.do_xcom_push:
-                if len(log_lines) == 0:
+                if not log_lines:
                     return None
                 try:
                     if self.xcom_all:
