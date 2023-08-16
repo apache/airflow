@@ -80,8 +80,8 @@ if conf.has_option(CONFIG_GROUP_NAME, EcsConfigKeys.REGION):
         network_config = prune_dict(
             {
                 "awsvpcConfiguration": {
-                    "subnets": str(subnets).split(","),
-                    "securityGroups": str(security_groups).split(","),
+                    "subnets": str(subnets).split(",") if subnets else subnets,
+                    "securityGroups": str(security_groups).split(",") if security_groups else security_groups,
                     "assignPublicIp": "ENABLED" if assign_public_ip else "DISABLED",
                 }
             }
