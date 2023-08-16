@@ -138,13 +138,18 @@ class Param:
 
     def dump(self) -> dict:
         """Dump the Param as a dictionary."""
-        out_dict = {self.CLASS_IDENTIFIER: f"{self.__module__}.{self.__class__.__name__}"}
+        out_dict: dict[str, str | None] = {
+            self.CLASS_IDENTIFIER: f"{self.__module__}.{self.__class__.__name__}"
+        }
         out_dict.update(self.__dict__)
+        # Ensure that not set is translated to None
+        if self.value is NOTSET:
+            out_dict["value"] = None
         return out_dict
 
     @property
     def has_value(self) -> bool:
-        return self.value is not NOTSET
+        return self.value is not NOTSET and self.value is not None
 
     def serialize(self) -> dict:
         return {"value": self.value, "description": self.description, "schema": self.schema}
