@@ -126,7 +126,7 @@ def get_provider_id_from_import(import_name: str, file_path: Path) -> str | None
     provider_id = get_provider_id_from_relative_import_or_file(relative_provider_import)
     if provider_id is None:
         relative_path_from_import = relative_provider_import.replace(".", os.sep)
-        if any(relative_path_from_import.startswith(suspended_path) for suspended_path in suspended_paths):
+        if relative_path_from_import.startswith(tuple(suspended_paths)):
             return None
         warnings.append(f"We could not determine provider id from import {import_name} in {file_path}")
     return provider_id
@@ -154,7 +154,7 @@ def get_provider_id_from_file_name(file_path: Path) -> str | None:
                 return None
     provider_id = get_provider_id_from_relative_import_or_file(str(relative_path))
     if provider_id is None and file_path.name not in ["__init__.py", "get_provider_info.py"]:
-        if any(relative_path.as_posix().startswith(suspended_path) for suspended_path in suspended_paths):
+        if relative_path.as_posix().startswith(tuple(suspended_paths)):
             return None
         else:
             warnings.append(f"We had a problem to classify the file {file_path} to a provider")

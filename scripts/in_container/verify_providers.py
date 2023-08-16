@@ -164,9 +164,9 @@ def import_all_classes(
         return f"{prefix}{provider_id}"
 
     if provider_ids:
-        provider_prefixes = [mk_prefix(provider_id) for provider_id in provider_ids]
+        provider_prefixes = tuple(mk_prefix(provider_id) for provider_id in provider_ids)
     else:
-        provider_prefixes = [prefix]
+        provider_prefixes = (prefix,)
 
     def onerror(_):
         nonlocal tracebacks
@@ -181,7 +181,7 @@ def import_all_classes(
 
     for path, prefix in walkable_paths_and_prefixes.items():
         for modinfo in pkgutil.walk_packages(path=[path], prefix=prefix, onerror=onerror):
-            if not modinfo.name.startswith(tuple(provider_prefixes)):
+            if not modinfo.name.startswith(provider_prefixes):
                 if print_skips:
                     console.print(f"Skipping module: {modinfo.name}")
                 continue

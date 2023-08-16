@@ -704,7 +704,7 @@ def is_package_excluded(package: str, exclusion_list: list[str]) -> bool:
     :param exclusion_list: list of excluded packages
     :return: true if package should be excluded
     """
-    return any(package.startswith(excluded_package) for excluded_package in exclusion_list)
+    return package.startswith(tuple(exclusion_list))
 
 
 def remove_provider_limits(package: str) -> str:
