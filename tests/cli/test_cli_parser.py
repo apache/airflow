@@ -29,7 +29,6 @@ import timeit
 from collections import Counter
 from importlib import reload
 from pathlib import Path
-from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -136,7 +135,7 @@ class TestCli:
                     f"short option flags {conflict_short_option}"
                 )
 
-    @mock.patch.object(LocalExecutor, "get_cli_commands")
+    @patch.object(LocalExecutor, "get_cli_commands")
     def test_dynamic_conflict_detection(self, cli_commands_mock: MagicMock):
         core_commands.append(
             ActionCommand(
