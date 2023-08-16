@@ -1307,6 +1307,16 @@ class AirflowConfigParser(ConfigParser):
         except (NoOptionError, NoSectionError):
             return False
 
+    def set(self, section: str, option: str, value: str | None = None) -> None:
+        """
+        Set an option to the given value.
+
+        This override just makes sure the section and option are lower case, to match what we do in `get`.
+        """
+        section = str(section).lower()
+        option = str(option).lower()
+        super().set(section, option, value)
+
     def remove_option(self, section: str, option: str, remove_default: bool = True):
         """
         Remove an option if it exists in config from a file or default config.

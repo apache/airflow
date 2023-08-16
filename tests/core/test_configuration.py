@@ -113,6 +113,13 @@ class TestConf:
         assert conf.get("core", "PERCENT") == "with%inside"
         assert conf.get("CORE", "PERCENT") == "with%inside"
 
+    @conf_vars({("core", "key"): "test_value"})
+    def test_set_and_get_with_upper_case(self):
+        # both get and set should be case insensitive
+        assert conf.get("Core", "Key") == "test_value"
+        conf.set("Core", "Key", "new_test_value")
+        assert conf.get("Core", "Key") == "new_test_value"
+
     def test_config_as_dict(self):
         """Test that getting config as dict works even if
         environment has non-legal env vars"""
