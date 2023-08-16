@@ -286,7 +286,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             return super().resume_execution(next_method, next_kwargs, context)
         except AirflowException as e:
             if self.soft_fail:
-                raise AirflowSkipException(e.args[0][1])
+                raise AirflowSkipException(e)
             raise
         except Exception:
             raise
