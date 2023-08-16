@@ -31,6 +31,7 @@ from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
+    CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
     EcsConfigKeys,
     EcsExecutorException,
@@ -88,18 +89,20 @@ class AwsEcsExecutor(BaseExecutor):
 
     def start(self):
         """Initialize Boto3 ECS Client, and other internal variables."""
+        from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+
         region = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.REGION)
+        aws_conn_id = conf.get(
+            CONFIG_GROUP_NAME, EcsConfigKeys.AWS_CONN_ID, fallback=CONFIG_DEFAULTS[EcsConfigKeys.AWS_CONN_ID]
+        )
+
         self.cluster = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.CLUSTER)
         self.container_name = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.CONTAINER_NAME)
         # TODO:: Confirm that defaulting in the init is functionally identical then remove these
         #        next two commented lines.
         # self.active_workers = EcsTaskCollection()
         # self.pending_tasks = deque()
-        # Boto3 is a bit slow to import, it's only used once so locally import
-        # it here to keep module load times down.
-        import boto3
-
-        self.ecs = boto3.client("ecs", region_name=region)
+        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region)
         self.run_task_kwargs = self._load_run_kwargs()
 
     def sync(self):

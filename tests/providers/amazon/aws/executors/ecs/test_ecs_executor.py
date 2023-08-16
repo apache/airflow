@@ -568,7 +568,7 @@ class TestAwsEcsExecutor:
         executor.start()
 
         # Replace boto3 ECS client with mock.
-        ecs_mock = mock.Mock(spec=executor.ecs)
+        ecs_mock = mock.Mock(spec=executor.ecs.conn)
         run_task_ret_val = {"tasks": [{"taskArn": ARN1}], "failures": []}
         ecs_mock.run_task.return_value = run_task_ret_val
         executor.ecs = ecs_mock

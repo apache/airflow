@@ -45,6 +45,7 @@ class EcsConfigKeys:
     """Keys loaded into the config which are related to the ECS Executor."""
 
     ASSIGN_PUBLIC_IP = "assign_public_ip"
+    AWS_CONN_ID = "conn_id"
     CLUSTER = "cluster"
     CONTAINER_NAME = "container_name"
     LAUNCH_TYPE = "launch_type"
