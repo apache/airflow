@@ -1708,8 +1708,11 @@ class TaskInstance(Base, LoggingMixin):
         # If the task has been deferred and is being executed due to a trigger,
         # then we need to pick the right method to come back to, otherwise
         # we go for the default execute
+        execute_callable_kwargs = {}
         if self.next_method:
             execute_callable = task_to_execute.resume_execution
+            execute_callable_kwargs["next_method"] = self.next_method
+            execute_callable_kwargs["next_kwargs"] = self.next_kwargs
         else:
             execute_callable = task_to_execute.execute
         # If a timeout is specified for the task, make it fail
@@ -1729,12 +1732,12 @@ class TaskInstance(Base, LoggingMixin):
                     raise AirflowTaskTimeout()
                 # Run task in timeout wrapper
                 with timeout(timeout_seconds):
-                    result = execute_callable(context=context)
+                    result = execute_callable(context=context, **execute_callable_kwargs)
             except AirflowTaskTimeout:
                 task_to_execute.on_kill()
                 raise
         else:
-            result = execute_callable(context=context)
+            result = execute_callable(context=context, **execute_callable_kwargs)
         with create_session() as session:
             if task_to_execute.do_xcom_push:
                 xcom_value = result
