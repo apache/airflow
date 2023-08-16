@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-14T23:17:51Z
+# This constraints file was automatically generated on 2023-08-16T07:24:34Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -275,7 +275,7 @@ et-xmlfile==1.1.0
 eventlet==0.33.3
 execnet==2.0.2
 executing==1.2.0
-facebook-business==17.0.3
+facebook-business==17.0.4
 fastavro==1.8.2
 fasteners==0.18
 fastjsonschema==2.18.0
@@ -293,7 +293,7 @@ gevent==23.7.0
 gitdb==4.0.10
 google-ads==21.3.0
 google-api-core==2.11.1
-google-api-python-client==2.96.0
+google-api-python-client==2.97.0
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==1.0.0
 google-auth==2.22.0
@@ -336,7 +336,7 @@ google-cloud-texttospeech==2.14.1
 google-cloud-translate==3.12.0
 google-cloud-videointelligence==2.11.3
 google-cloud-vision==3.4.4
-google-cloud-workflows==1.10.2
+google-cloud-workflows==1.11.0
 google-crc32c==1.5.0
 google-re2==1.1
 google-resumable-media==2.5.0
@@ -550,7 +550,7 @@ pyzmq==25.1.1
 qds-sdk==1.16.1
 reactivex==4.0.4
 readme-renderer==40.0
-redis==4.6.0
+redis==5.0.0
 redshift-connector==2.0.913
 referencing==0.30.2
 regex==2023.8.8
@@ -570,7 +570,7 @@ rich==13.5.2
 rpds-py==0.9.2
 rsa==4.9
 ruff==0.0.284
-s3transfer==0.6.1
+s3transfer==0.6.2
 sarif-om==1.0.4
 scramp==1.4.4
 scrapbook==0.5.0
@@ -607,7 +607,7 @@ sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.8
 sphinxcontrib-spelling==8.0.0
 spython==0.3.0
-sqlalchemy-bigquery==1.7.0
+sqlalchemy-bigquery==1.8.0
 sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.6.2
