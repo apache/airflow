@@ -534,7 +534,7 @@ function install_airflow() {
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
-            ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+            ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         if [[ -n "${AIRFLOW_INSTALL_EDITABLE_FLAG}" ]]; then
             # Remove airflow and reinstall it using editable flag
             # We can only do it when we install airflow from sources
@@ -603,7 +603,7 @@ function install_additional_dependencies() {
         set -x
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         common::install_pip_version
         set +x
         echo
@@ -1287,7 +1287,13 @@ ENV HOME=${HOME} \
 RUN bash /scripts/docker/install_mysql.sh prod \
     && bash /scripts/docker/install_mysql.sh dev \
     && bash /scripts/docker/install_mssql.sh dev \
-    && bash /scripts/docker/install_postgres.sh dev
+    && bash /scripts/docker/install_postgres.sh dev \
+    # The user is added to allow ssh debugging (you can connect with airflow/airflow over ssh)
+    && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+              --quiet "airflow" --home "/home/airflow" \
+    && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
+    && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
+    && chmod 0440 /etc/sudoers.d/airflow
 
 # Install Helm
 ARG HELM_VERSION="v3.9.4"
@@ -1334,7 +1340,8 @@ ARG CASS_DRIVER_NO_CYTHON="1"
 # Build cassandra driver on multiple CPUs
 ARG CASS_DRIVER_BUILD_CONCURRENCY="8"
 
-ARG AIRFLOW_VERSION="2.5.0.dev0"
+# This value should be set by the CI image build system to the current timestamp
+ARG AIRFLOW_VERSION=""
 
 # Additional PIP flags passed to all pip install commands except reinstalling pip itself
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""

@@ -594,7 +594,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     pip install "${pip_flags[@]}" --root-user-action ignore --upgrade --upgrade-strategy eager \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
-        ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+        ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
     set +x
 
     common::install_pip_version
@@ -665,7 +665,7 @@ function install_airflow() {
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
-            ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+            ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         if [[ -n "${AIRFLOW_INSTALL_EDITABLE_FLAG}" ]]; then
             # Remove airflow and reinstall it using editable flag
             # We can only do it when we install airflow from sources
@@ -734,7 +734,7 @@ function install_additional_dependencies() {
         set -x
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         common::install_pip_version
         set +x
         echo
@@ -1290,17 +1290,11 @@ COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 # Add extra python dependencies
 ARG ADDITIONAL_PYTHON_DEPS=""
 
-# Those are additional constraints that are needed for some extras but we do not want to
-# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
-# dependency resolution and we do not need to limit the versions of the dependencies
-# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
 
 ARG VERSION_SUFFIX_FOR_PYPI=""
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
-    EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
 
 WORKDIR ${AIRFLOW_HOME}

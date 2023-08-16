@@ -419,19 +419,18 @@ def check_doc_files(yaml_files: dict[str, dict]):
         for f in expected_doc_files
         if f.name != "index.rst"
         and "_partials" not in f.parts
-        and not any(f.relative_to(DOCS_DIR).as_posix().startswith(s) for s in suspended_providers)
+        and not f.relative_to(DOCS_DIR).as_posix().startswith(tuple(suspended_providers))
     } | {
         f"/docs/{f.relative_to(DOCS_DIR).as_posix()}"
         for f in DOCS_DIR.glob("apache-airflow-providers-*/operators.rst")
-        if not any(f.relative_to(DOCS_DIR).as_posix().startswith(s) for s in suspended_providers)
+        if not f.relative_to(DOCS_DIR).as_posix().startswith(tuple(suspended_providers))
     }
     console.print("[yellow]Suspended logos:[/]")
     console.print(suspended_logos)
     expected_logo_urls = {
         f"/{f.relative_to(DOCS_DIR).as_posix()}"
         for f in DOCS_DIR.glob("integration-logos/**/*")
-        if f.is_file()
-        and not any(f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(s) for s in suspended_logos)
+        if f.is_file() and not f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(tuple(suspended_logos))
     }
 
     try:

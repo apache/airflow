@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, V1PodStatus, models as k8s
+from kubernetes.client import ApiClient, V1PodSecurityContext, V1PodStatus, models as k8s
 from pytest import param
 from urllib3 import HTTPResponse
 from urllib3.packages.six import BytesIO
@@ -219,9 +219,7 @@ class TestKubernetesPodOperator:
         assert k.env_vars[0].name == "bartemplated"
 
     def test_security_context(self):
-        security_context = {
-            "runAsUser": 1245,
-        }
+        security_context = V1PodSecurityContext(run_as_user=1245)
         k = KubernetesPodOperator(
             security_context=security_context,
             task_id="task",

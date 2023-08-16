@@ -36,7 +36,7 @@
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
-  name: {{ .Release.Name }}-triggerer
+  name: {{ include "airflow.fullname" . }}-triggerer
   labels:
     tier: airflow
     component: triggerer

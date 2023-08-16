@@ -507,17 +507,6 @@ def construct_docker_push_command(
     return ["docker", "push", image_params.airflow_image_name_with_tag]
 
 
-def prepare_docker_build_from_input(
-    image_params: CommonBuildParams,
-) -> list[str]:
-    """
-    Constructs docker build empty image command based on the parameters passed.
-    :param image_params: parameters of the image
-    :return: Command to run as list of string
-    """
-    return ["docker", "build", "-t", image_params.airflow_image_name_with_tag, "-"]
-
-
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
     build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:

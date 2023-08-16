@@ -29,7 +29,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from kubernetes.client import models as k8s
+from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 from pytest import param
@@ -514,7 +514,7 @@ class TestKubernetesPodOperatorSystem:
 
     @pytest.mark.parametrize("uid", [0, 1000])
     def test_run_as_user(self, uid, mock_get_connection):
-        security_context = {"runAsUser": uid}
+        security_context = V1PodSecurityContext(run_as_user=uid)
         name = str(uuid4())
         k = KubernetesPodOperator(
             namespace="default",
@@ -539,7 +539,7 @@ class TestKubernetesPodOperatorSystem:
 
     @pytest.mark.parametrize("gid", [0, 1000])
     def test_fs_group(self, gid, mock_get_connection):
-        security_context = {"fsGroup": gid}
+        security_context = V1PodSecurityContext(fs_group=gid)
         name = str(uuid4())
         k = KubernetesPodOperator(
             namespace="default",
@@ -563,7 +563,7 @@ class TestKubernetesPodOperatorSystem:
         assert pod.to_dict()["spec"]["security_context"]["fs_group"] == gid
 
     def test_disable_privilege_escalation(self, mock_get_connection):
-        container_security_context = {"allowPrivilegeEscalation": False}
+        container_security_context = V1SecurityContext(allow_privilege_escalation=False)
 
         k = KubernetesPodOperator(
             namespace="default",
@@ -579,7 +579,9 @@ class TestKubernetesPodOperatorSystem:
         context = create_context(k)
         k.execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["containers"][0]["securityContext"] = container_security_context
+        self.expected_pod["spec"]["containers"][0]["securityContext"] = {
+            "allowPrivilegeEscalation": container_security_context.allow_privilege_escalation
+        }
         assert self.expected_pod == actual_pod
 
     def test_faulty_image(self, mock_get_connection):
@@ -1320,10 +1322,10 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
         name="hello-dry-run",
         image="python:3.8-slim-buster",
         cmds=["printenv"],
-        env_vars={
-            "password": "{{ password }}",
-            "VAR2": "{{ var.value.nonexisting}}",
-        },
+        env_vars=[
+            V1EnvVar(name="password", value="{{ password }}"),
+            V1EnvVar(name="VAR2", value="{{ var.value.nonexisting}}"),
+        ],
     )
     with pytest.raises(KeyError):
         task.render_template_fields(context=context)
