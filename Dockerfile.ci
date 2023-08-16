@@ -1287,7 +1287,13 @@ ENV HOME=${HOME} \
 RUN bash /scripts/docker/install_mysql.sh prod \
     && bash /scripts/docker/install_mysql.sh dev \
     && bash /scripts/docker/install_mssql.sh dev \
-    && bash /scripts/docker/install_postgres.sh dev
+    && bash /scripts/docker/install_postgres.sh dev \
+    # The user is added to allow ssh debugging (you can connect with airflow/airflow over ssh)
+    && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+              --quiet "airflow" --home "/home/airflow" \
+    && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
+    && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
+    && chmod 0440 /etc/sudoers.d/airflow
 
 # Install Helm
 ARG HELM_VERSION="v3.9.4"
