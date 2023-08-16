@@ -121,7 +121,7 @@ class BatchSensor(BaseSensorOperator):
             if getattr(self, "raise_failed_or_skiping_exception"):
                 self.raise_failed_or_skiping_exception(failed_message=message)
             else:
-                from airflow.providers.amazon.aws.sensors import raise_failed_or_skiping_exception
+                from airflow.providers.amazon.aws.sensors.utils import raise_failed_or_skiping_exception
 
                 raise_failed_or_skiping_exception(soft_fail=self.soft_fail, failed_message=message)
         job_id = event["job_id"]
