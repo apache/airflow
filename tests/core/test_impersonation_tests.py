@@ -17,14 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import subprocess
 import sys
 import tempfile
+from pathlib import Path
 
 import pytest
 
+from airflow.configuration import conf
 from airflow.jobs.backfill_job_runner import BackfillJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.models import DagBag, DagRun, TaskInstance
@@ -44,6 +47,42 @@ TEST_USER = "airflow_test_user"
 
 
 logger = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def set_permissions(settings: dict[Path | str, int]):
+    """Helper for recursively set permissions only for specific path and revert it back."""
+    orig_permissions = []
+    try:
+        print(" Change file/directory permissions ".center(72, "+"))
+        for path, mode in settings.items():
+            if isinstance(path, str):
+                path = Path(path)
+            if len(path.parts) <= 1:
+                raise SystemError(f"Unable to change permission for the root directory: {path}.")
+
+            st_mode = os.stat(path).st_mode
+            new_st_mode = st_mode | mode
+            if new_st_mode > st_mode:
+                print(f"Path={path}, mode={oct(st_mode)}, new_mode={oct(new_st_mode)}")
+                orig_permissions.append((path, st_mode))
+                os.chmod(path, new_st_mode)
+
+            parent_path = path.parent
+            while len(parent_path.parts) > 1:
+                st_mode = os.stat(parent_path).st_mode
+                new_st_mode = st_mode | 0o755  # grant r/o access to the parent directories
+                if new_st_mode > st_mode:
+                    print(f"Path={parent_path}, mode={oct(st_mode)}, new_mode={oct(new_st_mode)}")
+                    orig_permissions.append((parent_path, st_mode))
+                    os.chmod(parent_path, new_st_mode)
+
+                parent_path = parent_path.parent
+        print("".center(72, "+"))
+        yield
+    finally:
+        for path, mode in orig_permissions:
+            os.chmod(path, mode)
 
 
 @pytest.fixture
@@ -80,24 +119,35 @@ def create_user(check_original_docker_image):
 
 @pytest.fixture
 def create_airflow_home(create_user, tmp_path, monkeypatch):
+    sql_alchemy_conn = conf.get_mandatory_value("database", "sql_alchemy_conn")
     username = create_user
     airflow_home = tmp_path / "airflow-home"
-    monkeypatch.setenv("AIRFLOW_HOME", str(airflow_home))
 
     if not airflow_home.exists():
-        airflow_home.mkdir(mode=755, parents=True, exist_ok=True)
-    subprocess.check_call(["sudo", "chown", f"{username}:root", str(airflow_home), "-R"], close_fds=True)
+        airflow_home.mkdir(parents=True, exist_ok=True)
 
-    # By default, ``tmp_path`` save temporary files/directories in user temporary directory
-    # something like: `/tmp/pytest-of-root` and other users might be limited to access to it,
-    # so we need to grant at least r/o access to everyone.
-    current_temp_path = airflow_home.parent
-    while len(current_temp_path.parts) > 2:
-        subprocess.check_call(["sudo", "chmod", "755", str(current_temp_path)], close_fds=True)
-        current_temp_path = current_temp_path.parent
-    # Set 777 for system-wide temporary directory
-    subprocess.check_call(["sudo", "chmod", "777", tempfile.gettempdir()], close_fds=True)
-    yield airflow_home
+    permissions = {
+        # By default, ``tmp_path`` save temporary files/directories in user temporary directory
+        # something like: `/tmp/pytest-of-root` and other users might be limited to access to it,
+        # so we need to grant at least r/o access to everyone.
+        airflow_home: 0o777,
+        # Grant full access to system-wide temporary directory (if for some reason it not set)
+        tempfile.gettempdir(): 0o777,
+    }
+
+    if sql_alchemy_conn.lower().startswith("sqlite"):
+        sqlite_file = Path(sql_alchemy_conn.replace("sqlite:///", ""))
+        # Grant r/w access to sqlite file.
+        permissions[sqlite_file] = 0o766
+        # Grant r/w access to directory where sqlite file placed
+        # otherwise we can't create temporary files during write access.
+        permissions[sqlite_file.parent] = 0o777
+
+    monkeypatch.setenv("AIRFLOW_HOME", str(airflow_home))
+
+    with set_permissions(permissions):
+        subprocess.check_call(["sudo", "chown", f"{username}:root", str(airflow_home), "-R"], close_fds=True)
+        yield airflow_home
 
 
 class BaseImpersonationTest:
