@@ -28,6 +28,7 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any, Union
+from urllib.parse import urlparse
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
@@ -152,11 +153,13 @@ class WasbHook(BaseHook):
             # connection_string auth takes priority
             return BlobServiceClient.from_connection_string(connection_string, **extra)
 
-        account_url = (
-            conn.host
-            if conn.host and conn.host.startswith("https://")
-            else f"https://{conn.login}.blob.core.windows.net/"
-        )
+        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
+        parsed_url = urlparse(account_url)
+
+        if not parsed_url.netloc and "." not in parsed_url.path:
+            # if there's no netloc and no dots in the path, then user only
+            # provided the Active Directory ID, not the full URL or DNS name
+            account_url = f"https://{conn.login}.blob.core.windows.net/"
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
@@ -555,11 +558,13 @@ class WasbAsyncHook(WasbHook):
             )
             return self.blob_service_client
 
-        account_url = (
-            conn.host
-            if conn.host and conn.host.startswith("https://")
-            else f"https://{conn.login}.blob.core.windows.net/"
-        )
+        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
+        parsed_url = urlparse(account_url)
+
+        if not parsed_url.netloc and "." not in parsed_url.path:
+            # if there's no netloc and no dots in the path, then user only
+            # provided the Active Directory ID, not the full URL or DNS name
+            account_url = f"https://{conn.login}.blob.core.windows.net/"
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
