@@ -40,7 +40,7 @@ If you want to use pre-written Deferrable Operators that come with Airflow, such
 * Ensure your Airflow installation runs at least one ``triggerer`` process, as well as the normal ``scheduler``
 * Use deferrable operators/sensors in your DAGs
 
-Airflow automatically handles and implements the deferral behaviors for you. 
+Airflow automatically handles and implements the deferral processes for you. 
 
 If you're upgrading existing DAGs to use deferrable operators, Airflow contains API-compatible sensor variants, like ``TimeSensorAsync`` for ``TimeSensor``. Add these variants into your DAG to use deferrable operators with no other changes required.
 
@@ -99,22 +99,22 @@ Writing a deferrable operator requires more configuration than updating your DAG
 Triggering Deferral
 ~~~~~~~~~~~~~~~~~~~
 
-If you want to trigger deferral, at any place in your Operator you can call ``self.defer(trigger, method_name, kwargs, timeout)``, which will raise a special exception that Airflow will catch. The arguments are:
+If you want to trigger deferral, at any place in your operator, you can call ``self.defer(trigger, method_name, kwargs, timeout)``. This raises a special exception that Airflow will catch. The arguments are:
 
-* ``trigger``: An instance of a Trigger that you wish to defer on. It will be serialized into the database.
-* ``method_name``: The method name on your Operator you want Airflow to call when it resumes.
-* ``kwargs``: Additional keyword arguments to pass to the method when it is called. Optional, defaults to ``{}``.
-* ``timeout``: A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Optional, defaults to ``None``, meaning no timeout.
+* ``trigger``: An instance of a trigger that you want to defer. It will be serialized into the database.
+* ``method_name``: The method name of your operator that you want Airflow to call when it resumes.
+* ``kwargs``: (Optional) Additional keyword arguments to pass to the method when it is called. Defaults to ``{}``.
+* ``timeout``: (Optional) A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Defaults to ``None``, which means no timeout.
 
-When you opt to defer, your Operator will *stop executing at that point and be removed from its current worker*. No state - such as local variables, or attributes set on ``self`` - will persist, and when your Operator is resumed it will be a *brand new instance* of it. The only way you can pass state from the old instance of the Operator to the new one is via ``method_name`` and ``kwargs``.
+When you opt to defer, your operator will *stop executing at that point and be removed from its current worker*. No state will persist, such as local variables, or attributes set on ``self``. When your operator resumes, it resumes as a *brand new instance* of it. The only way you can pass state from the old instance of the operator to the new one is with ``method_name`` and ``kwargs``.
 
-When your Operator is resumed, an ``event`` item will be added to the kwargs passed to the ``method_name`` method. The ``event`` object contains the payload from the trigger event that resumed your Operator. Depending on the trigger, this may be useful to your operator (e.g. it's a status code or URL to fetch results), or it may not be important (it's just a datetime). Your ``method_name`` method, however, *must* accept ``event`` as a keyword argument.
+When your operator resumes, Airflow adds an ``event`` object to the kwargs passed to the ``method_name`` method. This ``event`` object contains the payload from the trigger event that resumed your operator. Depending on the trigger, this can be useful to your operator, like it's a status code or URL to fetch results, or it might be unimportant information, like a datetime. Your ``method_name`` method, however, *must* accept ``event`` as a keyword argument.
 
-If your Operator returns from either its first ``execute()`` method when it's new, or a subsequent method specified by ``method_name``, it will be considered complete and will finish executing.
+If your Operator returns from either its first ``execute()`` method when it's new, or a subsequent method specified by ``method_name``, it will be considered complete and finish executing.
 
-You are free to set ``method_name`` to ``execute`` if you want your Operator to have one entrypoint, but it, too, will have to accept ``event`` as an optional keyword argument.
+You can set ``method_name`` to ``execute`` if you want your operator to have one entrypoint, but it must also accept ``event`` as an optional keyword argument.
 
-Here's a basic example of how a sensor might trigger deferral
+Here's a basic example of how a sensor might trigger deferral:
 
 .. code-block:: python
 
@@ -134,11 +134,11 @@ Here's a basic example of how a sensor might trigger deferral
             # We have no more work to do here. Mark as complete.
             return
 
-This Sensor is literally just a thin wrapper around the Trigger, so all it does is defer to the trigger, and specify a different method to come back to when the trigger fires - which, as it returns immediately, marks the Sensor as successful.
+This sensor is just a thin wrapper around the trigger. It defers to the trigger, and specifies a different method to come back to when the trigger fires.  When it returns immediately, it marks the sensor as successful.
 
-Under the hood, ``self.defer`` raises the ``TaskDeferred`` exception, so it will work anywhere inside your Operator's code, even buried many nested calls deep inside ``execute()``. You are free to raise ``TaskDeferred`` manually if you wish; it takes the same arguments as ``self.defer``.
+The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work anywhere inside your operator's code, even when nested many calls deep inside ``execute()``. You can also raise ``TaskDeferred`` manually. It takes the same arguments as ``self.defer``.
 
-Note that ``execution_timeout`` on Operators is considered over the *total runtime*, not individual executions in-between deferrals - this means that if ``execution_timeout`` is set, an Operator may fail while it's deferred or while it's running after a deferral, even if it's only been resumed for a few seconds.
+``execution_timeout`` on operators is determined from the *total runtime*, not individual executions between deferrals. This means that if ``execution_timeout`` is set, an operator can fail while it's deferred or while it's running after a deferral, even if it's only been resumed for a few seconds.
 
 
 Writing Triggers
