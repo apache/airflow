@@ -575,7 +575,7 @@ class DAG(LoggingMixin):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
         self.template_undefined = template_undefined
-        self.last_loaded = timezone.utcnow()
+        self.last_loaded: datetime = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
         if self.timetable.active_runs_limit is not None:
@@ -620,8 +620,8 @@ class DAG(LoggingMixin):
 
         # To keep it in parity with Serialized DAGs
         # and identify if DAG has on_*_callback without actually storing them in Serialized JSON
-        self.has_on_success_callback = self.on_success_callback is not None
-        self.has_on_failure_callback = self.on_failure_callback is not None
+        self.has_on_success_callback: bool = self.on_success_callback is not None
+        self.has_on_failure_callback: bool = self.on_failure_callback is not None
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
