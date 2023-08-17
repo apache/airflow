@@ -547,14 +547,13 @@ class TestAwsEcsExecutor:
         assert 0 == len(self.executor.pending_tasks)
 
     def test_container_not_found(self):
-        executor = AwsEcsExecutor()
         # Force a container name mismatch
         os.environ[
             f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CONTAINER_NAME}".upper()
         ] = "bad-container-name"
 
         with pytest.raises(KeyError) as raised:
-            executor.start()
+            AwsEcsExecutor()
         assert raised.match(
             re.escape(
                 "Rendered JSON template does not contain key "
@@ -569,7 +568,7 @@ class TestAwsEcsExecutor:
         executor.start()
 
         # Replace boto3 ECS client with mock.
-        ecs_mock = mock.Mock(spec=executor.ecs.conn)
+        ecs_mock = mock.Mock(spec=executor.ecs)
         run_task_ret_val = {"tasks": [{"taskArn": ARN1}], "failures": []}
         ecs_mock.run_task.return_value = run_task_ret_val
         executor.ecs = ecs_mock

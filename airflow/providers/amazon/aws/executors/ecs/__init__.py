@@ -77,32 +77,18 @@ class AwsEcsExecutor(BaseExecutor):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cluster: str | None = None
-        self.container_name: str | None = None
-        # TODO::  In the inherited code, these next two defaulted to None and were set in start()
-        #         below but mypy didn't like that. The provided tests still pass with this change,
-        #         but it is possible it might have some unanticipated consequences.
         self.active_workers: EcsTaskCollection = EcsTaskCollection()
         self.pending_tasks: deque = deque()
-        self.ecs = None
-        self.run_task_kwargs = None
-
-    def start(self):
-        """Initialize Boto3 ECS Client, and other internal variables."""
-        from airflow.providers.amazon.aws.hooks.ecs import EcsHook
-
-        region = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.REGION)
-        aws_conn_id = conf.get(
-            CONFIG_GROUP_NAME, EcsConfigKeys.AWS_CONN_ID, fallback=CONFIG_DEFAULTS[EcsConfigKeys.AWS_CONN_ID]
-        )
 
         self.cluster = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.CLUSTER)
         self.container_name = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.CONTAINER_NAME)
-        # TODO:: Confirm that defaulting in the init is functionally identical then remove these
-        #        next two commented lines.
-        # self.active_workers = EcsTaskCollection()
-        # self.pending_tasks = deque()
-        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region)
+        aws_conn_id = conf.get(
+            CONFIG_GROUP_NAME, EcsConfigKeys.AWS_CONN_ID, fallback=CONFIG_DEFAULTS[EcsConfigKeys.AWS_CONN_ID]
+        )
+        region = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.REGION)
+        from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+
+        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region).conn
         self.run_task_kwargs = self._load_run_kwargs()
 
     def sync(self):
