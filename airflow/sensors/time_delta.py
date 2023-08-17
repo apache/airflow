@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.exceptions import AirflowSkipException
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
@@ -65,14 +64,7 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
     def execute(self, context: Context):
         target_dttm = context["data_interval_end"]
         target_dttm += self.delta
-        try:
-            datetime_trigger = DateTimeTrigger(moment=target_dttm)
-        except Exception as e:
-            if self.soft_fail:
-                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
-            raise e
-
-        self.defer(trigger=datetime_trigger, method_name="execute_complete")
+        self.defer(trigger=DateTimeTrigger(moment=target_dttm), method_name="execute_complete")
 
     def execute_complete(self, context, event=None):
         """Execute for when the trigger fires - return immediately."""
