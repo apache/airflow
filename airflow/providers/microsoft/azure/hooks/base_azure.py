@@ -21,6 +21,7 @@ from typing import Any
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
+from azure.identity import DefaultAzureCredential
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -124,10 +125,17 @@ class AzureBaseHook(BaseHook):
             self.log.info("Getting connection using a JSON config.")
             return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
 
-        self.log.info("Getting connection using specific credentials and subscription_id.")
-        return self.sdk_client(
-            credentials=ServicePrincipalCredentials(
+        credentials: ServicePrincipalCredentials | DefaultAzureCredential
+        if all([conn.login, conn.password, tenant]):
+            self.log.info("Getting connection using specific credentials and subscription_id.")
+            credentials = ServicePrincipalCredentials(
                 client_id=conn.login, secret=conn.password, tenant=tenant
-            ),
+            )
+        else:
+            self.log.info("Using DefaultAzureCredential as credential")
+            credentials = DefaultAzureCredential()
+
+        return self.sdk_client(
+            credentials=credentials,
             subscription_id=subscription_id,
         )
