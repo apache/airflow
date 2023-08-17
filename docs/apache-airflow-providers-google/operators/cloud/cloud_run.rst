@@ -22,6 +22,11 @@ Cloud Run is used to build and deploy scalable containerized apps written in any
 
 For more information about the service visit `Google Cloud Run documentation <https://cloud.google.com/run/docs/>`__.
 
+Prerequisite Tasks
+^^^^^^^^^^^^^^^^^^
+
+.. include:: /operators/_partials/prerequisite_tasks.rst
+
 Create a job
 ---------------------
 

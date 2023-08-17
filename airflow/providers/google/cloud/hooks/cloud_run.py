@@ -44,6 +44,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 class CloudRunHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Run service.
+
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
     credentials, or chained list of accounts required to get the access_token
@@ -59,19 +60,14 @@ class CloudRunHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
         self._client: JobsClient | None = None
 
     def get_conn(self) -> JobsClient:
         """
         Retrieves connection to Cloud Run.
+
         :return: JobsClient.
         """
         if self._client is None:
@@ -80,15 +76,16 @@ class CloudRunHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_job(self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
+        delete_request = DeleteJobRequest()
+        delete_request.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
 
-        create_request = DeleteJobRequest()
-        create_request.name = f"projects/{project_id}/locations/{region}/jobs/{job_name}"
-
-        operation = self.get_conn().delete_job(create_request)
+        operation = self.get_conn().delete_job(delete_request)
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_job(self, job_name: str, job, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
+    def create_job(
+        self, job_name: str, job: Job | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> Job:
         if isinstance(job, dict):
             job = Job.from_json(json.dumps(job))
 
@@ -148,6 +145,7 @@ class CloudRunHook(GoogleBaseHook):
 class CloudRunAsyncHook(GoogleBaseHook):
     """
     Async hook for the Google Cloud Run service.
+
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
     credentials, or chained list of accounts required to get the access_token
@@ -163,14 +161,7 @@ class CloudRunAsyncHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
     ):
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-
         self._client: JobsAsyncClient = JobsAsyncClient()
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
 

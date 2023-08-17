@@ -39,6 +39,7 @@ class RunJobStatus(Enum):
 
 class CloudRunJobFinishedTrigger(BaseTrigger):
     """Cloud Run trigger to check if templated job has been finished.
+
     :param operation_name: Required. Name of the operation.
     :param job_name: Required. Name of the job.
     :param project_id: Required. the Google Cloud project ID in which the job was started.
@@ -129,7 +130,8 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
             if timeout is not None:
                 timeout -= self.polling_period_seconds
 
-            await asyncio.sleep(self.polling_period_seconds)
+            if timeout is None or timeout > 0:
+                await asyncio.sleep(self.polling_period_seconds)
 
         yield TriggerEvent(
             {
