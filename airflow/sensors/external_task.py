@@ -23,6 +23,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
 
 import attr
+import pendulum
 from sqlalchemy import func
 
 from airflow.configuration import conf
@@ -40,7 +41,7 @@ from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
-from airflow.utils.timezone import utcnow
+from airflow.utils.timezone import make_aware, make_naive, utcnow
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
@@ -224,7 +225,16 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     def _get_dttm_filter(self, context):
         if self.execution_delta:
-            dttm = context["logical_date"] - self.execution_delta
+            if self.dag.timezone != pendulum.tz.timezone("UTC"):
+                # Handle DST switch for DAG timezone when execution_delta is used
+                dag_tz = self.dag.timezone
+                logical_date_dag_tz = context["logical_date"].in_timezone(dag_tz)
+                dttm_dag_tz = make_aware(
+                    make_naive(logical_date_dag_tz, dag_tz) - self.execution_delta, dag_tz
+                )
+                dttm = pendulum.instance(dttm_dag_tz).in_timezone("UTC")
+            else:
+                dttm = context["logical_date"] - self.execution_delta
         elif self.execution_date_fn:
             dttm = self._handle_execution_date_fn(context=context)
         else:
