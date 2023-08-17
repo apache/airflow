@@ -158,7 +158,7 @@ class WasbHook(BaseHook):
 
         if not parsed_url.netloc and "." not in parsed_url.path:
             # if there's no netloc and no dots in the path, then user only
-            # provided the host ID, not the full URL or DNS name
+            # provided the Active Directory ID, not the full URL or DNS name
             account_url = f"https://{conn.login}.blob.core.windows.net/"
 
         tenant = self._get_field(extra, "tenant_id")
@@ -563,7 +563,7 @@ class WasbAsyncHook(WasbHook):
 
         if not parsed_url.netloc and "." not in parsed_url.path:
             # if there's no netloc and no dots in the path, then user only
-            # provided the host ID, not the full URL or DNS name
+            # provided the Active Directory ID, not the full URL or DNS name
             account_url = f"https://{conn.login}.blob.core.windows.net/"
 
         tenant = self._get_field(extra, "tenant_id")
