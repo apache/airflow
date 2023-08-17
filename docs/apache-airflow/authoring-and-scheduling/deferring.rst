@@ -201,15 +201,15 @@ If you are new to writing asynchronous Python, you should be very careful writin
 High Availability
 -----------------
 
-Triggers are designed from the ground-up to be highly-available; if you want to run a highly-available setup, simply run multiple copies of ``triggerer`` on multiple hosts. Much like ``scheduler``, they will automatically co-exist with correct locking and HA.
+Triggers are designed to be highly-available. If you want to run a highly-available setup, run multiple copies of ``triggerer`` on multiple hosts. Much like ``scheduler``, they automatically co-exist with correct locking and HA.
 
-Depending on how much work the triggers are doing, you can fit from hundreds to tens of thousands of triggers on a single ``triggerer`` host. By default, every ``triggerer`` will have a capacity of 1000 triggers it will try to run at once; you can change this with the ``--capacity`` argument. If you have more triggers trying to run than you have capacity across all of your ``triggerer`` processes, some triggers will be delayed from running until others have completed.
+Depending on how much work the triggers are doing, you can fit hundreds to tens of thousands of triggers on a single ``triggerer`` host. By default, every ``triggerer`` has a capacity of 1000 triggers that it can try to run at once. You can change the number of triggers that can run simultaneously with the ``--capacity`` argument. If you have more triggers trying to run than you have capacity across all of your ``triggerer`` processes, some triggers will be delayed from running until others have completed.
 
-Airflow tries to only run triggers in one place at once, and maintains a heartbeat to all ``triggerers`` that are currently running. If a ``triggerer`` dies, or becomes partitioned from the network where Airflow's database is running, Airflow will automatically re-schedule triggers that were on that host to run elsewhere (after waiting (2.1 * ``triggerer.job_heartbeat_sec``) seconds for the machine to re-appear).
+Airflow tries to only run triggers in one place at once, and maintains a heartbeat to all ``triggerers`` that are currently running. If a ``triggerer`` dies, or becomes partitioned from the network where Airflow's database is running, Airflow automatically re-schedules triggers that were on that host to run elsewhere. Airflow waits (2.1 * ``triggerer.job_heartbeat_sec``) seconds for the machine to re-appear before rescheduling the triggers.
 
-This means it's possible, but unlikely, for triggers to run in multiple places at once; this is designed into the Trigger contract, however, and entirely expected. Airflow will de-duplicate events fired when a trigger is running in multiple places simultaneously, so this process should be transparent to your Operators.
+This means it's possible, but unlikely, for triggers to run in multiple places at once. This behavior is designed into the trigger contract, however, and is expected behavior. Airflow de-duplicates events fired when a trigger is running in multiple places simultaneously, so this process is transparent to your operators.
 
-Note that every extra ``triggerer`` you run will result in an extra persistent connection to your database.
+Note that every extra ``triggerer`` you run results in an extra persistent connection to your database.
 
 
 Difference between Mode='reschedule' and Deferrable=True in Sensors
