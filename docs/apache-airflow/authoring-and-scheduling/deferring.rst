@@ -35,28 +35,30 @@ Using deferrable operators as a DAG author is almost transparent; writing them, 
 Using Deferrable Operators
 --------------------------
 
-If all you wish to do is use pre-written Deferrable Operators (such as ``TimeSensorAsync``, which comes with Airflow), then there are only two steps you need:
+If you want to use pre-written Deferrable Operators that come with Airflow, such as ``TimeSensorAsync``, then you only need to complete two steps:
 
-* Ensure your Airflow installation is running at least one ``triggerer`` process, as well as the normal ``scheduler``
+* Ensure your Airflow installation runs at least one ``triggerer`` process, as well as the normal ``scheduler``
 * Use deferrable operators/sensors in your DAGs
 
-That's it; everything else will be automatically handled for you. If you're upgrading existing DAGs, we even provide some API-compatible sensor variants (e.g. ``TimeSensorAsync`` for ``TimeSensor``) that you can swap into your DAG with no other changes required.
+Airflow automatically handles and implements the deferral behaviors for you. 
 
-Note that you cannot yet use the deferral ability from inside custom PythonOperator/TaskFlow Python functions; it is only available to traditional, class-based Operators at the moment.
+If you're upgrading existing DAGs to use deferrable operators, Airflow contains API-compatible sensor variants, like ``TimeSensorAsync`` for ``TimeSensor``. Add these variants into your DAG to use deferrable operators with no other changes required.
+
+Note that you can't use the deferral ability from inside custom PythonOperator or TaskFlow Python functions. Deferral is only available to traditional, class-based Operators.
 
 .. _deferring/writing:
 
 Writing Deferrable Operators
 ----------------------------
 
-Writing a deferrable operator takes a bit more work. There are some main points to consider:
+Writing a deferrable operator requires more configuration than updating your DAGs with pre-written operators. There are some main points to consider:
 
-* Your Operator must defer itself with a Trigger. If there is a Trigger in core Airflow you can use, great; otherwise, you will have to write one.
-* Your Operator will be stopped and removed from its worker while deferred, and no state will persist automatically. You can persist state by asking Airflow to resume you at a certain method or pass certain kwargs, but that's it.
+* Your Operator must defer itself with a Trigger. You can use a Trigger in core Airflow you can use, otherwise, you need to write a custom one.
+* Your Operator will be stopped and removed from its worker while deferred, and no state will persists automatically. You can persist state by instructing Airflow to resume the operation at a certain method or by passing certain kwargs.
 * You can defer multiple times, and you can defer before/after your Operator does significant work, or only defer if certain conditions are met (e.g. a system does not have an immediate answer). Deferral is entirely under your control.
 * Any Operator can defer; no special marking on its class is needed, and it's not limited to Sensors.
 * In order for any changes to a Trigger to be reflected, the *triggerer* needs to be restarted whenever the Trigger is modified.
-* If you want to add an operator or sensor that supports both deferrable and non-deferrable modes, it's suggested to add ``deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False)`` to the ``__init__`` method of the operator and use it to decide whether to run the operator in deferrable mode. You'll be able to configure the default value of ``deferrable`` of all the operators and sensors that support switching between deferrable and non-deferrable mode through ``default_deferrable`` in the ``operator`` section. Here's an example of a sensor that supports both modes.
+* If you want to add an operator or sensor that supports both deferrable and non-deferrable modes, it's suggested to add ``deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False)`` to the ``__init__`` method of the operator and use it to decide whether to run the operator in deferrable mode. You can configure the default value of ``deferrable`` of all the operators and sensors that support switching between deferrable and non-deferrable mode through ``default_deferrable`` in the ``operator`` section. Here's an example of a sensor that supports both modes.
 
 .. code-block:: python
 
@@ -213,7 +215,7 @@ Note that every extra ``triggerer`` you run will result in an extra persistent c
 Difference between Mode='reschedule' and Deferrable=True in Sensors
 -------------------------------------------------------------------
 
-In Airflow, Sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: mode='reschedule' and deferrable=True. As mode='reschedule' is a parameter specific to the BaseSensorOperator in Airflow, which allows the sensor to reschedule itself if the condition is not met, whereas, 'deferrable=True' is a convention used by some operators to indicate that the task can be retried (or deferred) later, but it is not a built-in parameter or mode in the Airflow. The actual behavior of retrying the task may vary depending on the specific operator implementation.
+In Airflow, sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: ``mode='reschedule'`` and ``deferrable=True``. Because ``mode='reschedule'`` is a parameter specific to the BaseSensorOperator in Airflow, it allows the sensor to reschedule itself if the condition is not met. ``'deferrable=True'`` is a convention used by some operators to indicate that the task can be retried (or deferred) later, but it is not a built-in parameter or mode in Airflow. The actual behavior of retrying the task varies depending on the specific operator implementation.
 
 +--------------------------------------------------------+--------------------------------------------------------+
 |           mode='reschedule'                            |          deferrable=True                               |
@@ -221,7 +223,7 @@ In Airflow, Sensors wait for specific conditions to be met before proceeding wit
 | Continuously reschedules itself until condition is met |  Pauses execution when idle, resumes when condition    |
 |                                                        |  changes                                               |
 +--------------------------------------------------------+--------------------------------------------------------+
-| Resource Usage is Higher (repeated execution)          |  Resource Usage is Lower (pauses when idle, frees      |
+| Resource use is higher (repeated execution)          |  Resource use is lower (pauses when idle, frees      |
 |                                                        |  up worker slots)                                      |
 +--------------------------------------------------------+--------------------------------------------------------+
 | Conditions expected to change over time                |  Waiting for external events or resources              |
