@@ -22,7 +22,6 @@ import datetime
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowSkipException
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
@@ -36,14 +35,6 @@ def test_input_validation():
         DateTimeTrigger("2012-01-01T03:03:03+00:00")
 
 
-def test_input_validation_with_soft_fail():
-    """
-    Tests that DateTimeTrigger raises AirflowSkipException when soft_fail is set to True
-    """
-    with pytest.raises(AirflowSkipException, match="Skipping due to soft_fail is set to True"):
-        DateTimeTrigger("2012-01-01T03:03:03+00:00", soft_fail=True)
-
-
 def test_datetime_trigger_serialization():
     """
     Tests that the DateTimeTrigger correctly serializes its arguments
@@ -53,7 +44,7 @@ def test_datetime_trigger_serialization():
     trigger = DateTimeTrigger(moment)
     classpath, kwargs = trigger.serialize()
     assert classpath == "airflow.triggers.temporal.DateTimeTrigger"
-    assert kwargs == {"moment": moment, "soft_fail": False}
+    assert kwargs == {"moment": moment}
 
 
 def test_timedelta_trigger_serialization():
