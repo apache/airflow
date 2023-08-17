@@ -47,13 +47,13 @@ class CloudRunHook(GoogleBaseHook):
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
-    credentials, or chained list of accounts required to get the access_token
-    of the last account in the list, which will be impersonated in the request.
-    If set as a string, the account must grant the originating account
-    the Service Account Token Creator IAM role.
-    If set as a sequence, the identities from the list must grant
-    Service Account Token Creator IAM role to the directly preceding identity, with first
-    account from the list granting this role to the originating account.
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
     """
 
     def __init__(
@@ -83,9 +83,7 @@ class CloudRunHook(GoogleBaseHook):
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def create_job(
-        self, job_name: str, job: Job | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
-    ) -> Job:
+    def create_job(self, job_name: str, job, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
         if isinstance(job, dict):
             job = Job.from_json(json.dumps(job))
 
@@ -98,9 +96,7 @@ class CloudRunHook(GoogleBaseHook):
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def update_job(
-        self, job_name: str, job: Job | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
-    ) -> Job:
+    def update_job(self, job_name: str, job, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
         if isinstance(job, dict):
             job = Job.from_json(json.dumps(job))
 
@@ -150,13 +146,13 @@ class CloudRunAsyncHook(GoogleBaseHook):
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
-    credentials, or chained list of accounts required to get the access_token
-    of the last account in the list, which will be impersonated in the request.
-    If set as a string, the account must grant the originating account
-    the Service Account Token Creator IAM role.
-    If set as a sequence, the identities from the list must grant
-    Service Account Token Creator IAM role to the directly preceding identity, with first
-    account from the list granting this role to the originating account.
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
     """
 
     def __init__(
