@@ -24,12 +24,6 @@ from datetime import datetime
 import oracledb
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-
-try:
-    import numpy
-except ImportError:
-    numpy = None  # type: ignore
-
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 PARAM_TYPES = {bool, float, int, str}
@@ -280,6 +274,11 @@ class OracleHook(DbApiHook):
             Set 1 to insert each row in each single transaction
         :param replace: Whether to replace instead of insert
         """
+        try:
+            import numpy
+        except ImportError:
+            numpy = None  # type: ignore
+
         if target_fields:
             target_fields = ", ".join(target_fields)
             target_fields = f"({target_fields})"
