@@ -19,7 +19,7 @@ from __future__ import annotations
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
-from pandas import DataFrame
+import pandas as pd
 from tabulate import tabulate
 
 from airflow.exceptions import AirflowException
@@ -70,7 +70,7 @@ class BaseSqlToSlackOperator(BaseOperator):
             )
         return hook
 
-    def _get_query_results(self) -> DataFrame:
+    def _get_query_results(self) -> pd.DataFrame:
         sql_hook = self._get_hook()
 
         self.log.info("Running SQL query: %s", self.sql)
