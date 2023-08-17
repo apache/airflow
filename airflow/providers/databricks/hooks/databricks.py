@@ -163,13 +163,13 @@ class DatabricksHook(BaseDatabricksHook):
         return response["run_id"]
 
     def list_jobs(
-        self, limit: int = 25, offset: int = 0, expand_tasks: bool = False, job_name: str | None = None
+        self, limit: int = 25, page_token: str | None = None, expand_tasks: bool = False, job_name: str | None = None
     ) -> list[dict[str, Any]]:
         """
         Lists the jobs in the Databricks Job Service.
 
         :param limit: The limit/batch size used to retrieve jobs.
-        :param offset: The offset of the first job to return, relative to the most recently created job.
+        :param page_token: The optional page token pointing at the first first job to return.
         :param expand_tasks: Whether to include task and cluster details in the response.
         :param job_name: Optional name of a job to search.
         :return: A list of jobs.
@@ -181,8 +181,9 @@ class DatabricksHook(BaseDatabricksHook):
             payload: dict[str, Any] = {
                 "limit": limit,
                 "expand_tasks": expand_tasks,
-                "offset": offset,
             }
+            if page_token:
+                payload["page_token"] = page_token
             if job_name:
                 payload["name"] = job_name
             response = self._do_api_call(LIST_JOBS_ENDPOINT, payload)
@@ -193,7 +194,7 @@ class DatabricksHook(BaseDatabricksHook):
                 all_jobs += jobs
             has_more = response.get("has_more", False)
             if has_more:
-                offset += len(jobs)
+                page_token = response.get("next_page_token", "")
 
         return all_jobs
 
