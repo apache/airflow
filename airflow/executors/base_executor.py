@@ -488,6 +488,7 @@ class BaseExecutor(LoggingMixin):
 
         Override this method to expose commands via Airflow CLI to manage this executor. This can
         be commands to setup/teardown the executor, inspect state, etc.
+        Make sure to choose unique names for those commands, to avoid collisions.
         """
         return []
 
