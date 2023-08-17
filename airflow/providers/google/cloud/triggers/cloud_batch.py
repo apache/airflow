@@ -130,7 +130,9 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                     self.log.info("Sleeping for %s seconds.", self.polling_period_seconds)
                     if timeout is not None:
                         timeout -= self.polling_period_seconds
-                    await asyncio.sleep(self.polling_period_seconds)
+
+                    if timeout is None or timeout > 0:
+                        await asyncio.sleep(self.polling_period_seconds)
 
             except Exception as e:
                 self.log.exception("Exception occurred while checking for job completion.")
