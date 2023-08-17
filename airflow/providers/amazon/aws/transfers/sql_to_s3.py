@@ -29,7 +29,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
-    from pandas import DataFrame
+    import pandas as pd
 
     from airflow.utils.context import Context
 
@@ -130,7 +130,7 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
 
     @staticmethod
-    def _fix_dtypes(df: DataFrame, file_format: FILE_FORMAT) -> None:
+    def _fix_dtypes(df: pd.DataFrame, file_format: FILE_FORMAT) -> None:
         """
         Mutate DataFrame to set dtypes for float columns containing NaN values.
 
@@ -138,7 +138,7 @@ class SqlToS3Operator(BaseOperator):
         """
         try:
             import numpy as np
-            from pandas import Float64Dtype, Int64Dtype
+            import pandas as pd
         except ImportError as e:
             from airflow.exceptions import AirflowOptionalProviderFeatureException
 
@@ -159,13 +159,13 @@ class SqlToS3Operator(BaseOperator):
                     # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
                     # is merged and released as currently NumPy does not consider None as valid for x/y.
                     df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
-                    df[col] = df[col].astype(Int64Dtype())
+                    df[col] = df[col].astype(pd.Int64Dtype())
                 elif np.isclose(notna_series, notna_series.astype(int)).all():
                     # set to float dtype that retains floats and supports NaNs
                     # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
                     # is merged and released
                     df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
-                    df[col] = df[col].astype(Float64Dtype())
+                    df[col] = df[col].astype(pd.Float64Dtype())
 
     def execute(self, context: Context) -> None:
         sql_hook = self._get_hook()
@@ -188,7 +188,7 @@ class SqlToS3Operator(BaseOperator):
                     filename=tmp_file.name, key=object_key, bucket_name=self.s3_bucket, replace=self.replace
                 )
 
-    def _partition_dataframe(self, df: DataFrame) -> Iterable[tuple[str, DataFrame]]:
+    def _partition_dataframe(self, df: pd.DataFrame) -> Iterable[tuple[str, pd.DataFrame]]:
         """Partition dataframe using pandas groupby() method."""
         if not self.groupby_kwargs:
             yield "", df

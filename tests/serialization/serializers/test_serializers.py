@@ -20,7 +20,7 @@ import datetime
 import decimal
 
 import numpy
-import pandas
+import pandas as pd
 import pendulum.tz
 import pytest
 from pendulum import DateTime
@@ -94,7 +94,7 @@ class TestSerializers:
         assert i["x"] == d["x"]
 
     def test_pandas(self):
-        i = pandas.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})
+        i = pd.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})
         e = serialize(i)
         d = deserialize(e)
         assert i.equals(d)

@@ -31,7 +31,7 @@ from typing import Any, Iterable, Mapping
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
-    import pandas
+    import pandas as pd
 except ImportError as e:
     from airflow.exceptions import AirflowOptionalProviderFeatureException
 
@@ -336,7 +336,7 @@ class HiveCliHook(BaseHook):
 
     def load_df(
         self,
-        df: pandas.DataFrame,
+        df: pd.DataFrame,
         table: str,
         field_dict: dict[Any, Any] | None = None,
         delimiter: str = ",",
@@ -361,7 +361,7 @@ class HiveCliHook(BaseHook):
         :param kwargs: passed to self.load_file
         """
 
-        def _infer_field_types_from_df(df: pandas.DataFrame) -> dict[Any, Any]:
+        def _infer_field_types_from_df(df: pd.DataFrame) -> dict[Any, Any]:
             dtype_kind_hive_type = {
                 "b": "BOOLEAN",  # boolean
                 "i": "BIGINT",  # signed integer
@@ -1037,7 +1037,7 @@ class HiveServer2Hook(DbApiHook):
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
-    ) -> pandas.DataFrame:
+    ) -> pd.DataFrame:
         """
         Get a pandas dataframe from a Hive query.
 
@@ -1056,5 +1056,5 @@ class HiveServer2Hook(DbApiHook):
         :return: pandas.DateFrame
         """
         res = self.get_results(sql, schema=schema, hive_conf=hive_conf)
-        df = pandas.DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
+        df = pd.DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
         return df
