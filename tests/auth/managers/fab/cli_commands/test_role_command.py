@@ -23,10 +23,11 @@ from contextlib import redirect_stdout
 
 import pytest
 
+from airflow.auth.managers.fab.cli_commands import role_command
+from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
 from airflow.auth.managers.fab.models import Role
-from airflow.cli.commands import role_command
+from airflow.cli import cli_parser
 from airflow.security import permissions
-from airflow.utils.cli_app_builder import get_application_builder
 
 TEST_USER1_EMAIL = "test-user1@example.com"
 TEST_USER2_EMAIL = "test-user2@example.com"
@@ -34,9 +35,8 @@ TEST_USER2_EMAIL = "test-user2@example.com"
 
 class TestCliRoles:
     @pytest.fixture(autouse=True)
-    def _set_attrs(self, dagbag, parser):
-        self.dagbag = dagbag
-        self.parser = parser
+    def _set_attrs(self):
+        self.parser = cli_parser.get_parser()
         with get_application_builder() as appbuilder:
             self.appbuilder = appbuilder
             self.clear_roles_and_roles()
