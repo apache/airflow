@@ -35,20 +35,19 @@ class DateTimeTrigger(BaseTrigger):
     The provided datetime MUST be in UTC.
     """
 
-    def __init__(self, moment: datetime.datetime, *, soft_fail: bool = False) -> None:
+    def __init__(self, moment: datetime.datetime, soft_fail: bool = False):
         super().__init__()
-        skipping_message_postfix = "Skipping due to soft_fail is set to True."
         if not isinstance(moment, datetime.datetime):
-            message = f"Expected datetime.datetime type for moment. Got {type(moment)}"
+            exc = TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
             if soft_fail:
-                raise AirflowSkipException(f"{message}. {skipping_message_postfix}")
-            raise TypeError(message)
+                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from exc
+            raise exc
         # Make sure it's in UTC
         elif moment.tzinfo is None:
-            message = "You cannot pass naive datetimes"
+            exc = ValueError("You cannot pass naive datetimes")
             if soft_fail:
-                raise AirflowSkipException(f"{message}. {skipping_message_postfix}")
-            raise ValueError(message)
+                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from exc
+            raise exc
         else:
             self.moment = timezone.convert_to_utc(moment)
 
