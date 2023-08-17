@@ -56,5 +56,5 @@ You can run a Data Pipelines instance by running the above parameters with RunDa
     :start-after: [START howto_operator_run_data_pipeline]
     :end-before: [END howto_operator_run_data_pipeline]
 
-Once called, the RunDataPipelineOperator will return the Google Cloud `Dataflow Job<https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/Job>`__
+Once called, the RunDataPipelineOperator will return the Google Cloud `Dataflow Job <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/Job>`__
 created by running the given pipeline.
