@@ -20,6 +20,7 @@ import datetime as dt
 import os
 import re
 import time
+from importlib import reload
 from unittest import mock
 
 import pytest
@@ -639,8 +640,11 @@ class TestEcsExecutorConfig:
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
-        executor = AwsEcsExecutor()
         with pytest.raises(ValueError) as raised:
-            executor.start()
+            # The executor config module runs code and sets values at the
+            # module level. So to trigger any changes, the module must be
+            # reloaded
+            reload(ecs_executor_config)
         assert raised.match("At least one subnet is required to run a task.")
