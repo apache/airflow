@@ -23,6 +23,7 @@ KubernetesExecutor.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import logging
 import multiprocessing
@@ -36,6 +37,40 @@ from typing import TYPE_CHECKING, Any, Sequence
 from sqlalchemy.orm import Session
 
 from airflow import AirflowException
+
+try:
+    from airflow.cli.cli_config import (
+        ARG_DAG_ID,
+        ARG_EXECUTION_DATE,
+        ARG_OUTPUT_PATH,
+        ARG_SUBDIR,
+        ARG_VERBOSE,
+        ActionCommand,
+        Arg,
+        GroupCommand,
+        lazy_load_command,
+        positive_int,
+    )
+except ImportError:
+    try:
+        from airflow import __version__ as airflow_version
+    except ImportError:
+        from airflow.version import version as airflow_version
+
+    import packaging.version
+
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    base_version = packaging.version.parse(airflow_version).base_version
+
+    if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):
+        raise AirflowOptionalProviderFeatureException(
+            "Kubernetes Executor from CNCF Provider should only be used with Airflow 2.7.0+.\n"
+            f"This is Airflow {airflow_version} and Kubernetes and CeleryKubernetesExecutor are "
+            f"available in the 'airflow.executors' package. You should not use "
+            f"the provider's executors in this version of Airflow."
+        )
+    raise
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import POD_EXECUTOR_DONE_KEY
@@ -44,7 +79,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annota
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes import client
@@ -70,9 +105,49 @@ class PodReconciliationError(AirflowException):
     """Raised when an error is encountered while trying to merge pod configs."""
 
 
+# CLI Args
+ARG_NAMESPACE = Arg(
+    ("--namespace",),
+    default=conf.get("kubernetes_executor", "namespace"),
+    help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
+)
+
+ARG_MIN_PENDING_MINUTES = Arg(
+    ("--min-pending-minutes",),
+    default=30,
+    type=positive_int(allow_zero=False),
+    help=(
+        "Pending pods created before the time interval are to be cleaned up, "
+        "measured in minutes. Default value is 30(m). The minimum value is 5(m)."
+    ),
+)
+
+# CLI Commands
+KUBERNETES_COMMANDS = (
+    ActionCommand(
+        name="cleanup-pods",
+        help=(
+            "Clean up Kubernetes pods "
+            "(created by KubernetesExecutor/KubernetesPodOperator) "
+            "in evicted/failed/succeeded/pending states"
+        ),
+        func=lazy_load_command("airflow.cli.commands.kubernetes_command.cleanup_pods"),
+        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="generate-dag-yaml",
+        help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
+        "launching into a cluster",
+        func=lazy_load_command("airflow.cli.commands.kubernetes_command.generate_pod_yaml"),
+        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
+    ),
+)
+
+
 class KubernetesExecutor(BaseExecutor):
     """Executor for Kubernetes."""
 
+    RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
 
     def __init__(self):
@@ -108,6 +183,7 @@ class KubernetesExecutor(BaseExecutor):
     def _make_safe_label_value(self, input_value: str | datetime) -> str:
         """
         Normalize a provided label to be of valid length and characters.
+
         See airflow.providers.cncf.kubernetes.pod_generator.make_safe_label_value for more details.
         """
         # airflow.providers.cncf.kubernetes is an expensive import, locally import it here to
@@ -297,7 +373,7 @@ class KubernetesExecutor(BaseExecutor):
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
         resource_instance = ResourceVersion()
-        for ns in resource_instance.resource_version.keys():
+        for ns in resource_instance.resource_version:
             resource_instance.resource_version[ns] = (
                 last_resource_version[ns] or resource_instance.resource_version[ns]
             )
@@ -352,7 +428,7 @@ class KubernetesExecutor(BaseExecutor):
     def _change_state(
         self,
         key: TaskInstanceKey,
-        state: str | None,
+        state: TaskInstanceState | None,
         pod_name: str,
         namespace: str,
         session: Session = NEW_SESSION,
@@ -360,12 +436,12 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_scheduler
 
-        if state == State.RUNNING:
+        if state == TaskInstanceState.RUNNING:
             self.event_buffer[key] = state, None
             return
 
         if self.kube_config.delete_worker_pods:
-            if state != State.FAILED or self.kube_config.delete_worker_pods_on_failure:
+            if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
                 self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
         else:
@@ -382,6 +458,7 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.models.taskinstance import TaskInstance
 
             state = session.query(TaskInstance.state).filter(TaskInstance.filter_for_tis([key])).scalar()
+            state = TaskInstanceState(state)
 
         self.event_buffer[key] = state, None
 
@@ -426,7 +503,7 @@ class KubernetesExecutor(BaseExecutor):
                 namespace=namespace,
                 container="base",
                 follow=False,
-                tail_lines=100,
+                tail_lines=self.RUNNING_POD_LOG_LINES,
                 _preload_content=False,
             )
             for line in res:
@@ -644,3 +721,21 @@ class KubernetesExecutor(BaseExecutor):
 
     def terminate(self):
         """Terminate the executor is not doing anything."""
+
+    @staticmethod
+    def get_cli_commands() -> list[GroupCommand]:
+        return [
+            GroupCommand(
+                name="kubernetes",
+                help="Tools to help run the KubernetesExecutor",
+                subcommands=KUBERNETES_COMMANDS,
+            )
+        ]
+
+
+def _get_parser() -> argparse.ArgumentParser:
+    """This method is used by Sphinx to generate documentation.
+
+    :meta private:
+    """
+    return KubernetesExecutor._get_parser()

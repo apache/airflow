@@ -92,7 +92,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def get_conn(self, headers: dict[str, Any] | None = None) -> Any:
         """
-        Returns http session for use with requests.
+        Return http session for use with requests.
 
         :param headers: additional headers to be passed through as a dictionary
         :return: requests session
@@ -111,7 +111,7 @@ class LivyHook(HttpHook, LoggingMixin):
         retry_args: dict[str, Any] | None = None,
     ) -> Any:
         """
-        Wrapper for HttpHook, allows to change method on the same HttpHook.
+        Wrap HttpHook; allows to change method on the same HttpHook.
 
         :param method: http method
         :param endpoint: endpoint
@@ -254,7 +254,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def get_batch_logs(self, session_id: int | str, log_start_position, log_batch_size) -> dict:
         """
-        Gets the session logs for a specified batch.
+        Get the session logs for a specified batch.
 
         :param session_id: identifier of the batch sessions
         :param log_start_position: Position from where to pull the logs
@@ -279,7 +279,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def dump_batch_logs(self, session_id: int | str) -> None:
         """
-        Dumps the session logs for a specified batch.
+        Dump the session logs for a specified batch.
 
         :param session_id: identifier of the batch sessions
         :return: response body
@@ -498,7 +498,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         extra_options: dict[str, Any] | None = None,
     ) -> Any:
         """
-        Performs an asynchronous HTTP request call.
+        Perform an asynchronous HTTP request call.
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :param data: payload to be uploaded or request parameters
@@ -591,7 +591,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         headers: dict[str, Any] | None = None,
     ) -> Any:
         """
-        Wrapper for HttpAsyncHook, allows to change method on the same HttpAsyncHook.
+        Wrap HttpAsyncHook; allows to change method on the same HttpAsyncHook.
 
         :param method: http method
         :param endpoint: endpoint
@@ -645,7 +645,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         self, session_id: int | str, log_start_position: int, log_batch_size: int
     ) -> Any:
         """
-        Gets the session logs for a specified batch asynchronously.
+        Get the session logs for a specified batch asynchronously.
 
         :param session_id: identifier of the batch sessions
         :param log_start_position: Position from where to pull the logs
@@ -662,7 +662,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
 
     async def dump_batch_logs(self, session_id: int | str) -> Any:
         """
-        Dumps the session logs for a specified batch asynchronously.
+        Dump the session logs for a specified batch asynchronously.
 
         :param session_id: identifier of the batch sessions
         :return: response body

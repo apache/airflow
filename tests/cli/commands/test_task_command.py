@@ -813,7 +813,7 @@ class TestLogsfromTaskRunCommand:
 
         clear_db_pools()
         with create_session() as session:
-            pool = Pool(pool=pool_name, slots=1)
+            pool = Pool(pool=pool_name, slots=1, include_deferred=False)
             session.add(pool)
             session.commit()
 

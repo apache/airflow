@@ -52,7 +52,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
         {
             "name": "Options for customizing images",
             "options": [
-                "--builder",
                 "--install-providers-from-sources",
                 "--airflow-extras",
                 "--airflow-constraints-location",
@@ -72,6 +71,8 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--runtime-apt-command",
                 "--dev-apt-deps",
                 "--dev-apt-command",
+                "--version-suffix-for-pypi",
+                "--commit-sha",
             ],
         },
         {
@@ -90,9 +91,9 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
         {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
+                "--builder",
                 "--platform",
                 "--push",
-                "--empty-image",
                 "--prepare-buildx-cache",
             ],
         },

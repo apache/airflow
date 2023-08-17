@@ -48,7 +48,7 @@ class FileTrigger(BaseTrigger):
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes FileTrigger arguments and classpath."""
+        """Serialize FileTrigger arguments and classpath."""
         return (
             "airflow.triggers.file.FileTrigger",
             {

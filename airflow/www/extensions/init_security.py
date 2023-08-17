@@ -20,7 +20,6 @@ import logging
 from importlib import import_module
 
 from flask import g, redirect
-from flask_login import logout_user
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
@@ -31,8 +30,9 @@ log = logging.getLogger(__name__)
 
 def init_xframe_protection(app):
     """
-    Add X-Frame-Options header. Use it to avoid click-jacking attacks, by ensuring that their content is not
-    embedded into other sites.
+    Add X-Frame-Options header.
+
+    Use it to avoid click-jacking attacks, by ensuring that their content is not embedded into other sites.
 
     See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
     """
@@ -70,5 +70,4 @@ def init_check_user_active(app):
     @app.before_request
     def check_user_active():
         if get_auth_manager().is_logged_in() and not g.user.is_active:
-            logout_user()
-            return redirect(get_auth_manager().get_url_login())
+            return redirect(get_auth_manager().get_url_logout())

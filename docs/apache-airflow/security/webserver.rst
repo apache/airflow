@@ -104,6 +104,33 @@ with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
 
     AUTH_TYPE = AUTH_DB
 
+A WSGI middleware could be used to manage very specific forms of authentication
+(e.g. `SPNEGO <https://www.ibm.com/docs/en/was-liberty/core?topic=authentication-single-sign-http-requests-using-spnego-web>`_)
+and leverage the REMOTE_USER method:
+
+.. code-block:: python
+
+    from typing import Any, Callable
+
+    from flask import current_app
+    from airflow.www.fab_security.manager import AUTH_REMOTE_USER
+
+
+    class CustomMiddleware:
+        def __init__(self, wsgi_app: Callable) -> None:
+            self.wsgi_app = wsgi_app
+
+        def __call__(self, environ: dict, start_response: Callable) -> Any:
+            # Custom authenticating logic here
+            # ...
+            environ["REMOTE_USER"] = "username"
+            return self.wsgi_app(environ, start_response)
+
+
+    current_app.wsgi_app = CustomMiddleware(current_app.wsgi_app)
+
+    AUTH_TYPE = AUTH_REMOTE_USER
+
 Another way to create users is in the UI login page, allowing user self registration through a "Register" button.
 The following entries in the ``$AIRFLOW_HOME/webserver_config.py`` can be edited to make it possible:
 

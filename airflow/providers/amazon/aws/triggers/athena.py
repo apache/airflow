@@ -23,7 +23,7 @@ from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
 class AthenaTrigger(AwsBaseWaiterTrigger):
     """
-    Trigger for RedshiftCreateClusterOperator.
+    Trigger for AthenaOperator.
 
     The trigger will asynchronously poll the boto3 API and wait for the
     Redshift cluster to be in the `available` state.

@@ -168,7 +168,7 @@ class DictOfListsExpandInput(NamedTuple):
 
         def _find_index_for_this_field(index: int) -> int:
             # Need to use the original user input to retain argument order.
-            for mapped_key in reversed(list(self.value)):
+            for mapped_key in reversed(self.value):
                 mapped_length = all_lengths[mapped_key]
                 if mapped_length < 1:
                     raise RuntimeError(f"cannot expand field mapped to length {mapped_length!r}")

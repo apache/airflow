@@ -187,6 +187,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-for-inclusive-language                              | Check for language that we do not accept as community        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-google-re2-as-dependency                            | Check google-re2 is declared as dependency when needed       |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone                     |         |

@@ -47,6 +47,7 @@ PRE_COMMIT_LIST = [
     "check-extra-packages-references",
     "check-extras-order",
     "check-for-inclusive-language",
+    "check-google-re2-as-dependency",
     "check-hooks-apply",
     "check-incorrect-use-of-LoggingMixin",
     "check-init-decorator-arguments",
