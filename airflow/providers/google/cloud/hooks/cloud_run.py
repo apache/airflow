@@ -98,7 +98,9 @@ class CloudRunHook(GoogleBaseHook):
         return operation.result()
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def update_job(self, job_name: str, job, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Job:
+    def update_job(
+        self, job_name: str, job: Job | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> Job:
         if isinstance(job, dict):
             job = Job.from_json(json.dumps(job))
 
