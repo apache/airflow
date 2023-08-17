@@ -86,7 +86,7 @@ class UtcDateTime(TypeDecorator):
 
     def process_result_value(self, value, dialect):
         """
-        Processes DateTimes from the DB making sure it is always returning UTC.
+        Process DateTimes from the DB making sure to always return UTC.
 
         Not using timezone.convert_to_utc as that converts to configured TIMEZONE
         while the DB might be running with some other setting. We assume UTC
@@ -120,7 +120,7 @@ class ExtendedJSON(TypeDecorator):
     cache_ok = True
 
     def db_supports_json(self):
-        """Checks if the database supports JSON (i.e. is NOT MSSQL)."""
+        """Check if the database supports JSON (i.e. is NOT MSSQL)."""
         return not conf.get("database", "sql_alchemy_conn").startswith("mssql")
 
     def load_dialect_impl(self, dialect) -> TypeEngine:
@@ -234,8 +234,12 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
     if not isinstance(pod, V1Pod):
         return None
     try:
-        from airflow.kubernetes.pod_generator import PodGenerator
-
+        try:
+            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        except ImportError:
+            from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator import (  # type: ignore[assignment]
+                PodGenerator,
+            )
         # now we actually reserialize / deserialize the pod
         pod_dict = sanitize_for_serialization(pod)
         return PodGenerator.deserialize_model_dict(pod_dict)
@@ -541,7 +545,8 @@ def tuple_in_condition(
     *,
     session: Session | None = None,
 ) -> ColumnOperators:
-    """Generates a tuple-in-collection operator to use in ``.where()``.
+    """
+    Generate a tuple-in-collection operator to use in ``.where()``.
 
     For most SQL backends, this generates a simple ``([col, ...]) IN [condition]``
     clause. This however does not work with MSSQL, where we need to expand to
@@ -587,7 +592,8 @@ def tuple_not_in_condition(
     *,
     session: Session | None = None,
 ) -> ColumnOperators:
-    """Generates a tuple-not-in-collection operator to use in ``.where()``.
+    """
+    Generate a tuple-not-in-collection operator to use in ``.where()``.
 
     This is similar to ``tuple_in_condition`` except generating ``NOT IN``.
 

@@ -29,7 +29,21 @@ from dataclasses import dataclass
 from tempfile import gettempdir
 from typing import TYPE_CHECKING, Callable, Generator, Iterable
 
-from sqlalchemy import Table, and_, column, delete, exc, func, inspect, or_, select, table, text, tuple_
+from sqlalchemy import (
+    Table,
+    and_,
+    column,
+    delete,
+    exc,
+    func,
+    inspect,
+    literal,
+    or_,
+    select,
+    table,
+    text,
+    tuple_,
+)
 
 import airflow
 from airflow import settings
@@ -45,6 +59,7 @@ if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
     from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql.elements import ClauseElement
     from sqlalchemy.sql.selectable import Select
 
     from airflow.models.base import Base
@@ -109,6 +124,7 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
             pool=Pool.DEFAULT_POOL_NAME,
             slots=conf.getint(section="core", key="default_pool_task_slot_count"),
             description="Default pool",
+            include_deferred=False,
         )
         session.add(default_pool)
         session.commit()
@@ -705,8 +721,8 @@ def _get_flask_db(sql_database_uri):
 def _create_db_from_orm(session):
     from alembic import command
 
+    from airflow.auth.managers.fab.models import Model
     from airflow.models.base import Base
-    from airflow.www.fab_security.sqla.models import Model
 
     def _create_flask_session_tbl(sql_database_uri):
         db = _get_flask_db(sql_database_uri)
@@ -732,7 +748,6 @@ def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
         upgradedb(session=session)
     else:
         _create_db_from_orm(session=session)
-    # Load default connections
     if conf.getboolean("database", "LOAD_DEFAULT_CONNECTIONS") and load_connections:
         create_default_connections(session=session)
     # Add default pool & sync log_template
@@ -775,7 +790,7 @@ def _get_current_revision(session):
 
 def check_migrations(timeout):
     """
-    Function to wait for all airflow migrations to complete.
+    Wait for all airflow migrations to complete.
 
     :param timeout: Timeout for the migration in seconds
     :return: None
@@ -983,7 +998,7 @@ def check_username_duplicates(session: Session) -> Iterable[str]:
     :param session:  session of the sqlalchemy
     :rtype: str
     """
-    from airflow.www.fab_security.sqla.models import RegisterUser, User
+    from airflow.auth.managers.fab.models import RegisterUser, User
 
     for model in [User, RegisterUser]:
         dups = []
@@ -1365,11 +1380,12 @@ def _move_duplicate_data_to_new_table(
 
 def check_bad_references(session: Session) -> Iterable[str]:
     """
-    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id` in many tables.
+    Go through each table and look for records that can't be mapped to a dag run.
 
-    Here we go through each table and look for records that can't be mapped to a dag run.
     When we find such "dangling" rows we back them up in a special table and delete them
     from the main table.
+
+    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id` in many tables.
     """
     from airflow.models.dagrun import DagRun
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
@@ -1519,7 +1535,7 @@ def _revision_greater(config, this_rev, base_rev):
 
 def _revisions_above_min_for_offline(config, revisions) -> None:
     """
-    Checks that all supplied revision ids are above the minimum revision for the dialect.
+    Check that all supplied revision ids are above the minimum revision for the dialect.
 
     :param config: Alembic config
     :param revisions: list of Alembic revision ids
@@ -1710,13 +1726,13 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
 
 def drop_airflow_models(connection):
     """
-    Drops all airflow models.
+    Drop all airflow models.
 
     :param connection: SQLAlchemy Connection
     :return: None
     """
+    from airflow.auth.managers.fab.models import Model
     from airflow.models.base import Base
-    from airflow.www.fab_security.sqla.models import Model
 
     Base.metadata.drop_all(connection)
     Model.metadata.drop_all(connection)
@@ -1745,7 +1761,7 @@ def drop_airflow_moved_tables(connection):
 @provide_session
 def check(session: Session = NEW_SESSION):
     """
-    Checks if the database works.
+    Check if the database works.
 
     :param session: session of the sqlalchemy
     """
@@ -1875,7 +1891,7 @@ def get_sqla_model_classes():
         return Base._decl_class_registry.values()
 
 
-def get_query_count(query_stmt: Select, session: Session) -> int:
+def get_query_count(query_stmt: Select, *, session: Session) -> int:
     """Get count of query.
 
     A SELECT COUNT() FROM is issued against the subquery built from the
@@ -1887,3 +1903,14 @@ def get_query_count(query_stmt: Select, session: Session) -> int:
     """
     count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
     return session.scalar(count_stmt)
+
+
+def exists_query(*where: ClauseElement, session: Session) -> bool:
+    """Check whether there is at least one row matching given clause.
+
+    This does a SELECT 1 WHERE ... LIMIT 1 and check the result.
+
+    :meta private:
+    """
+    stmt = select(literal(True)).where(*where).limit(1)
+    return session.scalar(stmt) is not None

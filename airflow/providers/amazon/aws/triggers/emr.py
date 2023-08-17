@@ -70,10 +70,8 @@ class EmrAddStepsTrigger(BaseTrigger):
         self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
         async with self.hook.async_conn as client:
             for step_id in self.step_ids:
-                attempt = 0
                 waiter = client.get_waiter("step_complete")
-                while attempt < int(self.max_attempts):
-                    attempt += 1
+                for attempt in range(1, 1 + self.max_attempts):
                     try:
                         await waiter.wait(
                             ClusterId=self.job_flow_id,

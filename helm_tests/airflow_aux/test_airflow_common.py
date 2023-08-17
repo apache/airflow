@@ -24,11 +24,9 @@ from tests.charts.helm_template_generator import render_chart
 
 class TestAirflowCommon:
     """
-    This class holds tests that apply to more than 1 Airflow component so
-    we don't have to repeat tests everywhere.
+    Tests that apply to more than 1 Airflow component so we don't have to repeat tests everywhere.
 
-    The one general exception will be the KubernetesExecutor PodTemplateFile,
-    as it requires extra test setup.
+    The one general exception will be the KubernetesExecutor PodTemplateFile, as it requires extra test setup.
     """
 
     @pytest.mark.parametrize(
@@ -106,29 +104,29 @@ class TestAirflowCommon:
                 "templates/workers/worker-deployment.yaml",
             ],
         )
-        for index in range(len(docs)):
-            print(docs[index])
+        for doc in docs:
             assert "webserver-config" in [
                 c["name"]
                 for r in jmespath.search(
                     "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations'].volumeMounts",
-                    docs[index],
+                    doc,
                 )
                 for c in r
             ]
-            for container in jmespath.search("spec.template.spec.containers", docs[index]):
+            for container in jmespath.search("spec.template.spec.containers", doc):
                 assert "webserver-config" in [c["name"] for c in jmespath.search("volumeMounts", container)]
             assert "webserver-config" in [
-                c["name"] for c in jmespath.search("spec.template.spec.volumes", docs[index])
+                c["name"] for c in jmespath.search("spec.template.spec.volumes", doc)
             ]
             assert configmap_name == jmespath.search(
-                "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]", docs[index]
+                "spec.template.spec.volumes[?name=='webserver-config'].configMap.name | [0]", doc
             )
 
     def test_annotations(self):
         """
-        Test Annotations are correctly applied on all pods created Scheduler, Webserver & Worker
-        deployments.
+        Test Annotations are correctly applied.
+
+        Verifies all pods created Scheduler, Webserver & Worker deployments.
         """
         release_name = "test-basic"
         k8s_objects = render_chart(

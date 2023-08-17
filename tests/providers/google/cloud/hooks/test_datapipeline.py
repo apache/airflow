@@ -108,7 +108,7 @@ class TestDataPipelineHook:
             body=TEST_BODY,
         )
         assert result == {"name": TEST_PARENT}
-        
+
     @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook.get_conn")
     def test_run_data_pipeline(self, mock_connection):
         """

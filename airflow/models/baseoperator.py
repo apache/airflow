@@ -54,7 +54,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    FailStopDagInvalidTriggerRule,
+    RemovedInAirflow3Warning,
+    TaskDeferred,
+)
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -409,7 +414,7 @@ class BaseOperatorMeta(abc.ABCMeta):
                 if arg not in kwargs and arg in default_args:
                     kwargs[arg] = default_args[arg]
 
-            missing_args = non_optional_args - set(kwargs)
+            missing_args = non_optional_args.difference(kwargs)
             if len(missing_args) == 1:
                 raise AirflowException(f"missing keyword argument {missing_args.pop()!r}")
             elif missing_args:
@@ -801,8 +806,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
-        DagInvalidTriggerRule.check(dag, trigger_rule)
-
         self.task_id = task_group.child_id(task_id) if task_group else task_id
         if not self.__from_mapped and task_group:
             task_group.add(self)
@@ -868,6 +871,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
 
         self.trigger_rule: TriggerRule = TriggerRule(trigger_rule)
+        FailStopDagInvalidTriggerRule.check(dag=dag, trigger_rule=self.trigger_rule)
+
         self.depends_on_past: bool = depends_on_past
         self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
         self.wait_for_past_depends_before_skipping: bool = wait_for_past_depends_before_skipping
@@ -957,17 +962,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             self.template_fields = [self.template_fields]
 
+        self._is_setup = False
+        self._is_teardown = False
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
-
-    def __enter__(self):
-        if not self.is_setup and not self.is_teardown:
-            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
-        SetupTeardownContext.push_setup_teardown_task(self)
-        return SetupTeardownContext
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        SetupTeardownContext.set_work_task_roots_and_leaves()
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -993,7 +991,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # including lineage information
     def __or__(self, other):
         """
-        Called for [This Operator] | [Operator].
+        Return [This Operator] | [Operator].
 
         The inlets of other will be set to pick up the outlets from this operator.
         Other will be set as a downstream task of this operator.
@@ -1012,7 +1010,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __gt__(self, other):
         """
-        Called for [Operator] > [Outlet].
+        Return [Operator] > [Outlet].
 
         If other is an attr annotated object it is set as an outlet of this Operator.
         """
@@ -1028,7 +1026,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __lt__(self, other):
         """
-        Called for [Inlet] > [Operator] or [Operator] < [Inlet].
+        Return [Inlet] > [Operator] or [Operator] < [Inlet].
 
         If other is an attr annotated object it is set as an inlet to this operator.
         """
@@ -1056,22 +1054,22 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self.set_xcomargs_dependencies()
 
     def add_inlets(self, inlets: Iterable[Any]):
-        """Sets inlets to this operator."""
+        """Set inlets to this operator."""
         self.inlets.extend(inlets)
 
     def add_outlets(self, outlets: Iterable[Any]):
-        """Defines the outlets of this operator."""
+        """Define the outlets of this operator."""
         self.outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """Gets inlet definitions on this task.
+        """Get inlet definitions on this task.
 
         :meta private:
         """
         return self.inlets
 
     def get_outlet_defs(self):
-        """Gets outlet definitions on this task.
+        """Get outlet definitions on this task.
 
         :meta private:
         """
@@ -1111,7 +1109,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self._dag = dag
 
     def has_dag(self):
-        """Returns True if the Operator has been assigned to a DAG."""
+        """Return True if the Operator has been assigned to a DAG."""
         return self._dag is not None
 
     deps: frozenset[BaseTIDep] = frozenset(
@@ -1136,7 +1134,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def set_xcomargs_dependencies(self) -> None:
         """
-        Resolves upstream dependencies of a task.
+        Resolve upstream dependencies of a task.
 
         In this way passing an ``XComArg`` as value for a template field
         will result in creating upstream relation between two tasks.
@@ -1165,13 +1163,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @prepare_lineage
     def pre_execute(self, context: Any):
-        """This hook is triggered right before self.execute() is called."""
+        """Execute right before self.execute() is called."""
         if self._pre_execute_hook is not None:
             self._pre_execute_hook(context)
 
     def execute(self, context: Context) -> Any:
         """
-        This is the main method to derive when creating an operator.
+        Derive when creating an operator.
 
         Context is the same dictionary used as when rendering jinja templates.
 
@@ -1182,7 +1180,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     @apply_lineage
     def post_execute(self, context: Any, result: Any = None):
         """
-        This hook is triggered right after self.execute() is called.
+        Execute right after self.execute() is called.
 
         It is passed the execution context and any results returned by the operator.
         """
@@ -1254,7 +1252,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         downstream: bool = False,
         session: Session = NEW_SESSION,
     ):
-        """Clears the state of task instances associated with the task, following the parameters specified."""
+        """Clear the state of task instances associated with the task, following the parameters specified."""
         qry = select(TaskInstance).where(TaskInstance.dag_id == self.dag_id)
 
         if start_date:
@@ -1287,16 +1285,17 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """Get task instances related to this task for a specific date range."""
         from airflow.models import DagRun
 
-        end_date = end_date or timezone.utcnow()
-        return session.scalars(
+        query = (
             select(TaskInstance)
             .join(TaskInstance.dag_run)
             .where(TaskInstance.dag_id == self.dag_id)
             .where(TaskInstance.task_id == self.task_id)
-            .where(DagRun.execution_date >= start_date)
-            .where(DagRun.execution_date <= end_date)
-            .order_by(DagRun.execution_date)
-        ).all()
+        )
+        if start_date:
+            query = query.where(DagRun.execution_date >= start_date)
+        if end_date:
+            query = query.where(DagRun.execution_date <= end_date)
+        return session.scalars(query.order_by(DagRun.execution_date)).all()
 
     @provide_session
     def run(
@@ -1356,7 +1355,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
 
     def dry_run(self) -> None:
-        """Performs dry run for the operator - just render template fields."""
+        """Perform dry run for the operator - just render template fields."""
         self.log.info("Dry run")
         for field in self.template_fields:
             try:
@@ -1414,6 +1413,43 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         from airflow.models.xcom_arg import XComArg
 
         return XComArg(operator=self)
+
+    @property
+    def is_setup(self) -> bool:
+        """Whether the operator is a setup task.
+
+        :meta private:
+        """
+        return self._is_setup
+
+    @is_setup.setter
+    def is_setup(self, value: bool) -> None:
+        """Setter for is_setup property.
+
+        :meta private:
+        """
+        if self.is_teardown and value:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
+        self._is_setup = value
+
+    @property
+    def is_teardown(self) -> bool:
+        """Whether the operator is a teardown task.
+
+        :meta private:
+        """
+        return self._is_teardown
+
+    @is_teardown.setter
+    def is_teardown(self, value: bool) -> None:
+        """
+        Setter for is_teardown property.
+
+        :meta private:
+        """
+        if self.is_setup and value:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
+        self._is_teardown = value
 
     @staticmethod
     def xcom_push(
@@ -1501,6 +1537,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "_BaseOperator__instantiated",
                     "_BaseOperator__init_kwargs",
                     "_BaseOperator__from_mapped",
+                    "_is_setup",
+                    "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
                 | {  # Class level defaults need to be added to this list
                     "start_date",
@@ -1524,7 +1563,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return cls.__serialized_fields
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Required by DAGNode."""
+        """Serialize; required by DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
     @property
@@ -1798,7 +1837,7 @@ def cross_downstream(
 
 def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
     """
-    Helper to simplify task dependency definition.
+    Simplify task dependency definition.
 
     E.g.: suppose you want precedence like so::
 

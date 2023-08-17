@@ -49,7 +49,7 @@ Default Connection IDs
 -----------------------
 
 The default connection ID is ``aws_default``. If the environment/machine where you are running Airflow has the
-file credentials in ``/home/.aws/``, and the default connection has user and pass fields empty, it will take
+file credentials in ``${HOME}/.aws/``, and the default connection has user and pass fields empty, it will take
 automatically the credentials from there.
 
 .. important:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}``
@@ -57,7 +57,7 @@ automatically the credentials from there.
     This is no longer the case and the region needs to be set manually, either in the connection screens in Airflow,
     or via the ``AWS_DEFAULT_REGION`` environment variable.
 
-.. caution:: If you do not set ``[database] load_default_connections`` to ``True``
+.. caution:: If you do not run "airflow connections create-default-connections" command,
     most probably you do not have ``aws_default``. For historical reasons, the Amazon Provider
     components (Hooks, Operators, Sensors, etc.) fallback to the default boto3 credentials strategy
     in case of a missing Connection ID. This behaviour is deprecated and will be removed in a future releases.

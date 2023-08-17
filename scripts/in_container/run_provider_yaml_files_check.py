@@ -37,6 +37,7 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow.cli.commands.info_command import Architecture
+from airflow.providers_manager import ProvidersManager
 
 # Those are deprecated modules that contain removed Hooks/Sensors/Operators that we left in the code
 # so that users can get a very specific error message when they try to use them.
@@ -418,19 +419,18 @@ def check_doc_files(yaml_files: dict[str, dict]):
         for f in expected_doc_files
         if f.name != "index.rst"
         and "_partials" not in f.parts
-        and not any(f.relative_to(DOCS_DIR).as_posix().startswith(s) for s in suspended_providers)
+        and not f.relative_to(DOCS_DIR).as_posix().startswith(tuple(suspended_providers))
     } | {
         f"/docs/{f.relative_to(DOCS_DIR).as_posix()}"
         for f in DOCS_DIR.glob("apache-airflow-providers-*/operators.rst")
-        if not any(f.relative_to(DOCS_DIR).as_posix().startswith(s) for s in suspended_providers)
+        if not f.relative_to(DOCS_DIR).as_posix().startswith(tuple(suspended_providers))
     }
     console.print("[yellow]Suspended logos:[/]")
     console.print(suspended_logos)
     expected_logo_urls = {
         f"/{f.relative_to(DOCS_DIR).as_posix()}"
         for f in DOCS_DIR.glob("integration-logos/**/*")
-        if f.is_file()
-        and not any(f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(s) for s in suspended_logos)
+        if f.is_file() and not f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(tuple(suspended_logos))
     }
 
     try:
@@ -489,6 +489,7 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
 
 
 if __name__ == "__main__":
+    ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
     provider_files_pattern = pathlib.Path(ROOT_DIR).glob("airflow/providers/**/provider.yaml")

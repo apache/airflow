@@ -194,7 +194,9 @@ class SFTPOperator(BaseOperator):
 
     def get_openlineage_facets_on_start(self):
         """
-        This returns OpenLineage datasets in format:
+        Returns OpenLineage datasets.
+
+        Dataset will have the following structure:
             input: file://<local_host>/path
             output: file://<remote_host>:<remote_port>/path.
         """

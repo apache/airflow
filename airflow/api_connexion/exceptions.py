@@ -39,7 +39,7 @@ EXCEPTIONS_LINK_MAP = {
 
 
 def common_error_handler(exception: BaseException) -> flask.Response:
-    """Used to capture connexion exceptions and add link to the type field."""
+    """Use to capture connexion exceptions and add link to the type field."""
     if isinstance(exception, ProblemException):
 
         link = EXCEPTIONS_LINK_MAP.get(exception.status)

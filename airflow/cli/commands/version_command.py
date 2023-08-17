@@ -21,5 +21,5 @@ import airflow
 
 
 def version(args):
-    """Displays Airflow version at the command line."""
+    """Display Airflow version at the command line."""
     print(airflow.__version__)

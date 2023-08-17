@@ -83,3 +83,7 @@ You can run a Data Pipelines instance by running the above parameters with RunDa
 
 Once called, the RunDataPipelineOperator will return the Google Cloud `Dataflow Job <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/Job>`__
 created by running the given pipeline.
+
+For further information regarding the API usage, see
+`Data Pipelines API REST Resource <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines#Pipeline>`__
+in the Google Cloud documentation.

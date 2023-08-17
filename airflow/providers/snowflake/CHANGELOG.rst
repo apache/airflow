@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+4.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+4.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix connection parameters of 'SnowflakeValueCheckOperator' (#32605)``
+
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, snowflake: add OpenLineage support for Snowflake (#31696)``
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
 4.3.1
 .....
 

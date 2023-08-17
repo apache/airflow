@@ -21,6 +21,14 @@
 Kubernetes Executor
 ===================
 
+.. note::
+
+    As of Airflow 2.7.0, you need to install the ``cncf.kubernetes`` provider package to use
+    this executor. This can done by installing ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
+    or by installing Airflow with the ``cncf.kubernetes`` extras:
+    ``pip install 'apache-airflow[cncf.kubernetes]'``.
+
+
 The Kubernetes executor runs each task instance in its own pod on a Kubernetes cluster.
 
 KubernetesExecutor runs as a process in the Airflow Scheduler. The scheduler itself does
@@ -100,21 +108,21 @@ With these requirements in mind, here are some examples of basic ``pod_template_
 
 Storing DAGs in the image:
 
-.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
+.. literalinclude:: /../../airflow/providers/cncf/kubernetes/pod_template_file_examples/dags_in_image_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_image]
     :end-before: [END template_with_dags_in_image]
 
 Storing DAGs in a ``persistentVolume``:
 
-.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
+.. literalinclude:: /../../airflow/providers/cncf/kubernetes/pod_template_file_examples/dags_in_volume_template.yaml
     :language: yaml
     :start-after: [START template_with_dags_in_volume]
     :end-before: [END template_with_dags_in_volume]
 
 Pulling DAGs from ``git``:
 
-.. literalinclude:: /../../airflow/kubernetes/pod_template_file_examples/git_sync_template.yaml
+.. literalinclude:: /../../airflow/providers/cncf/kubernetes/pod_template_file_examples/git_sync_template.yaml
     :language: yaml
     :start-after:  [START git_sync_template]
     :end-before: [END git_sync_template]

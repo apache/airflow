@@ -92,7 +92,7 @@ class AwsTaskLogFetcher(Thread):
 
     def get_last_log_messages(self, number_messages) -> list:
         """
-        Gets the last logs messages in one single request.
+        Get the last logs messages in one single request.
 
          NOTE: some restrictions apply:
          - if logs are too old, the response will be empty

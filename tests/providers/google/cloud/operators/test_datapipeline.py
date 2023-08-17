@@ -23,8 +23,8 @@ import pytest as pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.datapipeline import (
-    RunDataPipelineOperator,
     CreateDataPipelineOperator,
+    RunDataPipelineOperator,
 )
 
 TASK_ID = "test-datapipeline-operators"

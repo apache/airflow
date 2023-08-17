@@ -26,7 +26,7 @@ from itertools import chain
 from typing import Callable, TypeVar, cast
 
 import pendulum
-from flask import after_this_request, g, request
+from flask import after_this_request, request
 from pendulum.parsing.exceptions import ParserError
 
 from airflow.models import Log
@@ -41,9 +41,10 @@ logger = logging.getLogger(__name__)
 
 def _mask_variable_fields(extra_fields):
     """
+    Mask the 'val_content' field if 'key_content' is in the mask list.
+
     The variable requests values and args comes in this form:
     [('key', 'key_content'),('val', 'val_content'), ('description', 'description_content')]
-    So we need to mask the 'val_content' field if 'key_content' is in the mask list.
     """
     result = []
     keyname = None
@@ -88,7 +89,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                 if not get_auth_manager().is_logged_in():
                     user = "anonymous"
                 else:
-                    user = f"{g.user.username} ({g.user.get_full_name()})"
+                    user = get_auth_manager().get_user_name()
 
                 fields_skip_logging = {"csrf_token", "_csrf_token"}
                 extra_fields = [

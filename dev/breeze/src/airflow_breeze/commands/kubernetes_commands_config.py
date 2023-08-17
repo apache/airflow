@@ -159,6 +159,7 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--executor",
                 "--upgrade",
                 "--wait-time-in-seconds",
+                "--use-standard-naming",
             ],
         },
         {
@@ -222,6 +223,7 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--upgrade",
                 "--wait-time-in-seconds",
+                "--use-standard-naming",
             ],
         },
         {

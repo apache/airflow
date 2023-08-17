@@ -272,7 +272,9 @@ class TestFileTaskLogHandler:
                 ["file1 content", "file2 content"],
             )
 
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesExecutor.get_task_log")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_task_log"
+    )
     @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
     def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance, state):
         """Test for k8s executor, the log is read from get_task_log method"""
@@ -296,7 +298,7 @@ class TestFileTaskLogHandler:
 
     def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
-        log from worker"""
+        log from worker. But it happens only for the latest try_number."""
         executor_name = "CeleryExecutor"
 
         ti = create_task_instance(
@@ -306,14 +308,24 @@ class TestFileTaskLogHandler:
             execution_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 2
         with conf_vars({("core", "executor"): executor_name}):
             fth = FileTaskHandler("")
 
             fth._read_from_logs_server = mock.Mock()
             fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
-            actual = fth._read(ti=ti, try_number=1)
+            actual = fth._read(ti=ti, try_number=2)
             fth._read_from_logs_server.assert_called_once()
-        assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
+            assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": False, "log_pos": 16})
+
+            # Previous try_number is from remote logs without reaching worker server
+            fth._read_from_logs_server.reset_mock()
+            fth._read_remote_logs = mock.Mock()
+            fth._read_remote_logs.return_value = ["remote logs"], ["remote\nlog\ncontent"]
+            actual = fth._read(ti=ti, try_number=1)
+            fth._read_remote_logs.assert_called_once()
+            fth._read_from_logs_server.assert_not_called()
+            assert actual == ("*** remote logs\nremote\nlog\ncontent", {"end_of_log": True, "log_pos": 18})
 
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
@@ -372,7 +384,7 @@ class TestFileTaskLogHandler:
         ],
     )
     @patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="KubernetesExecutor")
-    @patch("airflow.kubernetes.kube_client.get_kube_client")
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_read_from_k8s_under_multi_namespace_mode(
         self, mock_kube_client, pod_override, namespace_to_call
     ):
