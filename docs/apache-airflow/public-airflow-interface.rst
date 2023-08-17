@@ -327,8 +327,8 @@ Secrets Backends
 ----------------
 
 Airflow can be configured to rely on secrets backends to retrieve
-:class:`~airflow.models.connection.Connection` and :class:`~airflow.models.Variables`.
-All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
+:class:`~airflow.models.connection.Connection` and :class:`~airflow.models.variable.Variable`.
+All secrets backends derive from :class:`~airflow.secrets.base_secrets.BaseSecretsBackend`.
 
 All Secrets Backend implementations are public. You can extend their functionality:
 
