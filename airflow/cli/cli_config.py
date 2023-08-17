@@ -960,11 +960,6 @@ ARG_ALLOW_MULTIPLE = Arg(
     help="If passed, this command will be successful even if multiple matching alive jobs are found.",
 )
 
-# sync-perm
-ARG_INCLUDE_DAGS = Arg(
-    ("--include-dags",), help="If passed, DAG specific permissions will also be synced.", action="store_true"
-)
-
 # triggerer
 ARG_CAPACITY = Arg(
     ("--capacity",),
@@ -1997,12 +1992,6 @@ core_commands: list[CLICommand] = [
         name="providers",
         help="Display providers",
         subcommands=PROVIDERS_COMMANDS,
-    ),
-    ActionCommand(
-        name="sync-perm",
-        help="Update permissions for existing roles and optionally DAGs",
-        func=lazy_load_command("airflow.cli.commands.sync_perm_command.sync_perm"),
-        args=(ARG_INCLUDE_DAGS, ARG_VERBOSE),
     ),
     ActionCommand(
         name="rotate-fernet-key",

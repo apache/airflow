@@ -31,6 +31,7 @@ from airflow.cli.cli_config import (
     ARG_VERBOSE,
     ActionCommand,
     Arg,
+    CLICommand,
     GroupCommand,
     lazy_load_command,
 )
@@ -97,6 +98,11 @@ ARG_ROLE_EXPORT_FMT = Arg(
     ("-p", "--pretty"),
     help="Format output JSON file by sorting role names and indenting by 4 spaces",
     action="store_true",
+)
+
+# sync-perm
+ARG_INCLUDE_DAGS = Arg(
+    ("--include-dags",), help="If passed, DAG specific permissions will also be synced.", action="store_true"
 )
 
 USERS_COMMANDS = (
@@ -216,8 +222,7 @@ class FabAuthManager(BaseAuthManager):
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
 
-    @staticmethod
-    def get_cli_commands() -> list[GroupCommand]:
+    def get_cli_commands(self) -> list[CLICommand]:
         return [
             GroupCommand(
                 name="users",
@@ -228,6 +233,12 @@ class FabAuthManager(BaseAuthManager):
                 name="roles",
                 help="Manage roles",
                 subcommands=ROLES_COMMANDS,
+            ),
+            ActionCommand(
+                name="sync-perm",
+                help="Update permissions for existing roles and optionally DAGs",
+                func=lazy_load_command("airflow.auth.managers.fab.cli_commands.sync_perm_command.sync_perm"),
+                args=(ARG_INCLUDE_DAGS, ARG_VERBOSE),
             ),
         ]
 
