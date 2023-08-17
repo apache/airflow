@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 from asyncio import CancelledError, Future
-from datetime import datetime
 from unittest import mock
 
 import pytest
-import pytz
 from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
@@ -41,7 +40,7 @@ CONFIG_FILE = "/path/to/config/file"
 IN_CLUSTER = False
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
-TRIGGER_START_TIME = datetime.now(tz=pytz.UTC)
+TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.timezone.utc)
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 BASE_CONTAINER_NAME = "base"
 ON_FINISH_ACTION = "delete_pod"

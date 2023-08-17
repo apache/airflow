@@ -65,6 +65,8 @@ class SqlToS3Operator(BaseOperator):
     :param s3_key: desired key for the file. It includes the name of the file. (templated)
     :param replace: whether or not to replace the file in S3 if it previously existed
     :param sql_conn_id: reference to a specific database.
+    :param sql_hook_params: Extra config params to be passed to the underlying hook.
+        Should match the desired hook constructor params.
     :param parameters: (optional) the parameters to render the SQL query with.
     :param aws_conn_id: reference to a specific S3 connection
     :param verify: Whether or not to verify SSL certificates for S3 connection.
@@ -100,6 +102,7 @@ class SqlToS3Operator(BaseOperator):
         s3_bucket: str,
         s3_key: str,
         sql_conn_id: str,
+        sql_hook_params: dict | None = None,
         parameters: None | Mapping | Iterable = None,
         replace: bool = False,
         aws_conn_id: str = "aws_default",
@@ -120,6 +123,7 @@ class SqlToS3Operator(BaseOperator):
         self.pd_kwargs = pd_kwargs or {}
         self.parameters = parameters
         self.groupby_kwargs = groupby_kwargs or {}
+        self.sql_hook_params = sql_hook_params
 
         if "path_or_buf" in self.pd_kwargs:
             raise AirflowException("The argument path_or_buf is not allowed, please remove it")
@@ -200,7 +204,7 @@ class SqlToS3Operator(BaseOperator):
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
-        hook = conn.get_hook()
+        hook = conn.get_hook(hook_params=self.sql_hook_params)
         if not callable(getattr(hook, "get_pandas_df", None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have get_pandas_df method."
