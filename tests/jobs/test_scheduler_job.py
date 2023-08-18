@@ -1835,7 +1835,7 @@ class TestSchedulerJob:
         expected_callback = DagCallbackRequest(
             full_filepath=dr.dag.fileloc,
             dag_id=dr.dag_id,
-            is_failure_callback=True,
+            dagrun_state=DagRunState.FAILED,
             run_id=dr.run_id,
             processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
@@ -1879,7 +1879,7 @@ class TestSchedulerJob:
         expected_callback = DagCallbackRequest(
             full_filepath=dr.dag.fileloc,
             dag_id=dr.dag_id,
-            is_failure_callback=True,
+            dagrun_state=DagRunState.FAILED,
             run_id=dr.run_id,
             processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
@@ -1961,10 +1961,62 @@ class TestSchedulerJob:
         expected_callback = DagCallbackRequest(
             full_filepath=dag.fileloc,
             dag_id=dr.dag_id,
-            is_failure_callback=bool(state == State.FAILED),
+            dagrun_state=DagRunState.FAILED if state == State.FAILED else DagRunState.SUCCESS,
             run_id=dr.run_id,
             processor_subdir=TEST_DAG_FOLDER,
             msg=expected_callback_msg,
+        )
+
+        # Verify dag failure callback request is sent to file processor
+        scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
+        session.rollback()
+        session.close()
+
+    @pytest.mark.parametrize(
+        "state, dagrun_state, expected_callback_msg", [
+            (State.RUNNING, DagRunState.RUNNING, "sla_missed"),
+            (State.SUCCESS, DagRunState.SUCCESS, "success"),
+            (State.FAILED, DagRunState.FAILED, "task_failure")
+        ]
+    )
+    def test_dagrun_sla_callbacks_are_called(self, state, dagrun_state, expected_callback_msg, dag_maker):
+        """
+        Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
+        """
+        with dag_maker(
+            dag_id="test_dagrun_callbacks_are_called",
+            on_success_callback=lambda x: print("success"),
+            on_failure_callback=lambda x: print("failed"),
+            on_sla_miss_callback=lambda x: print("sla missed"),
+            processor_subdir=TEST_DAG_FOLDER,
+            sla=timedelta(seconds=0),
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        scheduler_job.executor = MockExecutor()
+        self.job_runner.dagbag = dag_maker.dagbag
+        self.job_runner.processor_agent = mock.Mock()
+
+        session = settings.Session()
+        dr = dag_maker.create_dagrun()
+
+        ti = dr.get_task_instance("dummy")
+        ti.set_state(state, session)
+
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
+            self.job_runner._do_scheduling(session)
+
+        expected_callback = DagCallbackRequest(
+            full_filepath=dag.fileloc,
+            dag_id=dr.dag_id,
+            dagrun_state=dagrun_state,
+            run_id=dr.run_id,
+            processor_subdir=TEST_DAG_FOLDER,
+            msg=expected_callback_msg,
+            sla_miss=True
         )
 
         # Verify dag failure callback request is sent to file processor
@@ -2045,7 +2097,7 @@ class TestSchedulerJob:
         expected_callback = DagCallbackRequest(
             full_filepath=dag.fileloc,
             dag_id=dr.dag_id,
-            is_failure_callback=True,
+            dagrun_state=DagRunState.FAILED,
             run_id=dr.run_id,
             processor_subdir=TEST_DAG_FOLDER,
             msg="timed_out",
