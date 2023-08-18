@@ -67,7 +67,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import Date, and_, case, desc, func, inspect, or_, select, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import BooleanField, validators
@@ -3739,13 +3739,14 @@ class Airflow(AirflowBaseView):
         """Returns cluster activity historical metrics."""
         start_date = _safe_parse_datetime(request.args.get("start_date"))
         end_date = _safe_parse_datetime(request.args.get("end_date"))
+
         with create_session() as session:
             # DagRuns
-            dag_runs_type = session.execute(
+            dag_run_types = session.execute(
                 select(DagRun.run_type, func.count(DagRun.run_id))
                 .where(
                     DagRun.start_date >= start_date,
-                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
                 )
                 .group_by(DagRun.run_type)
             ).all()
@@ -3754,7 +3755,7 @@ class Airflow(AirflowBaseView):
                 select(DagRun.state, func.count(DagRun.run_id))
                 .where(
                     DagRun.start_date >= start_date,
-                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
                 )
                 .group_by(DagRun.state)
             ).all()
@@ -3765,7 +3766,7 @@ class Airflow(AirflowBaseView):
                 .join(TaskInstance.dag_run)
                 .where(
                     DagRun.start_date >= start_date,
-                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
                 )
                 .group_by(TaskInstance.state)
             ).all()
@@ -3773,7 +3774,7 @@ class Airflow(AirflowBaseView):
             data = {
                 "dag_run_types": {
                     **{dag_run_type.value: 0 for dag_run_type in DagRunType},
-                    **{run_type: sum_value for run_type, sum_value in dag_runs_type},
+                    **{run_type: sum_value for run_type, sum_value in dag_run_types},
                 },
                 "dag_run_states": {
                     **{dag_run_state.value: 0 for dag_run_state in DagRunState},
