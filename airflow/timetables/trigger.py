@@ -89,7 +89,7 @@ class CronTriggerTimetable(CronMixin, Timetable):
             else:
                 next_start_time = self._align_to_next(restriction.earliest)
         else:
-            start_time_candidates = [self._align_to_next(DateTime.utcnow())]
+            start_time_candidates = [self._align_to_prev(DateTime.utcnow())]
             if last_automated_data_interval is not None:
                 start_time_candidates.append(self._get_next(last_automated_data_interval.end))
             if restriction.earliest is not None:
