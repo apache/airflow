@@ -265,7 +265,10 @@ class ListOfDictsExpandInput(NamedTuple):
                     f"expand_kwargs() input dict keys must all be str, "
                     f"but {key!r} is of type {_describe_type(key)}"
                 )
-        return mapping, {id(v) for v in mapping.values()}
+        # filter out parse time resolved values from the resolved_oids
+        resolved_oids = {id(v) for k, v in mapping.items() if not _is_parse_time_mappable(v)}
+
+        return mapping, resolved_oids
 
 
 EXPAND_INPUT_EMPTY = DictOfListsExpandInput({})  # Sentinel value.
