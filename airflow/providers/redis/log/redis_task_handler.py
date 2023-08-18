@@ -33,6 +33,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class RedisTaskHandler(FileTaskHandler, LoggingMixin):
     """
     RedisTaskHandler is a Python log handler that handles and reads task instance logs.
+
     It extends airflow FileTaskHandler and uploads to and reads from Redis.
 
     :param base_log_folder:

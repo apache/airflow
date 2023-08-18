@@ -24,7 +24,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-statsd-policy
+  name: {{ include "airflow.fullname" . }}-statsd-policy
   labels:
     tier: airflow
     component: statsd-policy

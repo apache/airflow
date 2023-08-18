@@ -633,7 +633,7 @@ between the two repositories to be able to build the documentation.
   Regenerate `index.yaml` so it can be added to the Airflow website to allow: `helm repo add https://airflow.apache.org`.
 
     ```shell
-    breeze release-management add-back-references --gen-type helm
+    breeze release-management add-back-references helm-chart
     curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC/index.yaml -o index.yaml
     cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
     helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/$VERSION"

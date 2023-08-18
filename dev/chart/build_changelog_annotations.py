@@ -96,7 +96,7 @@ with open("chart/RELEASE_NOTES.rst") as f:
                 break
             in_first_release = True
             continue
-        if line.startswith('"""') or line.startswith("----") or line.startswith("^^^^"):
+        if line.startswith(('"""', "----", "^^^^")):
             continue
 
         # Make sure we get past "significant features" before we actually start keeping track

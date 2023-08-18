@@ -64,7 +64,7 @@ class SkipMixin(LoggingMixin):
         tasks: Sequence[str] | Sequence[tuple[str, int]],
         session: Session,
     ) -> None:
-        """Used internally to set state of task instances to skipped from the same dag run."""
+        """Set state of task instances to skipped from the same dag run."""
         if tasks:
             now = timezone.utcnow()
             TI = TaskInstance
@@ -96,7 +96,7 @@ class SkipMixin(LoggingMixin):
         map_index: int = -1,
     ):
         """
-        Sets tasks instances to skipped from the same dag run.
+        Set tasks instances to skipped from the same dag run.
 
         If this instance has a `task_id` attribute, store the list of skipped task IDs to XCom
         so that NotPreviouslySkippedDep knows these tasks should be skipped when they
@@ -162,7 +162,7 @@ class SkipMixin(LoggingMixin):
         branch_task_ids: None | str | Iterable[str],
     ):
         """
-        This method implements the logic for a branching operator.
+        Implement the logic for a branching operator.
 
         Given a single task ID or list of task IDs to follow, this skips all other tasks
         immediately downstream of this operator.

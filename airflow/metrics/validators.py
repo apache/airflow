@@ -107,7 +107,7 @@ def stat_name_otel_handler(
     max_length: int = OTEL_NAME_MAX_LENGTH,
 ) -> str:
     """
-    Verifies that a proposed prefix and name combination will meet OpenTelemetry naming standards.
+    Verify that a proposed prefix and name combination will meet OpenTelemetry naming standards.
 
     See: https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
 

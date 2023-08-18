@@ -291,7 +291,7 @@ class PinotDbApiHook(DbApiHook):
         self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
     ) -> Any:
         """
-        Executes the sql and returns a set of records.
+        Execute the sql and returns a set of records.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -303,7 +303,7 @@ class PinotDbApiHook(DbApiHook):
 
     def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
-        Executes the sql and returns the first resulting row.
+        Execute the sql and returns the first resulting row.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute

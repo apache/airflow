@@ -21,8 +21,9 @@ import json
 from typing import Any, Iterable
 
 import apprise
-from airflow.hooks.base import BaseHook
 from apprise import AppriseConfig, NotifyFormat, NotifyType
+
+from airflow.hooks.base import BaseHook
 
 
 class AppriseHook(BaseHook):
@@ -111,7 +112,7 @@ class AppriseHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField

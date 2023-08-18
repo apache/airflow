@@ -132,7 +132,7 @@ class SerializedDagModel(Base):
         session: Session = NEW_SESSION,
     ) -> bool:
         """
-        Serializes a DAG and writes it into database.
+        Serialize a DAG and writes it into database.
 
         If the record already exists, it checks if the Serialized DAG changed or not. If it is
         changed, it updates the record, ignores otherwise.
@@ -177,7 +177,7 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
-        """Reads all DAGs in serialized_dag table.
+        """Read all DAGs in serialized_dag table.
 
         :param session: ORM Session
         :returns: a dict of DAGs read from database
@@ -227,7 +227,7 @@ class SerializedDagModel(Base):
     @provide_session
     def remove_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> None:
         """
-        Deletes a DAG with given dag_id.
+        Delete a DAG with given dag_id.
 
         :param dag_id: dag_id to be deleted
         :param session: ORM Session.
@@ -242,9 +242,10 @@ class SerializedDagModel(Base):
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Deletes DAGs not included in alive_dag_filelocs.
+        """Delete DAGs not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
+        :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
         alive_fileloc_hashes = [DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
@@ -269,7 +270,7 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
-        """Checks a DAG exist in serialized_dag table.
+        """Check a DAG exist in serialized_dag table.
 
         :param dag_id: the DAG to check
         :param session: ORM Session
@@ -313,7 +314,7 @@ class SerializedDagModel(Base):
         session: Session = NEW_SESSION,
     ) -> None:
         """
-        Saves DAGs as Serialized DAG objects in the database.
+        Save DAGs as Serialized DAG objects in the database.
 
         Each DAG is saved in a separate database query.
 

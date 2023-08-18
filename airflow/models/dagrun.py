@@ -93,7 +93,7 @@ class TISchedulingDecision(NamedTuple):
 
 
 def _creator_note(val):
-    """Custom creator for the ``note`` association proxy."""
+    """Creator the ``note`` association proxy."""
     if isinstance(val, str):
         return DagRunNote(content=val)
     elif isinstance(val, dict):
@@ -283,7 +283,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION) -> None:
         """
-        Reloads the current dagrun from the database.
+        Reload the current dagrun from the database.
 
         :param session: database session
         """
@@ -382,7 +382,7 @@ class DagRun(Base, LoggingMixin):
         execution_end_date: datetime | None = None,
     ) -> list[DagRun]:
         """
-        Returns a set of dag runs for the given search criteria.
+        Return a set of dag runs for the given search criteria.
 
         :param dag_id: the dag_id or list of dag_id to find dag runs for
         :param run_id: defines the run id for this dag run
@@ -468,7 +468,7 @@ class DagRun(Base, LoggingMixin):
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
-        """Returns the task instances for this dag run."""
+        """Return the task instances for this dag run."""
         tis = (
             select(TI)
             .options(joinedload(TI.dag_run))
@@ -521,7 +521,7 @@ class DagRun(Base, LoggingMixin):
         map_index: int = -1,
     ) -> TI | None:
         """
-        Returns the task instance specified by task_id for this dag run.
+        Return the task instance specified by task_id for this dag run.
 
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
@@ -557,7 +557,7 @@ class DagRun(Base, LoggingMixin):
 
     def get_dag(self) -> DAG:
         """
-        Returns the Dag associated with this DagRun.
+        Return the Dag associated with this DagRun.
 
         :return: DAG
         """
@@ -573,7 +573,7 @@ class DagRun(Base, LoggingMixin):
         dag_run: DagRun | DagRunPydantic, state: DagRunState | None = None, session: Session = NEW_SESSION
     ) -> DagRun | None:
         """
-        The previous DagRun, if there is one.
+        Return the previous DagRun, if there is one.
 
         :param dag_run: the dag run
         :param session: SQLAlchemy ORM Session
@@ -594,7 +594,7 @@ class DagRun(Base, LoggingMixin):
         dag_run: DagRun | DagRunPydantic, session: Session = NEW_SESSION
     ) -> DagRun | None:
         """
-        The previous, SCHEDULED DagRun, if there is one.
+        Return the previous SCHEDULED DagRun, if there is one.
 
         :param dag_run: the dag run
         :param session: SQLAlchemy ORM Session
@@ -639,7 +639,7 @@ class DagRun(Base, LoggingMixin):
         self, session: Session = NEW_SESSION, execute_callbacks: bool = True
     ) -> tuple[list[TI], DagCallbackRequest | None]:
         """
-        Determines the overall state of the DagRun based on the state of its TaskInstances.
+        Determine the overall state of the DagRun based on the state of its TaskInstances.
 
         :param session: Sqlalchemy ORM Session
         :param execute_callbacks: Should dag callbacks (success/failure, SLA etc.) be invoked
@@ -760,7 +760,7 @@ class DagRun(Base, LoggingMixin):
                     msg="all_tasks_deadlocked",
                 )
 
-        # finally, if the roots aren't done, the dag is still running
+        # finally, if the leaves aren't done, the dag is still running
         else:
             self.set_state(DagRunState.RUNNING)
 
@@ -1037,7 +1037,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
         """
-        Verifies the DagRun by checking for removed tasks or tasks that are not in the database yet.
+        Verify the DagRun by checking for removed tasks or tasks that are not in the database yet.
 
         It will set state to removed or add the task if required.
 
@@ -1361,7 +1361,7 @@ class DagRun(Base, LoggingMixin):
     @classmethod
     @provide_session
     def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
-        """Returns the latest DagRun for each DAG."""
+        """Return the latest DagRun for each DAG."""
         subquery = (
             select(cls.dag_id, func.max(cls.execution_date).label("execution_date"))
             .group_by(cls.dag_id)

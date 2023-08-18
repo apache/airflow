@@ -21,7 +21,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Callable, Iterable, Mapping, overload
+from typing import Any, Callable, Collection, Container, Iterable, Mapping, overload
 
 from kubernetes.client import models as k8s
 
@@ -33,8 +33,8 @@ from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.sensor import sensor_task
 from airflow.decorators.short_circuit import short_circuit_task
 from airflow.decorators.task_group import task_group
-from airflow.kubernetes.secret import Secret
 from airflow.models.dag import dag
+from airflow.providers.cncf.kubernetes.secret import Secret
 
 # Please keep this in sync with __init__.py's __all__.
 __all__ = [
@@ -107,6 +107,9 @@ class TaskDecoratorCollection:
         use_dill: bool = False,
         system_site_packages: bool = True,
         templates_dict: Mapping[str, Any] | None = None,
+        pip_install_options: list[str] | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
+        index_urls: None | Collection[str] | str = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -124,6 +127,13 @@ class TaskDecoratorCollection:
         :param system_site_packages: Whether to include
             system_site_packages in your virtualenv.
             See virtualenv documentation for more information.
+        :param pip_install_options: a list of pip install options when installing requirements
+            See 'pip install -h' for available options
+        :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
+            in ``skipped`` state (default: None). If set to ``None``, any non-zero
+            exit code will be treated as a failure.
+        :param index_urls: an optional list of index urls to load Python packages from.
+            If not provided the system pip conf will be used to source packages from.
         :param templates_dict: a dictionary where the values are templates that
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available

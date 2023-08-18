@@ -35,6 +35,7 @@ alibaba
 allAuthenticatedUsers
 allowinsert
 allUsers
+alphanumerics
 Alphasort
 amazonaws
 amqp
@@ -296,6 +297,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+CoreV
 coroutine
 coverals
 cp
@@ -372,6 +374,8 @@ datapoint
 Dataprep
 Dataproc
 dataproc
+DataScan
+dataScans
 Dataset
 dataset
 datasetId
@@ -484,6 +488,7 @@ DOS'ing
 DownloadReportV
 downscaling
 downstreams
+dq
 Drillbit
 Drivy
 dropdown
@@ -679,6 +684,7 @@ Harenslak
 Hashable
 Hashicorp
 hashicorp
+hashlib
 hasn
 HCatalog
 hcatalog
@@ -767,6 +773,7 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceGroupConfig
 instanceTemplates
 instantiation
 integrations
@@ -1106,7 +1113,9 @@ pluggable
 pluggy
 plyvel
 png
+PodManager
 podName
+PodSpec
 podSpec
 podspec
 poller
@@ -1129,6 +1138,9 @@ precheck
 Precommit
 preconfigured
 PredictionServiceClient
+Preemptibility
+preemptibility
+Preemptible
 preemptible
 prefetch
 prefetched
@@ -1610,6 +1622,7 @@ Url
 url
 urlencoded
 urlparse
+urls
 useHCatalog
 useLegacySQL
 useQueryCache
@@ -1630,6 +1643,7 @@ vCPU
 ve
 vendored
 Vendorize
+venv
 venvs
 versionable
 Vertica
@@ -1639,6 +1653,7 @@ Vevo
 videointelligence
 VideoIntelligenceServiceClient
 virtualenv
+virtualenvs
 vm
 VolumeMount
 volumeMounts

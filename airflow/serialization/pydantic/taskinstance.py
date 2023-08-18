@@ -77,7 +77,8 @@ class TaskInstancePydantic(BaseModelPydantic):
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
-        orm_mode = True
+        from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
 
     def xcom_pull(

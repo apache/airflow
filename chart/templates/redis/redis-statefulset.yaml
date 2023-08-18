@@ -30,7 +30,7 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ .Release.Name }}-redis
+  name: {{ include "airflow.fullname" . }}-redis
   labels:
     tier: airflow
     component: redis
@@ -41,7 +41,7 @@ metadata:
       {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  serviceName: {{ .Release.Name }}-redis
+  serviceName: {{ include "airflow.fullname" . }}-redis
   selector:
     matchLabels:
       tier: airflow

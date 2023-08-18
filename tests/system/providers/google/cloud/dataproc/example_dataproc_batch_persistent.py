@@ -37,8 +37,8 @@ DAG_ID = "dataproc_batch_ps"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 REGION = "europe-west1"
-CLUSTER_NAME = f"dataproc-cluster-ps-{ENV_ID}"
-BATCH_ID = f"batch-ps-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
+BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
 
 CLUSTER_GENERATOR_CONFIG_FOR_PHS = ClusterGenerator(
     project_id=PROJECT_ID,
@@ -71,7 +71,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "dataproc", "batch", "persistent"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
@@ -108,7 +108,17 @@ with models.DAG(
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
-    create_bucket >> create_cluster >> create_batch >> delete_cluster >> delete_bucket
+
+    (
+        # TEST SETUP
+        create_bucket
+        >> create_cluster
+        # TEST BODY
+        >> create_batch
+        # TEST TEARDOWN
+        >> delete_cluster
+        >> delete_bucket
+    )
 
     from tests.system.utils.watcher import watcher
 

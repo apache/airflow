@@ -30,6 +30,8 @@ description: |
 
 suspended: false
 versions:
+  - 10.6.0
+  - 10.5.0
   - 10.4.0
   - 10.3.0
   - 10.2.0
@@ -93,7 +95,7 @@ dependencies:
   - google-cloud-dataform>=0.5.0
   - google-cloud-dataplex>=1.4.2
   - google-cloud-dataproc>=5.4.0
-  - google-cloud-dataproc-metastore>=1.10.0
+  - google-cloud-dataproc-metastore>=1.12.0
   - google-cloud-dlp>=3.12.0
   - google-cloud-kms>=2.15.0
   - google-cloud-language>=2.9.0
@@ -319,6 +321,11 @@ integrations:
       - /docs/apache-airflow-providers-google/operators/cloud/dataflow.rst
     logo: /integration-logos/gcp/Cloud-Dataflow.png
     tags: [gcp]
+  - integration-name: Google Data Pipelines
+    external-doc-url: https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/datapipeline.rst
+    tags: [gcp]
   - integration-name: Google Data Fusion
     external-doc-url: https://cloud.google.com/data-fusion/
     how-to-guide:
@@ -494,6 +501,9 @@ operators:
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.operators.dataflow
+  - integration-name: Google Data Pipelines
+    python-modules:
+      - airflow.providers.google.cloud.operators.datapipeline
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.operators.datafusion
@@ -708,6 +718,9 @@ hooks:
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.hooks.dataflow
+  - integration-name: Google Data Pipelines
+    python-modules:
+      - airflow.providers.google.cloud.hooks.datapipeline
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.hooks.datafusion
@@ -1062,6 +1075,12 @@ extra-links:
   - airflow.providers.google.cloud.links.datacatalog.DataCatalogTagTemplateLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocClusterLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocJobLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocWorkflowLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocWorkflowTemplateLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocBatchLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocBatchesListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreLink
   - airflow.providers.google.cloud.links.dataprep.DataprepFlowLink

@@ -66,6 +66,7 @@ class AttributeDict:
 class Hit(AttributeDict):
     """
     The Hit class is used to manage and access elements in a document.
+
     It inherits from the AttributeDict class and provides
     attribute-like access to its elements, similar to a dictionary.
     """

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 from moto import mock_events
 
 from airflow.providers.amazon.aws.hooks.eventbridge import EventBridgeHook
@@ -26,3 +27,21 @@ class TestEventBridgeHook:
     def test_conn_returns_a_boto3_connection(self):
         hook = EventBridgeHook(aws_conn_id="aws_default")
         assert hook.conn is not None
+
+    def test_put_rule(self):
+        hook = EventBridgeHook(aws_conn_id="aws_default")
+        response = hook.put_rule(
+            name="test",
+            event_pattern='{"source": ["aws.s3"]}',
+            state="ENABLED",
+        )
+        assert "RuleArn" in response
+
+    def test_put_rule_with_bad_json_fails(self):
+        hook = EventBridgeHook(aws_conn_id="aws_default")
+        with pytest.raises(ValueError):
+            hook.put_rule(
+                name="test",
+                event_pattern="invalid json",
+                state="ENABLED",
+            )

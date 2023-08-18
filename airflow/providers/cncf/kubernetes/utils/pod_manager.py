@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import enum
+import itertools as it
 import json
 import logging
 import math
@@ -26,7 +27,7 @@ import warnings
 from collections.abc import Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING, Generator, cast
 
 import pendulum
@@ -43,7 +44,7 @@ from urllib3.exceptions import HTTPError as BaseHTTPError
 from urllib3.response import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.kubernetes.pod_generator import PodDefaults
+from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
 from airflow.typing_compat import Literal, Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
@@ -89,7 +90,7 @@ class PodOperatorHookProtocol(Protocol):
 
     @property
     def core_v1_client(self) -> client.CoreV1Api:
-        """Get authenticated CoreV1Api object."""
+        """Get authenticated client object."""
 
     @property
     def is_in_cluster(self) -> bool:
@@ -100,6 +101,12 @@ class PodOperatorHookProtocol(Protocol):
 
     def get_namespace(self) -> str | None:
         """Returns the namespace that defined in the connection."""
+
+    def get_xcom_sidecar_container_image(self) -> str | None:
+        """Returns the xcom sidecar image that defined in the connection."""
+
+    def get_xcom_sidecar_container_resources(self) -> str | None:
+        """Returns the xcom sidecar resources that defined in the connection."""
 
 
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
@@ -318,14 +325,13 @@ class PodManager(LoggingMixin):
             (if pod is pending for too long, fails task)
         :return:
         """
-        curr_time = datetime.now()
+        curr_time = time.time()
         while True:
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase != PodPhase.PENDING:
                 break
             self.log.warning("Pod not yet started: %s", pod.metadata.name)
-            delta = datetime.now() - curr_time
-            if delta.total_seconds() >= startup_timeout:
+            if time.time() - curr_time >= startup_timeout:
                 msg = (
                     f"Pod took longer than {startup_timeout} seconds to start. "
                     "Check the pod events in kubernetes to determine why."
@@ -622,14 +628,12 @@ class PodManager(LoggingMixin):
 
     def await_xcom_sidecar_container_start(self, pod: V1Pod) -> None:
         self.log.info("Checking if xcom sidecar container is started.")
-        warned = False
-        while True:
+        for attempt in it.count():
             if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
                 self.log.info("The xcom sidecar container is started.")
                 break
-            if not warned:
+            if not attempt:
                 self.log.warning("The xcom sidecar container is not yet started.")
-                warned = True
             time.sleep(1)
 
     def extract_xcom(self, pod: V1Pod) -> str:
@@ -717,7 +721,7 @@ class PodManager(LoggingMixin):
         return res
 
 
-class OnFinishAction(enum.Enum):
+class OnFinishAction(str, enum.Enum):
     """Action to take when the pod finishes."""
 
     KEEP_POD = "keep_pod"

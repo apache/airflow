@@ -38,7 +38,7 @@ from airflow.utils.serve_logs import serve_logs
 
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
-    """Starts serve_logs sub-process."""
+    """Start serve_logs sub-process."""
     sub_proc = None
     if skip_serve_logs is False:
         port = conf.getint("logging", "trigger_log_server_port", fallback=8794)
@@ -54,7 +54,7 @@ def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
 @cli_utils.action_cli
 @providers_configuration_loaded
 def triggerer(args):
-    """Starts Airflow Triggerer."""
+    """Start Airflow Triggerer."""
     settings.MASK_SECRETS_IN_LOGS = True
     print(settings.HEADER)
     triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")

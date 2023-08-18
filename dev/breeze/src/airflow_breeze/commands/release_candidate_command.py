@@ -194,30 +194,25 @@ def prepare_pypi_packages(version, version_suffix, repo_root):
         console_print("PyPI packages prepared")
 
 
-def push_packages_to_test_pypi(version):
-    if confirm_action("Do you want to push packages to test PyPI?"):
-        run_command(["twine", "upload", "-r", "pypitest", "dist/*"], dry_run_override=DRY_RUN, check=True)
-        console_print("Packages pushed to test PyPI")
-        console_print(
-            "Verify that the test package looks good by downloading it and installing it into a virtual "
-            "environment. The package download link is available at: "
-            "https://test.pypi.org/project/apache-airflow/#files "
-            "Install it with the appropriate constraint file, adapt python version: "
-            f"pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/apache-airflow=={version} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-{version}/constraints-3.8.txt"  # noqa: 501
-        )
-
-
-def push_packages_to_pypi():
+def push_packages_to_pypi(version):
     if confirm_action("Do you want to push packages to production PyPI?"):
-        confirm_action(
-            "I have tested the package I uploaded to test PyPI. "
-            "I installed and ran a DAG with it and there's no issue. Do you agree to the above?",
-            abort=True,
-        )
         run_command(["twine", "upload", "-r", "pypi", "dist/*"], dry_run_override=DRY_RUN, check=True)
         console_print("Packages pushed to production PyPI")
         console_print(
             "Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow"
+        )
+        console_print(
+            "Verify that the package looks good by downloading it and installing it into a virtual "
+            "environment. "
+            "Install it with the appropriate constraint file, adapt python version: "
+            f"pip install apache-airflow=={version} --constraint "
+            f"https://raw.githubusercontent.com/apache/airflow/"
+            f"constraints-{version}/constraints-3.8.txt"
+        )
+        confirm_action(
+            "I have tested the package I uploaded to PyPI. "
+            "I installed and ran a DAG with it and there's no issue. Do you agree to the above?",
+            abort=True,
         )
         console_print(
             """
@@ -374,11 +369,9 @@ def publish_release_candidate(version, previous_version, github_token):
 
     # Prepare the pypi packages
     prepare_pypi_packages(version, version_suffix, airflow_repo_root)
-    # Push the packages to test pypi
-    push_packages_to_test_pypi(version)
 
     # Push the packages to pypi
-    push_packages_to_pypi()
+    push_packages_to_pypi(version)
 
     # Push the release candidate tag to gitHub
     push_release_candidate_tag_to_github(version)
