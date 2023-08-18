@@ -136,7 +136,7 @@ class DagRun(Base, LoggingMixin):
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    sla_missed = Column(Boolean, default=True)
+    sla_missed = Column(Boolean, default=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -635,12 +635,13 @@ class DagRun(Base, LoggingMixin):
                         unfinished = unfinished.recalculate()
 
         tis_for_dagrun_state = self._tis_for_dagrun_state(dag=dag, tis=tis)
-
+        print(f"???: updating state {dag.sla=} {self.sla_missed=} {self.run_type=}")
         # check if sla has just been missed for this dagrun
-        if dag.sla and not self.sla_missed and not self.run_type == DagRunType.BACKFILL_JOB:
+        if dag.sla is not None and not self.sla_missed and self.run_type != DagRunType.BACKFILL_JOB:
             start_time = self.start_date
             ts = timezone.utcnow()
-            if dag.sla > ts - start_time:
+            print(f"!!!!: Checking SLA {ts=} {start_time=}")
+            if dag.sla < ts - start_time:
                 self.sla_missed = True
 
                 if execute_callbacks:
