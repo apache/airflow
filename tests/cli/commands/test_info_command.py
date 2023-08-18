@@ -27,6 +27,8 @@ from rich.console import Console
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import info_command
+from airflow.cli.commands.info_command import anonymize_username, anonymize_password, \
+    anonymize_username_and_password
 from airflow.config_templates import airflow_local_settings
 from airflow.logging_config import configure_logging
 from airflow.version import version as airflow_version
@@ -38,6 +40,49 @@ def capture_show_output(instance):
     with console.capture() as capture:
         instance.info(console)
     return capture.get()
+
+
+class TestAnonymizeUsername:
+    @pytest.mark.parametrize(
+        "before, after",
+        [
+            (
+                "postgres",
+                "p...s",
+            ),
+            (
+                None,
+                None,
+            ),
+        ],
+    )
+    def test_should_anonymize_username(self, before, after):
+        assert after == anonymize_username(before)
+
+
+class TestAnonymizePassword:
+    @pytest.mark.parametrize(
+        "before, after",
+        [
+            (
+                "airflow",
+                "PASSWORD",
+            ),
+            (
+                None,
+                None,
+            ),
+        ],
+    )
+    def test_should_replace_password(self, before, after):
+        assert after == anonymize_password(before)
+
+
+class TestAnonymizeUsernameAndPassword:
+    def test_should_anonymize_username_and_password(self):
+        username, password = anonymize_username_and_password("postgres", "airflow")
+        assert username == "p...s"
+        assert password == "PASSWORD"
 
 
 class TestPiiAnonymizer:
@@ -66,6 +111,10 @@ class TestPiiAnonymizer:
             (
                 "postgresql+psycopg2://postgres/airflow",
                 "postgresql+psycopg2://postgres/airflow",
+            ),
+            (
+                None,
+                None,
             ),
         ],
     )

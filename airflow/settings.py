@@ -38,6 +38,7 @@ from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # NOQA F
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
+from airflow.utils.net import replace_password_from_url
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.state import State
 
@@ -194,6 +195,10 @@ def configure_vars():
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
+    sql_alchemy_conn_password = conf.get("database", "SQL_ALCHEMY_CONN_PASSWORD", fallback=None)
+    if sql_alchemy_conn_password:
+        SQL_ALCHEMY_CONN = replace_password_from_url(SQL_ALCHEMY_CONN, sql_alchemy_conn_password)
+
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
     PLUGINS_FOLDER = conf.get("core", "plugins_folder", fallback=os.path.join(AIRFLOW_HOME, "plugins"))

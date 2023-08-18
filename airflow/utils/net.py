@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import socket
 from functools import lru_cache
+from urllib.parse import urlsplit, urlunsplit
 
 from airflow.configuration import conf
 
@@ -54,3 +55,46 @@ def get_host_ip_address():
 def get_hostname():
     """Fetch the hostname using the callable from config or use `airflow.utils.net.getfqdn` as a fallback."""
     return conf.getimport("core", "hostname_callable", fallback="airflow.utils.net.getfqdn")()
+
+
+def replace_items_from_url(value, function) -> str:
+    if not value:
+        return value
+
+    url_parts = urlsplit(value)
+    netloc = None
+    if url_parts.netloc:
+        # unpack
+        userinfo = None
+        username = None
+        password = None
+
+        if "@" in url_parts.netloc:
+            userinfo, _, host = url_parts.netloc.partition("@")
+        else:
+            host = url_parts.netloc
+        if userinfo:
+            if ":" in userinfo:
+                username, _, password = userinfo.partition(":")
+            else:
+                username = userinfo
+
+        username, password = function(username, password)
+
+        # pack
+        if username and password and host:
+            netloc = username + ":" + password + "@" + host
+        elif username and host:
+            netloc = username + "@" + host
+        elif password and host:
+            netloc = ":" + password + "@" + host
+        elif host:
+            netloc = host
+        else:
+            netloc = ""
+
+    return urlunsplit((url_parts.scheme, netloc, url_parts.path, url_parts.query, url_parts.fragment))
+
+
+def replace_password_from_url(value, replace_value) -> str:
+    return replace_items_from_url(value, lambda username, password: (username, replace_value))

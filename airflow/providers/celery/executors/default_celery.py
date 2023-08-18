@@ -25,6 +25,8 @@ import re2
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.settings import SQL_ALCHEMY_CONN
+from airflow.utils.net import replace_password_from_url
 
 
 def _broker_supports_visibility_timeout(url):
@@ -46,6 +48,9 @@ log = logging.getLogger(__name__)
 # in the current and older versions of Airflow.
 
 broker_url = conf.get("celery", "BROKER_URL", fallback="redis://redis:6379/0")
+broker_url_password = conf.get("celery", "BROKER_URL_PASSWORD", fallback=None)
+if broker_url_password:
+    broker_url = replace_password_from_url(broker_url, broker_url_password)
 
 broker_transport_options = conf.getsection("celery_broker_transport_options") or {}
 if "visibility_timeout" not in broker_transport_options:
@@ -66,7 +71,7 @@ if conf.has_option("celery", "RESULT_BACKEND"):
     result_backend = conf.get_mandatory_value("celery", "RESULT_BACKEND")
 else:
     log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
-    result_backend = f'db+{conf.get("database", "SQL_ALCHEMY_CONN")}'
+    result_backend = f'db+{SQL_ALCHEMY_CONN}'
 
 DEFAULT_CELERY_CONFIG = {
     "accept_content": ["json"],

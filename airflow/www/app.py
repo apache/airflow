@@ -33,6 +33,7 @@ from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
 from airflow.logging_config import configure_logging
 from airflow.models import import_all_models
 from airflow.settings import _ENABLE_AIP_44
+from airflow.settings import SQL_ALCHEMY_CONN
 from airflow.utils.json import AirflowJsonProvider
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
@@ -88,7 +89,7 @@ def create_app(config=None, testing=False):
         flask_app.config.from_pyfile(webserver_config, silent=True)
 
     flask_app.config["TESTING"] = testing
-    flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+    flask_app.config["SQLALCHEMY_DATABASE_URI"] = SQL_ALCHEMY_CONN
 
     instance_name = conf.get(section="webserver", key="instance_name", fallback="Airflow")
     instance_name_has_markup = conf.getboolean(
@@ -102,7 +103,7 @@ def create_app(config=None, testing=False):
     url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
     if url.drivername == "sqlite" and url.database and not url.database.startswith("/"):
         raise AirflowConfigException(
-            f'Cannot use relative path: `{conf.get("database", "SQL_ALCHEMY_CONN")}` to connect to sqlite. '
+            f'Cannot use relative path: `{SQL_ALCHEMY_CONN}` to connect to sqlite. '
             "Please use absolute path such as `sqlite:////tmp/airflow.db`."
         )
 

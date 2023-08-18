@@ -24,7 +24,6 @@ import platform
 import subprocess
 import sys
 from enum import Enum
-from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 import tenacity
@@ -34,6 +33,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.providers_manager import ProvidersManager
 from airflow.typing_compat import Protocol
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.net import replace_items_from_url
 from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.version import version as airflow_version
@@ -80,50 +80,22 @@ class PiiAnonymizer(Anonymizer):
             value = value.replace(src, target)
         return value
 
-    def process_username(self, value) -> str:
-        if not value:
-            return value
-        return value[0] + "..." + value[-1]
-
     def process_url(self, value) -> str:
-        if not value:
-            return value
+        return replace_items_from_url(value, anonymize_username_and_password)
 
-        url_parts = urlsplit(value)
-        netloc = None
-        if url_parts.netloc:
-            # unpack
-            userinfo = None
-            username = None
-            password = None
 
-            if "@" in url_parts.netloc:
-                userinfo, _, host = url_parts.netloc.partition("@")
-            else:
-                host = url_parts.netloc
-            if userinfo:
-                if ":" in userinfo:
-                    username, _, password = userinfo.partition(":")
-                else:
-                    username = userinfo
+def anonymize_username(value) -> str:
+    if not value:
+        return value
+    return value[0] + "..." + value[-1]
 
-            # anonymize
-            username = self.process_username(username) if username else None
-            password = "PASSWORD" if password else None
 
-            # pack
-            if username and password and host:
-                netloc = username + ":" + password + "@" + host
-            elif username and host:
-                netloc = username + "@" + host
-            elif password and host:
-                netloc = ":" + password + "@" + host
-            elif host:
-                netloc = host
-            else:
-                netloc = ""
+def anonymize_password(password) -> str:
+    return "PASSWORD" if password else None
 
-        return urlunsplit((url_parts.scheme, netloc, url_parts.path, url_parts.query, url_parts.fragment))
+
+def anonymize_username_and_password(username, password) -> (str, str):
+    return anonymize_username(username), anonymize_password(password)
 
 
 class OperatingSystem(Enum):
