@@ -112,7 +112,6 @@ class AwsBaseWaiterTrigger(BaseTrigger):
     @abstractmethod
     def hook(self) -> AwsGenericHook:
         """Override in subclasses to return the right hook."""
-        ...
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.hook()

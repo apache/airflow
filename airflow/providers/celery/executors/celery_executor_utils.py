@@ -298,7 +298,7 @@ class BulkStateFetcher(LoggingMixin):
         num_process = min(len(async_results), self._sync_parallelism)
 
         with ProcessPoolExecutor(max_workers=num_process) as sync_pool:
-            chunksize = max(1, math.floor(math.ceil(1.0 * len(async_results) / self._sync_parallelism)))
+            chunksize = max(1, math.ceil(len(async_results) / self._sync_parallelism))
 
             task_id_to_states_and_info = list(
                 sync_pool.map(fetch_celery_task_state, async_results, chunksize=chunksize)

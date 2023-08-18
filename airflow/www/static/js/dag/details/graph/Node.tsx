@@ -28,10 +28,7 @@ import { getGroupAndMapSummary, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
 import InstanceTooltip from "src/dag/InstanceTooltip";
 import { useContainerRef } from "src/context/containerRef";
-import {
-  MdOutlineArrowCircleUp,
-  MdOutlineArrowCircleDown,
-} from "react-icons/md";
+import { ImArrowUpRight2, ImArrowDownRight2 } from "react-icons/im";
 
 export interface CustomNodeProps {
   label: string;
@@ -47,7 +44,6 @@ export interface CustomNodeProps {
   isOpen?: boolean;
   isActive?: boolean;
   setupTeardownType?: "setup" | "teardown";
-  fullParentNode?: string;
   labelStyle?: string;
   style?: string;
 }
@@ -145,10 +141,10 @@ export const BaseNode = ({
                 {taskName}
               </Text>
               {setupTeardownType === "setup" && (
-                <MdOutlineArrowCircleUp size={18} color={colors.gray[800]} />
+                <ImArrowUpRight2 size={15} color={colors.gray[800]} />
               )}
               {setupTeardownType === "teardown" && (
-                <MdOutlineArrowCircleDown size={18} color={colors.gray[800]} />
+                <ImArrowDownRight2 size={15} color={colors.gray[800]} />
               )}
             </Flex>
             {!!instance && instance.state && (

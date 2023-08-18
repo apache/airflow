@@ -78,7 +78,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
             )
 
     def set_context(self, ti):
-        """This function is used to set the context of the handler."""
+        """Set the context of the handler."""
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to OSS remote storage.
@@ -157,7 +157,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def oss_read(self, remote_log_location, return_error=False):
         """
-        Returns the log at the remote_log_location. Returns '' if no logs are found or there is an error.
+        Return the log at the remote_log_location or '' if no logs are found or there is an error.
 
         :param remote_log_location: the log's location in remote storage
         :param return_error: if True, returns a string error message if an

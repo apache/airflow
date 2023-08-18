@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+4.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+4.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix connection parameters of 'SnowflakeValueCheckOperator' (#32605)``
+
 4.4.0
 .....
 

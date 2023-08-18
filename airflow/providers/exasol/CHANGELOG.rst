@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+4.2.3
+.....
+
+Misc
+~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
 4.2.2
 .....
 

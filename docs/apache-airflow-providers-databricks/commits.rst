@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.3
+.....
+
+Latest change: 2023-08-07
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`9736143468 <https://github.com/apache/airflow/commit/9736143468cfe034e65afb3df3031ab3626f0f6d>`_  2023-08-07   ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+=================================================================================================  ===========  ==========================================================================
+
 4.3.2
 .....
 
-Latest change: 2023-07-25
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  ==========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `58e21c66fd <https://github.com/apache/airflow/commit/58e21c66fdcc8a416a697b4efa852473ad8bd6fc>`_  2023-07-25   ``fix(providers/databricks): remove the execute method from to-be-deprecated DatabricksRunNowDeferrableOperator (#32806)``
 `6313e52932 <https://github.com/apache/airflow/commit/6313e5293280773aed7598e1befb8d371e8f5614>`_  2023-07-24   ``Add missing execute_complete method for 'DatabricksRunNowOperator' (#32689)``
 `60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``

@@ -392,7 +392,7 @@ breeze release-management publish-docs \
     --package-filter 'apache-airflow-providers-*' \
     --override-versioned
 
-breeze release-management add-back-references --gen-type providers
+breeze release-management add-back-references all-providers
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:
@@ -407,6 +407,8 @@ If you have providers as list of provider ids because you just released them you
 cd "${AIRFLOW_REPO_ROOT}"
 
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
+
+breeze release-management add-back-references amazon apache.beam google ....
 ```
 
 
@@ -468,7 +470,7 @@ cat <<EOF
 Hey all,
 
 I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
-which will last for 72 hours - which means that it will end on $(date -d '+3 days') and until 3 binding +1 votes have been received.
+which will last for 72 hours - which means that it will end on $(TZ=UTC date -v+3d "+%B %d, %Y %H:%M %p" ) UTC and until 3 binding +1 votes have been received.
 
 
 Consider this my (binding) +1.

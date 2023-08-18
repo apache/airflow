@@ -223,7 +223,7 @@ class DecoratedOperator(BaseOperator):
 
     def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
         """
-        Handles logic for whether a decorator needs to push a single return value or multiple return values.
+        Handle logic for whether a decorator needs to push a single return value or multiple return values.
 
         It sets outlets if any datasets are found in the returned value(s)
 
