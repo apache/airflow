@@ -1339,7 +1339,7 @@ class TestKubernetesPodOperator(BaseK8STest):
     @pytest.mark.parametrize("active_deadline_seconds", [10, 20])
     def test_kubernetes_pod_operator_active_deadline_seconds(self, active_deadline_seconds):
         k = KubernetesPodOperator(
-            task_id="test_task",
+            task_id=f"test_task_{active_deadline_seconds}",
             active_deadline_seconds=active_deadline_seconds,
             image="busybox",
             cmds=["sh", "-c", "echo 'hello world' && sleep 60"],
