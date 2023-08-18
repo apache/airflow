@@ -800,7 +800,7 @@ class DagRun(Base, LoggingMixin):
             elif dag.has_on_failure_callback:
                 if callback:
                     callback.dagrun_state = DagRunState.FAILED
-                    callback.msg = callback.msg + "task_failure"
+                    callback.msg = "task_failure"
                 else:
                     from airflow.models.dag import DagModel
 
@@ -828,7 +828,7 @@ class DagRun(Base, LoggingMixin):
             elif dag.has_on_success_callback:
                 if callback:
                     callback.dagrun_state = DagRunState.SUCCESS
-                    callback.msg = callback.msg + "success"
+                    callback.msg = "success"
                 else:
                     from airflow.models.dag import DagModel
 
@@ -850,7 +850,7 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
             if execute_callbacks:
-                dag.handle_callback(self, success=False, reason="all_tasks_deadlocked", session=session)
+                dag.handle_callback(self, dagrun_state=DagRunState.FAILED, reason="all_tasks_deadlocked", session=session)
             elif dag.has_on_failure_callback:
                 from airflow.models.dag import DagModel
 
