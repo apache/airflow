@@ -127,7 +127,7 @@ class TestCliDb:
 
     @mock.patch("airflow.cli.commands.db_command.migratedb")
     def test_cli_upgrade(self, mock_migratedb):
-        with pytest.warns(expected_warning=DeprecationWarning, match="`db updgrade` is deprecated"):
+        with pytest.warns(expected_warning=DeprecationWarning, match="`db upgrade` is deprecated"):
             db_command.upgradedb(self.parser.parse_args(["db", "upgrade"]))
         mock_migratedb.assert_called_once()
 
