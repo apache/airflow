@@ -76,7 +76,7 @@ class BaseHook(LoggingMixin):
     @classmethod
     def get_hook(cls, conn_id: str) -> BaseHook:
         """
-        Returns default hook for this connection id.
+        Return default hook for this connection id.
 
         :param conn_id: connection id
         :return: default hook for this connection
@@ -85,7 +85,7 @@ class BaseHook(LoggingMixin):
         return connection.get_hook()
 
     def get_conn(self) -> Any:
-        """Returns connection for the hook."""
+        """Return connection for the hook."""
         raise NotImplementedError()
 
     @classmethod
@@ -144,7 +144,7 @@ class DiscoverableHook(Protocol):
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
         """
-        Returns dictionary of widgets to be added for the hook to handle extra values.
+        Return dictionary of widgets to be added for the hook to handle extra values.
 
         If you have class hierarchy, usually the widgets needed by your class are already
         added by the base class, so there is no need to implement this method. It might

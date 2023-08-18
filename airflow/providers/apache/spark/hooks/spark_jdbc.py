@@ -26,8 +26,7 @@ from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 
 class SparkJDBCHook(SparkSubmitHook):
     """
-    This hook extends the SparkSubmitHook specifically for performing data
-    transfers to/from JDBC-based databases with Apache Spark.
+    Extends the SparkSubmitHook for performing data transfers to/from JDBC-based databases with Apache Spark.
 
     :param spark_app_name: Name of the job (default airflow-spark-jdbc)
     :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>`
@@ -182,6 +181,8 @@ class SparkJDBCHook(SparkSubmitHook):
         arguments = []
         arguments += ["-cmdType", self._cmd_type]
         if self._jdbc_connection["url"]:
+            if "?" in jdbc_conn["conn_prefix"]:
+                raise ValueError("The jdbc extra conn_prefix should not contain a '?'")
             arguments += [
                 "-url",
                 f"{jdbc_conn['conn_prefix']}{jdbc_conn['url']}/{jdbc_conn['schema']}",

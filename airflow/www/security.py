@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,34 +17,39 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Collection, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Container, Iterable, Sequence
 
 from flask import g
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from airflow.auth.managers.fab.models import Permission, Resource, Role, User
+from airflow.auth.managers.fab.views.permissions import (
+    ActionModelView,
+    PermissionPairModelView,
+    ResourceModelView,
+)
+from airflow.auth.managers.fab.views.roles_list import CustomRoleModelView
+from airflow.auth.managers.fab.views.user import (
+    CustomUserDBModelView,
+    CustomUserLDAPModelView,
+    CustomUserOAuthModelView,
+    CustomUserOIDModelView,
+    CustomUserRemoteUserModelView,
+)
+from airflow.auth.managers.fab.views.user_edit import (
+    CustomResetMyPasswordView,
+    CustomResetPasswordView,
+    CustomUserInfoEditView,
+)
+from airflow.auth.managers.fab.views.user_stats import CustomUserStatsChartView
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.fab_security.sqla.manager import SecurityManager
-from airflow.www.fab_security.sqla.models import Permission, Resource, Role, User
-from airflow.www.fab_security.views import (
-    ActionModelView,
-    CustomResetMyPasswordView,
-    CustomResetPasswordView,
-    CustomRoleModelView,
-    CustomUserDBModelView,
-    CustomUserInfoEditView,
-    CustomUserLDAPModelView,
-    CustomUserOAuthModelView,
-    CustomUserOIDModelView,
-    CustomUserRemoteUserModelView,
-    CustomUserStatsChartView,
-    PermissionPairModelView,
-    ResourceModelView,
-)
 from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = {
@@ -56,8 +60,14 @@ EXISTING_ROLES = {
     "Public",
 }
 
+if TYPE_CHECKING:
+    SecurityManagerOverride: type = object
+else:
+    # Fetch the security manager override from the auth manager
+    SecurityManagerOverride = get_auth_manager().get_security_manager_override_class()
 
-class AirflowSecurityManager(SecurityManager, LoggingMixin):
+
+class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMixin):
     """Custom security manager, which introduces a permission model adapted to Airflow."""
 
     ###########################################################################
@@ -192,7 +202,32 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     userstatschartview = CustomUserStatsChartView
 
     def __init__(self, appbuilder) -> None:
-        super().__init__(appbuilder)
+        super().__init__(
+            appbuilder=appbuilder,
+            actionmodelview=self.actionmodelview,
+            authdbview=self.authdbview,
+            authldapview=self.authldapview,
+            authoauthview=self.authoauthview,
+            authoidview=self.authoidview,
+            authremoteuserview=self.authremoteuserview,
+            permissionmodelview=self.permissionmodelview,
+            registeruser_view=self.registeruser_view,
+            registeruserdbview=self.registeruserdbview,
+            registeruseroauthview=self.registeruseroauthview,
+            registerusermodelview=self.registerusermodelview,
+            registeruseroidview=self.registeruseroidview,
+            resetmypasswordview=self.resetmypasswordview,
+            resetpasswordview=self.resetpasswordview,
+            rolemodelview=self.rolemodelview,
+            user_model=self.user_model,
+            userinfoeditview=self.userinfoeditview,
+            userdbmodelview=self.userdbmodelview,
+            userldapmodelview=self.userldapmodelview,
+            useroauthmodelview=self.useroauthmodelview,
+            useroidmodelview=self.useroidmodelview,
+            userremoteusermodelview=self.userremoteusermodelview,
+            userstatschartview=self.userstatschartview,
+        )
 
         # Go and fix up the SQLAInterface used from the stock one to our subclass.
         # This is needed to support the "hack" where we had to edit
@@ -205,12 +240,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
                 continue
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
-
-    def create_db(self) -> None:
-        if not self.appbuilder.update_perms:
-            self.log.debug("Skipping db since appbuilder disables update_perms")
-            return
-        super().create_db()
 
     def _get_root_dag_id(self, dag_id: str) -> str:
         if "." in dag_id:
@@ -254,21 +283,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
                 if perm not in role.permissions:
                     self.add_permission_to_role(role, perm)
-
-    def delete_role(self, role_name: str) -> None:
-        """
-        Delete the given Role.
-
-        :param role_name: the name of a role in the ab_role table
-        """
-        session = self.appbuilder.get_session
-        role = session.query(Role).filter(Role.name == role_name).first()
-        if role:
-            self.log.info("Deleting role '%s'", role_name)
-            session.delete(role)
-            session.commit()
-        else:
-            raise AirflowException(f"Role named '{role_name}' does not exist")
 
     @staticmethod
     def get_user_roles(user=None):
@@ -338,7 +352,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         if not user_actions:
             user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
 
-        if user.is_anonymous:
+        if not get_auth_manager().is_logged_in():
             roles = user.roles
         else:
             if (permissions.ACTION_CAN_EDIT in user_actions and self.can_edit_all_dags(user)) or (
@@ -422,8 +436,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def has_access(self, action_name: str, resource_name: str, user=None) -> bool:
         """
-        Verify whether a given user could perform a certain action
-        (e.g can_read, can_write, can_delete) on the given resource.
+        Verify whether a given user could perform a certain action on the given resource.
+
+        Example actions might include can_read, can_write, can_delete, etc.
 
         :param action_name: action_name on resource (e.g can_read, can_edit).
         :param resource_name: name of view-menu or resource.
@@ -451,7 +466,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def has_all_dags_access(self, user) -> bool:
         """
-        Has all the dag access in any of the 3 cases:
+        Has all the dag access in any of the 3 cases.
+
         1. Role needs to be in (Admin, Viewer, User, Op).
         2. Has can_read action on dags resource.
         3. Has can_edit action on dags resource.
@@ -497,6 +513,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def _merge_perm(self, action_name: str, resource_name: str) -> None:
         """
         Add the new (action, resource) to assoc_permission_role if it doesn't exist.
+
         It will add the related entry to ab_permission and ab_resource two meta tables as well.
 
         :param action_name: Name of the action
@@ -540,6 +557,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def _get_all_non_dag_permissions(self) -> dict[tuple[str, str], Permission]:
         """
+        Get permissions except those that are for specific DAGs.
+
         Returns a dict with a key of (action_name, resource_name) and value of permission
         with all permissions except those that are for specific DAGs.
         """
@@ -566,6 +585,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def create_dag_specific_permissions(self) -> None:
         """
+        Add permissions to all DAGs.
+
         Creates 'can_read', 'can_edit', and 'can_delete' permissions for all
         DAGs, along with any `access_control` permissions provided in them.
 
@@ -591,7 +612,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def update_admin_permission(self) -> None:
         """
-        Admin should have all the permissions, except the dag permissions.
+        Add missing permissions to the table for admin.
+
+        Admin should get all the permissions, except the dag permissions
         because Admin already has Dags permission.
         Add the missing ones to the table for admin.
 
@@ -613,6 +636,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def sync_roles(self) -> None:
         """
+        Initialize default and custom roles with related permissions.
+
         1. Init the default role(Admin, Viewer, User, Op, public)
            with related permissions.
         2. Init the custom role(dag-user) with related permissions.
@@ -645,8 +670,9 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         access_control: dict[str, Collection[str]] | None = None,
     ) -> None:
         """
-        Sync permissions for given dag id. The dag id surely exists in our dag bag
-        as only / refresh button or DagBag will call this function.
+        Sync permissions for given dag id.
+
+        The dag id surely exists in our dag bag as only / refresh button or DagBag will call this function.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
         :param access_control: a dict where each key is a rolename and

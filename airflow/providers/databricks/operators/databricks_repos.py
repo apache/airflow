@@ -33,10 +33,9 @@ if TYPE_CHECKING:
 
 class DatabricksReposCreateOperator(BaseOperator):
     """
-    Creates a Databricks Repo
-    using
-    `POST api/2.0/repos <https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/create-repo>`_
-    API endpoint and optionally checking it out to a specific branch or tag.
+    Creates, and optionally checks out, a Databricks Repo using the POST api/2.0/repos API endpoint.
+
+     See: https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/create-repo
 
     :param git_url: Required HTTPS URL of a Git repository
     :param git_provider: Optional name of Git provider. Must be provided if we can't guess its name from URL.
@@ -165,9 +164,9 @@ class DatabricksReposCreateOperator(BaseOperator):
 
 class DatabricksReposUpdateOperator(BaseOperator):
     """
-    Updates specified repository to a given branch or tag
-    using `PATCH api/2.0/repos
-    <https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/update-repo>`_ API endpoint.
+    Updates specified repository to a given branch or tag using the PATCH api/2.0/repos API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/update-repo
 
     :param branch: optional name of branch to update to. Should be specified if ``tag`` is omitted
     :param tag: optional name of tag to update to. Should be specified if ``branch`` is omitted
@@ -241,9 +240,9 @@ class DatabricksReposUpdateOperator(BaseOperator):
 
 class DatabricksReposDeleteOperator(BaseOperator):
     """
-    Deletes specified repository
-    using `DELETE api/2.0/repos
-    <https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/delete-repo>`_ API endpoint.
+    Deletes specified repository using the DELETE api/2.0/repos API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/delete-repo
 
     :param repo_id: optional ID of existing repository. Should be specified if ``repo_path`` is omitted
     :param repo_path: optional path of existing repository. Should be specified if ``repo_id`` is omitted

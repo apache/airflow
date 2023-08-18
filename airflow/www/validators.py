@@ -97,3 +97,14 @@ class ValidKey:
                 helpers.validate_key(field.data, self.max_length)
             except Exception as e:
                 raise ValidationError(str(e))
+
+
+class ReadOnly:
+    """Adds readonly flag to a field.
+
+    When using this you normally will need to override the form's populate_obj method,
+    so field.populate_obj is not called for read-only fields.
+    """
+
+    def __call__(self, form, field):
+        field.flags.readonly = True

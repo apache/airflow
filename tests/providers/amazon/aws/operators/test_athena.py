@@ -169,4 +169,3 @@ class TestAthenaOperator:
             self.athena.execute(None)
 
         assert isinstance(deferred.value.trigger, AthenaTrigger)
-        assert deferred.value.trigger.query_execution_id == ATHENA_QUERY_ID

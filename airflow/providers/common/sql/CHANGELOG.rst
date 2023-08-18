@@ -16,13 +16,62 @@
     under the License.
 
 .. NOTE TO CONTRIBUTORS:
-    Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+    Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
     and you want to add an explanation to the users on how they are supposed to deal with them.
     The changelog is updated and maintained semi-automatically by release manager.
 
 
-Changelog for ``apache-airflow-providers-common-sql``
------------------------------------------------------
+------
+
+1.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+1.6.2
+.....
+
+Misc
+~~~~
+
+* ``Make SQLExecute Query signature consistent with other SQL operators (#32974)``
+* ``Get rid of Python2 numeric relics (#33050)``
+
+1.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix local OpenLineage import in 'SQLExecuteQueryOperator'. (#32400)``
+
+Misc
+~~~~
+
+* ``Add default port to Openlineage authority method. (#32828)``
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, common.sql:  provide OL SQL parser as internal OpenLineage provider API (#31398)``
+
+Misc
+~~~~
+* ``Pass SQLAlchemy engine to construct information schema query. (#32371)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
 
 1.5.2
 .....

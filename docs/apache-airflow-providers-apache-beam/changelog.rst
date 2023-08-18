@@ -16,7 +16,4 @@
     specific language governing permissions and limitations
     under the License.
 
-Package ``apache-airflow-providers-apache-beam``
-------------------------------------------------
-
 .. include:: ../../airflow/providers/apache/beam/CHANGELOG.rst

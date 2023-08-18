@@ -40,7 +40,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.state import State
+from airflow.utils.state import JobState
 
 
 def _resolve_dagrun_model():
@@ -97,8 +97,6 @@ class Job(Base, LoggingMixin):
     Only makes sense for SchedulerJob and BackfillJob instances.
     """
 
-    heartrate = conf.getfloat("scheduler", "JOB_HEARTBEAT_SEC")
-
     def __init__(self, executor=None, heartrate=None, **kwargs):
         # Save init parameters as DB fields
         self.hostname = get_hostname()
@@ -117,6 +115,15 @@ class Job(Base, LoggingMixin):
     def executor(self):
         return ExecutorLoader.get_default_executor()
 
+    @cached_property
+    def heartrate(self):
+        if self.job_type == "TriggererJob":
+            return conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
+        else:
+            # Heartrate used to be hardcoded to scheduler, so in all other
+            # cases continue to use that value for back compat
+            return conf.getfloat("scheduler", "JOB_HEARTBEAT_SEC")
+
     def is_alive(self, grace_multiplier=2.1):
         """
         Is this job currently alive.
@@ -129,16 +136,18 @@ class Job(Base, LoggingMixin):
         """
         if self.job_type == "SchedulerJob":
             health_check_threshold: int = conf.getint("scheduler", "scheduler_health_check_threshold")
+        elif self.job_type == "TriggererJob":
+            health_check_threshold: int = conf.getint("triggerer", "triggerer_health_check_threshold")
         else:
             health_check_threshold: int = self.heartrate * grace_multiplier
         return (
-            self.state == State.RUNNING
+            self.state == JobState.RUNNING
             and (timezone.utcnow() - self.latest_heartbeat).total_seconds() < health_check_threshold
         )
 
     @provide_session
     def kill(self, session: Session = NEW_SESSION) -> NoReturn:
-        """Handles on_kill callback and updates state in database."""
+        """Handle on_kill callback and updates state in database."""
         job = session.scalar(select(Job).where(Job.id == self.id).limit(1))
         job.end_date = timezone.utcnow()
         try:
@@ -181,7 +190,7 @@ class Job(Base, LoggingMixin):
             session.merge(self)
             previous_heartbeat = self.latest_heartbeat
 
-            if self.state in State.terminating_states:
+            if self.state in (JobState.SHUTDOWN, JobState.RESTARTING):
                 # TODO: Make sure it is AIP-44 compliant
                 self.kill()
 
@@ -213,9 +222,9 @@ class Job(Base, LoggingMixin):
 
     @provide_session
     def prepare_for_execution(self, session: Session = NEW_SESSION):
-        """Prepares the job for execution."""
+        """Prepare the job for execution."""
         Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
-        self.state = State.RUNNING
+        self.state = JobState.RUNNING
         self.start_date = timezone.utcnow()
         session.add(self)
         session.commit()
@@ -231,7 +240,7 @@ class Job(Base, LoggingMixin):
 
     @provide_session
     def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:
-        """Returns the most recent job of this type, if any, based on last heartbeat received."""
+        """Return the most recent job of this type, if any, based on last heartbeat received."""
         return most_recent_job(self.job_type, session=session)
 
 
@@ -251,7 +260,7 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
         .where(Job.job_type == job_type)
         .order_by(
             # Put "running" jobs at the front.
-            case({State.RUNNING: 0}, value=Job.state, else_=1),
+            case({JobState.RUNNING: 0}, value=Job.state, else_=1),
             Job.latest_heartbeat.desc(),
         )
         .limit(1)
@@ -263,7 +272,7 @@ def run_job(
     job: Job | JobPydantic, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
 ) -> int | None:
     """
-    Runs the job.
+    Run the job.
 
     The Job is always an ORM object and setting the state is happening within the
     same DB session and the session is kept open throughout the whole execution.
@@ -284,7 +293,7 @@ def run_job(
 
 def execute_job(job: Job | JobPydantic, execute_callable: Callable[[], int | None]) -> int | None:
     """
-    Executes the job.
+    Execute the job.
 
     Job execution requires no session as generally executing session does not require an
     active database connection. The session might be temporary acquired and used if the job
@@ -308,12 +317,12 @@ def execute_job(job: Job | JobPydantic, execute_callable: Callable[[], int | Non
     try:
         ret = execute_callable()
         # In case of max runs or max duration
-        job.state = State.SUCCESS
+        job.state = JobState.SUCCESS
     except SystemExit:
         # In case of ^C or SIGTERM
-        job.state = State.SUCCESS
+        job.state = JobState.SUCCESS
     except Exception:
-        job.state = State.FAILED
+        job.state = JobState.FAILED
         raise
     return ret
 
@@ -322,7 +331,7 @@ def perform_heartbeat(
     job: Job | JobPydantic, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
 ) -> None:
     """
-    Performs heartbeat for the Job passed to it,optionally checking if it is necessary.
+    Perform heartbeat for the Job passed to it,optionally checking if it is necessary.
 
     :param job: job to perform heartbeat for
     :param heartbeat_callback: callback to run by the heartbeat

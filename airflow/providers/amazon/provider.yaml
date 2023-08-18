@@ -23,6 +23,11 @@ description: |
 
 suspended: false
 versions:
+  - 8.5.1
+  - 8.5.0
+  - 8.4.0
+  - 8.3.1
+  - 8.3.0
   - 8.2.0
   - 8.1.0
   - 8.0.0
@@ -74,7 +79,7 @@ dependencies:
   - sqlalchemy_redshift>=0.8.6
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
-  - mypy-boto3-appflow>=1.24.0
+  - mypy-boto3-appflow>=1.28.16
   - asgiref
   - mypy-boto3-s3>=1.24.0
 
@@ -151,6 +156,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/emr/emr_serverless.rst
     logo: /integration-logos/aws/Amazon-EMR_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon EventBridge
+    external-doc-url: https://docs.aws.amazon.com/eventbridge/latest/APIReference/Welcome.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/eventbridge.rst
+    logo: /integration-logos/aws/Amazon-EventBridge_64.png
     tags: [aws]
   - integration-name: Amazon Glacier
     external-doc-url: https://aws.amazon.com/glacier/
@@ -305,6 +316,9 @@ operators:
   - integration-name: Amazon EMR on EKS
     python-modules:
       - airflow.providers.amazon.aws.operators.emr
+  - integration-name: Amazon EventBridge
+    python-modules:
+      - airflow.providers.amazon.aws.operators.eventbridge
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.operators.glacier
@@ -455,6 +469,9 @@ hooks:
   - integration-name: Amazon EMR on EKS
     python-modules:
       - airflow.providers.amazon.aws.hooks.emr
+  - integration-name: Amazon EventBridge
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.eventbridge
   - integration-name: Amazon Glacier
     python-modules:
       - airflow.providers.amazon.aws.hooks.glacier
@@ -515,6 +532,9 @@ hooks:
       - airflow.providers.amazon.aws.hooks.appflow
 
 triggers:
+  - integration-name: Amazon Web Services
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.base
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.triggers.athena
@@ -524,6 +544,9 @@ triggers:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.triggers.ec2
+  - integration-name: AWS Lambda
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.lambda_function
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.triggers.redshift_cluster
@@ -546,6 +569,15 @@ triggers:
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.triggers.ecs
+  - integration-name: Amazon RDS
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.rds
+  - integration-name: AWS Step Functions
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.step_function
+  - integration-name: Amazon Simple Queue Service (SQS)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.sqs
 
 transfers:
   - source-integration-name: Amazon DynamoDB
@@ -622,6 +654,10 @@ transfers:
   - source-integration-name: Amazon Web Services
     target-integration-name: Amazon Web Services
     python-module: airflow.providers.amazon.aws.transfers.base
+  - source-integration-name: Microsoft Azure Blob Storage
+    target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/transfer/azure_blob_to_s3.rst
+    python-module: airflow.providers.amazon.aws.transfers.azure_blob_to_s3
 
 extra-links:
   - airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink
@@ -642,6 +678,9 @@ connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
 
+notifications:
+  - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
+
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
@@ -661,3 +700,6 @@ additional-extras:
   - name: aiobotocore
     dependencies:
       - aiobotocore[boto3]>=2.2.0
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.2.0

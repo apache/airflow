@@ -35,6 +35,8 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
+    from kubernetes.client.models import CoreV1EventList
+
     from airflow.utils.context import Context
 
 
@@ -122,7 +124,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             return
 
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
-
     def manage_template_specs(self):
         if self.application_file:
             template_body = _load_body_to_dict(open(self.application_file))

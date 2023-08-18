@@ -50,7 +50,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """
-        Returns the information needed to reconstruct this Trigger.
+        Return the information needed to reconstruct this Trigger.
 
         :return: Tuple of (class path, keyword arguments needed to re-instantiate).
         """
@@ -59,7 +59,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     @abc.abstractmethod
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """
-        Runs the trigger in an asynchronous context.
+        Run the trigger in an asynchronous context.
 
         The trigger should yield an Event whenever it wants to fire off
         an event, and return None if it is finished. Single-event triggers

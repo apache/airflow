@@ -21,12 +21,11 @@ import ast
 import io
 import logging
 import os
-import re
 import zipfile
-from collections import OrderedDict
 from pathlib import Path
-from typing import Generator, NamedTuple, Protocol, overload
+from typing import Generator, NamedTuple, Pattern, Protocol, overload
 
+import re2
 from pathspec.patterns import GitWildMatchPattern
 
 from airflow.configuration import conf
@@ -41,8 +40,9 @@ class _IgnoreRule(Protocol):
     @staticmethod
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> _IgnoreRule | None:
         """
-        Build an ignore rule from the supplied pattern where base_dir
-        and definition_file should be absolute paths.
+        Build an ignore rule from the supplied pattern.
+
+        ``base_dir`` and ``definition_file`` should be absolute paths.
         """
 
     @staticmethod
@@ -53,15 +53,15 @@ class _IgnoreRule(Protocol):
 class _RegexpIgnoreRule(NamedTuple):
     """Typed namedtuple with utility functions for regexp ignore rules."""
 
-    pattern: re.Pattern
+    pattern: Pattern
     base_dir: Path
 
     @staticmethod
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> _IgnoreRule | None:
         """Build an ignore rule from the supplied regexp pattern and log a useful warning if it is invalid."""
         try:
-            return _RegexpIgnoreRule(re.compile(pattern), base_dir)
-        except re.error as e:
+            return _RegexpIgnoreRule(re2.compile(pattern), base_dir)
+        except re2.error as e:
             log.warning("Ignoring invalid regex '%s' from %s: %s", pattern, definition_file, e)
             return None
 
@@ -79,7 +79,7 @@ class _RegexpIgnoreRule(NamedTuple):
 class _GlobIgnoreRule(NamedTuple):
     """Typed namedtuple with utility functions for glob ignore rules."""
 
-    pattern: re.Pattern
+    pattern: Pattern
     raw_pattern: str
     include: bool | None = None
     relative_to: Path | None = None
@@ -119,7 +119,7 @@ class _GlobIgnoreRule(NamedTuple):
 
 
 def TemporaryDirectory(*args, **kwargs):
-    """This function is deprecated. Please use `tempfile.TemporaryDirectory`."""
+    """Use `tempfile.TemporaryDirectory`, this function is deprecated."""
     import warnings
     from tempfile import TemporaryDirectory as TmpDir
 
@@ -134,8 +134,9 @@ def TemporaryDirectory(*args, **kwargs):
 
 def mkdirs(path, mode):
     """
-    Creates the directory specified by path, creating intermediate directories
-    as necessary. If directory already exists, this is a no-op.
+    Create the directory specified by path, creating intermediate directories as necessary.
+
+    If directory already exists, this is a no-op.
 
     :param path: The directory to create
     :param mode: The mode to give to the directory e.g. 0o755, ignores umask
@@ -150,7 +151,7 @@ def mkdirs(path, mode):
     Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
 
 
-ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
+ZIP_REGEX = re2.compile(rf"((.*\.zip){re2.escape(os.sep)})?(.*)")
 
 
 @overload
@@ -164,10 +165,7 @@ def correct_maybe_zipped(fileloc: str | Path) -> str | Path:
 
 
 def correct_maybe_zipped(fileloc: None | str | Path) -> None | str | Path:
-    """
-    If the path contains a folder with a .zip suffix, then
-    the folder is treated as a zip archive and path to zip is returned.
-    """
+    """If the path contains a folder with a .zip suffix, treat it as a zip archive and return path."""
     if not fileloc:
         return fileloc
     search_ = ZIP_REGEX.search(str(fileloc))
@@ -182,8 +180,10 @@ def correct_maybe_zipped(fileloc: None | str | Path) -> None | str | Path:
 
 def open_maybe_zipped(fileloc, mode="r"):
     """
-    Opens the given file. If the path contains a folder with a .zip suffix, then
-    the folder is treated as a zip archive, opening the file inside the archive.
+    Open the given file.
+
+    If the path contains a folder with a .zip suffix, then the folder
+    is treated as a zip archive, opening the file inside the archive.
 
     :return: a file object, as in `open`, or as in `ZipFile.open`.
     """
@@ -191,7 +191,6 @@ def open_maybe_zipped(fileloc, mode="r"):
     if archive and zipfile.is_zipfile(archive):
         return io.TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
     else:
-
         return open(fileloc, mode=mode)
 
 
@@ -217,7 +216,7 @@ def _find_path_from_directory(
         ignore_file_path = Path(root) / ignore_file_name
         if ignore_file_path.is_file():
             with open(ignore_file_path) as ifile:
-                lines_no_comments = [re.sub(r"\s*#.*", "", line) for line in ifile.read().split("\n")]
+                lines_no_comments = [re2.sub(r"\s*#.*", "", line) for line in ifile.read().split("\n")]
                 # append new patterns and filter out "None" objects, which are invalid patterns
                 patterns += [
                     p
@@ -230,7 +229,7 @@ def _find_path_from_directory(
                 ]
                 # evaluation order of patterns is important with negation
                 # so that later patterns can override earlier patterns
-                patterns = list(OrderedDict.fromkeys(patterns).keys())
+                patterns = list(dict.fromkeys(patterns))
 
         dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(Path(root) / subdir, patterns)]
 
@@ -307,7 +306,7 @@ def list_py_file_paths(
 
 
 def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> list[str]:
-    """Finds file paths of all DAG files."""
+    """Find file paths of all DAG files."""
     file_paths = []
 
     for file_path in find_path_from_directory(directory, ".airflowignore"):
@@ -327,12 +326,13 @@ def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> l
     return file_paths
 
 
-COMMENT_PATTERN = re.compile(r"\s*#.*")
+COMMENT_PATTERN = re2.compile(r"\s*#.*")
 
 
 def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None) -> bool:
     """
     Check whether a Python file contains Airflow DAGs.
+
     When safe_mode is off (with False value), this function always returns True.
 
     If might_contain_dag_callable isn't specified, it uses airflow default heuristic

@@ -31,9 +31,9 @@ SUBSCRIPTION_ID = "my-subscription-id"
 TASK_ID = "run_spark_op"
 AZURE_SYNAPSE_CONN_ID = "azure_synapse_test"
 CONN_EXTRAS = {
-    "extra__azure_synapse__subscriptionId": SUBSCRIPTION_ID,
-    "extra__azure_synapse__tenantId": "my-tenant-id",
-    "extra__azure_synapse__spark_pool": "my-spark-pool",
+    "synapse__subscriptionId": SUBSCRIPTION_ID,
+    "synapse__tenantId": "my-tenant-id",
+    "synapse__spark_pool": "my-spark-pool",
 }
 JOB_RUN_RESPONSE = {"id": 123}
 

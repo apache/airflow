@@ -31,7 +31,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-statsd
+  name: {{ include "airflow.fullname" . }}-statsd
   labels:
     tier: airflow
     component: statsd
@@ -97,6 +97,13 @@ spec:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
+          {{- if .Values.statsd.env }}
+          env:
+            {{- range $i, $config := .Values.statsd.env }}
+            - value: {{ $config.value | quote }}
+              name: {{ $config.name | quote }}
+            {{- end }}
+          {{- end }}
           ports:
             - name: statsd-ingest
               protocol: UDP
@@ -124,5 +131,5 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: {{ .Release.Name }}-statsd
+            name: {{ include "airflow.fullname" . }}-statsd
 {{- end }}

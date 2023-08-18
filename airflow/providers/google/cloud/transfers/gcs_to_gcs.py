@@ -18,9 +18,10 @@
 """This module contains a Google Cloud Storage operator."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
@@ -66,8 +67,8 @@ class GCSToGCSOperator(BaseOperator):
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :param replace: Whether you want to replace existing destination files or not.
-    :param delimiter: This is used to restrict the result to only the 'files' in a given 'folder'.
-        If source_objects = ['foo/bah/'] and delimiter = '.avro', then only the 'files' in the
+    :param delimiter: (Deprecated) This is used to restrict the result to only the 'files' in a given
+        'folder'. If source_objects = ['foo/bah/'] and delimiter = '.avro', then only the 'files' in the
         folder 'foo/bah/' with '.avro' delimiter will be copied to the destination object.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param last_modified_time: When specified, the objects will be copied or moved,
@@ -90,6 +91,8 @@ class GCSToGCSOperator(BaseOperator):
         doesn't exist. It doesn't have any effect when the source objects are folders or patterns.
     :param exact_match: When specified, only exact match of the source object (filename) will be
         copied.
+    :param match_glob: (Optional) filters objects based on the glob pattern given by the string (
+        e.g, ``'**/*/.json'``)
 
     :Example:
 
@@ -103,11 +106,12 @@ class GCSToGCSOperator(BaseOperator):
             source_objects=['sales/sales-2017/january.avro'],
             destination_bucket='data_backup',
             destination_object='copied_sales/2017/january-backup.avro',
+            exact_match=True,
             gcp_conn_id=google_cloud_conn_id
         )
 
     The following Operator would copy all the Avro files from ``sales/sales-2017``
-    folder (i.e. with names starting with that prefix) in ``data`` bucket to the
+    folder (i.e. all files with names starting with that prefix) in ``data`` bucket to the
     ``copied_sales/2017`` folder in the ``data_backup`` bucket. ::
 
         copy_files = GCSToGCSOperator(
@@ -116,7 +120,7 @@ class GCSToGCSOperator(BaseOperator):
             source_objects=['sales/sales-2017'],
             destination_bucket='data_backup',
             destination_object='copied_sales/2017/',
-            delimiter='.avro'
+            match_glob='**/*.avro'
             gcp_conn_id=google_cloud_conn_id
         )
 
@@ -132,7 +136,7 @@ class GCSToGCSOperator(BaseOperator):
         )
 
     The following Operator would move all the Avro files from ``sales/sales-2017``
-    folder (i.e. with names starting with that prefix) in ``data`` bucket to the
+    folder (i.e. all files with names starting with that prefix) in ``data`` bucket to the
     same folder in the ``data_backup`` bucket, deleting the original files in the
     process. ::
 
@@ -190,15 +194,34 @@ class GCSToGCSOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         source_object_required=False,
         exact_match=False,
+        match_glob: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
 
         self.source_bucket = source_bucket
+        if source_object and WILDCARD in source_object:
+            warnings.warn(
+                "Usage of wildcard (*) in 'source_object' is deprecated, utilize 'match_glob' instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         self.source_object = source_object
+        if source_objects and any([WILDCARD in obj for obj in source_objects]):
+            warnings.warn(
+                "Usage of wildcard (*) in 'source_objects' is deprecated, utilize 'match_glob' instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         self.source_objects = source_objects
         self.destination_bucket = destination_bucket
         self.destination_object = destination_object
+        if delimiter:
+            warnings.warn(
+                "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         self.delimiter = delimiter
         self.move_object = move_object
         self.replace = replace
@@ -209,6 +232,9 @@ class GCSToGCSOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.source_object_required = source_object_required
         self.exact_match = exact_match
+        self.match_glob = match_glob
+        self.resolved_source_objects: set[str] = set()
+        self.resolved_target_objects: set[str] = set()
 
     def execute(self, context: Context):
 
@@ -251,6 +277,7 @@ class GCSToGCSOperator(BaseOperator):
         for prefix in self.source_objects:
             # Check if prefix contains wildcard
             if WILDCARD in prefix:
+
                 self._copy_source_with_wildcard(hook=hook, prefix=prefix)
             # Now search with prefix using provided delimiter if any
             else:
@@ -261,15 +288,19 @@ class GCSToGCSOperator(BaseOperator):
         # and only keep those files which are present in
         # Source GCS bucket and not in Destination GCS bucket
         delimiter = kwargs.get("delimiter")
+        match_glob = kwargs.get("match_glob")
         objects = kwargs.get("objects")
         if self.destination_object is None:
-            existing_objects = hook.list(self.destination_bucket, prefix=prefix, delimiter=delimiter)
+            existing_objects = hook.list(
+                self.destination_bucket, prefix=prefix, delimiter=delimiter, match_glob=match_glob
+            )
         else:
             self.log.info("Replaced destination_object with source_object prefix.")
             destination_objects = hook.list(
                 self.destination_bucket,
                 prefix=self.destination_object,
                 delimiter=delimiter,
+                match_glob=match_glob,
             )
             existing_objects = [
                 dest_object.replace(self.destination_object, prefix, 1) for dest_object in destination_objects
@@ -284,10 +315,13 @@ class GCSToGCSOperator(BaseOperator):
 
     def _copy_source_without_wildcard(self, hook, prefix):
         """
+        List all files in source_objects, copy files to destination_object, and rename each source file.
+
         For source_objects with no wildcard, this operator would first list
         all files in source_objects, using provided delimiter if any. Then copy
         files from source_objects to destination_object and rename each source
-        file.
+        file. Note that if the flag exact_match=False, then each item in the source_objects
+        (or source_object itself) will be considered as a prefix for the source objects search.
 
         Example 1:
 
@@ -337,12 +371,34 @@ class GCSToGCSOperator(BaseOperator):
                 destination_object='b/',
                 gcp_conn_id=google_cloud_conn_id
             )
+
+        Example 4:
+
+        The following Operator would copy files corresponding to the prefix 'a/foo.txt'
+        (a/foo.txt, a/foo.txt.abc, a/foo.txt/subfolder/file.txt) in ``data`` bucket to
+        the ``b/`` folder in the ``data_backup`` bucket
+        (b/foo.txt, b/foo.txt.abc, b/foo.txt/subfolder/file.txt) ::
+
+            copy_files = GCSToGCSOperator(
+                task_id='copy_files_without_wildcard',
+                source_bucket='data',
+                source_object='a/foo.txt',
+                destination_bucket='data_backup',
+                destination_object='b/',
+                gcp_conn_id=google_cloud_conn_id
+            )
         """
-        objects = hook.list(self.source_bucket, prefix=prefix, delimiter=self.delimiter)
+        objects = hook.list(
+            self.source_bucket, prefix=prefix, delimiter=self.delimiter, match_glob=self.match_glob
+        )
+
+        objects = [obj for obj in objects if self._check_exact_match(obj, prefix)]
 
         if not self.replace:
             # If we are not replacing, ignore files already existing in source buckets
-            objects = self._ignore_existing_files(hook, prefix, objects=objects, delimiter=self.delimiter)
+            objects = self._ignore_existing_files(
+                hook, prefix, objects=objects, delimiter=self.delimiter, match_glob=self.match_glob
+            )
 
         # If objects is empty, and we have prefix, let's check if prefix is a blob
         # and copy directly
@@ -355,11 +411,10 @@ class GCSToGCSOperator(BaseOperator):
                 msg = f"{prefix} does not exist in bucket {self.source_bucket}"
                 self.log.warning(msg)
                 raise AirflowException(msg)
-
         if len(objects) == 1 and objects[0][-1] != "/":
             self._copy_file(hook=hook, source_object=objects[0])
         elif len(objects):
-            self._copy_directory(hook=hook, source_objects=objects, prefix=prefix)
+            self._copy_multiple_objects(hook=hook, source_objects=objects, prefix=prefix)
 
     def _copy_file(self, hook, source_object):
         destination_object = self.destination_object or source_object
@@ -370,20 +425,36 @@ class GCSToGCSOperator(BaseOperator):
             hook=hook, source_object=source_object, destination_object=destination_object
         )
 
-    def _copy_directory(self, hook, source_objects, prefix):
-        _prefix = prefix.rstrip("/") + "/"
+    def _copy_multiple_objects(self, hook, source_objects, prefix):
+        # Check whether the prefix is a root directory for all the rest of objects.
+        _pref = prefix.rstrip("/")
+        is_directory = prefix.endswith("/") or all(
+            [obj.replace(_pref, "", 1).startswith("/") for obj in source_objects]
+        )
+
+        if is_directory:
+            base_path = prefix.rstrip("/") + "/"
+        else:
+            base_path = prefix[0 : prefix.rfind("/") + 1] if "/" in prefix else ""
+
         for source_obj in source_objects:
-            if self.exact_match and (source_obj != prefix or not source_obj.endswith(prefix)):
+            if not self._check_exact_match(source_obj, prefix):
                 continue
             if self.destination_object is None:
                 destination_object = source_obj
             else:
-                file_name_postfix = source_obj.replace(_prefix, "", 1)
+                file_name_postfix = source_obj.replace(base_path, "", 1)
                 destination_object = self.destination_object.rstrip("/") + "/" + file_name_postfix
 
             self._copy_single_object(
                 hook=hook, source_object=source_obj, destination_object=destination_object
             )
+
+    def _check_exact_match(self, source_object: str, prefix: str) -> bool:
+        """Checks whether source_object's name matches the prefix according to the exact_match flag."""
+        if self.exact_match and (source_object != prefix or not source_object.endswith(prefix)):
+            return False
+        return True
 
     def _copy_source_with_wildcard(self, hook, prefix):
         total_wildcards = prefix.count(WILDCARD)
@@ -397,11 +468,18 @@ class GCSToGCSOperator(BaseOperator):
         self.log.info("Delimiter ignored because wildcard is in prefix")
         prefix_, delimiter = prefix.split(WILDCARD, 1)
         objects = hook.list(self.source_bucket, prefix=prefix_, delimiter=delimiter)
+        # TODO: After deprecating delimiter and wildcards in source objects,
+        #       remove previous line and uncomment the following:
+        # match_glob = f"**/*{delimiter}" if delimiter else None
+        # objects = hook.list(self.source_bucket, prefix=prefix_, match_glob=match_glob)
         if not self.replace:
             # If we are not replacing, list all files in the Destination GCS bucket
             # and only keep those files which are present in
             # Source GCS bucket and not in Destination GCS bucket
             objects = self._ignore_existing_files(hook, prefix_, delimiter=delimiter, objects=objects)
+            # TODO: After deprecating delimiter and wildcards in source objects,
+            #       remove previous line and uncomment the following:
+            # objects = self._ignore_existing_files(hook, prefix_, match_glob=match_glob, objects=objects)
 
         for source_object in objects:
             if self.destination_object is None:
@@ -464,7 +542,35 @@ class GCSToGCSOperator(BaseOperator):
             destination_object,
         )
 
+        self.resolved_source_objects.add(source_object)
+        if not destination_object:
+            self.resolved_target_objects.add(source_object)
+        else:
+            self.resolved_target_objects.add(destination_object)
+
         hook.rewrite(self.source_bucket, source_object, self.destination_bucket, destination_object)
 
         if self.move_object:
             hook.delete(self.source_bucket, source_object)
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """
+        Implementing _on_complete because execute method does preprocessing on internals.
+
+        This means we won't have to normalize self.source_object and self.source_objects,
+        destination bucket and so on.
+        """
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        return OperatorLineage(
+            inputs=[
+                Dataset(namespace=f"gs://{self.source_bucket}", name=source)
+                for source in sorted(self.resolved_source_objects)
+            ],
+            outputs=[
+                Dataset(namespace=f"gs://{self.destination_bucket}", name=target)
+                for target in sorted(self.resolved_target_objects)
+            ],
+        )

@@ -146,7 +146,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-airflow-config-yaml-consistent                      | Check consistency between config.yml and default_config.cfg  |         |
+| check-airflow-k8s-not-used                                | Check airflow.kubernetes imports are not used                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -165,11 +165,15 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                           | Make sure days_ago is imported from airflow.utils.dates      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-deferrable-default-value                            | Check default value of deferrable attribute                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-docstring-param-types                               | Check that docstrings do not specify param types             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -182,6 +186,8 @@ require Breeze Docker image to be built locally.
 | check-extras-order                                        | Check order of extras in Dockerfile                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-for-inclusive-language                              | Check for language that we do not accept as community        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-google-re2-as-dependency                            | Check google-re2 is declared as dependency when needed       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -234,6 +240,8 @@ require Breeze Docker image to be built locally.
 | check-tests-unittest-testcase                             | Check that unit tests do not inherit from unittest.TestCase  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-urlparse-usage-in-code                              | Don't use urlparse in code                                   |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-usage-of-re2-over-re                                | Use re2 module instead of re                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-xml                                                 | Check XML files with xmllint                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

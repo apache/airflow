@@ -18,6 +18,8 @@
 """This module contains Apache Beam operators."""
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import copy
 import os
 import stat
@@ -26,11 +28,13 @@ from abc import ABC, ABCMeta, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
 from functools import partial
-from typing import TYPE_CHECKING, Callable, Sequence
+from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
+from airflow.providers.apache.beam.triggers.beam import BeamPipelineTrigger
 from airflow.providers.google.cloud.hooks.dataflow import (
     DataflowHook,
     process_line_and_extract_dataflow_job_id_callback,
@@ -47,7 +51,8 @@ if TYPE_CHECKING:
 
 class BeamDataflowMixin(metaclass=ABCMeta):
     """
-    Helper class to store common, Dataflow specific logic for both
+    Helper class to store common, Dataflow specific logic for both.
+
     :class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`,
     :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` and
     :class:`~airflow.providers.apache.beam.operators.beam.BeamRunGoPipelineOperator`.
@@ -143,7 +148,7 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         When defining labels (labels option), you can also provide a dictionary.
     :param gcp_conn_id: Optional.
         The connection ID to use connecting to Google Cloud Storage if python file is on GCS.
-    :param dataflow_config: Dataflow configuration, used when runner type is set to DataflowRunner,
+    :param dataflow_config: Dataflow's configuration, used when runner type is set to DataflowRunner,
         (optional) defaults to None.
     """
 
@@ -166,7 +171,7 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
             self.dataflow_config = DataflowConfiguration(**dataflow_config)
         else:
             self.dataflow_config = dataflow_config or DataflowConfiguration()
-        self.beam_hook: BeamHook | None = None
+        self.beam_hook: BeamHook
         self.dataflow_hook: DataflowHook | None = None
         self.dataflow_job_id: str | None = None
 
@@ -205,11 +210,13 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
 
 class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
     """
-    Launching Apache Beam pipelines written in Python. Note that both
-    ``default_pipeline_options`` and ``pipeline_options`` will be merged to specify pipeline
-    execution parameter, and ``default_pipeline_options`` is expected to save
-    high-level options, for instances, project and zone information, which
-    apply to all beam operators in the DAG.
+    Launch Apache Beam pipelines written in Python.
+
+    Note that both ``default_pipeline_options`` and ``pipeline_options``
+    will be merged to specify pipeline execution parameter, and
+    ``default_pipeline_options`` is expected to save high-level options,
+    for instances, project and zone information, which apply to all beam
+    operators in the DAG.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -234,8 +241,8 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         to use a different version.
     :param py_system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
-
         This option is only relevant if the ``py_requirements`` parameter is not None.
+    :param deferrable: Run operator in the deferrable mode: checks for the state using asynchronous calls.
     """
 
     template_fields: Sequence[str] = (
@@ -261,6 +268,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         py_system_site_packages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         dataflow_config: DataflowConfiguration | dict | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(
@@ -280,35 +288,47 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         self.pipeline_options.setdefault("labels", {}).update(
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
         )
+        self.deferrable = deferrable
 
     def execute(self, context: Context):
         """Execute the Apache Beam Pipeline."""
         (
-            is_dataflow,
-            dataflow_job_name,
-            snake_case_pipeline_options,
-            process_line_callback,
+            self.is_dataflow,
+            self.dataflow_job_name,
+            self.snake_case_pipeline_options,
+            self.process_line_callback,
         ) = self._init_pipeline_options(format_pipeline_options=True, job_name_variable_key="job_name")
-
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
+        # Check deferrable parameter passed to the operator
+        # to determine type of run - asynchronous or synchronous
+        if self.deferrable:
+            asyncio.run(self.execute_async(context))
+        else:
+            return self.execute_sync(context)
 
+    def execute_sync(self, context: Context):
         with ExitStack() as exit_stack:
+            gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
             if self.py_file.lower().startswith("gs://"):
-                gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
+            if self.snake_case_pipeline_options.get("requirements_file", "").startswith("gs://"):
+                tmp_req_file = exit_stack.enter_context(
+                    gcs_hook.provide_file(object_url=self.snake_case_pipeline_options["requirements_file"])
+                )
+                self.snake_case_pipeline_options["requirements_file"] = tmp_req_file.name
 
-            if is_dataflow and self.dataflow_hook:
+            if self.is_dataflow and self.dataflow_hook:
                 with self.dataflow_hook.provide_authorized_gcloud():
                     self.beam_hook.start_python_pipeline(
-                        variables=snake_case_pipeline_options,
+                        variables=self.snake_case_pipeline_options,
                         py_file=self.py_file,
                         py_options=self.py_options,
                         py_interpreter=self.py_interpreter,
                         py_requirements=self.py_requirements,
                         py_system_site_packages=self.py_system_site_packages,
-                        process_line_callback=process_line_callback,
+                        process_line_callback=self.process_line_callback,
                     )
                 DataflowJobLink.persist(
                     self,
@@ -317,25 +337,83 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                     self.dataflow_config.location,
                     self.dataflow_job_id,
                 )
-                if dataflow_job_name and self.dataflow_config.location:
-                    self.dataflow_hook.wait_for_done(
-                        job_name=dataflow_job_name,
-                        location=self.dataflow_config.location,
-                        job_id=self.dataflow_job_id,
-                        multiple_jobs=False,
-                        project_id=self.dataflow_config.project_id,
-                    )
                 return {"dataflow_job_id": self.dataflow_job_id}
             else:
                 self.beam_hook.start_python_pipeline(
-                    variables=snake_case_pipeline_options,
+                    variables=self.snake_case_pipeline_options,
                     py_file=self.py_file,
                     py_options=self.py_options,
                     py_interpreter=self.py_interpreter,
                     py_requirements=self.py_requirements,
                     py_system_site_packages=self.py_system_site_packages,
-                    process_line_callback=process_line_callback,
+                    process_line_callback=self.process_line_callback,
                 )
+
+    async def execute_async(self, context: Context):
+        # Creating a new event loop to manage I/O operations asynchronously
+        loop = asyncio.get_event_loop()
+        if self.py_file.lower().startswith("gs://"):
+            gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
+            # Running synchronous `enter_context()` method in a separate
+            # thread using the default executor `None`. The `run_in_executor()` function returns the
+            # file object, which is created using gcs function `provide_file()`, asynchronously.
+            # This means we can perform asynchronous operations with this file.
+            create_tmp_file_call = gcs_hook.provide_file(object_url=self.py_file)
+            tmp_gcs_file: IO[str] = await loop.run_in_executor(
+                None, contextlib.ExitStack().enter_context, create_tmp_file_call
+            )
+            self.py_file = tmp_gcs_file.name
+
+        if self.is_dataflow and self.dataflow_hook:
+            DataflowJobLink.persist(
+                self,
+                context,
+                self.dataflow_config.project_id,
+                self.dataflow_config.location,
+                self.dataflow_job_id,
+            )
+            with self.dataflow_hook.provide_authorized_gcloud():
+                self.defer(
+                    trigger=BeamPipelineTrigger(
+                        variables=self.snake_case_pipeline_options,
+                        py_file=self.py_file,
+                        py_options=self.py_options,
+                        py_interpreter=self.py_interpreter,
+                        py_requirements=self.py_requirements,
+                        py_system_site_packages=self.py_system_site_packages,
+                        runner=self.runner,
+                    ),
+                    method_name="execute_complete",
+                )
+        else:
+            self.defer(
+                trigger=BeamPipelineTrigger(
+                    variables=self.snake_case_pipeline_options,
+                    py_file=self.py_file,
+                    py_options=self.py_options,
+                    py_interpreter=self.py_interpreter,
+                    py_requirements=self.py_requirements,
+                    py_system_site_packages=self.py_system_site_packages,
+                    runner=self.runner,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]):
+        """
+        Execute when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        self.log.info(
+            "%s completed with response %s ",
+            self.task_id,
+            event["message"],
+        )
+        return {"dataflow_job_id": self.dataflow_job_id}
 
     def on_kill(self) -> None:
         if self.dataflow_hook and self.dataflow_job_id:
@@ -498,11 +576,13 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
 class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
     """
-    Launching Apache Beam pipelines written in Go. Note that both
-    ``default_pipeline_options`` and ``pipeline_options`` will be merged to specify pipeline
-    execution parameter, and ``default_pipeline_options`` is expected to save
-    high-level options, for instances, project and zone information, which
-    apply to all beam operators in the DAG.
+    Launch Apache Beam pipelines written in Go.
+
+    Note that both ``default_pipeline_options`` and ``pipeline_options``
+    will be merged to specify pipeline execution parameter, and
+    ``default_pipeline_options`` is expected to save high-level options,
+    for instances, project and zone information, which apply to all beam
+    operators in the DAG.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

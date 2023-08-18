@@ -32,6 +32,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 class PinotAdminHook(BaseHook):
     """
     This hook is a wrapper around the pinot-admin.sh script.
+
     For now, only small subset of its subcommands are implemented,
     which are required to ingest offline data into Apache Pinot
     (i.e., AddSchema, AddTable, CreateSegment, and UploadSegment).
@@ -287,10 +288,10 @@ class PinotDbApiHook(DbApiHook):
         return f"{conn_type}://{host}/{endpoint}"
 
     def get_records(
-        self, sql: str | list[str], parameters: Iterable | Mapping | None = None, **kwargs
+        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
     ) -> Any:
         """
-        Executes the sql and returns a set of records.
+        Execute the sql and returns a set of records.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -300,9 +301,9 @@ class PinotDbApiHook(DbApiHook):
             cur.execute(sql)
             return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
-        Executes the sql and returns the first resulting row.
+        Execute the sql and returns the first resulting row.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute

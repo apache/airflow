@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import shlex
 import warnings
@@ -26,7 +27,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.cli import cli_parser
+from airflow.cli import cli_config, cli_parser
 from airflow.cli.commands import connection_command
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -166,9 +167,7 @@ class TestCliExportConnections:
         def my_side_effect(_):
             raise Exception("dummy exception")
 
-        mock_session.return_value.__enter__.return_value.query.return_value.order_by.side_effect = (
-            my_side_effect
-        )
+        mock_session.return_value.__enter__.return_value.scalars.side_effect = my_side_effect
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         with pytest.raises(Exception, match=r"dummy exception"):
             connection_command.connections_export(args)
@@ -938,6 +937,7 @@ class TestCliTestConnections:
     def setup_class(self):
         clear_db_connections()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
     def test_cli_connections_test_success(self, mock_test_conn):
         """Check that successful connection test result is displayed properly."""
@@ -948,6 +948,7 @@ class TestCliTestConnections:
 
             assert "Connection success!" in stdout.getvalue()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
     def test_cli_connections_test_fail(self, mock_test_conn):
         """Check that failed connection test result is displayed properly."""
@@ -958,9 +959,28 @@ class TestCliTestConnections:
 
             assert "Connection failed!\nFailed.\n\n" in stdout.getvalue()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_cli_connections_test_missing_conn(self):
         """Check a connection test on a non-existent connection raises a "Connection not found" message."""
         with redirect_stdout(io.StringIO()) as stdout, pytest.raises(SystemExit):
             connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+        assert "Connection not found.\n\n" in stdout.getvalue()
 
-            assert "Connection not found.\n\n" in stdout.getvalue()
+    def test_cli_connections_test_disabled_by_default(self):
+        """Check that test connection functionality is disabled by default."""
+        with redirect_stdout(io.StringIO()) as stdout, pytest.raises(SystemExit):
+            connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+        assert (
+            "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "
+            "enable it.\n\n"
+        ) in stdout.getvalue()
+
+
+class TestCliCreateDefaultConnection:
+    @mock.patch("airflow.cli.commands.connection_command.db_create_default_connections")
+    def test_cli_create_default_connections(self, mock_db_create_default_connections):
+        create_default_connection_fnc = dict(
+            (db_command.name, db_command.func) for db_command in cli_config.CONNECTIONS_COMMANDS
+        )["create-default-connections"]
+        create_default_connection_fnc(())
+        mock_db_create_default_connections.assert_called_once()

@@ -31,15 +31,14 @@ from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 with contextlib.suppress(ImportError, NameError):
-    from airflow.kubernetes import kube_client
+    from airflow.providers.cncf.kubernetes import kube_client
 
 ALLOWED_SPARK_BINARIES = ["spark-submit", "spark2-submit", "spark3-submit"]
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
-    This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
-    It requires that the "spark-submit" binary is in the PATH.
+    Wrap the spark-submit binary to kick off a spark-submit job; requires "spark-submit" binary in the PATH.
 
     :param conf: Arbitrary Spark configuration properties
     :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
@@ -88,7 +87,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "login", "password"],
             "relabeling": {},
@@ -446,7 +445,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _process_spark_submit_log(self, itr: Iterator[Any]) -> None:
         """
-        Processes the log files and extracts useful information out of it.
+        Process the log files and extract useful information out of it.
 
         If the deploy-mode is 'client', log the output of the submit command as those
         are the output logs of the Spark worker directly.
@@ -493,7 +492,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _process_spark_status_log(self, itr: Iterator[Any]) -> None:
         """
-        Parses the logs of the spark driver status query process.
+        Parse the logs of the spark driver status query process.
 
         :param itr: An iterator which iterates over the input of the subprocess
         """
@@ -519,7 +518,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _start_driver_status_tracking(self) -> None:
         """
-        Polls the driver based on self._driver_id to get the status.
+        Poll the driver based on self._driver_id to get the status.
+
         Finish successfully when the status is FINISHED.
         Finish failed when the status is ERROR/UNKNOWN/KILLED/FAILED.
 

@@ -56,7 +56,7 @@ from airflow.utils.file import iter_airflow_imports, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
@@ -415,7 +415,7 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def manage_slas(cls, dag_folder, dag_id: str, session: Session = NEW_SESSION) -> None:
         """
-        Finding all tasks that have SLAs defined, and sending alert emails when needed.
+        Find all tasks that have SLAs defined, and send alert emails when needed.
 
         New SLA misses are also recorded in the database.
 
@@ -433,7 +433,7 @@ class DagFileProcessor(LoggingMixin):
             session.query(TI.task_id, func.max(DR.execution_date).label("max_ti"))
             .join(TI.dag_run)
             .filter(TI.dag_id == dag.dag_id)
-            .filter(or_(TI.state == State.SUCCESS, TI.state == State.SKIPPED))
+            .filter(or_(TI.state == TaskInstanceState.SUCCESS, TI.state == TaskInstanceState.SKIPPED))
             .filter(TI.task_id.in_(dag.task_ids))
             .group_by(TI.task_id)
             .subquery("sq")
@@ -500,7 +500,11 @@ class DagFileProcessor(LoggingMixin):
             sla_dates: list[datetime] = [sla.execution_date for sla in slas]
             fetched_tis: list[TI] = (
                 session.query(TI)
-                .filter(TI.state != State.SUCCESS, TI.execution_date.in_(sla_dates), TI.dag_id == dag.dag_id)
+                .filter(
+                    TI.dag_id == dag.dag_id,
+                    TI.execution_date.in_(sla_dates),
+                    TI.state != TaskInstanceState.SUCCESS,
+                )
                 .all()
             )
             blocking_tis: list[TI] = []
@@ -569,9 +573,9 @@ class DagFileProcessor(LoggingMixin):
             for task in tasks_missed_sla:
                 if task.email:
                     if isinstance(task.email, str):
-                        emails |= set(get_email_address_list(task.email))
+                        emails.update(get_email_address_list(task.email))
                     elif isinstance(task.email, (list, tuple)):
-                        emails |= set(task.email)
+                        emails.update(task.email)
             if emails:
                 try:
                     send_email(emails, f"[airflow] SLA miss on DAG={dag.dag_id}", email_content)
@@ -598,6 +602,7 @@ class DagFileProcessor(LoggingMixin):
     ) -> None:
         """
         Update any import errors to be displayed in the UI.
+
         For the DAGs in the given DagBag, record any associated import errors and clears
         errors for files that no longer have them. These are usually displayed through the
         Airflow UI so that users know that there are issues parsing DAGs.
@@ -640,16 +645,14 @@ class DagFileProcessor(LoggingMixin):
 
     @provide_session
     def _validate_task_pools(self, *, dagbag: DagBag, session: Session = NEW_SESSION):
-        """Validates and raise exception if any task in a dag is using a non-existent pool."""
+        """Validate and raise exception if any task in a dag is using a non-existent pool."""
         from airflow.models.pool import Pool
 
         def check_pools(dag):
             task_pools = {task.pool for task in dag.tasks}
             nonexistent_pools = task_pools - pools
             if nonexistent_pools:
-                return (
-                    f"Dag '{dag.dag_id}' references non-existent pools: {list(sorted(nonexistent_pools))!r}"
-                )
+                return f"Dag '{dag.dag_id}' references non-existent pools: {sorted(nonexistent_pools)!r}"
 
         pools = {p.pool for p in Pool.get_pools(session)}
         for dag in dagbag.dags.values():
@@ -664,6 +667,7 @@ class DagFileProcessor(LoggingMixin):
     def update_dag_warnings(self, *, session: Session, dagbag: DagBag) -> None:
         """
         Update any import warnings to be displayed in the UI.
+
         For the DAGs in the given DagBag, record any associated configuration warnings and clear
         warnings for files that no longer have them. These are usually displayed through the
         Airflow UI so that users know that there are issues parsing DAGs.
@@ -673,9 +677,7 @@ class DagFileProcessor(LoggingMixin):
         """
         self._validate_task_pools(dagbag=dagbag)
 
-        stored_warnings = set(
-            session.query(DagWarning).filter(DagWarning.dag_id.in_(dagbag.dags.keys())).all()
-        )
+        stored_warnings = set(session.query(DagWarning).filter(DagWarning.dag_id.in_(dagbag.dags)).all())
 
         for warning_to_delete in stored_warnings - self.dag_warnings:
             session.delete(warning_to_delete)
@@ -691,6 +693,7 @@ class DagFileProcessor(LoggingMixin):
     ) -> None:
         """
         Execute on failure callbacks.
+
         These objects can come from SchedulerJobRunner or from DagProcessorJobRunner.
 
         :param dagbag: Dag Bag of dags

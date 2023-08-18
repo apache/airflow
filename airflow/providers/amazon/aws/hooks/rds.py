@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Callable
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
     from mypy_boto3_rds import RDSClient  # noqa
@@ -145,7 +146,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
     def get_export_task_state(self, export_task_id: str) -> str:
         """
-        Gets the current state of an RDS snapshot export to Amazon S3.
+        Get the current state of an RDS snapshot export to Amazon S3.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_export_tasks`
@@ -186,7 +187,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
 
     def get_event_subscription_state(self, subscription_name: str) -> str:
         """
-        Gets the current state of an RDS snapshot export to Amazon S3.
+        Get the current state of an RDS snapshot export to Amazon S3.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_event_subscriptions`
@@ -265,9 +266,14 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         target_state = target_state.lower()
         if target_state in ("available", "deleted"):
             waiter = self.conn.get_waiter(f"db_instance_{target_state}")  # type: ignore
-            waiter.wait(
-                DBInstanceIdentifier=db_instance_id,
-                WaiterConfig={"Delay": check_interval, "MaxAttempts": max_attempts},
+            wait(
+                waiter=waiter,
+                waiter_delay=check_interval,
+                waiter_max_attempts=max_attempts,
+                args={"DBInstanceIdentifier": db_instance_id},
+                failure_message=f"Rdb DB instance failed to reach state {target_state}",
+                status_message="Rds DB instance state is",
+                status_args=["DBInstances[0].DBInstanceStatus"],
             )
         else:
             self._wait_for_state(poke, target_state, check_interval, max_attempts)
@@ -329,7 +335,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         max_attempts: int,
     ) -> None:
         """
-        Polls the poke function for the current state until it reaches the target_state.
+        Poll the poke function for the current state until it reaches the target_state.
 
         :param poke: A function that returns the current state of the target resource as a string.
         :param target_state: Wait until this state is reached

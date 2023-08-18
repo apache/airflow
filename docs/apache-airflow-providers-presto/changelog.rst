@@ -16,7 +16,4 @@
     specific language governing permissions and limitations
     under the License.
 
-Package ``apache-airflow-providers-presto``
--------------------------------------------
-
 .. include:: ../../airflow/providers/presto/CHANGELOG.rst

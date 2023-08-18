@@ -44,6 +44,12 @@
             "default": "",
             "x-docsSection": null
         },
+        "useStandardNaming": {
+            "description": "Use standard naming for all resources using airflow.fullname template",
+            "type": "boolean",
+            "default": false,
+            "x-docsSection": null
+        },
         "uid": {
             "description": "User of airflow user.",
             "type": "integer",
@@ -71,7 +77,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.6.2",
+            "default": "2.6.3",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -86,7 +92,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.6.2",
+            "default": "2.6.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -912,6 +918,42 @@
                 "- configMapRef:\n    name: '{{ .Release.Name }}-airflow-variables'"
             ]
         },
+        "priorityClasses": {
+            "description": "Priority Classes created by helm charts",
+            "type": "array",
+            "x-docsSection": "Kubernetes",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "preemptionPolicy": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "value"
+                ],
+                "additionalProperties": false
+            },
+            "default": [],
+            "examples": [
+                {
+                    "name": "class1",
+                    "preemptionPolicy": "PreemptLowerPriority",
+                    "value": 10000
+                },
+                {
+                    "name": "class2",
+                    "preemptionPolicy": "Never",
+                    "value": 100000
+                }
+            ]
+        },
         "extraSecrets": {
             "description": "Extra secrets that will be managed by the chart.",
             "type": "object",
@@ -1352,6 +1394,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -1381,7 +1428,7 @@
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Allow KEDA autoscaling. `Persistence.enabled` must be set to false to use KEDA.",
+                            "description": "Allow KEDA autoscaling.",
                             "type": "boolean",
                             "default": false
                         },
@@ -1433,6 +1480,16 @@
                                     }
                                 }
                             }
+                        },
+                        "query": {
+                            "description": "Query to use for KEDA autoscaling. Must return a single integer.",
+                            "type": "string",
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if eq .Values.executor \"CeleryKubernetesExecutor\" }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
+                        },
+                        "usePgbouncer": {
+                            "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
+                            "type": "boolean",
+                            "default": true
                         }
                     }
                 },
@@ -1619,6 +1676,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "runtimeClassName": {
+                    "description": "Specify runtime for worker pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "priorityClassName": {
                     "description": "Specify priority for worker pods.",
@@ -1901,6 +1966,41 @@
                         }
                     }
                 },
+                "startupProbe": {
+                    "description": "Startup probe configuration for scheduler container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 6
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
                 "replicas": {
                     "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for MySQL 8+ and PostgreSQL",
                     "type": "integer",
@@ -1961,6 +2061,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -2390,6 +2495,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -2819,6 +2929,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -3167,6 +3282,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -3413,6 +3533,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -3587,6 +3712,14 @@
             "x-docsSection": "Webserver",
             "additionalProperties": false,
             "properties": {
+                "configMapAnnotations": {
+                    "description": "Extra annotations to apply to the webserver configmap.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "hostAliases": {
                     "description": "HostAliases for the webserver pod.",
                     "items": {
@@ -3678,6 +3811,33 @@
                         }
                     }
                 },
+                "startupProbe": {
+                    "description": "Startup probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "timeoutSeconds": {
+                            "description": "Webserver Startup probe timeout seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Webserver Startup probe failure threshold.",
+                            "type": "integer",
+                            "default": 6
+                        },
+                        "periodSeconds": {
+                            "description": "Webserver Startup probe period seconds.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "scheme": {
+                            "description": "Webserver Startup probe scheme.",
+                            "type": "string",
+                            "default": "HTTP"
+                        }
+                    }
+                },
                 "replicas": {
                     "description": "How many Airflow webserver replicas should run.",
                     "type": "integer",
@@ -3730,6 +3890,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -4460,6 +4625,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -4651,6 +4821,14 @@
             "x-docsSection": "StatsD",
             "additionalProperties": false,
             "properties": {
+                "configMapAnnotations": {
+                    "description": "Extra annotations to apply to the statsd configmap.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "enabled": {
                     "description": "Enable StatsD.",
                     "type": "boolean",
@@ -4711,6 +4889,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -4868,6 +5051,27 @@
                     "default": [
                         "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
                     ]
+                },
+                "env": {
+                    "description": "Add additional env vars to statsd container.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
                 }
             }
         },
@@ -5026,10 +5230,24 @@
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the PgBouncer. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the PgBouncer.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the PgBouncer.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 65534,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
                         "container": {
                             "description": "Container security context definition for the PgBouncer.",
                             "type": "object",
@@ -5181,6 +5399,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -5480,6 +5703,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -5773,7 +6001,7 @@
                     "default": false
                 },
                 "schedule": {
-                    "description": "Cleanup schedule.",
+                    "description": "Cleanup schedule (templated).",
                     "type": "string",
                     "default": "*/15 * * * *"
                 },
@@ -5882,6 +6110,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",

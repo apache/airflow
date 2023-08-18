@@ -77,10 +77,10 @@ class StackdriverHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Fetches all the Alert Policies identified by the filter passed as
-        filter parameter. The desired return type can be specified by the
-        format parameter, the supported formats are "dict", "json" and None
-        which returns python dictionary, stringified JSON and protobuf
+        Fetches all the Alert Policies identified by the filter passed as filter parameter.
+
+        The desired return type can be specified by the format parameter, the supported formats
+        are "dict", "json" and None which returns python dictionary, stringified JSON and protobuf
         respectively.
 
         :param format_: (Optional) Desired output format of the result. The
@@ -158,8 +158,9 @@ class StackdriverHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Enables one or more disabled alerting policies identified by filter
-        parameter. Inoperative in case the policy is already enabled.
+        Enables one or more disabled alerting policies identified by filter parameter.
+
+        Inoperative in case the policy is already enabled.
 
         :param project_id: The project in which alert needs to be enabled.
         :param filter_:  If provided, this field specifies the criteria that
@@ -191,8 +192,9 @@ class StackdriverHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Disables one or more enabled alerting policies identified by filter
-        parameter. Inoperative in case the policy is already disabled.
+        Disables one or more enabled alerting policies identified by filter parameter.
+
+        Inoperative in case the policy is already disabled.
 
         :param project_id: The project in which alert needs to be disabled.
         :param filter_:  If provided, this field specifies the criteria that
@@ -224,8 +226,7 @@ class StackdriverHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-         Creates a new alert or updates an existing policy identified
-         the name field in the alerts parameter.
+         Creates a new alert or updates an existing policy identified the name field in the alerts parameter.
 
         :param project_id: The project in which alert needs to be created/updated.
         :param alerts: A JSON string or file that specifies all the alerts that needs
@@ -352,10 +353,10 @@ class StackdriverHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Any:
         """
-        Fetches all the Notification Channels identified by the filter passed as
-        filter parameter. The desired return type can be specified by the
-        format parameter, the supported formats are "dict", "json" and None
-        which returns python dictionary, stringified JSON and protobuf
+        Fetches all the Notification Channels identified by the filter passed as filter parameter.
+
+        The desired return type can be specified by the format parameter, the supported formats are
+        "dict", "json" and None which returns python dictionary, stringified JSON and protobuf
         respectively.
 
         :param format_: (Optional) Desired output format of the result. The
@@ -435,8 +436,9 @@ class StackdriverHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Enables one or more disabled alerting policies identified by filter
-        parameter. Inoperative in case the policy is already enabled.
+        Enables one or more disabled alerting policies identified by filter parameter.
+
+        Inoperative in case the policy is already enabled.
 
         :param project_id: The project in which notification channels needs to be enabled.
         :param filter_:  If provided, this field specifies the criteria that
@@ -468,8 +470,9 @@ class StackdriverHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Disables one or more enabled notification channels identified by filter
-        parameter. Inoperative in case the policy is already disabled.
+        Disables one or more enabled notification channels identified by filter parameter.
+
+        Inoperative in case the policy is already disabled.
 
         :param project_id: The project in which notification channels needs to be enabled.
         :param filter_:  If provided, this field specifies the criteria that
@@ -501,8 +504,9 @@ class StackdriverHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> dict:
         """
-        Creates a new notification or updates an existing notification channel
-        identified the name field in the alerts parameter.
+        Create a new notification or updates an existing notification channel.
+
+        Channel is identified by the name field in the alerts parameter.
 
         :param channels: A JSON string or file that specifies all the alerts that needs
             to be either created or updated. For more details, see

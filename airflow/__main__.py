@@ -34,10 +34,10 @@ import argcomplete
 # any possible import cycles with settings downstream.
 from airflow import configuration
 from airflow.cli import cli_parser
+from airflow.configuration import write_webserver_configuration_if_needed
 
 
 def main():
-    """Main executable function."""
     conf = configuration.conf
     if conf.get("core", "security") == "kerberos":
         os.environ["KRB5CCNAME"] = conf.get("kerberos", "ccache")
@@ -45,6 +45,17 @@ def main():
     parser = cli_parser.get_parser()
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
+
+    if args.subcommand not in ["lazy_loaded", "version"]:
+        # Here we ensure that the default configuration is written if needed before running any command
+        # that might need it. This used to be done during configuration initialization but having it
+        # in main ensures that it is not done during tests and other ways airflow imports are used
+        from airflow.configuration import write_default_airflow_configuration_if_needed
+
+        conf = write_default_airflow_configuration_if_needed()
+        if args.subcommand in ["webserver", "internal-api", "worker"]:
+            write_webserver_configuration_if_needed(conf)
+
     args.func(args)
 
 

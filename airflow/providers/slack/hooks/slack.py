@@ -38,10 +38,8 @@ if TYPE_CHECKING:
 
 
 def _ensure_prefixes(conn_type):
-    """
-    Remove when provider min airflow version >= 2.5.0 since this is handled by
-    provider manager from that version.
-    """
+    # TODO: Remove when provider min airflow version >= 2.5.0 since
+    #       this is handled by provider manager from that version.
 
     def dec(func):
         @wraps(func)

@@ -389,8 +389,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _check_dataflow_job_state(self, job) -> bool:
         """
-        Helper method to check the state of one job in dataflow for this task
-        if job failed raise exception.
+        Helper method to check the state of one job in dataflow for this task if job failed raise exception.
 
         :return: True if job is done.
         :raise: Exception
@@ -1015,8 +1014,12 @@ class DataflowHook(GoogleBaseHook):
         self.log.info("Output: %s", proc.stdout.decode())
         self.log.warning("Stderr: %s", proc.stderr.decode())
         self.log.info("Exit code %d", proc.returncode)
+        stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
         if proc.returncode != 0:
-            raise AirflowException(f"Process exit with non-zero exit code. Exit code: {proc.returncode}")
+            raise AirflowException(
+                f"Process exit with non-zero exit code. Exit code: {proc.returncode} Error Details : "
+                f"{stderr_last_20_lines}"
+            )
         job_id = proc.stdout.decode().strip()
 
         self.log.info("Created job ID: %s", job_id)

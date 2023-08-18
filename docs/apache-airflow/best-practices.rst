@@ -200,10 +200,13 @@ Some cases of dynamic DAG generation are described in the :doc:`howto/dynamic-da
 Airflow Variables
 -----------------
 
-As mentioned in the previous chapter, :ref:`best_practices/top_level_code`. you should avoid
-using Airflow Variables at top level Python code of DAGs. You can use the Airflow Variables freely inside the
-``execute()`` methods of the operators, but you can also pass the Airflow Variables to the existing operators
-via Jinja template, which will delay reading the value until the task execution.
+Using Airflow Variables yields network calls and database access, so their usage in top-level Python code for DAGs
+should be avoided as much as possible, as mentioned in the previous chapter, :ref:`best_practices/top_level_code`.
+If Airflow Variables must be used in top-level DAG code, then their impact on DAG parsing can be mitigated by
+:ref:`enabling the experimental cache<config:secrets__use_cache>`, configured with a sensible :ref:`ttl<config:secrets__cache_ttl_seconds>`.
+
+You can use the Airflow Variables freely inside the ``execute()`` methods of the operators, but you can also pass the
+Airflow Variables to the existing operators via Jinja template, which will delay reading the value until the task execution.
 
 The template syntax to do this is:
 
@@ -217,7 +220,11 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
-In top-level code, variables using jinja templates do not produce a request until a task is running, whereas, ``Variable.get()`` produces a request every time the dag file is parsed by the scheduler. Using ``Variable.get()`` will lead to suboptimal performance in the dag file processing. In some cases this can cause the dag file to timeout before it is fully parsed.
+In top-level code, variables using jinja templates do not produce a request until a task is running, whereas,
+``Variable.get()`` produces a request every time the dag file is parsed by the scheduler if caching is not enabled.
+Using ``Variable.get()`` without :ref:`enabling caching<config:secrets__use_cache>` will lead to suboptimal
+performance in the dag file processing.
+In some cases this can cause the dag file to timeout before it is fully parsed.
 
 Bad example:
 
@@ -225,20 +232,20 @@ Bad example:
 
     from airflow.models import Variable
 
-    foo_var = Variable.get("foo")  # DON'T DO THAT
+    foo_var = Variable.get("foo")  # AVOID THAT
     bash_use_variable_bad_1 = BashOperator(
         task_id="bash_use_variable_bad_1", bash_command="echo variable foo=${foo_env}", env={"foo_env": foo_var}
     )
 
     bash_use_variable_bad_2 = BashOperator(
         task_id="bash_use_variable_bad_2",
-        bash_command=f"echo variable foo=${Variable.get('foo')}",  # DON'T DO THAT
+        bash_command=f"echo variable foo=${Variable.get('foo')}",  # AVOID THAT
     )
 
     bash_use_variable_bad_3 = BashOperator(
         task_id="bash_use_variable_bad_3",
         bash_command="echo variable foo=${foo_env}",
-        env={"foo_env": Variable.get("foo")},  # DON'T DO THAT
+        env={"foo_env": Variable.get("foo")},  # AVOID THAT
     )
 
 
@@ -393,6 +400,34 @@ We have several tasks that serve different purposes:
 It's important to note, that without ``watcher`` task, the whole DAG Run will get the ``success`` state, since the only failing task is not the leaf task, and the ``teardown`` task will finish with ``success``.
 If we want the ``watcher`` to monitor the state of all tasks, we need to make it dependent on all of them separately. Thanks to this, we can fail the DAG Run if any of the tasks fail. Note that the watcher task has a trigger rule set to ``"one_failed"``.
 On the other hand, without the ``teardown`` task, the ``watcher`` task will not be needed, because ``failing_task`` will propagate its ``failed`` state to downstream task ``passed_task`` and the whole DAG Run will also get the ``failed`` status.
+
+
+Using AirflowClusterPolicySkipDag exception in cluster policies to skip specific DAGs
+-------------------------------------------------------------------------------------
+
+.. versionadded:: 2.7
+
+Airflow DAGs can usually be deployed and updated with the specific branch of Git repository via ``git-sync``.
+But, when you have to run multiple Airflow clusters for some operational reasons, it's very cumbersome to maintain multiple Git branches.
+Especially, you have some difficulties when you need to synchronize two separate branches(like ``prod`` and ``beta``) periodically with proper branching strategy.
+
+- cherry-pick is too cumbersome to maintain Git repository.
+- hard-reset is not recommended way for GitOps
+
+So, you can consider connecting multiple Airflow clusters with same Git branch (like ``main``), and maintaining those with different environment variables and different connection configurations with same ``connection_id``.
+you can also raise :class:`~airflow.exceptions.AirflowClusterPolicySkipDag` exception on the cluster policy, to load specific DAGs to :class:`~airflow.models.dagbag.DagBag` on the specific Airflow deployment only, if needed.
+
+.. code-block:: python
+
+  def dag_policy(dag: DAG):
+      """Skipping the DAG with `only_for_beta` tag."""
+
+      if "only_for_beta" in dag.tags:
+          raise AirflowClusterPolicySkipDag(
+              f"DAG {dag.dag_id} is not loaded on the production cluster, due to `only_for_beta` tag."
+          )
+
+The example above, shows the ``dag_policy`` code snippet to skip the DAG depending on the tags it has.
 
 .. _best_practices/reducing_dag_complexity:
 
