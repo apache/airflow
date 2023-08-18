@@ -110,16 +110,13 @@ class LazyRichHelpFormatter(RawTextRichHelpFormatter):
 
 @lru_cache(maxsize=None)
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
-    """Creates and returns command line argument parser."""
+    """Create and returns command line argument parser."""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
     subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
     subparsers.required = True
 
     command_dict = DAG_CLI_DICT if dag_parser else ALL_COMMANDS_DICT
-    subparser_list = command_dict.keys()
-    sub_name: str
-    for sub_name in sorted(subparser_list):
-        sub: CLICommand = command_dict[sub_name]
+    for _, sub in sorted(command_dict.items()):
         _add_command(subparsers, sub)
     return parser
 

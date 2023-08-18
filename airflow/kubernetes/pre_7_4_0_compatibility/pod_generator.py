@@ -15,8 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Pod generator compatible with cncf-providers released before 2.7.0 of airflow (so pre-7.4.0 of
-the cncf.kubernetes provider).
+Pod generator compatible with cncf-providers released before 2.7.0 of airflow.
+
+Compatible with pre-7.4.0 of the cncf.kubernetes provider.
 
 This module provides an interface between the previous Pod
 API and outputs a kubernetes.client.models.V1Pod.
@@ -164,7 +165,7 @@ class PodGenerator:
         self.extract_xcom = extract_xcom
 
     def gen_pod(self) -> k8s.V1Pod:
-        """Generates pod."""
+        """Generate pod."""
         warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
         result = self.ud_pod
 
@@ -177,7 +178,7 @@ class PodGenerator:
 
     @staticmethod
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Adds sidecar."""
+        """Add sidecar."""
         warnings.warn(
             "This function is deprecated. "
             "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
@@ -193,7 +194,7 @@ class PodGenerator:
 
     @staticmethod
     def from_obj(obj) -> dict | k8s.V1Pod | None:
-        """Converts to pod from obj."""
+        """Convert to pod from obj."""
         if obj is None:
             return None
 
@@ -227,7 +228,7 @@ class PodGenerator:
 
     @staticmethod
     def from_legacy_obj(obj) -> k8s.V1Pod | None:
-        """Converts to pod from obj."""
+        """Convert to pod from obj."""
         if obj is None:
             return None
 

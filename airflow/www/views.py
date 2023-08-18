@@ -70,7 +70,7 @@ from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import Date, and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
-from wtforms import validators
+from wtforms import BooleanField, validators
 
 import airflow
 from airflow import models, plugins_manager, settings
@@ -289,8 +289,9 @@ def node_dict(node_id, label, node_class):
 
 def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
     """
-    Create a nested dict representation of the DAG's TaskGroup and its children
-    used to construct the Graph and Grid views.
+    Create a nested dict representation of the DAG's TaskGroup and its children.
+
+    Used to construct the Graph and Grid views.
     """
     query = session.execute(
         select(
@@ -593,8 +594,9 @@ def get_task_stats_from_query(qry):
 
 def redirect_or_json(origin, msg, status="", status_code=200):
     """
-    Some endpoints are called by javascript,
-    returning json will allow us to more elegantly handle side-effects in-page.
+    Returning json will allow us to more elegantly handle side effects in-page.
+
+    This is useful because some endpoints are called by javascript.
     """
     if request.headers.get("Accept") == "application/json":
         if status == "error" and status_code == 200:
@@ -705,8 +707,9 @@ class Airflow(AirflowBaseView):
     @expose("/health")
     def health(self):
         """
-        An endpoint helping check the health status of the Airflow instance,
-        including metadatabase, scheduler and triggerer.
+        An endpoint helping check the health status of the Airflow instance.
+
+        Includes metadatabase, scheduler and triggerer.
         """
         airflow_health_status = get_airflow_health()
 
@@ -989,6 +992,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/dags.html",
             dags=dags,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             dashboard_alerts=dashboard_alerts,
             migration_moved_data_alerts=sorted(set(_iter_parsed_moved_data_table_names())),
             current_page=current_page,
@@ -1405,6 +1409,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/dag_details.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             dag_model=dag_model,
             title=title,
             root=root,
@@ -1460,6 +1465,9 @@ class Airflow(AirflowBaseView):
                 flash(f"there is no task instance with the provided map_index {map_index}", "error")
                 return self.render_template(
                     "airflow/ti_code.html",
+                    show_trigger_form_if_no_params=conf.getboolean(
+                        "webserver", "show_trigger_form_if_no_params"
+                    ),
                     html_dict=html_dict,
                     dag=dag,
                     task_id=task_id,
@@ -1518,6 +1526,7 @@ class Airflow(AirflowBaseView):
 
         return self.render_template(
             "airflow/ti_code.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             html_dict=html_dict,
             dag=dag,
             task_id=task_id,
@@ -1582,6 +1591,7 @@ class Airflow(AirflowBaseView):
 
         return self.render_template(
             "airflow/ti_code.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             html_dict={"k8s": content},
             dag=dag,
             task_id=task_id,
@@ -1717,6 +1727,7 @@ class Airflow(AirflowBaseView):
         root = request.args.get("root", "")
         return self.render_template(
             "airflow/ti_log.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             logs=logs,
             dag=dag_model,
             title="Log by attempts",
@@ -1884,6 +1895,7 @@ class Airflow(AirflowBaseView):
         title = "Task Instance Details"
         return self.render_template(
             "airflow/task.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             task_attrs=task_attrs,
             ti_attrs=ti_attrs,
             failed_dep_reasons=failed_dep_reasons or no_failed_deps_result,
@@ -1926,19 +1938,20 @@ class Airflow(AirflowBaseView):
             flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
             return redirect(url_for("Airflow.index"))
 
-        xcom_query = session.execute(
-            select(XCom.key, XCom.value).where(
+        xcom_query = session.scalars(
+            select(XCom).where(
                 XCom.dag_id == dag_id,
                 XCom.task_id == task_id,
                 XCom.execution_date == dttm,
                 XCom.map_index == map_index,
             )
         )
-        attributes = [(k, v) for k, v in xcom_query if not k.startswith("_")]
+        attributes = [(xcom.key, xcom.value) for xcom in xcom_query if not xcom.key.startswith("_")]
 
         title = "XCom"
         return self.render_template(
             "airflow/xcom.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             attributes=attributes,
             task_id=task_id,
             execution_date=execution_date,
@@ -2031,6 +2044,7 @@ class Airflow(AirflowBaseView):
                     form_fields[k]["schema"]["custom_html_form"]
                 )
         ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
+        show_trigger_form_if_no_params = conf.getboolean("webserver", "show_trigger_form_if_no_params")
 
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
@@ -2057,7 +2071,7 @@ class Airflow(AirflowBaseView):
             if isinstance(run_conf, dict) and any(run_conf)
         }
 
-        if request.method == "GET" and ui_fields_defined:
+        if request.method == "GET" and (ui_fields_defined or show_trigger_form_if_no_params):
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ""
 
@@ -2924,6 +2938,7 @@ class Airflow(AirflowBaseView):
 
         return self.render_template(
             "airflow/grid.html",
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             root=root,
             dag=dag,
             doc_md=doc_md,
@@ -3071,6 +3086,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/calendar.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             doc_md=wwwutils.wrapped_markdown(getattr(dag, "doc_md", None)),
             data=htmlsafe_json_dumps(data, separators=(",", ":")),  # Avoid spaces to reduce payload size.
             root=root,
@@ -3251,8 +3267,7 @@ class Airflow(AirflowBaseView):
                 y=scale_time_units(cumulative_y[task_id], cum_y_unit),
             )
 
-        dates = sorted({ti.execution_date for ti in task_instances})
-        max_date = max(ti.execution_date for ti in task_instances) if dates else None
+        max_date = max((ti.execution_date for ti in task_instances), default=None)
 
         session.commit()
 
@@ -3274,6 +3289,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/duration_chart.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -3350,8 +3366,7 @@ class Airflow(AirflowBaseView):
             if x_points:
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
-        tries = sorted({ti.try_number for ti in tis})
-        max_date = max(ti.execution_date for ti in tis) if tries else None
+        max_date = max((ti.execution_date for ti in tis), default=None)
         chart.create_y_axis("yAxis", format=".02f", custom_format=False, label="Tries")
         chart.axislist["yAxis"]["axisLabelDistance"] = "-15"
 
@@ -3369,6 +3384,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/chart.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             root=root,
             form=form,
             chart=Markup(chart.htmlcontent),
@@ -3475,6 +3491,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/chart.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             chart=Markup(chart.htmlcontent),
             height=f"{chart_height + 100}px",
             root=root,
@@ -3859,8 +3876,10 @@ class Airflow(AirflowBaseView):
     @expose("/object/datasets_summary")
     @auth.has_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
     def datasets_summary(self):
-        """Get a summary of datasets, including the datetime they were last updated and how many updates
-        they've ever had.
+        """
+        Get a summary of datasets.
+
+        Includes the datetime they were last updated and how many updates they've ever had.
         """
         allowed_attrs = ["uri", "last_dataset_update"]
 
@@ -3874,7 +3893,7 @@ class Airflow(AirflowBaseView):
         updated_before = _safe_parse_datetime(request.args.get("updated_before"), allow_empty=True)
 
         # Check and clean up query parameters
-        limit = 50 if limit > 50 else limit
+        limit = min(50, limit)
 
         uri_pattern = uri_pattern[:4000]
 
@@ -3954,9 +3973,11 @@ class Airflow(AirflowBaseView):
     @action_logging
     def robots(self):
         """
-        Returns a robots.txt file for blocking certain search engine crawlers. This mitigates some
-        of the risk associated with exposing Airflow to the public internet, however it does not
-        address the real security risks associated with such a deployment.
+        Returns a robots.txt file for blocking certain search engine crawlers.
+
+        This mitigates some of the risk associated with exposing Airflow to the public
+        internet, however it does not address the real security risks associated with
+        such a deployment.
         """
         return send_from_directory(get_airflow_app().static_folder, "robots.txt")
 
@@ -4018,6 +4039,7 @@ class Airflow(AirflowBaseView):
         return self.render_template(
             "airflow/dag_audit_log.html",
             dag=dag,
+            show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
             dag_model=dag_model,
             root=request.args.get("root"),
             dag_id=dag_id,
@@ -4139,7 +4161,8 @@ class DagFilter(BaseFilter):
 
 
 class AirflowModelView(ModelView):
-    """Airflow Mode View.
+    """
+    Airflow Mode View.
 
     Overridden `__getattribute__` to wraps REST methods with action_logger
     """
@@ -4150,7 +4173,9 @@ class AirflowModelView(ModelView):
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
     def __getattribute__(self, attr):
-        """Wraps action REST methods with `action_logging` wrapper
+        """
+        Wraps action REST methods with `action_logging` wrapper.
+
         Overriding enables differentiating resource and generation of event name at the decorator level.
 
         if attr in ["show", "list", "read", "get", "get_list"]:
@@ -4172,8 +4197,9 @@ class AirflowModelView(ModelView):
 
 class AirflowPrivilegeVerifierModelView(AirflowModelView):
     """
-    This ModelView prevents ability to pass primary keys of objects relating to DAGs you shouldn't be able to
-    edit. This only holds for the add, update and delete operations.
+    Prevents ability to pass primary keys of objects relating to DAGs you shouldn't be able to edit.
+
+    This only holds for the add, update and delete operations.
     You will still need to use the `action_has_dag_edit_access()` for actions.
     """
 
@@ -4846,7 +4872,6 @@ class ProviderView(AirflowBaseView):
 
         cd = escape(description)
         cd = re2.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
-        cd = re2.sub(r"\n", r"<br>", cd)
         return Markup(cd)
 
 
@@ -4874,9 +4899,17 @@ class PoolModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ["pool", "slots", "running_slots", "queued_slots", "scheduled_slots"]
-    add_columns = ["pool", "slots", "description"]
-    edit_columns = ["pool", "slots", "description"]
+    list_columns = ["pool", "slots", "running_slots", "queued_slots", "scheduled_slots", "deferred_slots"]
+    add_columns = ["pool", "slots", "description", "include_deferred"]
+    edit_columns = ["pool", "slots", "description", "include_deferred"]
+
+    # include_deferred is non-nullable, but as a checkbox in the resulting form we want to allow it unchecked
+    include_deferred_field = BooleanField(
+        validators=[validators.Optional()],
+        description="Check to include deferred tasks when calculating open pool slots.",
+    )
+    edit_form_extra_fields = {"include_deferred": include_deferred_field}
+    add_form_extra_fields = {"include_deferred": include_deferred_field}
 
     base_order = ("pool", "asc")
 
@@ -4943,11 +4976,24 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
+    def fdeferred_slots(self):
+        """Deferred slots rendering."""
+        pool_id = self.get("pool")
+        deferred_slots = self.get("deferred_slots")
+        if pool_id is not None and deferred_slots is not None:
+            url = url_for("TaskInstanceModelView.list", _flt_3_pool=pool_id, _flt_3_state="deferred")
+            return Markup("<a href='{url}'>{deferred_slots}</a>").format(
+                url=url, deferred_slots=deferred_slots
+            )
+        else:
+            return Markup('<span class="label label-danger">Invalid</span>')
+
     formatters_columns = {
         "pool": pool_link,
         "running_slots": frunning_slots,
         "queued_slots": fqueued_slots,
         "scheduled_slots": fscheduled_slots,
+        "deferred_slots": fdeferred_slots,
     }
 
     validators_columns = {"pool": [validators.DataRequired()], "slots": [validators.NumberRange(min=-1)]}
@@ -5888,10 +5934,9 @@ class DagDependenciesView(AirflowBaseView):
 
 def add_user_permissions_to_dag(sender, template, context, **extra):
     """
-    Adds `.can_edit`, `.can_trigger`, and `.can_delete` properties
-    to DAG based on current user's permissions.
-    Located in `views.py` rather than the DAG model to keep
-    permissions logic out of the Airflow core.
+    Adds `.can_edit`, `.can_trigger`, and `.can_delete` properties to DAG based on current user's permissions.
+
+    Located in `views.py` rather than the DAG model to keep permissions logic out of the Airflow core.
     """
     if "dag" not in context:
         return

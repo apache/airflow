@@ -28,14 +28,33 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.5.1
+.....
+
+Latest change: 2023-08-10
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`681ee46b21 <https://github.com/apache/airflow/commit/681ee46b21308e8cb38afda9722d3b1a8f91efa0>`_  2023-08-10   ``Fix get_log_events() in AWS logs hook (#33290)``
+`c14cb85f16 <https://github.com/apache/airflow/commit/c14cb85f16b6c9befd35866327fecb4ab9bc0fc4>`_  2023-08-10   ``Improve fetching logs from AWS (#33231)``
+`83bd60fd97 <https://github.com/apache/airflow/commit/83bd60fd97d4ca622adcbd7898d88880fee43054>`_  2023-08-09   ``Refactor: Simplify code in providers/amazon (#33222)``
+`741fb27f50 <https://github.com/apache/airflow/commit/741fb27f50a9fee7fca776abf24c32e22783aa03>`_  2023-08-08   ``Implement EventBridge enable and disable rule operators (#33226)``
+`8bbea9217a <https://github.com/apache/airflow/commit/8bbea9217ae0a3f1049cd10bac838b041b07b7af>`_  2023-08-08   ``Get failure information on EMR job failure (#32151)``
+`46862cfa94 <https://github.com/apache/airflow/commit/46862cfa948cbea885d691ad662109bfcaf2fc8a>`_  2023-08-06   ``Update mypy-boto3-appflow dependency (#32930)``
+`76ca94d2f2 <https://github.com/apache/airflow/commit/76ca94d2f23de298bb46668998c227a86b4ecbd0>`_  2023-08-05   ``use 'cached_property' from functools in 'RdsBaseOperator' (#33133)``
+`03fcbcc96e <https://github.com/apache/airflow/commit/03fcbcc96efb3f34c2d4e219dbaccb7771197670>`_  2023-08-05   ``Use set for 'template_fields' of 'EcsDeregisterTaskDefinitionOperator' (#33129)``
+=================================================================================================  ===========  ===================================================================================
+
 8.5.0
 .....
 
-Latest change: 2023-08-04
+Latest change: 2023-08-05
 
 =================================================================================================  ===========  =========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `519d99baee <https://github.com/apache/airflow/commit/519d99baee058dfa56f293f94222309c493ba3c4>`_  2023-08-04   ``Check google provider version in GCSToS3Operator before provide match_glob param (#32925)``
 `bbc0968905 <https://github.com/apache/airflow/commit/bbc096890512ba2212f318558ca1e954ab399657>`_  2023-08-04   ``openlineage, sagemaker: add missing OpenLineage type signature (#33114)``
 `087d14ada2 <https://github.com/apache/airflow/commit/087d14ada24e87fdf9db58a13acf0f2753191256>`_  2023-08-03   ``Deferrable mode for Sqs Sensor (#32809)``

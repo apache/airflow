@@ -343,3 +343,11 @@ class MockJobRunner(BaseJobRunner):
         if self.func is not None:
             return self.func()
         return None
+
+
+class SchedulerJobRunner(MockJobRunner):
+    job_type = "SchedulerJob"
+
+
+class TriggererJobRunner(MockJobRunner):
+    job_type = "TriggererJob"

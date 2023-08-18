@@ -48,13 +48,6 @@ runs:
           cat "files/constraints-${PYTHON_VERSION}/*.md" >> $GITHUB_STEP_SUMMARY || true
         done
       if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
-    - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE }}
-      if: failure() || cancelled()
-      shell: bash
-      run: breeze ci-image build --push --empty-image --run-in-parallel
-      env:
-        IMAGE_TAG: ${{ env.IMAGE_TAG }}
-        COMMIT_SHA: ${{ github.sha }}
     - name: "Fix ownership"
       shell: bash
       run: breeze ci fix-ownership

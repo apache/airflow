@@ -64,7 +64,7 @@ class LivyTrigger(BaseTrigger):
         self._livy_hook_async = livy_hook_async
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes LivyTrigger arguments and classpath."""
+        """Serialize LivyTrigger arguments and classpath."""
         return (
             "airflow.providers.apache.livy.triggers.livy.LivyTrigger",
             {

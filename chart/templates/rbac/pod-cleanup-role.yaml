@@ -24,7 +24,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ .Release.Name }}-cleanup-role
+  name: {{ include "airflow.fullname" . }}-cleanup-role
   labels:
     tier: airflow
     release: {{ .Release.Name }}

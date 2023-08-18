@@ -65,8 +65,11 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 
     HAS_KUBERNETES: bool
@@ -362,7 +365,7 @@ class BaseSerialization:
     def serialize_to_json(
         cls, object_to_serialize: BaseOperator | MappedOperator | DAG, decorated_fields: set
     ) -> dict[str, Any]:
-        """Serializes an object to JSON."""
+        """Serialize an object to JSON."""
         serialized_object: dict[str, Any] = {}
         keys_to_serialize = object_to_serialize.get_serialized_fields()
         for key in keys_to_serialize:
@@ -392,7 +395,8 @@ class BaseSerialization:
     def serialize(
         cls, var: Any, *, strict: bool = False, use_pydantic_models: bool = False
     ) -> Any:  # Unfortunately there is no support for recursive types in mypy
-        """Helper function of depth first search for serialization.
+        """
+        Serialize an object; helper function of depth first search for serialization.
 
         The serialization protocol is:
 
@@ -479,16 +483,25 @@ class BaseSerialization:
                 type_=DAT.SIMPLE_TASK_INSTANCE,
             )
         elif use_pydantic_models and _ENABLE_AIP_44:
+
+            def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
+                try:
+                    return model_cls.model_validate(var).model_dump()  # type: ignore[attr-defined]
+                except AttributeError:  # Pydantic 1.x compatibility.
+                    return model_cls.from_orm(var).dict()  # type: ignore[attr-defined]
+
             if isinstance(var, Job):
-                return cls._encode(JobPydantic.from_orm(var).dict(), type_=DAT.BASE_JOB)
+                return cls._encode(_pydantic_model_dump(JobPydantic, var), type_=DAT.BASE_JOB)
             elif isinstance(var, TaskInstance):
-                return cls._encode(TaskInstancePydantic.from_orm(var).dict(), type_=DAT.TASK_INSTANCE)
+                return cls._encode(_pydantic_model_dump(TaskInstancePydantic, var), type_=DAT.TASK_INSTANCE)
             elif isinstance(var, DagRun):
-                return cls._encode(DagRunPydantic.from_orm(var).dict(), type_=DAT.DAG_RUN)
+                return cls._encode(_pydantic_model_dump(DagRunPydantic, var), type_=DAT.DAG_RUN)
             elif isinstance(var, Dataset):
-                return cls._encode(DatasetPydantic.from_orm(var).dict(), type_=DAT.DATA_SET)
+                return cls._encode(_pydantic_model_dump(DatasetPydantic, var), type_=DAT.DATA_SET)
             else:
                 return cls.default_serialization(strict, var)
+        elif isinstance(var, ArgNotSet):
+            return cls._encode(None, type_=DAT.ARG_NOT_SET)
         else:
             return cls.default_serialization(strict, var)
 
@@ -501,7 +514,8 @@ class BaseSerialization:
 
     @classmethod
     def deserialize(cls, encoded_var: Any, use_pydantic_models=False) -> Any:
-        """Helper function of depth first search for deserialization.
+        """
+        Deserialize an object; helper function of depth first search for deserialization.
 
         :meta private:
         """
@@ -561,6 +575,8 @@ class BaseSerialization:
                 return DagRunPydantic.parse_obj(var)
             elif type_ == DAT.DATA_SET:
                 return DatasetPydantic.parse_obj(var)
+        elif type_ == DAT.ARG_NOT_SET:
+            return NOTSET
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
@@ -681,7 +697,7 @@ class DependencyDetector:
 
     @staticmethod
     def detect_task_dependencies(task: Operator) -> list[DagDependency]:
-        """Detects dependencies caused by tasks."""
+        """Detect dependencies caused by tasks."""
         from airflow.operators.trigger_dagrun import TriggerDagRunOperator
         from airflow.sensors.external_task import ExternalTaskSensor
 
@@ -718,7 +734,7 @@ class DependencyDetector:
 
     @staticmethod
     def detect_dag_dependencies(dag: DAG | None) -> Iterable[DagDependency]:
-        """Detects dependencies set directly on the DAG object."""
+        """Detect dependencies set directly on the DAG object."""
         if not dag:
             return
         for x in dag.dataset_triggers:
@@ -817,7 +833,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def _serialize_node(cls, op: BaseOperator | MappedOperator, include_deps: bool) -> dict[str, Any]:
-        """Serializes operator into a JSON object."""
+        """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
         serialize_op["_task_type"] = getattr(op, "_task_type", type(op).__name__)
         serialize_op["_task_module"] = getattr(op, "_task_module", type(op).__module__)
@@ -1065,7 +1081,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def detect_dependencies(cls, op: Operator) -> set[DagDependency]:
-        """Detects between DAG dependencies for the operator."""
+        """Detect between DAG dependencies for the operator."""
 
         def get_custom_dep() -> list[DagDependency]:
             """
@@ -1173,7 +1189,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             #       }
             #   )
 
-            _operator_link_class_path, data = list(_operator_links_source.items())[0]
+            _operator_link_class_path, data = next(iter(_operator_links_source.items()))
             if _operator_link_class_path in get_operator_extra_links():
                 single_op_link_class = import_string(_operator_link_class_path)
             elif _operator_link_class_path in plugins_manager.registered_operator_link_classes:
@@ -1261,7 +1277,7 @@ class SerializedDAG(DAG, BaseSerialization):
 
     @classmethod
     def serialize_dag(cls, dag: DAG) -> dict:
-        """Serializes a DAG into a JSON object."""
+        """Serialize a DAG into a JSON object."""
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
@@ -1395,7 +1411,7 @@ class TaskGroupSerialization(BaseSerialization):
 
     @classmethod
     def serialize_task_group(cls, task_group: TaskGroup) -> dict[str, Any] | None:
-        """Serializes TaskGroup into a JSON object."""
+        """Serialize TaskGroup into a JSON object."""
         if not task_group:
             return None
 

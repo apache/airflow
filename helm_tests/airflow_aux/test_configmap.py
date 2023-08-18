@@ -115,3 +115,35 @@ metadata:
 
         pod_template_file = jmespath.search('data."pod_template_file.yaml"', docs[0])
         assert "mylabel: release-name" in pod_template_file
+
+    def test_default_flower_url_prefix(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+        expected = "flower_url_prefix = "
+        found = False
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        for item in cfg.split("\n"):
+            if item == expected:
+                found = True
+
+        assert found is True
+
+    def test_overriden_flower_url_prefix(self):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "ingress": {"flower": {"path": "/overriden-path"}}},
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        expected = "flower_url_prefix = /overriden-path"
+        found = False
+
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        for item in cfg.split("\n"):
+            if item == expected:
+                found = True
+
+        assert found is True

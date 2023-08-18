@@ -105,10 +105,10 @@ MariaDB is not tested/recommended.
 **Note**: SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
 
-**Note**: Airflow currently can be run on POSIX-compliant Operating Systems. For development it is regularly
-tested on fairly modern Linux Distros and recent versions of MacOS.
+**Note**: Airflow currently can be run on POSIX-compliant Operating Systems. For development, it is regularly
+tested on fairly modern Linux Distros and recent versions of macOS.
 On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
-The work to add Windows support is tracked via [#10388](https://github.com/apache/airflow/issues/10388) but
+The work to add Windows support is tracked via [#10388](https://github.com/apache/airflow/issues/10388), but
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
@@ -258,7 +258,7 @@ packages:
   is a breaking change for provider because installing the new provider might automatically
   upgrade Airflow (which might be an undesired side effect of upgrading provider).
 * **Airflow Helm Chart**: SemVer rules apply to changes in the chart only. SemVer MAJOR and MINOR
-  versions for the chart are independent from the Airflow version. We aim to keep backwards
+  versions for the chart are independent of the Airflow version. We aim to keep backwards
   compatibility of the Helm Chart with all released Airflow 2 versions, but some new features might
   only work starting from specific Airflow releases. We might however limit the Helm
   Chart to depend on minimal Airflow version.
@@ -323,7 +323,7 @@ we publish an Apache Airflow release. Those images contain:
 * Base Python installation in versions supported at the time of release for the MINOR version of
   Airflow released (so there could be different versions for 2.3 and 2.2 line for example)
 * Libraries required to connect to supported Databases (again the set of databases supported depends
-  on the MINOR version of Airflow.
+  on the MINOR version of Airflow)
 * Predefined set of popular providers (for details see the [Dockerfile](https://raw.githubusercontent.com/apache/airflow/main/Dockerfile)).
 * Possibility of building your own, custom image where the user can choose their own set of providers
   and libraries (see [Building the image](https://airflow.apache.org/docs/docker-stack/build.html))
@@ -388,11 +388,11 @@ The important dependencies are:
    libraries, and we should update them together
 * `celery`: Celery is crucial component of Airflow as it used for CeleryExecutor (and similar). Celery
    [follows SemVer](https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions), so
-   we should upper-bound it to the next MAJOR version. Also when we bump the upper version of the library,
-   we should make sure Celery Provider minimum Airflow version is updated).
+   we should upper-bound it to the next MAJOR version. Also, when we bump the upper version of the library,
+   we should make sure Celery Provider minimum Airflow version is updated.
 * `kubernetes`: Kubernetes is a crucial component of Airflow as it is used for the KubernetesExecutor
    (and similar). Kubernetes Python library [follows SemVer](https://github.com/kubernetes-client/python#compatibility),
-   so we should upper-bound it to the next MAJOR version. Also when we bump the upper version of the library,
+   so we should upper-bound it to the next MAJOR version. Also, when we bump the upper version of the library,
    we should make sure Kubernetes Provider minimum Airflow version is updated.
 
 ### Approach for dependencies in Airflow Providers and extras
@@ -402,7 +402,7 @@ providers that extend the core functionality and are released separately, even i
 in the same monorepo for convenience. You can read more about the providers in the
 [Providers documentation](https://airflow.apache.org/docs/apache-airflow-providers/index.html). We also
 have set of policies implemented for maintaining and releasing community-managed providers as well
-as the approach for community vs. 3rd party providers in the [providers](PROVIDERS.rst) document.
+as the approach for community vs. 3rd party providers in the [providers](https://github.com/apache/airflow/blob/main/PROVIDERS.rst) document.
 
 Those `extras` and `providers` dependencies are maintained in `provider.yaml` of each provider.
 
@@ -430,7 +430,7 @@ If you would like to become a maintainer, please review the Apache Airflow
 
 ## Can I use the Apache Airflow logo in my presentation?
 
-Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up to date logos are found in [this repo](/docs/apache-airflow/img/logos) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
+Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/docs/apache-airflow/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).
 
 ## Airflow merchandise
 

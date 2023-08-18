@@ -296,6 +296,35 @@ class TestStatsd:
             == "test_pod_annotation_value"
         )
 
+    def test_should_add_custom_env_variables(self):
+        env1 = {"name": "TEST_ENV_1", "value": "test_env_1"}
+
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "enabled": True,
+                    "env": [env1],
+                },
+            },
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )[0]
+
+        assert jmespath.search("spec.template.spec.containers[0].env", docs) == [env1]
+
+    def test_should_add_annotations_to_statsd_configmap(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "enabled": True,
+                    "configMapAnnotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/configmaps/statsd-configmap.yaml"],
+        )[0]
+
+        assert "annotations" in jmespath.search("metadata", docs)
+        assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
+
 
 class TestStatsdServiceAccount:
     """Tests statsd service account."""

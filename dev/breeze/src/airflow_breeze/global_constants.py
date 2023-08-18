@@ -145,18 +145,20 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 
 
-def get_available_documentation_packages(short_version=False) -> list[str]:
+def get_available_documentation_packages(short_version=False, only_providers: bool = False) -> list[str]:
     provider_names: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
     doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
-    available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
-    available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
-    available_packages.sort()
+    available_packages = []
+    if not only_providers:
+        available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
+    all_providers = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
+    all_providers.sort()
+    available_packages.extend(all_providers)
     if short_version:
         prefix_len = len("apache-airflow-providers-")
         available_packages = [
-            package[prefix_len:].replace("-", ".")
+            package[prefix_len:].replace("-", ".") if len(package) > prefix_len else package
             for package in available_packages
-            if len(package) > prefix_len
         ]
     return available_packages
 
@@ -203,7 +205,6 @@ INIT_SCRIPT_FILE = ""
 BREEZE_INIT_COMMAND = ""
 DRY_RUN_DOCKER = False
 INSTALL_AIRFLOW_VERSION = ""
-
 
 COMMITTERS = [
     "BasPH",
@@ -264,11 +265,16 @@ COMMITTERS = [
 
 
 def get_airflow_version():
-    airflow_setup_file = AIRFLOW_SOURCES_ROOT / "setup.py"
-    with open(airflow_setup_file) as setup_file:
-        for line in setup_file.readlines():
-            if "version =" in line:
-                return line.split()[2][1:-1]
+    airflow_init_py_file = AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py"
+    airflow_version = "unknown"
+    with open(airflow_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                airflow_version = line.split()[2][1:-1]
+                break
+    if airflow_version == "unknown":
+        raise Exception("Unable to determine Airflow version")
+    return airflow_version
 
 
 def get_airflow_extras():

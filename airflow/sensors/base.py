@@ -199,7 +199,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 )
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
-        """Function defined by the sensors while deriving this class should override."""
+        """Override when deriving this class."""
         raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
@@ -287,7 +287,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         run_duration: Callable[[], float],
         try_number: int,
     ) -> float:
-        """Using the similar logic which is used for exponential backoff retry delay for operators."""
+        """Use similar logic which is used for exponential backoff retry delay for operators."""
         if not self.exponential_backoff:
             return self.poke_interval
 
@@ -329,6 +329,12 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     @classmethod
     def get_serialized_fields(cls):
         return super().get_serialized_fields() | {"reschedule"}
+
+    def raise_failed_or_skiping_exception(self, *, failed_message: str, skipping_message: str = "") -> None:
+        """Raise AirflowSkipException if self.soft_fail is set to True. Otherwise raise AirflowException."""
+        if self.soft_fail:
+            raise AirflowSkipException(skipping_message or failed_message)
+        raise AirflowException(failed_message)
 
 
 def poke_mode_only(cls):

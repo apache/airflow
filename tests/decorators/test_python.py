@@ -462,7 +462,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == "add_num"][0]
+        ti_add_num = next(ti for ti in dr.get_task_instances() if ti.task_id == "add_num")
         assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2
 
     def test_dag_task(self):

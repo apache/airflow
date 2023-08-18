@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+3.3.2
+.....
+
+Misc
+~~~~
+* ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+* ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+
 3.3.1
 .....
 

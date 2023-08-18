@@ -38,6 +38,7 @@ from airflow.providers.openlineage.plugins.facets import (
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
 )
+from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker, should_hide_value_for_key
 
 if TYPE_CHECKING:
@@ -345,29 +346,40 @@ class OpenLineageRedactor(SecretsMasker):
         if depth > max_depth:
             return item
         try:
-            if name and should_hide_value_for_key(name):
-                return self._redact_all(item, depth, max_depth)
-            if attrs.has(type(item)):
-                # TODO: fixme when mypy gets compatible with new attrs
-                for dict_key, subval in attrs.asdict(item, recurse=False).items():  # type: ignore[arg-type]
-                    if _is_name_redactable(dict_key, item):
-                        setattr(
-                            item,
-                            dict_key,
-                            self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth),
-                        )
-                return item
-            elif is_json_serializable(item) and hasattr(item, "__dict__"):
-                for dict_key, subval in item.__dict__.items():
-                    if _is_name_redactable(dict_key, item):
-                        setattr(
-                            item,
-                            dict_key,
-                            self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth),
-                        )
-                return item
-            else:
-                return super()._redact(item, name, depth, max_depth)
+            # It's impossible to check the type of variable in a dict without accessing it, and
+            # this already causes warning - so suppress it
+            with suppress(AirflowContextDeprecationWarning):
+                if type(item).__name__ == "Proxy":
+                    # Those are deprecated values in _DEPRECATION_REPLACEMENTS
+                    # in airflow.utils.context.Context
+                    return "<<non-redactable: Proxy>>"
+                if name and should_hide_value_for_key(name):
+                    return self._redact_all(item, depth, max_depth)
+                if attrs.has(type(item)):
+                    # TODO: fixme when mypy gets compatible with new attrs
+                    for dict_key, subval in attrs.asdict(
+                        item, recurse=False  # type: ignore[arg-type]
+                    ).items():
+                        if _is_name_redactable(dict_key, item):
+                            setattr(
+                                item,
+                                dict_key,
+                                self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth),
+                            )
+                    return item
+                elif is_json_serializable(item) and hasattr(item, "__dict__"):
+                    for dict_key, subval in item.__dict__.items():
+                        if type(subval).__name__ == "Proxy":
+                            return "<<non-redactable: Proxy>>"
+                        if _is_name_redactable(dict_key, item):
+                            setattr(
+                                item,
+                                dict_key,
+                                self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth),
+                            )
+                    return item
+                else:
+                    return super()._redact(item, name, depth, max_depth)
         except Exception as e:
             log.warning(
                 "Unable to redact %s. Error was: %s: %s",
@@ -375,7 +387,7 @@ class OpenLineageRedactor(SecretsMasker):
                 type(e).__name__,
                 str(e),
             )
-            return item
+        return item
 
 
 def is_json_serializable(item):
