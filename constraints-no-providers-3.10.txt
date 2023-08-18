@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-17T07:31:19Z
+# This constraints file was automatically generated on 2023-08-18T14:22:07Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -62,7 +62,7 @@ charset-normalizer==3.2.0
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.3.0
-click==8.1.6
+click==8.1.7
 clickclick==20.10.2
 cloudpickle==2.2.1
 colorama==0.4.6
