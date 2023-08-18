@@ -142,7 +142,7 @@ New Features
 - Trigger Button - Implement Part 2 of AIP-50 (#31583)
 - Removing Executor Coupling from Core Airflow (`AIP-51 <https://github.com/apache/airflow/pulls?q=is%3Apr+is%3Amerged+label%3AAIP-51+milestone%3A%22Airflow+2.7.0%22>`_)
 - Automatic setup and teardown tasks (`AIP-52 <https://github.com/apache/airflow/pulls?q=is%3Apr+is%3Amerged+label%3AAIP-52+milestone%3A%22Airflow+2.7.0%22>`_)
-- OpenLineage in Airflow (`AIP-53 <https://github.com/apache/airflow/pulls?q=is%3Apr+is%3Amerged+label%3AAIP-53+milestone%3A%22Airflow+2.7.0%22>`_)
+- OpenLineage in Airflow (`AIP-53 <https://github.com/apache/airflow/pulls?q=is%3Apr+is%3Amerged+milestone%3A%22Airflow+2.7.0%22+label%3Aprovider%3Aopenlineage>`_)
 - Experimental: Add a cache to Variable and Connection when called at dag parsing time (#30259)
 - Enable pools to consider deferred tasks (#32709)
 - Allows to choose SSL context for SMTP connection (#33070)
