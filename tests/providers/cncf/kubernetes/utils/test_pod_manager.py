@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from json.decoder import JSONDecodeError
+from typing import cast
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -251,6 +252,26 @@ class TestPodManager:
         timestamp, line = self.pod_manager.parse_log_line(" ".join([real_timestamp, log_message]))
         assert timestamp == pendulum.parse(real_timestamp)
         assert line == log_message
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_fetch_container_logs_returning_last_timestamp(self, mock_read_pod_logs):
+        timestamp_string = "2020-10-08T14:16:17.793417674Z"
+
+        mock_read_pod_logs.return_value = [bytes(f"{timestamp_string} message", "utf-8"), b"notimestamp"]
+
+        self.first_time = True
+
+        def mock_container_is_running(pod, container_name):
+            if self.first_time:
+                self.first_time = False
+                return True
+            return False
+
+        self.pod_manager.container_is_running = mock_container_is_running
+
+        status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock())
+
+        assert status.last_log_time == cast(DateTime, pendulum.parse(timestamp_string))
 
     def test_parse_invalid_log_line(self, caplog):
         with caplog.at_level(logging.INFO):
