@@ -185,7 +185,8 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
         return cls(datetime.timedelta(seconds=delta))
 
     def __eq__(self, other: Any) -> bool:
-        """The offset should match.
+        """
+        Return if the offsets match.
 
         This is only for testing purposes and should not be relied on otherwise.
         """

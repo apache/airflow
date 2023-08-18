@@ -44,8 +44,9 @@ class TestTriggerer:
 
     def test_can_be_disabled(self):
         """
-        Triggerer should be able to be disabled if the users desires
-        (e.g. Python 3.6 or doesn't want to use async tasks).
+        Triggerer should be able to be disabled if the users desires.
+
+        For example, user may be disabled when using Python 3.6 or doesn't want to use async tasks.
         """
         docs = render_chart(
             values={"triggerer": {"enabled": False}},

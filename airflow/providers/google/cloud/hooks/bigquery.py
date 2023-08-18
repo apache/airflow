@@ -28,7 +28,7 @@ import uuid
 import warnings
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
@@ -49,7 +49,6 @@ from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem,
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterator, Table, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
-from pandas import DataFrame
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa
 from requests import Session
@@ -68,6 +67,9 @@ except ModuleNotFoundError:
     from hashlib import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 log = logging.getLogger(__name__)
 
@@ -244,7 +246,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         parameters: Iterable | Mapping[str, Any] | None = None,
         dialect: str | None = None,
         **kwargs,
-    ) -> DataFrame:
+    ) -> pd.DataFrame:
         """Get a Pandas DataFrame for the BigQuery results.
 
         The DbApiHook method must be overridden because Pandas doesn't support
@@ -2245,7 +2247,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = job.job_id
         return job.job_id
 
-    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False):
+    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
         else:
@@ -3261,8 +3263,8 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             raise AirflowException("The first SQL query returned None")
 
         ratio_formulas = {
-            "max_over_min": lambda cur, ref: float(max(cur, ref)) / min(cur, ref),
-            "relative_diff": lambda cur, ref: float(abs(cur - ref)) / ref,
+            "max_over_min": lambda cur, ref: max(cur, ref) / min(cur, ref),
+            "relative_diff": lambda cur, ref: abs(cur - ref) / ref,
         }
 
         metrics_sorted = sorted(metrics_thresholds.keys())

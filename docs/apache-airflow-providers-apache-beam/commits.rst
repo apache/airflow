@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.2.1
+.....
+
+Latest change: 2023-08-06
+
+=================================================================================================  ===========  ============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================
+`1839b683e7 <https://github.com/apache/airflow/commit/1839b683e7974f7f553af2689a64ee36cf1ec006>`_  2023-08-06   ``Allow downloading requirements file from GCS in 'BeamRunPythonPipelineOperator' (#31645)``
+=================================================================================================  ===========  ============================================================================================
+
 5.2.0
 .....
 
-Latest change: 2023-07-13
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `44b4a3755d <https://github.com/apache/airflow/commit/44b4a3755deea23f8ff0eb1316db880b1d64812c>`_  2023-07-13   ``Add deferrable mode to 'BeamRunPythonPipelineOperator' (#31471)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``

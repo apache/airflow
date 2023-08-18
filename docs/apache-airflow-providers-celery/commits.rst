@@ -28,6 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.2
+.....
+
+Latest change: 2023-08-09
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`0b528e2b2e <https://github.com/apache/airflow/commit/0b528e2b2e0a9942b38a78cf79e0995d9eb8a8d8>`_  2023-08-09   ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+`9556d6d5f6 <https://github.com/apache/airflow/commit/9556d6d5f611428ac8a3a5891647b720d4498ace>`_  2023-08-08   ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+=================================================================================================  ===========  ===============================================================================
+
+3.3.1
+.....
+
+Latest change: 2023-08-05
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+`879fd34e97 <https://github.com/apache/airflow/commit/879fd34e97a5343e6d2bbf3d5373831b9641b5ad>`_  2023-08-04   ``aDd documentation generation for CLI commands from executors (#33081)``
+`e3d82c6be0 <https://github.com/apache/airflow/commit/e3d82c6be0e0e1468ade053c37690aa1e0e4882d>`_  2023-08-04   ``Get rid of Python2 numeric relics (#33050)``
+=================================================================================================  ===========  =========================================================================
+
 3.3.0
 .....
 
@@ -36,6 +61,7 @@ Latest change: 2023-07-29
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `f31af91dbd <https://github.com/apache/airflow/commit/f31af91dbd8b98cc4ddb98bed8bbc086ab4b65c9>`_  2023-07-29   ``Raise original import error in CLI vending of executors (#32931)``
 `fcbbf47864 <https://github.com/apache/airflow/commit/fcbbf47864c251046de108aafdad394d66e1df23>`_  2023-07-29   ``[AIP-51] Executors vending CLI commands (#29055)``
 `e93460383f <https://github.com/apache/airflow/commit/e93460383f287f9b2af4b6bda3ea6ba17ba3c08b>`_  2023-07-26   ``Move all k8S classes to cncf.kubernetes provider (#32767)``

@@ -96,3 +96,24 @@ def test_use_pydantic_models():
     deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)  # does not raise
 
     assert isinstance(deserialized[0][0], TaskInstancePydantic)
+
+
+def test_serialized_mapped_operator_unmap(dag_maker):
+    from airflow.serialization.serialized_objects import SerializedDAG
+    from tests.test_utils.mock_operators import MockOperator
+
+    with dag_maker(dag_id="dag") as dag:
+        MockOperator(task_id="task1", arg1="x")
+        MockOperator.partial(task_id="task2").expand(arg1=["a", "b"])
+
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+    assert serialized_dag.dag_id == "dag"
+
+    serialized_task1 = serialized_dag.get_task("task1")
+    assert serialized_task1.dag is serialized_dag
+
+    serialized_task2 = serialized_dag.get_task("task2")
+    assert serialized_task2.dag is serialized_dag
+
+    serialized_unmapped_task = serialized_task2.unmap(None)
+    assert serialized_unmapped_task.dag is serialized_dag

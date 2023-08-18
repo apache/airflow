@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
 from sqlalchemy.engine import Result
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Query, Session, load_only, make_transient, selectinload
+from sqlalchemy.orm import Query, Session, joinedload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -240,7 +240,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
-        """Helper method to clean up processor_agent to avoid leaving orphan processes."""
+        """Clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
             return
@@ -905,7 +905,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     def _run_scheduler_loop(self) -> None:
         """
-        The actual scheduler loop.
+        Harvest DAG parsing results, queue tasks, and perform executor heartbeat; the actual scheduler loop.
 
         The main steps in the loop are:
             #. Harvest DAG parsing results through DagFileProcessorAgent
@@ -1021,7 +1021,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     def _do_scheduling(self, session: Session) -> int:
         """
-        This function is where the main scheduling decisions take places.
+        Make the main scheduling decisions.
 
         It:
         - Creates any necessary DAG runs by examining the next_dagrun_create_after column of DagModel
@@ -1378,7 +1378,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         dag_runs: Iterable[DagRun],
         session: Session,
     ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
-        """Makes scheduling decisions for all `dag_runs`."""
+        """Make scheduling decisions for all `dag_runs`."""
         callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
         guard.commit()
         return callback_tuples
@@ -1397,10 +1397,23 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
+        query = (
+            session.query(DagModel)
+            .filter(DagModel.dag_id == dag_run.dag_id)
+            .options(joinedload(DagModel.parent_dag))
+        )
+        dag_model = with_row_locks(
+            query, of=DagModel, session=session, **skip_locked(session=session)
+        ).one_or_none()
 
-        if not dag or not dag_model:
+        if not dag:
             self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
+            return callback
+        if not dag_model:
+            self.log.info(
+                "DAG %s scheduling was skipped, probably because the DAG record was locked", dag_run.dag_id
+            )
             return callback
 
         if (
@@ -1491,7 +1504,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             self.log.debug("callback is empty")
 
     def _send_sla_callbacks_to_processor(self, dag: DAG) -> None:
-        """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True."""
+        """Send SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True."""
         if not settings.CHECK_SLAS:
             return
 
@@ -1558,10 +1571,12 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             Stats.gauge(f"pool.open_slots.{pool_name}", slot_stats["open"])
             Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
             Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
+            Stats.gauge(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
             # Same metrics with tagging
             Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
             Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
             Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
+            Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:

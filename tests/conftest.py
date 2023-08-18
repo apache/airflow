@@ -942,3 +942,12 @@ def initialize_providers_manager():
     from airflow.providers_manager import ProvidersManager
 
     ProvidersManager().initialize_providers_configuration()
+
+
+@pytest.fixture(autouse=True, scope="function")
+def close_all_sqlalchemy_sessions():
+    from sqlalchemy.orm import close_all_sessions
+
+    close_all_sessions()
+    yield
+    close_all_sessions()

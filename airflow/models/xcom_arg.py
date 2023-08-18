@@ -43,7 +43,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
-    from airflow.utils.task_group import TaskGroup
 
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
@@ -86,11 +85,11 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     @overload
     def __new__(cls: type[XComArg], operator: Operator, key: str = XCOM_RETURN_KEY) -> XComArg:
-        """Called when the user writes ``XComArg(...)`` directly."""
+        """Execute when the user writes ``XComArg(...)`` directly."""
 
     @overload
     def __new__(cls: type[XComArg]) -> XComArg:
-        """Called by Python internals from subclasses."""
+        """Execute by Python internals from subclasses."""
 
     def __new__(cls, *args, **kwargs) -> XComArg:
         if cls is XComArg:
@@ -156,7 +155,8 @@ class XComArg(ResolveMixin, DependencyMixin):
             operator.set_downstream(task_or_task_list, edge_modifier)
 
     def _serialize(self) -> dict[str, Any]:
-        """Called by DAG serialization.
+        """
+        Serialize a DAG.
 
         The implementation should be the inverse function to ``deserialize``,
         returning a data dict converted from this XComArg derivative. DAG
@@ -168,7 +168,8 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
-        """Called when deserializing a DAG.
+        """
+        Deserialize a DAG.
 
         The implementation should be the inverse function to ``serialize``,
         implementing given a data dict converted from this XComArg derivative,
@@ -209,15 +210,6 @@ class XComArg(ResolveMixin, DependencyMixin):
         """
         raise NotImplementedError()
 
-    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
-        """Add the task to the given task group.
-
-        :meta private:
-        """
-        for op, _ in self.iter_references():
-            if op.node_id not in task_group.children:
-                task_group.add(op)
-
     def __enter__(self):
         if not self.operator.is_setup and not self.operator.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
@@ -256,7 +248,7 @@ class PlainXComArg(XComArg):
         return self.operator == other.operator and self.key == other.key
 
     def __getitem__(self, item: str) -> XComArg:
-        """Implements xcomresult['some_result_key']."""
+        """Implement xcomresult['some_result_key']."""
         if not isinstance(item, str):
             raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
         return PlainXComArg(operator=self.operator, key=item)

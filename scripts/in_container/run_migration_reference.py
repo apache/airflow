@@ -187,6 +187,6 @@ if __name__ == "__main__":
     revisions = list(reversed(list(get_revisions())))
     ensure_airflow_version(revisions=revisions)
     revisions = list(reversed(list(get_revisions())))
-    ensure_filenames_are_sorted(revisions)
+    ensure_filenames_are_sorted(revisions=revisions)
     revisions = list(get_revisions())
-    update_docs(revisions)
+    update_docs(revisions=revisions)

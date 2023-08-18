@@ -561,18 +561,18 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("doc_rst")
 
     def get_dag(self) -> DAG | None:
-        """Implementing Operator."""
+        """Implement Operator."""
         return self.dag
 
     @property
     def output(self) -> XComArg:
-        """Returns reference to XCom pushed by current operator."""
+        """Return reference to XCom pushed by current operator."""
         from airflow.models.xcom_arg import XComArg
 
         return XComArg(operator=self)
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Implementing DAGNode."""
+        """Implement DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
     def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
@@ -659,6 +659,8 @@ class MappedOperator(AbstractOperator):
 
         op = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
         SerializedBaseOperator.populate_operator(op, self.operator_class)
+        if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
+            SerializedBaseOperator.set_task_dag_references(op, self.dag)
         return op
 
     def _get_specified_expand_input(self) -> ExpandInput:

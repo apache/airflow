@@ -39,7 +39,9 @@ const FilterBar = () => {
   const startDate = moment(filters.startDate);
   // @ts-ignore
   const endDate = moment(filters.endDate);
+  // @ts-ignore
   const formattedStartDate = startDate.tz(timezone).format(isoFormatWithoutTZ);
+  // @ts-ignore
   const formattedEndDate = endDate.tz(timezone).format(isoFormatWithoutTZ);
 
   const inputStyles = { backgroundColor: "white", size: "lg" };
@@ -79,7 +81,7 @@ const FilterBar = () => {
         </Box>
         <Flex alignItems="center">
           <Text whiteSpace="nowrap">
-            over the last{" "}
+            for a period of{" "}
             {formatDuration(getDuration(formattedStartDate, formattedEndDate))}
           </Text>
         </Flex>

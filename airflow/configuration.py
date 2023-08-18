@@ -19,6 +19,7 @@ from __future__ import annotations
 import datetime
 import functools
 import io
+import itertools as it
 import json
 import logging
 import multiprocessing
@@ -87,7 +88,7 @@ def expand_env_var(env_var: str) -> str:
 
 def expand_env_var(env_var: str | None) -> str | None:
     """
-    Expands (potentially nested) env vars.
+    Expand (potentially nested) env vars.
 
     Repeat and apply `expandvars` and `expanduser` until
     interpolation stops having any effect.
@@ -103,7 +104,7 @@ def expand_env_var(env_var: str | None) -> str | None:
 
 
 def run_command(command: str) -> str:
-    """Runs command and returns stdout."""
+    """Run command and returns stdout."""
     process = subprocess.Popen(
         shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True
     )
@@ -172,9 +173,8 @@ def retrieve_configuration_description(
         from airflow.providers_manager import ProvidersManager
 
         for provider, config in ProvidersManager().provider_configs:
-            if selected_provider and provider != selected_provider:
-                continue
-            base_configuration_description.update(config)
+            if not selected_provider or provider == selected_provider:
+                base_configuration_description.update(config)
     return base_configuration_description
 
 
@@ -239,7 +239,8 @@ class AirflowConfigParser(ConfigParser):
 
     def _update_defaults_from_string(self, config_string: str):
         """
-        The defaults in _default_values are updated based on values in config_string ("ini" format).
+        Update the defaults in _default_values based on values in config_string ("ini" format).
+
         Note that those values are not validated and cannot contain variables because we are using
         regular config parser to load them. This method is used to test the config parser in unit tests.
 
@@ -267,7 +268,7 @@ class AirflowConfigParser(ConfigParser):
 
     def get_default_value(self, section: str, key: str, fallback: Any = None, raw=False, **kwargs) -> Any:
         """
-        Retrieves default value from default config parser.
+        Retrieve default value from default config parser.
 
         This will retrieve the default value from the default config parser. Optionally a raw, stored
         value can be retrieved by setting skip_interpolation to True. This is useful for example when
@@ -469,37 +470,28 @@ class AirflowConfigParser(ConfigParser):
 
     def get_sections_including_defaults(self) -> list[str]:
         """
-        Retrieves all sections from the configuration parser, including sections defined by built-in defaults.
+        Retrieve all sections from the configuration parser, including sections defined by built-in defaults.
 
         :return: list of section names
         """
-        my_own_sections = self.sections()
-
-        all_sections_from_defaults = list(self.configuration_description.keys())
-        for section in my_own_sections:
-            if section not in all_sections_from_defaults:
-                all_sections_from_defaults.append(section)
-        return all_sections_from_defaults
+        return list(dict.fromkeys(it.chain(self.configuration_description, self.sections())))
 
     def get_options_including_defaults(self, section: str) -> list[str]:
         """
-        Retrieves all possible option from the configuration parser for the section given,
-        including options defined by built-in defaults.
+        Retrieve all possible option from the configuration parser for the section given.
+
+        Includes options defined by built-in defaults.
 
         :return: list of option names for the section given
         """
         my_own_options = self.options(section) if self.has_section(section) else []
-        all_options_from_defaults = list(
-            self.configuration_description.get(section, {}).get("options", {}).keys()
-        )
-        for option in my_own_options:
-            if option not in all_options_from_defaults:
-                all_options_from_defaults.append(option)
-        return all_options_from_defaults
+        all_options_from_defaults = self.configuration_description.get(section, {}).get("options", {})
+        return list(dict.fromkeys(it.chain(all_options_from_defaults, my_own_options)))
 
     def optionxform(self, optionstr: str) -> str:
         """
-        This method transforms option names on every read, get, or set operation.
+        Transform option names on every read, get, or set operation.
+
         This changes from the default behaviour of ConfigParser from lower-casing
         to instead be case-preserving.
 
@@ -511,8 +503,10 @@ class AirflowConfigParser(ConfigParser):
     @contextmanager
     def make_sure_configuration_loaded(self, with_providers: bool) -> Generator[None, None, None]:
         """
-        Make sure configuration is loaded with or without providers, regardless if the provider configuration
-        has been loaded before or not. Restores configuration to the state before entering the context.
+        Make sure configuration is loaded with or without providers.
+
+        This happens regardless if the provider configuration has been loaded before or not.
+        Restores configuration to the state before entering the context.
 
         :param with_providers: whether providers should be loaded
         """
@@ -538,7 +532,7 @@ class AirflowConfigParser(ConfigParser):
         section_config_description: dict[str, str],
         section_to_write: str,
     ) -> None:
-        """Writes header for configuration section."""
+        """Write header for configuration section."""
         file.write(f"[{section_to_write}]\n")
         section_description = section_config_description.get("description")
         if section_description and include_descriptions:
@@ -559,7 +553,8 @@ class AirflowConfigParser(ConfigParser):
         section_to_write: str,
         sources_dict: ConfigSourcesType,
     ) -> tuple[bool, bool]:
-        """Writes header for configuration option.
+        """
+        Write header for configuration option.
 
         Returns tuple of (should_continue, needs_separation) where needs_separation should be
         set if the option needs additional separation to visually separate it from the next option.
@@ -647,7 +642,7 @@ class AirflowConfigParser(ConfigParser):
         **kwargs: Any,
     ) -> None:
         """
-        Writes configuration with comments and examples to a file.
+        Write configuration with comments and examples to a file.
 
         :param file: file to write to
         :param section: section of the config to write, defaults to all sections
@@ -740,6 +735,7 @@ class AirflowConfigParser(ConfigParser):
     def _validate_max_tis_per_query(self) -> None:
         """
         Check if config ``scheduler.max_tis_per_query`` is not greater than ``core.parallelism``.
+
         If not met, a warning message is printed to guide the user to correct it.
 
         More info: https://github.com/apache/airflow/pull/32572
@@ -960,6 +956,14 @@ class AirflowConfigParser(ConfigParser):
         deprecated_section: str | None
         deprecated_key: str | None
 
+        option_description = self.configuration_description.get(section, {}).get(key, {})
+        if option_description.get("deprecated"):
+            deprecation_reason = option_description.get("deprecation_reason", "")
+            warnings.warn(
+                f"The '{key}' option in section {section} is deprecated. {deprecation_reason}",
+                DeprecationWarning,
+                stacklevel=2 + _extra_stacklevel,
+            )
         # For when we rename whole sections
         if section in self.inversed_deprecated_sections:
             deprecated_section, deprecated_key = (section, key)
@@ -995,7 +999,6 @@ class AirflowConfigParser(ConfigParser):
             deprecated_section, deprecated_key, _ = self.deprecated_options.get(
                 (section, key), (None, None, None)
             )
-
         # first check environment variables
         option = self._get_environment_variables(
             deprecated_key,
@@ -1189,7 +1192,7 @@ class AirflowConfigParser(ConfigParser):
 
     def getimport(self, section: str, key: str, **kwargs) -> Any:
         """
-        Reads options, imports the full qualified name, and returns the object.
+        Read options, import the full qualified name, and return the object.
 
         In case of failure, it throws an exception with the key and section names
 
@@ -1233,7 +1236,7 @@ class AirflowConfigParser(ConfigParser):
         self, section: str, key: str, fallback: Any = None, **kwargs
     ) -> datetime.timedelta | None:
         """
-        Gets the config value for the given section and key, and converts it into datetime.timedelta object.
+        Get the config value for the given section and key, and convert it into datetime.timedelta object.
 
         If the key is missing, then it is considered as `None`.
 
@@ -1319,7 +1322,7 @@ class AirflowConfigParser(ConfigParser):
 
     def getsection(self, section: str) -> ConfigOptionsDictType | None:
         """
-        Returns the section as a dict.
+        Return the section as a dict.
 
         Values are converted to int, float, bool as required.
 
@@ -1372,7 +1375,7 @@ class AirflowConfigParser(ConfigParser):
         include_secret: bool = True,
     ) -> ConfigSourcesType:
         """
-        Returns the current configuration as an OrderedDict of OrderedDicts.
+        Return the current configuration as an OrderedDict of OrderedDicts.
 
         When materializing current configuration Airflow defaults are
         materialized along with user set configs. If any of the `include_*`
@@ -1530,7 +1533,7 @@ class AirflowConfigParser(ConfigParser):
                 continue
             if not display_sensitive and env_var != self._env_var_name("core", "unit_test_mode"):
                 # Don't hide cmd/secret values here
-                if not env_var.lower().endswith("cmd") and not env_var.lower().endswith("secret"):
+                if not env_var.lower().endswith(("cmd", "secret")):
                     if (section, key) in self.sensitive_config_values:
                         opt = "< hidden >"
             elif raw:
@@ -1554,7 +1557,7 @@ class AirflowConfigParser(ConfigParser):
         getter_func,
     ):
         """
-        Deletes default configs from current configuration.
+        Delete default configs from current configuration.
 
         An OrderedDict of OrderedDicts, if it would conflict with special sensitive_config_values.
 
@@ -1759,7 +1762,7 @@ class AirflowConfigParser(ConfigParser):
 
     def load_test_config(self):
         """
-        Uses test configuration rather than the configuration coming from airflow defaults.
+        Use test configuration rather than the configuration coming from airflow defaults.
 
         When running tests we use special the unit_test configuration to avoid accidental modifications and
         different behaviours when running the tests. Values for those test configuration are stored in
@@ -1783,7 +1786,7 @@ class AirflowConfigParser(ConfigParser):
         log.info("Unit test configuration loaded from 'config_unit_tests.cfg'")
 
     def expand_all_configuration_values(self):
-        """Expands all configuration values using global and local variables defined in this module."""
+        """Expand all configuration values using global and local variables defined in this module."""
         all_vars = get_all_expansion_variables()
         for section in self.sections():
             for key, value in self.items(section):
@@ -1796,7 +1799,7 @@ class AirflowConfigParser(ConfigParser):
                         self.set(section, key, value.format(**all_vars))
 
     def remove_all_read_configurations(self):
-        """Removes all read configurations, leaving only default values in the config."""
+        """Remove all read configurations, leaving only default values in the config."""
         for section in self.sections():
             self.remove_section(section)
 
@@ -1807,7 +1810,7 @@ class AirflowConfigParser(ConfigParser):
 
     def load_providers_configuration(self):
         """
-        Loads configuration for providers.
+        Load configuration for providers.
 
         This should be done after initial configuration have been performed. Initializing and discovering
         providers is an expensive operation and cannot be performed when we load configuration for the first
@@ -1918,7 +1921,7 @@ def _generate_fernet_key() -> str:
 
 def create_default_config_parser(configuration_description: dict[str, dict[str, Any]]) -> ConfigParser:
     """
-    Creates default config parser based on configuration description.
+    Create default config parser based on configuration description.
 
     It creates ConfigParser with all default values retrieved from the configuration description and
     expands all the variables from the global and local variables defined in this module.
@@ -1945,10 +1948,12 @@ def create_default_config_parser(configuration_description: dict[str, dict[str, 
 
 def create_pre_2_7_defaults() -> ConfigParser:
     """
-    Creates parser using the old defaults from Airflow < 2.7.0, in order to be able to fall-back to those
-    defaults when old version of provider, not supporting "config contribution" is installed with Airflow
-    2.7.0+. This "default" configuration does not support variable expansion, those are pretty much
-    hard-coded defaults we want to fall-back to in such case.
+    Create parser using the old defaults from Airflow < 2.7.0.
+
+    This is used in order to be able to fall-back to those defaults when old version of provider,
+    not supporting "config contribution" is installed with Airflow 2.7.0+. This "default"
+    configuration does not support variable expansion, those are pretty much hard-coded defaults '
+    we want to fall-back to in such case.
     """
     config_parser = ConfigParser()
     config_parser.read(_default_config_file_path("pre_2_7_defaults.cfg"))
@@ -1981,7 +1986,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
 
 def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigParser):
     """
-    Loads standard airflow configuration.
+    Load standard airflow configuration.
 
     In case it finds that the configuration file is missing, it will create it and write the default
     configuration values there, based on defaults passed, and will add the comments and examples
@@ -2054,7 +2059,7 @@ def make_group_other_inaccessible(file_path: str):
     except Exception as e:
         log.warning(
             "Could not change permissions of config file to be group/other inaccessible. "
-            "Continuing with original permissions:",
+            "Continuing with original permissions: %s",
             e,
         )
 

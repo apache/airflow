@@ -99,6 +99,7 @@ REVISION_HEADS_MAP = {
     "2.6.1": "98ae134e6fff",
     "2.6.2": "c804e5c76e3e",
     "2.6.3": "c804e5c76e3e",
+    "2.7.0": "788397e78828",
 }
 
 
@@ -124,6 +125,7 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
             pool=Pool.DEFAULT_POOL_NAME,
             slots=conf.getint(section="core", key="default_pool_task_slot_count"),
             description="Default pool",
+            include_deferred=False,
         )
         session.add(default_pool)
         session.commit()
@@ -747,7 +749,6 @@ def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
         upgradedb(session=session)
     else:
         _create_db_from_orm(session=session)
-    # Load default connections
     if conf.getboolean("database", "LOAD_DEFAULT_CONNECTIONS") and load_connections:
         create_default_connections(session=session)
     # Add default pool & sync log_template
@@ -790,7 +791,7 @@ def _get_current_revision(session):
 
 def check_migrations(timeout):
     """
-    Function to wait for all airflow migrations to complete.
+    Wait for all airflow migrations to complete.
 
     :param timeout: Timeout for the migration in seconds
     :return: None
@@ -1380,11 +1381,12 @@ def _move_duplicate_data_to_new_table(
 
 def check_bad_references(session: Session) -> Iterable[str]:
     """
-    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id` in many tables.
+    Go through each table and look for records that can't be mapped to a dag run.
 
-    Here we go through each table and look for records that can't be mapped to a dag run.
     When we find such "dangling" rows we back them up in a special table and delete them
     from the main table.
+
+    Starting in Airflow 2.2, we began a process of replacing `execution_date` with `run_id` in many tables.
     """
     from airflow.models.dagrun import DagRun
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
@@ -1534,7 +1536,7 @@ def _revision_greater(config, this_rev, base_rev):
 
 def _revisions_above_min_for_offline(config, revisions) -> None:
     """
-    Checks that all supplied revision ids are above the minimum revision for the dialect.
+    Check that all supplied revision ids are above the minimum revision for the dialect.
 
     :param config: Alembic config
     :param revisions: list of Alembic revision ids
@@ -1725,7 +1727,7 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
 
 def drop_airflow_models(connection):
     """
-    Drops all airflow models.
+    Drop all airflow models.
 
     :param connection: SQLAlchemy Connection
     :return: None
@@ -1760,7 +1762,7 @@ def drop_airflow_moved_tables(connection):
 @provide_session
 def check(session: Session = NEW_SESSION):
     """
-    Checks if the database works.
+    Check if the database works.
 
     :param session: session of the sqlalchemy
     """

@@ -42,7 +42,7 @@ class TaskInstanceKey(NamedTuple):
         )
 
     def with_try_number(self, try_number: int) -> TaskInstanceKey:
-        """Returns TaskInstanceKey with provided ``try_number``."""
+        """Return TaskInstanceKey with provided ``try_number``."""
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
 
     @property

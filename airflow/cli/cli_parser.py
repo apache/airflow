@@ -110,16 +110,13 @@ class LazyRichHelpFormatter(RawTextRichHelpFormatter):
 
 @lru_cache(maxsize=None)
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
-    """Creates and returns command line argument parser."""
+    """Create and returns command line argument parser."""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
     subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
     subparsers.required = True
 
     command_dict = DAG_CLI_DICT if dag_parser else ALL_COMMANDS_DICT
-    subparser_list = command_dict.keys()
-    sub_name: str
-    for sub_name in sorted(subparser_list):
-        sub: CLICommand = command_dict[sub_name]
+    for _, sub in sorted(command_dict.items()):
         _add_command(subparsers, sub)
     return parser
 
@@ -137,9 +134,12 @@ def _sort_args(args: Iterable[Arg]) -> Iterable[Arg]:
 
 
 def _add_command(subparsers: argparse._SubParsersAction, sub: CLICommand) -> None:
-    sub_proc = subparsers.add_parser(
-        sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
-    )
+    if isinstance(sub, ActionCommand) and sub.hide:
+        sub_proc = subparsers.add_parser(sub.name, epilog=sub.epilog)
+    else:
+        sub_proc = subparsers.add_parser(
+            sub.name, help=sub.help, description=sub.description or sub.help, epilog=sub.epilog
+        )
     sub_proc.formatter_class = LazyRichHelpFormatter
 
     if isinstance(sub, GroupCommand):
@@ -160,6 +160,5 @@ def _add_group_command(sub: GroupCommand, sub_proc: argparse.ArgumentParser) -> 
     subcommands = sub.subcommands
     sub_subparsers = sub_proc.add_subparsers(dest="subcommand", metavar="COMMAND")
     sub_subparsers.required = True
-
     for command in sorted(subcommands, key=lambda x: x.name):
         _add_command(sub_subparsers, command)

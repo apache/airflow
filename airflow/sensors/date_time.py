@@ -77,7 +77,7 @@ class DateTimeSensor(BaseSensorOperator):
 
 class DateTimeSensorAsync(DateTimeSensor):
     """
-    Waits until the specified datetime occurs.
+    Wait until the specified datetime occurs.
 
     Deferring itself to avoid taking up a worker slot while it is waiting.
     It is a drop-in replacement for DateTimeSensor.
@@ -92,5 +92,5 @@ class DateTimeSensorAsync(DateTimeSensor):
         )
 
     def execute_complete(self, context, event=None):
-        """Callback for when the trigger fires - returns immediately."""
+        """Execute when the trigger fires - returns immediately."""
         return None

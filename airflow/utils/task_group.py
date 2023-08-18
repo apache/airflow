@@ -269,7 +269,7 @@ class TaskGroup(DAGNode):
         self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
     ) -> None:
         """
-        Overrides TaskMixin.update_relative.
+        Override TaskMixin.update_relative.
 
         Update upstream_group_ids/downstream_group_ids/upstream_task_ids/downstream_task_ids
         accordingly so that we can reduce the number of edges when displaying Graph view.
@@ -341,7 +341,7 @@ class TaskGroup(DAGNode):
         TaskGroupContext.pop_context_managed_task_group()
 
     def has_task(self, task: BaseOperator) -> bool:
-        """Returns True if this TaskGroup or its children TaskGroups contains the given task."""
+        """Return True if this TaskGroup or its children TaskGroups contains the given task."""
         if task.task_id in self.children:
             return True
 
@@ -370,21 +370,25 @@ class TaskGroup(DAGNode):
         tasks = list(self)
         ids = {x.task_id for x in tasks}
 
-        def recurse_for_first_non_setup_teardown(task):
+        def recurse_for_first_non_teardown(task):
             for upstream_task in task.upstream_list:
                 if upstream_task.task_id not in ids:
+                    # upstream task is not in task group
                     continue
-                if upstream_task.is_setup or upstream_task.is_teardown:
-                    yield from recurse_for_first_non_setup_teardown(upstream_task)
+                elif upstream_task.is_teardown:
+                    yield from recurse_for_first_non_teardown(upstream_task)
+                elif task.is_teardown and upstream_task.is_setup:
+                    # don't go through the teardown-to-setup path
+                    continue
                 else:
                     yield upstream_task
 
         for task in tasks:
             if task.downstream_task_ids.isdisjoint(ids):
-                if not (task.is_teardown or task.is_setup):
+                if not task.is_teardown:
                     yield task
                 else:
-                    yield from recurse_for_first_non_setup_teardown(task)
+                    yield from recurse_for_first_non_teardown(task)
 
     def child_id(self, label):
         """Prefix label with group_id if prefix_group_id is True. Otherwise return the label as-is."""
@@ -418,7 +422,7 @@ class TaskGroup(DAGNode):
         return f"{self.group_id}.downstream_join_id"
 
     def get_task_group_dict(self) -> dict[str, TaskGroup]:
-        """Returns a flat dictionary of group_id: TaskGroup."""
+        """Return a flat dictionary of group_id: TaskGroup."""
         task_group_map = {}
 
         def build_map(task_group):
@@ -438,14 +442,14 @@ class TaskGroup(DAGNode):
         return self.children[self.child_id(label)]
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Required by DAGNode."""
+        """Serialize task group; required by DAGNode."""
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
         return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
 
     def hierarchical_alphabetical_sort(self):
         """
-        Sorts children in hierarchical alphabetical order.
+        Sort children in hierarchical alphabetical order.
 
         - groups in alphabetical order first
         - tasks in alphabetical order after them.
@@ -529,7 +533,7 @@ class TaskGroup(DAGNode):
             group = group.task_group
 
     def iter_tasks(self) -> Iterator[AbstractOperator]:
-        """Returns an iterator of the child tasks."""
+        """Return an iterator of the child tasks."""
         from airflow.models.abstractoperator import AbstractOperator
 
         groups_to_visit = [self]
@@ -546,26 +550,6 @@ class TaskGroup(DAGNode):
                     raise ValueError(
                         f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
                     )
-
-    def add_task(self, task: AbstractOperator) -> None:
-        """Add a task to the task group.
-
-        :param task: the task to add
-        """
-        if not TaskGroupContext.active:
-            raise AirflowException(
-                "Using this method on a task group that's not a context manager is not supported."
-            )
-        task.add_to_taskgroup(self)
-
-    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
-        """No-op, since we're not a task.
-
-        We only add tasks to TaskGroups and not TaskGroup, but we need
-        this to satisfy the interface.
-
-        :meta private:
-        """
 
 
 class MappedTaskGroup(TaskGroup):
@@ -593,7 +577,8 @@ class MappedTaskGroup(TaskGroup):
 
     @cache
     def get_parse_time_mapped_ti_count(self) -> int:
-        """Number of instances a task in this group should be mapped to, when a DAG run is created.
+        """
+        Return the Number of instances a task in this group should be mapped to, when a DAG run is created.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.
@@ -612,7 +597,8 @@ class MappedTaskGroup(TaskGroup):
         )
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        """Number of instances a task in this group should be mapped to at run time.
+        """
+        Return the number of instances a task in this group should be mapped to at run time.
 
         This considers both literal and non-literal mapped arguments, and the
         result is therefore available when all depended tasks have finished. The

@@ -190,7 +190,10 @@ The following features are supported in the Trigger UI Form:
     - ``boolean``: Generates a toggle button to be used as ``True`` or ``False``.
     - ``date``, ``datetime`` and ``time``: Generate date and/or time picker
     - ``array``: Generates a HTML multi line text field, every line edited will be made into a string array as value.
-      if you add the attribute ``example`` with a list, a multi-value select option will be generated.
+      If you add the attribute ``example`` with a list, a multi-value select option will be generated.
+      If you add the attribute ``items``, a JSON entry field will be generated for more array types
+      and additional type validation as described in
+      `JSON Schema Array Items <https://json-schema.org/understanding-json-schema/reference/array.html#items>`_.
     - ``object``: Generates a JSON entry field
     - Note: Per default if you specify a type, a field will be made required with input - because of JSON validation.
       If you want to have a field value being added optional only, you must allow JSON schema validation allowing null values via:

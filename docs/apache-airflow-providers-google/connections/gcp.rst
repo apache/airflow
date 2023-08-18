@@ -27,7 +27,7 @@ The Google Cloud connection type enables the Google Cloud Integrations.
 Authenticating to Google Cloud
 ------------------------------
 
-There are two ways to connect to Google Cloud using Airflow.
+There are three ways to connect to Google Cloud using Airflow:
 
 1. Using a `Application Default Credentials
    <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_,

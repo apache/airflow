@@ -36,7 +36,7 @@ class PipeCallbackSink(BaseCallbackSink):
 
     def send(self, callback: CallbackRequest):
         """
-        Sends information about the callback to be executed by Pipe.
+        Send information about the callback to be executed by Pipe.
 
         :param callback: Callback request to be executed.
         """
