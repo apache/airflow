@@ -158,7 +158,11 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ template "pgbouncer_stats_secret" . }}
-                  key: connection
+                  {{- if (and .Values.pgbouncer.metricsExporterSidecar.statsSecretName .Values.pgbouncer.metricsExporterSidecar.statsSecretKey) }}
+                  key: {{ .Values.pgbouncer.metricsExporterSidecar.statsSecretKey }}
+                  {{- else }}
+                  key: "connection"
+                  {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.ports.pgbouncerScrape }}
