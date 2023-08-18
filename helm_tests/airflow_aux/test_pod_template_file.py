@@ -24,6 +24,7 @@ from tempfile import TemporaryDirectory
 import jmespath
 import pytest
 
+from helm_tests.airflow_aux.test_container_lifecycle import CONTAINER_LIFECYCLE_PARAMETERS
 from tests.charts.helm_template_generator import render_chart
 
 
@@ -750,3 +751,19 @@ class TestPodTemplateFile:
         )
 
         assert "test-priority" == jmespath.search("spec.priorityClassName", docs[0])
+
+    def test_workers_container_lifecycle_webhooks_are_configurable(self, hook_type="preStop"):
+        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
+        lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
+        docs = render_chart(
+            name=lifecycle_hook_params["release_name"],
+            values={
+                "workers": {"containerLifecycleHooks": lifecycle_hooks_config},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
+            f"spec.containers[0].lifecycle.{hook_type}", docs[0]
+        )

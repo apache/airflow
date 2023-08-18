@@ -57,6 +57,9 @@ securityContexts:
   pod: {}
   containers: {}
 
+# Default container lifecycle hooks for every service except for redis, statsd and pgbouncer.
+containerLifecycleHooks: {}
+
 # Airflow home directory
 # Used for mount paths
 airflowHome: /opt/airflow
@@ -529,6 +532,9 @@ workers:
     pod: {}
     container: {}
 
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -601,6 +607,8 @@ workers:
     # Detailed default security context for persistence for container level
     securityContexts:
       container: {}
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   kerberosSidecar:
     # Enable kerberos sidecar
@@ -615,6 +623,8 @@ workers:
     # Detailed default security context for kerberosSidecar for container level
     securityContexts:
       container: {}
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   resources: {}
   #  limits:
@@ -715,6 +725,8 @@ workers:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   env: []
 
@@ -774,6 +786,9 @@ scheduler:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -875,6 +890,8 @@ scheduler:
     # Detailed default security context for logGroomerSidecar for container level
     securityContexts:
       container: {}
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -883,6 +900,8 @@ scheduler:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   env: []
 
@@ -932,6 +951,9 @@ createUserJob:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -1015,6 +1037,9 @@ migrateDatabaseJob:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Create ServiceAccount
   serviceAccount:
@@ -1147,6 +1172,9 @@ webserver:
     pod: {}
     container: {}
 
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
   # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
   networkPolicy:
@@ -1272,6 +1300,9 @@ webserver:
     securityContexts:
       container: {}
 
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
+
   env: []
 
 # Airflow Triggerer Config
@@ -1328,6 +1359,10 @@ triggerer:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
   persistence:
     # Enable persistent volumes
     enabled: true
@@ -1422,6 +1457,9 @@ triggerer:
     securityContexts:
       container: {}
 
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
@@ -1429,6 +1467,9 @@ triggerer:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
+
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
   env: []
 
@@ -1484,6 +1525,9 @@ dagProcessor:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   resources: {}
   #  limits:
@@ -1614,6 +1658,9 @@ flower:
     pod: {}
     container: {}
 
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -1729,6 +1776,9 @@ statsd:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Additional network policies as needed
   extraNetworkPolicies: []
@@ -1902,6 +1952,13 @@ pgbouncer:
     pod: {}
     container: {}
 
+  # container level lifecycle hooks
+  containerLifecycleHooks:
+    preStop:
+      exec:
+        # Allow existing queries clients to complete within 120 seconds
+        command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+
   metricsExporterSidecar:
     resources: {}
     #  limits:
@@ -1933,6 +1990,9 @@ pgbouncer:
     # Detailed default security context for metricsExporterSidecar for container level
     securityContexts:
       container: {}
+
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
     livenessProbe:
       initialDelaySeconds: 10
@@ -2013,6 +2073,9 @@ redis:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   podAnnotations: {}
 # Auth secret for a private registry
@@ -2121,6 +2184,9 @@ cleanup:
   # Detailed default security context for cleanup for container level
   securityContexts:
     container: {}
+
+  # container level lifecycle hooks
+  containerLifecycleHooks: {}
 
   # Specify history limit
   # When set, overwrite the default k8s number of successful and failed CronJob executions that are saved.
@@ -2326,6 +2392,9 @@ dags:
 
     securityContexts:
       container: {}
+
+    # container level lifecycle hooks
+    containerLifecycleHooks: {}
 
     # Mount additional volumes into git-sync. It can be templated like in the following example:
     #   extraVolumeMounts:
