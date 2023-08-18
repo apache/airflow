@@ -56,12 +56,12 @@ sbom:generate-provider-requirements:9abe53200ea5f40e0bf7c27f6087f27f
 sbom:update-sbom-information:0ce56884e5f842e3e80d6619df1ccc64
 sbom:935d041028e847d3faf763a95b51063e
 setup:autocomplete:fffcd49e102e09ccd69b3841a9e3ea8e
-setup:check-all-params-in-groups:c17354e00b6e1238610d0eaea01faafc
+setup:check-all-params-in-groups:639dfb061b8da02dcaa4a57b567ff42a
 setup:config:38ebaaf93ed42bc7b2a3000eeea2631d
-setup:regenerate-command-images:e7c7eae05eb46ec2b7095dda222d22f1
+setup:regenerate-command-images:d5e29ec6acb1a6af7d83772c2962f89d
 setup:self-upgrade:4af905a147fcd6670a0e33d3d369a94b
 setup:version:be116d90a21c2afe01087f7609774e1e
-setup:db01eadd3f5c6e6b8c73656b6ba6b367
+setup:8de3ed2645928e8f9f89c58f0ccd2a60
 shell:87e7bdcebe1180395adfec86b2a065f5
 start-airflow:f7216a8126ecf14b033e2ea677e1a105
 static-checks:5ded21248cd4f5617779f58ecf6c554c
