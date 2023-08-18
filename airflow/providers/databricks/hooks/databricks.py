@@ -163,12 +163,13 @@ class DatabricksHook(BaseDatabricksHook):
         return response["run_id"]
 
     def list_jobs(
-        self, limit: int = 25, page_token: str | None = None, expand_tasks: bool = False, job_name: str | None = None
+        self, limit: int = 25, offset: int | None = None, page_token: str | None = None, expand_tasks: bool = False, job_name: str | None = None
     ) -> list[dict[str, Any]]:
         """
         Lists the jobs in the Databricks Job Service.
 
         :param limit: The limit/batch size used to retrieve jobs.
+        :param offset: The offset of the first job to return, relative to the most recently created job.
         :param page_token: The optional page token pointing at the first first job to return.
         :param expand_tasks: Whether to include task and cluster details in the response.
         :param job_name: Optional name of a job to search.
@@ -176,14 +177,23 @@ class DatabricksHook(BaseDatabricksHook):
         """
         has_more = True
         all_jobs = []
-
+        use_token_pagination = (page_token is not None) or (offset is None)
+        if offset is not None:
+            print("[WARN] You are using the offset parameter in list_jobs which will be deprecated soon")
+        if page_token is None:
+            page_token = ""
+        if offset is None:
+            offset = 0
+        
         while has_more:
             payload: dict[str, Any] = {
                 "limit": limit,
                 "expand_tasks": expand_tasks,
             }
-            if page_token:
+            if use_token_pagination:
                 payload["page_token"] = page_token
+            else: # offset pagination
+                payload["offset"] = offset
             if job_name:
                 payload["name"] = job_name
             response = self._do_api_call(LIST_JOBS_ENDPOINT, payload)
@@ -195,6 +205,7 @@ class DatabricksHook(BaseDatabricksHook):
             has_more = response.get("has_more", False)
             if has_more:
                 page_token = response.get("next_page_token", "")
+                offset += len(jobs)
 
         return all_jobs
 
