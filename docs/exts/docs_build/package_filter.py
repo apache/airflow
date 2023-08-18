@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import fnmatch
+from pathlib import Path
 
 
 def process_package_filters(available_packages: list[str], package_filters: list[str] | None):
@@ -27,12 +27,10 @@ def process_package_filters(available_packages: list[str], package_filters: list
     if not package_filters:
         return available_packages
 
-    invalid_filters = [
-        f for f in package_filters if not any(fnmatch.fnmatch(p, f) for p in available_packages)
-    ]
+    invalid_filters = [f for f in package_filters if not any(Path(p).match(f) for p in available_packages)]
     if invalid_filters:
         raise SystemExit(
             f"Some filters did not find any package: {invalid_filters}, Please check if they are correct."
         )
 
-    return [p for p in available_packages if any(fnmatch.fnmatch(p, f) for f in package_filters)]
+    return [p for p in available_packages if any(Path(p).match(f) for f in package_filters)]

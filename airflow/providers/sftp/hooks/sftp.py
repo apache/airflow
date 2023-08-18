@@ -22,7 +22,7 @@ import datetime
 import os
 import stat
 import warnings
-from fnmatch import fnmatch
+from pathlib import Path
 from typing import Any, Callable
 
 import paramiko
@@ -379,11 +379,7 @@ class SFTPHook(SSHHook):
         :param fnmatch_pattern: The pattern that will be matched with `fnmatch`
         :return: string containing the first found file, or an empty string if none matched
         """
-        for file in self.list_directory(path):
-            if fnmatch(file, fnmatch_pattern):
-                return file
-
-        return ""
+        return next((file for file in self.list_directory(path) if Path(file).match(fnmatch_pattern)), "")
 
     def get_files_by_pattern(self, path, fnmatch_pattern) -> list[str]:
         """Get all matching files based on the given fnmatch type pattern.
@@ -392,9 +388,4 @@ class SFTPHook(SSHHook):
         :param fnmatch_pattern: The pattern that will be matched with `fnmatch`
         :return: list of string containing the found files, or an empty list if none matched
         """
-        matched_files = []
-        for file in self.list_directory(path):
-            if fnmatch(file, fnmatch_pattern):
-                matched_files.append(file)
-
-        return matched_files
+        return [file for file in self.list_directory(path) if Path(file).match(fnmatch_pattern)]

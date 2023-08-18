@@ -18,7 +18,6 @@
 """Manages all providers."""
 from __future__ import annotations
 
-import fnmatch
 import functools
 import inspect
 import json
@@ -30,6 +29,7 @@ import warnings
 from collections import OrderedDict
 from dataclasses import dataclass
 from functools import wraps
+from pathlib import Path
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar, cast
 
@@ -139,9 +139,7 @@ def _read_schema_from_resources_or_local_file(filename: str) -> dict:
         with resource_files("airflow").joinpath(filename).open("rb") as f:
             schema = json.load(f)
     except (TypeError, FileNotFoundError):
-        import pathlib
-
-        with (pathlib.Path(__file__).parent / filename).open("rb") as f:
+        with (Path(__file__).parent / filename).open("rb") as f:
             schema = json.load(f)
     return schema
 
@@ -648,17 +646,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
         :param path: path where to look for provider.yaml files
         """
-        root_path = path
-        for folder, subdirs, files in os.walk(path, topdown=True):
-            for filename in fnmatch.filter(files, "provider.yaml"):
-                try:
-                    package_name = "apache-airflow-providers" + folder[len(root_path) :].replace(os.sep, "-")
-                    self._add_provider_info_from_local_source_file(
-                        os.path.join(folder, filename), package_name
-                    )
-                    subdirs[:] = []
-                except Exception as e:
-                    log.warning("Error when loading 'provider.yaml' file from %s %e", folder, e)
+        for child in Path(path).rglob("provider.yaml"):
+            try:
+                package_name = "-".join(
+                    ["apache", "airflow", "providers"] + child.relative_to(path).parts[:-1]
+                )
+                self._add_provider_info_from_local_source_file(child, package_name)
+            except Exception as e:
+                log.warning("Error when loading 'provider.yaml' file from %s %e", child.parent, e)
 
     def _add_provider_info_from_local_source_file(self, path, package_name) -> None:
         """

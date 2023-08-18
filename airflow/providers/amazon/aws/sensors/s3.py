@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import fnmatch
 import os
 import re
 from datetime import datetime, timedelta
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 
 from deprecated import deprecated
@@ -115,12 +115,12 @@ class S3KeySensor(BaseSensorOperator):
         if self.wildcard_match:
             prefix = re.split(r"[\[\*\?]", key, 1)[0]
             keys = self.hook.get_file_metadata(prefix, bucket_name)
-            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if len(key_matches) == 0:
+            key_matches = [k for k in keys if Path(k["Key"]).match(key)]
+            if not key_matches:
                 return False
 
             # Reduce the set of metadata to size only
-            files = list(map(lambda f: {"Size": f["Size"]}, key_matches))
+            files = [{"Size": f["Size"]} for f in key_matches]
         else:
             obj = self.hook.head_object(key, bucket_name)
             if obj is None:

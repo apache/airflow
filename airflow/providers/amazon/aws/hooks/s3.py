@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import asyncio
-import fnmatch
 import gzip as gz
 import io
 import logging
@@ -502,15 +501,10 @@ class S3Hook(AwsBaseHook):
         bucket_name, key = self.get_s3_bucket_key(bucket_val, key, "bucket_name", "bucket_key")
         if wildcard_match:
             keys = await self.get_file_metadata_async(client, bucket_name, key)
-            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if len(key_matches) == 0:
-                return False
+            return any(Path(k["Key"]).match(key) for k in keys)
         else:
             obj = await self.get_head_object_async(client, key, bucket_name)
-            if obj is None:
-                return False
-
-        return True
+            return obj is not None
 
     async def check_key_async(
         self,
@@ -823,7 +817,7 @@ class S3Hook(AwsBaseHook):
             if "Contents" in page:
                 new_keys = page["Contents"]
                 if _apply_wildcard:
-                    new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
+                    new_keys = (k for k in new_keys if Path(k["Key"]).match(_original_prefix))
                 keys.extend(new_keys)
         if self.object_filter_usr is not None:
             return self.object_filter_usr(keys, from_datetime, to_datetime)
@@ -1019,10 +1013,11 @@ class S3Hook(AwsBaseHook):
         """
         prefix = re.split(r"[\[\*\?]", wildcard_key, 1)[0]
         key_list = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
-        key_matches = [k for k in key_list if fnmatch.fnmatch(k, wildcard_key)]
-        if key_matches:
-            return self.get_key(key_matches[0], bucket_name)
-        return None
+        key_match = next((k for k in key_list if Path(k).match(wildcard_key)), None)
+        if key_match:
+            return self.get_key(key_match, bucket_name)
+        else:
+            return None
 
     @unify_bucket_name_and_key
     @provide_bucket_name
