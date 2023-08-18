@@ -1944,6 +1944,9 @@ pgbouncer:
       periodSeconds: 10
       timeoutSeconds: 1
 
+  # Environment variables to add to pgbouncer container
+  env: []
+
 # Configuration for the redis provisioned by the chart
 redis:
   enabled: true

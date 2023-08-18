@@ -5081,6 +5081,27 @@
             "x-docsSection": "PgBouncer",
             "additionalProperties": false,
             "properties": {
+                "env": {
+                    "description": "Add additional env vars to `pgbouncer` container.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
+                },
                 "enabled": {
                     "description": "Enable PgBouncer.",
                     "type": "boolean",

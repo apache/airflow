@@ -525,6 +525,21 @@ class TestPgbouncerConfig:
         assert "server_round_robin = 1" in ini
         assert "stats_period = 30" in ini
 
+    def test_should_add_custom_env_variables(self):
+        env1 = {"name": "TEST_ENV_1", "value": "test_env_1"}
+
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "env": [env1],
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )[0]
+
+        assert jmespath.search("spec.template.spec.containers[0].env", docs) == [env1]
+
 
 class TestPgbouncerExporter:
     """Tests PgBouncer exporter."""

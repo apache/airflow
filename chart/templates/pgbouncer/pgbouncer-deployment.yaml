@@ -101,6 +101,9 @@ spec:
           args: {{ tpl (toYaml .Values.pgbouncer.args) . | nindent 12 }}
           {{- end }}
           resources: {{- toYaml .Values.pgbouncer.resources | nindent 12 }}
+          {{- with .Values.pgbouncer.env }}
+          env: {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: pgbouncer
               containerPort: {{ .Values.ports.pgbouncer }}
