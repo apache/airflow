@@ -1386,9 +1386,10 @@ class DAG(LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> tuple[list[TaskStateChangeCallback], Context] | None:
         """
-        Fetch the appropriate callbacks depending on the value of success, namely the
-        on_failure_callback or on_success_callback. This method gets the context of a
-        single TaskInstance part of this DagRun and returns it along the list of callbacks.
+        Fetch the appropriate callbacks depending on the value of success.
+
+        This method gets the context of a single TaskInstance part of this DagRun and returns it along
+        the list of callbacks.
 
         :param dag: DAG object
         :param dagrun: DagRun object
