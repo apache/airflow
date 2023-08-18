@@ -48,6 +48,12 @@ runs:
           cat "files/constraints-${PYTHON_VERSION}/*.md" >> $GITHUB_STEP_SUMMARY || true
         done
       if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
+    - name: "Upload constraint artifacts"
+      uses: actions/upload-artifact@v3
+      with:
+        name: constraints
+        path: ./files/constraints-*/constraints-*.txt
+        retention-days: 7
     - name: "Fix ownership"
       shell: bash
       run: breeze ci fix-ownership
