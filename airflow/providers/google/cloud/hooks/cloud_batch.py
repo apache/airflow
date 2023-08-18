@@ -62,7 +62,7 @@ class CloudBatchHook(GoogleBaseHook):
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
         self._client: BatchServiceClient | None = None
 
-    def get_conn(self) -> BatchServiceClient:
+    def get_conn(self):
         """
         Retrieves connection to GCE Batch.
 
