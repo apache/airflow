@@ -30,7 +30,7 @@ from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 
 pytestmark = pytest.mark.db_test
 
@@ -50,7 +50,8 @@ class TestCallbackRequest:
                     dag_id="fake_dag",
                     run_id="fake_run",
                     processor_subdir="/test_dir",
-                    is_failure_callback=False,
+                    dagrun_state=DagRunState.FAILED,
+                    sla_miss=False,
                 ),
                 DagCallbackRequest,
             ),
