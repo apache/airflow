@@ -1441,7 +1441,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 full_filepath=dag.fileloc,
                 dag_id=dag.dag_id,
                 run_id=dag_run.run_id,
-                is_failure_callback=True,
+                dagrun_state=DagRunState.FAILED,
                 processor_subdir=dag_model.processor_subdir,
                 msg="timed_out",
             )
