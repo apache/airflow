@@ -42,6 +42,7 @@ class BuildProdParams(CommonBuildParams):
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
     airflow_constraints_mode: str = "constraints"
+    local_constraints: bool = False
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     cleanup_context: bool = False
     airflow_extras: str = get_airflow_extras()
@@ -85,11 +86,6 @@ class BuildProdParams(CommonBuildParams):
         else:
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
-            )
-        if self.airflow_constraints_location:
-            # override location if specified
-            build_args.extend(
-                ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
             )
         if self.airflow_version == "v2-0-test":
             self.airflow_branch_for_pypi_preloading = "v2-0-test"
@@ -159,7 +155,16 @@ class BuildProdParams(CommonBuildParams):
                     f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
                 ]
             )
-
+        if self.local_constraints:
+            self.airflow_constraints_location = (
+                f"/docker-context-files/constraints-{self.python}/"
+                f"{self.airflow_constraints_mode}-{self.python}.txt"
+            )
+        if self.airflow_constraints_location:
+            # override location if specified
+            extra_build_flags.extend(
+                ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
+            )
         maintainers = json.dumps([{"name": "Apache Airflow PMC", "email": "dev@airflow.apache.org"}])
         logo_url = "https://github.com/apache/airflow/raw/main/docs/apache-airflow/img/logos/wordmark_1.png"
         readme_url = "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -221,7 +226,6 @@ class BuildProdParams(CommonBuildParams):
             "install_postgres_client",
             "install_providers_from_sources",
             "python_base_image",
-            "upgrade_to_newer_dependencies",
         ]
 
     @property

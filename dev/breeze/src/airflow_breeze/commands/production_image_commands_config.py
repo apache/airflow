@@ -31,8 +31,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             "options": [
                 "--python",
                 "--install-airflow-version",
-                "--upgrade-to-newer-dependencies",
-                "--upgrade-on-failure",
                 "--image-tag",
                 "--tag-as-latest",
                 "--docker-cache",
@@ -56,6 +54,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--airflow-extras",
                 "--airflow-constraints-location",
                 "--airflow-constraints-mode",
+                "--local-constraints",
                 "--airflow-constraints-reference",
                 "--python-image",
                 "--additional-extras",

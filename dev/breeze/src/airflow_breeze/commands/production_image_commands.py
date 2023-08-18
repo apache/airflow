@@ -68,8 +68,6 @@ from airflow_breeze.utils.common_options import (
     option_runtime_apt_deps,
     option_skip_cleanup,
     option_tag_as_latest,
-    option_upgrade_on_failure,
-    option_upgrade_to_newer_dependencies,
     option_verbose,
     option_verify,
     option_version_suffix_for_pypi,
@@ -157,8 +155,6 @@ def prod_image():
 @option_debug_resources
 @option_include_success_outputs
 @option_python_versions
-@option_upgrade_to_newer_dependencies
-@option_upgrade_on_failure
 @option_platform_multiple
 @option_github_token
 @option_docker_cache
@@ -204,6 +200,13 @@ def prod_image():
     help="Install Airflow using GitHub tag or branch.",
 )
 @option_airflow_constraints_reference_build
+@click.option(
+    "--local-constraints",
+    is_flag=True,
+    envvar="LOCAL_CONSTRAINTS",
+    help="If set to true, constraints from docker-context-files/constraints-<PYTHON>/"
+    "constraints-<CONSTRAINTS_MODE>-<PYTHON>.txt` are used.",
+)
 @click.option("-V", "--install-airflow-version", help="Install version of Airflow from PyPI.")
 @option_additional_extras
 @option_additional_dev_apt_deps
@@ -436,9 +439,15 @@ def check_docker_context_files(install_packages_from_context: bool):
     :param install_packages_from_context: whether we want to install from docker-context-files
     """
     context_file = DOCKER_CONTEXT_DIR.glob("**/*")
-    number_of_context_files = len(
-        [context for context in context_file if context.is_file() and context.name != ".README.md"]
-    )
+    docker_context_files = [
+        context
+        for context in context_file
+        if context.is_file()
+        and context.name != ".README.md"
+        and context.name != ".DS_Store"
+        and not context.parent.name.startswith("constraints")
+    ]
+    number_of_context_files = len(docker_context_files)
     if number_of_context_files == 0:
         if install_packages_from_context:
             get_console().print("[warning]\nERROR! You want to install packages from docker-context-files")
@@ -447,7 +456,7 @@ def check_docker_context_files(install_packages_from_context: bool):
     else:
         if not install_packages_from_context:
             get_console().print(
-                "[warning]\n ERROR! There are some extra files in docker-context-files except README.md"
+                "[warning]\nERROR! There are some extra files in docker-context-files except README.md"
             )
             get_console().print("[warning]\nAnd you did not choose --install-packages-from-context flag")
             get_console().print(
@@ -507,24 +516,6 @@ def run_build_production_image(
             text=True,
             output=output,
         )
-        if (
-            build_command_result.returncode != 0
-            and prod_image_params.upgrade_on_failure
-            and not prod_image_params.upgrade_to_newer_dependencies
-        ):
-            prod_image_params.upgrade_to_newer_dependencies = True
-            get_console().print("[warning]Attempting to build with upgrade_to_newer_dependencies on failure")
-            build_command_result = run_command(
-                prepare_docker_build_command(
-                    image_params=prod_image_params,
-                ),
-                cwd=AIRFLOW_SOURCES_ROOT,
-                check=False,
-                text=True,
-                env=env,
-                output=output,
-            )
-        if build_command_result.returncode == 0:
-            if prod_image_params.tag_as_latest:
-                build_command_result = tag_image_as_latest(image_params=prod_image_params, output=output)
+        if build_command_result.returncode == 0 and prod_image_params.tag_as_latest:
+            build_command_result = tag_image_as_latest(image_params=prod_image_params, output=output)
     return build_command_result.returncode, f"Image build: {prod_image_params.python}"
