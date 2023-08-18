@@ -19,7 +19,6 @@ from __future__ import annotations
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
-import pandas as pd
 from tabulate import tabulate
 
 from airflow.exceptions import AirflowException
@@ -31,6 +30,8 @@ from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.slack.utils import parse_filename
 
 if TYPE_CHECKING:
+    import pandas as pd
+
     from airflow.utils.context import Context
 
 
