@@ -18,10 +18,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from azure.identity import DefaultAzureCredential
 from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusSender
 from azure.servicebus.management import QueueProperties, ServiceBusAdministrationClient
 
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import get_field
 
 
 class BaseAzureServiceBusHook(BaseHook):
@@ -38,12 +40,28 @@ class BaseAzureServiceBusHook(BaseHook):
     hook_name = "Azure Service Bus"
 
     @staticmethod
+    def get_connection_form_widgets() -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+
+        return {
+            "fully_qualified_namespace": StringField(
+                lazy_gettext("Fully Qualified Namespace"), widget=BS3TextFieldWidget()
+            ),
+            "credential": PasswordField(lazy_gettext("Credential"), widget=BS3TextFieldWidget()),
+        }
+
+    @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["port", "host", "extra", "login", "password"],
             "relabeling": {"schema": "Connection String"},
             "placeholders": {
+                "fully_qualified_namespace": "<Resource group>.servicebus.windows.net (for Azure AD authenticaltion)",
+                "credential": "credential",
                 "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",  # noqa
             },
         }
@@ -54,6 +72,14 @@ class BaseAzureServiceBusHook(BaseHook):
 
     def get_conn(self):
         raise NotImplementedError
+
+    def _get_field(self, extras: dict, field_name: str) -> str:
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=field_name,
+        )
 
 
 class AdminClientHook(BaseAzureServiceBusHook):
@@ -70,9 +96,20 @@ class AdminClientHook(BaseAzureServiceBusHook):
         This uses the connection string in connection details.
         """
         conn = self.get_connection(self.conn_id)
-
         connection_string: str = str(conn.schema)
-        return ServiceBusAdministrationClient.from_connection_string(connection_string)
+        if connection_string:
+            client = ServiceBusAdministrationClient.from_connection_string(connection_string)
+        else:
+            extras = conn.extra_dejson
+            credential: str | DefaultAzureCredential = self._get_field(extras=extras, field_name="credential")
+            fully_qualified_namespace = self._get_field(extras=extras, field_name="fully_qualified_namespace")
+            if not credential:
+                credential = DefaultAzureCredential()
+            client = ServiceBusAdministrationClient(
+                fully_qualified_namespace=fully_qualified_namespace, credential=credential
+            )
+        self.log.info("Create and returns ServiceBusAdministrationClient")
+        return client
 
     def create_queue(
         self,
@@ -143,9 +180,20 @@ class MessageHook(BaseAzureServiceBusHook):
         """Create and returns ServiceBusClient by using the connection string in connection details."""
         conn = self.get_connection(self.conn_id)
         connection_string: str = str(conn.schema)
+        if connection_string:
+            client = ServiceBusClient.from_connection_string(connection_string, logging_enable=True)
+        else:
+            extras = conn.extra_dejson
+            credential: str | DefaultAzureCredential = self._get_field(extras=extras, field_name="credential")
+            fully_qualified_namespace = self._get_field(extras=extras, field_name="fully_qualified_namespace")
+            if not credential:
+                credential = DefaultAzureCredential()
+            client = ServiceBusClient(
+                fully_qualified_namespace=fully_qualified_namespace, credential=credential
+            )
 
         self.log.info("Create and returns ServiceBusClient")
-        return ServiceBusClient.from_connection_string(conn_str=connection_string, logging_enable=True)
+        return client
 
     def send_message(self, queue_name: str, messages: str | list[str], batch_message_flag: bool = False):
         """Use ServiceBusClient Send to send message(s) to a Service Bus Queue.
@@ -247,5 +295,7 @@ class MessageHook(BaseAzureServiceBusHook):
                     max_message_count=max_message_count, max_wait_time=max_wait_time
                 )
                 for msg in received_msgs:
+                    self.log.info(msg)
+                    subscription_receiver.complete_message(msg)
                     self.log.info(msg)
                     subscription_receiver.complete_message(msg)
