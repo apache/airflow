@@ -850,7 +850,9 @@ class DagRun(Base, LoggingMixin):
             self.notify_dagrun_state_changed(msg="all_tasks_deadlocked")
 
             if execute_callbacks:
-                dag.handle_callback(self, dagrun_state=DagRunState.FAILED, reason="all_tasks_deadlocked", session=session)
+                dag.handle_callback(
+                    self, dagrun_state=DagRunState.FAILED, reason="all_tasks_deadlocked", session=session
+                )
             elif dag.has_on_failure_callback:
                 from airflow.models.dag import DagModel
 
