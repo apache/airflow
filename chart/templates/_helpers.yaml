@@ -245,9 +245,8 @@ If release name contains chart name it will be used as a full name.
     - name: GIT_SYNC_ONE_TIME
       value: "true"
     {{- end }}
-    {{- range $i, $config := .Values.dags.gitSync.env }}
-    - name: {{ $config.name }}
-      value: {{ $config.value | quote }}
+    {{- with .Values.dags.gitSync.env }}
+    {{- toYaml . | nindent 4 }}
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 6 }}
   volumeMounts:
