@@ -32,10 +32,10 @@ k8s:status:1529ccd444b41c4b0b5f943289957100
 k8s:tests:2a1e2928faea2eddafaff94176a46690
 k8s:upload-k8s-image:6b3a20cdeb692f3c3d727f6b9e68c901
 k8s:8c1e4287deb0533a74f3b302f9c574be
-prod-image:build:d577e6666008b1b1d5097563fcccc9fa
+prod-image:build:7b971535fd4a1b93bebacd58b52b073a
 prod-image:pull:76f1f27e6119928412abecf153fce4bb
 prod-image:verify:bd2b78738a7c388dbad6076c41a9f906
-prod-image:117674c83c188c7afca068575fa5314d
+prod-image:6877cb974df8918504234536f6a35886
 release-management:add-back-references:0d4eb5ed82e5381bc630b343ba605a72
 release-management:create-minor-branch:a3834afc4aa5d1e98002c9e9e7a9931d
 release-management:generate-constraints:b8fcaf8f0acd35ed5dbd48659bdb6485

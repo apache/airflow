@@ -358,6 +358,7 @@ DEFAULT_EXTRAS = [
     "microsoft.azure",
     "mysql",
     "odbc",
+    "openlineage",
     "pandas",
     "postgres",
     "redis",
