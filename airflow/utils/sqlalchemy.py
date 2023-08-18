@@ -29,6 +29,7 @@ from dateutil import relativedelta
 from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
 from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.sql import ColumnElement, Select
 from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 
 from airflow import settings
@@ -39,7 +40,6 @@ from airflow.utils.timezone import make_naive
 if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.orm import Query, Session
-    from sqlalchemy.sql import ColumnElement, Select
     from sqlalchemy.sql.expression import ColumnOperators
 
 log = logging.getLogger(__name__)
