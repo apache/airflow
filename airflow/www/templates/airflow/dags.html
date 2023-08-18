@@ -155,12 +155,14 @@
           class="btn {{ 'btn-primary' if status_filter == 'failed' else 'btn-default' }}"
           title="Show DAGs with failed latest DAG run">Failed <span class="badge">{{ "{:,}".format(status_count_failed) }}</span></a>
       </div>
-      <div style="min-width: 200px; padding: 0 10px;">
+      <div style="min-width: 300px; padding: 0 10px;">
         <form id="tags_form">
           <div class="form-group search-input">
             <select style="display: none;" multiple name="tags" id="tags_filter" class="select2-drop-mask">
               {% for tag in tags %}
-                <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
+                {% for operator in tags_operator %}
+                  <option value="{{ tag.name }}|{{ operator }}" {% if tag.selected|length > 0 and operator in tag.selected %}selected{% endif %}>{{ operator }} {{ tag.name }}</option>
+                {% endfor %}
               {% endfor %}
             </select>
             {% if tags_filter|length > 0 %}

@@ -67,7 +67,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import Date, and_, case, desc, func, inspect, or_, select, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, not_, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import BooleanField, validators
@@ -780,7 +780,24 @@ class Airflow(AirflowBaseView):
                 )
 
             if arg_tags_filter:
-                dags_query = dags_query.where(DagModel.tags.any(DagTag.name.in_(arg_tags_filter)))
+                arg_tags_filter = [item + "|or" if "|" not in item else item for item in arg_tags_filter]
+                split_filter = [(item.split("|")[0], item.split("|")[1]) for item in arg_tags_filter]
+
+                and_tags_filter = and_(
+                    *[DagModel.tags.any(DagTag.name == tag[0]) for tag in split_filter if tag[1] == "and"]
+                )
+                or_tags_filter = or_(
+                    *[or_(DagModel.tags.any(DagTag.name == tag[0])) for tag in split_filter if tag[1] == "or"]
+                )
+                not_tags_filter = and_(
+                    *[
+                        not_(DagModel.tags.any(DagTag.name == tag[0]))
+                        for tag in split_filter
+                        if tag[1] == "not"
+                    ]
+                )
+
+                dags_query = dags_query.where(and_(not_tags_filter, and_tags_filter, or_tags_filter))
 
             dags_query = dags_query.where(DagModel.dag_id.in_(filter_dag_ids))
             filtered_dag_count = get_query_count(dags_query, session=session)
@@ -911,10 +928,11 @@ class Airflow(AirflowBaseView):
                 dag.can_trigger = dag.can_edit and can_create_dag_run
                 dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id, g.user)
 
-            dagtags = session.execute(select(func.distinct(DagTag.name)).order_by(DagTag.name)).all()
+            dag_tags = session.execute(select(func.distinct(DagTag.name)).order_by(DagTag.name)).all()
+            tags_operator = ["and", "or", "not"]
             tags = [
-                {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
-                for name, in dagtags
+                {"name": name, "selected": [op for op in tags_operator if f"{name}|{op}" in arg_tags_filter]}
+                for name, in dag_tags
             ]
 
             owner_links_dict = DagOwnerAttributes.get_all(session)
@@ -1014,6 +1032,7 @@ class Airflow(AirflowBaseView):
             ),
             num_runs=num_runs,
             tags=tags,
+            tags_operator=tags_operator,
             owner_links=owner_links_dict,
             state_color=state_color_mapping,
             status_filter=arg_status_filter,
