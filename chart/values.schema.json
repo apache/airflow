@@ -146,7 +146,7 @@
             "description": "Default Container Lifecycle Hooks definition. The values in this parameter will be used when `containerLifecycleHooks` is not defined for specific containers.",
             "type": "object",
             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-            "default": "{}",
+            "default": {},
             "x-docsSection": "Kubernetes",
             "examples": [
                 {
@@ -1562,7 +1562,7 @@
                             "description": "Container Lifecycle Hooks definition for the persistence. If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": "{}",
+                            "default": {},
                             "x-docsSection": "Kubernetes",
                             "examples": [
                                 {
@@ -1645,7 +1645,7 @@
                             "description": "Container Lifecycle Hooks definition for the kerberos sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": "{}",
+                            "default": {},
                             "x-docsSection": "Kubernetes",
                             "examples": [
                                 {
@@ -1871,7 +1871,7 @@
                     "description": "Container Lifecycle Hooks definition for the worker. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -1969,7 +1969,7 @@
                             "description": "Container Lifecycle Hooks definition for the worker. If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": "{}",
+                            "default": {},
                             "x-docsSection": "Kubernetes",
                             "examples": [
                                 {
@@ -2409,7 +2409,7 @@
                     "description": "Container Lifecycle Hooks definition for the scheduler. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -2507,7 +2507,7 @@
                             "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": "{}",
+                            "default": {},
                             "x-docsSection": "Kubernetes",
                             "examples": [
                                 {
@@ -2905,7 +2905,7 @@
                     "description": "Container Lifecycle Hooks definition for the triggerer. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -3007,7 +3007,7 @@
                             "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": "{}",
+                            "default": {},
                             "x-docsSection": "Kubernetes",
                             "examples": [
                                 {
@@ -3351,7 +3351,7 @@
                     "description": "Container Lifecycle Hooks definition for the dag processor. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -3453,7 +3453,7 @@
                             "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": "{}",
+                            "default": {},
                             "x-docsSection": "Kubernetes",
                             "examples": [
                                 {
@@ -3702,7 +3702,7 @@
                     "description": "Container Lifecycle Hooks definition for the create user job. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -4000,7 +4000,7 @@
                     "description": "Container Lifecycle Hooks definition for the migrate database job. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -4395,7 +4395,7 @@
                     "description": "Container Lifecycle Hooks definition for the webserver. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -4766,7 +4766,7 @@
                             "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": "{}",
+                            "default": {},
                             "x-docsSection": "Kubernetes",
                             "examples": [
                                 {
@@ -5193,7 +5193,7 @@
                     "description": "Container Lifecycle Hooks definition for the network policy. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -5453,7 +5453,7 @@
                     "description": "Container Lifecycle Hooks definition for the statsd. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -6080,7 +6080,7 @@
                             "description": "Container Lifecycle Hooks definition for the metrics exporter sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": "{}",
+                            "default": {},
                             "x-docsSection": "Kubernetes",
                             "examples": [
                                 {
@@ -6346,7 +6346,7 @@
                     "description": "Container Lifecycle Hooks definition for the redis. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -6782,7 +6782,7 @@
                     "description": "Container Lifecycle Hooks definition for the cleanup. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -7112,7 +7112,7 @@
                             "description": "Container Lifecycle Hooks definition for the git sync sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": "{}",
+                            "default": {},
                             "x-docsSection": "Kubernetes",
                             "examples": [
                                 {
@@ -10088,7 +10088,7 @@
                     "description": "Container Lifecycle Hooks definition for the log groomer sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": "{}",
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
