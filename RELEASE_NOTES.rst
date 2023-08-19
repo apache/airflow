@@ -279,7 +279,7 @@ Bug Fixes
 - Adapt Notifier for sla_miss_callback (#31887)
 - Fix XCOM view (#31807)
 - Fix for "Filter dags by tag" flickering on initial load of dags.html (#31578)
-- Fix where expanding ``resizer`` wouldn't expanse grid view   (#31581)
+- Fix where expanding ``resizer`` would not expanse grid view (#31581)
 - Fix MappedOperator-BaseOperator attr sync check (#31520)
 - Always pass named ``type_`` arg to drop_constraint (#31306)
 - Fix bad ``drop_constraint`` call in migrations (#31302)
