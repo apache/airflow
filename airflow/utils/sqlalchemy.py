@@ -22,6 +22,7 @@ import copy
 import datetime
 import json
 import logging
+import warnings
 from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
 import pendulum
@@ -34,6 +35,7 @@ from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.serialization.enums import Encoding
 from airflow.utils.timezone import make_naive
 
@@ -590,7 +592,17 @@ def tuple_not_in_condition(
 
     :meta private:
     """
-    if settings.engine.dialect.name != "mssql":
+    warnings.warn(
+        f"`{__name__}.tuple_not_in_condition` is deprecated. "
+        "Please consider to use `sqlalchemy.sql.expression.exists` instead, see: "
+        "https://docs.sqlalchemy.org/en/latest/core/selectable.html#sqlalchemy.sql.expression.exists",
+        RemovedInAirflow3Warning,
+        stacklevel=2,
+    )
+
+    dialect = session.bind.dialect if session else settings.engine.dialect
+
+    if dialect.name != "mssql":
         return tuple_(*columns).not_in(collection)
     if not isinstance(collection, Select):
         rows = collection
