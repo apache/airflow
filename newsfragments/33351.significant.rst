@@ -1,6 +1,0 @@
-The trigger UI form is skipped in web UI with 2.7.0 if no parameters are defined in a DAG.
-
-If you are using ``dag_run.conf`` dictionary and web UI JSON entry to run your DAG you should either:
-
-* `Add params to your DAG <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/params.html#use-params-to-provide-a-trigger-ui-form>`_
-* Enable the new configuration ``show_trigger_form_if_no_params`` to bring back old behaviour

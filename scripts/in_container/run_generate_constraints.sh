@@ -93,7 +93,7 @@ elif [[ ${AIRFLOW_CONSTRAINTS_MODE} == "constraints" ]]; then
 #
 # 1. Reproducible installation of airflow with selected providers (note constraints are used):
 #
-# pip install "apache-airflow[celery,cncf.kubernetes,google,amazon,snowflake]==X.Y.Z" \
+# pip install "apache-airflow[celery,cncf.kubernetes,google,amazon,snowflake]==X.Y.Z" \\
 #     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-X.Y.Z/constraints-3.8.txt"
 #
 # 2. Installing own dependencies that are potentially not matching the constraints (note constraints are not

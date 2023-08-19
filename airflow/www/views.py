@@ -67,7 +67,7 @@ from jinja2.utils import htmlsafe_json_dumps, pformat  # type: ignore
 from markupsafe import Markup, escape
 from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
-from sqlalchemy import Date, and_, case, desc, func, inspect, or_, select, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import BooleanField, validators
@@ -1445,6 +1445,8 @@ class Airflow(AirflowBaseView):
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
+        no_dagrun = False
+
         title = "Rendered Template"
         html_dict = {}
 
@@ -1457,6 +1459,7 @@ class Airflow(AirflowBaseView):
             # database) for presentation only.
             ti = TaskInstance(raw_task, map_index=map_index)
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
+            no_dagrun = True
         else:
             ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index, session=session)
             if ti:
@@ -1502,28 +1505,33 @@ class Airflow(AirflowBaseView):
             content = getattr(task, template_field)
             renderer = task.template_fields_renderers.get(template_field, template_field)
             if renderer in renderers:
-                html_dict[template_field] = renderers[renderer](content)
+                html_dict[template_field] = renderers[renderer](content) if not no_dagrun else ""
             else:
-                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
+                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(
+                    pformat(content) if not no_dagrun else ""
+                )
 
             if isinstance(content, dict):
                 if template_field == "op_kwargs":
                     for key, value in content.items():
                         renderer = task.template_fields_renderers.get(key, key)
                         if renderer in renderers:
-                            html_dict[".".join([template_field, key])] = renderers[renderer](value)
+                            html_dict[".".join([template_field, key])] = (
+                                renderers[renderer](value) if not no_dagrun else ""
+                            )
                         else:
                             html_dict[".".join([template_field, key])] = Markup(
                                 "<pre><code>{}</pre></code>"
-                            ).format(pformat(value))
+                            ).format(pformat(value) if not no_dagrun else "")
                 else:
                     for dict_keys in get_key_paths(content):
                         template_path = ".".join((template_field, dict_keys))
                         renderer = task.template_fields_renderers.get(template_path, template_path)
                         if renderer in renderers:
                             content_value = get_value_from_path(dict_keys, content)
-                            html_dict[template_path] = renderers[renderer](content_value)
-
+                            html_dict[template_path] = (
+                                renderers[renderer](content_value) if not no_dagrun else ""
+                            )
         return self.render_template(
             "airflow/ti_code.html",
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
@@ -3739,13 +3747,14 @@ class Airflow(AirflowBaseView):
         """Returns cluster activity historical metrics."""
         start_date = _safe_parse_datetime(request.args.get("start_date"))
         end_date = _safe_parse_datetime(request.args.get("end_date"))
+
         with create_session() as session:
             # DagRuns
-            dag_runs_type = session.execute(
+            dag_run_types = session.execute(
                 select(DagRun.run_type, func.count(DagRun.run_id))
                 .where(
                     DagRun.start_date >= start_date,
-                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
                 )
                 .group_by(DagRun.run_type)
             ).all()
@@ -3754,7 +3763,7 @@ class Airflow(AirflowBaseView):
                 select(DagRun.state, func.count(DagRun.run_id))
                 .where(
                     DagRun.start_date >= start_date,
-                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
                 )
                 .group_by(DagRun.state)
             ).all()
@@ -3765,7 +3774,7 @@ class Airflow(AirflowBaseView):
                 .join(TaskInstance.dag_run)
                 .where(
                     DagRun.start_date >= start_date,
-                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
                 )
                 .group_by(TaskInstance.state)
             ).all()
@@ -3773,7 +3782,7 @@ class Airflow(AirflowBaseView):
             data = {
                 "dag_run_types": {
                     **{dag_run_type.value: 0 for dag_run_type in DagRunType},
-                    **{run_type: sum_value for run_type, sum_value in dag_runs_type},
+                    **{run_type: sum_value for run_type, sum_value in dag_run_types},
                 },
                 "dag_run_states": {
                     **{dag_run_state.value: 0 for dag_run_state in DagRunState},

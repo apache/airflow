@@ -26,16 +26,12 @@ import time
 import warnings
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Iterable, Mapping
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
-try:
+if TYPE_CHECKING:
     import pandas as pd
-except ImportError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-    raise AirflowOptionalProviderFeatureException(e)
 
 import csv
 
@@ -1055,6 +1051,13 @@ class HiveServer2Hook(DbApiHook):
 
         :return: pandas.DateFrame
         """
+        try:
+            import pandas as pd
+        except ImportError as e:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+
         res = self.get_results(sql, schema=schema, hive_conf=hive_conf)
         df = pd.DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
         return df
