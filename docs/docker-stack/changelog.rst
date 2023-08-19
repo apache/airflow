@@ -55,6 +55,14 @@ here so that users affected can find the reason for the changes.
 |              |                     |                                         | on 17 Jan 2022         |                                              |
 +--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 
+Airflow 2.7
+~~~~~~~~~~~
+
+* 2.7.0
+
+  * As of now, Python 3.7 is no longer supported by the Python community. Therefore, to use Airflow 2.7.0, you must ensure your Python version is
+    either 3.8, 3.9, 3.10, or 3.11.
+
 Airflow 2.6
 ~~~~~~~~~~~~~
 
