@@ -69,7 +69,7 @@ class UtcDateTime(TypeDecorator):
         if not isinstance(value, datetime.datetime):
             if value is None:
                 return None
-            raise TypeError("expected datetime.datetime, not " + repr(value))
+            raise TypeError(f"expected datetime.datetime, not {value!r}")
         elif value.tzinfo is None:
             raise ValueError("naive datetime is disallowed")
         elif dialect.name == "mysql":

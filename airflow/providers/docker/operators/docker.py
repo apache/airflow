@@ -408,7 +408,7 @@ class DockerOperator(BaseOperator):
                 )
             elif result["StatusCode"] != 0:
                 joined_log_lines = "\n".join(log_lines)
-                raise AirflowException(f"Docker container failed: {repr(result)} lines {joined_log_lines}")
+                raise AirflowException(f"Docker container failed: {result!r} lines {joined_log_lines}")
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
