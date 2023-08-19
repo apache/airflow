@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 from contextlib import closing
-from typing import Any, Callable, Iterable, Mapping, Sequence, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence, TypeVar, overload
 
-import pandas as pd
 import pyexasol
 from pyexasol import ExaConnection, ExaStatement
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 T = TypeVar("T")
 
