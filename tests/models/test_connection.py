@@ -118,6 +118,28 @@ class TestConnection:
                 None,
                 r"Invalid connection string: type://user:pass@protocol://host:port?param=value.",
             ),
+            (
+                "postgres://jdbc:postgresql://10.0.0.1",
+                "postgres",
+                "jdbc:postgresql://10.0.0.1",
+                None,
+                None,
+                None,
+                "",
+                {},
+                None,
+            ),
+            (
+                "hive://jdbc+hive2://conn_id:conn_pass@localhost:10000/default?auth_mechanism=LDAP",
+                "hive",
+                "jdbc+hive2://localhost",
+                "conn_id",
+                "conn_pass",
+                10000,
+                "default",
+                {"auth_mechanism": "LDAP"},
+                None,
+            ),
         ],
     )
     def test_parse_from_uri(
@@ -181,6 +203,24 @@ class TestConnection:
                     extra={"param1": "val1", "param2": "val2"},
                 ),
                 "type://protocol://user:pass@host:100/schema?param1=val1&param2=val2",
+            ),
+            (
+                Connection(
+                    conn_type="postgres",
+                    login="user",
+                    password="pass",
+                    host="jdbc:postgresql://10.0.0.1",
+                    port=5432,
+                ),
+                "postgres://jdbc:postgresql://user:pass@10.0.0.1:5432",
+            ),
+            (
+                Connection(
+                    conn_type="postgres",
+                    host="jdbc:postgresql://10.0.0.1",
+                    port=5432,
+                ),
+                "postgres://jdbc:postgresql://10.0.0.1:5432",
             ),
         ],
     )

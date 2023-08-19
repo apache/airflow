@@ -189,20 +189,25 @@ class Connection(Base, LoggingMixin):
         return conn_type
 
     def _parse_from_uri(self, uri: str):
+        colon_encoding = "encodedcolon"
         schemes_count_in_uri = uri.count("://")
         if schemes_count_in_uri > 2:
             raise AirflowException(f"Invalid connection string: {uri}.")
         host_with_protocol = schemes_count_in_uri == 2
+        if host_with_protocol:
+            split_uri = uri.split("://")
+            uri = f"{split_uri[0]}://{split_uri[1].replace(':', colon_encoding)}://{split_uri[2]}"
         uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
         self.conn_type = self._normalize_conn_type(conn_type)
         rest_of_the_url = uri.replace(f"{conn_type}://", ("" if host_with_protocol else "//"))
         if host_with_protocol:
-            uri_splits = rest_of_the_url.split("://", 1)
+            uri_splits = rest_of_the_url.split(":", 1)
             if "@" in uri_splits[0] or ":" in uri_splits[0]:
+                uri = uri.replace(colon_encoding, ":")
                 raise AirflowException(f"Invalid connection string: {uri}.")
         uri_parts = urlsplit(rest_of_the_url)
-        protocol = uri_parts.scheme if host_with_protocol else None
+        protocol = uri_parts.scheme.replace(colon_encoding, ":") if host_with_protocol else None
         host = _parse_netloc_to_hostname(uri_parts)
         self.host = self._create_host(protocol, host)
         quoted_schema = uri_parts.path[1:]
