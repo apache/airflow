@@ -1730,8 +1730,7 @@ def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
 
     :param tasks: Individual and/or list of tasks, EdgeModifiers, XComArgs, or TaskGroups to set dependencies
     """
-    for index, up_task in enumerate(tasks[:-1]):
-        down_task = tasks[index + 1]
+    for up_task, down_task in zip(tasks, tasks[1:]):
         if isinstance(up_task, DependencyMixin):
             up_task.set_downstream(down_task)
             continue
