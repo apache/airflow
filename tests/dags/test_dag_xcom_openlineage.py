@@ -1,3 +1,4 @@
+##
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,26 +15,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import io
-import sys
+import datetime
+
+from airflow.models import DAG
+from airflow.operators.python import PythonOperator
+
+dag = DAG(
+    dag_id="test_dag_xcom_openlineage",
+    default_args={"owner": "airflow", "retries": 3, "start_date": datetime.datetime(2022, 1, 1)},
+    schedule="0 0 * * *",
+    dagrun_timeout=datetime.timedelta(minutes=60),
+)
 
 
-class CliConflictError(Exception):
-    """Error for when CLI commands are defined twice by different sources."""
+def push_and_pull(ti, **kwargs):
+    ti.xcom_push(key="pushed_key", value="asdf")
+    ti.xcom_pull(key="pushed_key")
 
-    pass
 
+task = PythonOperator(task_id="push_and_pull", python_callable=push_and_pull, dag=dag)
 
-def is_stdout(fileio: io.IOBase) -> bool:
-    """Check whether a file IO is stdout.
-
-    The intended use case for this helper is to check whether an argument parsed
-    with argparse.FileType points to stdout (by setting the path to ``-``). This
-    is why there is no equivalent for stderr; argparse does not allow using it.
-
-    .. warning:: *fileio* must be open for this check to be successful.
-    """
-    return fileio.fileno() == sys.stdout.fileno()
+if __name__ == "__main__":
+    dag.cli()

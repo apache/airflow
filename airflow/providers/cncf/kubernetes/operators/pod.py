@@ -240,6 +240,8 @@ class KubernetesPodOperator(BaseOperator):
         Deprecated - use `on_finish_action` instead.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
+    :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
+        in V1PodSpec.
     """
 
     # This field can be overloaded at the instance level via base_container_name
@@ -320,6 +322,7 @@ class KubernetesPodOperator(BaseOperator):
         on_finish_action: str = "delete_pod",
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
+        active_deadline_seconds: int | None = None,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -417,6 +420,7 @@ class KubernetesPodOperator(BaseOperator):
             self.on_finish_action = OnFinishAction(on_finish_action)
             self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
         self.termination_message_policy = termination_message_policy
+        self.active_deadline_seconds = active_deadline_seconds
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
 
@@ -860,6 +864,7 @@ class KubernetesPodOperator(BaseOperator):
                 restart_policy="Never",
                 priority_class_name=self.priority_class_name,
                 volumes=self.volumes,
+                active_deadline_seconds=self.active_deadline_seconds,
             ),
         )
 

@@ -29,6 +29,8 @@
 {{- $securityContext := include "localPodSecurityContext" .Values.pgbouncer }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.pgbouncer }}
 {{- $containerSecurityContextMetricsExporter := include "externalContainerSecurityContext" .Values.pgbouncer.metricsExporterSidecar }}
+{{- $containerLifecycleHooks := .Values.pgbouncer.containerLifecycleHooks }}
+{{- $containerLifecycleHooksMetricsExporter := .Values.pgbouncer.metricsExporterSidecar.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -146,11 +148,9 @@ spec:
             {{- if .Values.pgbouncer.extraVolumeMounts }}
               {{- tpl (toYaml .Values.pgbouncer.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
-          lifecycle:
-            preStop:
-              exec:
-                # Allow existing queries clients to complete within 120 seconds
-                command: ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]
+          {{- if $containerLifecycleHooks }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
         - name: metrics-exporter
           resources: {{- toYaml .Values.pgbouncer.metricsExporterSidecar.resources | nindent 12 }}
           image: {{ template "pgbouncer_exporter_image" . }}
@@ -185,6 +185,9 @@ spec:
             initialDelaySeconds: {{ .Values.pgbouncer.metricsExporterSidecar.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.pgbouncer.metricsExporterSidecar.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.pgbouncer.metricsExporterSidecar.readinessProbe.timeoutSeconds }}
+          {{- if $containerLifecycleHooksMetricsExporter }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksMetricsExporter) . | nindent 12 }}
+          {{- end }}
       volumes:
         - name: pgbouncer-config
           secret:

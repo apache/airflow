@@ -24,6 +24,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import logging
 from argparse import Action
 from functools import lru_cache
@@ -41,11 +42,12 @@ from airflow.cli.cli_config import (
     GroupCommand,
     core_commands,
 )
+from airflow.cli.utils import CliConflictError
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
 
-airflow_commands = core_commands
+airflow_commands = core_commands.copy()  # make a copy to prevent bad interactions in tests
 
 log = logging.getLogger(__name__)
 try:
@@ -59,11 +61,21 @@ except Exception:
         "a 3.3.0+ version of the Celery provider. If using a Kubernetes executor, install a "
         "7.4.0+ version of the CNCF provider"
     )
-    # Do no re-raise the exception since we want the CLI to still function for
+    # Do not re-raise the exception since we want the CLI to still function for
     # other commands.
 
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
+
+
+# Check if sub-commands are defined twice, which could be an issue.
+if len(ALL_COMMANDS_DICT) < len(airflow_commands):
+    dup = {k for k, v in collections.Counter([c.name for c in airflow_commands]).items() if v > 1}
+    raise CliConflictError(
+        f"The following CLI {len(dup)} command(s) are defined more than once: {sorted(dup)}\n"
+        f"This can be due to the executor '{ExecutorLoader.get_default_executor_name()}' "
+        f"redefining core airflow CLI commands."
+    )
 
 
 class AirflowHelpFormatter(RichHelpFormatter):

@@ -795,7 +795,8 @@
   "sftp": {
     "deps": [
       "apache-airflow-providers-ssh>=2.1.0",
-      "apache-airflow>=2.4.0"
+      "apache-airflow>=2.4.0",
+      "paramiko>=2.8.0"
     ],
     "cross-providers-deps": [
       "openlineage",
