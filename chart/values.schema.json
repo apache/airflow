@@ -3078,6 +3078,72 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "keda": {
+                    "description": "KEDA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow KEDA autoscaling.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "namespaceLabels": {
+                            "description": "Labels used in `matchLabels` for namespace in the PgBouncer NetworkPolicy.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "pollingInterval": {
+                            "description": "How often KEDA polls the airflow DB to report new scale requests to the HPA.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "cooldownPeriod": {
+                            "description": "How many seconds KEDA will wait before scaling to zero.",
+                            "type": "integer",
+                            "default": 30
+                        },
+                        "minReplicaCount": {
+                            "description": "Minimum number of triggerers created by KEDA.",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "maxReplicaCount": {
+                            "description": "Maximum number of triggerers created by KEDA.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "advanced": {
+                            "description": "Advanced KEDA configuration.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": false,
+                            "properties": {
+                                "horizontalPodAutoscalerConfig": {
+                                    "description": "HorizontalPodAutoscalerConfig specifies horizontal scale config.",
+                                    "type": "object",
+                                    "default": {},
+                                    "properties": {
+                                        "behavior": {
+                                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                                            "type": "object",
+                                            "default": {},
+                                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HorizontalPodAutoscalerBehavior"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "query": {
+                            "description": "Query to use for KEDA autoscaling. Must return a single integer.",
+                            "type": "string",
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger"
+                        }
+                    }
                 }
             }
         },
