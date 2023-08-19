@@ -3905,6 +3905,8 @@ def dag(
                 catchup=catchup,
                 on_success_callback=on_success_callback,
                 on_failure_callback=on_failure_callback,
+                on_sla_miss_callback=on_sla_miss_callback,
+                sla=sla,
                 doc_md=doc_md,
                 params=params,
                 access_control=access_control,
