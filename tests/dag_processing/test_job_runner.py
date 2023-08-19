@@ -58,6 +58,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
+from airflow.utils.state import DagRunState
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
@@ -1041,14 +1042,14 @@ class TestDagProcessorJobRunner:
         callback1 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
-            is_failure_callback=True,
+            dagrun_state=DagRunState.FAILED,
             processor_subdir=os.fspath(tmp_path),
             run_id="123",
         )
         callback2 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
-            is_failure_callback=True,
+            dagrun_state=DagRunState.FAILED,
             processor_subdir=os.fspath(tmp_path),
             run_id="456",
         )
@@ -1095,13 +1096,13 @@ class TestDagProcessorJobRunner:
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
             is_failure_callback=True,
-            processor_subdir=os.fspath(tmp_path),
+            processor_subdir=str(tmpdir),
             run_id="123",
         )
         callback2 = DagCallbackRequest(
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
-            is_failure_callback=True,
+            dagrun_state=DagRunState.FAILED,
             processor_subdir="/some/other/dir/",
             run_id="456",
         )
@@ -1144,7 +1145,7 @@ class TestDagProcessorJobRunner:
                 callback = DagCallbackRequest(
                     dag_id="test_start_date_scheduling",
                     full_filepath=str(dag_filepath),
-                    is_failure_callback=True,
+                    dagrun_state=DagRunState.FAILED,
                     run_id=str(i),
                     processor_subdir=os.fspath(tmp_path),
                 )
@@ -1186,8 +1187,9 @@ class TestDagProcessorJobRunner:
                 dag_id="test_start_date_scheduling",
                 full_filepath=str(dag_filepath),
                 is_failure_callback=True,
-                processor_subdir=str(tmp_path),
+                processor_subdir=str(tmpdir),
                 run_id="123",
+                sla_miss=True,
             )
             session.add(DbCallbackRequest(callback=callback, priority_weight=10))
 
@@ -1232,16 +1234,16 @@ class TestDagProcessorJobRunner:
             full_filepath="/green_eggs/ham/file1.py",
             dag_id="dag1",
             run_id="run1",
-            is_failure_callback=False,
-            processor_subdir=tmp_path,
+            dagrun_state=DagRunState.SUCCESS,
+            processor_subdir=os.fspath(tmp_path),
             msg=None,
         )
         dag1_req2 = DagCallbackRequest(
             full_filepath="/green_eggs/ham/file1.py",
             dag_id="dag1",
             run_id="run1",
-            is_failure_callback=False,
-            processor_subdir=tmp_path,
+            dagrun_state=DagRunState.SUCCESS,
+            processor_subdir=os.fspath(tmp_path),
             msg=None,
         )
         dag1_sla1 = SlaCallbackRequest(
@@ -1259,8 +1261,8 @@ class TestDagProcessorJobRunner:
             full_filepath="/green_eggs/ham/file2.py",
             dag_id="dag2",
             run_id="run1",
-            is_failure_callback=False,
-            processor_subdir=tmp_path,
+            dagrun_state=DagRunState.SUCCESS,
+            processor_subdir=os.fspath(tmp_path),
             msg=None,
         )
 
