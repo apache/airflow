@@ -128,11 +128,11 @@ class SkipMixin(LoggingMixin):
                 stacklevel=2,
             )
 
-            dag_run = session.scalar(
+            dag_run = session.scalars(
                 select(DagRun).where(
                     DagRun.dag_id == task_list[0].dag_id, DagRun.execution_date == execution_date
                 )
-            )
+            ).one()
 
         elif execution_date and dag_run and execution_date != dag_run.execution_date:
             raise ValueError(
