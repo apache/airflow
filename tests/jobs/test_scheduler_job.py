@@ -1975,22 +1975,23 @@ class TestSchedulerJob:
     @pytest.mark.parametrize(
         "state, dagrun_state, expected_callback_msg",
         [
-            (State.RUNNING, DagRunState.RUNNING, "sla_missed"),
+            (State.RUNNING, DagRunState.RUNNING, None),
             (State.SUCCESS, DagRunState.SUCCESS, "success"),
             (State.FAILED, DagRunState.FAILED, "task_failure"),
         ],
     )
+    @time_machine.travel(DEFAULT_DATE + datetime.timedelta(seconds=10), tick=False)
     def test_dagrun_sla_callbacks_are_called(self, state, dagrun_state, expected_callback_msg, dag_maker):
         """
-        Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
+        Test if DagRun is successful, and if Sla callback is defined, it is sent to DagFileProcessor.
         """
         with dag_maker(
-            dag_id="test_dagrun_callbacks_are_called",
+            dag_id="test_dagrun_sla_callbacks_are_called",
             on_success_callback=lambda x: print("success"),
             on_failure_callback=lambda x: print("failed"),
             on_sla_miss_callback=lambda x: print("sla missed"),
             processor_subdir=TEST_DAG_FOLDER,
-            sla=timedelta(seconds=0),
+            sla=timedelta(seconds=5),
         ) as dag:
             EmptyOperator(task_id="dummy")
 
@@ -2010,6 +2011,11 @@ class TestSchedulerJob:
         with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
             self.job_runner._do_scheduling(session)
 
+        dr = session.merge(dr)
+        session.refresh(dr)
+
+        assert dr.sla_missed
+
         expected_callback = DagCallbackRequest(
             full_filepath=dag.fileloc,
             dag_id=dr.dag_id,
@@ -2020,8 +2026,137 @@ class TestSchedulerJob:
             sla_miss=True,
         )
 
-        # Verify dag failure callback request is sent to file processor
+        # Verify dag callback request is sent to file processor with sla_miss = True
         scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
+        session.rollback()
+        session.close()
+
+    @pytest.mark.parametrize(
+        "state, dagrun_state, expected_callback_msg",
+        [
+            (State.RUNNING, DagRunState.RUNNING, None),
+            (State.SUCCESS, DagRunState.SUCCESS, "success"),
+            (State.FAILED, DagRunState.FAILED, "task_failure"),
+        ],
+    )
+    @time_machine.travel(DEFAULT_DATE + datetime.timedelta(seconds=10), tick=False)
+    def test_dagrun_sla_callbacks_are_not_called_before_sla(
+        self, state, dagrun_state, expected_callback_msg, dag_maker
+    ):
+        """
+        Test if sla has not been missed yet, sla callback is not called in the scheduler loop.
+        """
+        with dag_maker(
+            dag_id="test_dagrun_sla_callbacks_are_not_called_before_sla",
+            on_success_callback=lambda x: print("success"),
+            on_failure_callback=lambda x: print("failed"),
+            on_sla_miss_callback=lambda x: print("sla missed"),
+            processor_subdir=TEST_DAG_FOLDER,
+            sla=timedelta(seconds=15),
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        scheduler_job.executor = MockExecutor()
+        self.job_runner.dagbag = dag_maker.dagbag
+        self.job_runner.processor_agent = mock.Mock()
+
+        session = settings.Session()
+        dr = dag_maker.create_dagrun()
+
+        ti = dr.get_task_instance("dummy")
+        ti.set_state(state, session)
+
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
+            self.job_runner._do_scheduling(session)
+
+        dr = session.merge(dr)
+        session.refresh(dr)
+
+        assert not dr.sla_missed
+
+        if dagrun_state in State.finished_dr_states:
+            expected_callback = DagCallbackRequest(
+                full_filepath=dag.fileloc,
+                dag_id=dr.dag_id,
+                dagrun_state=dagrun_state,
+                run_id=dr.run_id,
+                processor_subdir=TEST_DAG_FOLDER,
+                msg=expected_callback_msg,
+                sla_miss=False,
+            )
+            # Verify dag callback request is sent to file processor with sla_miss = False
+            scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
+        else:
+            # Verify no dag callback request is sent if the state is still unfinished
+            scheduler_job.executor.callback_sink.send.assert_not_called()
+        session.rollback()
+        session.close()
+
+    @pytest.mark.parametrize(
+        "state, dagrun_state, expected_callback_msg",
+        [
+            (State.RUNNING, DagRunState.RUNNING, None),
+            (State.SUCCESS, DagRunState.SUCCESS, "success"),
+            (State.FAILED, DagRunState.FAILED, "task_failure"),
+        ],
+    )
+    @time_machine.travel(DEFAULT_DATE + datetime.timedelta(seconds=10), tick=False)
+    def test_dagrun_sla_callbacks_are_not_called_if_already_missed(
+        self, state, dagrun_state, expected_callback_msg, dag_maker
+    ):
+        """
+        Test if Sla miss was already recorded, Sla miss callback is not called again.
+        """
+        with dag_maker(
+            dag_id="test_dagrun_sla_callbacks_are_not_called",
+            on_success_callback=lambda x: print("success"),
+            on_failure_callback=lambda x: print("failed"),
+            on_sla_miss_callback=lambda x: print("sla missed"),
+            processor_subdir=TEST_DAG_FOLDER,
+            sla=timedelta(seconds=5),
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        scheduler_job.executor = MockExecutor()
+        self.job_runner.dagbag = dag_maker.dagbag
+        self.job_runner.processor_agent = mock.Mock()
+
+        session = settings.Session()
+        dr = dag_maker.create_dagrun()
+        dr.sla_missed = True
+
+        ti = dr.get_task_instance("dummy")
+        ti.set_state(state, session)
+
+        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
+            self.job_runner._do_scheduling(session)
+
+        dr = session.merge(dr)
+        session.refresh(dr)
+
+        assert dr.sla_missed
+
+        if dagrun_state in State.finished_dr_states:
+            expected_callback = DagCallbackRequest(
+                full_filepath=dag.fileloc,
+                dag_id=dr.dag_id,
+                dagrun_state=dagrun_state,
+                run_id=dr.run_id,
+                processor_subdir=TEST_DAG_FOLDER,
+                msg=expected_callback_msg,
+                sla_miss=False,
+            )
+            # Verify dag callback request is sent to file processor with sla_miss = False
+            scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
+        else:
+            # Verify no dag callback request is sent if the state is still unfinished
+            scheduler_job.executor.callback_sink.send.assert_not_called()
         session.rollback()
         session.close()
 

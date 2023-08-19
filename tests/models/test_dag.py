@@ -1486,8 +1486,8 @@ class TestDag:
             dag_run = dag.create_dagrun(State.RUNNING, when, run_type=DagRunType.MANUAL, session=session)
 
             # should not raise any exception
-            dag.handle_callback(dag_run, success=False)
-            dag.handle_callback(dag_run, success=True)
+            dag.handle_callback(dag_run, dagrun_state=DagRunState.FAILED)
+            dag.handle_callback(dag_run, dagrun_state=DagRunState.SUCCESS)
 
         mock_stats.incr.assert_called_with(
             "dag.callback_exceptions",
