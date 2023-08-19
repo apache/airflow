@@ -103,6 +103,7 @@ spec:
   securityContext: {{ $securityContext | nindent 4 }}
   nodeSelector: {{- toYaml $nodeSelector | nindent 4 }}
   affinity: {{- toYaml $affinity | nindent 4 }}
+  terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
   tolerations: {{- toYaml $tolerations | nindent 4 }}
   topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}

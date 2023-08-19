@@ -767,3 +767,16 @@ class TestPodTemplateFile:
         assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
             f"spec.containers[0].lifecycle.{hook_type}", docs[0]
         )
+
+    def test_termination_grace_period_seconds(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "terminationGracePeriodSeconds": 123,
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert 123 == jmespath.search("spec.terminationGracePeriodSeconds", docs[0])
