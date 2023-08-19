@@ -3238,7 +3238,8 @@ class Airflow(AirflowBaseView):
 
         # we must group any mapped TIs by dag_id, task_id, run_id
         mapped_tis = set()
-        tis_grouped = itertools.groupby(task_instances, lambda x: (x.dag_id, x.task_id, x.run_id))
+        tis_group_sort = lambda ti: (ti.dag_id, ti.task_id, ti.run_id)
+        tis_grouped = itertools.groupby(sorted(task_instances, key=tis_group_sort), key=tis_group_sort)
         for _, group in tis_grouped:
             tis = list(group)
             duration = sum(x.duration for x in tis if x.duration)
