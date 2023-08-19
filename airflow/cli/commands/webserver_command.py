@@ -144,8 +144,8 @@ class GunicornMonitor(LoggingMixin):
                 pass
             return False
 
-        ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
-        return len(ready_workers)
+        nb_ready_workers = sum(1 for proc in workers if ready_prefix_on_cmdline(proc))
+        return nb_ready_workers
 
     def _get_num_workers_running(self) -> int:
         """Return number of running Gunicorn workers processes."""
