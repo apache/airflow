@@ -127,7 +127,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
@@ -1388,7 +1388,7 @@ class DAG(LoggingMixin):
         return _schedule_interval
 
     @provide_session
-    def handle_callback(self, dagrun, dagrun_state, sla_miss, reason=None, session=NEW_SESSION):
+    def handle_callback(self, dagrun, dagrun_state, sla_miss=False, reason=None, session=NEW_SESSION):
         """
         Triggers on_failure_callback or on_success_callback as appropriate.
 
@@ -1429,7 +1429,8 @@ class DAG(LoggingMixin):
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
-            context.update({"reason": reason})
+            if dagrun_state in State.finished_dr_states:
+                context.update({"reason": reason})
             for callback in callbacks:
                 self.log.info("Executing dag callback function: %s", callback)
                 try:

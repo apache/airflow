@@ -635,12 +635,10 @@ class DagRun(Base, LoggingMixin):
                         unfinished = unfinished.recalculate()
 
         tis_for_dagrun_state = self._tis_for_dagrun_state(dag=dag, tis=tis)
-        print(f"???: updating state {dag.sla=} {self.sla_missed=} {self.run_type=}")
         # check if sla has just been missed for this dagrun
         if dag.sla is not None and not self.sla_missed and self.run_type != DagRunType.BACKFILL_JOB:
             start_time = self.start_date
             ts = timezone.utcnow()
-            print(f"!!!!: Checking SLA {ts=} {start_time=}")
             if dag.sla < ts - start_time:
                 self.sla_missed = True
 
@@ -649,7 +647,6 @@ class DagRun(Base, LoggingMixin):
                         self,
                         dagrun_state=DagRunState.RUNNING,
                         sla_miss=True,
-                        reason="sla_missed",
                         session=session,
                     )
                 elif dag.has_on_sla_miss_callback:
@@ -663,7 +660,6 @@ class DagRun(Base, LoggingMixin):
                         dagrun_state=DagRunState.RUNNING,
                         sla_miss=True,
                         processor_subdir=None if dag_model is None else dag_model.processor_subdir,
-                        msg="sla_missed",
                     )
         # if all tasks finished and at least one failed, the run failed
         if not unfinished.tis and any(x.state in State.failed_states for x in tis_for_dagrun_state):
@@ -743,7 +739,7 @@ class DagRun(Base, LoggingMixin):
                     full_filepath=dag.fileloc,
                     dag_id=self.dag_id,
                     run_id=self.run_id,
-                    is_failure_callback=True,
+                    dagrun_state=DagRunState.FAILED,
                     processor_subdir=None if dag_model is None else dag_model.processor_subdir,
                     msg="all_tasks_deadlocked",
                 )
