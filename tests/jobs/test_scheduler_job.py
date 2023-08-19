@@ -1973,11 +1973,12 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.parametrize(
-        "state, dagrun_state, expected_callback_msg", [
+        "state, dagrun_state, expected_callback_msg",
+        [
             (State.RUNNING, DagRunState.RUNNING, "sla_missed"),
             (State.SUCCESS, DagRunState.SUCCESS, "success"),
-            (State.FAILED, DagRunState.FAILED, "task_failure")
-        ]
+            (State.FAILED, DagRunState.FAILED, "task_failure"),
+        ],
     )
     def test_dagrun_sla_callbacks_are_called(self, state, dagrun_state, expected_callback_msg, dag_maker):
         """
@@ -2016,7 +2017,7 @@ class TestSchedulerJob:
             run_id=dr.run_id,
             processor_subdir=TEST_DAG_FOLDER,
             msg=expected_callback_msg,
-            sla_miss=True
+            sla_miss=True,
         )
 
         # Verify dag failure callback request is sent to file processor
