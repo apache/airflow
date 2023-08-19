@@ -130,7 +130,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
@@ -1486,18 +1486,12 @@ class DAG(LoggingMixin):
             dag=self, dag_run_id=dagrun.run_id, dagrun_state=dagrun_state, sla_miss=sla_miss, reason=reason, session=session
         ) or (None, None)
 
-        DAG.execute_callback(callbacks, context, self.dag_id)
-
-    @classmethod
-    def execute_callback(cls, callbacks: list[Callable] | None, context: Context | None, dag_id: str):
-        """
-        Triggers the callbacks with the given context.
-
-        :param callbacks: List of callbacks to call
-        :param context: Context to pass to all callbacks
-        :param dag_id: The dag_id of the DAG to find.
-        """
-        if callbacks and context:
+        if callbacks:
+            tis = dagrun.get_task_instances(session=session)
+            ti = tis[-1]  # get first TaskInstance of DagRun
+            ti.task = self.get_task(ti.task_id)
+            context = ti.get_template_context(session=session)
+            context.update({"reason": reason})
             for callback in callbacks:
                 cls.logger().info("Executing dag callback function: %s", callback)
                 try:
