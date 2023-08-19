@@ -52,6 +52,7 @@ TEST_PROJECTID = "test-project-id"
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_DATA_PIPELINE_NAME = "test_data_pipeline_name"
 
+
 class TestCreateDataPipelineOperator:
     @pytest.fixture
     def create_operator(self):
@@ -136,6 +137,7 @@ class TestCreateDataPipelineOperator:
         }
         with pytest.raises(AirflowException):
             CreateDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
 
 class TestRunDataPipelineOperator:
     @pytest.fixture

@@ -27,6 +27,7 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+
 class CreateDataPipelineOperator(GoogleCloudBaseOperator):
     """
     Creates a new Data Pipelines instance from the Data Pipelines API.
@@ -99,6 +100,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
                 raise AirflowException(self.data_pipeline.get("error").get("message"))
 
         return self.data_pipeline
+
 
 class RunDataPipelineOperator(GoogleCloudBaseOperator):
     """

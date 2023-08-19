@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-
 from pathlib import Path
 
 from airflow import models
@@ -118,7 +117,7 @@ with models.DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-    
+
     # [START howto_operator_run_data_pipeline]
     run_data_pipeline = RunDataPipelineOperator(
         task_id="run_data_pipeline",
