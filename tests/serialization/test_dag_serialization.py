@@ -1229,7 +1229,6 @@ class TestStringifiedDAGs:
             "retry_delay": timedelta(0, 300),
             "retry_exponential_backoff": False,
             "run_as_user": None,
-            "sla": None,
             "task_id": "10",
             "trigger_rule": "all_success",
             "wait_for_downstream": False,
