@@ -289,12 +289,14 @@ class Connection(Base, LoggingMixin):
                 query: str | None = urlencode(self.extra_dejson)
             except TypeError:
                 query = None
-            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
-                uri += ("?" if self.schema or not self.host else "/?") + query
+            if not self.schema and (self.host or self.login):
+                uri += "/?"
             else:
-                uri += ("?" if self.schema or not self.host else "/?") + urlencode(
-                    {self.EXTRA_KEY: self.extra}
-                )
+                uri += "?"
+            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+                uri += query
+            else:
+                uri += urlencode({self.EXTRA_KEY: self.extra})
 
         return uri
 
