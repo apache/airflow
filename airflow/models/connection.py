@@ -190,10 +190,13 @@ class Connection(Base, LoggingMixin):
         return conn_type
 
     def _parse_from_uri(self, uri: str):
-        uri_split = uri.split("://", 1)
-        self.conn_type = self._normalize_conn_type(uri_split[0])
-        conn_url = uri_split[1]
-        if "://" not in conn_url:
+        if "://" not in uri:
+            conn_url = uri
+        else:
+            uri_split = uri.split("://", 1)
+            self.conn_type = self._normalize_conn_type(uri_split[0])
+            conn_url = uri_split[1]
+        if "//" not in conn_url:
             # If no scheme is specified, we add a default empty scheme
             conn_url = "//" + conn_url
         if re2.search(r"@.*://", conn_url):
@@ -287,9 +290,11 @@ class Connection(Base, LoggingMixin):
             except TypeError:
                 query = None
             if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
-                uri += ("?" if self.schema else "/?") + query
+                uri += ("?" if self.schema or not self.host else "/?") + query
             else:
-                uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
+                uri += ("?" if self.schema or not self.host else "/?") + urlencode(
+                    {self.EXTRA_KEY: self.extra}
+                )
 
         return uri
 
