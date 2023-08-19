@@ -81,7 +81,7 @@ const FilterBar = () => {
         </Box>
         <Flex alignItems="center">
           <Text whiteSpace="nowrap">
-            over the last{" "}
+            for a period of{" "}
             {formatDuration(getDuration(formattedStartDate, formattedEndDate))}
           </Text>
         </Flex>

@@ -181,6 +181,15 @@ class TestMySqlHookConn:
             read_default_group="enable-cleartext-plugin",
         )
 
+    @mock.patch("MySQLdb.connect")
+    def test_get_conn_init_command(self, mock_connect):
+        self.db_hook.init_command = "SET time_zone = '+00:00';"
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        assert kwargs["init_command"] == "SET time_zone = '+00:00';"
+
 
 class MockMySQLConnectorConnection:
     DEFAULT_AUTOCOMMIT = "default"
