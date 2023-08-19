@@ -44,12 +44,13 @@ class DbCallbackRequest(Base):  # type: ignore
     callback_data = Column(ExtendedJSON, nullable=False)
     callback_type = Column(String(20), nullable=False)
 
+
 from airflow.models.db_callback_request import DbCallbackRequest
 
 
 # revision identifiers, used by Alembic.
-revision = '8ab46618a397'
-down_revision = '405de8318b3a'
+revision = "8ab46618a397"
+down_revision = "405de8318b3a"
 branch_labels = None
 depends_on = None
 airflow_version = "2.7.1"
@@ -58,19 +59,28 @@ airflow_version = "2.7.1"
 def upgrade():
     """Apply add sla to dag and dag run"""
     # Add sla_missed column to dag_run
-    with op.batch_alter_table('dag_run') as batch_op:
-        batch_op.add_column(sa.Column('sla_missed', sa.Boolean(),
+    with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.add_column(
+            sa.Column(
+                "sla_missed",
+                sa.Boolean(),
                 default=False,
                 nullable=False,
-                server_default="0",))
-    
+                server_default="0",
+            )
+        )
+
     # Update json data in DbCallbackRequest to use dagrun_state instead of is_failure_callback
     conn = op.get_bind()
- 
+
     sessionmaker = sa.orm.sessionmaker()
     session = sessionmaker(bind=conn)
 
-    existing = session.execute(select(DbCallbackRequest.id, DbCallbackRequest.callback_data).where(DbCallbackRequest.callback_type == "DagCallbackRequest")).all()
+    existing = session.execute(
+        select(DbCallbackRequest.id, DbCallbackRequest.callback_data).where(
+            DbCallbackRequest.callback_type == "DagCallbackRequest"
+        )
+    ).all()
     for id_, callback_data in existing:
         json_object = json.loads(callback_data)
         if "is_failure_callback" in json_object:
@@ -93,16 +103,20 @@ def upgrade():
 def downgrade():
     """Unapply add sla to dag and dag run"""
     # Drop sla_missed column from dag_run
-    with op.batch_alter_table('dag_run') as batch_op:
-        batch_op.drop_column('sla_missed')
+    with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.drop_column("sla_missed")
 
     # Update json data in DbCallbackRequest to use is_failure_callback instead of dagrun_state
     conn = op.get_bind()
- 
+
     sessionmaker = sa.orm.sessionmaker()
     session = sessionmaker(bind=conn)
 
-    existing = session.execute(select(DbCallbackRequest.id, DbCallbackRequest.callback_data).where(DbCallbackRequest.callback_type == "DagCallbackRequest")).all()
+    existing = session.execute(
+        select(DbCallbackRequest.id, DbCallbackRequest.callback_data).where(
+            DbCallbackRequest.callback_type == "DagCallbackRequest"
+        )
+    ).all()
     for id_, callback_data in existing:
         json_object = json.loads(callback_data)
         if "dagrun_state" in json_object:
