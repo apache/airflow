@@ -45,7 +45,7 @@ def initdb(args):
         "airflow connections create-default-connections to create the default connections",
         DeprecationWarning,
     )
-    print("DB: " + repr(settings.engine.url))
+    print(f"DB: {settings.engine.url!r}")
     db.initdb()
     print("Initialization done")
 
@@ -53,7 +53,7 @@ def initdb(args):
 @providers_configuration_loaded
 def resetdb(args):
     """Reset the metadata database."""
-    print("DB: " + repr(settings.engine.url))
+    print(f"DB: {settings.engine.url!r}")
     if not (args.yes or input("This will drop existing tables if they exist. Proceed? (y/n)").upper() == "Y"):
         raise SystemExit("Cancelled")
     db.resetdb(skip_init=args.skip_init)
@@ -69,7 +69,7 @@ def upgradedb(args):
 @providers_configuration_loaded
 def migratedb(args):
     """Migrates the metadata database."""
-    print("DB: " + repr(settings.engine.url))
+    print(f"DB: {settings.engine.url!r}")
     if args.to_revision and args.to_version:
         raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
     if args.from_version and args.from_revision:
@@ -97,7 +97,7 @@ def migratedb(args):
         to_revision = args.to_revision
 
     if not args.show_sql_only:
-        print("Performing upgrade to the metadata database " + repr(settings.engine.url))
+        print(f"Performing upgrade to the metadata database {settings.engine.url!r}")
     else:
         print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
 
@@ -139,7 +139,7 @@ def downgrade(args):
     elif args.to_revision:
         to_revision = args.to_revision
     if not args.show_sql_only:
-        print("Performing downgrade with database " + repr(settings.engine.url))
+        print(f"Performing downgrade with database {settings.engine.url!r}")
     else:
         print("Generating sql for downgrade -- downgrade commands will *not* be submitted.")
 
@@ -170,7 +170,7 @@ def check_migrations(args):
 def shell(args):
     """Run a shell that allows to access metadata database."""
     url = settings.engine.url
-    print("DB: " + repr(url))
+    print(f"DB: {url!r}")
 
     if url.get_backend_name() == "mysql":
         with NamedTemporaryFile(suffix="my.cnf") as f:

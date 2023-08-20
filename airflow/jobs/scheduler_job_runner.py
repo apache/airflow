@@ -410,10 +410,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 break
 
             # Put one task instance on each line
-            task_instance_str = "\n\t".join(repr(x) for x in task_instances_to_examine)
-            self.log.info(
-                "%s tasks up for execution:\n\t%s", len(task_instances_to_examine), task_instance_str
-            )
+            task_instance_str = "\n".join(f"\t{x!r}" for x in task_instances_to_examine)
+            self.log.info("%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str)
 
             for task_instance in task_instances_to_examine:
                 pool_name = task_instance.pool
@@ -591,8 +589,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
         if len(executable_tis) > 0:
-            task_instance_str = "\n\t".join(repr(x) for x in executable_tis)
-            self.log.info("Setting the following tasks to queued state:\n\t%s", task_instance_str)
+            task_instance_str = "\n".join(f"\t{x!r}" for x in executable_tis)
+            self.log.info("Setting the following tasks to queued state:\n%s", task_instance_str)
 
             # set TIs to queued state
             filter_for_tis = TI.filter_for_tis(executable_tis)
