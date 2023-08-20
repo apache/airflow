@@ -1797,7 +1797,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             default_project_id=bq_hook.project_id or "",
         )
 
-        externalDataConfiguration = {
+        external_data_configuration = {
             "source_uris": source_uris,
             "source_format": self.source_format,
             "autodetect": self.autodetect,
@@ -1805,7 +1805,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             "maxBadRecords": self.max_bad_records,
         }
         if self.source_format == "CSV":
-            externalDataConfiguration["csvOptions"] = {
+            external_data_configuration["csvOptions"] = {
                 "fieldDelimiter": self.field_delimiter,
                 "skipLeadingRows": self.skip_leading_rows,
                 "quote": self.quote_character,
@@ -1821,7 +1821,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             },
             "labels": self.labels,
             "schema": {"fields": schema_fields},
-            "externalDataConfiguration": externalDataConfiguration,
+            "externalDataConfiguration": external_data_configuration,
             "location": self.location,
             "encryptionConfiguration": self.encryption_configuration,
         }
