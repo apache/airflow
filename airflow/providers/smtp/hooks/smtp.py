@@ -329,7 +329,7 @@ class SmtpHook(BaseHook):
         :return: A list of email addresses.
         """
         pattern = r"\s*[,;]\s*"
-        return [address for address in re.split(pattern, addresses)]
+        return re.split(pattern, addresses)
 
     @property
     def conn(self) -> Connection:

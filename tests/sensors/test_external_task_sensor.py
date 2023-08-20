@@ -135,7 +135,7 @@ class TestExternalTaskSensor:
                     return x
 
                 dummy_task()
-                dummy_mapped_task.expand(x=[i for i in map_indexes])
+                dummy_mapped_task.expand(x=list(map_indexes))
 
         SerializedDagModel.write_dag(dag)
 
@@ -1089,7 +1089,7 @@ def run_tasks(dag_bag, execution_date=DEFAULT_DATE, session=None):
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
-        tasks = sorted((ti for ti in dagrun.task_instances), key=lambda ti: ti.task_id)
+        tasks = sorted(dagrun.task_instances, key=lambda ti: ti.task_id)
         for ti in tasks:
             ti.refresh_from_task(dag.get_task(ti.task_id))
             tis[ti.task_id] = ti
@@ -1478,7 +1478,7 @@ def dag_bag_head_tail_mapped_tasks():
             mode="reschedule",
         )
 
-        body = dummy_task.expand(x=[i for i in range(5)])
+        body = dummy_task.expand(x=range(5))
         tail = ExternalTaskMarker(
             task_id="tail",
             external_dag_id=dag.dag_id,
@@ -1524,7 +1524,7 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         include_downstream=True,
         include_upstream=False,
     )
-    task_ids = [tid for tid in dag.task_dict]
+    task_ids = list(dag.task_dict)
     assert (
         dag.clear(
             start_date=DEFAULT_DATE,

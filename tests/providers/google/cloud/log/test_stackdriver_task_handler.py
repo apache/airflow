@@ -311,7 +311,7 @@ labels.try_number="3"'''
 
         entry = mock.MagicMock(json_payload={"message": "TEXT"})
         page = mock.MagicMock(entries=[entry, entry], next_page_token=None)
-        mock_client.return_value.list_log_entries.return_value.pages = (n for n in [page])
+        mock_client.return_value.list_log_entries.return_value.pages = iter([page])
 
         logs, metadata = stackdriver_task_handler.read(self.ti)
         mock_client.return_value.list_log_entries.assert_called_once_with(

@@ -235,7 +235,7 @@ class HiveCliHook(BaseHook):
 
         invalid_chars_list = re.findall(r"[^a-z0-9_]", schema)
         if invalid_chars_list:
-            invalid_chars = "".join(char for char in invalid_chars_list)
+            invalid_chars = "".join(invalid_chars_list)
             raise RuntimeError(f"The schema `{schema}` contains invalid characters: {invalid_chars}")
 
         if schema:

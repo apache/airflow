@@ -177,7 +177,7 @@ with DAG(
         import csv
 
         with open(filepath, newline="") as file:
-            return [row for row in csv.reader(file)]
+            return list(csv.reader(file))
 
     transfer_s3_to_sql = S3ToSqlOperator(
         task_id="transfer_s3_to_sql",

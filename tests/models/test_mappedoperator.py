@@ -668,7 +668,7 @@ def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
 
     class ConsumeXcomOperator(PushXcomOperator):
         def execute(self, context):
-            assert {i for i in self.arg1} == {1, 2, 3}
+            assert set(self.arg1) == {1, 2, 3}
 
     with dag_maker("test_all_xcomargs_from_mapped_tasks_are_consumable"):
         op1 = PushXcomOperator.partial(task_id="op1").expand(arg1=[1, 2, 3])
