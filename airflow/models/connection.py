@@ -213,14 +213,16 @@ class Connection(Base, LoggingMixin):
     def _parse_from_uri(self, uri: str):
         if not uri:
             raise AirflowException("Invalid (empty) - URI passed.")
-        special_treatment = False
+        hack_for_host_and_host_port_only_uri_like_specifications = False
         if HOST_OR_HOST_PORT_ONLY_MATCHER.match(uri):
+            # We add a special treatment here for the simplistic way of specifying the URIs in the form
+            # of <host> or <host>:<port> - we treat them as host-only and host:port-only URIs
             if not uri.startswith("//"):
                 uri = f"//{uri}"
-            special_treatment = True
+            hack_for_host_and_host_port_only_uri_like_specifications = True
         first_colon_index = uri.find(":")
         if (
-            not special_treatment
+            not hack_for_host_and_host_port_only_uri_like_specifications
             and first_colon_index != -1
             and uri[first_colon_index : first_colon_index + 3] != "://"
         ):
@@ -241,12 +243,24 @@ class Connection(Base, LoggingMixin):
             self.extract_query_part(uri_parts)
         else:
             schemes_count_in_uri = uri.count("://")
-            host_with_protocol = schemes_count_in_uri == 2
+            hack_for_special_treatment_where_authority_is_taken_from_internal_protocol = (
+                schemes_count_in_uri == 2
+            )
             uri_parts = urlsplit(uri)
             conn_type = uri_parts.scheme
             self.conn_type = self._normalize_conn_type(conn_type)
-            rest_of_the_url = uri.replace(f"{conn_type}://", ("" if host_with_protocol else "//"))
-            if host_with_protocol:
+            rest_of_the_url = uri.replace(
+                f"{conn_type}://",
+                ("" if hack_for_special_treatment_where_authority_is_taken_from_internal_protocol else "//"),
+            )
+            if hack_for_special_treatment_where_authority_is_taken_from_internal_protocol:
+                # This is a special handling of URIs that are not RFC3986 compliant when it comes to
+                # parsing the authority part (host, port, user, password). Technically speaking the URIS
+                # of this form: type://protocol://user:pass@host:123?param=value are not compliant
+                # with RFC3986 and their authority part should not be parsed and converted into host, port,
+                # user, password of the Connection. However, we have to do it for backward compatibility
+                # reasons. This is quite a hack that allows us to support the non-RFC3986 compliant
+                # format of the URI.
                 uri_splits = rest_of_the_url.split("://", 1)
                 if "@" in uri_splits[0] or ":" in uri_splits[0]:
                     raise AirflowException(
@@ -254,12 +268,20 @@ class Connection(Base, LoggingMixin):
                         f"  The host cannot contain '@' or ':' : {uri_splits[0]}"
                     )
             uri_parts = urlsplit(rest_of_the_url)
-            protocol = uri_parts.scheme if host_with_protocol else None
+            protocol = (
+                uri_parts.scheme
+                if hack_for_special_treatment_where_authority_is_taken_from_internal_protocol
+                else None
+            )
             host = _parse_netloc_to_hostname(uri_parts)
             self.host = self._create_host(protocol, host)
             quoted_schema = uri_parts.path[1:]
             self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
             if not self.schema:
+                # When derived schema is empty - we are using connection type as source of the schema
+                # but we are replacing the dashes with underscores to make it compatible with the
+                # URI specification. This is yet another terrible hack coming from special treatment
+                # of the internal protocol part of the URI as one providing authority part.
                 self.schema = self.conn_type.replace("_", "-")
             self.login = unquote(uri_parts.username) if uri_parts.username else uri_parts.username
             self.password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
