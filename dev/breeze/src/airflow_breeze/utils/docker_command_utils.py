@@ -17,6 +17,7 @@
 """Various utils to prepare docker and docker compose commands."""
 from __future__ import annotations
 
+import json
 import copy
 import os
 import random
@@ -805,23 +806,30 @@ def autodetect_docker_context():
 
     :return: name of the docker context to use
     """
-    output = run_command(["docker", "context", "ls", "-q"], capture_output=True, check=False, text=True)
-    if output.returncode != 0:
+    result = run_command(
+        ["docker", "context", "ls", "--format=json"],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if result.returncode != 0:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    context_list = output.stdout.splitlines()
-    if not context_list:
+    known_contexts = {info["Name"]: info for info in json.loads(result.stdout)}
+    if not known_contexts:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    elif len(context_list) == 1:
-        get_console().print(f"[info]Using {context_list[0]} as context.[/]")
-        return context_list[0]
-    else:
-        for preferred_context in PREFERRED_CONTEXTS:
-            if preferred_context in context_list:
-                get_console().print(f"[info]Using {preferred_context} as context.[/]")
-                return preferred_context
-    fallback_context = context_list[0]
+    for preferred_context_name in PREFERRED_CONTEXTS:
+        try:
+            context = known_contexts[preferred_context_name]
+        except KeyError:
+            continue
+        # On Windows, some contexts are used for WSL2. We don't want to use those.
+        if context["DockerEndpoint"] == "npipe:////./pipe/dockerDesktopLinuxEngine":
+            continue
+        get_console().print(f"[info]Using {preferred_context_name} as context.[/]")
+        return preferred_context_name
+    fallback_context = next(iter(known_contexts))
     get_console().print(
         f"[warning]Could not use any of the preferred docker contexts {PREFERRED_CONTEXTS}.\n"
         f"Using {fallback_context} as context.[/]"
