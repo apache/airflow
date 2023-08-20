@@ -265,17 +265,18 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def _safe_parse_datetime(v, allow_empty=False) -> datetime.datetime | None:
+def _safe_parse_datetime(v, *, allow_empty=False, strict=True) -> datetime.datetime | None:
     """
     Parse datetime and return error message for invalid dates.
 
     :param v: the string value to be parsed
     :param allow_empty: Set True to return none if empty str or None
+    :param strict: if False, it will fall back on the dateutil parser if unable to parse with pendulum
     """
     if allow_empty is True and not v:
         return None
     try:
-        return timezone.parse(v)
+        return timezone.parse(v, strict=strict)
     except (TypeError, ParserError):
         abort(400, f"Invalid datetime: {v!r}")
 
@@ -1630,7 +1631,7 @@ class Airflow(AirflowBaseView):
 
         # Convert string datetime into actual datetime
         try:
-            execution_date = timezone.parse(execution_date_str)
+            execution_date = timezone.parse(execution_date_str, strict=True)
         except ValueError:
             error_message = (
                 f"Given execution date, {execution_date}, could not be identified as a date. "
@@ -2103,7 +2104,7 @@ class Airflow(AirflowBaseView):
             )
 
         try:
-            execution_date = timezone.parse(request_execution_date)
+            execution_date = timezone.parse(request_execution_date, strict=True)
         except ParserError:
             flash("Invalid execution date", "error")
             form = DateTimeForm(data={"execution_date": timezone.utcnow().isoformat()})
@@ -3699,7 +3700,7 @@ class Airflow(AirflowBaseView):
             num_runs = conf.getint("webserver", "default_dag_run_display_number")
 
         try:
-            base_date = timezone.parse(request.args["base_date"])
+            base_date = timezone.parse(request.args["base_date"], strict=True)
         except (KeyError, ValueError):
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
