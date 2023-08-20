@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import ColumnOperators
 
+    from airflow.models import Operator
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -51,6 +52,7 @@ class _UpstreamTIStates(NamedTuple):
     done: int
     success_setup: int
     skipped_setup: int
+    failed_setup: int
 
     @classmethod
     def calculate(cls, finished_upstreams: Iterator[TaskInstance]) -> _UpstreamTIStates:
@@ -78,6 +80,8 @@ class _UpstreamTIStates(NamedTuple):
             done=sum(counter.values()),
             success_setup=setup_counter.get(TaskInstanceState.SUCCESS, 0),
             skipped_setup=setup_counter.get(TaskInstanceState.SKIPPED, 0),
+            failed_setup=setup_counter.get(TaskInstanceState.FAILED, 0)
+            + setup_counter.get(TaskInstanceState.UPSTREAM_FAILED, 0),
         )
 
 
@@ -94,26 +98,33 @@ class TriggerRuleDep(BaseTIDep):
         session: Session,
         dep_context: DepContext,
     ) -> Iterator[TIDepStatus]:
+        # get all the setup tasks upstream of this task
+        setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
         # Checking that all upstream dependencies have succeeded.
-        if not ti.task.upstream_task_ids:
+        if not ti.task.upstream_task_ids and not setup_upstream_tasks:
             yield self._passing_status(reason="The task instance did not have any upstream tasks.")
             return
-        if ti.task.trigger_rule == TR.ALWAYS:
+        if ti.task.trigger_rule == TR.ALWAYS and not setup_upstream_tasks:
+            # even with ALWAYS trigger rule, we still need to check setup tasks
             yield self._passing_status(reason="The task had a always trigger rule set.")
             return
-        yield from self._evaluate_trigger_rule(ti=ti, dep_context=dep_context, session=session)
+        yield from self._evaluate_trigger_rule(
+            ti=ti, dep_context=dep_context, setup_upstream_tasks=setup_upstream_tasks, session=session
+        )
 
     def _evaluate_trigger_rule(
         self,
         *,
         ti: TaskInstance,
         dep_context: DepContext,
+        setup_upstream_tasks: list[Operator],
         session: Session,
     ) -> Iterator[TIDepStatus]:
         """Evaluate whether ``ti``'s trigger rule was met.
 
         :param ti: Task instance to evaluate the trigger rule of.
         :param dep_context: The current dependency context.
+        setup_upstream_tasks: The setup tasks upstream of the current task.
         :param session: Database session.
         """
         from airflow.models.abstractoperator import NotMapped
@@ -154,6 +165,9 @@ class TriggerRuleDep(BaseTIDep):
 
         def _is_relevant_upstream(upstream: TaskInstance) -> bool:
             """Whether a task instance is a "relevant upstream" of the current task."""
+            # All the setup tasks upstreams are relevant event if they are not a direct upstream.
+            if upstream.task_id in map(lambda t: t.task_id, setup_upstream_tasks):
+                return True
             # Not actually an upstream task.
             if upstream.task_id not in task.upstream_task_ids:
                 return False
@@ -183,6 +197,8 @@ class TriggerRuleDep(BaseTIDep):
         )
         upstream_states = _UpstreamTIStates.calculate(finished_upstream_tis)
 
+        upstream_setup = len(setup_upstream_tasks)  # count of setup tasks upstream of this task
+
         success = upstream_states.success
         skipped = upstream_states.skipped
         failed = upstream_states.failed
@@ -191,6 +207,7 @@ class TriggerRuleDep(BaseTIDep):
         done = upstream_states.done
         success_setup = upstream_states.success_setup
         skipped_setup = upstream_states.skipped_setup
+        failed_setup = upstream_states.failed_setup
 
         def _iter_upstream_conditions() -> Iterator[ColumnOperators]:
             # Optimization: If the current task is not in a mapped task group,
@@ -225,7 +242,6 @@ class TriggerRuleDep(BaseTIDep):
         # "simple" tasks (no task or task group mapping involved).
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
-            upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
         else:
             task_id_counts = session.execute(
                 select(TaskInstance.task_id, func.count(TaskInstance.task_id))
@@ -234,14 +250,19 @@ class TriggerRuleDep(BaseTIDep):
                 .group_by(TaskInstance.task_id)
             ).all()
             upstream = sum(count for _, count in task_id_counts)
-            upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
 
         upstream_done = done >= upstream
+        setup_done = (success_setup + skipped_setup + failed_setup) >= upstream_setup
+        is_tear_down = task.is_teardown or trigger_rule == TR.ALL_DONE_SETUP_SUCCESS
 
         changed = False
         new_state = None
         if dep_context.flag_upstream_failed:
-            if trigger_rule == TR.ALL_SUCCESS:
+            if not is_tear_down and failed_setup:
+                # we should exclude the teardown tasks from this check,
+                # because they should be run even if there is only one success setup task
+                new_state = TaskInstanceState.UPSTREAM_FAILED
+            elif trigger_rule == TR.ALL_SUCCESS:
                 if upstream_failed or failed:
                     new_state = TaskInstanceState.UPSTREAM_FAILED
                 elif skipped:
@@ -283,10 +304,14 @@ class TriggerRuleDep(BaseTIDep):
                 if upstream_done and upstream_setup and skipped_setup >= upstream_setup:
                     # when there is an upstream setup and they have all skipped, then skip
                     new_state = TaskInstanceState.SKIPPED
-                elif upstream_done and upstream_setup and success_setup == 0:
+                elif upstream_done and upstream_setup and setup_done and success_setup == 0:
                     # when there is an upstream setup, if none succeeded, mark upstream failed
                     # if at least one setup ran, we'll let it run
                     new_state = TaskInstanceState.UPSTREAM_FAILED
+            if not is_tear_down and upstream_setup and not new_state and setup_done and skipped_setup > 0:
+                # when there are upstream setup tasks and at least one of them is skipped, then skip
+                new_state = TaskInstanceState.SKIPPED
+
         if new_state is not None:
             if new_state == TaskInstanceState.SKIPPED and dep_context.wait_for_past_depends_before_skipping:
                 past_depends_met = ti.xcom_pull(
@@ -301,6 +326,15 @@ class TriggerRuleDep(BaseTIDep):
 
         if changed:
             dep_context.have_changed_ti_states = True
+
+        # first, check if all the setup upstream tasks are done, if not, we can't run this task
+        # we should exclude the teardown tasks from this check, because they should be run even
+        # if there is only one success setup task
+        if not is_tear_down and (success_setup + skipped_setup) < upstream_setup:
+            yield self._failing_status(
+                reason=f"Waiting {upstream_setup - (success_setup + skipped_setup)}"
+                " setup task(s) to complete."
+            )
 
         if trigger_rule == TR.ONE_SUCCESS:
             if success <= 0:

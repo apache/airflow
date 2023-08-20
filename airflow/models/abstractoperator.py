@@ -293,6 +293,16 @@ class AbstractOperator(Templater, DAGNode):
                     if t.is_teardown and not t == self:
                         yield t
 
+    def get_upstreams_only_setups(self) -> Iterable[Operator]:
+        """
+        Only upstream setups.
+
+        This method is meant to be used when we are checking task dependencies where we need
+        to wait for all the upstream setups to complete before we can run the task.
+        """
+        upstream_setups = {x for x in self.get_flat_relatives(upstream=True) if x.is_setup}
+        yield from upstream_setups
+
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.
 
