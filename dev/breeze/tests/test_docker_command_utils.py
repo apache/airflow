@@ -195,19 +195,42 @@ def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
     )
 
 
+def _fake_ctx(name: str) -> dict[str, str]:
+    return {
+        "Name": name,
+        "DockerEndpoint": f"unix://{name}",
+    }
+
+
 @pytest.mark.parametrize(
     "context_output, selected_context, console_output",
     [
         (
-            "default",
+            json.dumps([_fake_ctx("default")]),
             "default",
             "[info]Using default as context",
         ),
-        ("", "default", "[warning]Could not detect docker builder"),
-        ("a\nb", "a", "[warning]Could not use any of the preferred docker contexts"),
-        ("a\ndesktop-linux", "desktop-linux", "[info]Using desktop-linux as context"),
-        ("a\ndefault", "default", "[info]Using default as context"),
-        ("a\ndefault\ndesktop-linux", "desktop-linux", "[info]Using desktop-linux as context"),
+        ("[]", "default", "[warning]Could not detect docker builder"),
+        (
+            json.dumps([_fake_ctx("a"), _fake_ctx("b")]),
+            "a",
+            "[warning]Could not use any of the preferred docker contexts",
+        ),
+        (
+            json.dumps([_fake_ctx("a"), _fake_ctx("desktop-linux")]),
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
+        (
+            json.dumps([_fake_ctx("a"), _fake_ctx("default")]),
+            "default",
+            "[info]Using default as context",
+        ),
+        (
+            json.dumps([_fake_ctx("a"), _fake_ctx("default"), _fake_ctx("desktop-linux")]),
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
     ],
 )
 def test_autodetect_docker_context(context_output: str, selected_context: str, console_output: str):
