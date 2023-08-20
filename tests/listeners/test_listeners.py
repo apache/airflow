@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import os
+
 import pytest as pytest
 
 from airflow import AirflowException
@@ -45,6 +47,8 @@ LISTENERS = [
 DAG_ID = "test_listener_dag"
 TASK_ID = "test_listener_task"
 EXECUTION_DATE = timezone.utcnow()
+
+TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
 
 @pytest.fixture(autouse=True)

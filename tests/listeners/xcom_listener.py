@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,26 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import io
-import sys
+from airflow.listeners import hookimpl
 
 
-class CliConflictError(Exception):
-    """Error for when CLI commands are defined twice by different sources."""
+class XComListener:
+    def __init__(self, path: str, task_id: str):
+        self.path = path
+        self.task_id = task_id
 
+    def write(self, line: str):
+        with open(self.path, "a") as f:
+            f.write(line + "\n")
+
+    @hookimpl
+    def on_task_instance_running(self, previous_state, task_instance, session):
+        task_instance.xcom_push(key="listener", value="listener")
+        task_instance.xcom_pull(task_ids=task_instance.task_id, key="listener")
+        self.write("on_task_instance_running")
+
+    @hookimpl
+    def on_task_instance_success(self, previous_state, task_instance, session):
+        read = task_instance.xcom_pull(task_ids=self.task_id, key="listener")
+        self.write("on_task_instance_success")
+        self.write(read)
+
+
+def clear():
     pass
-
-
-def is_stdout(fileio: io.IOBase) -> bool:
-    """Check whether a file IO is stdout.
-
-    The intended use case for this helper is to check whether an argument parsed
-    with argparse.FileType points to stdout (by setting the path to ``-``). This
-    is why there is no equivalent for stderr; argparse does not allow using it.
-
-    .. warning:: *fileio* must be open for this check to be successful.
-    """
-    return fileio.fileno() == sys.stdout.fileno()
