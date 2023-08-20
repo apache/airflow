@@ -264,7 +264,7 @@ class TestConnection:
             test_conn_attributes=dict(
                 conn_type="scheme",
                 host="host",
-                schema="",
+                schema="scheme",
                 login="user",
                 password="password with space",
                 port=1234,
@@ -277,7 +277,7 @@ class TestConnection:
             test_conn_attributes=dict(
                 conn_type="google_cloud_platform",
                 host="",
-                schema="",
+                schema="google-cloud-platform",
                 login=None,
                 password=None,
                 port=None,
@@ -294,7 +294,7 @@ class TestConnection:
             test_conn_attributes=dict(
                 conn_type="scheme",
                 host="host",
-                schema="",
+                schema="scheme",
                 login=None,
                 password=None,
                 port=1234,
@@ -306,7 +306,7 @@ class TestConnection:
             test_conn_attributes=dict(
                 conn_type="scheme",
                 host="/TmP/",
-                schema="",
+                schema="scheme",
                 login=None,
                 password=None,
                 port=1234,
@@ -325,6 +325,7 @@ class TestConnection:
             test_conn_uri="scheme://@:1234",
             test_conn_attributes=dict(
                 conn_type="scheme",
+                schema="scheme",
                 port=1234,
             ),
             description="port only",
@@ -333,6 +334,7 @@ class TestConnection:
             test_conn_uri="scheme://:password%2F%21%40%23%24%25%5E%26%2A%28%29%7B%7D@",
             test_conn_attributes=dict(
                 conn_type="scheme",
+                schema="scheme",
                 password="password/!@#$%^&*(){}",
             ),
             description="password only",
@@ -341,9 +343,66 @@ class TestConnection:
             test_conn_uri="scheme://login%2F%21%40%23%24%25%5E%26%2A%28%29%7B%7D@",
             test_conn_attributes=dict(
                 conn_type="scheme",
+                schema="scheme",
                 login="login/!@#$%^&*(){}",
             ),
             description="login only",
+        ),
+        UriTestCaseConfig(
+            test_conn_uri="scheme://",
+            test_conn_attributes=dict(
+                conn_type="scheme",
+                schema="scheme",
+                login=None,
+                host="",
+            ),
+            description="No Path scheme",
+        ),
+        UriTestCaseConfig(
+            test_conn_uri="scheme:path://host",
+            test_conn_attributes=dict(
+                conn_type="scheme",
+                schema="scheme",
+                host="path://host",
+            ),
+            description="Scheme is delimited by :, not ://",
+        ),
+        UriTestCaseConfig(
+            test_conn_uri="scheme:path://user:name@host:port/path?query=q#fragment",
+            test_conn_attributes=dict(
+                conn_type="scheme",
+                schema="scheme",
+                host="path://user:name@host:port/path",
+                port=None,
+                login=None,
+                password=None,
+                extra_dejson=dict(query="q"),
+            ),
+            description="Scheme is delimited by :, not :// but we also have query and fragment",
+        ),
+        UriTestCaseConfig(
+            test_conn_uri="localhost",
+            test_conn_attributes=dict(
+                conn_type="",
+                schema="",
+                host="localhost",
+                port=None,
+                login=None,
+                password=None,
+            ),
+            description="Just host specified as URI (non RFC3986 compliant)",
+        ),
+        UriTestCaseConfig(
+            test_conn_uri="localhost:2345",
+            test_conn_attributes=dict(
+                conn_type="",
+                schema="",
+                host="localhost",
+                port=2345,
+                login=None,
+                password=None,
+            ),
+            description="Just host:port specified as URI (non RFC3986 compliant)",
         ),
     ]
 
@@ -353,12 +412,9 @@ class TestConnection:
         connection = Connection(uri=test_config.test_uri)
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
             actual_val = getattr(connection, conn_attr)
-            if expected_val is None:
-                assert expected_val is None
-            if isinstance(expected_val, dict):
-                assert expected_val == actual_val
-            else:
-                assert expected_val == actual_val
+            assert (
+                expected_val == actual_val
+            ), f"Connection attribute `{conn_attr}` is not as expected: `{actual_val}` vs. `{expected_val}`"
 
         expected_calls = []
         if test_config.test_conn_attributes.get("password"):
@@ -442,13 +498,13 @@ class TestConnection:
             (
                 "http://user:password@host:80/",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="host", port=80, schema=""
+                    conn_type="http", login="user", password="password", host="host", port=80, schema="http"
                 ),
             ),
             (
                 "http://user:password@/",
                 ConnectionParts(
-                    conn_type="http", login="user", password="password", host="", port=None, schema=""
+                    conn_type="http", login="user", password="password", host="", port=None, schema="http"
                 ),
             ),
             (
@@ -481,7 +537,7 @@ class TestConnection:
                     password=None,
                     host="/tmp/z6rqdzqh/example:europe-west1:testdb",
                     port=None,
-                    schema="",
+                    schema="postgres",
                 ),
             ),
             (
@@ -492,7 +548,7 @@ class TestConnection:
                     password=None,
                     host="k8s://100.68.0.1",
                     port=443,
-                    schema="",
+                    schema="spark",
                 ),
             ),
             (
@@ -503,7 +559,7 @@ class TestConnection:
                     password="password",
                     host="k8s://100.68.0.1",
                     port=443,
-                    schema="",
+                    schema="spark",
                 ),
             ),
             (
@@ -514,7 +570,7 @@ class TestConnection:
                     password=None,
                     host="k8s://100.68.0.1",
                     port=443,
-                    schema="",
+                    schema="spark",
                 ),
             ),
             (
@@ -525,7 +581,7 @@ class TestConnection:
                     password=None,
                     host="k8s://no.port.com",
                     port=None,
-                    schema="",
+                    schema="spark",
                 ),
             ),
         ],
@@ -785,7 +841,26 @@ class TestConnection:
     def test_get_uri_no_conn_type(self):
         # no conn type --> scheme-relative URI
         assert Connection().get_uri() == "//"
+
+    def test_get_uri_host_only(self):
         # with host, still works
         assert Connection(host="abc").get_uri() == "//abc"
-        # parsing back as conn still works
+
+    def test_host_uri_slashes_no_conn_type(self):
         assert Connection(uri="//abc").host == "abc"
+
+    def test_host_uri_just_host(self):
+        assert Connection(uri="abc").host == "abc"
+
+    def test_host_uri_just_host_with_slashes(self):
+        assert Connection(uri="//abc").host == "abc"
+
+    def test_host_uri_just_host_and_port(self):
+        conn = Connection(uri="abc:234")
+        assert conn.host == "abc"
+        assert conn.port == 234
+
+    def test_host_uri_just_host_and_port_with_slashes(self):
+        conn = Connection(uri="//abc:234")
+        assert conn.host == "abc"
+        assert conn.port == 234
