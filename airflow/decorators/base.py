@@ -196,6 +196,17 @@ class DecoratedOperator(BaseOperator):
         op_args = op_args or []
         op_kwargs = op_kwargs or {}
 
+        # Check the decorated function's signature. We go through the argument
+        # list and "fill in" defaults to arguments that are known context keys,
+        # since values for those will be provided when the task is run. Since
+        # we're not actually running the function, None is good enough here.
+        signature = inspect.signature(python_callable)
+        parameters = [
+            param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
+            for param in signature.parameters.values()
+        ]
+        signature = signature.replace(parameters=parameters)
+
         # Check that arguments can be binded. There's a slight difference when
         # we do validation for task-mapping: Since there's no guarantee we can
         # receive enough arguments at parse time, we use bind_partial to simply
@@ -203,9 +214,9 @@ class DecoratedOperator(BaseOperator):
         # can only be known at execution time, when unmapping happens, and this
         # is called without the _airflow_mapped_validation_only flag.
         if kwargs.get("_airflow_mapped_validation_only"):
-            inspect.signature(python_callable).bind_partial(*op_args, **op_kwargs)
+            signature.bind_partial(*op_args, **op_kwargs)
         else:
-            inspect.signature(python_callable).bind(*op_args, **op_kwargs)
+            signature.bind(*op_args, **op_kwargs)
 
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
