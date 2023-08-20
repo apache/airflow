@@ -194,7 +194,7 @@ def datetime(*args, **kwargs):
     return dt.datetime(*args, **kwargs)
 
 
-def parse(string: str, timezone=None, strict=False) -> DateTime:
+def parse(string: str, timezone=None, *, strict=False) -> DateTime:
     """
     Parse a time string and return an aware datetime.
 
