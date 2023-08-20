@@ -25,7 +25,6 @@ import re
 import tempfile
 import textwrap
 import warnings
-from collections import OrderedDict
 from unittest import mock
 from unittest.mock import patch
 
@@ -547,12 +546,14 @@ key3 = value3
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
 
-        assert OrderedDict([("key1", "hello"), ("key2", "airflow")]) == test_conf.getsection("test")
-        assert OrderedDict(
-            [("key3", "value3"), ("testkey", "testvalue"), ("testpercent", "with%percent")]
-        ) == test_conf.getsection("testsection")
+        assert {"key1": "hello", "key2": "airflow"} == test_conf.getsection("test")
+        assert {
+            "key3": "value3",
+            "testkey": "testvalue",
+            "testpercent": "with%percent",
+        } == test_conf.getsection("testsection")
 
-        assert OrderedDict([("key", "value")]) == test_conf.getsection("new_section")
+        assert {"key": "value"} == test_conf.getsection("new_section")
 
         assert test_conf.getsection("non_existent_section") is None
 
@@ -581,7 +582,7 @@ AIRFLOW_HOME = /root/airflow
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
 
-        assert OrderedDict([("key1", "hello"), ("AIRFLOW_HOME", "/root/airflow")]) == test_conf.getsection(
+        assert {"key1": "hello", "AIRFLOW_HOME": "/root/airflow"} == test_conf.getsection(
             "kubernetes_environment_variables"
         )
 

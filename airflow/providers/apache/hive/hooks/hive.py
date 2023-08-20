@@ -24,7 +24,6 @@ import socket
 import subprocess
 import time
 import warnings
-from collections import OrderedDict
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Iterable, Mapping
 
@@ -354,7 +353,7 @@ class HiveCliHook(BaseHook):
         :param table: target Hive table, use dot notation to target a
             specific database
         :param field_dict: mapping from column name to hive data type.
-            Note that it must be OrderedDict so as to keep columns' order.
+            Note that Python dict is ordered so it keeps columns' order.
         :param delimiter: field delimiter in the file
         :param encoding: str encoding to use when writing DataFrame to file
         :param pandas_kwargs: passed to DataFrame.to_csv
@@ -375,7 +374,7 @@ class HiveCliHook(BaseHook):
                 "V": "STRING",  # void
             }
 
-            order_type = OrderedDict()
+            order_type = {}
             for col, dtype in df.dtypes.items():
                 order_type[col] = dtype_kind_hive_type[dtype.kind]
             return order_type
@@ -431,7 +430,7 @@ class HiveCliHook(BaseHook):
         :param delimiter: field delimiter in the file
         :param field_dict: A dictionary of the fields name in the file
             as keys and their Hive types as values.
-            Note that it must be OrderedDict so as to keep columns' order.
+            Note that Python dict is ordered so it keeps columns' order.
         :param create: whether to create the table if it doesn't exist
         :param overwrite: whether to overwrite the data in table or partition
         :param partition: target partition as a dict of partition columns

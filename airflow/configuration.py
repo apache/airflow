@@ -31,7 +31,6 @@ import subprocess
 import sys
 import warnings
 from base64 import b64encode
-from collections import OrderedDict
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
@@ -1343,12 +1342,12 @@ class AirflowConfigParser(ConfigParser):
         if not self.has_section(section) and not self._default_values.has_section(section):
             return None
         if self._default_values.has_section(section):
-            _section: ConfigOptionsDictType = OrderedDict(self._default_values.items(section))
+            _section: ConfigOptionsDictType = dict(self._default_values.items(section))
         else:
-            _section = OrderedDict()
+            _section = {}
 
         if self.has_section(section):
-            _section.update(OrderedDict(self.items(section)))
+            _section.update(self.items(section))
 
         section_prefix = self._env_var_name(section, "")
         for env_var in sorted(os.environ.keys()):
@@ -1499,7 +1498,7 @@ class AirflowConfigParser(ConfigParser):
                     opt = value.replace("%", "%%")
                 else:
                     opt = value
-                config_sources.setdefault(section, OrderedDict()).update({key: opt})
+                config_sources.setdefault(section, {}).update({key: opt})
                 del config_sources[section][key + "_secret"]
 
     def _include_commands(
@@ -1522,7 +1521,7 @@ class AirflowConfigParser(ConfigParser):
                 opt_to_set = str(opt_to_set).replace("%", "%%")
             if opt_to_set is not None:
                 dict_to_update: dict[str, str | tuple[str, str]] = {key: opt_to_set}
-                config_sources.setdefault(section, OrderedDict()).update(dict_to_update)
+                config_sources.setdefault(section, {}).update(dict_to_update)
                 del config_sources[section][key + "_cmd"]
 
     def _include_envs(
@@ -1560,7 +1559,7 @@ class AirflowConfigParser(ConfigParser):
             # with AIRFLOW_. Therefore, we need to make it a special case.
             if section != "kubernetes_environment_variables":
                 key = key.lower()
-            config_sources.setdefault(section, OrderedDict()).update({key: opt})
+            config_sources.setdefault(section, {}).update({key: opt})
 
     def _filter_by_source(
         self,
@@ -1721,7 +1720,7 @@ class AirflowConfigParser(ConfigParser):
         include_cmds: bool,
         include_secret: bool,
     ):
-        sect = config_sources.setdefault(section, OrderedDict())
+        sect = config_sources.setdefault(section, {})
         if isinstance(config, AirflowConfigParser):
             with config.suppress_future_warnings():
                 items: Iterable[tuple[str, Any]] = config.items(section=section, raw=raw)

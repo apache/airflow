@@ -23,7 +23,6 @@ import filecmp
 import itertools
 import logging
 import shutil
-from collections import OrderedDict
 from gzip import GzipFile
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest import mock
@@ -43,7 +42,7 @@ class TestS3ToHiveTransfer:
         self.file_names = {}
         self.task_id = "S3ToHiveTransferTest"
         self.s3_key = "S32hive_test_file"
-        self.field_dict = OrderedDict([("Sno", "BIGINT"), ("Some,Text", "STRING")])
+        self.field_dict = {"Sno": "BIGINT", "Some,Text": "STRING"}
         self.hive_table = "S32hive_test_table"
         self.delimiter = "\t"
         self.create = True
@@ -168,7 +167,7 @@ class TestS3ToHiveTransfer:
         assert header_list == ["Sno\tSome", "Text"], "Top row from file doesn't matched expected value"
 
     def test__match_headers(self):
-        self.kwargs["field_dict"] = OrderedDict([("Sno", "BIGINT"), ("Some,Text", "STRING")])
+        self.kwargs["field_dict"] = {"Sno": "BIGINT", "Some,Text": "STRING"}
         assert S3ToHiveOperator(**self.kwargs)._match_headers(
             ["Sno", "Some,Text"]
         ), "Header row doesn't match expected value"
