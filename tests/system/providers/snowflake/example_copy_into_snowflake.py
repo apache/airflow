@@ -46,8 +46,7 @@ with DAG(
     schedule="@once",
     catchup=False,
 ) as dag:
-    # [START howto_operator_copy_into_snowflake]
-
+    # [START howto_operator_s3_copy_into_snowflake]
     copy_into_table = CopyFromExternalStageToSnowflakeOperator(
         task_id="copy_into_table",
         snowflake_conn_id=SNOWFLAKE_CONN_ID,
@@ -57,8 +56,7 @@ with DAG(
         file_format="(type = 'CSV',field_delimiter = ';')",
         pattern=".*[.]csv",
     )
-
-    # [END howto_operator_copy_into_snowflake]
+    # [END howto_operator_s3_copy_into_snowflake]
 
 
 from tests.system.utils import get_test_run  # noqa: E402
