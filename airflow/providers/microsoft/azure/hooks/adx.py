@@ -28,6 +28,7 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
+from azure.identity import DefaultAzureCredential
 from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoServiceError
 from azure.kusto.data.response import KustoResponseDataSetV2
@@ -183,6 +184,14 @@ class AzureDataExplorerHook(BaseHook):
             )
         elif auth_method == "AAD_DEVICE":
             kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
+        elif auth_method == "AZURE_TOKEN_CRED":
+            credential = conn.password
+            if not credential:
+                credential = DefaultAzureCredential()
+            kcsb = KustoConnectionStringBuilder.with_azure_token_credential(
+                connection_string=cluster,
+                credential=credential,
+            )
         else:
             raise AirflowException(f"Unknown authentication method: {auth_method}")
 
