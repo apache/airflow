@@ -1238,7 +1238,7 @@ class DagRun(Base, LoggingMixin):
                 TI.run_id == self.run_id,
             )
         )
-        existing_indexes = {i for i in query}
+        existing_indexes = set(query)
 
         removed_indexes = existing_indexes.difference(range(total_length))
         if removed_indexes:
