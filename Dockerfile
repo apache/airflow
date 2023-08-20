@@ -73,6 +73,7 @@ FROM scratch as scripts
 
 # The content below is automatically copied from scripts/docker/install_os_dependencies.sh
 COPY <<"EOF" /install_os_dependencies.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 DOCKER_CLI_VERSION=20.10.9
@@ -175,6 +176,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
 COPY <<"EOF" /install_mysql.sh
+#!/usr/bin/env bash
 set -euo pipefail
 declare -a packages
 
@@ -264,6 +266,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_mssql.sh
 COPY <<"EOF" /install_mssql.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
@@ -343,6 +346,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_postgres.sh
 COPY <<"EOF" /install_postgres.sh
+#!/usr/bin/env bash
 set -euo pipefail
 declare -a packages
 
@@ -384,6 +388,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_pip_version.sh
 COPY <<"EOF" /install_pip_version.sh
+#!/usr/bin/env bash
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
@@ -398,6 +403,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow_dependencies_from_branch_tip.sh
 COPY <<"EOF" /install_airflow_dependencies_from_branch_tip.sh
+#!/usr/bin/env bash
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -444,6 +450,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/common.sh
 COPY <<"EOF" /common.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 function common::get_colors() {
@@ -633,6 +640,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow.sh
 COPY <<"EOF" /install_airflow.sh
+#!/usr/bin/env bash
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -718,6 +726,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_additional_dependencies.sh
 COPY <<"EOF" /install_additional_dependencies.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 : "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
