@@ -84,7 +84,19 @@ MOUNT_REMOVE = "remove"
 
 ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
 ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
-ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
+# Oracle introduced new release model for MySQL
+# - LTS: Long Time Support releases, new release approx every 2 year,
+#  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
+#  the first LTS release should be in summer/fall 2024.
+# - Innovations: Shot living releases with short support cycle - only until next Innovation/LTS release.
+# See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
+MYSQL_LTS_RELEASES: list[str] = []
+MYSQL_OLD_RELEASES = ["5.7", "8.0"]
+MYSQL_INNOVATION_RELEASE = "8.1"
+ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
+if MYSQL_INNOVATION_RELEASE:
+    ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
+
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
 PIP_VERSION = "23.2.1"
@@ -190,7 +202,11 @@ ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 CURRENT_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
-CURRENT_MYSQL_VERSIONS = ["5.7", "8"]
+USE_MYSQL_INNOVATION_RELEASE = True
+if USE_MYSQL_INNOVATION_RELEASE:
+    CURRENT_MYSQL_VERSIONS = ALLOWED_MYSQL_VERSIONS.copy()
+else:
+    CURRENT_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
 CURRENT_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
