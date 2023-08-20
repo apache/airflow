@@ -927,8 +927,8 @@ class HiveServer2Hook(DbApiHook):
                     description = cur.description
                     if previous_description and previous_description != description:
                         message = f"""The statements are producing different descriptions:
-                                     Current: {repr(description)}
-                                     Previous: {repr(previous_description)}"""
+                                     Current: {description!r}
+                                     Previous: {previous_description!r}"""
                         raise ValueError(message)
                     elif not previous_description:
                         previous_description = description

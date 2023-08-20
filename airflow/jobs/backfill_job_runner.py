@@ -1036,8 +1036,8 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         reset_tis = helpers.reduce_in_chunks(query, tis_to_reset, [], self.job.max_tis_per_query)
 
-        task_instance_str = "\n\t".join(repr(x) for x in reset_tis)
+        task_instance_str = "\n".join(f"\t{x!r}" for x in reset_tis)
         session.flush()
 
-        self.log.info("Reset the following %s TaskInstances:\n\t%s", len(reset_tis), task_instance_str)
+        self.log.info("Reset the following %s TaskInstances:\n%s", len(reset_tis), task_instance_str)
         return len(reset_tis)

@@ -5141,8 +5141,8 @@ class VariableModelView(AirflowModelView):
             for k, v in variable_dict.items():
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
-                except Exception as e:
-                    logging.info("Variable import failed: %s", repr(e))
+                except Exception as exc:
+                    logging.info("Variable import failed: %r", exc)
                     fail_count += 1
                 else:
                     suc_count += 1

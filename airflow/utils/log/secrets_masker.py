@@ -277,13 +277,13 @@ class SecretsMasker(logging.Filter):
         # I think this should never happen, but it does not hurt to leave it just in case
         # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)
         # but it caused infinite recursion, so we need to cast it to str first.
-        except Exception as e:
+        except Exception as exc:
             log.warning(
-                "Unable to redact %s, please report this via <https://github.com/apache/airflow/issues>. "
+                "Unable to redact %r, please report this via <https://github.com/apache/airflow/issues>. "
                 "Error was: %s: %s",
-                repr(item),
-                type(e).__name__,
-                str(e),
+                item,
+                type(exc).__name__,
+                exc,
             )
             return item
 
