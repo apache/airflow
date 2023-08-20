@@ -420,7 +420,7 @@ as follows:
     Current context is now "..."
     protocol not available
     Error 1 returned
-   
+
 Try adding ``--builder=default`` to your command. For example:
 
 .. code-block:: bash
