@@ -776,7 +776,7 @@ class SQLCheckOperator(BaseSQLOperator):
         self.log.info("Record: %s", records)
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
-        elif not all(bool(r) for r in records):
+        elif not all(records):
             self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
         self.log.info("Success.")

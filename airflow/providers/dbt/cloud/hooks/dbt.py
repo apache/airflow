@@ -291,7 +291,7 @@ class DbtCloudHook(HttpHook):
             _paginate_payload = payload.copy() if payload else {}
             _paginate_payload["offset"] = limit
 
-            while not num_current_results >= num_total_results:
+            while num_current_results < num_total_results:
                 response = self.run(endpoint=endpoint, data=_paginate_payload)
                 resp_json = response.json()
                 results.append(response)
