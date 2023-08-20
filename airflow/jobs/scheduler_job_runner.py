@@ -405,7 +405,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
             # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
 
-            if len(task_instances_to_examine) == 0:
+            if not task_instances_to_examine:
                 self.log.debug("No tasks to consider for execution.")
                 break
 
@@ -588,7 +588,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
-        if len(executable_tis) > 0:
+        if executable_tis:
             task_instance_str = "\n".join(f"\t{x!r}" for x in executable_tis)
             self.log.info("Setting the following tasks to queued state:\n%s", task_instance_str)
 
