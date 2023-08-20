@@ -188,6 +188,7 @@ integrations:
     external-doc-url: https://cloud.google.com/run
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_run.rst
+    tags: [google]
   - integration-name: Google Cloud Batch
     external-doc-url: https://cloud.google.com/batch
     how-to-guide:
