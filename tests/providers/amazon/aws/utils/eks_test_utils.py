@@ -235,7 +235,7 @@ def convert_keys(original: dict) -> dict:
 
 
 def iso_date(input_datetime: datetime.datetime) -> str:
-    return input_datetime.strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+    return f"{input_datetime:%Y-%m-%dT%H:%M:%S}Z"
 
 
 def generate_dict(prefix, count) -> dict:

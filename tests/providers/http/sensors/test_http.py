@@ -244,9 +244,7 @@ class TestHttpOpSensor:
             endpoint="/search",
             request_params={"client": "ubuntu", "q": "airflow", "date": "{{ds}}"},
             headers={},
-            response_check=lambda response: (
-                "apache/airflow/" + DEFAULT_DATE.strftime("%Y-%m-%d") in response.text
-            ),
+            response_check=lambda response: f"apache/airflow/{DEFAULT_DATE:%Y-%m-%d}" in response.text,
             poke_interval=5,
             timeout=15,
             dag=self.dag,
