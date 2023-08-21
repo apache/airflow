@@ -51,6 +51,7 @@ from airflow_breeze.utils.custom_param_types import (
     CacheableChoice,
     CacheableDefault,
     DryRunOption,
+    MySQLBackendVersionType,
     UseAirflowVersionType,
     VerboseOption,
 )
@@ -151,7 +152,7 @@ option_mysql_version = click.option(
     "-M",
     "--mysql-version",
     help="Version of MySQL used.",
-    type=CacheableChoice(ALLOWED_MYSQL_VERSIONS),
+    type=MySQLBackendVersionType(ALLOWED_MYSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
     show_default=True,
 )

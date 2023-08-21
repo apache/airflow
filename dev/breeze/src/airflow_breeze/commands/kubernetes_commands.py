@@ -392,9 +392,7 @@ def _delete_cluster(python: str, kubernetes_version: str, output: Output | None)
 
 def _delete_all_clusters():
     clusters = list(K8S_CLUSTERS_PATH.iterdir())
-    if len(clusters) == 0:
-        get_console().print("\n[warning]No clusters.\n")
-    else:
+    if clusters:
         get_console().print("\n[info]Deleting clusters")
         for cluster_name in clusters:
             resolved_path = cluster_name.resolve()
@@ -414,6 +412,8 @@ def _delete_all_clusters():
                     shutil.rmtree(cluster_name.resolve(), ignore_errors=True)
                 else:
                     resolved_path.unlink()
+    else:
+        get_console().print("\n[warning]No clusters.\n")
 
 
 @kubernetes_group.command(
@@ -515,10 +515,7 @@ def status(kubernetes_version: str, python: str, wait_time_in_seconds: int, all:
     make_sure_kubernetes_tools_are_installed()
     if all:
         clusters = list(K8S_CLUSTERS_PATH.iterdir())
-        if len(clusters) == 0:
-            get_console().print("\n[warning]No clusters.\n")
-            sys.exit(1)
-        else:
+        if clusters:
             failed = False
             get_console().print("[info]\nCluster status:\n")
             for cluster_name in clusters:
@@ -536,6 +533,9 @@ def status(kubernetes_version: str, python: str, wait_time_in_seconds: int, all:
             if failed:
                 get_console().print("\n[error]Some clusters are not healthy!\n")
                 sys.exit(1)
+        else:
+            get_console().print("\n[warning]No clusters.\n")
+            sys.exit(1)
     else:
         if not _status(
             python=python,
@@ -1233,10 +1233,7 @@ def _logs(python: str, kubernetes_version: str):
 def logs(python: str, kubernetes_version: str, all: bool):
     if all:
         clusters = list(K8S_CLUSTERS_PATH.iterdir())
-        if len(clusters) == 0:
-            get_console().print("\n[warning]No clusters.\n")
-            sys.exit(1)
-        else:
+        if clusters:
             get_console().print("[info]\nDumping cluster logs:\n")
             for cluster_name in clusters:
                 name = cluster_name.name
@@ -1245,6 +1242,9 @@ def logs(python: str, kubernetes_version: str, all: bool):
                     get_console().print(f"[warning]\nCould not get cluster from {name}. Skipping.\n")
                     continue
                 _logs(python=found_python, kubernetes_version=found_kubernetes_version)
+        else:
+            get_console().print("\n[warning]No clusters.\n")
+            sys.exit(1)
     else:
         _logs(python=python, kubernetes_version=kubernetes_version)
 

@@ -1,7 +1,0 @@
-The Kubernetes, Celery, CeleryKubernetes, LocalKubernetes, and Dask executors are moved to corresponding providers.
-
-In order to use the executors, you need to install the providers:
-
-* for Celery executors you need to install ``apache-airflow-providers-celery`` package >= 3.3.0
-* for Kubernetes executors you need to install ``apache-airflow-providers-cncf-kubernetes`` package >= 7.4.0
-* For Dask executors you need to install ``apache-airflow-providers-daskexecutor`` package in any version

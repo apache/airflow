@@ -420,6 +420,7 @@
       "google-auth>=1.0.0",
       "google-cloud-aiplatform>=1.22.1",
       "google-cloud-automl>=2.11.0",
+      "google-cloud-batch>=0.13.0",
       "google-cloud-bigquery-datatransfer>=3.11.0",
       "google-cloud-bigtable>=2.17.0",
       "google-cloud-build>=3.13.0",
@@ -794,7 +795,8 @@
   "sftp": {
     "deps": [
       "apache-airflow-providers-ssh>=2.1.0",
-      "apache-airflow>=2.4.0"
+      "apache-airflow>=2.4.0",
+      "paramiko>=2.8.0"
     ],
     "cross-providers-deps": [
       "openlineage",
