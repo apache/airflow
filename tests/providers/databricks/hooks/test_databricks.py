@@ -778,7 +778,7 @@ class TestDatabricksHook:
         mock_requests.get.assert_called_once_with(
             list_jobs_endpoint(HOST),
             json=None,
-            params={"limit": 25, "offset": 0, "expand_tasks": False, "name": JOB_NAME},
+            params={"limit": 25, "offset": None, "page_token": None, "expand_tasks": False, "name": JOB_NAME},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
@@ -797,7 +797,7 @@ class TestDatabricksHook:
         mock_requests.get.assert_called_once_with(
             list_jobs_endpoint(HOST),
             json=None,
-            params={"limit": 25, "offset": 0, "expand_tasks": False, "name": job_name},
+            params={"limit": 25, "offset": None, "page_token": None, "expand_tasks": False, "name": job_name},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
@@ -820,7 +820,7 @@ class TestDatabricksHook:
         mock_requests.get.assert_called_once_with(
             list_jobs_endpoint(HOST),
             json=None,
-            params={"limit": 25, "offset": 0, "expand_tasks": False, "name": JOB_NAME},
+            params={"limit": 25, "offset": None, "page_token": None, "expand_tasks": False, "name": JOB_NAME},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
