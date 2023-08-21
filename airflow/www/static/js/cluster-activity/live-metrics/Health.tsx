@@ -82,7 +82,7 @@ const HealthSection = ({
 const Health = (props: CenterProps) => {
   const { data, isError } = useHealth();
   let dagProcessorHealthComponent = null;
-  if (standaloneDagProcessor.toString().toLowerCase() === "true") {
+  if (standaloneDagProcessor != undefined && standaloneDagProcessor.toString().toLowerCase() === "true") {
     dagProcessorHealthComponent = (
       <HealthSection
         title="Dag Processor"
