@@ -663,9 +663,7 @@ class HiveMetastoreHook(BaseHook):
         """
         with self.metastore as client:
             table = client.get_table(dbname=schema, tbl_name=table_name)
-            if len(table.partitionKeys) == 0:
-                raise AirflowException("The table isn't partitioned")
-            else:
+            if table.partitionKeys:
                 if partition_filter:
                     parts = client.get_partitions_by_filter(
                         db_name=schema,
@@ -680,6 +678,8 @@ class HiveMetastoreHook(BaseHook):
 
                 pnames = [p.name for p in table.partitionKeys]
                 return [dict(zip(pnames, p.values)) for p in parts]
+            else:
+                raise AirflowException("The table isn't partitioned")
 
     @staticmethod
     def _get_max_partition_from_part_specs(

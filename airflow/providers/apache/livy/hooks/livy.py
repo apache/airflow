@@ -448,7 +448,7 @@ class LivyHook(HttpHook, LoggingMixin):
         if conf:
             if not isinstance(conf, dict):
                 raise ValueError("'conf' argument must be a dict")
-            if any(True for k, v in conf.items() if not (v and isinstance(v, str) or isinstance(v, int))):
+            if not all((v and isinstance(v, str)) or isinstance(v, int) for v in conf.values()):
                 raise ValueError("'conf' values must be either strings or ints")
         return True
 
@@ -831,6 +831,6 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         if conf:
             if not isinstance(conf, dict):
                 raise ValueError("'conf' argument must be a dict")
-            if any(True for k, v in conf.items() if not (v and isinstance(v, str) or isinstance(v, int))):
+            if not all((v and isinstance(v, str)) or isinstance(v, int) for v in conf.values()):
                 raise ValueError("'conf' values must be either strings or ints")
         return True
