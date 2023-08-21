@@ -178,6 +178,11 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": ["--airflow-site-directory"],
         },
     ],
+    "breeze release-management test-openapi-client-generation": [
+        {
+            "name": "test-openapi-client-generation",
+        },
+    ],
     "breeze release-management generate-issue-content-providers": [
         {
             "name": "Generate issue content flags",
