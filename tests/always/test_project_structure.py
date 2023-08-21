@@ -455,12 +455,10 @@ class TestDockerProviderProjectStructure(ExampleCoverageTest):
 class TestOperatorsHooks:
     def test_no_illegal_suffixes(self):
         illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
-        files = itertools.chain(
-            *(
-                glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
-                for resource_type in ["operators", "hooks", "sensors", "example_dags"]
-                for part in ["airflow", "tests"]
-            )
+        files = itertools.chain.from_iterable(
+            glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
+            for resource_type in ["operators", "hooks", "sensors", "example_dags"]
+            for part in ["airflow", "tests"]
         )
 
         invalid_files = [f for f in files if f.endswith(tuple(illegal_suffixes))]
