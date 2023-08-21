@@ -58,6 +58,7 @@ from airflow.exceptions import (
     AirflowException,
     FailStopDagInvalidTriggerRule,
     RemovedInAirflow3Warning,
+    TaskDeferralError,
     TaskDeferred,
 )
 from airflow.lineage import apply_lineage, prepare_lineage
@@ -1589,6 +1590,22 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         which is caught in the main _execute_task wrapper.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
+
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        """This method is called when a deferred task is resumed."""
+        # __fail__ is a special signal value for next_method that indicates
+        # this task was scheduled specifically to fail.
+        if next_method == "__fail__":
+            next_kwargs = next_kwargs or {}
+            traceback = next_kwargs.get("traceback")
+            if traceback is not None:
+                self.log.error("Trigger failed:\n%s", "\n".join(traceback))
+            raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+        # Grab the callable off the Operator/Task and add in any kwargs
+        execute_callable = getattr(self, next_method)
+        if next_kwargs:
+            execute_callable = functools.partial(execute_callable, **next_kwargs)
+        return execute_callable(context)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """Get the "normal" operator from the current operator.

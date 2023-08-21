@@ -23,7 +23,12 @@ from unittest.mock import Mock, patch
 import pytest
 import time_machine
 
-from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
+from airflow.exceptions import (
+    AirflowException,
+    AirflowRescheduleException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+)
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
@@ -37,7 +42,7 @@ from airflow.executors.executor_constants import (
 )
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
-from airflow.models import TaskReschedule
+from airflow.models import TaskInstance, TaskReschedule
 from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
@@ -68,6 +73,15 @@ class DummySensor(BaseSensorOperator):
 
     def poke(self, context: Context):
         return self.return_value
+
+
+class DummyAsyncSensor(BaseSensorOperator):
+    def __init__(self, return_value=False, **kwargs):
+        super().__init__(**kwargs)
+        self.return_value = return_value
+
+    def execute_complete(self, context, event=None):
+        raise AirflowException("Should be skipped")
 
 
 class DummySensorWithXcomValue(BaseSensorOperator):
@@ -910,3 +924,19 @@ class TestPokeModeOnly:
         sensor = DummyPokeOnlySensor(task_id="foo", mode="poke", poke_changes_mode=True)
         with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             sensor.poke({})
+
+
+class TestAsyncSensor:
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception",
+        [
+            (True, AirflowSkipException),
+            (False, AirflowException),
+        ],
+    )
+    def test_fail_after_resuming_deffered_sensor(self, soft_fail, expected_exception):
+        async_sensor = DummyAsyncSensor(task_id="dummy_async_sensor", soft_fail=soft_fail)
+        ti = TaskInstance(task=async_sensor)
+        ti.next_method = "execute_complete"
+        with pytest.raises(expected_exception):
+            ti._execute_task({}, None)
