@@ -81,14 +81,15 @@ const HealthSection = ({
 
 const Health = (props: CenterProps) => {
   const { data, isError } = useHealth();
-  let dagProcessorComponent=null;
-  if (standaloneDagProcessor.toString().toLowerCase()==="true") {
-    dagProcessorComponent = 
+  let dagProcessorHealthComponent = null;
+  if (standaloneDagProcessor.toString().toLowerCase() === "true") {
+    dagProcessorHealthComponent = (
       <HealthSection
         title="Dag Processor"
         status={data?.dagProcessor?.status}
         latestHeartbeat={data?.dagProcessor?.latestDagProcessorHeartbeat}
       />
+    );
   }
   return (
     <Center {...props}>
@@ -115,7 +116,7 @@ const Health = (props: CenterProps) => {
               latestHeartbeat={data?.triggerer?.latestTriggererHeartbeat}
               mb={3}
             />
-            {dagProcessorComponent}
+            {dagProcessorHealthComponent}
           </CardBody>
         </Card>
       </LoadingWrapper>
