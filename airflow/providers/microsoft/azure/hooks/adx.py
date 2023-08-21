@@ -106,7 +106,7 @@ class AzureDataExplorerHook(BaseHook):
             "placeholders": {
                 "login": "Varies with authentication method",
                 "password": "Varies with authentication method",
-                "auth_method": "AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE",
+                "auth_method": "AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE/AZURE_TOKEN_CRED",
                 "tenant": "Used with AAD_APP/AAD_APP_CERT/AAD_CREDS",
                 "certificate": "Used with AAD_APP_CERT",
                 "thumbprint": "Used with AAD_APP_CERT",
@@ -185,12 +185,9 @@ class AzureDataExplorerHook(BaseHook):
         elif auth_method == "AAD_DEVICE":
             kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
         elif auth_method == "AZURE_TOKEN_CRED":
-            credential = conn.password
-            if not credential:
-                credential = DefaultAzureCredential()
             kcsb = KustoConnectionStringBuilder.with_azure_token_credential(
                 connection_string=cluster,
-                credential=credential,
+                credential=DefaultAzureCredential(),
             )
         else:
             raise AirflowException(f"Unknown authentication method: {auth_method}")
