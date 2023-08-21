@@ -434,7 +434,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
       - name: "Generate client codegen diff"
-        run: breeze test-openapi-client-generation
+        run: breeze release-management test-openapi-client-generation
 
   test-examples-of-prod-image-building:
     timeout-minutes: 60
