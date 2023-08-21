@@ -399,7 +399,7 @@ def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) 
         )
     for optional_arg in image_params.optional_image_args:
         param_value = get_env_variable_value(optional_arg, params=image_params)
-        if len(param_value) > 0:
+        if param_value:
             args_command.append("--build-arg")
             args_command.append(optional_arg.upper() + "=" + param_value)
     args_command.extend(image_params.docker_cache_directive)
@@ -809,13 +809,13 @@ def autodetect_docker_context():
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
     context_list = output.stdout.splitlines()
-    if len(context_list) == 0:
+    if not context_list:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    if len(context_list) == 1:
+    elif len(context_list) == 1:
         get_console().print(f"[info]Using {context_list[0]} as context.[/]")
         return context_list[0]
-    if len(context_list) > 1:
+    else:
         for preferred_context in PREFERRED_CONTEXTS:
             if preferred_context in context_list:
                 get_console().print(f"[info]Using {preferred_context} as context.[/]")

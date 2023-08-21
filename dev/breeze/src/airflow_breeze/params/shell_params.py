@@ -261,9 +261,8 @@ class ShellParams:
             integrations = ALL_INTEGRATIONS
         else:
             integrations = self.integration
-        if len(integrations) > 0:
-            for integration in integrations:
-                compose_file_list.append(DOCKER_COMPOSE_DIR / f"integration-{integration}.yml")
+        for integration in integrations:
+            compose_file_list.append(DOCKER_COMPOSE_DIR / f"integration-{integration}.yml")
         if "trino" in integrations and "kerberos" not in integrations:
             get_console().print(
                 "[warning]Adding `kerberos` integration as it is implicitly needed by trino",
@@ -273,9 +272,7 @@ class ShellParams:
 
     @property
     def command_passed(self):
-        cmd = None
-        if len(self.extra_args) > 0:
-            cmd = str(self.extra_args[0])
+        cmd = str(self.extra_args[0]) if self.extra_args else None
         return cmd
 
     @property

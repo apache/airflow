@@ -97,7 +97,7 @@ def run_command(
             return False
         if _arg.startswith("-"):
             return True
-        if len(_arg) == 0:
+        if not _arg:
             return True
         if _arg.startswith("/"):
             # Skip any absolute paths

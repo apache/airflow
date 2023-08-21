@@ -113,7 +113,7 @@ class BuildProdParams(CommonBuildParams):
     @property
     def extra_docker_build_flags(self) -> list[str]:
         extra_build_flags = []
-        if len(self.install_airflow_reference) > 0:
+        if self.install_airflow_reference:
             AIRFLOW_INSTALLATION_METHOD = (
                 "https://github.com/apache/airflow/archive/"
                 + self.install_airflow_reference
@@ -126,7 +126,7 @@ class BuildProdParams(CommonBuildParams):
                 ]
             )
             extra_build_flags.extend(self.args_for_remote_install)
-        elif len(self.install_airflow_version) > 0:
+        elif self.install_airflow_version:
             if not re.match(r"^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version):
                 get_console().print(
                     f"\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}"

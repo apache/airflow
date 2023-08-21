@@ -275,7 +275,7 @@ def find_all_providers_affected(
             get_console().print(
                 "[info]This PR had `allow suspended provider changes` label set so it will continue"
             )
-    if len(all_providers) == 0:
+    if not all_providers:
         return None
     for provider in list(all_providers):
         all_providers.update(
@@ -356,7 +356,7 @@ class SelectiveChecks:
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
             get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
             return True
-        if len(self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES)) > 0:
+        if self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES):
             get_console().print("[warning]Running everything because env files changed[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
@@ -496,7 +496,7 @@ class SelectiveChecks:
             get_console().print(f"[warning]{source_area} enabled because we are running everything[/]")
             return True
         matched_files = self._matching_files(source_area, CI_FILE_GROUP_MATCHES)
-        if len(matched_files) > 0:
+        if matched_files:
             get_console().print(
                 f"[warning]{source_area} enabled because it matched {len(matched_files)} changed files[/]"
             )
