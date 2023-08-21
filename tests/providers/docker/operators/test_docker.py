@@ -164,9 +164,9 @@ class TestDockerOperator:
         def dotenv_mock_return_value(**kwargs):
             env_dict = {}
             env_str = kwargs["stream"]
-            for env_var in env_str.split("\n"):
-                kv = env_var.split("=")
-                env_dict[kv[0]] = kv[1]
+            for env_var in env_str.splitlines():
+                key, _, val = env_var.partition("=")
+                env_dict[key] = val
             return env_dict
 
         self.dotenv_patcher = mock.patch("airflow.providers.docker.operators.docker.dotenv_values")
