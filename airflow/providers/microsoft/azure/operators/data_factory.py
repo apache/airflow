@@ -205,6 +205,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 pipeline_run_status = self.hook.get_pipeline_run_status(**pipeline_run_info)
                 if pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES:
                     self.defer(
+                        timeout=self.execution_timeout,
                         trigger=AzureDataFactoryTrigger(
                             azure_data_factory_conn_id=self.azure_data_factory_conn_id,
                             run_id=self.run_id,

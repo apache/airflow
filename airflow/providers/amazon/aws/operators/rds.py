@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import warnings
+from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -620,6 +621,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
                     db_type=RdsDbType.INSTANCE,
                 ),
                 method_name="execute_complete",
+                timeout=timedelta(seconds=self.waiter_delay * self.waiter_max_attempts),
             )
 
         if self.wait_for_completion:
@@ -702,6 +704,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
                     db_type=RdsDbType.INSTANCE,
                 ),
                 method_name="execute_complete",
+                timeout=timedelta(seconds=self.waiter_delay * self.waiter_max_attempts),
             )
 
         if self.wait_for_completion:

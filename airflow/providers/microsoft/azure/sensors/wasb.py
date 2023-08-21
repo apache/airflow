@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
@@ -82,6 +83,7 @@ class WasbBlobSensor(BaseSensorOperator):
         else:
             if not self.poke(context=context):
                 self.defer(
+                    timeout=timedelta(seconds=self.timeout),
                     trigger=WasbBlobSensorTrigger(
                         container_name=self.container_name,
                         blob_name=self.blob_name,
@@ -183,6 +185,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         else:
             if not self.poke(context=context):
                 self.defer(
+                    timeout=timedelta(seconds=self.timeout),
                     trigger=WasbPrefixSensorTrigger(
                         container_name=self.container_name,
                         prefix=self.prefix,

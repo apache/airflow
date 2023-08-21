@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
@@ -365,6 +366,9 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.max_attempt * self.poll_interval + 60),
             )
 
         if self.wait_for_completion:
@@ -511,6 +515,9 @@ class RedshiftResumeClusterOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
             )
         if self.wait_for_completion:
             waiter = redshift_hook.get_waiter("cluster_resumed")
@@ -596,6 +603,9 @@ class RedshiftPauseClusterOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
             )
 
     def execute_complete(self, context, event=None):
@@ -677,6 +687,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                     raise
         if self.deferrable:
             self.defer(
+                timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
                 trigger=RedshiftDeleteClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
                     waiter_delay=self.poll_interval,

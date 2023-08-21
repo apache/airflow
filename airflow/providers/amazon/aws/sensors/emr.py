@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
@@ -304,7 +305,13 @@ class EmrContainerSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context=context)
         else:
+            timeout = (
+                timedelta(seconds=self.max_retries * self.poll_interval + 60)
+                if self.max_retries
+                else self.execution_timeout
+            )
             self.defer(
+                timeout=timeout,
                 trigger=EmrContainerTrigger(
                     virtual_cluster_id=self.virtual_cluster_id,
                     job_id=self.job_id,
@@ -491,6 +498,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
             super().execute(context=context)
         elif not self.poke(context):
             self.defer(
+                timeout=timedelta(seconds=self.poke_interval * self.max_attempts),
                 trigger=EmrTerminateJobFlowTrigger(
                     job_flow_id=self.job_flow_id,
                     waiter_max_attempts=self.max_attempts,
@@ -616,6 +624,7 @@ class EmrStepSensor(EmrBaseSensor):
             super().execute(context=context)
         elif not self.poke(context):
             self.defer(
+                timeout=timedelta(seconds=self.max_attempts * self.poke_interval),
                 trigger=EmrStepSensorTrigger(
                     job_flow_id=self.job_flow_id,
                     step_id=self.step_id,

@@ -251,6 +251,7 @@ class BigQueryToGCSOperator(BaseOperator):
 
         if self.deferrable:
             self.defer(
+                timeout=self.execution_timeout,
                 trigger=BigQueryInsertJobTrigger(
                     conn_id=self.gcp_conn_id,
                     job_id=job_id,

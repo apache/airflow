@@ -220,6 +220,7 @@ class BatchOperator(BaseOperator):
 
         if self.deferrable:
             self.defer(
+                timeout=self.execution_timeout,
                 trigger=BatchJobTrigger(
                     job_id=self.job_id,
                     waiter_max_attempts=self.max_retries,

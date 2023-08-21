@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import json
 import time
 import warnings
@@ -283,6 +284,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
 
         if self.deferrable and self.wait_for_completion:
             self.defer(
+                timeout=self.execution_timeout,
                 trigger=SageMakerTrigger(
                     job_name=self.config["ProcessingJobName"],
                     job_type="Processing",
@@ -531,6 +533,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
+                timeout=datetime.timedelta(seconds=self.max_ingestion_time),
             )
         elif self.wait_for_completion:
             self.hook.get_waiter("endpoint_in_service").wait(
@@ -701,6 +704,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
         if self.deferrable and self.wait_for_completion:
             self.defer(
+                timeout=self.execution_timeout,
                 trigger=SageMakerTrigger(
                     job_name=transform_config["TransformJobName"],
                     job_type="Transform",
@@ -868,6 +872,9 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
+                timeout=datetime.timedelta(seconds=self.max_ingestion_time)
+                if self.max_ingestion_time is not None
+                else None,
             )
             description = {}  # never executed but makes static checkers happy
         elif self.wait_for_completion:
@@ -1052,6 +1059,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
 
         if self.deferrable and self.wait_for_completion:
             self.defer(
+                timeout=self.execution_timeout,
                 trigger=SageMakerTrigger(
                     job_name=self.config["TrainingJobName"],
                     job_type="Training",

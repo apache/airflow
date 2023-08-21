@@ -306,6 +306,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
             context["ti"].xcom_push(key="job_id", value=job.job_id)
             if job.running():
                 self.defer(
+                    timeout=self.execution_timeout,
                     trigger=BigQueryCheckTrigger(
                         conn_id=self.gcp_conn_id,
                         job_id=job.job_id,
@@ -429,6 +430,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
             context["ti"].xcom_push(key="job_id", value=job.job_id)
             if job.running():
                 self.defer(
+                    timeout=self.execution_timeout,
                     trigger=BigQueryValueCheckTrigger(
                         conn_id=self.gcp_conn_id,
                         job_id=job.job_id,
@@ -574,6 +576,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
             self.log.info("Executing SQL check: %s", self.sql2)
             job_2 = self._submit_job(hook, sql=self.sql2, job_id="")
             self.defer(
+                timeout=self.execution_timeout,
                 trigger=BigQueryIntervalCheckTrigger(
                     conn_id=self.gcp_conn_id,
                     first_job_id=job_1.job_id,
@@ -1046,6 +1049,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
 
         context["ti"].xcom_push(key="job_id", value=job.job_id)
         self.defer(
+            timeout=self.execution_timeout,
             trigger=BigQueryGetDataTrigger(
                 conn_id=self.gcp_conn_id,
                 job_id=job.job_id,
@@ -2851,6 +2855,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         else:
             if job.running():
                 self.defer(
+                    timeout=self.execution_timeout,
                     trigger=BigQueryInsertJobTrigger(
                         conn_id=self.gcp_conn_id,
                         job_id=self.job_id,

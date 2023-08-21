@@ -103,6 +103,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
             end_time = time.time() + self.timeout
             if not self.poke(context=context):
                 self.defer(
+                    timeout=self.execution_timeout,
                     trigger=DbtCloudRunJobTrigger(
                         run_id=self.run_id,
                         conn_id=self.dbt_cloud_conn_id,

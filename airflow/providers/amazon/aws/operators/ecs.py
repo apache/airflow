@@ -151,6 +151,9 @@ class EcsCreateClusterOperator(EcsBaseOperator):
                     region_name=self.region,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_active")
@@ -225,6 +228,9 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
                     region_name=self.region,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_inactive")
@@ -546,6 +552,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
                     log_stream=self._get_logs_stream_name(),
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
             # self.defer raises a special exception, so execution stops here in this case.
 

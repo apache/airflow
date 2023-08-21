@@ -20,7 +20,7 @@ from __future__ import annotations
 import fnmatch
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 
@@ -149,6 +149,7 @@ class S3KeySensor(BaseSensorOperator):
     def _defer(self) -> None:
         """Check for a keys in s3 and defers using the triggerer."""
         self.defer(
+            timeout=timedelta(seconds=self.timeout),
             trigger=S3KeyTrigger(
                 bucket_name=cast(str, self.bucket_name),
                 bucket_key=self.bucket_key,
@@ -336,6 +337,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         else:
             if not self.poke(context):
                 self.defer(
+                    timeout=timedelta(seconds=self.timeout),
                     trigger=S3KeysUnchangedTrigger(
                         bucket_name=self.bucket_name,
                         prefix=self.prefix,

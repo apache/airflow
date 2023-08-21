@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 import textwrap
 import warnings
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.api_core.retry import Retry
@@ -104,6 +104,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         else:
             if not self.poke(context=context):
                 self.defer(
+                    timeout=timedelta(seconds=self.timeout),
                     trigger=GCSBlobTrigger(
                         bucket=self.bucket,
                         object_name=self.object,
@@ -235,6 +236,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         else:
             if not self.poke(context=context):
                 self.defer(
+                    timeout=timedelta(seconds=self.timeout),
                     trigger=GCSCheckBlobUpdateTimeTrigger(
                         bucket=self.bucket,
                         object_name=self.object,
@@ -326,6 +328,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         else:
             if not self.poke(context=context):
                 self.defer(
+                    timeout=timedelta(seconds=self.timeout),
                     trigger=GCSPrefixBlobTrigger(
                         bucket=self.bucket,
                         prefix=self.prefix,
@@ -521,6 +524,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
         if not self.poke(context=context):
             self.defer(
+                timeout=timedelta(seconds=self.timeout),
                 trigger=GCSUploadSessionTrigger(
                     bucket=self.bucket,
                     prefix=self.prefix,

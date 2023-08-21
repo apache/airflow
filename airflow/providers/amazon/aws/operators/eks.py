@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import warnings
 from ast import literal_eval
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
@@ -296,6 +297,7 @@ class EksCreateClusterOperator(BaseOperator):
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="deferrable_create_cluster_next",
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
             )
 
         try:
@@ -346,6 +348,7 @@ class EksCreateClusterOperator(BaseOperator):
                     force_delete_compute=False,
                 ),
                 method_name="execute_failed",
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
             )
         elif event["status"] == "success":
             self.log.info("Cluster is ready to provision compute.")
@@ -377,6 +380,7 @@ class EksCreateClusterOperator(BaseOperator):
                         region=self.region,
                     ),
                     method_name="execute_complete",
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 )
             else:
                 self.defer(
@@ -389,6 +393,7 @@ class EksCreateClusterOperator(BaseOperator):
                         waiter_max_attempts=self.waiter_max_attempts,
                     ),
                     method_name="execute_complete",
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 )
 
     def execute_failed(self, context: Context, event: dict[str, Any] | None = None) -> None:
@@ -521,6 +526,9 @@ class EksCreateNodegroupOperator(BaseOperator):
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
 
     def execute_complete(self, context, event=None):
@@ -627,6 +635,9 @@ class EksCreateFargateProfileOperator(BaseOperator):
                     region=self.region,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
             )
 
     def execute_complete(self, context, event=None):
@@ -710,6 +721,7 @@ class EksDeleteClusterOperator(BaseOperator):
                     force_delete_compute=self.force_delete_compute,
                 ),
                 method_name="execute_complete",
+                timeout=timedelta(seconds=self.waiter_delay * self.waiter_max_attempts),
             )
         elif self.force_delete_compute:
             self.delete_any_nodegroups(eks_hook)
@@ -841,6 +853,9 @@ class EksDeleteNodegroupOperator(BaseOperator):
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
         elif self.wait_for_completion:
             self.log.info("Waiting for nodegroup to delete.  This will take some time.")
@@ -929,6 +944,9 @@ class EksDeleteFargateProfileOperator(BaseOperator):
                     region=self.region,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
             )
         elif self.wait_for_completion:
             self.log.info("Waiting for Fargate profile to delete.  This will take some time.")
