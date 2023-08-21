@@ -525,7 +525,7 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         perm = None
         if action and resource:
             perm = self.appbuilder.get_session.scalar(
-                select(self.permission_model).filter_by(action=action, resource=resource)
+                select(self.permission_model).filter_by(action=action, resource=resource).limit(1)
             )
         if not perm and action_name and resource_name:
             self.create_permission(action_name, resource_name)
