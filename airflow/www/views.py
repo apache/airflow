@@ -181,11 +181,6 @@ _WHATWG_C0_CONTROL_OR_SPACE = (
 )
 
 
-def _sorted_groupby(it, key: Callable | None = None, reverse: bool = False):
-    """Helper around `itertools.groupby`, which pre-sort iterable by the same key."""
-    yield from itertools.groupby(sorted(it, key=key, reverse=reverse), key=key)
-
-
 def get_safe_url(url):
     """Given a user-supplied URL, ensure it points to our web server."""
     if not url:
@@ -3241,9 +3236,12 @@ class Airflow(AirflowBaseView):
             if failed_task_instance.duration:
                 fails_totals[dict_key] += failed_task_instance.duration
 
-        # we must group any mapped TIs by dag_id, task_id, run_id
+        # We must group any mapped TIs by dag_id, task_id, run_id
+        def grouping_key(ti: TaskInstance):
+            return ti.dag_id, ti.task_id, ti.run_id
+
         mapped_tis = set()
-        for _, group in _sorted_groupby(task_instances, key=lambda ti: (ti.dag_id, ti.task_id, ti.run_id)):
+        for _, group in itertools.groupby(sorted(task_instances, key=grouping_key), key=grouping_key):
             tis = list(group)
             duration = sum(x.duration for x in tis if x.duration)
             if duration:
