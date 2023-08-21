@@ -20,7 +20,9 @@ import datetime as dt
 import os
 import re
 import time
+from functools import partial
 from importlib import reload
+from typing import Callable
 from unittest import mock
 
 import pytest
@@ -83,6 +85,30 @@ def mock_cmd():
 @pytest.fixture(autouse=True)
 def mock_config():
     return mock.Mock(spec=dict)
+
+
+@pytest.fixture
+def mock_executor() -> AwsEcsExecutor:
+    """Mock ECS to a repeatable starting state.."""
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.REGION}".upper()] = "us-west-1"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.TASK_DEFINITION}".upper()] = "some-task-def"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
+
+    executor = AwsEcsExecutor()
+
+    # Replace boto3 ECS client with mock.
+    ecs_mock = mock.Mock(spec=executor.ecs)
+    run_task_ret_val = {"tasks": [{"taskArn": ARN1}], "failures": []}
+    ecs_mock.run_task.return_value = run_task_ret_val
+    executor.ecs = ecs_mock
+
+    return executor
 
 
 class TestEcsTaskCollection:
@@ -289,10 +315,6 @@ class TestEcsExecutorTask:
 class TestAwsEcsExecutor:
     """Tests the AWS ECS Executor."""
 
-    def setup_method(self) -> None:
-        self._set_conf()
-        self._mock_executor()
-
     def teardown_method(self) -> None:
         self._unset_conf()
 
@@ -312,11 +334,11 @@ class TestAwsEcsExecutor:
         for key in file_defaults.keys():
             assert file_defaults[key] == CONFIG_DEFAULTS[key]
 
-    def test_execute(self, mock_airflow_key):
+    def test_execute(self, mock_airflow_key, mock_executor):
         """Test execution from end-to-end."""
         airflow_key = mock_airflow_key()
 
-        self.executor.ecs.run_task.return_value = {
+        mock_executor.ecs.run_task.return_value = {
             "tasks": [
                 {
                     "taskArn": ARN1,
@@ -328,45 +350,45 @@ class TestAwsEcsExecutor:
             "failures": [],
         }
 
-        assert 0 == len(self.executor.pending_tasks)
-        self.executor.execute_async(airflow_key, mock_cmd)
-        assert 1 == len(self.executor.pending_tasks)
+        assert 0 == len(mock_executor.pending_tasks)
+        mock_executor.execute_async(airflow_key, mock_cmd)
+        assert 1 == len(mock_executor.pending_tasks)
 
-        self.executor.attempt_task_runs()
-        self.executor.ecs.run_task.assert_called_once()
+        mock_executor.attempt_task_runs()
+        mock_executor.ecs.run_task.assert_called_once()
 
         # Task is stored in active worker.
-        assert 1 == len(self.executor.active_workers)
-        assert ARN1 in self.executor.active_workers.task_by_key(airflow_key).task_arn
+        assert 1 == len(mock_executor.active_workers)
+        assert ARN1 in mock_executor.active_workers.task_by_key(airflow_key).task_arn
 
-    def test_failed_execute_api(self):
+    def test_failed_execute_api(self, mock_executor):
         """Test what happens when ECS refuses to execute a task."""
-        self.executor.ecs.run_task.return_value = {
+        mock_executor.ecs.run_task.return_value = {
             "tasks": [],
             "failures": [
                 {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
             ],
         }
 
-        self.executor.execute_async(mock_airflow_key, mock_cmd)
+        mock_executor.execute_async(mock_airflow_key, mock_cmd)
 
         # No matter what, don't schedule until run_task becomes successful.
-        for _ in range(self.executor.MAX_FAILURE_CHECKS * 2):
-            self.executor.attempt_task_runs()
+        for _ in range(mock_executor.MAX_FAILURE_CHECKS * 2):
+            mock_executor.attempt_task_runs()
             # Task is not stored in active workers.
-            assert len(self.executor.active_workers) == 0
+            assert len(mock_executor.active_workers) == 0
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_sync(self, success_mock, fail_mock):
-        """Test synch from end-to-end."""
-        self._mock_sync()
+    def test_sync(self, success_mock, fail_mock, mock_executor):
+        """Test sync from end-to-end."""
+        self._mock_sync(mock_executor)
 
-        self.executor.sync_running_tasks()
-        self.executor.ecs.describe_tasks.assert_called_once()
+        mock_executor.sync_running_tasks()
+        mock_executor.ecs.describe_tasks.assert_called_once()
 
         # Task is not stored in active workers.
-        assert len(self.executor.active_workers) == 0
+        assert len(mock_executor.active_workers) == 0
         # Task is immediately succeeded.
         success_mock.assert_called_once()
         fail_mock.assert_not_called()
@@ -374,50 +396,50 @@ class TestAwsEcsExecutor:
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
     @mock.patch.object(EcsTaskCollection, "get_all_arns", return_value=[])
-    def test_sync_short_circuits_with_no_arns(self, _, success_mock, fail_mock):
-        self._mock_sync()
+    def test_sync_short_circuits_with_no_arns(self, _, success_mock, fail_mock, mock_executor):
+        self._mock_sync(mock_executor)
 
-        self.executor.sync_running_tasks()
+        mock_executor.sync_running_tasks()
 
-        self.executor.ecs.describe_tasks.assert_not_called()
+        mock_executor.ecs.describe_tasks.assert_not_called()
         fail_mock.assert_not_called()
         success_mock.assert_not_called()
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_failed_sync(self, success_mock, fail_mock):
+    def test_failed_sync(self, success_mock, fail_mock, mock_executor):
         """Test success and failure states."""
-        self._mock_sync(State.FAILED)
+        self._mock_sync(mock_executor, State.FAILED)
 
-        self.executor.sync()
-        self.executor.ecs.describe_tasks.assert_called_once()
+        mock_executor.sync()
+        mock_executor.ecs.describe_tasks.assert_called_once()
 
         # Task is not stored in active workers.
-        assert len(self.executor.active_workers) == 0
+        assert len(mock_executor.active_workers) == 0
         # Task is immediately succeeded.
         fail_mock.assert_called_once()
         success_mock.assert_not_called()
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_removed_sync(self, fail_mock, success_mock):
+    def test_removed_sync(self, fail_mock, success_mock, mock_executor):
         """A removed task will increment failure count but call neither fail() nor success()."""
-        self._mock_sync(expected_state=State.REMOVED, set_task_state=State.REMOVED)
-        task_instance_key = self.executor.active_workers.arn_to_key[ARN1]
+        self._mock_sync(mock_executor, expected_state=State.REMOVED, set_task_state=State.REMOVED)
+        task_instance_key = mock_executor.active_workers.arn_to_key[ARN1]
 
-        self.executor.sync_running_tasks()
+        mock_executor.sync_running_tasks()
 
-        assert ARN1 in self.executor.active_workers.get_all_arns()
-        assert self.executor.active_workers.key_to_failure_counts[task_instance_key] == 1
+        assert ARN1 in mock_executor.active_workers.get_all_arns()
+        assert mock_executor.active_workers.key_to_failure_counts[task_instance_key] == 1
         fail_mock.assert_not_called()
         success_mock.assert_not_called()
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_failed_sync_api(self, success_mock, fail_mock):
+    def test_failed_sync_api(self, success_mock, fail_mock, mock_executor):
         """Test what happens when ECS sync fails for certain tasks repeatedly."""
-        self._mock_sync()
-        self.executor.ecs.describe_tasks.return_value = {
+        self._mock_sync(mock_executor)
+        mock_executor.ecs.describe_tasks.return_value = {
             "tasks": [],
             "failures": [
                 {"arn": ARN1, "reason": "Sample Failure", "detail": "UnitTest Failure - Please ignore"}
@@ -426,53 +448,43 @@ class TestAwsEcsExecutor:
 
         # Call Sync 3 times with failures.
         for check_count in range(AwsEcsExecutor.MAX_FAILURE_CHECKS):
-            self.executor.sync_running_tasks()
-            assert self.executor.ecs.describe_tasks.call_count == check_count + 1
+            mock_executor.sync_running_tasks()
+            assert mock_executor.ecs.describe_tasks.call_count == check_count + 1
 
             # Ensure task arn is not removed from active.
-            assert ARN1 in self.executor.active_workers.get_all_arns()
+            assert ARN1 in mock_executor.active_workers.get_all_arns()
 
             # Task is neither failed nor succeeded.
             fail_mock.assert_not_called()
             success_mock.assert_not_called()
 
         # Last call should fail the task.
-        self.executor.sync_running_tasks()
-        assert ARN1 not in self.executor.active_workers.get_all_arns()
+        mock_executor.sync_running_tasks()
+        assert ARN1 not in mock_executor.active_workers.get_all_arns()
         fail_mock.assert_called()
         success_mock.assert_not_called()
 
-    def test_terminate(self):
+    def test_terminate(self, mock_executor):
         """Test that executor can shut everything down; forcing all tasks to unnaturally exit."""
-        self._mock_sync(State.FAILED)
+        self._mock_sync(mock_executor, State.FAILED)
 
-        self.executor.terminate()
+        mock_executor.terminate()
 
-        self.executor.ecs.stop_task.assert_called()
+        mock_executor.ecs.stop_task.assert_called()
 
-    def test_end(self):
+    def test_end(self, mock_executor):
         """Test that executor can end successfully; waiting for all tasks to naturally exit."""
-        sync_call_count = 0
-        sync_func = self.executor.sync
+        mock_executor.sync = partial(self._sync_mock_with_call_counts, mock_executor.sync)
 
-        def sync_mock():
-            """Mock won't work here, because we actually want to call the 'sync' func."""
-            nonlocal sync_call_count
-            sync_func()
-            sync_call_count += 1
+        self._mock_sync(mock_executor, State.FAILED)
 
-        self.executor.sync = sync_mock
-        self._mock_sync(State.FAILED)
-
-        self.executor.end(heartbeat_interval=0)
-
-        self.executor.sync = sync_func
+        mock_executor.end(heartbeat_interval=0)
 
     @mock.patch.object(time, "sleep", return_value=None)
-    def test_end_with_queued_tasks_will_wait(self, mock_sleep):
+    def test_end_with_queued_tasks_will_wait(self, _, mock_executor):
         """Test that executor can end successfully; waiting for all tasks to naturally exit."""
         sync_call_count = 0
-        sync_func = self.executor.sync
+        sync_func = mock_executor.sync
 
         def sync_mock():
             """Mock won't work here, because we actually want to call the 'sync' func."""
@@ -485,7 +497,7 @@ class TestAwsEcsExecutor:
                 # mock side_effects to simulate a pending task the first time (triggering the
                 # sleep()) and no pending task the second pass, triggering the break and allowing
                 # the executor to shut down.
-                self.executor.active_workers.update_task(
+                mock_executor.active_workers.update_task(
                     EcsExecutorTask(
                         ARN2,
                         "STOPPED",
@@ -494,15 +506,15 @@ class TestAwsEcsExecutor:
                     )
                 )
                 self.response_task2_json.update({"desiredStatus": "STOPPED", "lastStatus": "STOPPED"})
-                self.executor.ecs.describe_tasks.return_value = {
+                mock_executor.ecs.describe_tasks.return_value = {
                     "tasks": [self.response_task2_json],
                     "failures": [],
                 }
 
-        self.executor.sync = sync_mock
+        mock_executor.sync = sync_mock
 
-        self._add_mock_task(ARN1)
-        self._add_mock_task(ARN2)
+        self._add_mock_task(mock_executor, ARN1)
+        self._add_mock_task(mock_executor, ARN2)
 
         base_response_task_json = {
             "startedAt": dt.datetime.now(),
@@ -521,14 +533,12 @@ class TestAwsEcsExecutor:
             **base_response_task_json,
         }
 
-        self.executor.ecs.describe_tasks.return_value = {
+        mock_executor.ecs.describe_tasks.return_value = {
             "tasks": [self.response_task1_json, self.response_task2_json],
             "failures": [],
         }
 
-        self.executor.end(heartbeat_interval=0)
-
-        self.executor.sync = sync_func
+        mock_executor.end(heartbeat_interval=0)
 
         assert sync_call_count == 2
 
@@ -539,14 +549,14 @@ class TestAwsEcsExecutor:
             pytest.param({"command": "bad_robot"}, id="executor_config_can_not_overwrite_command"),
         ],
     )
-    def test_executor_config_exceptions(self, bad_config):
+    def test_executor_config_exceptions(self, bad_config, mock_executor):
         with pytest.raises(ValueError) as raised:
-            self.executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
+            mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
 
         assert raised.match('Executor Config should never override "name" or "command"')
-        assert 0 == len(self.executor.pending_tasks)
+        assert 0 == len(mock_executor.pending_tasks)
 
-    def test_container_not_found(self):
+    def test_container_not_found(self, mock_executor):
         # Force a container name mismatch
         os.environ[
             f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CONTAINER_NAME}".upper()
@@ -560,32 +570,7 @@ class TestAwsEcsExecutor:
                 '"overrides[containerOverrides][containers][x][command]"'
             )
         )
-        assert 0 == len(self.executor.pending_tasks)
-
-    def _mock_executor(self) -> None:
-        """Mock ECS such that there's nothing wrong."""
-        executor = AwsEcsExecutor()
-        executor.start()
-
-        # Replace boto3 ECS client with mock.
-        ecs_mock = mock.Mock(spec=executor.ecs)
-        run_task_ret_val = {"tasks": [{"taskArn": ARN1}], "failures": []}
-        ecs_mock.run_task.return_value = run_task_ret_val
-        executor.ecs = ecs_mock
-
-        self.executor = executor
-
-    @staticmethod
-    def _set_conf():
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.REGION}".upper()] = "us-west-1"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.TASK_DEFINITION}".upper()] = "some-task-def"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
+        assert 0 == len(mock_executor.pending_tasks)
 
     @staticmethod
     def _unset_conf():
@@ -594,10 +579,13 @@ class TestAwsEcsExecutor:
                 os.environ.pop(env)
 
     def _mock_sync(
-        self, expected_state: State = State.SUCCESS, set_task_state: State = State.RUNNING
+        self,
+        executor: AwsEcsExecutor,
+        expected_state: State = State.SUCCESS,
+        set_task_state: State = State.RUNNING,
     ) -> None:
         """Mock ECS to the expected state."""
-        self._add_mock_task(ARN1, set_task_state)
+        self._add_mock_task(executor, ARN1, set_task_state)
 
         response_task_json = {
             "taskArn": ARN1,
@@ -615,11 +603,21 @@ class TestAwsEcsExecutor:
             response_task_json["startedAt"] = dt.datetime.now()
         assert expected_state == BotoTaskSchema().load(response_task_json).get_task_state()
 
-        self.executor.ecs.describe_tasks.return_value = {"tasks": [response_task_json], "failures": []}
+        executor.ecs.describe_tasks.return_value = {"tasks": [response_task_json], "failures": []}
 
-    def _add_mock_task(self, arn, state: State = State.RUNNING):
+    @staticmethod
+    def _add_mock_task(executor: AwsEcsExecutor, arn: str, state: State = State.RUNNING):
         task = mock_task(arn, state)
-        self.executor.active_workers.add_task(task, mock.Mock(spec=tuple), mock_queue, mock_cmd, mock_config)
+        executor.active_workers.add_task(task, mock.Mock(spec=tuple), mock_queue, mock_cmd, mock_config)
+
+    def _sync_mock_with_call_counts(self, sync_func: Callable):
+        """Mock won't work here, because we actually want to call the 'sync' func."""
+        # If we call `mock_executor.sync()` here directly we get endless recursion below
+        # because we are assigning it to itself wih `mock_executor.sync = sync_mock`.
+        self.sync_call_count = 0
+
+        sync_func()
+        self.sync_call_count += 1
 
 
 class TestEcsExecutorConfig:
