@@ -144,7 +144,7 @@ def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
 
 def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0):
     """Split the list of items into chunks of a given size and pass each chunk through the reducer."""
-    if len(iterable) == 0:
+    if not iterable:
         return initializer
     if chunk_size == 0:
         chunk_size = len(iterable)

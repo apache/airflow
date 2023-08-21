@@ -475,7 +475,7 @@ class TaskGroup(DAGNode):
         graph_sorted: list[DAGNode] = []
 
         # special case
-        if len(self.children) == 0:
+        if not self.children:
             return graph_sorted
 
         # Run until the unsorted graph is empty.

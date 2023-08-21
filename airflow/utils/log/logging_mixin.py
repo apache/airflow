@@ -165,7 +165,7 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
     def flush(self):
         """Ensure all logging output has been flushed."""
         buf = self._buffer
-        if len(buf) > 0:
+        if buf:
             self._buffer = ""
             self._propagate_log(buf)
 

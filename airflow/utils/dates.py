@@ -227,7 +227,7 @@ def infer_time_unit(time_seconds_arr: Collection[float]) -> TimeUnit:
 
     e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
     """
-    if len(time_seconds_arr) == 0:
+    if not time_seconds_arr:
         return "hours"
     max_time_seconds = max(time_seconds_arr)
     if max_time_seconds <= 60 * 2:
