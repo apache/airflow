@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-import itertools as it
+import itertools
 from functools import cached_property
 from typing import Any
 
@@ -162,7 +162,7 @@ class BatchSensorTrigger(BaseTrigger):
         """
         async with self.hook.async_conn as client:
             waiter = self.hook.get_waiter("batch_job_complete", deferrable=True, client=client)
-            for attempt in it.count(1):
+            for attempt in itertools.count(1):
                 try:
                     await waiter.wait(
                         jobs=[self.job_id],

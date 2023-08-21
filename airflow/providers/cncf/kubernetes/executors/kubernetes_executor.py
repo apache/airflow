@@ -34,6 +34,7 @@ from datetime import datetime
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Sequence
 
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from airflow import AirflowException
@@ -215,12 +216,12 @@ class KubernetesExecutor(BaseExecutor):
         from airflow.models.taskinstance import TaskInstance
 
         self.log.debug("Clearing tasks that have not been launched")
-        query = session.query(TaskInstance).filter(
+        query = select(TaskInstance).where(
             TaskInstance.state == TaskInstanceState.QUEUED, TaskInstance.queued_by_job_id == self.job_id
         )
         if self.kubernetes_queue:
-            query = query.filter(TaskInstance.queue == self.kubernetes_queue)
-        queued_tis: list[TaskInstance] = query.all()
+            query = query.where(TaskInstance.queue == self.kubernetes_queue)
+        queued_tis: list[TaskInstance] = session.scalars(query).all()
         self.log.info("Found %s queued task instances", len(queued_tis))
 
         # Go through the "last seen" dictionary and clean out old entries
@@ -262,12 +263,16 @@ class KubernetesExecutor(BaseExecutor):
             if pod_list:
                 continue
             self.log.info("TaskInstance: %s found in queued state but was not launched, rescheduling", ti)
-            session.query(TaskInstance).filter(
-                TaskInstance.dag_id == ti.dag_id,
-                TaskInstance.task_id == ti.task_id,
-                TaskInstance.run_id == ti.run_id,
-                TaskInstance.map_index == ti.map_index,
-            ).update({TaskInstance.state: TaskInstanceState.SCHEDULED})
+            session.execute(
+                update(TaskInstance)
+                .where(
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
+                )
+                .values(state=TaskInstanceState.SCHEDULED)
+            )
 
     def start(self) -> None:
         """Starts the executor."""
@@ -457,7 +462,7 @@ class KubernetesExecutor(BaseExecutor):
         if state is None:
             from airflow.models.taskinstance import TaskInstance
 
-            state = session.query(TaskInstance.state).filter(TaskInstance.filter_for_tis([key])).scalar()
+            state = session.scalar(select(TaskInstance.state).where(TaskInstance.filter_for_tis([key])))
             state = TaskInstanceState(state)
 
         self.event_buffer[key] = state, None

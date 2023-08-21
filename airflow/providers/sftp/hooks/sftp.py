@@ -223,7 +223,7 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.rmdir(path)
 
-    def retrieve_file(self, remote_full_path: str, local_full_path: str) -> None:
+    def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
         """Transfer the remote file to a local location.
 
         If local_full_path is a string path, the file will be put
@@ -231,9 +231,10 @@ class SFTPHook(SSHHook):
 
         :param remote_full_path: full path to the remote file
         :param local_full_path: full path to the local file
+        :param prefetch: controls whether prefetch is performed (default: True)
         """
         conn = self.get_conn()
-        conn.get(remote_full_path, local_full_path)
+        conn.get(remote_full_path, local_full_path, prefetch=prefetch)
 
     def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """Transfer a local file to the remote location.

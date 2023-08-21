@@ -167,7 +167,7 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         fail_on_dq_failure: bool = False,
         result_timeout: float = 60.0 * 10,
-        start_sensor_time: float = time.monotonic(),
+        start_sensor_time: float | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -185,10 +185,9 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
         self.result_timeout = result_timeout
         self.start_sensor_time = start_sensor_time
 
-    def execute(self, context: Context) -> None:
-        super().execute(context)
-
     def _duration(self):
+        if not self.start_sensor_time:
+            self.start_sensor_time = time.monotonic()
         return time.monotonic() - self.start_sensor_time
 
     def poke(self, context: Context) -> bool:

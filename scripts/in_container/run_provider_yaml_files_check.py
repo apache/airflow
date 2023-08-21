@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import itertools
 import json
 import os
 import pathlib
@@ -27,7 +28,6 @@ import sys
 import textwrap
 from collections import Counter
 from enum import Enum
-from itertools import chain, product
 from typing import Any, Iterable
 
 import jsonschema
@@ -219,7 +219,7 @@ def check_if_objects_exist_and_belong_to_package(
 def parse_module_data(provider_data, resource_type, yaml_file_path):
     package_dir = ROOT_DIR.joinpath(yaml_file_path).parent
     provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
-    py_files = chain(
+    py_files = itertools.chain(
         package_dir.glob(f"**/{resource_type}/*.py"),
         package_dir.glob(f"{resource_type}/*.py"),
         package_dir.glob(f"**/{resource_type}/**/*.py"),
@@ -233,7 +233,7 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
 def check_correctness_of_list_of_sensors_operators_hook_modules(yaml_files: dict[str, dict]):
     print("Checking completeness of list of {sensors, hooks, operators, triggers}")
     print(" -- {sensors, hooks, operators, triggers} - Expected modules (left) : Current modules (right)")
-    for (yaml_file_path, provider_data), resource_type in product(
+    for (yaml_file_path, provider_data), resource_type in itertools.product(
         yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         expected_modules, provider_package, resource_data = parse_module_data(
@@ -257,7 +257,7 @@ def check_correctness_of_list_of_sensors_operators_hook_modules(yaml_files: dict
 
 def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files: dict[str, dict]):
     print("Checking for duplicates in list of {sensors, hooks, operators, triggers}")
-    for (yaml_file_path, provider_data), resource_type in product(
+    for (yaml_file_path, provider_data), resource_type in itertools.product(
         yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         resource_data = provider_data.get(resource_type, [])
@@ -362,7 +362,7 @@ def check_invalid_integration(yaml_files: dict[str, dict]):
     print("Detect unregistered integrations")
     all_integration_names = set(get_all_integration_names(yaml_files))
 
-    for (yaml_file_path, provider_data), resource_type in product(
+    for (yaml_file_path, provider_data), resource_type in itertools.product(
         yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         resource_data = provider_data.get(resource_type, [])
@@ -374,7 +374,7 @@ def check_invalid_integration(yaml_files: dict[str, dict]):
                 f"Invalid values: {invalid_names}"
             )
 
-    for (yaml_file_path, provider_data), key in product(
+    for (yaml_file_path, provider_data), key in itertools.product(
         yaml_files.items(), ["source-integration-name", "target-integration-name"]
     ):
         resource_data = provider_data.get("transfers", [])
@@ -409,7 +409,7 @@ def check_doc_files(yaml_files: dict[str, dict]):
     console.print("[yellow]Suspended providers:[/]")
     console.print(suspended_providers)
 
-    expected_doc_files = chain(
+    expected_doc_files = itertools.chain(
         DOCS_DIR.glob("apache-airflow-providers-*/operators/**/*.rst"),
         DOCS_DIR.glob("apache-airflow-providers-*/transfer/**/*.rst"),
     )

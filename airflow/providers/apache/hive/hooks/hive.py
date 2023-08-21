@@ -24,18 +24,13 @@ import socket
 import subprocess
 import time
 import warnings
-from collections import OrderedDict
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Iterable, Mapping
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
-try:
-    import pandas
-except ImportError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-    raise AirflowOptionalProviderFeatureException(e)
+if TYPE_CHECKING:
+    import pandas as pd
 
 import csv
 
@@ -235,7 +230,7 @@ class HiveCliHook(BaseHook):
 
         invalid_chars_list = re.findall(r"[^a-z0-9_]", schema)
         if invalid_chars_list:
-            invalid_chars = "".join(char for char in invalid_chars_list)
+            invalid_chars = "".join(invalid_chars_list)
             raise RuntimeError(f"The schema `{schema}` contains invalid characters: {invalid_chars}")
 
         if schema:
@@ -336,7 +331,7 @@ class HiveCliHook(BaseHook):
 
     def load_df(
         self,
-        df: pandas.DataFrame,
+        df: pd.DataFrame,
         table: str,
         field_dict: dict[Any, Any] | None = None,
         delimiter: str = ",",
@@ -354,14 +349,14 @@ class HiveCliHook(BaseHook):
         :param table: target Hive table, use dot notation to target a
             specific database
         :param field_dict: mapping from column name to hive data type.
-            Note that it must be OrderedDict so as to keep columns' order.
+            Note that Python dict is ordered so it keeps columns' order.
         :param delimiter: field delimiter in the file
         :param encoding: str encoding to use when writing DataFrame to file
         :param pandas_kwargs: passed to DataFrame.to_csv
         :param kwargs: passed to self.load_file
         """
 
-        def _infer_field_types_from_df(df: pandas.DataFrame) -> dict[Any, Any]:
+        def _infer_field_types_from_df(df: pd.DataFrame) -> dict[Any, Any]:
             dtype_kind_hive_type = {
                 "b": "BOOLEAN",  # boolean
                 "i": "BIGINT",  # signed integer
@@ -375,7 +370,7 @@ class HiveCliHook(BaseHook):
                 "V": "STRING",  # void
             }
 
-            order_type = OrderedDict()
+            order_type = {}
             for col, dtype in df.dtypes.items():
                 order_type[col] = dtype_kind_hive_type[dtype.kind]
             return order_type
@@ -431,7 +426,7 @@ class HiveCliHook(BaseHook):
         :param delimiter: field delimiter in the file
         :param field_dict: A dictionary of the fields name in the file
             as keys and their Hive types as values.
-            Note that it must be OrderedDict so as to keep columns' order.
+            Note that Python dict is ordered so it keeps columns' order.
         :param create: whether to create the table if it doesn't exist
         :param overwrite: whether to overwrite the data in table or partition
         :param partition: target partition as a dict of partition columns
@@ -668,9 +663,7 @@ class HiveMetastoreHook(BaseHook):
         """
         with self.metastore as client:
             table = client.get_table(dbname=schema, tbl_name=table_name)
-            if len(table.partitionKeys) == 0:
-                raise AirflowException("The table isn't partitioned")
-            else:
+            if table.partitionKeys:
                 if partition_filter:
                     parts = client.get_partitions_by_filter(
                         db_name=schema,
@@ -685,6 +678,8 @@ class HiveMetastoreHook(BaseHook):
 
                 pnames = [p.name for p in table.partitionKeys]
                 return [dict(zip(pnames, p.values)) for p in parts]
+            else:
+                raise AirflowException("The table isn't partitioned")
 
     @staticmethod
     def _get_max_partition_from_part_specs(
@@ -928,8 +923,8 @@ class HiveServer2Hook(DbApiHook):
                     description = cur.description
                     if previous_description and previous_description != description:
                         message = f"""The statements are producing different descriptions:
-                                     Current: {repr(description)}
-                                     Previous: {repr(previous_description)}"""
+                                     Current: {description!r}
+                                     Previous: {previous_description!r}"""
                         raise ValueError(message)
                     elif not previous_description:
                         previous_description = description
@@ -1037,7 +1032,7 @@ class HiveServer2Hook(DbApiHook):
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
-    ) -> pandas.DataFrame:
+    ) -> pd.DataFrame:
         """
         Get a pandas dataframe from a Hive query.
 
@@ -1055,6 +1050,13 @@ class HiveServer2Hook(DbApiHook):
 
         :return: pandas.DateFrame
         """
+        try:
+            import pandas as pd
+        except ImportError as e:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+
         res = self.get_results(sql, schema=schema, hive_conf=hive_conf)
-        df = pandas.DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
+        df = pd.DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
         return df

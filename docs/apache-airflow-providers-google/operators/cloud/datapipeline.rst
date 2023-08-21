@@ -55,6 +55,35 @@ Here is an example of how you can create a Data Pipelines instance by running th
    :start-after: [START howto_operator_create_data_pipeline]
    :end-before: [END howto_operator_create_data_pipeline]
 
+Running a Data Pipeline
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To run a Data Pipelines instance, use :class:`~airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator`.
+The operator accesses Google Cloud's Data Pipelines API and calls upon the
+`run method <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/run>`__
+to run the given pipeline.
+
+:class:`~airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator` can take in four parameters:
+
+- ``data_pipeline_name``: the name of the Data Pipelines instance
+- ``project_id``: the ID of the GCP project that owns the job
+- ``location``: the location of the Data Pipelines instance
+- ``gcp_conn_id``: the connection ID to connect to the Google Cloud Platform
+
+Only the Data Pipeline name and Project ID are required parameters, as the Location and GCP Connection ID have default values.
+The Project ID and Location will be used to build the parent name, which is where the given Data Pipeline should be located.
+
+You can run a Data Pipelines instance by running the above parameters with RunDataPipelineOperator:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/datapipelines/example_datapipeline.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_run_data_pipeline]
+    :end-before: [END howto_operator_run_data_pipeline]
+
+Once called, the RunDataPipelineOperator will return the Google Cloud `Dataflow Job <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/Job>`__
+created by running the given pipeline.
+
 For further information regarding the API usage, see
 `Data Pipelines API REST Resource <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines#Pipeline>`__
 in the Google Cloud documentation.
