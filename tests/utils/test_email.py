@@ -149,7 +149,7 @@ class TestEmailSmtp:
     @mock.patch("airflow.utils.email.send_mime_email")
     def test_send_smtp(self, mock_send_mime, tmp_path):
         path = tmp_path / "testfile"
-        path.write_bytes(b"attachment")
+        path.write_text("attachment")
         email.send_email_smtp("to", "subject", "content", files=[os.fspath(path)])
         assert mock_send_mime.called
         _, call_args = mock_send_mime.call_args
@@ -176,7 +176,7 @@ class TestEmailSmtp:
     @mock.patch("airflow.utils.email.send_mime_email")
     def test_send_bcc_smtp(self, mock_send_mime, tmp_path):
         path = tmp_path / "testfile"
-        path.write_bytes(b"attachment")
+        path.write_text("attachment")
         email.send_email_smtp(
             "to",
             "subject",
