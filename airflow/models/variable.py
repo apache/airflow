@@ -21,7 +21,7 @@ import json
 import logging
 from typing import Any
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, delete
+from sqlalchemy import Boolean, Column, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Session, declared_attr, reconstructor, synonym
 
@@ -200,8 +200,7 @@ class Variable(Base, LoggingMixin):
 
         if Variable.get_variable_from_secrets(key=key) is None:
             raise KeyError(f"Variable {key} does not exist")
-
-        obj = session.query(Variable).filter(Variable.key == key).first()
+        obj = session.scalar(select(Variable).where(Variable.key == key))
         if obj is None:
             raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
 

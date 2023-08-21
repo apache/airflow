@@ -37,6 +37,7 @@ from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, ses
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
+from sqlalchemy import select
 
 import airflow.settings as settings
 from airflow.configuration import conf
@@ -268,7 +269,7 @@ class BulkStateFetcher(LoggingMixin):
         session = app.backend.ResultSession()
         task_cls = getattr(app.backend, "task_cls", TaskDb)
         with session_cleanup(session):
-            return session.query(task_cls).filter(task_cls.task_id.in_(task_ids)).all()
+            return session.scalars(select(task_cls).where(task_cls.task_id.in_(task_ids))).all()
 
     def _get_many_from_db_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
         task_ids = self._tasks_list_to_task_ids(async_tasks)
