@@ -296,7 +296,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         escape_key: bool = True,
     ) -> str:
         formatted_opts = ""
-        if opts is not None and len(opts) > 0:
+        if opts:
             pairs = [
                 f"{escaper.escape_item(k) if escape_key else k} = {escaper.escape_item(v)}"
                 for k, v in opts.items()

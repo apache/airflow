@@ -72,13 +72,11 @@ class OracleToOracleOperator(BaseOperator):
             target_fields = list(map(lambda field: field[0], cursor.description))
 
             rows_total = 0
-            rows = cursor.fetchmany(self.rows_chunk)
-            while rows:
-                rows_total += len(rows)
+            for rows in iter(lambda: cursor.fetchmany(self.rows_chunk), []):
                 dest_hook.bulk_insert_rows(
                     self.destination_table, rows, target_fields=target_fields, commit_every=self.rows_chunk
                 )
-                rows = cursor.fetchmany(self.rows_chunk)
+                rows_total += len(rows)
                 self.log.info("Total inserted: %s rows", rows_total)
 
             self.log.info("Finished data transfer.")

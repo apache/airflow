@@ -92,7 +92,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         if "endpoints" not in result:
             raise AirflowException("Can't list Databricks SQL endpoints")
         lst = [endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name]
-        if len(lst) == 0:
+        if not lst:
             raise AirflowException(f"Can't f Databricks SQL endpoint with name '{endpoint_name}'")
         return lst[0]
 

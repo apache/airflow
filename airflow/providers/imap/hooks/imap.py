@@ -126,7 +126,7 @@ class ImapHook(BaseHook):
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, True, mail_folder, mail_filter
         )
-        return len(mail_attachments) > 0
+        return bool(mail_attachments)
 
     def retrieve_mail_attachments(
         self,

@@ -437,9 +437,7 @@ class PodManager(LoggingMixin):
         """
         pod_logging_statuses = []
         all_containers = self.get_container_names(pod)
-        if len(all_containers) == 0:
-            self.log.error("Could not retrieve containers for the pod: %s", pod.metadata.name)
-        else:
+        if all_containers:
             if isinstance(container_logs, str):
                 # fetch logs only for requested container if only one container is provided
                 if container_logs in all_containers:
@@ -484,6 +482,8 @@ class PodManager(LoggingMixin):
                     self.log.error(
                         "Invalid type %s specified for container names input parameter", type(container_logs)
                     )
+        else:
+            self.log.error("Could not retrieve containers for the pod: %s", pod.metadata.name)
 
         return pod_logging_statuses
 

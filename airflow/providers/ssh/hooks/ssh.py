@@ -512,7 +512,7 @@ class SSHHook(BaseHook):
         while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
             readq, _, _ = select([channel], [], [], cmd_timeout)
             if cmd_timeout is not None:
-                timedout = len(readq) == 0
+                timedout = not readq
             for recv in readq:
                 if recv.recv_ready():
                     output = stdout.channel.recv(len(recv.in_buffer))
