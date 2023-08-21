@@ -41,7 +41,7 @@ from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowTaskTimeout
+from airflow.exceptions import AirflowDeferTimeout, AirflowException, AirflowSensorTimeout, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -59,6 +59,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
+from airflow.utils.context import Context
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -4453,19 +4454,25 @@ class TestSchedulerJob:
         assert len(DagRun.find(dag_id=dag.dag_id, state=State.QUEUED, session=session)) == 2
 
     @pytest.mark.parametrize(
-        "execution_timeout, sensor_timeout, expected_exception",
+        "execution_timeout, sensor_timeout, defer_timeout, expected_exception",
         [
             # Sensor with only execution timeout, should fail with AirflowTaskTimeout
-            (5, None, AirflowTaskTimeout),
+            (5, None, None, AirflowTaskTimeout),
             # Sensor with only sensor timeout, should fail with AirflowSensorTimeout
-            (None, 5, AirflowSensorTimeout),
+            (None, 5, None, AirflowSensorTimeout),
+            # Sensor with only defer timeout, should fail with AirflowDeferTimeout
+            (None, None, 5, AirflowDeferTimeout),
             # Sensor with smaller execution timeout, should fail with AirflowTaskTimeout
-            (5, 10, AirflowTaskTimeout),
+            (5, 10, 15, AirflowTaskTimeout),
             # Sensor with smaller sensor timeout, should fail with AirflowSensorTimeout
-            (10, 5, AirflowSensorTimeout),
+            (10, 5, 15, AirflowSensorTimeout),
+            # Sensor with smaller defer timeout, should fail with AirflowDeferTimeout
+            (10, 15, 5, AirflowDeferTimeout),
         ],
     )
-    def test_timeout_triggers(self, dag_maker, execution_timeout, sensor_timeout, expected_exception):
+    def test_timeout_triggers(
+        self, dag_maker, execution_timeout, sensor_timeout, defer_timeout, expected_exception
+    ):
         """
         Tests that tasks in the deferred state, but whose trigger timeout
         has expired, are correctly failed.
@@ -4504,17 +4511,25 @@ class TestSchedulerJob:
         # second start_date is after 5 seconds
         second_start_date = first_start_date + datetime.timedelta(seconds=5)
         # find min timeout between execution_timeout and sensor_timeout
-        min_timeout = min(execution_timeout or sys.maxsize, sensor_timeout or sys.maxsize)
+        min_timeout = min(
+            execution_timeout or sys.maxsize, sensor_timeout or sys.maxsize, defer_timeout or sys.maxsize
+        )
 
         ti1: TaskInstance = dr1.get_task_instance("dummy1", session)
         ti2 = dr2.get_task_instance("dummy1", session)
         ti1.state = State.DEFERRED
         ti1.start_date = first_start_date
-        ti1.trigger_timeout = first_start_date + datetime.timedelta(seconds=min_timeout)
+        with time_machine.travel(first_start_date):
+            ti1.trigger_timeout, ti1.trigger_timeout_reason = ti1.task._trigger_timeout(
+                Context(ti=ti1), timedelta(seconds=defer_timeout) if defer_timeout else None
+            )
 
         ti2.state = State.DEFERRED
         ti2.start_date = second_start_date
-        ti2.trigger_timeout = second_start_date + datetime.timedelta(seconds=min_timeout)
+        with time_machine.travel(second_start_date):
+            ti2.trigger_timeout, ti2.trigger_timeout_reason = ti2.task._trigger_timeout(
+                Context(ti=ti2), timedelta(seconds=defer_timeout) if defer_timeout else None
+            )
         session.flush()
 
         # Boot up the scheduler and make it check timeouts
@@ -4530,6 +4545,7 @@ class TestSchedulerJob:
         session.refresh(ti2)
         assert ti1.state == State.SCHEDULED
         assert ti1.next_method == "__timeout__"
+
         assert ti2.state == State.DEFERRED
 
         # Make sure that TI1 will fail because of the timeout and not other reasons

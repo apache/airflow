@@ -436,6 +436,10 @@ class TaskInstance(Base, LoggingMixin):
     # migration, we are keeping it as DateTime pending a change where expensive
     # migration is inevitable.
 
+    # The reason why the trigger should time out after trigger_timeout
+    # (e.g. "execution_timeout", "sensor_timeout", "trigger_timeout")
+    trigger_timeout_reason = Column(String(256))
+
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
@@ -1776,6 +1780,8 @@ class TaskInstance(Base, LoggingMixin):
         self.next_method = defer.method_name
         self.next_kwargs = defer.kwargs or {}
         self.trigger_timeout = defer.trigger_timeout
+        self.trigger_timeout_reason = defer.trigger_timeout_reason
+        raise Exception(self.trigger_timeout_reason)
 
         # Decrement try number so the next one is the same try
         self._try_number -= 1

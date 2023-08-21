@@ -53,6 +53,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     external_executor_id: Optional[str]
     trigger_id: Optional[int]
     trigger_timeout: Optional[datetime]
+    trigger_timeout_reason: Optional[str]
     next_method: Optional[str]
     next_kwargs: Optional[dict]
     run_as_user: Optional[str]
