@@ -275,7 +275,7 @@ celery = [
     # limiting minimum airflow version supported in celery provider due to the
     # potential breaking changes in Airflow Core as well (celery is added as extra, so Airflow
     # core is not hard-limited via install-requires, only by extra).
-    "celery>=5.2.3,<6"
+    "celery>=5.3.0,<6"
 ]
 cgroups = [
     # Cgroupspy 0.2.2 added Python 3.10 compatibility
