@@ -45,6 +45,7 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
         "publish-docs",
         "generate-constraints",
         "add-back-references",
+        "test-openapi-client-generation",
     ],
 }
 
