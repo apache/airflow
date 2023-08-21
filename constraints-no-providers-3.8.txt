@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-21T07:26:32Z
+# This constraints file was automatically generated on 2023-08-21T16:46:24Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -101,7 +101,7 @@ httpcore==0.17.3
 httpx==0.24.1
 humanize==4.8.0
 idna==3.4
-importlib-metadata==4.13.0
+importlib-metadata==6.8.0
 importlib-resources==6.0.1
 inflection==0.5.1
 itsdangerous==2.1.2
@@ -128,14 +128,15 @@ msgpack==1.0.5
 multidict==6.0.4
 numpy==1.24.4
 oauthlib==3.2.2
-opentelemetry-api==1.15.0
-opentelemetry-exporter-otlp-proto-grpc==1.15.0
-opentelemetry-exporter-otlp-proto-http==1.15.0
-opentelemetry-exporter-otlp==1.15.0
+opentelemetry-api==1.19.0
+opentelemetry-exporter-otlp-proto-common==1.19.0
+opentelemetry-exporter-otlp-proto-grpc==1.19.0
+opentelemetry-exporter-otlp-proto-http==1.19.0
+opentelemetry-exporter-otlp==1.19.0
 opentelemetry-exporter-prometheus==1.12.0rc1
-opentelemetry-proto==1.15.0
-opentelemetry-sdk==1.15.0
-opentelemetry-semantic-conventions==0.36b0
+opentelemetry-proto==1.19.0
+opentelemetry-sdk==1.19.0
+opentelemetry-semantic-conventions==0.40b0
 ordered-set==4.1.0
 packaging==23.1
 pandas==2.0.3
