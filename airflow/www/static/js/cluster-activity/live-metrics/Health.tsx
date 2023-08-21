@@ -107,7 +107,7 @@ const Health = (props: CenterProps) => {
               mb={3}
             />
             { 
-            standaloneDagProcessor != undefined && 
+            standaloneDagProcessor !== undefined && 
             standaloneDagProcessor.toString().toLowerCase() === "true" &&
             <HealthSection
               title="Dag Processor"
