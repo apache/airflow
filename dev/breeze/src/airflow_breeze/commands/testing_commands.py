@@ -60,7 +60,6 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
-    DOCKER_COMPOSE_COMMAND,
     get_env_variables_for_docker_commands,
     perform_environment_checks,
     remove_docker_networks,
@@ -172,7 +171,8 @@ def _run_test(
     # This is needed for Docker-compose 1 compatibility
     env_variables["COMPOSE_PROJECT_NAME"] = compose_project_name
     down_cmd = [
-        *DOCKER_COMPOSE_COMMAND,
+        "docker",
+        "compose",
         "--project-name",
         compose_project_name,
         "down",
@@ -180,7 +180,8 @@ def _run_test(
     ]
     run_command(down_cmd, env=env_variables, output=output, check=False)
     run_cmd = [
-        *DOCKER_COMPOSE_COMMAND,
+        "docker",
+        "compose",
         "--project-name",
         compose_project_name,
         "run",
@@ -228,7 +229,8 @@ def _run_test(
         if not skip_docker_compose_down:
             run_command(
                 [
-                    *DOCKER_COMPOSE_COMMAND,
+                    "docker",
+                    "compose",
                     "--project-name",
                     compose_project_name,
                     "rm",
@@ -587,6 +589,6 @@ def helm_tests(
         env_variables["HELM_TEST_PACKAGE"] = helm_test_package
     perform_environment_checks()
     cleanup_python_generated_files()
-    cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "--rm", "airflow", *extra_pytest_args]
+    cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *extra_pytest_args]
     result = run_command(cmd, env=env_variables, check=False, output_outside_the_group=True)
     sys.exit(result.returncode)
