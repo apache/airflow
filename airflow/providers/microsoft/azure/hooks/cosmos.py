@@ -153,7 +153,7 @@ class AzureCosmosDBHook(BaseHook):
                 parameters=[json.dumps({"name": "@id", "value": collection_name})],
             )
         )
-        if len(existing_container) == 0:
+        if not existing_container:
             return False
 
         return True
@@ -180,7 +180,7 @@ class AzureCosmosDBHook(BaseHook):
         )
 
         # Only create if we did not find it already existing
-        if len(existing_container) == 0:
+        if not existing_container:
             self.get_conn().get_database_client(self.__get_database_name(database_name)).create_container(
                 collection_name, partition_key=partition_key
             )
@@ -196,7 +196,7 @@ class AzureCosmosDBHook(BaseHook):
                 parameters=[json.dumps({"name": "@id", "value": database_name})],
             )
         )
-        if len(existing_database) == 0:
+        if not existing_database:
             return False
 
         return True
@@ -216,7 +216,7 @@ class AzureCosmosDBHook(BaseHook):
         )
 
         # Only create if we did not find it already existing
-        if len(existing_database) == 0:
+        if not existing_database:
             self.get_conn().create_database(database_name)
 
     def delete_database(self, database_name: str) -> None:
