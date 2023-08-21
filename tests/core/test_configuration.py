@@ -22,7 +22,6 @@ import datetime
 import io
 import os
 import re
-import tempfile
 import textwrap
 import warnings
 from unittest import mock
@@ -550,17 +549,13 @@ key3 = value3
 
         assert test_conf.getsection("non_existent_section") is None
 
-    def test_get_section_should_respect_cmd_env_variable(self):
-        with tempfile.NamedTemporaryFile(delete=False) as cmd_file:
-            cmd_file.write(b"#!/usr/bin/env bash\n")
-            cmd_file.write(b"echo -n difficult_unpredictable_cat_password\n")
-            cmd_file.flush()
-            os.chmod(cmd_file.name, 0o0555)
-            cmd_file.close()
+    def test_get_section_should_respect_cmd_env_variable(self, tmp_path, monkeypatch):
+        cmd_file = tmp_path / "testfile.sh"
+        cmd_file.write_text("#!/usr/bin/env bash\necho -n difficult_unpredictable_cat_password\n")
+        cmd_file.chmod(0o0555)
 
-            with mock.patch.dict("os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY_CMD": cmd_file.name}):
-                content = conf.getsection("webserver")
-            os.unlink(cmd_file.name)
+        monkeypatch.setenv("AIRFLOW__WEBSERVER__SECRET_KEY_CMD", str(cmd_file))
+        content = conf.getsection("webserver")
         assert content["secret_key"] == "difficult_unpredictable_cat_password"
 
     def test_kubernetes_environment_variables_section(self):
