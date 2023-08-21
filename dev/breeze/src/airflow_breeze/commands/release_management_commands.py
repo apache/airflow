@@ -20,6 +20,7 @@ import os
 import re
 import shlex
 import shutil
+import subprocess
 import sys
 import textwrap
 import time
@@ -245,7 +246,7 @@ def prepare_airflow_packages(
     "--regenerate-missing-docs",
     is_flag=True,
     help="Only regenerate missing documentation, do not bump version. Useful if templates were added"
-    " and you need to regenerate documentation.",
+         " and you need to regenerate documentation.",
 )
 @option_verbose
 @option_dry_run
@@ -872,7 +873,7 @@ def add_back_references(
     "--limit-python",
     type=BetterChoice(CURRENT_PYTHON_MAJOR_MINOR_VERSIONS),
     help="Specific python to build slim images for (if not specified - the images are built for all"
-    " available python versions)",
+         " available python versions)",
 )
 @click.option(
     "--limit-platform",
@@ -885,8 +886,8 @@ def add_back_references(
     "--skip-latest",
     is_flag=True,
     help="Whether to skip publishing the latest images (so that 'latest' images are not updated). "
-    "This should only be used if you release image for previous branches. Automatically set when "
-    "rc/alpha/beta images are built.",
+         "This should only be used if you release image for previous branches. Automatically set when "
+         "rc/alpha/beta images are built.",
 )
 @option_commit_sha
 @option_verbose
@@ -1230,7 +1231,7 @@ def get_all_constraint_files(refresh_constraints: bool, python_version: str) -> 
                     python_version=python_version,
                     include_provider_dependencies=True,
                     output_file=CONSTRAINTS_CACHE_DIR
-                    / f"constraints-{airflow_version}-python-{python_version}.txt",
+                                / f"constraints-{airflow_version}-python-{python_version}.txt",
                 ):
                     get_console().print(
                         "[warning]Could not download constraints for "
@@ -1487,3 +1488,38 @@ def update_constraints(
             if confirm_modifications(constraints_repo):
                 commit_constraints_and_tag(constraints_repo, airflow_version, commit_message)
                 push_constraints_and_tag(constraints_repo, remote_name, airflow_version)
+
+
+@release_management.command(
+    name="test-openapi-client-generation", help="Test OpenAPI client generation."
+)
+@option_verbose
+@option_dry_run
+@option_answer
+def client_codegen_diff():
+    # HEAD^1 says the "first" parent. For PR merge commits, or main commits, this is the "right" commit.
+    #
+    # In this example, 9c532b6 is the PR commit (HEAD^2), 4840892 is the head GitHub checks-out for us,
+    # and db121f7 is the "merge target" (HEAD^1) -- i.e. mainline
+    decoded_previous_mainline_commit = run_command(["git", "rev-parse", "--short", "HEAD^1"],
+                                                   capture_output=True).stdout.decode("utf-8").strip()
+    print(f"Diffing openapi spec against {decoded_previous_mainline_commit} ...")
+
+    SPEC_FILE = "airflow/api_connexion/openapi/v1.yaml"
+
+    GO_CLIENT_PATH = "clients/go/airflow"
+
+    GO_TARGET_CLIENT_PATH = "clients/go_target_branch/airflow"
+
+    # generate client for current patch
+    run_command(["mkdir", "-p", f"{GO_CLIENT_PATH}"])
+
+    run_command(["./clients/gen/go.sh", f"{SPEC_FILE}", f"{GO_CLIENT_PATH}"])
+
+    # generate client for target patch
+    run_command(["mkdir", "-p", f"{GO_TARGET_CLIENT_PATH}"])
+
+    run_command(["git", "checkout", f"{decoded_previous_mainline_commit}", "--", f"{SPEC_FILE}"])
+    run_command(["./clients/gen/go.sh", f"{SPEC_FILE}", f"{GO_TARGET_CLIENT_PATH}"])
+
+    run_command(["diff", "-u", f"{GO_TARGET_CLIENT_PATH}", f"{GO_CLIENT_PATH}"])
