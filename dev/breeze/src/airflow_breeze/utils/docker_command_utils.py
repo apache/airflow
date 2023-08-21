@@ -76,7 +76,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".bash_aliases", "/root/.bash_aliases"),
     (".bash_history", "/root/.bash_history"),
     (".build", "/opt/airflow/.build"),
-    (".coveragerc", "/opt/airflow/.coveragerc"),
     (".dockerignore", "/opt/airflow/.dockerignore"),
     (".github", "/opt/airflow/.github"),
     (".inputrc", "/root/.inputrc"),
