@@ -372,7 +372,7 @@ labels.try_number="3"'''
         assert {"project", "interval", "resource", "advancedFilter"} == set(parsed_qs.keys())
         assert "global" in parsed_qs["resource"]
 
-        filter_params = parsed_qs["advancedFilter"][0].split("\n")
+        filter_params = parsed_qs["advancedFilter"][0].splitlines()
         expected_filter = [
             'resource.type="global"',
             'logName="projects/project_id/logs/airflow"',
