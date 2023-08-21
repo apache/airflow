@@ -23,9 +23,10 @@ import os.path
 from typing import Any, Callable
 
 from airflow.hooks.base import BaseHook
+from airflow.providers.common.filesystem.hooks.filesystem import FsApiHook
 
 
-class FTPHook(BaseHook):
+class FTPHook(BaseHook, FsApiHook):
     """
     Interact with FTP.
 

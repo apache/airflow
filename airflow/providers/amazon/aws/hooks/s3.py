@@ -39,6 +39,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
+from airflow.providers.common.filesystem.hooks.filesystem import FsApiHook
 
 if TYPE_CHECKING:
     try:
@@ -145,7 +146,7 @@ def unify_bucket_name_and_key(func: T) -> T:
     return cast(T, wrapper)
 
 
-class S3Hook(AwsBaseHook):
+class S3Hook(AwsBaseHook, FsApiHook):
     """
     Interact with Amazon Simple Storage Service (S3).
 

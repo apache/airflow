@@ -21,6 +21,7 @@ from functools import wraps
 from inspect import signature
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 from urllib.parse import urlsplit
+from airflow.providers.common.filesystem.hooks.filesystem import FsApiHook
 
 import oss2
 from oss2.exceptions import ClientError
@@ -76,7 +77,7 @@ def unify_bucket_name_and_key(func: T) -> T:
     return cast(T, wrapper)
 
 
-class OSSHook(BaseHook):
+class OSSHook(BaseHook, FsApiHook):
     """Interact with Alibaba Cloud OSS, using the oss2 library."""
 
     conn_name_attr = "alibabacloud_conn_id"

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import aiohttp
 import requests
+from airflow.providers.common.filesystem.hooks.filesystem import FsApiHook
 import tenacity
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
 
 
-class HttpHook(BaseHook):
+class HttpHook(BaseHook, FsApiHook):
     """Interact with HTTP servers.
 
     :param method: the API method to be called

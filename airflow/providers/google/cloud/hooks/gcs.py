@@ -35,6 +35,7 @@ from typing import IO, Any, Callable, Generator, Sequence, TypeVar, cast, overlo
 from urllib.parse import urlsplit
 
 from aiohttp import ClientSession
+from airflow.providers.common.filesystem.hooks.filesystem import FsApiHook
 from gcloud.aio.storage import Storage
 from google.api_core.exceptions import GoogleAPICallError, NotFound
 from google.api_core.retry import Retry
@@ -142,7 +143,7 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 PROVIDE_BUCKET: str = cast(str, None)
 
 
-class GCSHook(GoogleBaseHook):
+class GCSHook(GoogleBaseHook, FsApiHook):
     """Use the Google Cloud connection to interact with Google Cloud Storage."""
 
     _conn: storage.Client | None = None

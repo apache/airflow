@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from airflow.providers.common.filesystem.hooks.filesystem import FsApiHook
 
 from github import Github as GithubClient
 
@@ -26,7 +27,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 
-class GithubHook(BaseHook):
+class GithubHook(BaseHook, FsApiHook):
     """
     Interact with GitHub.
 

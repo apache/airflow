@@ -33,6 +33,7 @@ from typing import Any
 from requests import exceptions as requests_exceptions
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.filesystem.hooks.filesystem import FsApiHook
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
@@ -108,7 +109,7 @@ class RunState:
         return RunState(**json.loads(data))
 
 
-class DatabricksHook(BaseDatabricksHook):
+class DatabricksHook(BaseDatabricksHook, FsApiHook):
     """
     Interact with Databricks.
 
