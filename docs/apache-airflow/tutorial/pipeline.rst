@@ -143,6 +143,7 @@ Here we retrieve data, save it to a file on our Airflow instance, and load the d
       conn = postgres_hook.get_conn()
       cur = conn.cursor()
       with open(data_path, "r") as file:
+          cur.execute("DELETE FROM employees_temp")
           cur.copy_expert(
               "COPY employees_temp FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
               file,
@@ -272,6 +273,7 @@ Putting all of the pieces together, we have our completed DAG.
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
           with open(data_path, "r") as file:
+              cur.execute("DELETE FROM employees_temp")
               cur.copy_expert(
                   "COPY employees_temp FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
                   file,
