@@ -947,6 +947,8 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
 fi
 
 rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+rm -f "${AIRFLOW_SOURCES}/.coveragerc"
+
 
 set +u
 if [[ "${RUN_TESTS}" != "true" ]]; then
@@ -1020,7 +1022,7 @@ fi
 if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
     EXTRA_PYTEST_ARGS+=(
         "--cov=airflow"
-        "--cov-config=.coveragerc"
+        "--cov-config=pyproject.toml"
         "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
     )
 fi
