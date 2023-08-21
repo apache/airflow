@@ -950,8 +950,8 @@ class AirflowConfigParser(ConfigParser):
         _extra_stacklevel: int = 0,
         **kwargs,
     ) -> str | None:
-        section = str(section).lower()
-        key = str(key).lower()
+        section = section.lower()
+        key = key.lower()
         warning_emitted = False
         deprecated_section: str | None
         deprecated_key: str | None
@@ -1307,6 +1307,16 @@ class AirflowConfigParser(ConfigParser):
         except (NoOptionError, NoSectionError):
             return False
 
+    def set(self, section: str, option: str, value: str | None = None) -> None:
+        """
+        Set an option to the given value.
+
+        This override just makes sure the section and option are lower case, to match what we do in `get`.
+        """
+        section = section.lower()
+        option = option.lower()
+        super().set(section, option, value)
+
     def remove_option(self, section: str, option: str, remove_default: bool = True):
         """
         Remove an option if it exists in config from a file or default config.
@@ -1314,6 +1324,8 @@ class AirflowConfigParser(ConfigParser):
         If both of config have the same option, this removes the option
         in both configs unless remove_default=False.
         """
+        section = section.lower()
+        option = option.lower()
         if super().has_option(section, option):
             super().remove_option(section, option)
 
