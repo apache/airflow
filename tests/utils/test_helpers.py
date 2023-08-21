@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import re
-from itertools import product
 
 import pytest
 
@@ -264,7 +264,7 @@ class TestHelpers:
                 expected = True if true + truthy == 1 else False
                 assert exactly_one(*sample) is expected
 
-        for row in product(range(4), range(4), range(4), range(4)):
+        for row in itertools.product(range(4), repeat=4):
             assert_exactly_one(*row)
 
     def test_exactly_one_should_fail(self):
@@ -295,7 +295,7 @@ class TestHelpers:
                 expected = True if true + truthy in (0, 1) else False
                 assert at_most_one(*sample) is expected
 
-        for row in product(range(4), range(4), range(4), range(4), range(4)):
+        for row in itertools.product(range(4), repeat=4):
             print(row)
             assert_at_most_one(*row)
 

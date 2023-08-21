@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 import inspect
+import itertools
 import warnings
 from functools import cached_property
-from itertools import chain
 from textwrap import dedent
 from typing import (
     Any,
@@ -215,7 +215,7 @@ class DecoratedOperator(BaseOperator):
     def execute(self, context: Context):
         # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
         #  as well
-        for arg in chain(self.op_args, self.op_kwargs.values()):
+        for arg in itertools.chain(self.op_args, self.op_kwargs.values()):
             if isinstance(arg, Dataset):
                 self.inlets.append(arg)
         return_value = super().execute(context)

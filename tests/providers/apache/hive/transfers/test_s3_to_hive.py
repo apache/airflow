@@ -20,11 +20,11 @@ from __future__ import annotations
 import bz2
 import errno
 import filecmp
+import itertools
 import logging
 import shutil
 from collections import OrderedDict
 from gzip import GzipFile
-from itertools import product
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest import mock
 
@@ -205,7 +205,7 @@ class TestS3ToHiveTransfer:
             )
 
         # Testing txt, zip, bz2 files with and without header row
-        for (ext, has_header) in product([".txt", ".gz", ".bz2", ".GZ"], [True, False]):
+        for ext, has_header in itertools.product([".txt", ".gz", ".bz2", ".GZ"], [True, False]):
             self.kwargs["headers"] = has_header
             self.kwargs["check_headers"] = has_header
             logging.info("Testing %s format %s header", ext, "with" if has_header else "without")
@@ -243,7 +243,7 @@ class TestS3ToHiveTransfer:
         # Only testing S3ToHiveTransfer calls S3Hook.select_key with
         # the right parameters and its execute method succeeds here,
         # since Moto doesn't support select_object_content as of 1.3.2.
-        for (ext, has_header) in product([".txt", ".gz", ".GZ"], [True, False]):
+        for ext, has_header in itertools.product([".txt", ".gz", ".GZ"], [True, False]):
             input_compressed = ext.lower() != ".txt"
             key = self.s3_key + ext
 

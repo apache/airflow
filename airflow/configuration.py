@@ -19,7 +19,7 @@ from __future__ import annotations
 import datetime
 import functools
 import io
-import itertools as it
+import itertools
 import json
 import logging
 import multiprocessing
@@ -474,7 +474,7 @@ class AirflowConfigParser(ConfigParser):
 
         :return: list of section names
         """
-        return list(dict.fromkeys(it.chain(self.configuration_description, self.sections())))
+        return list(dict.fromkeys(itertools.chain(self.configuration_description, self.sections())))
 
     def get_options_including_defaults(self, section: str) -> list[str]:
         """
@@ -486,7 +486,7 @@ class AirflowConfigParser(ConfigParser):
         """
         my_own_options = self.options(section) if self.has_section(section) else []
         all_options_from_defaults = self.configuration_description.get(section, {}).get("options", {})
-        return list(dict.fromkeys(it.chain(all_options_from_defaults, my_own_options)))
+        return list(dict.fromkeys(itertools.chain(all_options_from_defaults, my_own_options)))
 
     def optionxform(self, optionstr: str) -> str:
         """

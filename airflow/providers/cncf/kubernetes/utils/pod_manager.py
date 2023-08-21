@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import enum
-import itertools as it
+import itertools
 import json
 import logging
 import math
@@ -622,7 +622,7 @@ class PodManager(LoggingMixin):
 
     def await_xcom_sidecar_container_start(self, pod: V1Pod) -> None:
         self.log.info("Checking if xcom sidecar container is started.")
-        for attempt in it.count():
+        for attempt in itertools.count():
             if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
                 self.log.info("The xcom sidecar container is started.")
                 break

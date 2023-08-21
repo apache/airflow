@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import re
 import signal
 import warnings
 from datetime import datetime
 from functools import reduce
-from itertools import filterfalse, tee
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
 
 from lazy_object_proxy import Proxy
@@ -216,8 +216,8 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
 
 def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries."""
-    iter_1, iter_2 = tee(iterable)
-    return filterfalse(pred, iter_1), filter(pred, iter_2)
+    iter_1, iter_2 = itertools.tee(iterable)
+    return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
 
 
 def chain(*args, **kwargs):
