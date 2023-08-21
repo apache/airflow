@@ -98,7 +98,7 @@ class DataPipelineHook(GoogleBaseHook):
         :param data_pipeline_name:  The display name of the pipeline. In example
             projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
         :param project_id: The ID of the GCP project that owns the job.
-        :param location: The location to direct the Data Pipelines instance to (for example uscentral-1).
+        :param location: The location to direct the Data Pipelines instance to (for example us-central1).
 
         Returns the created Job in JSON representation.
         """
