@@ -451,7 +451,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         is_unit_test = airflow_conf.getboolean("core", "unit_test_mode")
 
-        while (len(ti_status.to_run) > 0 or len(ti_status.running) > 0) and len(ti_status.deadlocked) == 0:
+        while (ti_status.to_run or ti_status.running) and not ti_status.deadlocked:
             self.log.debug("*** Clearing out not_ready list ***")
             ti_status.not_ready.clear()
 
@@ -677,11 +677,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
             # If the set of tasks that aren't ready ever equals the set of
             # tasks to run and there are no running tasks then the backfill
             # is deadlocked
-            if (
-                ti_status.not_ready
-                and ti_status.not_ready == set(ti_status.to_run)
-                and len(ti_status.running) == 0
-            ):
+            if ti_status.not_ready and ti_status.not_ready == set(ti_status.to_run) and not ti_status.running:
                 self.log.warning("Deadlock discovered for ti_status.to_run=%s", ti_status.to_run.values())
                 ti_status.deadlocked.update(ti_status.to_run.values())
                 ti_status.to_run.clear()
