@@ -779,7 +779,7 @@ class TestKubernetesPodOperator:
 
     @pytest.fixture
     def pod_template_file(self, tmp_path):
-        pod_template_yaml = b"""
+        pod_template_yaml = """
             apiVersion: v1
             kind: Pod
             metadata:
@@ -817,7 +817,7 @@ class TestKubernetesPodOperator:
         """
 
         tpl_file = tmp_path / "template.yaml"
-        tpl_file.write_bytes(pod_template_yaml)
+        tpl_file.write_text(pod_template_yaml)
 
         yield tpl_file
 
