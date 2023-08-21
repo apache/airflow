@@ -64,11 +64,11 @@ class CloudRunHook(GoogleBaseHook):
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
         self._client: JobsClient | None = None
 
-    def get_conn(self) -> JobsClient:
+    def get_conn(self):
         """
         Retrieves connection to Cloud Run.
 
-        :return: JobsClient.
+        :return: Cloud Run Jobs client object.
         """
         if self._client is None:
             self._client = JobsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)

@@ -96,11 +96,6 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """
-        Main loop of the class in where it is fetching the operation status and yields an
-        Event when done.
-
-        """
         timeout = self.timeout
         hook = self._get_async_hook()
         while timeout is None or timeout > 0:
