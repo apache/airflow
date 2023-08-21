@@ -302,14 +302,14 @@ def fix_group_permissions():
         get_console().print("[info]Fixing group permissions[/]")
     files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
-        files_to_fix = files_to_fix_result.stdout.strip().split("\n")
+        files_to_fix = files_to_fix_result.stdout.strip().splitlines()
         for file_to_fix in files_to_fix:
             change_file_permission(Path(file_to_fix))
     directories_to_fix_result = run_command(
         ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, text=True
     )
     if directories_to_fix_result.returncode == 0:
-        directories_to_fix = directories_to_fix_result.stdout.strip().split("\n")
+        directories_to_fix = directories_to_fix_result.stdout.strip().splitlines()
         for directory_to_fix in directories_to_fix:
             change_directory_permission(Path(directory_to_fix))
 
