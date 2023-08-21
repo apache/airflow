@@ -98,7 +98,7 @@ The entrypoint is waiting for a connection to the database independent of the da
 the stability of the environment.
 
 Waiting for connection involves executing ``airflow db check`` command, which means that a ``select 1 as is_alive;`` statement
-is executed. Then it loops until the the command will be successful.
+is executed. Then it loops until the command will be successful.
 It tries :envvar:`CONNECTION_CHECK_MAX_COUNT` times and sleeps :envvar:`CONNECTION_CHECK_SLEEP_TIME` between checks
 To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 

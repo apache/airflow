@@ -71,7 +71,7 @@ To run jar file in your Hadoop cluster use
 Run Pig command
 """""""""""""""
 
-To run script script in *Pig Latin* in your Hadoop cluster use
+To run script in *Pig Latin* in your Hadoop cluster use
 
 .. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
@@ -82,7 +82,7 @@ To run script script in *Pig Latin* in your Hadoop cluster use
 Run Shell command
 """""""""""""""""
 
-To run Shell-script script use
+To run Shell-script use
 
 .. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
