@@ -65,6 +65,27 @@ def upgradedb(args):
     migratedb(args)
 
 
+def get_version_revision(version: str, recursion_limit=10) -> str | None:
+    """
+    Recursively search for the revision of the given version.
+
+    This searches REVISION_HEADS_MAP for the revision of the given version, recursively
+    searching for the previous version if the given version is not found.
+    """
+    if version in REVISION_HEADS_MAP:
+        return REVISION_HEADS_MAP[version]
+    try:
+        major, minor, patch = map(int, version.split("."))
+    except ValueError:
+        return None
+    new_version = f"{major}.{minor}.{patch - 1}"
+    recursion_limit -= 1
+    if recursion_limit <= 0:
+        # Prevent infinite recursion as I can't imagine 10 successive versions without migration
+        return None
+    return get_version_revision(new_version, recursion_limit)
+
+
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def migratedb(args):
@@ -85,19 +106,14 @@ def migratedb(args):
     elif args.from_version:
         if parse_version(args.from_version) < parse_version("2.0.0"):
             raise SystemExit("--from-version must be greater or equal to than 2.0.0")
-        from_revision = REVISION_HEADS_MAP.get(args.from_version)
+        from_revision = get_version_revision(args.from_version)
         if not from_revision:
-            raise SystemExit(
-                f"The supplied version {args.from_version!r} doesn't have migration or "
-                f"the version is invalid."
-            )
+            raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
 
     if args.to_version:
-        to_revision = REVISION_HEADS_MAP.get(args.to_version)
+        to_revision = get_version_revision(args.to_version)
         if not to_revision:
             raise SystemExit(f"Upgrading to version {args.to_version} is not supported.")
-        if parse_version(args.to_version) < parse_version("2.0.0"):
-            raise SystemExit("--to-version must be >= 2.0.0")
     elif args.to_revision:
         to_revision = args.to_revision
 
@@ -134,20 +150,13 @@ def downgrade(args):
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
-        from_revision = REVISION_HEADS_MAP.get(args.from_version)
+        from_revision = get_version_revision(args.from_version)
         if not from_revision:
-            raise SystemExit(
-                f"The supplied version {args.from_version!r} doesn't have migration or "
-                f"the version is invalid."
-            )
-        if parse_version(args.from_version) < parse_version("2.0.0"):
-            raise SystemExit("--from-version must be >= 2.0.0")
+            raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
     if args.to_version:
-        to_revision = REVISION_HEADS_MAP.get(args.to_version)
+        to_revision = get_version_revision(args.to_version)
         if not to_revision:
             raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
-        if parse_version(args.to_version) < parse_version("2.0.0"):
-            raise SystemExit("--to-version must be >= 2.0.0")
     elif args.to_revision:
         to_revision = args.to_revision
     if not args.show_sql_only:
