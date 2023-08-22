@@ -258,16 +258,9 @@ class TestPodManager:
     def test_fetch_container_logs_returning_last_timestamp(
         self, mock_read_pod_logs, mock_container_is_running
     ):
-        def mock_container_is_running_func(pod, container_name):
-            if mock_container_is_running.first_time:
-                mock_container_is_running.first_time = False
-                return True
-            return False
-
-        mock_container_is_running.first_time = True
-        mock_container_is_running.side_effect = mock_container_is_running_func
         timestamp_string = "2020-10-08T14:16:17.793417674Z"
         mock_read_pod_logs.return_value = [bytes(f"{timestamp_string} message", "utf-8"), b"notimestamp"]
+        mock_container_is_running.side_effect = [True, False]
 
         status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock())
 
