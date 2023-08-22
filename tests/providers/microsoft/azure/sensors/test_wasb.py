@@ -140,9 +140,20 @@ class TestWasbBlobAsyncSensor:
         """Assert execute method defer for wasb blob sensor"""
         mock_hook.return_value.check_for_blob.return_value = False
         with pytest.raises(TaskDeferred) as exc:
-            self.SENSOR.execute(self.create_context(self.SENSOR))
+            context = self.create_context(self.SENSOR)
+            with mock.patch(
+                "airflow.models.taskinstance.get_current_context", mock.MagicMock(return_value=context)
+            ):
+                instant_before_running = timezone.utcnow()
+                self.SENSOR.execute(context)
+        instant_after_running = timezone.utcnow()
         assert isinstance(exc.value.trigger, WasbBlobSensorTrigger), "Trigger is not a WasbBlobSensorTrigger"
-        assert exc.value.timeout == datetime.timedelta(seconds=5)
+        assert (
+            (instant_before_running + datetime.timedelta(seconds=5))
+            <= exc.value.trigger_timeout
+            <= (instant_after_running + datetime.timedelta(seconds=5))
+        )
+        assert self.SENSOR._trigger_timeout(context)[1] == "sensor_timeout"
 
     @pytest.mark.parametrize(
         "event",

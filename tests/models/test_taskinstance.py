@@ -3040,6 +3040,7 @@ class TestTaskInstance:
             "executor_config": {"Some": {"extra": "information"}},
             "external_executor_id": "some_executor_id",
             "trigger_timeout": None,
+            "trigger_timeout_reason": None,
             "trigger_id": None,
             "next_kwargs": None,
             "next_method": None,
