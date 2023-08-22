@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from flask import url_for
-from flask_login import current_user
 
 from airflow import AirflowException
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
@@ -27,12 +28,13 @@ from airflow.auth.managers.fab.cli_commands.definition import (
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
 )
-from airflow.auth.managers.fab.models import User
-from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.cli.cli_config import (
     CLICommand,
     GroupCommand,
 )
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.fab.models import User
 
 
 class FabAuthManager(BaseAuthManager):
@@ -42,7 +44,8 @@ class FabAuthManager(BaseAuthManager):
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
 
-    def get_cli_commands(self) -> list[CLICommand]:
+    @staticmethod
+    def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
         return [
             GroupCommand(
@@ -72,6 +75,8 @@ class FabAuthManager(BaseAuthManager):
 
     def get_user(self) -> User:
         """Return the user associated to the user in session."""
+        from flask_login import current_user
+
         return current_user
 
     def get_user_id(self) -> str:
@@ -84,6 +89,8 @@ class FabAuthManager(BaseAuthManager):
 
     def get_security_manager_override_class(self) -> type:
         """Return the security manager override."""
+        from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+
         return FabAirflowSecurityManagerOverride
 
     def get_url_login(self, **kwargs) -> str:

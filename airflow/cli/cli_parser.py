@@ -44,7 +44,7 @@ from airflow.cli.cli_config import (
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
-from airflow.www.extensions.init_auth_manager import get_auth_manager
+from airflow.www.extensions.init_auth_manager import get_auth_manager_cls
 
 airflow_commands = core_commands
 
@@ -64,7 +64,7 @@ except Exception:
     # other commands.
 
 try:
-    auth_mgr = get_auth_manager()
+    auth_mgr = get_auth_manager_cls()
     airflow_commands.extend(auth_mgr.get_cli_commands())
 except Exception:
     log.exception("cannot load CLI commands from auth manager")
