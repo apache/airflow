@@ -37,6 +37,7 @@ class BuildCiParams(CommonBuildParams):
     airflow_pre_cached_pip_packages: bool = True
     force_build: bool = False
     eager_upgrade_additional_requirements: str = ""
+    skip_provider_dependencies_check: bool = False
 
     @property
     def airflow_version(self):
