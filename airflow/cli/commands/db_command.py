@@ -29,7 +29,7 @@ from tenacity import RetryCallState, Retrying, stop_after_attempt, wait_fixed
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
-from airflow.utils.db import REVISION_HEADS_MAP
+from airflow.utils.db import _REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -65,6 +65,27 @@ def upgradedb(args):
     migratedb(args)
 
 
+def get_version_revision(version: str, recursion_limit=10) -> str | None:
+    """
+    Recursively search for the revision of the given version.
+
+    This searches REVISION_HEADS_MAP for the revision of the given version, recursively
+    searching for the previous version if the given version is not found.
+    """
+    if version in _REVISION_HEADS_MAP:
+        return _REVISION_HEADS_MAP[version]
+    try:
+        major, minor, patch = map(int, version.split("."))
+    except ValueError:
+        return None
+    new_version = f"{major}.{minor}.{patch - 1}"
+    recursion_limit -= 1
+    if recursion_limit <= 0:
+        # Prevent infinite recursion as I can't imagine 10 successive versions without migration
+        return None
+    return get_version_revision(new_version, recursion_limit)
+
+
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def migratedb(args):
@@ -85,12 +106,12 @@ def migratedb(args):
     elif args.from_version:
         if parse_version(args.from_version) < parse_version("2.0.0"):
             raise SystemExit("--from-version must be greater or equal to than 2.0.0")
-        from_revision = REVISION_HEADS_MAP.get(args.from_version)
+        from_revision = get_version_revision(args.from_version)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
 
     if args.to_version:
-        to_revision = REVISION_HEADS_MAP.get(args.to_version)
+        to_revision = get_version_revision(args.to_version)
         if not to_revision:
             raise SystemExit(f"Upgrading to version {args.to_version} is not supported.")
     elif args.to_revision:
@@ -129,11 +150,11 @@ def downgrade(args):
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
-        from_revision = REVISION_HEADS_MAP.get(args.from_version)
+        from_revision = get_version_revision(args.from_version)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
     if args.to_version:
-        to_revision = REVISION_HEADS_MAP.get(args.to_version)
+        to_revision = get_version_revision(args.to_version)
         if not to_revision:
             raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
     elif args.to_revision:
