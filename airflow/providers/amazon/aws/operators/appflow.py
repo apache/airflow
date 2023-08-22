@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from datetime import datetime, timedelta
 from functools import cached_property
 from time import sleep
 from typing import TYPE_CHECKING, cast
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
@@ -157,6 +158,12 @@ class AppflowRunOperator(AppflowBaseOperator):
         wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
+        if source is not None:
+            warnings.warn(
+                "The `source` parameter is unused when simply running a flow, please remove it.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         super().__init__(
             flow_name=flow_name,
             flow_update=False,
