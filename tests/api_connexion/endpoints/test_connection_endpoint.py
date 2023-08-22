@@ -351,7 +351,7 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
 
     def _create_connections(self, count):
         return [
-            Connection(conn_id="TEST_CONN_ID" + str(i), conn_type="TEST_CONN_TYPE" + str(i))
+            Connection(conn_id=f"TEST_CONN_ID{i}", conn_type=f"TEST_CONN_TYPE{i}")
             for i in range(1, count + 1)
         ]
 

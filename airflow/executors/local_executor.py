@@ -99,7 +99,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             subprocess.check_call(command, close_fds=True)
             return TaskInstanceState.SUCCESS
         except subprocess.CalledProcessError as e:
-            self.log.error("Failed to execute task %s.", str(e))
+            self.log.error("Failed to execute task %s.", e)
             return TaskInstanceState.FAILED
 
     def _execute_work_in_fork(self, command: CommandType) -> TaskInstanceState:

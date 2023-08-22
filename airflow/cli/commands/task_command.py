@@ -548,7 +548,7 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
                 select(DagRun).where(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
             )
         except (ParserError, TypeError) as err:
-            raise AirflowException(f"Error parsing the supplied execution_date. Error: {str(err)}")
+            raise AirflowException(f"Error parsing the supplied execution_date. Error: {err}")
 
     if dag_run is None:
         raise DagRunNotFound(

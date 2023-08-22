@@ -308,7 +308,7 @@ class BaseExecutor(LoggingMixin):
         try:
             self.running.remove(key)
         except KeyError:
-            self.log.debug("Could not find key: %s", str(key))
+            self.log.debug("Could not find key: %s", key)
         self.event_buffer[key] = state, info
 
     def fail(self, key: TaskInstanceKey, info=None) -> None:
