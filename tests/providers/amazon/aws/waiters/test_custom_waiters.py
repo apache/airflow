@@ -26,6 +26,7 @@ from botocore.exceptions import WaiterError
 from botocore.waiter import WaiterModel
 from moto import mock_eks
 
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, EcsTaskDefinitionStates
 from airflow.providers.amazon.aws.hooks.eks import EksHook
@@ -72,6 +73,22 @@ class TestBaseWaiter:
         for attr, _ in expected_model.__dict__.items():
             assert waiter.model.__getattribute__(attr) == expected_model.__getattribute__(attr)
         assert waiter.client == client_name
+
+    @pytest.mark.parametrize("boto_type", ["client", "resource"])
+    def test_get_botocore_waiter(self, boto_type, monkeypatch):
+        kw = {f"{boto_type}_type": "s3"}
+        if boto_type == "client":
+            fake_client = boto3.client("s3", region_name="eu-west-3")
+        elif boto_type == "resource":
+            fake_client = boto3.resource("s3", region_name="eu-west-3")
+        else:
+            raise ValueError(f"Unexpected value {boto_type!r} for `boto_type`.")
+        monkeypatch.setattr(AwsBaseHook, "conn", fake_client)
+
+        hook = AwsBaseHook(**kw)
+        with mock.patch("botocore.client.BaseClient.get_waiter") as m:
+            hook.get_waiter(waiter_name="FooBar")
+            m.assert_called_once_with("FooBar")
 
 
 class TestCustomEKSServiceWaiters:
@@ -230,8 +247,9 @@ class TestCustomDynamoDBServiceWaiters:
 
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, monkeypatch):
-        self.client = boto3.client("dynamodb", region_name="eu-west-3")
-        monkeypatch.setattr(DynamoDBHook, "conn", self.client)
+        self.resource = boto3.resource("dynamodb", region_name="eu-west-3")
+        monkeypatch.setattr(DynamoDBHook, "conn", self.resource)
+        self.client = self.resource.meta.client
 
     @pytest.fixture
     def mock_describe_export(self):
@@ -253,16 +271,15 @@ class TestCustomDynamoDBServiceWaiters:
 
     def test_export_table_to_point_in_time_completed(self, mock_describe_export):
         """Test state transition from `in progress` to `completed` during init."""
-        with mock.patch("boto3.client") as client:
-            client.return_value = self.client
-            waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
-            mock_describe_export.side_effect = [
-                self.describe_export(self.STATUS_IN_PROGRESS),
-                self.describe_export(self.STATUS_COMPLETED),
-            ]
-            waiter.wait(
-                ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
-            )
+        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table")
+        mock_describe_export.side_effect = [
+            self.describe_export(self.STATUS_IN_PROGRESS),
+            self.describe_export(self.STATUS_COMPLETED),
+        ]
+        waiter.wait(
+            ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+        )
 
     def test_export_table_to_point_in_time_failed(self, mock_describe_export):
         """Test state transition from `in progress` to `failed` during init."""
@@ -274,4 +291,7 @@ class TestCustomDynamoDBServiceWaiters:
             ]
             waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
             with pytest.raises(WaiterError, match='we matched expected path: "FAILED"'):
-                waiter.wait(ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry")
+                waiter.wait(
+                    ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
+                    WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+                )

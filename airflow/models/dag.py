@@ -575,7 +575,7 @@ class DAG(LoggingMixin):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
         self.template_undefined = template_undefined
-        self.last_loaded = timezone.utcnow()
+        self.last_loaded: datetime = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
         if self.timetable.active_runs_limit is not None:
@@ -620,8 +620,8 @@ class DAG(LoggingMixin):
 
         # To keep it in parity with Serialized DAGs
         # and identify if DAG has on_*_callback without actually storing them in Serialized JSON
-        self.has_on_success_callback = self.on_success_callback is not None
-        self.has_on_failure_callback = self.on_failure_callback is not None
+        self.has_on_success_callback: bool = self.on_success_callback is not None
+        self.has_on_failure_callback: bool = self.on_failure_callback is not None
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
@@ -2029,8 +2029,7 @@ class DAG(LoggingMixin):
             raise ValueError("TaskGroup {group_id} could not be found")
         tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
         task_ids = [task.task_id for task in task_group.iter_tasks()]
-
-        dag_runs_query = session.query(DagRun.id).where(DagRun.dag_id == self.dag_id)
+        dag_runs_query = select(DagRun.id).where(DagRun.dag_id == self.dag_id)
         if start_date is None and end_date is None:
             dag_runs_query = dag_runs_query.where(DagRun.execution_date == start_date)
         else:
@@ -3565,16 +3564,27 @@ class DagModel(Base):
     def deactivate_deleted_dags(
         cls,
         alive_dag_filelocs: Container[str],
+        processor_subdir: str,
         session: Session = NEW_SESSION,
     ) -> None:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
         :param alive_dag_filelocs: file paths of alive DAGs
+        :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
-        dag_models = session.scalars(select(cls).where(cls.fileloc.is_not(None)))
+        dag_models = session.scalars(
+            select(cls).where(
+                cls.fileloc.is_not(None),
+                or_(
+                    cls.processor_subdir.is_(None),
+                    cls.processor_subdir == processor_subdir,
+                ),
+            )
+        )
+
         for dag_model in dag_models:
             if dag_model.fileloc not in alive_dag_filelocs:
                 dag_model.is_active = False

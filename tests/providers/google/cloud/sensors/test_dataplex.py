@@ -23,6 +23,7 @@ from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataplex_v1.types import DataScanJob
 
 from airflow import AirflowException
+from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanResultTimeoutException
 from airflow.providers.google.cloud.sensors.dataplex import (
     DataplexDataQualityJobStatusSensor,
     DataplexTaskStateSensor,
@@ -144,3 +145,45 @@ class TestDataplexDataQualityJobStatusSensor:
         )
 
         assert result
+
+    def test_start_sensor_time(self):
+        sensor = DataplexDataQualityJobStatusSensor(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            data_scan_id=TEST_DATA_SCAN_ID,
+            region=REGION,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT,
+        )
+
+        assert sensor.start_sensor_time is None
+
+        duration_1 = sensor._duration()
+        duration_2 = sensor._duration()
+
+        assert sensor.start_sensor_time
+        assert 0 < duration_1 < duration_2
+
+    @mock.patch.object(DataplexDataQualityJobStatusSensor, "_duration")
+    def test_start_sensor_time_timeout(self, mock_duration):
+        result_timeout = 100
+        mock_duration.return_value = result_timeout + 1
+
+        sensor = DataplexDataQualityJobStatusSensor(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            job_id=TEST_JOB_ID,
+            data_scan_id=TEST_DATA_SCAN_ID,
+            region=REGION,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            timeout=TIMEOUT,
+            result_timeout=result_timeout,
+        )
+
+        with pytest.raises(AirflowDataQualityScanResultTimeoutException):
+            sensor.poke(context={})

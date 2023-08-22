@@ -670,7 +670,7 @@ class TestElasticsearchTaskHandler:
         ti.log.info("Test3")
 
         # assert
-        first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().split("\n"))
+        first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().splitlines())
         assert first_log["offset"] < second_log["offset"] < third_log["offset"]
         assert first_log["asctime"] == t1.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert second_log["asctime"] == t2.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")

@@ -76,7 +76,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".bash_aliases", "/root/.bash_aliases"),
     (".bash_history", "/root/.bash_history"),
     (".build", "/opt/airflow/.build"),
-    (".coveragerc", "/opt/airflow/.coveragerc"),
     (".dockerignore", "/opt/airflow/.dockerignore"),
     (".github", "/opt/airflow/.github"),
     (".inputrc", "/root/.inputrc"),
@@ -250,6 +249,7 @@ def check_docker_version():
 [warning]install docker at least: {MIN_DOCKER_VERSION} version.[/]
 """
             )
+            sys.exit(1)
         else:
             good_version = compare_version(docker_version, MIN_DOCKER_VERSION)
             if good_version:
@@ -257,10 +257,12 @@ def check_docker_version():
             else:
                 get_console().print(
                     f"""
-[warning]Your version of docker is too old:{docker_version}.
-Please upgrade to at least {MIN_DOCKER_VERSION}[/]
+[error]Your version of docker is too old: {docker_version}.\n[/]
+[warning]Please upgrade to at least {MIN_DOCKER_VERSION}.\n[/]
+You can find installation instructions here: https://docs.docker.com/engine/install/
 """
                 )
+                sys.exit(1)
 
 
 def check_remote_ghcr_io_commands():
@@ -306,9 +308,6 @@ def check_remote_ghcr_io_commands():
             sys.exit(1)
 
 
-DOCKER_COMPOSE_COMMAND = ["docker", "compose"]
-
-
 def check_docker_compose_version():
     """Checks if the docker compose version is as expected.
 
@@ -328,43 +327,40 @@ def check_docker_compose_version():
             dry_run_override=False,
         )
     except Exception:
-        docker_compose_version_command = ["docker-compose", "--version"]
-        docker_compose_version_result = run_command(
-            docker_compose_version_command,
-            no_output_dump_on_exception=True,
-            capture_output=True,
-            text=True,
-            dry_run_override=False,
+        get_console().print(
+            "[error]You either do not have docker-composer or have docker-compose v1 installed.[/]\n"
+            "[warning]Breeze does not support docker-compose v1 any more as it has been replaced by v2.[/]\n"
+            "Follow https://docs.docker.com/compose/migrate/ to migrate to v2"
         )
-        DOCKER_COMPOSE_COMMAND.clear()
-        DOCKER_COMPOSE_COMMAND.append("docker-compose")
+        sys.exit(1)
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
         if version_extracted is not None:
-            docker_version = ".".join(version_extracted.groups())
-            good_version = compare_version(docker_version, MIN_DOCKER_COMPOSE_VERSION)
+            docker_compose_version = ".".join(version_extracted.groups())
+            good_version = compare_version(docker_compose_version, MIN_DOCKER_COMPOSE_VERSION)
             if good_version:
-                get_console().print(f"[success]Good version of docker-compose: {docker_version}[/]")
+                get_console().print(f"[success]Good version of docker-compose: {docker_compose_version}[/]")
             else:
                 get_console().print(
                     f"""
-[warning]You have too old version of docker-compose: {docker_version}! At least 1.29 needed! Please upgrade!
+[error]You have too old version of docker-compose: {docker_compose_version}!\n[/]
+[warning]At least {MIN_DOCKER_COMPOSE_VERSION} needed! Please upgrade!\n[/]
+See https://docs.docker.com/compose/install/ for installation instructions.\n
+Make sure docker-compose you install is first on the PATH variable of yours.\n
 """
                 )
-                get_console().print(
-                    """
-See https://docs.docker.com/compose/install/ for instructions.
-Make sure docker-compose you install is first on the PATH variable of yours.
-"""
-                )
+                sys.exit(1)
     else:
         get_console().print(
-            """
-[warning]Unknown docker-compose version. At least 1.29 is needed![/]
-[warning]If Breeze fails upgrade to latest available docker-compose version.[/]
+            f"""
+[error]Unknown docker-compose version.[/]
+[warning]At least {MIN_DOCKER_COMPOSE_VERSION} needed! Please upgrade!\n[/]
+See https://docs.docker.com/compose/install/ for installation instructions.\n
+Make sure docker-compose you install is first on the PATH variable of yours.\n
 """
         )
+        sys.exit(1)
 
 
 def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParams):
@@ -399,7 +395,7 @@ def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) 
         )
     for optional_arg in image_params.optional_image_args:
         param_value = get_env_variable_value(optional_arg, params=image_params)
-        if len(param_value) > 0:
+        if param_value:
             args_command.append("--build-arg")
             args_command.append(optional_arg.upper() + "=" + param_value)
     args_command.extend(image_params.docker_cache_directive)
@@ -809,13 +805,13 @@ def autodetect_docker_context():
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
     context_list = output.stdout.splitlines()
-    if len(context_list) == 0:
+    if not context_list:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    if len(context_list) == 1:
+    elif len(context_list) == 1:
         get_console().print(f"[info]Using {context_list[0]} as context.[/]")
         return context_list[0]
-    if len(context_list) > 1:
+    else:
         for preferred_context in PREFERRED_CONTEXTS:
             if preferred_context in context_list:
                 get_console().print(f"[info]Using {preferred_context} as context.[/]")

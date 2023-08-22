@@ -144,7 +144,7 @@ class PlexusJobOperator(BaseOperator):
         :param hook: plexus hook object
         """
         missing_params = self.required_params - set(self.job_params)
-        if len(missing_params) > 0:
+        if missing_params:
             raise AirflowException(f"Missing the following required job_params: {', '.join(missing_params)}")
         params = {}
         for prm in self.job_params:

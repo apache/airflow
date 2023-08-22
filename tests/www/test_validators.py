@@ -155,3 +155,14 @@ class TestValidKey:
             match=r"The key has to be less than [0-9]+ characters",
         ):
             self._validate()
+
+
+class TestReadOnly:
+    def setup_method(self):
+        self.form_read_only_field_mock = mock.MagicMock(data="readOnlyField")
+        self.form_mock = mock.MagicMock(spec_set=dict)
+
+    def test_read_only_validator(self):
+        validator = validators.ReadOnly()
+        assert validator(self.form_mock, self.form_read_only_field_mock) is None
+        assert self.form_read_only_field_mock.flags.readonly is True

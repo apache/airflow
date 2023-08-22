@@ -173,7 +173,7 @@ class KubernetesPodOperator(BaseOperator):
         They can be exposed as environment vars or files in a volume.
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
-        Ignored when in_cluster is True. If None, current-context is used.
+        Ignored when in_cluster is True. If None, current-context is used. (templated)
     :param reattach_on_restart: if the worker dies while the pod is running, reattach and monitor
         during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
@@ -240,6 +240,8 @@ class KubernetesPodOperator(BaseOperator):
         Deprecated - use `on_finish_action` instead.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
+    :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
+        in V1PodSpec.
     """
 
     # This field can be overloaded at the instance level via base_container_name
@@ -260,6 +262,7 @@ class KubernetesPodOperator(BaseOperator):
         "container_resources",
         "volumes",
         "volume_mounts",
+        "cluster_context",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -320,6 +323,7 @@ class KubernetesPodOperator(BaseOperator):
         on_finish_action: str = "delete_pod",
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
+        active_deadline_seconds: int | None = None,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -417,6 +421,7 @@ class KubernetesPodOperator(BaseOperator):
             self.on_finish_action = OnFinishAction(on_finish_action)
             self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
         self.termination_message_policy = termination_message_policy
+        self.active_deadline_seconds = active_deadline_seconds
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
 
@@ -860,6 +865,7 @@ class KubernetesPodOperator(BaseOperator):
                 restart_policy="Never",
                 priority_class_name=self.priority_class_name,
                 volumes=self.volumes,
+                active_deadline_seconds=self.active_deadline_seconds,
             ),
         )
 

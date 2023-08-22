@@ -174,6 +174,8 @@ def build_timout_handler(build_process_group_id: int, signum, frame):
     os.waitpid(build_process_group_id, 0)
     # give the output a little time to flush so that the helpful error message is not hidden
     time.sleep(5)
+    if os.environ.get("GITHUB_ACTIONS", "false") != "true":
+        get_console().print("::endgroup::")
     get_console().print()
     get_console().print(
         "[error]The build timed out. This is likely because `pip` "
@@ -453,7 +455,10 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
     # We import those locally so that click autocomplete works
     from inputimeout import TimeoutOccurred
 
-    if not md5sum_check_if_build_is_needed(md5sum_cache_dir=build_ci_params.md5sum_cache_dir):
+    if not md5sum_check_if_build_is_needed(
+        md5sum_cache_dir=build_ci_params.md5sum_cache_dir,
+        skip_provider_dependencies_check=build_ci_params.skip_provider_dependencies_check,
+    ):
         return False
     try:
         answer = user_confirm(
@@ -629,6 +634,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         image_tag=command_params.image_tag,
         platform=command_params.platform,
         force_build=command_params.force_build,
+        skip_provider_dependencies_check=command_params.skip_provider_dependencies_check,
     )
     if command_params.image_tag is not None and command_params.image_tag != "latest":
         return_code, message = run_pull_image(

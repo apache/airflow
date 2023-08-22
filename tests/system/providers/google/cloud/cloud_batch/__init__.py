@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,27 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-[run]
-branch = True
-relative_files = True
-source = airflow
-omit =
-    airflow/_vendor/**
-    airflow/contrib/**
-    airflow/example_dags/**
-    airflow/migrations/**
-    airflow/providers/**/example_dags/**
-    airflow/www/node_modules/**
-    airflow/providers/google/ads/_vendor/**
-
-[report]
-skip_empty = True
-exclude_lines =
-    pragma: no cover
-    @abstractmethod
-    @abstractproperty
-    def __repr__
-    raise NotImplementedError
-    if __name__ == .__main__.:
-    if TYPE_CHECKING:

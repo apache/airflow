@@ -28,6 +28,7 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any, Union
+from urllib.parse import urlparse
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
@@ -152,11 +153,13 @@ class WasbHook(BaseHook):
             # connection_string auth takes priority
             return BlobServiceClient.from_connection_string(connection_string, **extra)
 
-        account_url = (
-            conn.host
-            if conn.host and conn.host.startswith("https://")
-            else f"https://{conn.login}.blob.core.windows.net/"
-        )
+        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
+        parsed_url = urlparse(account_url)
+
+        if not parsed_url.netloc and "." not in parsed_url.path:
+            # if there's no netloc and no dots in the path, then user only
+            # provided the Active Directory ID, not the full URL or DNS name
+            account_url = f"https://{conn.login}.blob.core.windows.net/"
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
@@ -238,7 +241,7 @@ class WasbHook(BaseHook):
         :return: True if blobs matching the prefix exist, False otherwise.
         """
         blobs = self.get_blobs_list(container_name=container_name, prefix=prefix, **kwargs)
-        return len(blobs) > 0
+        return bool(blobs)
 
     def get_blobs_list(
         self,
@@ -499,7 +502,7 @@ class WasbHook(BaseHook):
             blobs_to_delete = [blob_name]
         else:
             blobs_to_delete = []
-        if not ignore_if_missing and len(blobs_to_delete) == 0:
+        if not ignore_if_missing and not blobs_to_delete:
             raise AirflowException(f"Blob(s) not found: {blob_name}")
 
         # The maximum number of blobs that can be deleted in a single request is 256 using the underlying
@@ -555,11 +558,13 @@ class WasbAsyncHook(WasbHook):
             )
             return self.blob_service_client
 
-        account_url = (
-            conn.host
-            if conn.host and conn.host.startswith("https://")
-            else f"https://{conn.login}.blob.core.windows.net/"
-        )
+        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
+        parsed_url = urlparse(account_url)
+
+        if not parsed_url.netloc and "." not in parsed_url.path:
+            # if there's no netloc and no dots in the path, then user only
+            # provided the Active Directory ID, not the full URL or DNS name
+            account_url = f"https://{conn.login}.blob.core.windows.net/"
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
@@ -678,4 +683,4 @@ class WasbAsyncHook(WasbHook):
         :param kwargs: Optional keyword arguments for ``ContainerClient.walk_blobs``
         """
         blobs = await self.get_blobs_list_async(container_name=container_name, prefix=prefix, **kwargs)
-        return len(blobs) > 0
+        return bool(blobs)

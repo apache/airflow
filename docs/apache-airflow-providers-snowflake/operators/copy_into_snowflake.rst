@@ -17,12 +17,17 @@
 
 .. _howto/operator:S3ToSnowflakeOperator:
 
-S3ToSnowflakeOperator
-=====================
+CopyFromExternalStageToSnowflakeOperator
+========================================
 
-Use the :class:`S3ToSnowflakeOperator <airflow.providers.snowflake.transfers.s3_to_snowflake>` to load data stored in `AWS S3 <https://aws.amazon.com/s3/>`__
-to a Snowflake table.
+Use the :class:`CopyFromExternalStageToSnowflakeOperator <airflow.providers.snowflake.transfers.copy_into_snowflake>`
+to load data stored in `AWS S3 <https://aws.amazon.com/s3/>`__,
+`Google Cloud Storage <https://cloud.google.com/storage>`__, or
+`Azure Blob Storage <https://azure.microsoft.com/products/storage/blobs>`__ to a Snowflake table.
 
+.. note:: This operator is a simple wrapper in top of
+    `COPY INTO table <https://docs.snowflake.com/en/sql-reference/sql/copy-into-table#>`__ query, and
+    required `creating stage <https://docs.snowflake.com/en/sql-reference/sql/create-stage>`__ first.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
@@ -30,16 +35,16 @@ Using the Operator
 Similarly to the :class:`SnowflakeOperator <airflow.providers.snowflake.operators.snowflake>`, use the ``snowflake_conn_id`` and
 the additional relevant parameters to establish connection with your Snowflake instance.
 This operator will allow loading of one or more named files from a specific Snowflake stage (predefined S3 path). In order to do so
-pass the relevant file names to the ``s3_keys`` parameter and the relevant Snowflake stage to the ``stage`` parameter.
+pass the relevant file names to the ``files`` parameter and the relevant Snowflake stage to the ``stage`` parameter.
 ``pattern`` can be used to specify the file names and/or paths match patterns
 (see `docs <https://docs.snowflake.com/en/sql-reference/sql/copy-into-table.html#loading-using-pattern-matching>`__).
 ``file_format`` can be used to either reference an already existing Snowflake file format or a custom string that defines
 a file format (see `docs <https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html>`__).
 
-An example usage of the S3ToSnowflakeOperator is as follows:
+An example usage of the CopyFromExternalStageToSnowflakeOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/snowflake/example_s3_to_snowflake.py
+.. exampleinclude:: /../../tests/system/providers/snowflake/example_copy_into_snowflake.py
     :language: python
-    :start-after: [START howto_operator_s3_to_snowflake]
-    :end-before: [END howto_operator_s3_to_snowflake]
+    :start-after: [START howto_operator_s3_copy_into_snowflake]
+    :end-before: [END howto_operator_s3_copy_into_snowflake]
     :dedent: 4

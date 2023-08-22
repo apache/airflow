@@ -65,6 +65,8 @@ class DataformCreateCompilationResultOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
+    template_fields = ("repository_id", "impersonation_chain")
+
     def __init__(
         self,
         project_id: str,
