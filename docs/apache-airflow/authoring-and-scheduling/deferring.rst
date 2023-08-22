@@ -141,7 +141,6 @@ The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work an
 
 ``execution_timeout`` on operators is determined from the *total runtime*, not individual executions between deferrals. This means that if ``execution_timeout`` is set, an operator can fail while it's deferred or while it's running after a deferral, even if it's only been resumed for a few seconds.
 
-
 Writing Triggers
 ~~~~~~~~~~~~~~~~
 
@@ -198,7 +197,6 @@ Triggers can be as complex or as simple as you want, provided they meet the desi
 
 If you are new to writing asynchronous Python, be very careful when writing your ``run()`` method. Python's async model means that code can block the entire process if it does not correctly ``await`` when it does a blocking operation. Airflow attempts to detect process blocking code and warn you in the triggerer logs when it happens. You can enable extra checks by Python by setting the variable ``PYTHONASYNCIODEBUG=1`` when you are writing your trigger to make sure you're writing non-blocking code. Be especially careful when doing filesystem calls, because if the underlying filesystem is network-backed, it can be blocking.
 
-
 High Availability
 -----------------
 
@@ -211,7 +209,6 @@ Airflow tries to only run triggers in one place at once, and maintains a heartbe
 This means it's possible, but unlikely, for triggers to run in multiple places at once. This behavior is designed into the trigger contract, however, and is expected behavior. Airflow de-duplicates events fired when a trigger is running in multiple places simultaneously, so this process is transparent to your operators.
 
 Note that every extra ``triggerer`` you run results in an extra persistent connection to your database.
-
 
 Difference between Mode='reschedule' and Deferrable=True in Sensors
 -------------------------------------------------------------------
