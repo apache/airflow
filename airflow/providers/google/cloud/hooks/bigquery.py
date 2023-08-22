@@ -3182,7 +3182,6 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             raise AirflowException("The query returned None")
         pass_value_conv = self._convert_to_float_if_possible(pass_value)
         is_numeric_value_check = isinstance(pass_value_conv, float)
-        tolerance_pct_str = str(tolerance * 100) + "%" if tolerance else None
 
         error_msg = (
             "Test failed.\nPass value:{pass_value_conv}\n"
@@ -3190,7 +3189,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             "Query:\n{sql}\nResults:\n{records!s}"
         ).format(
             pass_value_conv=pass_value_conv,
-            tolerance_pct_str=tolerance_pct_str,
+            tolerance_pct_str=f"{tolerance:.1%}" if tolerance else None,
             sql=sql,
             records=records,
         )
