@@ -310,7 +310,7 @@ def get_command_hash_export() -> str:
                 hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
             else:
                 hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
-    return "\n".join(hashes) + "\n"
+    return "".join(f"{h}\n" for h in hashes)
 
 
 def write_to_shell(command_to_execute: str, script_path: str, force_setup: bool) -> bool:

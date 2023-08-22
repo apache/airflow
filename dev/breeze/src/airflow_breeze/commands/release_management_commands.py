@@ -1323,7 +1323,7 @@ def update_comment(content: str, comment_file: Path) -> str:
             updated_lines.extend(comment_lines)
             updated = True
         updated_lines.append(line)
-    return "\n".join(updated_lines) + "\n"
+    return "".join(f"{line}\n" for line in updated_lines)
 
 
 def modify_single_file_constraints(

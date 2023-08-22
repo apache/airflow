@@ -39,8 +39,7 @@ def download_file(url):
         file_name = temp_dir / "redirects.txt"
         filedata = urlopen(url)
         data = filedata.read()
-        with open(file_name, "wb") as f:
-            f.write(data)
+        file_name.write_bytes(data)
         return True, file_name
     except URLError as e:
         if e.reason == "Not Found":
@@ -52,27 +51,14 @@ def download_file(url):
 
 def construct_old_to_new_tuple_mapping(file_name: Path) -> list[tuple[str, str]]:
     old_to_new_tuples: list[tuple[str, str]] = []
-    with open(file_name) as f:
-        file_content = []
-        lines = f.readlines()
-        # Skip empty line
-
-        for line in lines:
-            if not line.strip():
-                continue
-
-            # Skip comments
-            if line.startswith("#"):
-                continue
-
-            line = line.rstrip()
-            file_content.append(line)
-
-            old_path, new_path = line.split(" ")
-            old_path = old_path.replace(".rst", ".html")
-            new_path = new_path.replace(".rst", ".html")
-
-            old_to_new_tuples.append((old_path, new_path))
+    with file_name.open() as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                old_path, new_path = line.split(" ")
+                old_path = old_path.replace(".rst", ".html")
+                new_path = new_path.replace(".rst", ".html")
+                old_to_new_tuples.append((old_path, new_path))
     return old_to_new_tuples
 
 
@@ -119,17 +105,14 @@ def generate_back_references(link: str, base_path: Path):
     old_to_new.append(("index.html", "security.html"))
     old_to_new.append(("security.html", "security/security-model.html"))
 
-    versions = [f.path.split("/")[-1] for f in os.scandir(base_path) if f.is_dir()]
-    for version in versions:
-        print(f"Processing {base_path}, version: {version}")
-        versioned_provider_path = base_path / version
+    for versioned_provider_path in (p for p in base_path.iterdir() if p.is_dir()):
+        print(f"Processing {base_path}, version: {versioned_provider_path.name}")
 
         for old, new in old_to_new:
             # only if old file exists, add the back reference
-            if os.path.exists(versioned_provider_path / old):
-                split_new_path = new.split("/")
-                file_name = new.split("/")[-1]
-                dest_dir = versioned_provider_path.joinpath(*split_new_path[: len(split_new_path) - 1])
+            if (versioned_provider_path / old).exists():
+                split_new_path, file_name = new.rsplit("/", 1)
+                dest_dir = versioned_provider_path / split_new_path
 
                 # finds relative path of old file with respect to new and handles case of different file
                 # names also
