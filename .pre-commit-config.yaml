@@ -372,6 +372,13 @@ repos:
         require_serial: true
         files: ^airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-provider-yaml-value-importable
+        name: Check values in provider.yaml are importable
+        entry: ./scripts/ci/pre_commit/pre_commit_provider_import_path_exists.py
+        language: python
+        pass_filenames: true
+        files: ^airflow/providers/.*$
+        additional_dependencies: ['pyyaml']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.py

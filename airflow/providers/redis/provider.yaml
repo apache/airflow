@@ -68,4 +68,4 @@ connection-types:
     connection-type: redis
 
 logging:
-  - airflow.providers.redis.redis_task_handler.RedisTaskHandler
+  - airflow.providers.redis.log.redis_task_handler.RedisTaskHandler
