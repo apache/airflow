@@ -909,6 +909,14 @@
     ],
     "excluded-python-versions": []
   },
+  "yandex": {
+    "deps": [
+      "apache-airflow>=2.4.0",
+      "yandexcloud>=0.228.0"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "zendesk": {
     "deps": [
       "apache-airflow>=2.4.0",
