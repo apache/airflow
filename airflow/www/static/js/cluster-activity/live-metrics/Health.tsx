@@ -107,7 +107,7 @@ const Health = (props: CenterProps) => {
               mb={3}
             />
             { 
-            standaloneDagProcessor === true &&
+            !!standaloneDagProcessor &&
             <HealthSection
               title="Dag Processor"
               status={data?.dagProcessor?.status}
