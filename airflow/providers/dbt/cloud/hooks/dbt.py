@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from enum import Enum
@@ -211,12 +212,11 @@ class DbtCloudHook(HttpHook):
     async def get_headers_tenants_from_connection(self) -> tuple[dict[str, Any], str]:
         """Get Headers, tenants from the connection details."""
         headers: dict[str, Any] = {}
-        connection: Connection = await sync_to_async(self.get_connection)(self.dbt_cloud_conn_id)
-        tenant = self._get_tenant_domain(connection)
+        tenant = self._get_tenant_domain(self.connection)
         package_name, provider_version = _get_provider_info()
         headers["User-Agent"] = f"{package_name}-v{provider_version}"
         headers["Content-Type"] = "application/json"
-        headers["Authorization"] = f"Token {connection.password}"
+        headers["Authorization"] = f"Token {self.connection.password}"
         return headers, tenant
 
     @provide_account_id
@@ -594,6 +594,43 @@ class DbtCloudHook(HttpHook):
         return self._run_and_get_response(
             endpoint=f"{account_id}/runs/{run_id}/artifacts/{path}", payload={"step": step}
         )
+
+    @fallback_to_default_account
+    async def get_job_run_artifacts_concurrently(
+        self,
+        run_id: int,
+        artifacts: list[str],
+        account_id: int | None = None,
+        step: int | None = None,
+    ):
+        """
+        Retrieves a list of chosen artifact files generated for a step in completed run of a dbt Cloud job.
+
+        By default, this returns artifacts from the last step in the run.
+        This takes advantage of the asynchronous calls to speed up the retrieval.
+
+        :param run_id: The ID of a dbt Cloud job run.
+        :param step: The index of the Step in the Run to query for artifacts. The first step in the
+            run has the index 1. If the step parameter is omitted, artifacts for the last step in the run will
+            be returned.
+        :param path: The file path related to the artifact file. Paths are rooted at the target/ directory.
+            Use "manifest.json", "catalog.json", or "run_results.json" to download dbt-generated artifacts
+            for the run.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+
+        :return: The request response.
+        """
+        tasks = {
+            artifact: sync_to_async(self.get_job_run_artifact)(
+                run_id,
+                path=artifact,
+                account_id=account_id,
+                step=step,
+            )
+            for artifact in artifacts
+        }
+        results = await asyncio.gather(*tasks.values())
+        return {filename: result.json() for filename, result in zip(tasks.keys(), results)}
 
     def test_connection(self) -> tuple[bool, str]:
         """Test dbt Cloud connection."""
