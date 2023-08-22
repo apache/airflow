@@ -277,13 +277,11 @@ class HiveCliHook(BaseHook):
                 )
                 self.sub_process = sub_process
                 stdout = ""
-                while True:
-                    line = sub_process.stdout.readline()
-                    if not line:
-                        break
-                    stdout += line.decode("UTF-8")
+                for line in iter(sub_process.stdout.readline, b""):
+                    line = line.decode()
+                    stdout += line
                     if verbose:
-                        self.log.info(line.decode("UTF-8").strip())
+                        self.log.info(line.strip())
                 sub_process.wait()
 
                 if sub_process.returncode:
@@ -704,25 +702,20 @@ class HiveMetastoreHook(BaseHook):
         # Assuming all specs have the same keys.
         if partition_key not in part_specs[0].keys():
             raise AirflowException(f"Provided partition_key {partition_key} is not in part_specs.")
-        is_subset = None
-        if filter_map:
-            is_subset = set(filter_map.keys()).issubset(set(part_specs[0].keys()))
-        if filter_map and not is_subset:
+        if filter_map and not set(filter_map).issubset(part_specs[0]):
             raise AirflowException(
                 f"Keys in provided filter_map {', '.join(filter_map.keys())} "
                 f"are not subset of part_spec keys: {', '.join(part_specs[0].keys())}"
             )
 
-        candidates = [
-            p_dict[partition_key]
-            for p_dict in part_specs
-            if filter_map is None or all(item in p_dict.items() for item in filter_map.items())
-        ]
-
-        if not candidates:
-            return None
-        else:
-            return max(candidates)
+        return max(
+            (
+                p_dict[partition_key]
+                for p_dict in part_specs
+                if filter_map is None or all(item in p_dict.items() for item in filter_map.items())
+            ),
+            default=None,
+        )
 
     def max_partition(
         self,
