@@ -20,6 +20,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.client import AppflowClient
@@ -63,9 +64,17 @@ class AppflowHook(AwsBaseHook):
         self.log.info("executionId: %s", execution_id)
 
         if wait_for_completion:
-            self.get_waiter("run_complete", {"EXECUTION_ID": execution_id}).wait(
-                flowName=flow_name,
-                WaiterConfig={"Delay": poll_interval},
+            wait(
+                waiter=self.get_waiter("run_complete", {"EXECUTION_ID": execution_id}),
+                waiter_delay=poll_interval,
+                waiter_max_attempts=10,
+                args={"flowName": flow_name},
+                failure_message="error while waiting for flow to complete",
+                status_message="waiting for flow completion, status",
+                status_args=[
+                    f"flowExecutions[?executionId=='{execution_id}'].executionStatus",
+                    f"flowExecutions[?executionId=='{execution_id}'].executionResult.errorInfo",
+                ],
             )
             self._log_execution_description(flow_name, execution_id)
 
