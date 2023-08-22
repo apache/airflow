@@ -22,14 +22,14 @@ Standard :doc:`Operators </core-concepts/operators>` and :doc:`Sensors <../core-
 
 This is where *Deferrable Operators* can be used. A deferrable operator can suspend itself and free up the worker for other processes when certain conditions are met. A pre-defined *Trigger* then resumes the deferred operator. As a result, while it is suspended (deferred) and isn't using worker slot, your cluster has fewer resources wasted on idle operators or sensors. By default, deferred tasks don't use pool slots. If you would like them to, you can change this by editing the pool in question.
 
-*Triggers* are small, asynchronous pieces of Python code designed to run in a single Python process. Because they are asynchronous, they can all co-exist efficiently in a *triggerer*, an Airflow service similar to a scheduler or worker. 
+*Triggers* are small, asynchronous pieces of Python code designed to run in a single Python process. Because they are asynchronous, they can all co-exist efficiently in a *triggerer*, an Airflow service similar to a scheduler or worker.
 
 An overview of how this process works:
 
 * A task instance (running operator) reaches a point where it has to wait for other operations or conditions, and defers itself with a trigger tied to an event to resume it. This frees up the worker to run something else.
-* The new trigger instance is registered by Airflow, and picked up by a triggerer process
-* The trigger runs until it fires, at which point its source task is re-scheduled by the scheduler
-* The scheduler queues the task to resume on a worker node
+* The new trigger instance is registered by Airflow, and picked up by a triggerer process.
+* The trigger runs until it fires, at which point its source task is re-scheduled by the scheduler.
+* The scheduler queues the task to resume on a worker node.
 
 You can either use pre-written deferrable operators as a DAG author or write your own. Writing them, however, requires that they meet certain design criteria.
 
@@ -41,7 +41,7 @@ If you want to use pre-written deferrable operators that come with Airflow, such
 * Ensure your Airflow installation runs at least one ``triggerer`` process, as well as the normal ``scheduler``
 * Use deferrable operators/sensors in your DAGs
 
-Airflow automatically handles and implements the deferral processes for you. 
+Airflow automatically handles and implements the deferral processes for you.
 
 If you're upgrading existing DAGs to use deferrable operators, Airflow contains API-compatible sensor variants, like ``TimeSensorAsync`` for ``TimeSensor``. Add these variants into your DAG to use deferrable operators with no other changes required.
 
