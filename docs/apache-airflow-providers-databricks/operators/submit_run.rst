@@ -55,6 +55,7 @@ one named parameter for each top level parameter in the ``runs/submit`` endpoint
   * ``spark_python_task`` - python file path and parameters to run the python file with
   * ``spark_submit_task`` - parameters needed to run a ``spark-submit`` command
   * ``pipeline_task`` - parameters needed to run a Delta Live Tables pipeline
+    * - may reference a ``pipeline_id`` or ``pipeline_name``
   * ``dbt_task`` - parameters needed to run a dbt project
 
 * Cluster specification - it should be one of:
