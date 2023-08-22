@@ -165,7 +165,7 @@ with models.DAG(
         task_id=execute1_task_name,
         project_id=PROJECT_ID,
         region=region,
-        job_name=job2_name,
+        job_name=job1_name,
         dag=dag,
         deferrable=False,
     )
