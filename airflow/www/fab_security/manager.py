@@ -521,7 +521,7 @@ class BaseSecurityManager:
             self.auth_ldap_lastname_field,
             self.auth_ldap_email_field,
         ]
-        if len(self.auth_roles_mapping) > 0:
+        if self.auth_roles_mapping:
             request_fields.append(self.auth_ldap_group_field)
 
         # perform the LDAP search
@@ -561,7 +561,7 @@ class BaseSecurityManager:
         user_role_objects = set()
 
         # apply AUTH_ROLES_MAPPING
-        if len(self.auth_roles_mapping) > 0:
+        if self.auth_roles_mapping:
             user_role_keys = self.ldap_extract_list(user_attributes, self.auth_ldap_group_field)
             user_role_objects.update(self.get_roles_from_keys(user_role_keys))
 
@@ -852,7 +852,7 @@ class BaseSecurityManager:
         user_role_objects = set()
 
         # apply AUTH_ROLES_MAPPING
-        if len(self.auth_roles_mapping) > 0:
+        if self.auth_roles_mapping:
             user_role_keys = userinfo.get("role_keys", [])
             user_role_objects.update(self.get_roles_from_keys(user_role_keys))
 
