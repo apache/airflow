@@ -835,7 +835,7 @@ class DagFileProcessor(LoggingMixin):
             Stats.incr("dag_file_refresh_error", 1, 1, tags={"file_path": file_path})
             return 0, 0
 
-        if len(dagbag.dags) > 0:
+        if dagbag.dags:
             self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)

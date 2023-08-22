@@ -1591,7 +1591,7 @@ class DAG(LoggingMixin):
             .limit(num)
         ).all()
 
-        if len(execution_dates) == 0:
+        if not execution_dates:
             return self.get_task_instances(start_date=base_date, end_date=base_date, session=session)
 
         min_date: datetime | None = execution_dates[-1]._mapping.get(
@@ -3155,7 +3155,7 @@ class DAG(LoggingMixin):
         :param active_dag_ids: list of DAG IDs that are active
         :return: None
         """
-        if len(active_dag_ids) == 0:
+        if not active_dag_ids:
             return
         for dag in session.scalars(select(DagModel).where(~DagModel.dag_id.in_(active_dag_ids))).all():
             dag.is_active = False

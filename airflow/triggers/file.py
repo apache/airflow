@@ -68,6 +68,6 @@ class FileTrigger(BaseTrigger):
                     self.log.info("Found File %s last modified: %s", str(path), str(mod_time))
                     yield TriggerEvent(True)
                 for _, _, files in os.walk(self.filepath):
-                    if len(files) > 0:
+                    if files:
                         yield TriggerEvent(True)
             await asyncio.sleep(self.poll_interval)

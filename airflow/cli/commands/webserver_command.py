@@ -138,7 +138,7 @@ class GunicornMonitor(LoggingMixin):
         def ready_prefix_on_cmdline(proc):
             try:
                 cmdline = proc.cmdline()
-                if len(cmdline) > 0:
+                if cmdline:
                     return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
             except psutil.NoSuchProcess:
                 pass
