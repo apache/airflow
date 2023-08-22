@@ -137,7 +137,6 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         self.results_df_name = results_df_name
         self.kwargs = kwargs
 
-
     def _render_and_send_slack_message(self, context, df) -> None:
         # Put the dataframe into the context and render the JINJA template fields
         context[self.results_df_name] = df
