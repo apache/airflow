@@ -52,6 +52,7 @@ class AppflowBaseOperator(BaseOperator):
     :param source_field: The field name to apply filters
     :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
+    :param max_attempts: how many times to check for status before timing out
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
     :param wait_for_completion: whether to wait for the run to end to return
