@@ -33,12 +33,13 @@ EcsTaskInfo = namedtuple("EcsTaskInfo", ("cmd", "queue", "config"))
 
 CONFIG_GROUP_NAME = "aws_ecs_executor"
 
-CONFIG_DEFAULTS = {
+RUN_TASK_KWARG_DEFAULTS = {
     "assign_public_ip": "False",
-    "conn_id": "aws_default",
     "launch_type": "FARGATE",
     "platform_version": "LATEST",
 }
+
+CONFIG_DEFAULTS = {"conn_id": "aws_default", **RUN_TASK_KWARG_DEFAULTS}
 
 
 class EcsConfigKeys:
@@ -55,6 +56,9 @@ class EcsConfigKeys:
     SECURITY_GROUPS = "security_groups"
     SUBNETS = "subnets"
     TASK_DEFINITION = "task_definition"
+
+    def __iter__(self):
+        return iter({value for (key, value) in EcsConfigKeys.__dict__.items() if not key.startswith("__")})
 
 
 class EcsExecutorException(Exception):
@@ -186,3 +190,42 @@ class EcsTaskCollection:
     def __len__(self):
         """Determines the number of tasks in collection."""
         return len(self.tasks)
+
+
+def _recursive_flatten_dict(nested_dict):
+    """
+    Recursively unpack a nested dict and return it as a flat dict.
+
+    For example, _flatten_dict({'a': 'a', 'b': 'b', 'c': {'d': 'd'}}) returns {'a': 'a', 'b': 'b', 'd': 'd'}.
+    """
+    items = []
+    for key, value in nested_dict.items():
+        if isinstance(value, dict):
+            items.extend(_recursive_flatten_dict(value).items())
+        else:
+            items.append((key, value))
+    return dict(items)
+
+
+def parse_assign_public_ip(assign_public_ip):
+    """Convert "assign_public_ip" from True/False to ENABLE/DISABLE."""
+    return "ENABLED" if assign_public_ip == "True" else "DISABLED"
+
+
+def convert_dict_keys_camel_case(nested_dict) -> dict:
+    """Accept a potentially nested dictionary and recursively convert all keys into camelCase."""
+
+    def _snake_to_camel(_key):
+        split_key = _key.split("_")
+        first_word = split_key[0]
+        return first_word[0].lower() + first_word[1:] + "".join(word.title() for word in split_key[1:])
+
+    result = {}
+    for (key, value) in nested_dict.items():
+        new_key = _snake_to_camel(key)
+        if isinstance(value, dict) and (key.lower() != "tags"):
+            # The key name on tags can be whatever the user wants, and we should not mess with them.
+            result[new_key] = convert_dict_keys_camel_case(value)
+        else:
+            result[new_key] = nested_dict[key]
+    return result
