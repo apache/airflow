@@ -61,15 +61,15 @@ class DocBuildError(NamedTuple):
 def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None:
     """Displays summary of errors"""
     console.print()
-    console.print("[red]" + "#" * 30 + " Start docs build errors summary " + "#" * 30 + "[/]")
+    console.print("[red]" + " Start docs build errors summary ".center(79, "#") + "[/]")
     console.print()
     for package_name, errors in build_errors.items():
         if package_name:
-            console.print("=" * 30 + f" [info]{package_name}[/] " + "=" * 30)
+            console.print(f" [info]{package_name}[/] ".center(79 - 9, "="))
         else:
-            console.print("=" * 30, " [info]General[/] ", "=" * 30)
+            console.print(" [info]General[/] ".center(79 - 9, "="))
         for warning_no, error in enumerate(sorted(errors), 1):
-            console.print("-" * 30, f"[red]Error {warning_no:3}[/]", "-" * 20)
+            console.print(f"[red]Error {warning_no:3}[/]".center(79 - 8, "-"))
             console.print(error.message)
             console.print()
             if error.file_path and not error.file_path.endswith("<unknown>") and error.line_no:
@@ -81,7 +81,7 @@ def display_errors_summary(build_errors: dict[str, list[DocBuildError]]) -> None
             elif error.file_path:
                 console.print(f"File path: {error.file_path}")
     console.print()
-    console.print("[red]" + "#" * 30 + " End docs build errors summary " + "#" * 30 + "[/]")
+    console.print("[red]" + " End docs build errors summary ".center(79, "#") + "[/]")
     console.print()
 
 
