@@ -1782,8 +1782,8 @@ class TaskInstance(Base, LoggingMixin):
         self.trigger_id = trigger_row.id
         self.next_method = defer.method_name
         self.next_kwargs = defer.kwargs or {}
-        self.trigger_timeout = defer.trigger_timeout
-        self.trigger_timeout_reason = defer.trigger_timeout_reason
+        self.trigger_timeout = defer.timeout
+        self.trigger_timeout_reason = defer.timeout_reason
 
         # Decrement try number so the next one is the same try
         self._try_number -= 1

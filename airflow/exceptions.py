@@ -362,15 +362,15 @@ class TaskDeferred(BaseException):
         trigger,
         method_name: str,
         kwargs: dict[str, Any] | None = None,
-        trigger_timeout: datetime.datetime | None = None,
-        trigger_timeout_reason: str | None = None,
+        timeout: datetime.datetime | None = None,
+        timeout_reason: str | None = None,
     ):
         super().__init__()
         self.trigger = trigger
         self.method_name = method_name
         self.kwargs = kwargs
-        self.trigger_timeout = trigger_timeout
-        self.trigger_timeout_reason = trigger_timeout_reason
+        self.timeout = timeout
+        self.timeout_reason = timeout_reason
 
     def __repr__(self) -> str:
         return f"<TaskDeferred trigger={self.trigger} method={self.method_name}>"

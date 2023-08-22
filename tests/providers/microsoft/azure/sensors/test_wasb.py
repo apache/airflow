@@ -150,7 +150,7 @@ class TestWasbBlobAsyncSensor:
         assert isinstance(exc.value.trigger, WasbBlobSensorTrigger), "Trigger is not a WasbBlobSensorTrigger"
         assert (
             (instant_before_running + datetime.timedelta(seconds=5))
-            <= exc.value.trigger_timeout
+            <= exc.value.timeout
             <= (instant_after_running + datetime.timedelta(seconds=5))
         )
         assert self.SENSOR._trigger_timeout(context)[1] == "sensor_timeout"

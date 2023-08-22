@@ -1626,8 +1626,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             trigger=trigger,
             method_name=method_name,
             kwargs=kwargs,
-            trigger_timeout=trigger_timeout,
-            trigger_timeout_reason=trigger_timeout_reason,
+            timeout=trigger_timeout,
+            timeout_reason=trigger_timeout_reason,
         )
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):

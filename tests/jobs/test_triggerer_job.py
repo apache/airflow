@@ -266,7 +266,7 @@ class TestTriggerRunner:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()
-        mock_trigger.task_instance.trigger_timeout = None
+        mock_trigger.task_instance.timeout = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
         with pytest.raises(asyncio.CancelledError):
