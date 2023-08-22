@@ -34,7 +34,6 @@ from tests.test_utils.providers import get_provider_min_airflow_version
 
 
 class TestAzureCosmosDbHook:
-
     # Set up an environment to test with
     def setup_method(self):
         # set up some test variables
@@ -266,6 +265,8 @@ class TestAzureCosmosDbHook:
             "password",
             "database_name",
             "collection_name",
+            "subscription_id",
+            "resource_group_name",
         ]
         if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
             raise Exception(

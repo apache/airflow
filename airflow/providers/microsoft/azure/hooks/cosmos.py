@@ -28,12 +28,14 @@ from __future__ import annotations
 import json
 import uuid
 from typing import Any
+from urllib.parse import urlparse
 
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
 from azure.identity import DefaultAzureCredential
+from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
-from airflow.exceptions import AirflowBadRequest
+from airflow.exceptions import AirflowBadRequest, AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import get_field
 
@@ -69,6 +71,14 @@ class AzureCosmosDBHook(BaseHook):
             "collection_name": StringField(
                 lazy_gettext("Cosmos Collection Name (optional)"), widget=BS3TextFieldWidget()
             ),
+            "subscription_id": StringField(
+                lazy_gettext("Subscription ID (optional)"),
+                widget=BS3TextFieldWidget(),
+            ),
+            "resource_group_name": StringField(
+                lazy_gettext("Resource Group Name (optional)"),
+                widget=BS3TextFieldWidget(),
+            ),
         }
 
     @staticmethod
@@ -82,9 +92,11 @@ class AzureCosmosDBHook(BaseHook):
             },
             "placeholders": {
                 "login": "endpoint uri",
-                "password": "master key",
+                "password": "master key (not needed for Azure AD authentication)",
                 "database_name": "database name",
                 "collection_name": "collection name",
+                "subscription_id": "Subscription ID (required for Azure AD authentication)",
+                "resource_group_name": "Resource Group Name (required for Azure AD authentication)",
             },
         }
 
@@ -110,18 +122,29 @@ class AzureCosmosDBHook(BaseHook):
             conn = self.get_connection(self.conn_id)
             extras = conn.extra_dejson
             endpoint_uri = conn.login
-            credential: dict[str, Any] | DefaultAzureCredential
+            resource_group_name = self._get_field(extras, "resource_group_name")
+
             if conn.password:
                 master_key = conn.password
-                credential = {"masterKey": master_key}
+            elif resource_group_name:
+                management_client = CosmosDBManagementClient(
+                    credential=DefaultAzureCredential(),
+                    subscription_id=self._get_field(extras, "subscription_id"),
+                )
+
+                database_account = urlparse(conn.login).netloc.split(".")[0]
+                database_account_keys = management_client.database_accounts.list_keys(
+                    resource_group_name, database_account
+                )
+                master_key = database_account_keys.primary_master_key
             else:
-                credential = DefaultAzureCredential()
+                raise AirflowException("Either password or resource_group_name is required")
 
             self.default_database_name = self._get_field(extras, "database_name")
             self.default_collection_name = self._get_field(extras, "collection_name")
 
             # Initialize the Python Azure Cosmos DB client
-            self._conn = CosmosClient(endpoint_uri, credential=credential)
+            self._conn = CosmosClient(endpoint_uri, {"masterKey": master_key})
         return self._conn
 
     def __get_database_name(self, database_name: str | None = None) -> str:

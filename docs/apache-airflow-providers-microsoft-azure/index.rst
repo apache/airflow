@@ -107,6 +107,7 @@ PIP package                       Version required
 ``apache-airflow``                ``>=2.4.0``
 ``azure-batch``                   ``>=8.0.0``
 ``azure-cosmos``                  ``>=4.0.0``
+``azure-mgmt-cosmosdb``
 ``azure-datalake-store``          ``>=0.0.45``
 ``azure-identity``                ``>=1.3.1``
 ``azure-keyvault-secrets``        ``>=4.1.0``
