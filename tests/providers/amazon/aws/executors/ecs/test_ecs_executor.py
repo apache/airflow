@@ -613,7 +613,7 @@ class TestAwsEcsExecutor:
     def _sync_mock_with_call_counts(self, sync_func: Callable):
         """Mock won't work here, because we actually want to call the 'sync' func."""
         # If we call `mock_executor.sync()` here directly we get endless recursion below
-        # because we are assigning it to itself wih `mock_executor.sync = sync_mock`.
+        # because we are assigning it to itself with `mock_executor.sync = sync_mock`.
         self.sync_call_count = 0
 
         sync_func()
