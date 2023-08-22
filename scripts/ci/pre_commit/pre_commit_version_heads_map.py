@@ -63,7 +63,7 @@ if __name__ == "__main__":
     match = re2.search(pattern, content)
     if not match:
         print(
-            "REVISION_HEADS_MAP not found in db.py. If this has been removed intentionally, "
+            f"REVISION_HEADS_MAP not found in {DB_FILE}. If this has been removed intentionally, "
             "please update scripts/ci/pre_commit/pre_commit_version_heads_map.py"
         )
         sys.exit(1)
