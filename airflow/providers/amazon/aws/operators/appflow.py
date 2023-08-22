@@ -62,9 +62,9 @@ class AppflowBaseOperator(BaseOperator):
 
     def __init__(
         self,
-        source: str,
         flow_name: str,
         flow_update: bool,
+        source: str | None = None,
         source_field: str | None = None,
         filter_date: str | None = None,
         poll_interval: int = 20,
@@ -74,7 +74,7 @@ class AppflowBaseOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if source not in SUPPORTED_SOURCES:
+        if source is not None and source not in SUPPORTED_SOURCES:
             raise ValueError(f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!")
         self.filter_date = filter_date
         self.flow_name = flow_name
@@ -95,7 +95,8 @@ class AppflowBaseOperator(BaseOperator):
         self.filter_date_parsed: datetime | None = (
             datetime.fromisoformat(self.filter_date) if self.filter_date else None
         )
-        self.connector_type = self._get_connector_type()
+        if self.source is not None:
+            self.connector_type = self._get_connector_type()
         if self.flow_update:
             self._update_flow()
             # while schedule flows will pick up the update right away, on-demand flows might use out of date
@@ -127,13 +128,13 @@ class AppflowBaseOperator(BaseOperator):
 
 class AppflowRunOperator(AppflowBaseOperator):
     """
-    Execute a Appflow run with filters as is.
+    Execute a Appflow run as is.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AppflowRunOperator`
 
-    :param source: The source name (Supported: salesforce, zendesk)
+    :param source: Obsolete, unnecessary for this operator
     :param flow_name: The flow name
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
@@ -141,20 +142,19 @@ class AppflowRunOperator(AppflowBaseOperator):
     :param wait_for_completion: whether to wait for the run to end to return
     """
 
+    template_fields = "flow_name"
+
     def __init__(
         self,
-        source: str,
         flow_name: str,
+        source: str | None = None,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
         wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
-        if source not in {"salesforce", "zendesk"}:
-            raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunOperator"))
         super().__init__(
-            source=source,
             flow_name=flow_name,
             flow_update=False,
             source_field=None,
