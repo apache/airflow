@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_pre
 
 
 def revision_heads_map():
-    revision_heads_map = {}
+    rh_map = {}
     pattern = r'revision = "[a-fA-F0-9]+"'
     airflow_version_pattern = r'airflow_version = "\d+\.\d+\.\d+"'
     filenames = os.listdir(MIGRATION_PATH)
@@ -44,18 +44,15 @@ def revision_heads_map():
 
     sorted_filenames = sorted(filenames, key=sorting_key)
     for filename in sorted_filenames:
-
         with open(os.path.join(MIGRATION_PATH, filename)) as file:
             content = file.read()
             revision_match = re2.search(pattern, content)
             airflow_version_match = re2.search(airflow_version_pattern, content)
-
             if revision_match and airflow_version_match:
                 revision = revision_match.group(0).split('"')[1]
                 version = airflow_version_match.group(0).split('"')[1]
-                revision_heads_map[version] = revision
-
-    return revision_heads_map
+                rh_map[version] = revision
+    return rh_map
 
 
 if __name__ == "__main__":
