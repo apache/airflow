@@ -108,7 +108,7 @@ def find_all_providers_and_provider_files():
 
 def get_provider_id_from_relative_import_or_file(relative_path_or_file: str) -> str | None:
     provider_candidate = relative_path_or_file.replace(os.sep, ".").split(".")
-    while len(provider_candidate) > 0:
+    while provider_candidate:
         candidate_provider_id = ".".join(provider_candidate)
         if "google_vendor" in candidate_provider_id:
             candidate_provider_id = candidate_provider_id.replace("google_vendor", "google")
@@ -209,12 +209,28 @@ if __name__ == "__main__":
         console.print("[red]Errors found during verification. Exiting!")
         console.print()
         sys.exit(1)
-    DEPENDENCIES_JSON_FILE_PATH.write_text(json.dumps(unique_sorted_dependencies, indent=2) + "\n")
-    console.print(
-        f"[yellow]If you see changes to the {DEPENDENCIES_JSON_FILE_PATH} file - "
-        f"do not modify the file manually. Let pre-commit do the job!"
-    )
-    console.print()
-    console.print("[green]Verification complete! Success!\n")
-    console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
-    console.print()
+    old_dependencies = DEPENDENCIES_JSON_FILE_PATH.read_text()
+    new_dependencies = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
+    if new_dependencies != old_dependencies:
+        DEPENDENCIES_JSON_FILE_PATH.write_text(json.dumps(unique_sorted_dependencies, indent=2) + "\n")
+        if os.environ.get("CI"):
+            console.print()
+            console.print(f"[info]Written {DEPENDENCIES_JSON_FILE_PATH}")
+            console.print(
+                f"[yellow]You will need to run breeze locally and commit "
+                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)}!\n"
+            )
+            console.print()
+        else:
+            console.print()
+            console.print(
+                f"[yellow]Regenerated new dependencies. Please commit "
+                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)}!\n"
+            )
+            console.print(f"[info]Written {DEPENDENCIES_JSON_FILE_PATH}")
+            console.print()
+    else:
+        console.print(
+            "[green]No need to regenerate dependencies!\n[/]"
+            f"The {DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)} is up to date!\n"
+        )

@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Removed deprecated ``S3ToSnowflakeOperator`` in favor of ``CopyFromExternalStageToSnowflakeOperator``.
+  The parameter that was passed as ``s3_keys`` needs to be changed to ``files``, and the behavior should stay the same.
+
+  Removed deprecated ``SnowflakeToSlackOperator`` in favor of ``SqlToSlackOperator`` from Slack Provider.
+  Parameters that were passed as ``schema``, ``role``, ``database``, ``warehouse`` need to be included into
+  ``sql_hook_params`` parameter, and the behavior should stay the same.
+
+
 4.4.2
 .....
 

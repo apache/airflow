@@ -189,7 +189,7 @@ class AzureBatchOperator(BaseOperator):
             )
 
         if self.use_latest_image:
-            if not all(elem for elem in [self.vm_publisher, self.vm_offer]):
+            if not self.vm_publisher or not self.vm_offer:
                 raise AirflowException(
                     f"If use_latest_image_and_sku is set to True then the parameters vm_publisher, "
                     f"vm_offer, must all be set. "

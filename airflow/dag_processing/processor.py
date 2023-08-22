@@ -30,7 +30,7 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import TYPE_CHECKING, Iterable, Iterator
 
 from setproctitle import setproctitle
-from sqlalchemy import delete, exc, func, or_
+from sqlalchemy import delete, exc, func, or_, select
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
@@ -428,31 +428,27 @@ class DagFileProcessor(LoggingMixin):
         if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
             cls.logger().info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
-
         qry = (
-            session.query(TI.task_id, func.max(DR.execution_date).label("max_ti"))
+            select(TI.task_id, func.max(DR.execution_date).label("max_ti"))
             .join(TI.dag_run)
-            .filter(TI.dag_id == dag.dag_id)
-            .filter(or_(TI.state == TaskInstanceState.SUCCESS, TI.state == TaskInstanceState.SKIPPED))
-            .filter(TI.task_id.in_(dag.task_ids))
+            .where(TI.dag_id == dag.dag_id)
+            .where(or_(TI.state == TaskInstanceState.SUCCESS, TI.state == TaskInstanceState.SKIPPED))
+            .where(TI.task_id.in_(dag.task_ids))
             .group_by(TI.task_id)
             .subquery("sq")
         )
         # get recorded SlaMiss
         recorded_slas_query = set(
-            session.query(SlaMiss.dag_id, SlaMiss.task_id, SlaMiss.execution_date).filter(
-                SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id.in_(dag.task_ids)
+            session.execute(
+                select(SlaMiss.dag_id, SlaMiss.task_id, SlaMiss.execution_date).where(
+                    SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id.in_(dag.task_ids)
+                )
             )
         )
-
-        max_tis: Iterator[TI] = (
-            session.query(TI)
+        max_tis: Iterator[TI] = session.scalars(
+            select(TI)
             .join(TI.dag_run)
-            .filter(
-                TI.dag_id == dag.dag_id,
-                TI.task_id == qry.c.task_id,
-                DR.execution_date == qry.c.max_ti,
-            )
+            .where(TI.dag_id == dag.dag_id, TI.task_id == qry.c.task_id, DR.execution_date == qry.c.max_ti)
         )
 
         ts = timezone.utcnow()
@@ -490,23 +486,18 @@ class DagFileProcessor(LoggingMixin):
             if sla_misses:
                 session.add_all(sla_misses)
         session.commit()
-
-        slas: list[SlaMiss] = (
-            session.query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa
-            .all()
-        )
+        slas: list[SlaMiss] = session.scalars(
+            select(SlaMiss).where(~SlaMiss.notification_sent, SlaMiss.dag_id == dag.dag_id)
+        ).all()
         if slas:
             sla_dates: list[datetime] = [sla.execution_date for sla in slas]
-            fetched_tis: list[TI] = (
-                session.query(TI)
-                .filter(
+            fetched_tis: list[TI] = session.scalars(
+                select(TI).where(
                     TI.dag_id == dag.dag_id,
                     TI.execution_date.in_(sla_dates),
                     TI.state != TaskInstanceState.SUCCESS,
                 )
-                .all()
-            )
+            ).all()
             blocking_tis: list[TI] = []
             for ti in fetched_tis:
                 if ti.task_id in dag.task_ids:

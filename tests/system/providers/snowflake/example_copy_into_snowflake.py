@@ -24,10 +24,11 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.snowflake.transfers.s3_to_snowflake import S3ToSnowflakeOperator
+from airflow.providers.snowflake.transfers.copy_into_snowflake import CopyFromExternalStageToSnowflakeOperator
 
 SNOWFLAKE_CONN_ID = "my_snowflake_conn"
-# TODO: should be able to rely on connection's schema, but currently param required by S3ToSnowflakeTransfer
+# TODO: should be able to rely on connection's schema,
+#  but currently param required by CopyFromExternalStageToSnowflakeOperator
 SNOWFLAKE_STAGE = "stage_name"
 SNOWFLAKE_SAMPLE_TABLE = "sample_table"
 S3_FILE_PATH = "</path/to/file/sample_file.csv"
@@ -45,19 +46,17 @@ with DAG(
     schedule="@once",
     catchup=False,
 ) as dag:
-    # [START howto_operator_s3_to_snowflake]
-
-    copy_into_table = S3ToSnowflakeOperator(
+    # [START howto_operator_s3_copy_into_snowflake]
+    copy_into_table = CopyFromExternalStageToSnowflakeOperator(
         task_id="copy_into_table",
         snowflake_conn_id=SNOWFLAKE_CONN_ID,
-        s3_keys=[S3_FILE_PATH],
+        files=[S3_FILE_PATH],
         table=SNOWFLAKE_SAMPLE_TABLE,
         stage=SNOWFLAKE_STAGE,
         file_format="(type = 'CSV',field_delimiter = ';')",
         pattern=".*[.]csv",
     )
-
-    # [END howto_operator_s3_to_snowflake]
+    # [END howto_operator_s3_copy_into_snowflake]
 
 
 from tests.system.utils import get_test_run  # noqa: E402

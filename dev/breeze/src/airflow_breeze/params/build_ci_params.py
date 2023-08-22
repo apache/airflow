@@ -37,6 +37,7 @@ class BuildCiParams(CommonBuildParams):
     airflow_pre_cached_pip_packages: bool = True
     force_build: bool = False
     eager_upgrade_additional_requirements: str = ""
+    skip_provider_dependencies_check: bool = False
 
     @property
     def airflow_version(self):
@@ -52,7 +53,7 @@ class BuildCiParams(CommonBuildParams):
         extra_ci_flags.extend(
             ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
         )
-        if self.airflow_constraints_location is not None and len(self.airflow_constraints_location) > 0:
+        if self.airflow_constraints_location:
             extra_ci_flags.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
             )

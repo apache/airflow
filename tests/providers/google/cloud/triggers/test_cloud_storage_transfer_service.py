@@ -69,7 +69,7 @@ def mock_jobs(names: list[str], latest_operation_names: list[str | None]):
     for job, name in zip(jobs, names):
         job.name = name
     mock_obj = mock.MagicMock()
-    mock_obj.__aiter__.return_value = (job for job in jobs)
+    mock_obj.__aiter__.return_value = iter(jobs)
     return mock_obj
 
 

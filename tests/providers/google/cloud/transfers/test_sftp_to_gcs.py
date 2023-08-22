@@ -73,7 +73,7 @@ class TestSFTPToGCSOperator:
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
         sftp_hook.return_value.retrieve_file.assert_called_once_with(
-            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY, prefetch=True
         )
 
         gcs_hook.return_value.upload.assert_called_once_with(
@@ -99,6 +99,7 @@ class TestSFTPToGCSOperator:
             sftp_conn_id=SFTP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
             gzip=True,
+            sftp_prefetch=False,
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
@@ -108,7 +109,7 @@ class TestSFTPToGCSOperator:
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
         sftp_hook.return_value.retrieve_file.assert_called_once_with(
-            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY, prefetch=False
         )
 
         gcs_hook.return_value.upload.assert_called_once_with(
@@ -133,6 +134,7 @@ class TestSFTPToGCSOperator:
             gcp_conn_id=GCP_CONN_ID,
             sftp_conn_id=SFTP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+            sftp_prefetch=True,
         )
         task.execute(None)
         gcs_hook.assert_called_once_with(
@@ -142,7 +144,7 @@ class TestSFTPToGCSOperator:
         sftp_hook.assert_called_once_with(SFTP_CONN_ID)
 
         sftp_hook.return_value.retrieve_file.assert_called_once_with(
-            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY
+            os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY, prefetch=True
         )
 
         gcs_hook.return_value.upload.assert_called_once_with(
@@ -181,8 +183,8 @@ class TestSFTPToGCSOperator:
 
         sftp_hook.return_value.retrieve_file.assert_has_calls(
             [
-                mock.call("main_dir/test_object3.json", mock.ANY),
-                mock.call("main_dir/sub_dir/test_object3.json", mock.ANY),
+                mock.call("main_dir/test_object3.json", mock.ANY, prefetch=True),
+                mock.call("main_dir/sub_dir/test_object3.json", mock.ANY, prefetch=True),
             ]
         )
 

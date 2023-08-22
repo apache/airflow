@@ -370,7 +370,7 @@ class TestSlackHook:
 
         tmp = tmp_path_factory.mktemp("test_send_file_path")
         file = tmp / "test.json"
-        file.write_bytes(b'{"foo": "bar"}')
+        file.write_text('{"foo": "bar"}')
 
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         hook.send_file(
@@ -405,7 +405,7 @@ class TestSlackHook:
 
         tmp = tmp_path_factory.mktemp("test_send_file_path_set_filename")
         file = tmp / filename
-        file.write_bytes(b'{"foo": "bar"}')
+        file.write_text('{"foo": "bar"}')
 
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         hook.send_file(file=file)

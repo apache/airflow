@@ -841,7 +841,7 @@ def add_back_references(
             "Provide the path of cloned airflow-site repo\n"
         )
         sys.exit(1)
-    if len(packages_plus_all_providers) == 0:
+    if not packages_plus_all_providers:
         get_console().print(
             "\n[error]You need to specify at least one package to generate back references for\n"
         )
@@ -1469,7 +1469,7 @@ def update_constraints(
         get_console().print("[error]You have to provide one of --updated-constraint or --comment-file[/]")
         sys.exit(1)
     airflow_versions_array = airflow_versions.split(",")
-    if len(airflow_versions_array) == 0:
+    if not airflow_versions_array:
         get_console().print("[error]No airflow versions specified - you provided empty string[/]")
         sys.exit(1)
     get_console().print(f"Updating constraints for {airflow_versions_array} with {updated_constraint}")

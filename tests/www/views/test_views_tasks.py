@@ -46,6 +46,7 @@ from tests.test_utils.db import clear_db_runs, clear_db_xcom
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
 DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+STR_DEFAULT_DATE = urllib.parse.quote(DEFAULT_DATE.strftime("%Y-%m-%dT%H:%M:%S.%f%z"))
 
 DEFAULT_VAL = urllib.parse.quote_plus(str(DEFAULT_DATE))
 
@@ -1041,7 +1042,7 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
 def test_task_instances(admin_client):
     """Test task_instances view."""
     resp = admin_client.get(
-        f"/object/task_instances?dag_id=example_bash_operator&execution_date={DEFAULT_DATE}",
+        f"/object/task_instances?dag_id=example_bash_operator&execution_date={STR_DEFAULT_DATE}",
         follow_redirects=True,
     )
     assert resp.status_code == 200

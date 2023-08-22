@@ -2029,8 +2029,7 @@ class DAG(LoggingMixin):
             raise ValueError("TaskGroup {group_id} could not be found")
         tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
         task_ids = [task.task_id for task in task_group.iter_tasks()]
-
-        dag_runs_query = session.query(DagRun.id).where(DagRun.dag_id == self.dag_id)
+        dag_runs_query = select(DagRun.id).where(DagRun.dag_id == self.dag_id)
         if start_date is None and end_date is None:
             dag_runs_query = dag_runs_query.where(DagRun.execution_date == start_date)
         else:
