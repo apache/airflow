@@ -400,10 +400,11 @@ else
 fi
 
 if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
+    _suffix="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)"
     EXTRA_PYTEST_ARGS+=(
         "--cov=airflow"
         "--cov-config=pyproject.toml"
-        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}-${_suffix}.xml"
     )
 fi
 
