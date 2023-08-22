@@ -60,3 +60,5 @@ global.stateColors = {
 global.defaultDagRunDisplayNumber = 245;
 
 global.moment = moment;
+
+global.standaloneDagProcessor=false;
