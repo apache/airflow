@@ -262,7 +262,7 @@ class TestPodManager:
         mock_read_pod_logs.return_value = [bytes(f"{timestamp_string} message", "utf-8"), b"notimestamp"]
         mock_container_is_running.side_effect = [True, False]
 
-        status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock())
+        status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
 
         assert status.last_log_time == cast(DateTime, pendulum.parse(timestamp_string))
 
