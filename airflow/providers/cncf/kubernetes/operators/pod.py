@@ -173,7 +173,7 @@ class KubernetesPodOperator(BaseOperator):
         They can be exposed as environment vars or files in a volume.
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
-        Ignored when in_cluster is True. If None, current-context is used.
+        Ignored when in_cluster is True. If None, current-context is used. (templated)
     :param reattach_on_restart: if the worker dies while the pod is running, reattach and monitor
         during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
@@ -262,6 +262,7 @@ class KubernetesPodOperator(BaseOperator):
         "container_resources",
         "volumes",
         "volume_mounts",
+        "cluster_context",
     )
     template_fields_renderers = {"env_vars": "py"}
 
