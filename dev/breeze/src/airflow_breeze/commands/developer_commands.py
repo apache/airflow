@@ -515,6 +515,9 @@ def static_checks(
         force_build=force_build,
         image_tag=image_tag,
         github_repository=github_repository,
+        # for static checks we do not want to regenerate dependencies before pre-commits are run
+        # we want the pre-commit to do it for us (and detect the case the dependencies are updated)
+        skip_provider_dependencies_check=True,
     )
     if not skip_image_check:
         rebuild_or_pull_ci_image_if_needed(command_params=build_params)

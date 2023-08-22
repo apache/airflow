@@ -125,6 +125,7 @@ class ShellParams:
     celery_flower: bool = False
     only_min_version_update: bool = False
     regenerate_missing_docs: bool = False
+    skip_provider_dependencies_check: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
