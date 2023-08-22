@@ -31,7 +31,7 @@ An overview of how this process works:
 * The trigger runs until it fires, at which point its source task is re-scheduled by the scheduler
 * The scheduler queues the task to resume on a worker node
 
-You can both use pre-written deferrable operators as a DAG author or write your own. Writing them, however, requires that they meet certain design criteria.
+You can either use pre-written deferrable operators as a DAG author or write your own. Writing them, however, requires that they meet certain design criteria.
 
 Using Deferrable Operators
 --------------------------
@@ -145,7 +145,7 @@ The ``self.defer`` call raises the ``TaskDeferred`` exception, so it can work an
 Writing Triggers
 ~~~~~~~~~~~~~~~~
 
-A trigger is written as a class that inherits from ``BaseTrigger``, and implements three methods:
+A *Trigger* is written as a class that inherits from ``BaseTrigger``, and implements three methods:
 
 * ``__init__``: A method to receive arguments from operators instantiating it.
 * ``run``: An asynchronous method that runs its logic and yields one or more ``TriggerEvent`` instances as an asynchronous generator.
@@ -157,7 +157,7 @@ There's some design constraints to be aware of when writing your own trigger:
 * ``run`` must ``yield`` its TriggerEvents, not return them. If it returns before yielding at least one event, Airflow will consider this an error and fail any Task Instances waiting on it. If it throws an exception, Airflow will also fail any dependent task instances.
 * You should assume that a trigger instance can run *more than once*. This can happen if a network partition occurs and Airflow re-launches a trigger on a separated machine. So, you must be mindful about side effects. For example you might not want to use a trigger to insert database rows.
 * If your trigger is designed to emit more than one event (not currently supported), then each emitted event *must* contain a payload that can be used to deduplicate events if the trigger is running in multiple places. If you only fire one event and don't need to pass information back to the operator, you can just set the payload to ``None``.
-* A trigger can be suddenly removed from one triggerer service and started on a new one. For example, if subnets are changed and a network partition results or if there is a deployment. If desired, you can implement the ``cleanup`` method, which is always called after ``run``, whether the trigger exits cleanly or otherwise.
+* A trigger can suddenly be removed from one triggerer service and started on a new one. For example, if subnets are changed and a network partition results or if there is a deployment. If desired, you can implement the ``cleanup`` method, which is always called after ``run``, whether the trigger exits cleanly or otherwise.
 
 .. note::
 
@@ -190,11 +190,11 @@ This example shows the structure of a basic trigger, a very simplified version o
 
 The code example shows several things:
 
-* ``__init__`` and ``serialize`` are written as a pair. The trigger is instantiated once when it is submitted by the operator as part of its deferral request, then serialized and re-instantiated on any *triggerer* process that runs the trigger.
+* ``__init__`` and ``serialize`` are written as a pair. The trigger is instantiated once when it is submitted by the operator as part of its deferral request, then serialized and re-instantiated on any triggerer process that runs the trigger.
 * The ``run`` method is declared as an ``async def``, as it *must* be asynchronous, and uses ``asyncio.sleep`` rather than the regular ``time.sleep`` (because that would block the process).
 * When it emits its event it packs ``self.moment`` in there, so if this trigger is being run redundantly on multiple hosts, the event can be de-duplicated.
 
-Triggers can be as complex or as simple as you want, provided they meet the design constraints. They can run in a highly-available fashion, and are auto-distributed among hosts running the *triggerer*. We encourage you to avoid any kind of persistent state in a trigger. Triggers should get everything they need from their ``__init__``, so they can be serialized and moved around freely.
+Triggers can be as complex or as simple as you want, provided they meet the design constraints. They can run in a highly-available fashion, and are auto-distributed among hosts running the triggerer. We encourage you to avoid any kind of persistent state in a trigger. Triggers should get everything they need from their ``__init__``, so they can be serialized and moved around freely.
 
 If you are new to writing asynchronous Python, be very careful when writing your ``run()`` method. Python's async model means that code can block the entire process if it does not correctly ``await`` when it does a blocking operation. Airflow attempts to detect process blocking code and warn you in the triggerer logs when it happens. You can enable extra checks by Python by setting the variable ``PYTHONASYNCIODEBUG=1`` when you are writing your trigger to make sure you're writing non-blocking code. Be especially careful when doing filesystem calls, because if the underlying filesystem is network-backed, it can be blocking.
 
