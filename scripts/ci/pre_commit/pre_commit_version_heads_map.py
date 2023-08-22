@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 
 import re2
+from packaging.version import parse as parse_version
 
 PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -43,6 +44,7 @@ def revision_heads_map():
         return int(prefix) if prefix.isdigit() else 0
 
     sorted_filenames = sorted(filenames, key=sorting_key)
+
     for filename in sorted_filenames:
         with open(os.path.join(MIGRATION_PATH, filename)) as file:
             content = file.read()
@@ -51,7 +53,8 @@ def revision_heads_map():
             if revision_match and airflow_version_match:
                 revision = revision_match.group(0).split('"')[1]
                 version = airflow_version_match.group(0).split('"')[1]
-                rh_map[version] = revision
+                if parse_version(version) >= parse_version("2.0.0"):
+                    rh_map[version] = revision
     return rh_map
 
 
