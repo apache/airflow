@@ -22,7 +22,7 @@ import type { DepEdge, DepNode } from "./types";
 // define global variables that come from FAB
 declare global {
   const autoRefreshInterval: number | undefined;
-  const standaloneDagProcessor: string | undefined;
+  const standaloneDagProcessor: boolean | false;
   const stateColors: {
     [key: string]: string;
   };
