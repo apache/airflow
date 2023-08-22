@@ -590,7 +590,9 @@ def tuple_not_in_condition(
 
     :meta private:
     """
-    if settings.engine.dialect.name != "mssql":
+    dialect = session.bind.dialect if session else settings.engine.dialect
+
+    if dialect.name != "mssql":
         return tuple_(*columns).not_in(collection)
     if not isinstance(collection, Select):
         rows = collection

@@ -413,7 +413,7 @@ devel_only = [
     "blinker",
     "bowler",
     "click>=8.0",
-    "coverage",
+    "coverage>=7.2",
     "filelock",
     "gitpython",
     "ipdb",

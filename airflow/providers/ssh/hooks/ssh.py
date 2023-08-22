@@ -446,7 +446,7 @@ class SSHHook(BaseHook):
         :return: ``paramiko.PKey`` appropriate for given key
         :raises AirflowException: if key cannot be read
         """
-        if len(private_key.split("\n", 2)) < 2:
+        if len(private_key.splitlines()) < 2:
             raise AirflowException("Key must have BEGIN and END header/footer on separate lines.")
 
         for pkey_class in self._pkey_loaders:
