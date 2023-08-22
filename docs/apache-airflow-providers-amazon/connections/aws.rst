@@ -746,7 +746,7 @@ Using IAM Roles for Service Accounts (IRSA) on EKS
 
 If you are running Airflow on `Amazon EKS <https://aws.amazon.com/eks/>`_,
 you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service
-by granting the IAM role to it's service account.
+by granting the IAM role to its service account.
 IRSA provides fine-grained permission management for apps(e.g., pods) that run on EKS and use other AWS services.
 These could be apps that use S3, any other AWS services like Secrets Manager, CloudWatch, DynamoDB etc.
 

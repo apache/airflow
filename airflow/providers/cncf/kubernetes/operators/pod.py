@@ -232,7 +232,7 @@ class KubernetesPodOperator(BaseOperator):
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
     :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
-        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
