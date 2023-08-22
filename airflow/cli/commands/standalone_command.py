@@ -193,9 +193,8 @@ class StandaloneCommand:
             self.print_output("standalone", "Creating admin user")
             role = appbuilder.sm.find_role("Admin")
             assert role is not None
-            password = "".join(
-                random.choice("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789") for i in range(16)
-            )
+            # password does not contain visually similar characters: ijlIJL1oO0
+            password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
             with open(password_path, "w") as file:
                 file.write(password)
             make_group_other_inaccessible(password_path)
