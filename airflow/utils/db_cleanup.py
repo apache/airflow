@@ -38,6 +38,7 @@ from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
 from airflow import AirflowException
 from airflow.cli.simple_table import AirflowConsole
+from airflow.configuration import conf
 from airflow.models import Base
 from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
@@ -114,6 +115,9 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
 ]
+
+if conf.get("webserver", "session_backend") == "database":
+    config_list.append(_TableConfig(table_name="session", recency_column_name="expiry"))
 
 config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
 

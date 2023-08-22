@@ -35,7 +35,7 @@
 #                        much smaller.
 #
 # Use the same builder frontend version for everyone
-ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -44,7 +44,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.6.3"
+ARG AIRFLOW_VERSION="2.7.0"
 
 ARG PYTHON_BASE_IMAGE="python:3.8-slim-bullseye"
 
@@ -73,6 +73,7 @@ FROM scratch as scripts
 
 # The content below is automatically copied from scripts/docker/install_os_dependencies.sh
 COPY <<"EOF" /install_os_dependencies.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 DOCKER_CLI_VERSION=20.10.9
@@ -175,6 +176,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
 COPY <<"EOF" /install_mysql.sh
+#!/usr/bin/env bash
 set -euo pipefail
 declare -a packages
 
@@ -264,6 +266,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_mssql.sh
 COPY <<"EOF" /install_mssql.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
@@ -343,6 +346,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_postgres.sh
 COPY <<"EOF" /install_postgres.sh
+#!/usr/bin/env bash
 set -euo pipefail
 declare -a packages
 
@@ -384,6 +388,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_pip_version.sh
 COPY <<"EOF" /install_pip_version.sh
+#!/usr/bin/env bash
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
@@ -398,6 +403,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow_dependencies_from_branch_tip.sh
 COPY <<"EOF" /install_airflow_dependencies_from_branch_tip.sh
+#!/usr/bin/env bash
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -444,6 +450,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/common.sh
 COPY <<"EOF" /common.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 function common::get_colors() {
@@ -594,7 +601,7 @@ function install_airflow_and_providers_from_docker_context_files(){
     pip install "${pip_flags[@]}" --root-user-action ignore --upgrade --upgrade-strategy eager \
         ${ADDITIONAL_PIP_INSTALL_FLAGS} \
         ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
-        ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+        ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
     set +x
 
     common::install_pip_version
@@ -633,6 +640,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow.sh
 COPY <<"EOF" /install_airflow.sh
+#!/usr/bin/env bash
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -665,7 +673,7 @@ function install_airflow() {
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
-            ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+            ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         if [[ -n "${AIRFLOW_INSTALL_EDITABLE_FLAG}" ]]; then
             # Remove airflow and reinstall it using editable flag
             # We can only do it when we install airflow from sources
@@ -718,6 +726,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_additional_dependencies.sh
 COPY <<"EOF" /install_additional_dependencies.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 : "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
@@ -734,7 +743,7 @@ function install_additional_dependencies() {
         set -x
         pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+            ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         common::install_pip_version
         set +x
         echo
@@ -943,9 +952,9 @@ function wait_for_airflow_db() {
     run_check_with_retries "airflow db check"
 }
 
-function upgrade_db() {
-    # Runs airflow db upgrade
-    airflow db upgrade || true
+function migrate_db() {
+    # Runs airflow db migrate
+    airflow db migrate || true
 }
 
 function wait_for_celery_broker() {
@@ -1023,8 +1032,12 @@ if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
     wait_for_airflow_db
 fi
 
+if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] || [[ -n "${_AIRFLOW_DB_MIGRATE=}" ]] ; then
+    migrate_db
+fi
+
 if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] ; then
-    upgrade_db
+    >&2 echo "WARNING: Environment variable '_AIRFLOW_DB_UPGRADE' is deprecated please use '_AIRFLOW_DB_MIGRATE' instead"
 fi
 
 if [[ -n "${_AIRFLOW_WWW_USER_CREATE=}" ]] ; then
@@ -1041,7 +1054,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo "         https://airflow.apache.org/docs/docker-stack/build.html"
     >&2 echo
     >&2 echo "         Adding requirements at container startup is fragile and is done every time"
-    >&2 echo "         the container starts, so it is onlny useful for testing and trying out"
+    >&2 echo "         the container starts, so it is only useful for testing and trying out"
     >&2 echo "         of adding dependencies."
     >&2 echo
     pip install --root-user-action ignore --no-cache-dir ${_PIP_ADDITIONAL_REQUIREMENTS}
@@ -1085,6 +1098,8 @@ while true; do
     -type d -name 'lost+found' -prune -o \
     -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
     xargs -0 rm -f
+
+  find "${DIRECTORY}"/logs -type d -empty -delete
 
   seconds=$(( $(date -u +%s) % EVERY))
   (( seconds < 1 )) || sleep $((EVERY - seconds - 1))
@@ -1284,17 +1299,11 @@ COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 # Add extra python dependencies
 ARG ADDITIONAL_PYTHON_DEPS=""
 
-# Those are additional constraints that are needed for some extras but we do not want to
-# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
-# dependency resolution and we do not need to limit the versions of the dependencies
-# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
 
 ARG VERSION_SUFFIX_FOR_PYPI=""
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
-    EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
 
 WORKDIR ${AIRFLOW_HOME}

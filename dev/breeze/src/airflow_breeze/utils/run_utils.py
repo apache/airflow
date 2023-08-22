@@ -97,7 +97,7 @@ def run_command(
             return False
         if _arg.startswith("-"):
             return True
-        if len(_arg) == 0:
+        if not _arg:
             return True
         if _arg.startswith("/"):
             # Skip any absolute paths
@@ -361,10 +361,7 @@ def commit_sha():
 
 def filter_out_none(**kwargs) -> dict:
     """Filters out all None values from parameters passed."""
-    for key in list(kwargs):
-        if kwargs[key] is None:
-            kwargs.pop(key)
-    return kwargs
+    return {key: val for key, val in kwargs.items() if val is not None}
 
 
 def check_if_image_exists(image: str) -> bool:

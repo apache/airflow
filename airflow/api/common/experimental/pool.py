@@ -45,7 +45,7 @@ def get_pool(name, session: Session = NEW_SESSION):
 @provide_session
 def get_pools(session: Session = NEW_SESSION):
     """Get all pools."""
-    return session.query(Pool).all()
+    return session.scalars(select(Pool)).all()
 
 
 @deprecated(reason="Use Pool.create_pool() instead", version="2.2.4")
@@ -68,7 +68,7 @@ def create_pool(name, slots, description, session: Session = NEW_SESSION):
     session.expire_on_commit = False
     pool = session.scalar(select(Pool).filter_by(pool=name).limit(1))
     if pool is None:
-        pool = Pool(pool=name, slots=slots, description=description)
+        pool = Pool(pool=name, slots=slots, description=description, include_deferred=False)
         session.add(pool)
     else:
         pool.slots = slots

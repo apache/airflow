@@ -27,8 +27,7 @@ RT = TypeVar("RT")
 
 def providers_configuration_loaded(func: Callable[PS, RT]) -> Callable[PS, RT]:
     """
-    Decorator that makes sure that providers configuration is loaded before actually calling
-    the decorated function.
+    Make sure that providers configuration is loaded before actually calling the decorated function.
 
     ProvidersManager initialization of configuration is relatively inexpensive - it walks through
     all providers's entrypoints, retrieve the provider_info and loads config yaml parts of the get_info.

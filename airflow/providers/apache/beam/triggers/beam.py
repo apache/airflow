@@ -68,7 +68,7 @@ class BeamPipelineTrigger(BaseTrigger):
         self.runner = runner
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes BeamPipelineTrigger arguments and classpath."""
+        """Serialize BeamPipelineTrigger arguments and classpath."""
         return (
             "airflow.providers.apache.beam.triggers.beam.BeamPipelineTrigger",
             {
@@ -83,34 +83,31 @@ class BeamPipelineTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current pipeline status and yields a TriggerEvent."""
+        """Get current pipeline status and yields a TriggerEvent."""
         hook = self._get_async_hook()
-        while True:
-            try:
-                return_code = await hook.start_python_pipeline_async(
-                    variables=self.variables,
-                    py_file=self.py_file,
-                    py_options=self.py_options,
-                    py_interpreter=self.py_interpreter,
-                    py_requirements=self.py_requirements,
-                    py_system_site_packages=self.py_system_site_packages,
+        try:
+            return_code = await hook.start_python_pipeline_async(
+                variables=self.variables,
+                py_file=self.py_file,
+                py_options=self.py_options,
+                py_interpreter=self.py_interpreter,
+                py_requirements=self.py_requirements,
+                py_system_site_packages=self.py_system_site_packages,
+            )
+        except Exception as e:
+            self.log.exception("Exception occurred while checking for pipeline state")
+            yield TriggerEvent({"status": "error", "message": str(e)})
+        else:
+            if return_code == 0:
+                yield TriggerEvent(
+                    {
+                        "status": "success",
+                        "message": "Pipeline has finished SUCCESSFULLY",
+                    }
                 )
-                if return_code == 0:
-                    yield TriggerEvent(
-                        {
-                            "status": "success",
-                            "message": "Pipeline has finished SUCCESSFULLY",
-                        }
-                    )
-                    return
-                else:
-                    yield TriggerEvent({"status": "error", "message": "Operation failed"})
-                    return
-
-            except Exception as e:
-                self.log.exception("Exception occurred while checking for pipeline state")
-                yield TriggerEvent({"status": "error", "message": str(e)})
-                return
+            else:
+                yield TriggerEvent({"status": "error", "message": "Operation failed"})
+        return
 
     def _get_async_hook(self) -> BeamAsyncHook:
         return BeamAsyncHook(runner=self.runner)

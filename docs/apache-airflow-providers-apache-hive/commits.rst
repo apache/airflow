@@ -28,14 +28,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.1.4
+.....
+
+Latest change: 2023-08-04
+
+=================================================================================================  ===========  =====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================
+`108a07b580 <https://github.com/apache/airflow/commit/108a07b580ca185b5982f2e60deb70f73a1f745a>`_  2023-08-04   ``Bring back mysql-connector-python as required depednency (#32989)``
+=================================================================================================  ===========  =====================================================================
+
+6.1.3
+.....
+
+Latest change: 2023-07-29
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
+`0c0b8a3a0e <https://github.com/apache/airflow/commit/0c0b8a3a0e7d6f23029f76d3fb0d185cdcc671ec>`_  2023-07-24   ``Move Hive configuration to Apache Hive provider (#32777)``
+`00aa6ea72c <https://github.com/apache/airflow/commit/00aa6ea72c4d72df6c62ac1dda9bb145bece2e1c>`_  2023-07-21   ``Fix Pandas2 compatibility for Hive (#32752)``
+`60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
+=================================================================================================  ===========  ==============================================================
+
 6.1.2
 .....
 
-Latest change: 2023-07-05
+Latest change: 2023-07-06
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `1c1dbd872d <https://github.com/apache/airflow/commit/1c1dbd872d5378856b4242961dcdf77c7f0dd712>`_  2023-07-04   ``Add proxy_user template check (#32334)``

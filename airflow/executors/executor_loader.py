@@ -72,7 +72,7 @@ class ExecutorLoader:
 
     @classmethod
     def get_default_executor_name(cls) -> str:
-        """Returns the default executor name from Airflow configuration.
+        """Return the default executor name from Airflow configuration.
 
         :return: executor name from Airflow configuration
         """
@@ -82,7 +82,7 @@ class ExecutorLoader:
 
     @classmethod
     def get_default_executor(cls) -> BaseExecutor:
-        """Creates a new instance of the configured executor if none exists and returns it."""
+        """Create a new instance of the configured executor if none exists and returns it."""
         if cls._default_executor is not None:
             return cls._default_executor
 
@@ -91,7 +91,7 @@ class ExecutorLoader:
     @classmethod
     def load_executor(cls, executor_name: str) -> BaseExecutor:
         """
-        Loads the executor.
+        Load the executor.
 
         This supports the following formats:
         * by executor name for core executor
@@ -119,18 +119,24 @@ class ExecutorLoader:
         return executor_cls()
 
     @classmethod
-    def import_executor_cls(cls, executor_name: str) -> tuple[type[BaseExecutor], ConnectorSource]:
+    def import_executor_cls(
+        cls, executor_name: str, validate: bool = True
+    ) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
-        Imports the executor class.
+        Import the executor class.
 
         Supports the same formats as ExecutorLoader.load_executor.
+
+        :param executor_name: Name of core executor or module path to provider provided as a plugin.
+        :param validate: Whether or not to validate the executor before returning
 
         :return: executor class via executor_name and executor import source
         """
 
         def _import_and_validate(path: str) -> type[BaseExecutor]:
             executor = import_string(path)
-            cls.validate_database_executor_compatibility(executor)
+            if validate:
+                cls.validate_database_executor_compatibility(executor)
             return executor
 
         if executor_name in cls.executors:
@@ -151,20 +157,23 @@ class ExecutorLoader:
         return _import_and_validate(executor_name), ConnectorSource.CUSTOM_PATH
 
     @classmethod
-    def import_default_executor_cls(cls) -> tuple[type[BaseExecutor], ConnectorSource]:
+    def import_default_executor_cls(cls, validate: bool = True) -> tuple[type[BaseExecutor], ConnectorSource]:
         """
-        Imports the default executor class.
+        Import the default executor class.
+
+        :param validate: Whether or not to validate the executor before returning
 
         :return: executor class and executor import source
         """
         executor_name = cls.get_default_executor_name()
-        executor, source = cls.import_executor_cls(executor_name)
+        executor, source = cls.import_executor_cls(executor_name, validate=validate)
         return executor, source
 
     @classmethod
     @functools.lru_cache(maxsize=None)
     def validate_database_executor_compatibility(cls, executor: type[BaseExecutor]) -> None:
-        """Validate database and executor compatibility.
+        """
+        Validate database and executor compatibility.
 
         Most of the databases work universally, but SQLite can only work with
         single-threaded executors (e.g. Sequential).

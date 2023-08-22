@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import csv
-from collections import OrderedDict
 from contextlib import closing
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
@@ -114,7 +113,7 @@ class MySqlToHiveOperator(BaseOperator):
 
     @classmethod
     def type_map(cls, mysql_type: int) -> str:
-        """Maps MySQL type to Hive type."""
+        """Map MySQL type to Hive type."""
         types = MySQLdb.constants.FIELD_TYPE
         type_map = {
             types.BIT: "INT",
@@ -147,11 +146,11 @@ class MySqlToHiveOperator(BaseOperator):
                         quotechar=self.quotechar if self.quoting != csv.QUOTE_NONE else None,
                         escapechar=self.escapechar,
                     )
-                    field_dict = OrderedDict()
+                    field_dict = {}
                     if cursor.description is not None:
                         for field in cursor.description:
                             field_dict[field[0]] = self.type_map(field[1])
-                    csv_writer.writerows(cursor)
+                    csv_writer.writerows(cursor)  # type: ignore[arg-type]
             f.flush()
             self.log.info("Loading file into Hive")
             hive.load_file(

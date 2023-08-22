@@ -24,7 +24,6 @@ import argparse
 import json
 import os
 import textwrap
-from argparse import ArgumentError
 from typing import Callable, Iterable, NamedTuple, Union
 
 import lazy_object_proxy
@@ -32,8 +31,6 @@ import lazy_object_proxy
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
-from airflow.executors.executor_constants import CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.cli import ColorMode
 from airflow.utils.module_loading import import_string
@@ -61,46 +58,6 @@ class DefaultHelpParser(argparse.ArgumentParser):
 
     def _check_value(self, action, value):
         """Override _check_value and check conditionally added command."""
-        if action.dest == "subcommand" and value == "celery":
-            executor = conf.get("core", "EXECUTOR")
-            if executor not in (CELERY_EXECUTOR, CELERY_KUBERNETES_EXECUTOR):
-                executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
-                classes = ()
-                try:
-                    from airflow.providers.celery.executors.celery_executor import CeleryExecutor
-
-                    classes += (CeleryExecutor,)
-                except ImportError:
-                    message = (
-                        "The celery subcommand requires that you pip install the celery module. "
-                        "To do it, run: pip install 'apache-airflow[celery]'"
-                    )
-                    raise ArgumentError(action, message)
-                try:
-                    from airflow.providers.celery.executors.celery_kubernetes_executor import (
-                        CeleryKubernetesExecutor,
-                    )
-
-                    classes += (CeleryKubernetesExecutor,)
-                except ImportError:
-                    pass
-                if not issubclass(executor_cls, classes):
-                    message = (
-                        f"celery subcommand works only with CeleryExecutor, CeleryKubernetesExecutor and "
-                        f"executors derived from them, your current executor: {executor}, subclassed from: "
-                        f'{", ".join([base_cls.__qualname__ for base_cls in executor_cls.__bases__])}'
-                    )
-                    raise ArgumentError(action, message)
-        if action.dest == "subcommand" and value == "kubernetes":
-            try:
-                import kubernetes.client  # noqa: F401
-            except ImportError:
-                message = (
-                    "The kubernetes subcommand requires that you pip install the kubernetes python client. "
-                    "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
-                )
-                raise ArgumentError(action, message)
-
         if action.choices is not None and value not in action.choices:
             check_legacy_command(action, value)
 
@@ -174,12 +131,12 @@ def positive_int(*, allow_zero):
 
 
 def string_list_type(val):
-    """Parses comma-separated list and returns list of string (strips whitespace)."""
+    """Parse comma-separated list and returns list of string (strips whitespace)."""
     return [x.strip() for x in val.split(",")]
 
 
 def string_lower_type(val):
-    """Lowers arg."""
+    """Lower arg."""
     if not val:
         return
     return val.strip().lower()
@@ -556,6 +513,9 @@ ARG_DB_RETRY_DELAY = Arg(
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
 ARG_POOL_SLOTS = Arg(("slots",), type=int, help="Pool slots")
 ARG_POOL_DESCRIPTION = Arg(("description",), help="Pool description")
+ARG_POOL_INCLUDE_DEFERRED = Arg(
+    ("--include-deferred",), help="Include deferred tasks in calculations for Pool", action="store_true"
+)
 ARG_POOL_IMPORT = Arg(
     ("file",),
     metavar="FILEPATH",
@@ -564,8 +524,8 @@ ARG_POOL_IMPORT = Arg(
         textwrap.dedent(
             """
             {
-                "pool_1": {"slots": 5, "description": ""},
-                "pool_2": {"slots": 10, "description": "test"}
+                "pool_1": {"slots": 5, "description": "", "include_deferred": true},
+                "pool_2": {"slots": 10, "description": "test", "include_deferred": false}
             }"""
         ),
         " " * 4,
@@ -583,7 +543,11 @@ ARG_DEFAULT = Arg(
 ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
 ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
 ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
-ARG_VAR_EXPORT = Arg(("file",), help="Export all variables to JSON file")
+ARG_VAR_EXPORT = Arg(
+    ("file",),
+    help="Export all variables to JSON file",
+    type=argparse.FileType("w", encoding="UTF-8"),
+)
 
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
@@ -823,25 +787,6 @@ ARG_DO_PICKLE = Arg(
     action="store_true",
 )
 
-ARG_QUEUES = Arg(
-    ("-q", "--queues"),
-    help="Comma delimited list of queues to serve",
-    default=conf.get("operators", "DEFAULT_QUEUE"),
-)
-ARG_CONCURRENCY = Arg(
-    ("-c", "--concurrency"),
-    type=int,
-    help="The number of worker processes",
-    default=conf.getint("celery", "worker_concurrency"),
-)
-ARG_CELERY_HOSTNAME = Arg(
-    ("-H", "--celery-hostname"),
-    help="Set the hostname of celery worker if you have multiple workers on a single machine",
-)
-ARG_UMASK = Arg(
-    ("-u", "--umask"),
-    help="Set the umask of celery worker in daemon mode",
-)
 ARG_WITHOUT_MINGLE = Arg(
     ("--without-mingle",),
     default=False,
@@ -855,34 +800,6 @@ ARG_WITHOUT_GOSSIP = Arg(
     action="store_true",
 )
 
-# flower
-ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
-ARG_FLOWER_HOSTNAME = Arg(
-    ("-H", "--hostname"),
-    default=conf.get("celery", "FLOWER_HOST"),
-    help="Set the hostname on which to run the server",
-)
-ARG_FLOWER_PORT = Arg(
-    ("-p", "--port"),
-    default=conf.getint("celery", "FLOWER_PORT"),
-    type=int,
-    help="The port on which to run the server",
-)
-ARG_FLOWER_CONF = Arg(("-c", "--flower-conf"), help="Configuration file for flower")
-ARG_FLOWER_URL_PREFIX = Arg(
-    ("-u", "--url-prefix"),
-    default=conf.get("celery", "FLOWER_URL_PREFIX"),
-    help="URL prefix for Flower",
-)
-ARG_FLOWER_BASIC_AUTH = Arg(
-    ("-A", "--basic-auth"),
-    default=conf.get("celery", "FLOWER_BASIC_AUTH"),
-    help=(
-        "Securing Flower with Basic Authentication. "
-        "Accepts user:password pairs separated by a comma. "
-        "Example: flower_basic_auth = user1:password1,user2:password2"
-    ),
-)
 ARG_TASK_PARAMS = Arg(("-t", "--task-params"), help="Sends a JSON params dict to the task")
 ARG_POST_MORTEM = Arg(
     ("-m", "--post-mortem"), action="store_true", help="Open debugger on uncaught exception"
@@ -1146,6 +1063,7 @@ class ActionCommand(NamedTuple):
     args: Iterable[Arg]
     description: str | None = None
     epilog: str | None = None
+    hide: bool = False
 
 
 class GroupCommand(NamedTuple):
@@ -1545,7 +1463,14 @@ POOLS_COMMANDS = (
         name="set",
         help="Configure pool",
         func=lazy_load_command("airflow.cli.commands.pool_command.pool_set"),
-        args=(ARG_POOL_NAME, ARG_POOL_SLOTS, ARG_POOL_DESCRIPTION, ARG_OUTPUT, ARG_VERBOSE),
+        args=(
+            ARG_POOL_NAME,
+            ARG_POOL_SLOTS,
+            ARG_POOL_DESCRIPTION,
+            ARG_POOL_INCLUDE_DEFERRED,
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+        ),
     ),
     ActionCommand(
         name="delete",
@@ -1600,6 +1525,10 @@ VARIABLES_COMMANDS = (
     ActionCommand(
         name="export",
         help="Export all variables",
+        description=(
+            "All variables can be exported in STDOUT using the following command:\n"
+            "airflow variables export -\n"
+        ),
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_export"),
         args=(ARG_VAR_EXPORT, ARG_VERBOSE),
     ),
@@ -1607,9 +1536,14 @@ VARIABLES_COMMANDS = (
 DB_COMMANDS = (
     ActionCommand(
         name="init",
-        help="Initialize the metadata database",
+        help=(
+            "Deprecated -- use `migrate` instead. "
+            "To create default connections use `airflow connections create-default-connections`. "
+            "Initialize the metadata database"
+        ),
         func=lazy_load_command("airflow.cli.commands.db_command.initdb"),
         args=(ARG_VERBOSE,),
+        hide=True,
     ),
     ActionCommand(
         name="check-migrations",
@@ -1626,7 +1560,7 @@ DB_COMMANDS = (
     ),
     ActionCommand(
         name="upgrade",
-        help="Upgrade the metadata database to latest version",
+        help="Deprecated -- use `migrate` instead. Upgrade the metadata database to latest version",
         description=(
             "Upgrade the schema of the metadata database. "
             "To print but not execute commands, use option ``--show-sql-only``. "
@@ -1635,6 +1569,29 @@ DB_COMMANDS = (
             "migrate from the *current* Alembic revision."
         ),
         func=lazy_load_command("airflow.cli.commands.db_command.upgradedb"),
+        args=(
+            ARG_DB_REVISION__UPGRADE,
+            ARG_DB_VERSION__UPGRADE,
+            ARG_DB_SQL_ONLY,
+            ARG_DB_FROM_REVISION,
+            ARG_DB_FROM_VERSION,
+            ARG_DB_RESERIALIZE_DAGS,
+            ARG_VERBOSE,
+        ),
+        hide=True,
+    ),
+    ActionCommand(
+        name="migrate",
+        help="Migrates the metadata database to the latest version",
+        description=(
+            "Migrate the schema of the metadata database. "
+            "Create the database if it does not exist "
+            "To print but not execute commands, use option ``--show-sql-only``. "
+            "If using options ``--from-revision`` or ``--from-version``, you must also use "
+            "``--show-sql-only``, because if actually *running* migrations, we should only "
+            "migrate from the *current* Alembic revision."
+        ),
+        func=lazy_load_command("airflow.cli.commands.db_command.migratedb"),
         args=(
             ARG_DB_REVISION__UPGRADE,
             ARG_DB_VERSION__UPGRADE,
@@ -1783,6 +1740,13 @@ CONNECTIONS_COMMANDS = (
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_test"),
         args=(ARG_CONN_ID, ARG_VERBOSE),
     ),
+    ActionCommand(
+        name="create-default-connections",
+        help="Creates all the default connections from all the providers",
+        func=lazy_load_command("airflow.cli.commands.connection_command.create_default_connections"),
+        # func=lazy_load_command("airflow.utils.db.create_default_connections"),
+        args=(ARG_VERBOSE,),
+    ),
 )
 PROVIDERS_COMMANDS = (
     ActionCommand(
@@ -1852,6 +1816,12 @@ PROVIDERS_COMMANDS = (
         name="executors",
         help="Get information about executors provided",
         func=lazy_load_command("airflow.cli.commands.provider_command.executors_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="notifications",
+        help="Get information about notifications provided",
+        func=lazy_load_command("airflow.cli.commands.provider_command.notifications_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
@@ -1978,55 +1948,6 @@ ROLES_COMMANDS = (
     ),
 )
 
-CELERY_COMMANDS = (
-    ActionCommand(
-        name="worker",
-        help="Start a Celery worker node",
-        func=lazy_load_command("airflow.cli.commands.celery_command.worker"),
-        args=(
-            ARG_QUEUES,
-            ARG_CONCURRENCY,
-            ARG_CELERY_HOSTNAME,
-            ARG_PID,
-            ARG_DAEMON,
-            ARG_UMASK,
-            ARG_STDOUT,
-            ARG_STDERR,
-            ARG_LOG_FILE,
-            ARG_AUTOSCALE,
-            ARG_SKIP_SERVE_LOGS,
-            ARG_WITHOUT_MINGLE,
-            ARG_WITHOUT_GOSSIP,
-            ARG_VERBOSE,
-        ),
-    ),
-    ActionCommand(
-        name="flower",
-        help="Start a Celery Flower",
-        func=lazy_load_command("airflow.cli.commands.celery_command.flower"),
-        args=(
-            ARG_FLOWER_HOSTNAME,
-            ARG_FLOWER_PORT,
-            ARG_FLOWER_CONF,
-            ARG_FLOWER_URL_PREFIX,
-            ARG_FLOWER_BASIC_AUTH,
-            ARG_BROKER_API,
-            ARG_PID,
-            ARG_DAEMON,
-            ARG_STDOUT,
-            ARG_STDERR,
-            ARG_LOG_FILE,
-            ARG_VERBOSE,
-        ),
-    ),
-    ActionCommand(
-        name="stop",
-        help="Stop the Celery worker gracefully",
-        func=lazy_load_command("airflow.cli.commands.celery_command.stop_worker"),
-        args=(ARG_PID, ARG_VERBOSE),
-    ),
-)
-
 CONFIG_COMMANDS = (
     ActionCommand(
         name="get-value",
@@ -2108,9 +2029,6 @@ core_commands: list[CLICommand] = [
         name="dags",
         help="Manage DAGs",
         subcommands=DAGS_COMMANDS,
-    ),
-    GroupCommand(
-        name="kubernetes", help="Tools to help run the KubernetesExecutor", subcommands=KUBERNETES_COMMANDS
     ),
     GroupCommand(
         name="tasks",
@@ -2297,15 +2215,6 @@ core_commands: list[CLICommand] = [
         help="Dump information about loaded plugins",
         func=lazy_load_command("airflow.cli.commands.plugins_command.dump_plugins"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
-    ),
-    GroupCommand(
-        name="celery",
-        help="Celery components",
-        description=(
-            "Start celery components. Works only when using CeleryExecutor. For more information, see "
-            "https://airflow.apache.org/docs/apache-airflow/stable/executor/celery.html"
-        ),
-        subcommands=CELERY_COMMANDS,
     ),
     ActionCommand(
         name="standalone",

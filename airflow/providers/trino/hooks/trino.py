@@ -178,7 +178,7 @@ class TrinoHook(DbApiHook):
     def get_pandas_df(
         self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
     ):  # type: ignore[override]
-        import pandas
+        import pandas as pd
 
         cursor = self.get_cursor()
         try:
@@ -188,10 +188,10 @@ class TrinoHook(DbApiHook):
             raise TrinoException(e)
         column_descriptions = cursor.description
         if data:
-            df = pandas.DataFrame(data, **kwargs)
+            df = pd.DataFrame(data, **kwargs)
             df.columns = [c[0] for c in column_descriptions]
         else:
-            df = pandas.DataFrame(**kwargs)
+            df = pd.DataFrame(**kwargs)
         return df
 
     def insert_rows(

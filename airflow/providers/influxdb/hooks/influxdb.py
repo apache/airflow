@@ -24,7 +24,8 @@ This module allows to connect to a InfluxDB database.
 """
 from __future__ import annotations
 
-import pandas as pd
+from typing import TYPE_CHECKING
+
 from influxdb_client import InfluxDBClient
 from influxdb_client.client.flux_table import FluxTable
 from influxdb_client.client.write.point import Point
@@ -32,6 +33,9 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 class InfluxDBHook(BaseHook):

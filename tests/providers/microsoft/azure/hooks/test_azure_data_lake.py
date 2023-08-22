@@ -25,9 +25,8 @@ import pytest
 from azure.storage.filedatalake._models import FileSystemProperties
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook, AzureDataLakeStorageV2Hook
+from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeStorageV2Hook
 from airflow.utils import db
-from tests.test_utils.providers import get_provider_min_airflow_version
 
 
 class TestAzureDataLakeHook:
@@ -137,24 +136,6 @@ class TestAzureDataLakeHook:
         hook = AzureDataLakeHook(azure_data_lake_conn_id="adl_test_key")
         hook.remove("filepath", True)
         mock_fs.return_value.remove.assert_called_once_with("filepath", recursive=True)
-
-    def test_get_ui_field_behaviour_placeholders(self):
-        """
-        Check that ensure_prefixes decorator working properly
-
-        Note: remove this test and the _ensure_prefixes decorator after min airflow version >= 2.5.0
-        """
-        assert list(AzureDataLakeHook.get_ui_field_behaviour()["placeholders"].keys()) == [
-            "login",
-            "password",
-            "extra__azure_data_lake__tenant",
-            "extra__azure_data_lake__account_name",
-        ]
-        if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
-            raise Exception(
-                "You must now remove `_ensure_prefixes` from azure utils."
-                " The functionality is now taken care of by providers manager."
-            )
 
 
 class TestAzureDataLakeStorageV2Hook:

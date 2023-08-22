@@ -52,7 +52,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Advanced options (for power users)",
             "options": [
-                "--builder",
                 "--install-providers-from-sources",
                 "--airflow-constraints-location",
                 "--airflow-constraints-mode",
@@ -67,14 +66,22 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--dev-apt-deps",
                 "--dev-apt-command",
                 "--version-suffix-for-pypi",
+                "--commit-sha",
+            ],
+        },
+        {
+            "name": "Backtracking options",
+            "options": [
+                "--build-timeout-minutes",
+                "--eager-upgrade-additional-requirements",
             ],
         },
         {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
+                "--builder",
                 "--platform",
                 "--push",
-                "--empty-image",
                 "--prepare-buildx-cache",
             ],
         },

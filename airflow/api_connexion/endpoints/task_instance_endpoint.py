@@ -51,6 +51,7 @@ from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 T = TypeVar("T")
 
@@ -268,7 +269,7 @@ def get_mapped_task_instances(
 def _convert_ti_states(states: Iterable[str] | None) -> list[TaskInstanceState | None] | None:
     if not states:
         return None
-    return [None if s == "none" else TaskInstanceState(s) for s in states]
+    return [None if s in ("none", None) else TaskInstanceState(s) for s in states]
 
 
 def _apply_array_filter(query: Select, key: ClauseElement, values: Iterable[Any] | None) -> Select:
@@ -399,6 +400,8 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = select(TI).join(TI.dag_run)
 
     base_query = _apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])
+    base_query = _apply_array_filter(base_query, key=TI.run_id, values=data["dag_run_ids"])
+    base_query = _apply_array_filter(base_query, key=TI.task_id, values=data["task_ids"])
     base_query = _apply_range_filter(
         base_query,
         key=DR.execution_date,
@@ -692,9 +695,8 @@ def set_task_instance_note(
         raise NotFound(error_message)
 
     ti, sla_miss = result
-    from flask_login import current_user
 
-    current_user_id = getattr(current_user, "id", None)
+    current_user_id = get_auth_manager().get_user_id()
     if ti.task_instance_note is None:
         ti.note = (new_note, current_user_id)
     else:

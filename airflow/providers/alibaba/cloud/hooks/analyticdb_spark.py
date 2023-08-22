@@ -306,7 +306,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
         if (
             vals is None
             or not isinstance(vals, (tuple, list))
-            or any(1 for val in vals if not isinstance(val, (str, int, float)))
+            or not all(isinstance(val, (str, int, float)) for val in vals)
         ):
             raise ValueError("List of strings expected")
         return True
@@ -321,7 +321,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
         if conf:
             if not isinstance(conf, dict):
                 raise ValueError("'conf' argument must be a dict")
-            if any(True for k, v in conf.items() if not (v and isinstance(v, str) or isinstance(v, int))):
+            if not all(isinstance(v, (str, int)) and v != "" for v in conf.values()):
                 raise ValueError("'conf' values must be either strings or ints")
         return True
 

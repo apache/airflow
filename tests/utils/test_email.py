@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import tempfile
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -148,23 +147,22 @@ class TestEmail:
 
 class TestEmailSmtp:
     @mock.patch("airflow.utils.email.send_mime_email")
-    def test_send_smtp(self, mock_send_mime):
-        with tempfile.NamedTemporaryFile() as attachment:
-            attachment.write(b"attachment")
-            attachment.seek(0)
-            email.send_email_smtp("to", "subject", "content", files=[attachment.name])
-            assert mock_send_mime.called
-            _, call_args = mock_send_mime.call_args
-            assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
-            assert ["to"] == call_args["e_to"]
-            msg = call_args["mime_msg"]
-            assert "subject" == msg["Subject"]
-            assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
-            assert 2 == len(msg.get_payload())
-            filename = 'attachment; filename="' + os.path.basename(attachment.name) + '"'
-            assert filename == msg.get_payload()[-1].get("Content-Disposition")
-            mimeapp = MIMEApplication("attachment")
-            assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
+    def test_send_smtp(self, mock_send_mime, tmp_path):
+        path = tmp_path / "testfile"
+        path.write_text("attachment")
+        email.send_email_smtp("to", "subject", "content", files=[os.fspath(path)])
+        assert mock_send_mime.called
+        _, call_args = mock_send_mime.call_args
+        assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
+        assert ["to"] == call_args["e_to"]
+        msg = call_args["mime_msg"]
+        assert "subject" == msg["Subject"]
+        assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
+        assert 2 == len(msg.get_payload())
+        filename = f'attachment; filename="{path.name}"'
+        assert filename == msg.get_payload()[-1].get("Content-Disposition")
+        mimeapp = MIMEApplication("attachment")
+        assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
 
     @mock.patch("airflow.utils.email.send_mime_email")
     def test_send_smtp_with_multibyte_content(self, mock_send_mime):
@@ -176,33 +174,30 @@ class TestEmailSmtp:
         assert mimetext.get_payload() == msg.get_payload()[0].get_payload()
 
     @mock.patch("airflow.utils.email.send_mime_email")
-    def test_send_bcc_smtp(self, mock_send_mime):
-        with tempfile.NamedTemporaryFile() as attachment:
-            attachment.write(b"attachment")
-            attachment.seek(0)
-            email.send_email_smtp(
-                "to",
-                "subject",
-                "content",
-                files=[attachment.name],
-                cc="cc",
-                bcc="bcc",
-                custom_headers={"Reply-To": "reply_to@example.com"},
-            )
-            assert mock_send_mime.called
-            _, call_args = mock_send_mime.call_args
-            assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
-            assert ["to", "cc", "bcc"] == call_args["e_to"]
-            msg = call_args["mime_msg"]
-            assert "subject" == msg["Subject"]
-            assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
-            assert 2 == len(msg.get_payload())
-            assert 'attachment; filename="' + os.path.basename(attachment.name) + '"' == msg.get_payload()[
-                -1
-            ].get("Content-Disposition")
-            mimeapp = MIMEApplication("attachment")
-            assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
-            assert msg["Reply-To"] == "reply_to@example.com"
+    def test_send_bcc_smtp(self, mock_send_mime, tmp_path):
+        path = tmp_path / "testfile"
+        path.write_text("attachment")
+        email.send_email_smtp(
+            "to",
+            "subject",
+            "content",
+            files=[os.fspath(path)],
+            cc="cc",
+            bcc="bcc",
+            custom_headers={"Reply-To": "reply_to@example.com"},
+        )
+        assert mock_send_mime.called
+        _, call_args = mock_send_mime.call_args
+        assert conf.get("smtp", "SMTP_MAIL_FROM") == call_args["e_from"]
+        assert ["to", "cc", "bcc"] == call_args["e_to"]
+        msg = call_args["mime_msg"]
+        assert "subject" == msg["Subject"]
+        assert conf.get("smtp", "SMTP_MAIL_FROM") == msg["From"]
+        assert 2 == len(msg.get_payload())
+        assert f'attachment; filename="{path.name}"' == msg.get_payload()[-1].get("Content-Disposition")
+        mimeapp = MIMEApplication("attachment")
+        assert mimeapp.get_payload() == msg.get_payload()[-1].get_payload()
+        assert msg["Reply-To"] == "reply_to@example.com"
 
     @mock.patch("smtplib.SMTP_SSL")
     @mock.patch("smtplib.SMTP")
@@ -240,15 +235,50 @@ class TestEmailSmtp:
 
     @mock.patch("smtplib.SMTP_SSL")
     @mock.patch("smtplib.SMTP")
-    def test_send_mime_ssl(self, mock_smtp, mock_smtp_ssl):
+    def test_send_mime_ssl_none_context(self, mock_smtp, mock_smtp_ssl):
         mock_smtp_ssl.return_value = mock.Mock()
-        with conf_vars({("smtp", "smtp_ssl"): "True"}):
+        with conf_vars({("smtp", "smtp_ssl"): "True", ("email", "ssl_context"): "none"}):
             email.send_mime_email("from", "to", MIMEMultipart(), dryrun=False)
         assert not mock_smtp.called
         mock_smtp_ssl.assert_called_once_with(
             host=conf.get("smtp", "SMTP_HOST"),
             port=conf.getint("smtp", "SMTP_PORT"),
             timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            context=None,
+        )
+
+    @mock.patch("smtplib.SMTP_SSL")
+    @mock.patch("smtplib.SMTP")
+    @mock.patch("ssl.create_default_context")
+    def test_send_mime_ssl_default_context_if_not_set(self, create_default_context, mock_smtp, mock_smtp_ssl):
+        mock_smtp_ssl.return_value = mock.Mock()
+        with conf_vars({("smtp", "smtp_ssl"): "True"}):
+            email.send_mime_email("from", "to", MIMEMultipart(), dryrun=False)
+        assert not mock_smtp.called
+        assert create_default_context.called
+        mock_smtp_ssl.assert_called_once_with(
+            host=conf.get("smtp", "SMTP_HOST"),
+            port=conf.getint("smtp", "SMTP_PORT"),
+            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            context=create_default_context.return_value,
+        )
+
+    @mock.patch("smtplib.SMTP_SSL")
+    @mock.patch("smtplib.SMTP")
+    @mock.patch("ssl.create_default_context")
+    def test_send_mime_ssl_default_context_with_value_set_to_default(
+        self, create_default_context, mock_smtp, mock_smtp_ssl
+    ):
+        mock_smtp_ssl.return_value = mock.Mock()
+        with conf_vars({("smtp", "smtp_ssl"): "True", ("email", "ssl_context"): "default"}):
+            email.send_mime_email("from", "to", MIMEMultipart(), dryrun=False)
+        assert not mock_smtp.called
+        assert create_default_context.called
+        mock_smtp_ssl.assert_called_once_with(
+            host=conf.get("smtp", "SMTP_HOST"),
+            port=conf.getint("smtp", "SMTP_PORT"),
+            timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            context=create_default_context.return_value,
         )
 
     @mock.patch("smtplib.SMTP_SSL")
@@ -284,7 +314,6 @@ class TestEmailSmtp:
         msg = MIMEMultipart()
         with pytest.raises(SMTPServerDisconnected):
             email.send_mime_email("from", "to", msg, dryrun=False)
-
         mock_smtp.assert_any_call(
             host=conf.get("smtp", "SMTP_HOST"),
             port=conf.getint("smtp", "SMTP_PORT"),
@@ -299,7 +328,8 @@ class TestEmailSmtp:
 
     @mock.patch("smtplib.SMTP_SSL")
     @mock.patch("smtplib.SMTP")
-    def test_send_mime_ssl_complete_failure(self, mock_smtp, mock_smtp_ssl):
+    @mock.patch("ssl.create_default_context")
+    def test_send_mime_ssl_complete_failure(self, create_default_context, mock_smtp, mock_smtp_ssl):
         mock_smtp_ssl.side_effect = SMTPServerDisconnected()
         msg = MIMEMultipart()
         with conf_vars({("smtp", "smtp_ssl"): "True"}):
@@ -310,7 +340,9 @@ class TestEmailSmtp:
             host=conf.get("smtp", "SMTP_HOST"),
             port=conf.getint("smtp", "SMTP_PORT"),
             timeout=conf.getint("smtp", "SMTP_TIMEOUT"),
+            context=create_default_context.return_value,
         )
+        assert create_default_context.called
         assert mock_smtp_ssl.call_count == conf.getint("smtp", "SMTP_RETRY_LIMIT")
         assert not mock_smtp.called
         assert not mock_smtp_ssl.return_value.starttls.called

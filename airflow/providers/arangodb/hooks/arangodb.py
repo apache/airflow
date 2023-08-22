@@ -88,12 +88,12 @@ class ArangoDBHook(BaseHook):
         return self._conn.password or ""
 
     def get_conn(self) -> ArangoDBClient:
-        """Function that initiates a new ArangoDB connection (cached)."""
+        """Initiate a new ArangoDB connection (cached)."""
         return self.client
 
     def query(self, query, **kwargs) -> Cursor:
         """
-        Function to create an ArangoDB session and execute the AQL query in the session.
+        Create an ArangoDB session and execute the AQL query in the session.
 
         :param query: AQL query
         """

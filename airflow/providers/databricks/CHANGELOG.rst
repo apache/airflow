@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+4.3.3
+.....
+
+Misc
+~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+4.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/databricks): remove the execute method from to-be-deprecated DatabricksRunNowDeferrableOperator (#32806)``
+
+Misc
+~~~~
+
+* ``Add missing execute_complete method for 'DatabricksRunNowOperator' (#32689)``
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+
 4.3.1
 .....
 
