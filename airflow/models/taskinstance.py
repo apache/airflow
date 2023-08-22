@@ -1733,8 +1733,11 @@ class TaskInstance(Base, LoggingMixin):
         # if it goes beyond
         if task_to_execute.execution_timeout:
             # If we are coming in with a next_method (i.e. from a deferral),
-            # calculate the timeout from our start_date.
+            # calculate the timeout from our start_date or call handle_trigger_timeout
+            # if we are already timed out
             if self.next_method:
+                if self.next_method == "__timeout__":
+                    return task_to_execute.handle_trigger_timeout(context=context)
                 timeout_seconds = (
                     task_to_execute.execution_timeout - (timezone.utcnow() - self.start_date)
                 ).total_seconds()
@@ -1781,7 +1784,6 @@ class TaskInstance(Base, LoggingMixin):
         self.next_kwargs = defer.kwargs or {}
         self.trigger_timeout = defer.trigger_timeout
         self.trigger_timeout_reason = defer.trigger_timeout_reason
-        raise Exception(self.trigger_timeout_reason)
 
         # Decrement try number so the next one is the same try
         self._try_number -= 1

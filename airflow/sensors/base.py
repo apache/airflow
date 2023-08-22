@@ -316,10 +316,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 raise AirflowSkipException(str(e)) from e
             raise
 
-    def _handle_trigger_timeout(self, context: Context):
+    def handle_trigger_timeout(self, context: Context):
         if context["ti"].trigger_timeout_reason == "sensor_timeout":
             raise AirflowSensorTimeout("Async sensor timeout has been reached.")
-        super()._handle_trigger_timeout(context)
+        super().handle_trigger_timeout(context)
 
     def _get_next_poke_interval(
         self,

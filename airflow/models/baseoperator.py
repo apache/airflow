@@ -1643,24 +1643,22 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     self.log.error("Trigger failed:\n%s", "\n".join(traceback))
                 raise TaskDeferralError(error_msg)
             else:
-                return self._handle_trigger_timeout(context)
+                return self.handle_trigger_timeout(context)
         # Grab the callable off the Operator/Task and add in any kwargs
         execute_callable = getattr(self, next_method)
         if next_kwargs:
             execute_callable = functools.partial(execute_callable, **next_kwargs)
         return execute_callable(context)
 
-    def _handle_trigger_timeout(self, context: Context):
-        """
-        This method is used to handle a trigger timeout.
-
-        :param context:
-        :return:
-        """
-        if context["ti"].trigger_timeout_reason == "execution_timeout":
+    def handle_trigger_timeout(self, context: Context):
+        """This method is used to handle a trigger timeout."""
+        timeout_reason = context["ti"].trigger_timeout_reason
+        if timeout_reason == "execution_timeout":
             self.on_kill()
             raise AirflowTaskTimeout("Deferred task timed out")
-        return self.on_defer_timeout(context)
+        elif timeout_reason == "trigger_timeout":
+            return self.on_defer_timeout(context)
+        raise AirflowException(f"Trigger timed out for the reason: {timeout_reason}")
 
     def on_defer_timeout(self, context: Context):
         """
