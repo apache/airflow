@@ -50,13 +50,20 @@ class AppflowHook(AwsBaseHook):
         """Get the underlying boto3 Appflow client (cached)."""
         return super().conn
 
-    def run_flow(self, flow_name: str, poll_interval: int = 20, wait_for_completion: bool = True) -> str:
+    def run_flow(
+        self,
+        flow_name: str,
+        poll_interval: int = 20,
+        wait_for_completion: bool = True,
+        max_attempts: int = 60,
+    ) -> str:
         """
         Execute an AppFlow run.
 
         :param flow_name: The flow name
         :param poll_interval: Time (seconds) to wait between two consecutive calls to check the run status
         :param wait_for_completion: whether to wait for the run to end to return
+        :param max_attempts: the number of polls to do before timing out/returning a failure.
         :return: The run execution ID
         """
         response_start = self.conn.start_flow(flowName=flow_name)
@@ -67,7 +74,7 @@ class AppflowHook(AwsBaseHook):
             wait(
                 waiter=self.get_waiter("run_complete", {"EXECUTION_ID": execution_id}),
                 waiter_delay=poll_interval,
-                waiter_max_attempts=10,
+                waiter_max_attempts=max_attempts,
                 args={"flowName": flow_name},
                 failure_message="error while waiting for flow to complete",
                 status_message="waiting for flow completion, status",

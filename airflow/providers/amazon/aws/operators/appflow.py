@@ -58,6 +58,8 @@ class AppflowBaseOperator(BaseOperator):
 
     ui_color = "#2bccbd"
 
+    template_fields = ("flow_name", "source", "source_field", "filter_date")
+
     UPDATE_PROPAGATION_TIME: int = 15
 
     def __init__(
@@ -68,6 +70,7 @@ class AppflowBaseOperator(BaseOperator):
         source_field: str | None = None,
         filter_date: str | None = None,
         poll_interval: int = 20,
+        max_attempts: int = 60,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
         wait_for_completion: bool = True,
@@ -81,6 +84,7 @@ class AppflowBaseOperator(BaseOperator):
         self.source = source
         self.source_field = source_field
         self.poll_interval = poll_interval
+        self.max_attempts = max_attempts
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.flow_update = flow_update
@@ -119,6 +123,7 @@ class AppflowBaseOperator(BaseOperator):
         execution_id = self.hook.run_flow(
             flow_name=self.flow_name,
             poll_interval=self.poll_interval,
+            max_attempts=self.max_attempts,
             wait_for_completion=self.wait_for_completion,
         )
         task_instance = context["task_instance"]
@@ -141,8 +146,6 @@ class AppflowRunOperator(AppflowBaseOperator):
     :param region: aws region to use
     :param wait_for_completion: whether to wait for the run to end to return
     """
-
-    template_fields = "flow_name"
 
     def __init__(
         self,
@@ -227,8 +230,6 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
     :param wait_for_completion: whether to wait for the run to end to return
     """
 
-    template_fields = ("filter_date",)
-
     def __init__(
         self,
         source: str,
@@ -297,8 +298,6 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
     :param wait_for_completion: whether to wait for the run to end to return
     """
 
-    template_fields = ("filter_date",)
-
     def __init__(
         self,
         source: str,
@@ -364,8 +363,6 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
     :param region: aws region to use
     :param wait_for_completion: whether to wait for the run to end to return
     """
-
-    template_fields = ("filter_date",)
 
     def __init__(
         self,
