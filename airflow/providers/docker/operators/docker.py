@@ -168,7 +168,7 @@ class DockerOperator(BaseOperator):
         and value indicates the host port that binds to the container port.
         Incompatible with ``host`` in ``network_mode``.
     :param registry_auth: Object which use for auth to Docker Registry, should implement
-        class:`airflow.providers.docker.utils.docker_registry_auth.DockerRegistryAuthProtocol`,
+        class:`airflow.providers.docker.protocols.docker_registry.DockerRegistryAuthProtocol`,
         if set to ``None`` then auto-assign object depend on value of ``docker_conn_id``.
     """
 

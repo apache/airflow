@@ -1248,6 +1248,7 @@ redoc
 redownloading
 redshift
 reformats
+Refreshable
 RefreshError
 regexes
 reidentify

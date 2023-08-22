@@ -58,7 +58,7 @@ class DockerHook(BaseHook):
         or pass a `docker.tls.TLSConfig` object to use custom configurations.
     :param timeout: Default timeout for API calls, in seconds.
     :param registry_auth: Object which use for auth to Docker Registry, should implement
-        class:`airflow.providers.docker.utils.docker_registry_auth.DockerRegistryAuthProtocol`,
+        class:`airflow.providers.docker.protocols.docker_registry.DockerRegistryAuthProtocol`,
         if set to ``None`` then auto-assign object depend on value of ``docker_conn_id``.
     """
 
