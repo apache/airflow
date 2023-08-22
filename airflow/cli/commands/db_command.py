@@ -29,7 +29,7 @@ from tenacity import RetryCallState, Retrying, stop_after_attempt, wait_fixed
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
-from airflow.utils.db import REVISION_HEADS_MAP
+from airflow.utils.db import _REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -72,8 +72,8 @@ def get_version_revision(version: str, recursion_limit=10) -> str | None:
     This searches REVISION_HEADS_MAP for the revision of the given version, recursively
     searching for the previous version if the given version is not found.
     """
-    if version in REVISION_HEADS_MAP:
-        return REVISION_HEADS_MAP[version]
+    if version in _REVISION_HEADS_MAP:
+        return _REVISION_HEADS_MAP[version]
     try:
         major, minor, patch = map(int, version.split("."))
     except ValueError:

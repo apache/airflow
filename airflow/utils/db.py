@@ -67,7 +67,7 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-REVISION_HEADS_MAP = {
+_REVISION_HEADS_MAP = {
     "1.5.0": "338e90f54d61",
     "1.5.2": "52d714495f0",
     "1.6.0": "40e67319e3a9",

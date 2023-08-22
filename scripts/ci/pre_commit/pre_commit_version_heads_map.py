@@ -59,18 +59,18 @@ if __name__ == "__main__":
     with open(DB_FILE) as file:
         content = file.read()
 
-    pattern = r"REVISION_HEADS_MAP = {[^}]+\}"
+    pattern = r"_REVISION_HEADS_MAP = {[^}]+\}"
     match = re2.search(pattern, content)
     if not match:
         print(
-            f"REVISION_HEADS_MAP not found in {DB_FILE}. If this has been removed intentionally, "
+            f"_REVISION_HEADS_MAP not found in {DB_FILE}. If this has been removed intentionally, "
             "please update scripts/ci/pre_commit/pre_commit_version_heads_map.py"
         )
         sys.exit(1)
 
     existing_revision_heads_map = match.group(0)
     rh_map = revision_heads_map()
-    updated_revision_heads_map = "REVISION_HEADS_MAP = {\n"
+    updated_revision_heads_map = "_REVISION_HEADS_MAP = {\n"
     for k, v in rh_map.items():
         updated_revision_heads_map += f'    "{k}": "{v}",\n'
     updated_revision_heads_map += "}"
@@ -79,5 +79,5 @@ if __name__ == "__main__":
 
         with open(DB_FILE, "w") as file:
             file.write(new_content)
-        print("REVISION_HEADS_MAP updated in db.py. Please commit the changes.")
+        print("_REVISION_HEADS_MAP updated in db.py. Please commit the changes.")
         sys.exit(1)
