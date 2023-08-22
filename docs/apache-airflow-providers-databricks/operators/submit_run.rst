@@ -55,12 +55,13 @@ one named parameter for each top level parameter in the ``runs/submit`` endpoint
   * ``spark_python_task`` - python file path and parameters to run the python file with
   * ``spark_submit_task`` - parameters needed to run a ``spark-submit`` command
   * ``pipeline_task`` - parameters needed to run a Delta Live Tables pipeline
-    * - may reference a ``pipeline_id`` or ``pipeline_name``
   * ``dbt_task`` - parameters needed to run a dbt project
 
 * Cluster specification - it should be one of:
   * ``new_cluster`` - specs for a new cluster on which this task will be run
   * ``existing_cluster_id`` - ID for existing cluster on which to run this task
+
+* ``pipeline_task`` - may refer to either a ``pipeline_id`` or ``pipeline_name``
 
 In the case where both the json parameter **AND** the named parameters
 are provided, they will be merged together. If there are conflicts during the merge,
