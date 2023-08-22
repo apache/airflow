@@ -87,12 +87,17 @@ def migratedb(args):
             raise SystemExit("--from-version must be greater or equal to than 2.0.0")
         from_revision = REVISION_HEADS_MAP.get(args.from_version)
         if not from_revision:
-            raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
+            raise SystemExit(
+                f"The supplied version {args.from_version!r} doesn't have migration or "
+                f"the version is invalid."
+            )
 
     if args.to_version:
         to_revision = REVISION_HEADS_MAP.get(args.to_version)
         if not to_revision:
             raise SystemExit(f"Upgrading to version {args.to_version} is not supported.")
+        if parse_version(args.to_version) < parse_version("2.0.0"):
+            raise SystemExit("--to-version must be >= 2.0.0")
     elif args.to_revision:
         to_revision = args.to_revision
 
@@ -131,11 +136,18 @@ def downgrade(args):
     elif args.from_version:
         from_revision = REVISION_HEADS_MAP.get(args.from_version)
         if not from_revision:
-            raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
+            raise SystemExit(
+                f"The supplied version {args.from_version!r} doesn't have migration or "
+                f"the version is invalid."
+            )
+        if parse_version(args.from_version) < parse_version("2.0.0"):
+            raise SystemExit("--from-version must be >= 2.0.0")
     if args.to_version:
         to_revision = REVISION_HEADS_MAP.get(args.to_version)
         if not to_revision:
             raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
+        if parse_version(args.to_version) < parse_version("2.0.0"):
+            raise SystemExit("--to-version must be >= 2.0.0")
     elif args.to_revision:
         to_revision = args.to_revision
     if not args.show_sql_only:
