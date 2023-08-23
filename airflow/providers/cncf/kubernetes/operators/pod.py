@@ -30,14 +30,15 @@ from contextlib import AbstractContextManager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
-from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
+from kubernetes.client import CoreV1Api, models as k8s
+from kubernetes.client.rest import ApiException
 from slugify import slugify
 from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, Connection
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
@@ -52,7 +53,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.secret import Secret
+from airflow.providers.cncf.kubernetes.secret import KubernetesConnectionSecret, Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
@@ -174,6 +175,8 @@ class KubernetesPodOperator(BaseOperator):
     :param env_from: (Optional) List of sources to populate environment variables in the container.
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
+    :param connection_secrets: Kubernetes Secrets which should be provisioned at run-time based
+        on the contents of Airflow connections.
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used. (templated)
@@ -285,6 +288,7 @@ class KubernetesPodOperator(BaseOperator):
         env_vars: list[k8s.V1EnvVar] | None = None,
         env_from: list[k8s.V1EnvFromSource] | None = None,
         secrets: list[Secret] | None = None,
+        connection_secrets: list[KubernetesConnectionSecret] | None = None,
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
         labels: dict | None = None,
@@ -362,6 +366,7 @@ class KubernetesPodOperator(BaseOperator):
         self.volume_mounts = [convert_volume_mount(v) for v in volume_mounts] if volume_mounts else []
         self.volumes = [convert_volume(volume) for volume in volumes] if volumes else []
         self.secrets = secrets or []
+        self.connection_secrets = connection_secrets or []
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
         self.reattach_on_restart = reattach_on_restart
@@ -578,6 +583,8 @@ class KubernetesPodOperator(BaseOperator):
 
     def execute_sync(self, context: Context):
         try:
+            if len(self.connection_secrets) > 0:
+                self.setup_connection_secrets(context)
             self.pod_request_obj = self.build_pod_request_obj(context)
             self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
                 pod_request_obj=self.pod_request_obj,
@@ -622,6 +629,8 @@ class KubernetesPodOperator(BaseOperator):
 
     def execute_async(self, context: Context):
         self.pod_request_obj = self.build_pod_request_obj(context)
+        if len(self.connection_secrets) > 0:
+                self.setup_connection_secrets(context)
         self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
             pod_request_obj=self.pod_request_obj,
             context=context,
@@ -706,10 +715,49 @@ class KubernetesPodOperator(BaseOperator):
             remote_pod=remote_pod,
         )
 
+    def setup_connection_secrets(self, context):
+        """Create Kubernetes secrets based on Airflow connections."""
+        for s in self.connection_secrets:
+            name = f"{context.get('dag_id')}-{context.get('task_id')}-{_rand_str(8)}"
+            s.secret = name
+            conn = Connection.get_connection_from_secrets(s.conn_id)
+            secret_body = {  # TODO: Should we add more fields here?
+                "extra": conn.extra,
+                "host": conn.host,
+                "login": conn.login,
+                "password": conn.password,
+                "port": conn.port,
+                "schema": conn.schema,
+                "uri": conn.uri,
+            }
+            # create secret
+            self.client.create_namespaced_secret(
+                namespace=self.namespace,
+                body=k8s.V1Secret(data=secret_body),
+                metadata=k8s.V1ObjectMeta(
+                    namespace=self.namespace,
+                    labels=self.get_ti_pod_labels(context),
+                    name=name,
+                ),
+            )
+            # now that the secret actually exists in Kube, populate the name
+            # and treat it as a regular KubernetesPodOperator secret.
+            self.secrets.append(s)
+
+    def cleanup_connection_secrets(self):
+        """Delete any ephemeral Kubernetes secrets created by connection_secrets."""
+        for s in self.secrets:
+            if isinstance(s, KubernetesConnectionSecret):
+                self.log.info("Attempting to delete connection-backed secret: %s", s.secret)
+                try:
+                    self.client.delete_namespaced_secret(namespace=self.namespace, name=s.secret)
+                except ApiException as e:  # Log exception but don't block the remaining cleanup
+                    self.log.error("Unable to delete secret: %s", e)
+
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         istio_enabled = self.is_istio_enabled(remote_pod)
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
-
+        self.cleanup_connection_secrets()
         # if the pod fails or success, but we don't want to delete it
         if pod_phase != PodPhase.SUCCEEDED or self.on_finish_action == OnFinishAction.KEEP_POD:
             self.patch_already_checked(remote_pod, reraise=False)

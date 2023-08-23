@@ -122,3 +122,21 @@ class Secret(K8SModel):
 
     def __repr__(self):
         return f"Secret({self.deploy_type}, {self.deploy_target}, {self.secret}, {self.key})"
+
+
+class KubernetesConnectionSecret(Secret):
+    """
+    Kubernetes Secret which is backed by an Airflow connection.
+
+    At execution time the secret will be created in Kubernetes based on the
+    contents of the connection in the secrets backend.
+
+    The created secrets will be cleaned up after execution.
+
+    :param conn_id: The ID for the connection which will be used to provision a Kubernetes Secret.
+    """
+
+    def __init__(self, deploy_type, deploy_target, conn_id, key=None, items=None):
+        """Instantiate a secret with a missing secret ID, as this is populated at run-time."""
+        super.__init__(self, deploy_type, deploy_target, None, key=key, items=items)
+        self.conn_id = conn_id
