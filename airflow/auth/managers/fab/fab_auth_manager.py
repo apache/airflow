@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from flask import url_for
-
 from airflow import AirflowException
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.fab.cli_commands.definition import (
@@ -95,6 +93,8 @@ class FabAuthManager(BaseAuthManager):
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
+        from flask import url_for
+
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         if "next_url" in kwargs and kwargs["next_url"]:
@@ -104,12 +104,16 @@ class FabAuthManager(BaseAuthManager):
 
     def get_url_logout(self):
         """Return the logout page url."""
+        from flask import url_for
+
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
 
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
+        from flask import url_for
+
         if not self.security_manager.user_view:
             return None
         return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
