@@ -43,7 +43,7 @@ SIGSEGV (Segmentation Violation) signal indicates Segmentation Fault error which
 an attempt by a program/library to write or read outside its allocated memory.
 
 In Python environment usually this signal refers to libraries which use low level C API.
-Make sure that you use use right libraries/Docker Images
+Make sure that you use right libraries/Docker Images
 for your architecture (Intel/ARM) and/or Operational System (Linux/macOS).
 
 Suggested way to debug

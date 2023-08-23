@@ -86,7 +86,7 @@ Exposing customized functionality to the Airflow's core:
 * ``notifications`` - this field should contain the notification classes.
   See :doc:`apache-airflow:howto/notifications` for description of the notifications.
 
-* ``executors`` - this field should contain the executor class class names.
+* ``executors`` - this field should contain the executor class names.
   See :doc:`apache-airflow:core-concepts/executor/index` for description of the executors.
 
 * ``config`` - this field should contain dictionary that should conform to the

@@ -95,7 +95,7 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                 self.log.info("Current state is %s", state)
 
                 if state == TransferState.SUCCEEDED:
-                    self.log.info("Job has completed it's work.")
+                    self.log.info("Job has completed its work.")
                     yield TriggerEvent(
                         {
                             "status": "success",

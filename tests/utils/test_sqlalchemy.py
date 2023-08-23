@@ -272,7 +272,7 @@ class TestExecutorConfigType:
         mock_dialect.dbapi = None
         process = config_type.bind_processor(mock_dialect)
         assert pickle.loads(process(input)) == expected
-        assert pickle.loads(process(input)) == expected, "should should not mutate variable"
+        assert pickle.loads(process(input)) == expected, "should not mutate variable"
 
     @pytest.mark.parametrize(
         "input",
