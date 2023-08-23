@@ -68,10 +68,11 @@ class TimeSensorAsync(BaseSensorOperator):
         )
 
         self.target_datetime = timezone.convert_to_utc(aware_time)
+        self.trigger = DateTimeTrigger(moment=self.target_datetime)
 
     def execute(self, context: Context):
         self.defer(
-            trigger=DateTimeTrigger(moment=self.target_datetime),
+            trigger=self.trigger,
             method_name="execute_complete",
         )
 
