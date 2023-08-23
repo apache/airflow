@@ -232,7 +232,7 @@ class TestDBCleanup:
         Verify that _cleanup_table actually deletes the rows it should.
 
         TaskInstance represents the "normal" case.  DagRun is the odd case where we want
-        to keep the last non-externally-triggered DagRun record even if if it should be
+        to keep the last non-externally-triggered DagRun record even if it should be
         deleted according to the provided timestamp.
 
         We also verify that the "on delete cascade" behavior is as expected.  Some tables

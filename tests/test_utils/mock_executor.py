@@ -95,7 +95,7 @@ class MockExecutor(BaseExecutor):
         FAILED.
 
         If the task identified by the tuple ``(dag_id, task_id, date,
-        try_number)`` is run by this executor it's state will be FAILED.
+        try_number)`` is run by this executor its state will be FAILED.
         """
         assert isinstance(run_id, str)
         self.mock_task_results[TaskInstanceKey(dag_id, task_id, run_id, try_number)] = State.FAILED

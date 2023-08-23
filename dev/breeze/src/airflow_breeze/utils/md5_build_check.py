@@ -32,7 +32,7 @@ from airflow_breeze.utils.run_utils import run_command
 
 def check_md5checksum_in_cache_modified(file_hash: str, cache_path: Path, update: bool) -> bool:
     """
-    Check if the file hash is present in cache and it's content has been modified. Optionally updates
+    Check if the file hash is present in cache and its content has been modified. Optionally updates
     the hash.
 
     :param file_hash: hash of the current version of the file

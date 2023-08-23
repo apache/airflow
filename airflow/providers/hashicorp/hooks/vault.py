@@ -49,7 +49,7 @@ class VaultHook(BaseHook):
     The mount point should be placed as a path in the URL - similarly to Vault's URL schema:
     This indicates the "path" the secret engine is mounted on. Default id not specified is "secret".
     Note that this ``mount_point`` is not used for authentication if authentication is done via a
-    different engines. Each engine uses it's own engine-specific authentication mount_point.
+    different engines. Each engine uses its own engine-specific authentication mount_point.
 
     The extras in the connection are named the same as the parameters ('kv_engine_version', 'auth_type', ...).
 

@@ -470,7 +470,7 @@ class BaseSecurityManager:
         Decorator function to be the OAuth user info getter for all the providers.
 
         Receives provider and response return a dict with the information returned from the provider.
-        The returned user info dict should have it's keys with the same name as the User Model.
+        The returned user info dict should have its keys with the same name as the User Model.
 
         Use it like this an example for GitHub ::
 
@@ -1346,7 +1346,7 @@ class BaseSecurityManager:
         raise NotImplementedError
 
     def find_user(self, username=None, email=None):
-        """Generic function find a user by it's username or email."""
+        """Generic function find a user by its username or email."""
         raise NotImplementedError
 
     def get_all_users(self):

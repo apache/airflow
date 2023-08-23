@@ -1751,7 +1751,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         Find all dags that were not updated by Dag Processor recently and mark them as inactive.
 
         In case one of DagProcessors is stopped (in case there are multiple of them
-        for different dag folders), it's dags are never marked as inactive.
+        for different dag folders), its dags are never marked as inactive.
         Also remove dags from SerializedDag table.
         Executed on schedule only if [scheduler]standalone_dag_processor is True.
         """

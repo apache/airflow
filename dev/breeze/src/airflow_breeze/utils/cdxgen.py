@@ -201,7 +201,7 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
     )
     get_console().print(
         f"[info]Provider {provider_id} has {len(provider_packages)} transitively "
-        f"dependent packages (excluding airflow and it's dependencies)"
+        f"dependent packages (excluding airflow and its dependencies)"
     )
     get_console().print(provider_packages)
     provider_file = target_dir / provider_file_name

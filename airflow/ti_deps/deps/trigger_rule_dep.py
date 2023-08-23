@@ -294,7 +294,7 @@ class TriggerRuleDep(BaseTIDep):
                 )
                 if not past_depends_met:
                     yield self._failing_status(
-                        reason=("Task should be skipped but the the past depends are not met")
+                        reason=("Task should be skipped but the past depends are not met")
                     )
                     return
             changed = ti.set_state(new_state, session)

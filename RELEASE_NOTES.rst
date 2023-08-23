@@ -5439,7 +5439,7 @@ It has been removed.
 ``airflow.settings.CONTEXT_MANAGER_DAG``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-CONTEXT_MANAGER_DAG was removed from settings. It's role has been taken by ``DagContext`` in
+CONTEXT_MANAGER_DAG was removed from settings. Its role has been taken by ``DagContext`` in
 'airflow.models.dag'. One of the reasons was that settings should be rather static than store
 dynamic context from the DAG, but the main one is that moving the context out of settings allowed to
 untangle cyclic imports between DAG, BaseOperator, SerializedDAG, SerializedBaseOperator which was

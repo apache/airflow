@@ -38,7 +38,7 @@ class SetContextPropagate(enum.Enum):
     :meta private:
     """
 
-    # If a `set_context` function wants to _keep_ propagation set on it's logger it needs to return this
+    # If a `set_context` function wants to _keep_ propagation set on its logger it needs to return this
     # special value.
     MAINTAIN_PROPAGATE = object()
     # Don't use this one anymore!

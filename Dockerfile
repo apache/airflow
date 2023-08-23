@@ -1357,7 +1357,7 @@ RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
-# installed Airflow and all it's dependencies from the build image to make it smaller.
+# installed Airflow and all its dependencies from the build image to make it smaller.
 ##############################################################################################
 FROM ${PYTHON_BASE_IMAGE} as main
 

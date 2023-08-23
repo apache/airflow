@@ -240,7 +240,7 @@ def dag_dependencies_show(args) -> None:
 
 @providers_configuration_loaded
 def dag_show(args) -> None:
-    """Display DAG or saves it's graphic representation to the file."""
+    """Display DAG or saves its graphic representation to the file."""
     dag = get_dag(args.subdir, args.dag_id)
     dot = render_dag(dag)
     filename = args.save

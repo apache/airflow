@@ -179,7 +179,7 @@ def render_template(
     keep_trailing_newline: bool = False,
 ) -> str:
     """
-    Renders template based on it's name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
+    Renders template based on its name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
     :param template_name: name of the template to use
     :param context: Jinja2 context
     :param autoescape: Whether to autoescape HTML

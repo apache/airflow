@@ -906,7 +906,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     So transitively 'salesforce' extra has all the dependencies it needs and in case the provider
     changes its dependencies, they will transitively change as well.
 
-    In the constraint mechanism we save both - provider versions and it's dependencies
+    In the constraint mechanism we save both - provider versions and its dependencies
     version, which means that installation using constraints is repeatable.
 
     For K8s and Celery which are both "Core executors" and "Providers" we have to

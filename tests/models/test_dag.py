@@ -3833,7 +3833,7 @@ class TestTaskClearingSetupTeardownBehavior:
         the setup (and its teardown) will be cleared even though strictly speaking you don't
         "require" it since, depending on speed of execution, it might be torn down by t1
         before / while w2 runs.  It just gets cleared by virtue of it being upstream, and
-        that's what you requested.  And it's teardown gets cleared too.  But w1 doesn't.
+        that's what you requested.  And its teardown gets cleared too.  But w1 doesn't.
         """
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
             s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")

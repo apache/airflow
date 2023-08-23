@@ -242,7 +242,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     accounts that have a hierarchical namespace. Using Adls_v2 connection
     details create DataLakeServiceClient object.
 
-    Due to Wasb is marked as legacy and and retirement of the (ADLS1), it would
+    Due to Wasb is marked as legacy and retirement of the (ADLS1), it would
     be nice to implement ADLS gen2 hook for interacting with the storage account.
 
     .. seealso::

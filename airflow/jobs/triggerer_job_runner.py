@@ -503,7 +503,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         """
         Drain the to_cancel queue and ensure all triggers that are not in the DB are cancelled.
 
-        This allows the the cleanup job to delete them.
+        This allows the cleanup job to delete them.
         """
         while self.to_cancel:
             trigger_id = self.to_cancel.popleft()
