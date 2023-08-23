@@ -155,29 +155,16 @@ class TestCloudwatchTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "start_date, end_date, expected_start_time, expected_end_time",
+        "end_date, expected_end_time",
         [
-            (None, None, 0, None),
-            (datetime(2020, 1, 1), None, datetime_to_epoch_utc_ms(datetime(2020, 1, 1)), None),
-            (
-                None,
-                datetime(2020, 1, 2),
-                0,
-                datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30)),
-            ),
-            (
-                datetime(2020, 1, 1),
-                datetime(2020, 1, 2),
-                datetime_to_epoch_utc_ms(datetime(2020, 1, 1)),
-                datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30)),
-            ),
+            (None, None),
+            (datetime(2020, 1, 2), datetime_to_epoch_utc_ms(datetime(2020, 1, 2) + timedelta(seconds=30))),
         ],
     )
     @mock.patch.object(AwsLogsHook, "get_log_events")
     def test_get_cloudwatch_logs(
         self, mock_get_log_events, start_date, end_date, expected_start_time, expected_end_time
     ):
-        self.ti.start_date = start_date
         self.ti.end_date = end_date
         self.cloudwatch_task_handler.get_cloudwatch_logs(self.remote_log_stream, self.ti)
         mock_get_log_events.assert_called_once_with(
