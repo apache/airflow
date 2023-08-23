@@ -91,29 +91,29 @@ class FabAuthManager(BaseAuthManager):
 
         return FabAirflowSecurityManagerOverride
 
-    def get_url_login(self, **kwargs) -> str:
-        """Return the login page url."""
+    def url_for(self, *args, **kwargs):
+        """Wrapper to allow mocking without having to import at the top of the file."""
         from flask import url_for
 
+        return url_for(*args, **kwargs)
+
+    def get_url_login(self, **kwargs) -> str:
+        """Return the login page url."""
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         if "next_url" in kwargs and kwargs["next_url"]:
-            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
+            return self.url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
         else:
-            return url_for(f"{self.security_manager.auth_view.endpoint}.login")
+            return self.url_for(f"{self.security_manager.auth_view.endpoint}.login")
 
     def get_url_logout(self):
         """Return the logout page url."""
-        from flask import url_for
-
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
-        return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
+        return self.url_for(f"{self.security_manager.auth_view.endpoint}.logout")
 
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
-        from flask import url_for
-
         if not self.security_manager.user_view:
             return None
-        return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
+        return self.url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
