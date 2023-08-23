@@ -41,6 +41,7 @@ from airflow.utils.db_cleanup import (
     _cleanup_table,
     _confirm_drop_archives,
     _dump_table_to_file,
+    _get_archived_table_names,
     config_dict,
     drop_archived_tables,
     export_archived_records,
@@ -265,6 +266,34 @@ class TestDBCleanup:
                 assert len(session.query(TaskInstance).all()) == expected_remaining
             else:
                 raise Exception("unexpected")
+
+    @pytest.mark.parametrize(
+        "skip_archive, expected_archives",
+        [param(True, 0, id="skip_archive"), param(False, 1, id="do_archive")],
+    )
+    def test__skip_archive(self, skip_archive, expected_archives):
+        """
+        Verify that running cleanup_table with drops the archives when requested.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        num_tis = 10
+        create_tis(
+            base_date=base_date,
+            num_tis=num_tis,
+        )
+        with create_session() as session:
+            clean_before_date = base_date.add(days=5)
+            _cleanup_table(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=clean_before_date,
+                dry_run=False,
+                session=session,
+                table_names=["dag_run"],
+                skip_archive=skip_archive,
+            )
+            model = config_dict["dag_run"].orm_model
+            assert len(session.query(model).all()) == 5
+            assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
     def test_no_models_missing(self):
         """
