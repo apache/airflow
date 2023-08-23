@@ -43,13 +43,10 @@ from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProc
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_BATCH_LINK,
-    DATAPROC_CLUSTER_LINK_DEPRECATED,
-    DATAPROC_JOB_LINK_DEPRECATED,
     DataprocBatchesListLink,
     DataprocBatchLink,
     DataprocClusterLink,
     DataprocJobLink,
-    DataprocLink,
     DataprocWorkflowLink,
     DataprocWorkflowTemplateLink,
 )
@@ -742,7 +739,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = ("cluster_name", "project_id", "region", "impersonation_chain")
 
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocClusterLink(),)
 
     def __init__(
         self,
@@ -821,12 +818,15 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
         update_mask = ["config.worker_config.num_instances", "config.secondary_worker_config.num_instances"]
 
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        # Hook always has a project_id as fallback so we can ignore assignment
+        project_id: str = self.project_id if self.project_id else hook.project_id  # type: ignore[assignment]
         # Save data required to display extra link no matter what the cluster status will be
-        DataprocLink.persist(
+        DataprocClusterLink.persist(
             context=context,
-            task_instance=self,
-            url=DATAPROC_CLUSTER_LINK_DEPRECATED,
-            resource=self.cluster_name,
+            operator=self,
+            cluster_id=self.cluster_name,
+            project_id=project_id,
+            region=self.region,
         )
         operation = hook.update_cluster(
             project_id=self.project_id,
@@ -1000,7 +1000,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 
     job_type = ""
 
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocJobLink(),)
 
     def __init__(
         self,
@@ -1034,7 +1034,8 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         self.job_error_states = job_error_states if job_error_states is not None else {"ERROR"}
         self.impersonation_chain = impersonation_chain
         self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
-        self.project_id = self.hook.project_id if project_id is None else project_id
+        # Hook project id is used as fallback so we can ignore assignment
+        self.project_id: str = project_id if project_id else self.hook.project_id  # type: ignore[assignment]
         self.job_template: DataProcJobBuilder | None = None
         self.job: dict | None = None
         self.dataproc_job_id = None
@@ -1081,8 +1082,8 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
             job_id = job_object.reference.job_id
             self.log.info("Job %s submitted successfully.", job_id)
             # Save data required for extra links no matter what the job status will be
-            DataprocLink.persist(
-                context=context, task_instance=self, url=DATAPROC_JOB_LINK_DEPRECATED, resource=job_id
+            DataprocJobLink.persist(
+                context=context, operator=self, job_id=job_id, project_id=self.project_id, region=self.region
             )
 
             if self.deferrable:
@@ -1184,7 +1185,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     ui_color = "#0273d4"
     job_type = "pig_job"
 
-    operator_extra_links = (DataprocLink(),)
+    operator_extra_links = (DataprocJobLink(),)
 
     def __init__(
         self,

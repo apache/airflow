@@ -76,10 +76,14 @@ class DataprocLink(BaseOperatorLink):
        This link is deprecated.
     """
 
-    warnings.warn(
-        "This DataprocLink is deprecated.",
-        AirflowProviderDeprecationWarning,
-    )
+    def __init__(self, *args, **kwargs):
+        raise Exception()
+        warnings.warn(
+            "DataprocLink is deprecated. Please use Dataproc*Link classes",
+            AirflowProviderDeprecationWarning,
+        )
+        super().__init__(*args, **kwargs)
+
     name = "Dataproc resource"
     key = "conf"
 
@@ -125,7 +129,13 @@ class DataprocListLink(BaseOperatorLink):
        This link is deprecated.
     """
 
-    warnings.warn("This DataprocListLink is deprecated.", AirflowProviderDeprecationWarning)
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "DataprocListLink is deprecated. Please use Dataproc*ListLink classes",
+            AirflowProviderDeprecationWarning,
+        )
+        super().__init__(*args, **kwargs)
+
     name = "Dataproc resources"
     key = "list_conf"
 
