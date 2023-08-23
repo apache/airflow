@@ -30,9 +30,9 @@ from contextlib import AbstractContextManager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
-from kubernetes.stream import stream
 from kubernetes.client import CoreV1Api, models as k8s
 from kubernetes.client.rest import ApiException
+from kubernetes.stream import stream
 from slugify import slugify
 from urllib3.exceptions import HTTPError
 
@@ -813,7 +813,7 @@ class KubernetesPodOperator(BaseOperator):
             for event in self.pod_manager.read_pod_events(pod).items:
                 self.log.error("Pod Event: %s - %s", event.reason, event.message)
 
-    def is_istio_enabled(self, pod: V1Pod) -> bool:
+    def is_istio_enabled(self, pod: k8s.V1Pod) -> bool:
         """Checks if istio is enabled for the namespace of the pod by inspecting the namespace labels."""
         if not pod:
             return False
@@ -826,7 +826,7 @@ class KubernetesPodOperator(BaseOperator):
 
         return False
 
-    def kill_istio_sidecar(self, pod: V1Pod) -> None:
+    def kill_istio_sidecar(self, pod: k8s.V1Pod) -> None:
         command = "/bin/sh -c curl -fsI -X POST http://localhost:15020/quitquitquit && exit 0"
         command_to_container = shlex.split(command)
         try:
