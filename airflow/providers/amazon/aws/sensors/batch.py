@@ -25,6 +25,7 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.sensors.utils import raise_failed_or_skiping_exception
 from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
 from airflow.sensors.base import BaseSensorOperator
 
@@ -117,13 +118,9 @@ class BatchSensor(BaseSensorOperator):
         if event["status"] != "success":
             message = f"Error while running job: {event}"
             # TODO: remove this if-else block when min_airflow_version is set to higher than the version that
-            # raise_failed_or_skiping_exception is introduced in BaseSensorOperator
-            if getattr(self, "raise_failed_or_skiping_exception"):
-                self.raise_failed_or_skiping_exception(failed_message=message)
-            else:
-                from airflow.providers.amazon.aws.sensors.utils import raise_failed_or_skiping_exception
+            # changed in https://github.com/apache/airflow/pull/33424 is released
 
-                raise_failed_or_skiping_exception(soft_fail=self.soft_fail, failed_message=message)
+            raise_failed_or_skiping_exception(soft_fail=self.soft_fail, failed_message=message)
         job_id = event["job_id"]
         self.log.info("Batch Job %s complete", job_id)
 
