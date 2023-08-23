@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-23T13:39:15Z
+# This constraints file was automatically generated on 2023-08-23T18:51:21Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -151,7 +151,7 @@ prompt-toolkit==3.0.39
 protobuf==4.24.1
 psutil==5.9.5
 pure-sasl==0.6.2
-pyarrow==12.0.1
+pyarrow==13.0.0
 pyasn1-modules==0.3.0
 pyasn1==0.5.0
 pycparser==2.21

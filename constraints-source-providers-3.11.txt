@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-23T13:35:10Z
+# This constraints file was automatically generated on 2023-08-23T18:47:59Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -92,7 +92,7 @@ azure-cosmos==4.5.0
 azure-datalake-store==0.0.53
 azure-identity==1.14.0
 azure-keyvault-secrets==4.7.0
-azure-kusto-data==0.0.45
+azure-kusto-data==4.2.0
 azure-mgmt-containerinstance==1.5.0
 azure-mgmt-core==1.4.0
 azure-mgmt-datafactory==1.1.0
