@@ -229,3 +229,39 @@ List Plugins                           Plugins.can_read                         
 List Task Reschedules                  Task Reschedules.can_read                                               Admin
 List Triggers                          Triggers.can_read                                                       Admin
 ====================================== ======================================================================= ============
+
+These DAG-level controls can be set directly through the UI / CLI, or encoded in the dags themselves through the access_control arg.
+
+Order of precedence for DAG-level permissions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since DAG-level access control can be configured in multiple places, conflicts are inevitable and a clear resolution strategy is required.
+
+As a result, Airflow considers the `access_control` argument supplied on a DAG itself to be completely authoritative if present, which has a few effects:
+
+ - `access_control` will overwrite any previously existing DAG-level permissions if it is any value other than `None`.
+
+.. exampleinclude:: /../../airflow/example_dags/example_dag_level_access_control.py
+    :language: python
+    :start-after: [START howto_fine_grained_access_control]
+    :end-before: [END howto_fine_grained_access_control]
+
+ - Setting `access_control={}` will wipe any existing DAG-level permissions for a given DAG from the DB.
+
+.. exampleinclude:: /../../airflow/example_dags/example_dag_level_access_control.py
+    :language: python
+    :start-after: [START howto_no_fine_grained_access_control]
+    :end-before: [END howto_no_fine_grained_access_control]
+
+ - Removing the access_control block from a DAG altogether (or setting it to `None`) can leave dangling permissions.
+
+.. exampleinclude:: /../../airflow/example_dags/example_dag_level_access_control.py
+    :language: python
+    :start-after: [START howto_indifferent_fine_grained_access_control]
+    :end-before: [END howto_indifferent_fine_grained_access_control]
+
+In the case that there is no `access_control` defined on the DAG itself, Airflow will defer to existing permissions defined in the DB, which
+may have been set through the UI, CLI or by previous access_control args on the DAG in question.
+
+In all cases, system-wide roles such as `Can edit on DAG` take precedence over dag-level access controls, such that they can be considered `Can edit on DAG: *`
+
