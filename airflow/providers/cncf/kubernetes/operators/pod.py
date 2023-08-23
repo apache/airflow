@@ -22,6 +22,7 @@ import json
 import logging
 import re
 import secrets
+import shlex
 import string
 import warnings
 from collections.abc import Container
@@ -29,7 +30,8 @@ from contextlib import AbstractContextManager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
-from kubernetes.client import CoreV1Api, models as k8s
+from kubernetes.client import CoreV1Api, V1Pod, models as k8s
+from kubernetes.stream import stream
 from slugify import slugify
 from urllib3.exceptions import HTTPError
 
@@ -59,6 +61,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodManager,
     PodOperatorHookProtocol,
     PodPhase,
+    container_is_succeeded,
     get_container_termination_message,
 )
 from airflow.settings import pod_mutation_hook
@@ -246,7 +249,7 @@ class KubernetesPodOperator(BaseOperator):
 
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
-
+    ISTIO_CONTAINER_NAME = "istio-proxy"
     POD_CHECKED_KEY = "already_checked"
     POST_TERMINATION_TIMEOUT = 120
 
@@ -605,7 +608,10 @@ class KubernetesPodOperator(BaseOperator):
             if self.do_xcom_push:
                 self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
                 result = self.extract_xcom(pod=self.pod)
-            self.remote_pod = self.pod_manager.await_pod_completion(self.pod)
+            istio_enabled = self.is_istio_enabled(self.pod)
+            self.remote_pod = self.pod_manager.await_pod_completion(
+                self.pod, istio_enabled, self.base_container_name
+            )
         finally:
             self.cleanup(
                 pod=self.pod or self.pod_request_obj,
@@ -668,7 +674,8 @@ class KubernetesPodOperator(BaseOperator):
                     xcom_sidecar_output = self.extract_xcom(pod=pod)
                     return xcom_sidecar_output
         finally:
-            pod = self.pod_manager.await_pod_completion(pod)
+            istio_enabled = self.is_istio_enabled(pod)
+            pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
             if pod is not None:
                 self.post_complete_action(
                     pod=pod,
@@ -700,13 +707,16 @@ class KubernetesPodOperator(BaseOperator):
         )
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+        istio_enabled = self.is_istio_enabled(remote_pod)
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
         # if the pod fails or success, but we don't want to delete it
         if pod_phase != PodPhase.SUCCEEDED or self.on_finish_action == OnFinishAction.KEEP_POD:
             self.patch_already_checked(remote_pod, reraise=False)
 
-        if pod_phase != PodPhase.SUCCEEDED:
+        if (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
+            istio_enabled and not container_is_succeeded(remote_pod, self.base_container_name)
+        ):
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
 
@@ -753,16 +763,61 @@ class KubernetesPodOperator(BaseOperator):
             for event in self.pod_manager.read_pod_events(pod).items:
                 self.log.error("Pod Event: %s - %s", event.reason, event.message)
 
+    def is_istio_enabled(self, pod: V1Pod) -> bool:
+        """Checks if istio is enabled for the namespace of the pod by inspecting the namespace labels."""
+        if not pod:
+            return False
+
+        remote_pod = self.pod_manager.read_pod(pod)
+
+        for container in remote_pod.spec.containers:
+            if container.name == self.ISTIO_CONTAINER_NAME:
+                return True
+
+        return False
+
+    def kill_istio_sidecar(self, pod: V1Pod) -> None:
+        command = "/bin/sh -c curl -fsI -X POST http://localhost:15020/quitquitquit && exit 0"
+        command_to_container = shlex.split(command)
+        try:
+            resp = stream(
+                self.client.connect_get_namespaced_pod_exec,
+                name=pod.metadata.name,
+                namespace=pod.metadata.namespace,
+                container=self.ISTIO_CONTAINER_NAME,
+                command=command_to_container,
+                stderr=True,
+                stdin=True,
+                stdout=True,
+                tty=False,
+                _preload_content=False,
+            )
+            resp.close()
+        except Exception as e:
+            self.log.error("Error while deleting istio-proxy sidecar: %s", e)
+            raise e
+
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
+        istio_enabled = self.is_istio_enabled(pod)
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
-                should_delete_pod = (self.on_finish_action == OnFinishAction.DELETE_POD) or (
-                    self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
-                    and pod.status.phase == PodPhase.SUCCEEDED
+                should_delete_pod = (
+                    (self.on_finish_action == OnFinishAction.DELETE_POD)
+                    or (
+                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                        and pod.status.phase == PodPhase.SUCCEEDED
+                    )
+                    or (
+                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                        and container_is_succeeded(pod, self.base_container_name)
+                    )
                 )
-                if should_delete_pod:
+                if should_delete_pod and not istio_enabled:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
+                elif should_delete_pod and istio_enabled:
+                    self.log.info("Deleting istio-proxy sidecar inside %s: ", pod.metadata.name)
+                    self.kill_istio_sidecar(pod)
                 else:
                     self.log.info("Skipping deleting pod: %s", pod.metadata.name)
 
