@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from sqlalchemy.orm import Session
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 
 try:
     from airflow.cli.cli_config import (
