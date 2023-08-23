@@ -176,7 +176,7 @@ Here is an example of what you might have in your webserver_config.py:
     AUTH_ROLES_SYNC_AT_LOGIN = True  # Checks roles on every login
     AUTH_USER_REGISTRATION = True  # allow users who are not already in the FAB DB to register
     # Make sure to replace this with the path to your security manager class
-    FAB_SECURITY_MANAGER_CLASS = "your_module.your_security_manager_class"
+    SECURITY_MANAGER_CLASS = "your_module.your_security_manager_class"
     AUTH_ROLES_MAPPING = {
         "Viewer": ["Viewer"],
         "Admin": ["Admin"],
