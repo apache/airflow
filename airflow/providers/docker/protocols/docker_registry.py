@@ -66,7 +66,13 @@ class DockerRegistryAuthProtocol(Protocol):
 class RefreshableDockerRegistryAuthProtocol(DockerRegistryAuthProtocol, Protocol):
     """Refreshable by Airflow Docker Registry Authentication Protocol."""
 
-    need_refresh: bool
+    # need_refresh: bool
+
+    @property
+    @abstractmethod
+    def need_refresh(self) -> bool:
+        """Is required refresh credentials or not."""
+        ...
 
     @abstractmethod
     def refresh_credentials(self, *, conn: Connection | None) -> list[DockerRegistryCredentials]:

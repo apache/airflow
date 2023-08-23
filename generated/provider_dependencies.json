@@ -37,6 +37,7 @@
       "apache.hive",
       "cncf.kubernetes",
       "common.sql",
+      "docker",
       "exasol",
       "ftp",
       "google",

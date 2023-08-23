@@ -711,6 +711,9 @@ additional-extras:
   - name: cncf.kubernetes
     dependencies:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
+  - name: docker
+    dependencies:
+      - apache-airflow-providers-docker>3.7.3
 
 config:
   aws:
