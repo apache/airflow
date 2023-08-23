@@ -60,7 +60,9 @@ class BaseAzureServiceBusHook(BaseHook):
             "hidden_fields": ["port", "host", "extra", "login", "password"],
             "relabeling": {"schema": "Connection String"},
             "placeholders": {
-                "fully_qualified_namespace": "<Resource group>.servicebus.windows.net (for Azure AD authenticaltion)",
+                "fully_qualified_namespace": (
+                    "<Resource group>.servicebus.windows.net (for Azure AD authenticaltion)"
+                ),
                 "credential": "credential",
                 "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",  # noqa
             },
@@ -106,7 +108,8 @@ class AdminClientHook(BaseAzureServiceBusHook):
             if not credential:
                 credential = DefaultAzureCredential()
             client = ServiceBusAdministrationClient(
-                fully_qualified_namespace=fully_qualified_namespace, credential=credential
+                fully_qualified_namespace=fully_qualified_namespace,
+                credential=credential,  # type: ignore[arg-type]
             )
         self.log.info("Create and returns ServiceBusAdministrationClient")
         return client
@@ -189,7 +192,8 @@ class MessageHook(BaseAzureServiceBusHook):
             if not credential:
                 credential = DefaultAzureCredential()
             client = ServiceBusClient(
-                fully_qualified_namespace=fully_qualified_namespace, credential=credential
+                fully_qualified_namespace=fully_qualified_namespace,
+                credential=credential,  # type: ignore[arg-type]
             )
 
         self.log.info("Create and returns ServiceBusClient")
