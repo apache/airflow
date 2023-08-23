@@ -63,7 +63,7 @@ automatically the credentials from there.
     in case of a missing Connection ID.
 
     If you need to use the default boto3 credential strategy (credentials in environment variables, IAM Profile, etc.)
-    without get warning in your logs please provide ``None`` instead of a missing connection ID.
+    please provide ``None``, instead of a missing connection ID, to avoid getting a warning in your logs.
 
 .. _howto/connection:aws:configuring-the-connection:
 
