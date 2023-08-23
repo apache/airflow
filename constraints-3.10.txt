@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-22T16:29:06Z
+# This constraints file was automatically generated on 2023-08-23T13:42:09Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -37,7 +37,7 @@ Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.0.2
 Flask-JWT-Extended==4.5.2
-Flask-Limiter==3.3.1
+Flask-Limiter==3.4.0
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
@@ -65,7 +65,7 @@ Sphinx==5.3.0
 WTForms==3.0.1
 Werkzeug==2.2.3
 adal==1.2.7
-aiobotocore==2.5.4
+aiobotocore==2.6.0
 aiofiles==23.2.1
 aiohttp==3.8.5
 aioitertools==0.11.0
@@ -191,7 +191,7 @@ aws-sam-translator==1.73.0
 aws-xray-sdk==2.12.0
 azure-batch==14.0.0
 azure-common==1.1.28
-azure-core==1.29.2
+azure-core==1.29.3
 azure-cosmos==4.5.0
 azure-datalake-store==0.0.53
 azure-identity==1.14.0
@@ -425,7 +425,7 @@ mongomock==4.1.2
 monotonic==1.6
 more-itertools==10.1.0
 moreorless==0.4.0
-moto==4.1.15
+moto==4.2.0
 mpmath==1.3.0
 msal-extensions==1.0.0
 msal==1.23.0
@@ -435,7 +435,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.28.16
-mypy-boto3-rds==1.28.31
+mypy-boto3-rds==1.28.32
 mypy-boto3-redshift-data==1.28.16
 mypy-boto3-s3==1.28.27
 mypy-extensions==1.0.0
@@ -689,6 +689,7 @@ websocket-client==1.6.2
 wrapt==1.15.0
 xmltodict==0.13.0
 yamllint==1.32.0
+yandexcloud==0.228.0
 yarl==1.9.2
 zeep==4.2.1
 zenpy==2.0.30
