@@ -362,13 +362,14 @@ def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]):
             )
 
 
-def check_hook_connection_classes(yaml_files: dict[str, dict]):
+def check_hook_class_names(yaml_files: dict[str, dict]):
     print("Checking connection classes belong to package, exist and are classes")
-    resource_type = "hook-class-names"
+    resource_type = "connection-types"
     for yaml_file_path, provider_data in yaml_files.items():
         provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
-        hook_class_names = provider_data.get(resource_type)
-        if hook_class_names:
+        connection_types = provider_data.get(resource_type)
+        if connection_types:
+            hook_class_names = {connection_type["hook-class-name"] for connection_type in connection_types}
             check_if_objects_exist_and_belong_to_package(
                 hook_class_names, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
             )
@@ -598,7 +599,7 @@ if __name__ == "__main__":
 
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
-    check_hook_connection_classes(all_parsed_yaml_files)
+    check_hook_class_names(all_parsed_yaml_files)
     check_plugin_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
     check_correctness_of_list_of_sensors_operators_hook_trigger_modules(all_parsed_yaml_files)
