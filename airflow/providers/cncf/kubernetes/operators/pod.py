@@ -630,7 +630,7 @@ class KubernetesPodOperator(BaseOperator):
     def execute_async(self, context: Context):
         self.pod_request_obj = self.build_pod_request_obj(context)
         if len(self.connection_secrets) > 0:
-                self.setup_connection_secrets(context)
+            self.setup_connection_secrets(context)
         self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
             pod_request_obj=self.pod_request_obj,
             context=context,
@@ -718,30 +718,32 @@ class KubernetesPodOperator(BaseOperator):
     def setup_connection_secrets(self, context):
         """Create Kubernetes secrets based on Airflow connections."""
         for s in self.connection_secrets:
-            name = f"{context.get('dag_id')}-{context.get('task_id')}-{_rand_str(8)}"
+            name = f"{context['dag'].dag_id}-{context['task_instance'].task_id}-{_rand_str(8)}"
             s.secret = name
+            self.log.info("Creating kubernetes secret %s based on connection %s", name, s.conn_id)
             conn = Connection.get_connection_from_secrets(s.conn_id)
-            secret_body = {  # TODO: Should we add more fields here?
+            secret_body = {
                 "extra": conn.extra,
                 "host": conn.host,
                 "login": conn.login,
                 "password": conn.password,
                 "port": conn.port,
                 "schema": conn.schema,
-                "uri": conn.uri,
             }
             # create secret
             self.client.create_namespaced_secret(
-                namespace=self.namespace,
-                body=k8s.V1Secret(data=secret_body),
-                metadata=k8s.V1ObjectMeta(
-                    namespace=self.namespace,
-                    labels=self.get_ti_pod_labels(context),
-                    name=name,
+                self.namespace,
+                k8s.V1Secret(
+                    data=secret_body,
+                    metadata=k8s.V1ObjectMeta(
+                        namespace=self.namespace,
+                        labels=self._get_ti_pod_labels(context),
+                        name=name,
+                    ),
                 ),
             )
-            # now that the secret actually exists in Kube, populate the name
-            # and treat it as a regular KubernetesPodOperator secret.
+            # now that the secret actually exists in Kube, we can
+            # use it alongside the other KubernetesPodOperator secrets.
             self.secrets.append(s)
 
     def cleanup_connection_secrets(self):
@@ -750,7 +752,7 @@ class KubernetesPodOperator(BaseOperator):
             if isinstance(s, KubernetesConnectionSecret):
                 self.log.info("Attempting to delete connection-backed secret: %s", s.secret)
                 try:
-                    self.client.delete_namespaced_secret(namespace=self.namespace, name=s.secret)
+                    self.client.delete_namespaced_secret(self.namespace, s.secret)
                 except ApiException as e:  # Log exception but don't block the remaining cleanup
                     self.log.error("Unable to delete secret: %s", e)
 

@@ -138,5 +138,5 @@ class KubernetesConnectionSecret(Secret):
 
     def __init__(self, deploy_type, deploy_target, conn_id, key=None, items=None):
         """Instantiate a secret with a missing secret ID, as this is populated at run-time."""
-        super.__init__(self, deploy_type, deploy_target, None, key=key, items=items)
+        super().__init__(deploy_type, deploy_target, None, key=key, items=items)
         self.conn_id = conn_id
