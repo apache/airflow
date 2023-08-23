@@ -28,7 +28,7 @@ aws_ecs_executor:
   options:
     conn_id:
       description: |
-        The Airflow connection used for AWS credentials.
+        The Airflow connection (i.e. credentials) used by the ECS executor to make API calls to AWS ECS.
       version_added: "2.8"
       type: string
       example: "aws_default"
@@ -42,7 +42,7 @@ aws_ecs_executor:
       default: ~
     assign_public_ip:
       description: |
-        Assign public ip. Valid values are "ENABLED" or "DISABLED".
+        Whether to assign a public IP address to the containers launched by the ECS executor.
         For more info see url to Boto3 docs above.
       version_added: "2.8"
       type: boolean
@@ -57,9 +57,10 @@ aws_ecs_executor:
       default: ~
     container_name:
       description: |
-        Name of registered Airflow container within your AWS cluster. This
-        container will receive an airflow CLI command as an additional parameter
-        to its entrypoint. For more info see url to Boto3 docs above. Required.
+        Name of the container that will be used to execute Airflow tasks via the ECS executor.
+        The container should be specified in the ECS Task Definition and will receive an airflow
+        CLI command as an additional parameter to its entrypoint. For more info see url to Boto3
+        docs above. Required.
       version_added: "2.8"
       type: string
       example: "ecs_executor_container"

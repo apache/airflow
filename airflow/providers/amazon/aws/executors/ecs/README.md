@@ -21,6 +21,39 @@
 
 Some overview TBD
 
+## Config Options
+
+There are a number of configuration options available, which can either be set directly in the airflow.cfg
+file under an "aws_ecs_executor" section or via environment variables using the `AIRFLOW__AWS_ECS_EXECUTOR__<OPTION_NAME>`
+format, for example `AIRFLOW__AWS_ECS_EXECUTOR__CONTAINER_NAME = "myEcsContainer"`.  For more information
+on how to set these options, see [Setting Configuration Options](https://airflow.apache.org/docs/apache-airflow/stable/howto/set-config.html)
+
+In the case of conflicts, the order of precedence is:
+
+1. Load default values for options which have defaults.
+2. Load any values provided in the RUN_TASK_KWARGS option if one is provided.
+3. Load any values explicitly provided through airflow.cfg or environment variables. These are checked with Airflow's config precedence.
+
+### Required config options:
+
+- CLUSTER - Name of the Amazon ECS Cluster. Required.
+- CONTAINER_NAME - Name of the container that will be used to execute Airflow tasks via the ECS executor.
+The container should be specified in the ECS Task Definition. Required.
+- REGION - The name of the AWS Region where Amazon ECS is configured. Required.
+
+### Optional config options:
+
+- ASSIGN_PUBLIC_IP - "Whether to assign a public IP address to the containers launched by the ECS executor. Defaults to "False".
+- CONN_ID - The Airflow connection (i.e. credentials) used by the ECS executor to make API calls to AWS ECS. Defaults to "aws_default".
+- LAUNCH_TYPE - Launch type can either be 'FARGATE' OR 'EC2'.  Defaults to "FARGATE".
+- PLATFORM_VERSION - The platform version the ECS task uses if the FARGATE launch type is used. Defaults to "LATEST".
+- RUN_TASK_KWARGS - A JSON string containing arguments to provide the ECS `run_task` API.
+- SECURITY_GROUPS - Up to 5 comma-seperated security group IDs associated with the ECS task. Defaults to the VPC default.
+- SUBNETS - Up to 16 comma-separated subnet IDs associated with the ECS task or service. Defaults to the VPC default.
+- TASK_DEFINITION - The family and revision (family:revision) or full ARN of the ECS task definition to run. Defaults to the latest ACTIVE revision.
+
+For a more detailed description of available options, including type hints and examples, see the `config_templates` folder in the Amazon provider package.
+
 ## Dockerfile and Image Building
 
 Contents TBD from Syed
