@@ -92,7 +92,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         ``AzureDataFactoryHook`` will attempt to use the resource group name provided in the corresponding
         connection.
     :param factory_name: The data factory name. If a value is not passed in to the operator, the
-        ``AzureDataFactoryHook`` will attempt to use the factory name name provided in the corresponding
+        ``AzureDataFactoryHook`` will attempt to use the factory name provided in the corresponding
         connection.
     :param reference_pipeline_run_id: The pipeline run identifier. If this run ID is specified the parameters
         of the specified run will be used to create a new run.

@@ -18,9 +18,9 @@
 -->
 
 This document contains information on how to report security vulnerabilities in Apache Airflow and
-how the security issues reported to Apache Airflow security team are handled. If you would like
-to learn about the security model of Airflow head to
-[Airflow Security](https://airflow.apache.org/docs/apache-airflow/stable/security/)
+how security issues reported to the Apache Airflow security team are handled. If you would like
+to learn more, head to the
+[Airflow security](https://airflow.apache.org/docs/apache-airflow/stable/security/) documentation.
 
 ## Reporting Vulnerabilities
 
@@ -52,7 +52,7 @@ of how it affects Airflow security. We may ask that you resubmit your report if 
 movie, HTML, or PDF attachment when you could as easily describe it with plain text.
 
 Before reporting vulnerabilities, please make sure to read and understand the
-[security model](https://airflow.apache.org/docs/apache-airflow/stable/security/) of Airflow, because
+[security model](https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html) of Airflow, because
 some of the potential security vulnerabilities that are valid for projects that are publicly accessible
 from the Internet, are not valid for Airflow. Airflow is not designed to be used by untrusted users, and some
 trusted users are trusted enough to do a variety of operations that could be considered as vulnerabilities

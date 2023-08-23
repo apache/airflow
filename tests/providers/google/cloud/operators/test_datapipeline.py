@@ -24,6 +24,7 @@ import pytest as pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.operators.datapipeline import (
     CreateDataPipelineOperator,
+    RunDataPipelineOperator,
 )
 
 TASK_ID = "test-datapipeline-operators"
@@ -136,3 +137,92 @@ class TestCreateDataPipelineOperator:
         }
         with pytest.raises(AirflowException):
             CreateDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+
+class TestRunDataPipelineOperator:
+    @pytest.fixture
+    def run_operator(self):
+        """
+        Create a RunDataPipelineOperator instance with test data
+        """
+        return RunDataPipelineOperator(
+            task_id=TASK_ID,
+            data_pipeline_name=TEST_DATA_PIPELINE_NAME,
+            project_id=TEST_PROJECTID,
+            location=TEST_LOCATION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.datapipeline.DataPipelineHook")
+    def test_execute(self, data_pipeline_hook_mock, run_operator):
+        """
+        Test Run Operator execute with correct parameters
+        """
+        run_operator.execute(mock.MagicMock())
+        data_pipeline_hook_mock.assert_called_once_with(
+            gcp_conn_id=TEST_GCP_CONN_ID,
+        )
+
+        data_pipeline_hook_mock.return_value.run_data_pipeline.assert_called_once_with(
+            data_pipeline_name=TEST_DATA_PIPELINE_NAME,
+            project_id=TEST_PROJECTID,
+            location=TEST_LOCATION,
+        )
+
+    def test_invalid_data_pipeline_name(self):
+        """
+        Test that AirflowException is raised if Run Operator is not given a data pipeline name.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "data_pipeline_name": None,
+            "project_id": TEST_PROJECTID,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            RunDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_invalid_project_id(self):
+        """
+        Test that AirflowException is raised if Run Operator is not given a project ID.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "data_pipeline_name": TEST_DATA_PIPELINE_NAME,
+            "project_id": None,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            RunDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_invalid_location(self):
+        """
+        Test that AirflowException is raised if Run Operator is not given a location.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "data_pipeline_name": TEST_DATA_PIPELINE_NAME,
+            "project_id": TEST_PROJECTID,
+            "location": None,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            RunDataPipelineOperator(**init_kwargs).execute(mock.MagicMock())
+
+    def test_invalid_response(self):
+        """
+        Test that AirflowException is raised if Run Operator fails execution and returns error.
+        """
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "data_pipeline_name": TEST_DATA_PIPELINE_NAME,
+            "project_id": TEST_PROJECTID,
+            "location": TEST_LOCATION,
+            "gcp_conn_id": TEST_GCP_CONN_ID,
+        }
+        with pytest.raises(AirflowException):
+            RunDataPipelineOperator(**init_kwargs).execute(mock.MagicMock()).return_value = {
+                "error": {"message": "example error"}
+            }

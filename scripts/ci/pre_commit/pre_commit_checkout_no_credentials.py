@@ -74,7 +74,7 @@ if __name__ == "__main__":
     if total_err_num:
         console.print(
             """
-[red]There are are some checkout instructions in github workflows that have no "persist_credentials"
+[red]There are some checkout instructions in github workflows that have no "persist_credentials"
 set to False.[/]
 
 For security reasons - make sure all of the checkout actions have persist_credentials set, similar to:

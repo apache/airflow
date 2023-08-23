@@ -58,6 +58,7 @@ from airflow.exceptions import (
     AirflowException,
     FailStopDagInvalidTriggerRule,
     RemovedInAirflow3Warning,
+    TaskDeferralError,
     TaskDeferred,
 )
 from airflow.lineage import apply_lineage, prepare_lineage
@@ -390,7 +391,7 @@ class BaseOperatorMeta(abc.ABCMeta):
             from airflow.models.dag import DagContext
             from airflow.utils.task_group import TaskGroupContext
 
-            if len(args) > 0:
+            if args:
                 raise AirflowException("Use keyword arguments when initializing operators")
 
             instantiated_from_mapped = kwargs.pop(
@@ -1590,6 +1591,22 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        """This method is called when a deferred task is resumed."""
+        # __fail__ is a special signal value for next_method that indicates
+        # this task was scheduled specifically to fail.
+        if next_method == "__fail__":
+            next_kwargs = next_kwargs or {}
+            traceback = next_kwargs.get("traceback")
+            if traceback is not None:
+                self.log.error("Trigger failed:\n%s", "\n".join(traceback))
+            raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+        # Grab the callable off the Operator/Task and add in any kwargs
+        execute_callable = getattr(self, next_method)
+        if next_kwargs:
+            execute_callable = functools.partial(execute_callable, **next_kwargs)
+        return execute_callable(context)
+
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """Get the "normal" operator from the current operator.
 
@@ -1713,8 +1730,7 @@ def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:
 
     :param tasks: Individual and/or list of tasks, EdgeModifiers, XComArgs, or TaskGroups to set dependencies
     """
-    for index, up_task in enumerate(tasks[:-1]):
-        down_task = tasks[index + 1]
+    for up_task, down_task in zip(tasks, tasks[1:]):
         if isinstance(up_task, DependencyMixin):
             up_task.set_downstream(down_task)
             continue

@@ -82,4 +82,4 @@ connection-types:
     connection-type: slackwebhook
 
 notifications:
-  - airflow.providers.slack.notifications.slack_notifier.SlackNotifier
+  - airflow.providers.slack.notifications.slack.SlackNotifier

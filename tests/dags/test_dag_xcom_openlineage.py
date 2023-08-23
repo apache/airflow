@@ -1,4 +1,4 @@
-#
+##
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,27 +15,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-[run]
-branch = True
-relative_files = True
-source = airflow
-omit =
-    airflow/_vendor/**
-    airflow/contrib/**
-    airflow/example_dags/**
-    airflow/migrations/**
-    airflow/providers/**/example_dags/**
-    airflow/www/node_modules/**
-    airflow/providers/google/ads/_vendor/**
+import datetime
 
-[report]
-skip_empty = True
-exclude_lines =
-    pragma: no cover
-    @abstractmethod
-    @abstractproperty
-    def __repr__
-    raise NotImplementedError
-    if __name__ == .__main__.:
-    if TYPE_CHECKING:
+from airflow.models import DAG
+from airflow.operators.python import PythonOperator
+
+dag = DAG(
+    dag_id="test_dag_xcom_openlineage",
+    default_args={"owner": "airflow", "retries": 3, "start_date": datetime.datetime(2022, 1, 1)},
+    schedule="0 0 * * *",
+    dagrun_timeout=datetime.timedelta(minutes=60),
+)
+
+
+def push_and_pull(ti, **kwargs):
+    ti.xcom_push(key="pushed_key", value="asdf")
+    ti.xcom_pull(key="pushed_key")
+
+
+task = PythonOperator(task_id="push_and_pull", python_callable=push_and_pull, dag=dag)
+
+if __name__ == "__main__":
+    dag.cli()

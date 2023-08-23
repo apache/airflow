@@ -21,7 +21,7 @@
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
 [![GitHub Build](https://github.com/apache/airflow/workflows/CI%20Build/badge.svg)](https://github.com/apache/airflow/actions)
-[![Coverage Status](https://codecov.io/github/apache/airflow/coverage.svg?branch=main)](https://app.codecov.io/gh/apache/airflow/branch/main)
+[![Coverage Status](https://codecov.io/gh/apache/airflow/graph/badge.svg?token=WdLKlKHOAU)](https://codecov.io/gh/apache/airflow)
 [![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
 [![Docker Pulls](https://img.shields.io/docker/pulls/apache/airflow.svg)](https://hub.docker.com/r/apache/airflow)
@@ -92,7 +92,7 @@ Apache Airflow is tested with:
 | Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)           |
 | Kubernetes  | 1.24, 1.25, 1.26, 1.27 | 1.24, 1.25, 1.26, 1.27    |
 | PostgreSQL  | 11, 12, 13, 14, 15     | 11, 12, 13, 14, 15        |
-| MySQL       | 5.7, 8                 | 5.7, 8                    |
+| MySQL       | 5.7, 8.0, 8.1          | 5.7, 8.0                  |
 | SQLite      | 3.15.0+                | 3.15.0+                   |
 | MSSQL       | 2017(\*), 2019(\*)     | 2017(\*), 2019(\*)        |
 

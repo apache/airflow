@@ -265,17 +265,18 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     }
 
 
-def _safe_parse_datetime(v, allow_empty=False) -> datetime.datetime | None:
+def _safe_parse_datetime(v, *, allow_empty=False, strict=True) -> datetime.datetime | None:
     """
     Parse datetime and return error message for invalid dates.
 
     :param v: the string value to be parsed
     :param allow_empty: Set True to return none if empty str or None
+    :param strict: if False, it will fall back on the dateutil parser if unable to parse with pendulum
     """
     if allow_empty is True and not v:
         return None
     try:
-        return timezone.parse(v)
+        return timezone.parse(v, strict=strict)
     except (TypeError, ParserError):
         abort(400, f"Invalid datetime: {v!r}")
 
@@ -1445,6 +1446,8 @@ class Airflow(AirflowBaseView):
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
+        no_dagrun = False
+
         title = "Rendered Template"
         html_dict = {}
 
@@ -1457,6 +1460,7 @@ class Airflow(AirflowBaseView):
             # database) for presentation only.
             ti = TaskInstance(raw_task, map_index=map_index)
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
+            no_dagrun = True
         else:
             ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index, session=session)
             if ti:
@@ -1502,28 +1506,33 @@ class Airflow(AirflowBaseView):
             content = getattr(task, template_field)
             renderer = task.template_fields_renderers.get(template_field, template_field)
             if renderer in renderers:
-                html_dict[template_field] = renderers[renderer](content)
+                html_dict[template_field] = renderers[renderer](content) if not no_dagrun else ""
             else:
-                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(pformat(content))
+                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(
+                    pformat(content) if not no_dagrun else ""
+                )
 
             if isinstance(content, dict):
                 if template_field == "op_kwargs":
                     for key, value in content.items():
                         renderer = task.template_fields_renderers.get(key, key)
                         if renderer in renderers:
-                            html_dict[".".join([template_field, key])] = renderers[renderer](value)
+                            html_dict[".".join([template_field, key])] = (
+                                renderers[renderer](value) if not no_dagrun else ""
+                            )
                         else:
                             html_dict[".".join([template_field, key])] = Markup(
                                 "<pre><code>{}</pre></code>"
-                            ).format(pformat(value))
+                            ).format(pformat(value) if not no_dagrun else "")
                 else:
                     for dict_keys in get_key_paths(content):
                         template_path = ".".join((template_field, dict_keys))
                         renderer = task.template_fields_renderers.get(template_path, template_path)
                         if renderer in renderers:
                             content_value = get_value_from_path(dict_keys, content)
-                            html_dict[template_path] = renderers[renderer](content_value)
-
+                            html_dict[template_path] = (
+                                renderers[renderer](content_value) if not no_dagrun else ""
+                            )
         return self.render_template(
             "airflow/ti_code.html",
             show_trigger_form_if_no_params=conf.getboolean("webserver", "show_trigger_form_if_no_params"),
@@ -1630,7 +1639,7 @@ class Airflow(AirflowBaseView):
 
         # Convert string datetime into actual datetime
         try:
-            execution_date = timezone.parse(execution_date_str)
+            execution_date = timezone.parse(execution_date_str, strict=True)
         except ValueError:
             error_message = (
                 f"Given execution date, {execution_date}, could not be identified as a date. "
@@ -2103,7 +2112,7 @@ class Airflow(AirflowBaseView):
             )
 
         try:
-            execution_date = timezone.parse(request_execution_date)
+            execution_date = timezone.parse(request_execution_date, strict=True)
         except ParserError:
             flash("Invalid execution date", "error")
             form = DateTimeForm(data={"execution_date": timezone.utcnow().isoformat()})
@@ -2707,7 +2716,7 @@ class Airflow(AirflowBaseView):
                 return redirect_or_json(
                     origin, msg=f"TaskGroup {group_id} could not be found", status="error", status_code=404
                 )
-            tasks = [task for task in task_group.iter_tasks()]
+            tasks = list(task_group.iter_tasks())
         elif task_id:
             try:
                 task = dag.get_task(task_id)
@@ -3699,7 +3708,7 @@ class Airflow(AirflowBaseView):
             num_runs = conf.getint("webserver", "default_dag_run_display_number")
 
         try:
-            base_date = timezone.parse(request.args["base_date"])
+            base_date = timezone.parse(request.args["base_date"], strict=True)
         except (KeyError, ValueError):
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
@@ -3848,7 +3857,7 @@ class Airflow(AirflowBaseView):
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
-            if dag_node_id not in nodes_dict and len(dependencies) > 0:
+            if dag_node_id not in nodes_dict:
                 for dep in dependencies:
                     if dep.dependency_type == "dag" or dep.dependency_type == "dataset":
                         nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
@@ -5128,8 +5137,8 @@ class VariableModelView(AirflowModelView):
             for k, v in variable_dict.items():
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
-                except Exception as e:
-                    logging.info("Variable import failed: %s", repr(e))
+                except Exception as exc:
+                    logging.info("Variable import failed: %r", exc)
                     fail_count += 1
                 else:
                     suc_count += 1

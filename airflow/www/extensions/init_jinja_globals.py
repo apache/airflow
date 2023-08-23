@@ -74,7 +74,7 @@ def init_jinja_globals(app):
         }
 
         backends = conf.get("api", "auth_backends")
-        if len(backends) > 0 and backends[0] != "airflow.api.auth.backend.deny_all":
+        if backends and backends[0] != "airflow.api.auth.backend.deny_all":
             extra_globals["rest_api_enabled"] = True
 
         if "analytics_tool" in conf.getsection("webserver"):

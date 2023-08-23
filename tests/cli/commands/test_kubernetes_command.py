@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import os
 import tempfile
 from unittest import mock
@@ -26,12 +27,15 @@ from dateutil.parser import parse
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import kubernetes_command
+from tests.test_utils.config import conf_vars
 
 
 class TestGenerateDagYamlCommand:
     @classmethod
     def setup_class(cls):
-        cls.parser = cli_parser.get_parser()
+        with conf_vars({("core", "executor"): "KubernetesExecutor"}):
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
 
     def test_generate_dag_yaml(self):
         with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:
@@ -61,7 +65,9 @@ class TestCleanUpPodsCommand:
 
     @classmethod
     def setup_class(cls):
-        cls.parser = cli_parser.get_parser()
+        with conf_vars({("core", "executor"): "KubernetesExecutor"}):
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
 
     @mock.patch("kubernetes.client.CoreV1Api.delete_namespaced_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config")
