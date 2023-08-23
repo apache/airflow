@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import re
 from contextlib import contextmanager, nullcontext
 from unittest import mock
@@ -32,7 +33,7 @@ from airflow.exceptions import AirflowException, AirflowSkipException, TaskDefer
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator, _optionally_suppress
-from airflow.providers.cncf.kubernetes.secret import Secret
+from airflow.providers.cncf.kubernetes.secret import KubernetesConnectionSecret, Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
@@ -266,6 +267,37 @@ class TestKubernetesPodOperator:
         assert pod.spec.containers[0].env_from == [
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_ref))
         ]
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod._rand_str")
+    def test_connection_secrets_created_and_cleaned(self, mock_rand_str):
+        mock_rand_str.return_value = "abcdefgh"
+        secret = KubernetesConnectionSecret("volume", "/tmp/my_secret", "my_conn")
+        mock_client = MagicMock()
+        with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": '{"password":"my_secret"}'}):
+            k = KubernetesPodOperator(connection_secrets=[secret], task_id="test", namespace="test-namespace")
+            k.hook.core_v1_client = mock_client
+            self.run_pod(k)
+
+        mock_client.create_namespaced_secret.assert_called_once_with("test-namespace", mock.ANY)
+
+        assert mock_client.create_namespaced_secret.call_args.args[1].data == {
+            "extra": None,
+            "host": None,
+            "login": None,
+            "password": "my_secret",
+            "port": None,
+            "schema": None,
+        }
+
+        assert mock_client.create_namespaced_secret.call_args.args[1].metadata.labels == {
+            "dag_id": "dag",
+            "kubernetes_pod_operator": "True",
+            "run_id": "test",
+            "task_id": "test",
+            "try_number": "1",
+        }
+
+        mock_client.delete_namespaced_secret.assert_called_once_with("test-namespace", "dag-test-abcdefgh")
 
     @pytest.mark.parametrize(("in_cluster",), ([True], [False]))
     @patch(HOOK_CLASS)
