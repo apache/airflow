@@ -25,7 +25,6 @@ the default database and collection to use (see connection `azure_cosmos_default
 """
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Any
 
@@ -150,7 +149,7 @@ class AzureCosmosDBHook(BaseHook):
             .get_database_client(self.__get_database_name(database_name))
             .query_containers(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": collection_name})],
+                parameters=[{"name": "@id", "value": collection_name}],  # type: ignore[list-item]
             )
         )
         if not existing_container:
@@ -175,7 +174,7 @@ class AzureCosmosDBHook(BaseHook):
             .get_database_client(self.__get_database_name(database_name))
             .query_containers(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": collection_name})],
+                parameters=[{"name": "@id", "value": collection_name}],  # type: ignore[list-item]
             )
         )
 
@@ -193,7 +192,7 @@ class AzureCosmosDBHook(BaseHook):
         existing_database = list(
             self.get_conn().query_databases(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": database_name})],
+                parameters=[{"name": "@id", "value": database_name}],  # type: ignore[list-item]
             )
         )
         if not existing_database:
@@ -211,7 +210,7 @@ class AzureCosmosDBHook(BaseHook):
         existing_database = list(
             self.get_conn().query_databases(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": database_name})],
+                parameters=[{"name": "@id", "value": database_name}],  # type: ignore[list-item]
             )
         )
 
