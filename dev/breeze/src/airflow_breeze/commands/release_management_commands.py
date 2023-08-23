@@ -1202,7 +1202,7 @@ def generate_issue_content_providers(
         get_console().print()
         get_console().print(
             "Issue title: [yellow]Status of testing Providers that were "
-            f"prepared on {datetime.now().strftime('%B %d, %Y')}[/]"
+            f"prepared on {datetime.now():%B %d, %Y}[/]"
         )
         get_console().print()
         syntax = Syntax(issue_content, "markdown", theme="ansi_dark")

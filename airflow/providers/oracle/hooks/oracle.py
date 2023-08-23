@@ -303,9 +303,7 @@ class OracleHook(DbApiHook):
                 elif numpy and isinstance(cell, numpy.datetime64):
                     lst.append("'" + str(cell) + "'")
                 elif isinstance(cell, datetime):
-                    lst.append(
-                        "to_date('" + cell.strftime("%Y-%m-%d %H:%M:%S") + "','YYYY-MM-DD HH24:MI:SS')"
-                    )
+                    lst.append(f"to_date('{cell:%Y-%m-%d %H:%M:%S}','YYYY-MM-DD HH24:MI:SS')")
                 else:
                     lst.append(str(cell))
             values = tuple(lst)
