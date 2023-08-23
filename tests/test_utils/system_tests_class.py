@@ -131,7 +131,7 @@ class SystemTest:
 
     def run_dag(self, dag_id: str, dag_folder: str = DEFAULT_DAG_FOLDER) -> None:
         """
-        Runs example dag by it's ID.
+        Runs example dag by its ID.
 
         :param dag_id: id of a DAG to be run
         :param dag_folder: directory where to look for the specific DAG. Relative to AIRFLOW_HOME.

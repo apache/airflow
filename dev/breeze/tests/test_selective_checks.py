@@ -347,7 +347,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Always Providers[airbyte,http]",
             },
-            id="Providers tests tests run without amazon tests if no amazon file changed",
+            id="Providers tests run without amazon tests if no amazon file changed",
         ),
         pytest.param(
             ("airflow/providers/amazon/file.py",),

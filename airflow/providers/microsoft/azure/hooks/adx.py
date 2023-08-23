@@ -28,8 +28,8 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
+from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoServiceError
-from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.response import KustoResponseDataSetV2
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
