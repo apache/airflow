@@ -19,19 +19,30 @@
 ``apache-airflow-providers-microsoft-azure``
 ============================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
     Connection types <connections/index>
     Operators <operators/index>
+    Transfers <transfer/index>
     Secrets backends <secrets-backends/azure-key-vault>
     Logging for Tasks <logging/index>
+    Sensors <sensors/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -39,11 +50,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/microsoft/azure/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -55,6 +68,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -67,7 +81,7 @@ Package apache-airflow-providers-microsoft-azure
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 5.3.1
+Release: 6.2.4
 
 Provider package
 ----------------
@@ -85,10 +99,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 ================================  ==================
 PIP package                       Version required
 ================================  ==================
-``apache-airflow``                ``>=2.3.0``
+``apache-airflow``                ``>=2.4.0``
 ``azure-batch``                   ``>=8.0.0``
 ``azure-cosmos``                  ``>=4.0.0``
 ``azure-datalake-store``          ``>=0.0.45``
@@ -135,7 +151,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 5.3.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-5.3.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-5.3.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-5.3.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 5.3.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-5.3.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-5.3.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-5.3.1-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/microsoft/azure/CHANGELOG.rst
+* `The apache-airflow-providers-microsoft-azure 6.2.4 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.2.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.2.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.2.4.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 6.2.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.2.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.2.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.2.4-py3-none-any.whl.sha512>`__)

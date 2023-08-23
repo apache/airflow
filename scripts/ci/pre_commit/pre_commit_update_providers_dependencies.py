@@ -45,10 +45,6 @@ sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))  # make sure setup is imported fro
 warnings: list[str] = []
 errors: list[str] = []
 
-CROSS_PROVIDERS_DEPS = "cross-providers-deps"
-DEPS = "deps"
-SUSPENDED = "suspended"
-
 suspended_paths: list[str] = []
 
 ALL_DEPENDENCIES: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
@@ -112,7 +108,7 @@ def find_all_providers_and_provider_files():
 
 def get_provider_id_from_relative_import_or_file(relative_path_or_file: str) -> str | None:
     provider_candidate = relative_path_or_file.replace(os.sep, ".").split(".")
-    while len(provider_candidate) > 0:
+    while provider_candidate:
         candidate_provider_id = ".".join(provider_candidate)
         if "google_vendor" in candidate_provider_id:
             candidate_provider_id = candidate_provider_id.replace("google_vendor", "google")
@@ -130,7 +126,7 @@ def get_provider_id_from_import(import_name: str, file_path: Path) -> str | None
     provider_id = get_provider_id_from_relative_import_or_file(relative_provider_import)
     if provider_id is None:
         relative_path_from_import = relative_provider_import.replace(".", os.sep)
-        if any(relative_path_from_import.startswith(suspended_path) for suspended_path in suspended_paths):
+        if relative_path_from_import.startswith(tuple(suspended_paths)):
             return None
         warnings.append(f"We could not determine provider id from import {import_name} in {file_path}")
     return provider_id
@@ -158,7 +154,7 @@ def get_provider_id_from_file_name(file_path: Path) -> str | None:
                 return None
     provider_id = get_provider_id_from_relative_import_or_file(str(relative_path))
     if provider_id is None and file_path.name not in ["__init__.py", "get_provider_info.py"]:
-        if any(relative_path.as_posix().startswith(suspended_path) for suspended_path in suspended_paths):
+        if relative_path.as_posix().startswith(tuple(suspended_paths)):
             return None
         else:
             warnings.append(f"We had a problem to classify the file {file_path} to a provider")
@@ -175,7 +171,7 @@ def check_if_different_provider_used(file_path: Path) -> None:
         if imported_provider is not None and imported_provider not in ALL_PROVIDERS:
             warnings.append(f"The provider {imported_provider} from {file_path} cannot be found.")
         elif imported_provider and file_provider != imported_provider:
-            ALL_DEPENDENCIES[file_provider][CROSS_PROVIDERS_DEPS].append(imported_provider)
+            ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
 
 
 if __name__ == "__main__":
@@ -187,7 +183,7 @@ if __name__ == "__main__":
         check_if_different_provider_used(file)
     for provider, provider_yaml_content in ALL_PROVIDERS.items():
         if not provider_yaml_content.get("suspended"):
-            ALL_DEPENDENCIES[provider][DEPS].extend(provider_yaml_content["dependencies"])
+            ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
     if warnings:
         console.print("[yellow]Warnings!\n")
         for warning in warnings:
@@ -200,21 +196,41 @@ if __name__ == "__main__":
         console.print(f"[bright_blue]Total: {len(errors)} errors.")
     unique_sorted_dependencies: dict[str, dict[str, list[str]]] = defaultdict(dict)
     for key in sorted(ALL_DEPENDENCIES.keys()):
-        unique_sorted_dependencies[key][DEPS] = sorted(ALL_DEPENDENCIES[key][DEPS])
-        unique_sorted_dependencies[key][CROSS_PROVIDERS_DEPS] = sorted(
-            set(ALL_DEPENDENCIES[key][CROSS_PROVIDERS_DEPS])
+        unique_sorted_dependencies[key]["deps"] = sorted(ALL_DEPENDENCIES[key]["deps"])
+        unique_sorted_dependencies[key]["cross-providers-deps"] = sorted(
+            set(ALL_DEPENDENCIES[key]["cross-providers-deps"])
+        )
+        excluded_versions = ALL_PROVIDERS[key].get("excluded-python-versions")
+        unique_sorted_dependencies[key]["excluded-python-versions"] = (
+            excluded_versions if excluded_versions else []
         )
     if errors:
         console.print()
         console.print("[red]Errors found during verification. Exiting!")
         console.print()
         sys.exit(1)
-    DEPENDENCIES_JSON_FILE_PATH.write_text(json.dumps(unique_sorted_dependencies, indent=2) + "\n")
-    console.print(
-        f"[yellow]If you see changes to the {DEPENDENCIES_JSON_FILE_PATH} file - "
-        f"do not modify the file manually. Let pre-commit do the job!"
-    )
-    console.print()
-    console.print("[green]Verification complete! Success!\n")
-    console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")
-    console.print()
+    old_dependencies = DEPENDENCIES_JSON_FILE_PATH.read_text()
+    new_dependencies = json.dumps(unique_sorted_dependencies, indent=2) + "\n"
+    if new_dependencies != old_dependencies:
+        DEPENDENCIES_JSON_FILE_PATH.write_text(json.dumps(unique_sorted_dependencies, indent=2) + "\n")
+        if os.environ.get("CI"):
+            console.print()
+            console.print(f"[info]Written {DEPENDENCIES_JSON_FILE_PATH}")
+            console.print(
+                f"[yellow]You will need to run breeze locally and commit "
+                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)}!\n"
+            )
+            console.print()
+        else:
+            console.print()
+            console.print(
+                f"[yellow]Regenerated new dependencies. Please commit "
+                f"{DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)}!\n"
+            )
+            console.print(f"[info]Written {DEPENDENCIES_JSON_FILE_PATH}")
+            console.print()
+    else:
+        console.print(
+            "[green]No need to regenerate dependencies!\n[/]"
+            f"The {DEPENDENCIES_JSON_FILE_PATH.relative_to(AIRFLOW_SOURCES_ROOT)} is up to date!\n"
+        )

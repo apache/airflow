@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class SparkKubernetesSensor(BaseSensorOperator):
     """
-    Checks sparkApplication object in kubernetes cluster:
+    Checks sparkApplication object in kubernetes cluster.
 
     .. seealso::
         For more detail about Spark Application Object have a look at the reference:

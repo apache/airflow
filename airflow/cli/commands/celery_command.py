@@ -18,6 +18,8 @@
 """Celery command."""
 from __future__ import annotations
 
+import logging
+import sys
 from contextlib import contextmanager
 from multiprocessing import Process
 
@@ -25,22 +27,28 @@ import daemon
 import psutil
 import sqlalchemy.exc
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
+from celery.app.defaults import DEFAULT_TASK_LOG_FMT
+from celery.signals import after_setup_logger
 from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.executors.celery_executor import app as celery_app
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.serve_logs import serve_logs
 
 WORKER_PROCESS_NAME = "worker"
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def flower(args):
-    """Starts Flower, Celery monitoring tool."""
+    """Start Flower, Celery monitoring tool."""
+    # This needs to be imported locally to not trigger Providers Manager initialization
+    from airflow.providers.celery.executors.celery_executor import app as celery_app
+
     options = [
         "flower",
         conf.get("celery", "BROKER_URL"),
@@ -86,7 +94,7 @@ def flower(args):
 
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False):
-    """Starts serve_logs sub-process."""
+    """Start serve_logs sub-process."""
     sub_proc = None
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)
@@ -96,9 +104,43 @@ def _serve_logs(skip_serve_logs: bool = False):
         sub_proc.terminate()
 
 
+@after_setup_logger.connect()
+@providers_configuration_loaded
+def logger_setup_handler(logger, **kwargs):
+    """
+    Reconfigure the logger.
+
+    * remove any previously configured handlers
+    * logs of severity error, and above goes to stderr,
+    * logs of severity lower than error goes to stdout.
+    """
+    if conf.getboolean("logging", "celery_stdout_stderr_separation", fallback=False):
+        celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
+
+        class NoErrorOrAboveFilter(logging.Filter):
+            """Allow only logs with level *lower* than ERROR to be reported."""
+
+            def filter(self, record):
+                return record.levelno < logging.ERROR
+
+        below_error_handler = logging.StreamHandler(sys.stdout)
+        below_error_handler.addFilter(NoErrorOrAboveFilter())
+        below_error_handler.setFormatter(celery_formatter)
+
+        from_error_handler = logging.StreamHandler(sys.stderr)
+        from_error_handler.setLevel(logging.ERROR)
+        from_error_handler.setFormatter(celery_formatter)
+
+        logger.handlers[:] = [below_error_handler, from_error_handler]
+
+
 @cli_utils.action_cli
+@providers_configuration_loaded
 def worker(args):
-    """Starts Airflow Celery worker."""
+    """Start Airflow Celery worker."""
+    # This needs to be imported locally to not trigger Providers Manager initialization
+    from airflow.providers.celery.executors.celery_executor import app as celery_app
+
     # Disable connection pool so that celery worker does not hold an unnecessary db connection
     settings.reconfigure_orm(disable_connection_pool=True)
     if not settings.validate_session():
@@ -201,8 +243,9 @@ def worker(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def stop_worker(args):
-    """Sends SIGTERM to Celery worker."""
+    """Send SIGTERM to Celery worker."""
     # Read PID from file
     if args.pid:
         pid_file_path = args.pid

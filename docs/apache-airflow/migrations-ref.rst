@@ -18,7 +18,7 @@
 Reference for Database Migrations
 '''''''''''''''''''''''''''''''''
 
-Here's the list of all the Database Migrations that are executed via when you run ``airflow db upgrade``.
+Here's the list of all the Database Migrations that are executed via when you run ``airflow db migrate``.
 
 .. warning::
 
@@ -39,7 +39,15 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``98ae134e6fff`` (head)         | ``6abdffdd4815``  | ``2.6.0``         | Increase length of user identifier columns in ``ab_user``    |
+| ``405de8318b3a`` (head)         | ``788397e78828``  | ``2.7.0``         | add include_deferred column to pool                          |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``788397e78828``                | ``937cbd173ca1``  | ``2.7.0``         | Add custom_operator_name column                              |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``937cbd173ca1``                | ``c804e5c76e3e``  | ``2.7.0``         | Add index to task_instance table                             |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``c804e5c76e3e``                | ``98ae134e6fff``  | ``2.6.2``         | Add ``onupdate`` cascade to ``task_map`` table               |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``98ae134e6fff``                | ``6abdffdd4815``  | ``2.6.0``         | Increase length of user identifier columns in ``ab_user``    |
 |                                 |                   |                   | and ``ab_register_user`` tables                              |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``6abdffdd4815``                | ``290244fb8b83``  | ``2.6.0``         | add dttm index on log table                                  |

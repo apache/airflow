@@ -39,6 +39,7 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.platform import getuser
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from tests.listeners import xcom_listener
 from tests.listeners.file_write_listener import FileWriteListener
 from tests.test_utils.db import clear_db_runs
 
@@ -85,10 +86,14 @@ class TestStandardTaskRunner:
         (as the test environment does not have enough context for the normal
         way to run) and ensures they reset back to normal on the way out.
         """
-        get_listener_manager().clear()
         clear_db_runs()
         yield
         clear_db_runs()
+
+    @pytest.fixture(autouse=True)
+    def clean_listener_manager(self):
+        get_listener_manager().clear()
+        yield
         get_listener_manager().clear()
 
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
@@ -214,6 +219,55 @@ class TestStandardTaskRunner:
             assert f.readline() == "on_task_instance_running\n"
             assert f.readline() == "on_task_instance_failed\n"
             assert f.readline() == "before_stopping\n"
+
+    def test_ol_does_not_block_xcoms(self):
+        """
+        Test that ensures that pushing and pulling xcoms both in listener and task does not collide
+        """
+
+        path_listener_writer = "/tmp/test_ol_does_not_block_xcoms"
+        try:
+            os.unlink(path_listener_writer)
+        except OSError:
+            pass
+
+        listener = xcom_listener.XComListener(path_listener_writer, "push_and_pull")
+        get_listener_manager().add_listener(listener)
+
+        dagbag = DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get("test_dag_xcom_openlineage")
+        task = dag.get_task("push_and_pull")
+        dag.create_dagrun(
+            run_id="test",
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+        )
+
+        ti = TaskInstance(task=task, run_id="test")
+        job = Job(dag_id=ti.dag_id)
+        job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+        task_runner = StandardTaskRunner(job_runner)
+        task_runner.start()
+
+        # Wait until process makes itself the leader of its own process group
+        with timeout(seconds=1):
+            while True:
+                runner_pgid = os.getpgid(task_runner.process.pid)
+                if runner_pgid == task_runner.process.pid:
+                    break
+                time.sleep(0.01)
+
+        # Wait till process finishes
+        assert task_runner.return_code(timeout=10) is not None
+
+        with open(path_listener_writer) as f:
+            assert f.readline() == "on_task_instance_running\n"
+            assert f.readline() == "on_task_instance_success\n"
+            assert f.readline() == "listener\n"
 
     @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
     def test_start_and_terminate_run_as_user(self, mock_init):

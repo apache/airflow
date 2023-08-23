@@ -24,7 +24,7 @@ import os
 import shutil
 from datetime import timedelta
 from tempfile import mkdtemp
-from typing import Deque, Generator
+from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -377,7 +377,7 @@ class TestSchedulerJob:
             processor_subdir=None,
             msg="Executor reports task instance "
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
-            "finished (failed) although the task says its queued. (Info: None) "
+            "finished (failed) although the task says it's queued. (Info: None) "
             "Was the task killed externally?",
         )
         scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
@@ -605,8 +605,8 @@ class TestSchedulerJob:
         for ti in tis:
             ti.state = State.SCHEDULED
             session.merge(ti)
-        pool = Pool(pool="a", slots=1, description="haha")
-        pool2 = Pool(pool="b", slots=100, description="haha")
+        pool = Pool(pool="a", slots=1, description="haha", include_deferred=False)
+        pool2 = Pool(pool="b", slots=100, description="haha", include_deferred=False)
         session.add(pool)
         session.add(pool2)
         session.flush()
@@ -732,8 +732,8 @@ class TestSchedulerJob:
 
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_order_priority_with_pools"
 
-        session.add(Pool(pool="pool1", slots=32))
-        session.add(Pool(pool="pool2", slots=32))
+        session.add(Pool(pool="pool1", slots=32, include_deferred=False))
+        session.add(Pool(pool="pool2", slots=32, include_deferred=False))
 
         with dag_maker(dag_id=dag_id, max_active_tasks=2):
             op1 = EmptyOperator(task_id="dummy1", priority_weight=1, pool="pool1")
@@ -888,7 +888,12 @@ class TestSchedulerJob:
         ti = dr.task_instances[0]
         ti.state = State.SCHEDULED
         session.merge(ti)
-        infinite_pool = Pool(pool="infinite_pool", slots=-1, description="infinite pool")
+        infinite_pool = Pool(
+            pool="infinite_pool",
+            slots=-1,
+            description="infinite pool",
+            include_deferred=False,
+        )
         session.add(infinite_pool)
         session.commit()
 
@@ -913,7 +918,7 @@ class TestSchedulerJob:
         ti = dr.task_instances[1]
         ti.state = State.SCHEDULED
         session.merge(ti)
-        some_pool = Pool(pool="some_pool", slots=2, description="my pool")
+        some_pool = Pool(pool="some_pool", slots=2, description="my pool", include_deferred=False)
         session.add(some_pool)
         session.commit()
         with caplog.at_level(logging.WARNING):
@@ -1336,8 +1341,8 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
 
-        pool1 = Pool(pool="pool1", slots=1)
-        pool2 = Pool(pool="pool2", slots=1)
+        pool1 = Pool(pool="pool1", slots=1, include_deferred=False)
+        pool2 = Pool(pool="pool2", slots=1, include_deferred=False)
 
         session.add(pool1)
         session.add(pool2)
@@ -1386,6 +1391,7 @@ class TestSchedulerJob:
             [
                 mock.call("scheduler.tasks.starving", 1),
                 mock.call(f"pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}", 1),
+                mock.call("pool.starving_tasks", 1, tags={"pool_name": Pool.DEFAULT_POOL_NAME}),
             ],
             any_order=True,
         )
@@ -1401,6 +1407,7 @@ class TestSchedulerJob:
             [
                 mock.call("scheduler.tasks.starving", 0),
                 mock.call(f"pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}", 0),
+                mock.call("pool.starving_tasks", 0, tags={"pool_name": Pool.DEFAULT_POOL_NAME}),
             ],
             any_order=True,
         )
@@ -2122,7 +2129,7 @@ class TestSchedulerJob:
 
         # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args[0]
+        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
         assert call_args[0].dag_id == dr.dag_id
         assert call_args[1] is None
 
@@ -2157,7 +2164,7 @@ class TestSchedulerJob:
 
         # Verify Callback is set (i.e is None) when no callbacks are set on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args[0]
+        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
         assert call_args[0].dag_id == dr.dag_id
         assert call_args[1] is not None
         assert call_args[1].msg == msg
@@ -2576,7 +2583,7 @@ class TestSchedulerJob:
                 )
 
             session = settings.Session()
-            pool = Pool(pool="test_scheduler_verify_pool_full", slots=1)
+            pool = Pool(pool="test_scheduler_verify_pool_full", slots=1, include_deferred=False)
             session.add(pool)
             session.flush()
 
@@ -2617,7 +2624,7 @@ class TestSchedulerJob:
                 bash_command="echo hi",
             )
 
-        pool = Pool(pool="test_scheduler_verify_pool_full_2_slots_per_task", slots=6)
+        pool = Pool(pool="test_scheduler_verify_pool_full_2_slots_per_task", slots=6, include_deferred=False)
         session.add(pool)
         session.flush()
 
@@ -2671,8 +2678,8 @@ class TestSchedulerJob:
         dag_d2 = dag_maker.dag
 
         session = settings.Session()
-        pool_p1 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p1", slots=1)
-        pool_p2 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p2", slots=10)
+        pool_p1 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p1", slots=1, include_deferred=False)
+        pool_p2 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p2", slots=10, include_deferred=False)
         session.add(pool_p1)
         session.add(pool_p2)
         session.flush()
@@ -2749,7 +2756,7 @@ class TestSchedulerJob:
             )
 
         session = settings.Session()
-        pool = Pool(pool="test_scheduler_verify_priority_and_slots", slots=2)
+        pool = Pool(pool="test_scheduler_verify_priority_and_slots", slots=2, include_deferred=False)
         session.add(pool)
         session.flush()
 
@@ -3116,7 +3123,7 @@ class TestSchedulerJob:
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:
-                if file_name.endswith(".py") or file_name.endswith(".zip"):
+                if file_name.endswith((".py", ".zip")):
                     if file_name not in ignored_files:
                         expected_files.add(f"{root}/{file_name}")
         for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=False):
@@ -3129,7 +3136,7 @@ class TestSchedulerJob:
         example_dag_folder = airflow.example_dags.__path__[0]
         for root, _, files in os.walk(example_dag_folder):
             for file_name in files:
-                if file_name.endswith(".py") or file_name.endswith(".zip"):
+                if file_name.endswith((".py", ".zip")):
                     if file_name not in ["__init__.py"] and file_name not in ignored_files:
                         expected_files.add(os.path.join(root, file_name))
         detected_files.clear()
@@ -3394,6 +3401,42 @@ class TestSchedulerJob:
             scheduler_job.executor = MockExecutor()
             self.job_runner._send_sla_callbacks_to_processor(dag)
             scheduler_job.executor.callback_sink.send.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "schedule, number_running, excepted",
+        [
+            (None, None, False),
+            ("*/1 * * * *", None, False),
+            ("*/1 * * * *", 1, True),
+        ],
+        ids=["no_dag_schedule", "dag_schedule_too_many_runs", "dag_schedule_less_runs"],
+    )
+    def test_should_update_dag_next_dagruns(self, schedule, number_running, excepted, session, dag_maker):
+        """Test if really required to update next dagrun or possible to save run time"""
+
+        with dag_maker(
+            dag_id="test_should_update_dag_next_dagruns", schedule=schedule, max_active_runs=2
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_model = dag_maker.dag_model
+
+        for index in range(2):
+            dag_maker.create_dagrun(
+                run_id=f"run_{index}",
+                execution_date=(DEFAULT_DATE + timedelta(days=index)),
+                start_date=timezone.utcnow(),
+                state=State.RUNNING,
+                session=session,
+            )
+
+        session.flush()
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        assert excepted is self.job_runner._should_update_dag_next_dagruns(
+            dag, dag_model, number_running, session=session
+        )
 
     def test_create_dag_runs(self, dag_maker):
         """
@@ -4509,7 +4552,7 @@ class TestSchedulerJob:
             self.job_runner._find_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
-        requests = scheduler_job.executor.callback_sink.send.call_args[0]
+        requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert 1 == len(requests)
         assert requests[0].full_filepath == dag.fileloc
         assert requests[0].msg == str(self.job_runner._generate_zombie_message_details(ti))
@@ -4644,7 +4687,7 @@ class TestSchedulerJob:
                 msg=str(self.job_runner._generate_zombie_message_details(ti)),
             )
         ]
-        callback_requests = scheduler_job.executor.callback_sink.send.call_args[0]
+        callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
         assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
             result.simple_task_instance.key for result in callback_requests
@@ -4707,8 +4750,8 @@ class TestSchedulerJob:
 
             return spy
 
-        num_queued_tis: Deque[int] = collections.deque([], 3)
-        num_finished_events: Deque[int] = collections.deque([], 3)
+        num_queued_tis: collections.deque[int] = collections.deque([], 3)
+        num_finished_events: collections.deque[int] = collections.deque([], 3)
 
         do_scheduling_spy = mock.patch.object(
             job_runner,
@@ -5141,7 +5184,9 @@ class TestSchedulerJobQueriesCount:
 
             with assert_queries_count(expected_query_count, margin=15):
                 with mock.patch.object(DagRun, "next_dagruns_to_examine") as mock_dagruns:
-                    mock_dagruns.return_value = dagruns
+                    query = MagicMock()
+                    query.all.return_value = dagruns
+                    mock_dagruns.return_value = query
 
                     self.job_runner._run_scheduler_loop()
 

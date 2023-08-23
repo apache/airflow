@@ -36,7 +36,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--tag-as-latest",
                 "--docker-cache",
                 "--force-build",
-                "--github-repository",
             ],
         },
         {
@@ -53,7 +52,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Advanced options (for power users)",
             "options": [
-                "--builder",
                 "--install-providers-from-sources",
                 "--airflow-constraints-location",
                 "--airflow-constraints-mode",
@@ -67,17 +65,31 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--additional-dev-apt-command",
                 "--dev-apt-deps",
                 "--dev-apt-command",
+                "--version-suffix-for-pypi",
+                "--commit-sha",
+            ],
+        },
+        {
+            "name": "Backtracking options",
+            "options": [
+                "--build-timeout-minutes",
+                "--eager-upgrade-additional-requirements",
             ],
         },
         {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
-                "--github-token",
-                "--github-username",
+                "--builder",
                 "--platform",
                 "--push",
-                "--empty-image",
                 "--prepare-buildx-cache",
+            ],
+        },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
             ],
         },
     ],
@@ -87,11 +99,9 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--python",
-                "--github-token",
                 "--verify",
                 "--wait-for-image",
                 "--tag-as-latest",
-                "--github-repository",
             ],
         },
         {
@@ -105,6 +115,13 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-success-outputs",
             ],
         },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
+            ],
+        },
     ],
     "breeze ci-image verify": [
         {
@@ -114,8 +131,14 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--image-tag",
                 "--pull",
-                "--github-repository",
             ],
-        }
+        },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
+            ],
+        },
     ],
 }

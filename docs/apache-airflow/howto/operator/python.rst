@@ -112,6 +112,20 @@ If additional parameters for package installation are needed pass them in ``requ
 
 All supported options are listed in the `requirements file format <https://pip.pypa.io/en/stable/reference/requirements-file-format/#supported-options>`_.
 
+Virtualenv setup options
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+The virtualenv is created based on the global python pip configuration on your worker. Using additional ENVs in your environment or adjustments in the general
+pip configuration as described in `pip config <https://pip.pypa.io/en/stable/topics/configuration/>`_.
+
+If you want to use additional task specific private python repositories to setup the virtualenv, you can pass the ``index_urls`` parameter which will adjust the
+pip install configurations. Passed index urls replace the standard system configured index url settings.
+To prevent adding secrets to the private repository in your DAG code you can use the Airflow
+:doc:`../../authoring-and-scheduling/connections`. For this purpose the connection type ``Package Index (Python)`` can be used.
+
+In the special case you want to prevent remote calls for setup of a virtualenv, pass the ``index_urls`` as empty list as ``index_urls=[]`` which
+forced pip installer to use the ``--no-index`` option.
+
 
 .. _howto/operator:ExternalPythonOperator:
 

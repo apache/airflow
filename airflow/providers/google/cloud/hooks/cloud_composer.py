@@ -46,6 +46,14 @@ class CloudComposerHook(GoogleBaseHook):
 
     client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
 
+    def __init__(self, **kwargs):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+        super().__init__(**kwargs)
+
     def get_environment_client(self) -> EnvironmentsClient:
         """Retrieves client library object that allow access Environments service."""
         return EnvironmentsClient(
@@ -148,6 +156,7 @@ class CloudComposerHook(GoogleBaseHook):
     ) -> Environment:
         """
         Get an existing environment.
+
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
         :param environment_id: Required. The ID of the Google Cloud environment that the service belongs to.
@@ -283,6 +292,14 @@ class CloudComposerHook(GoogleBaseHook):
 
 class CloudComposerAsyncHook(GoogleBaseHook):
     """Hook for Google Cloud Composer async APIs."""
+
+    def __init__(self, **kwargs):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+        super().__init__(**kwargs)
 
     client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
 

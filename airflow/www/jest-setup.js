@@ -22,6 +22,7 @@
 import "@testing-library/jest-dom";
 import axios from "axios";
 import { setLogger } from "react-query";
+import "jest-canvas-mock";
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import moment from "moment-timezone";
@@ -31,8 +32,10 @@ axios.defaults.adapter = require("axios/lib/adapters/http");
 axios.interceptors.response.use((res) => res.data || res);
 
 setLogger({
+  /* eslint-disable no-console */
   log: console.log,
   warn: console.warn,
+  /* eslint-enable no-console */
   // ✅ no more errors on the console
   error: () => {},
 });

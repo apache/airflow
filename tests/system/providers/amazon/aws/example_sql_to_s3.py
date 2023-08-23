@@ -31,12 +31,13 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftDeleteClusterOperator,
 )
-from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.ec2 import get_default_vpc_id
 
 DAG_ID = "example_sql_to_s3"
 DB_LOGIN = "adminuser"
@@ -85,9 +86,8 @@ def create_connection(conn_id_name: str, cluster_id: str):
 
 
 @task
-def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
+def setup_security_group(sec_group_name: str, ip_permissions: list[dict], vpc_id: str):
     client = boto3.client("ec2")
-    vpc_id = client.describe_vpcs()["Vpcs"][0]["VpcId"]
     security_group = client.create_security_group(
         Description="Redshift-system-test", GroupName=sec_group_name, VpcId=vpc_id
     )
@@ -127,7 +127,9 @@ with DAG(
         bucket_name=bucket_name,
     )
 
-    set_up_sg = setup_security_group(sec_group_name=sg_name, ip_permissions=[IP_PERMISSION])
+    get_vpc_id = get_default_vpc_id()
+
+    set_up_sg = setup_security_group(sg_name, [IP_PERMISSION], get_vpc_id)
 
     create_cluster = RedshiftCreateClusterOperator(
         task_id="create_cluster",
@@ -145,20 +147,20 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=15,
-        timeout=60 * 10,
+        timeout=60 * 30,
     )
 
     set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
 
-    create_table_redshift_data = RedshiftSQLOperator(
+    create_table_redshift_data = SQLExecuteQueryOperator(
         task_id="create_table_redshift_data",
-        redshift_conn_id=conn_id_name,
+        conn_id=conn_id_name,
         sql=SQL_CREATE_TABLE,
     )
 
-    insert_data = RedshiftSQLOperator(
+    insert_data = SQLExecuteQueryOperator(
         task_id="insert_data",
-        redshift_conn_id=conn_id_name,
+        conn_id=conn_id_name,
         sql=SQL_INSERT_DATA,
     )
 

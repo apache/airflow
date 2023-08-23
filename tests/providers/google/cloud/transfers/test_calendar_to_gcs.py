@@ -71,7 +71,6 @@ class TestGoogleCalendarToGCSOperator:
         # Test GCS Hook
         mock_gcs_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
@@ -102,7 +101,6 @@ class TestGoogleCalendarToGCSOperator:
         mock_calendar_hook.assert_called_once_with(
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 

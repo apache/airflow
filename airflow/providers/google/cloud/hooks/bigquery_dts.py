@@ -18,7 +18,6 @@
 """This module contains a BigQuery Hook."""
 from __future__ import annotations
 
-import warnings
 from copy import copy
 from typing import Sequence
 
@@ -58,17 +57,17 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.location = location
@@ -76,6 +75,8 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     @staticmethod
     def _disable_auto_scheduling(config: dict | TransferConfig) -> TransferConfig:
         """
+        Create a transfer config with the automatic scheduling disabled.
+
         In the case of Airflow, the customer needs to create a transfer config
         with the automatic scheduling disabled (UI, CLI or an Airflow operator) and
         then trigger a transfer run using a specialized Airflow operator that will
@@ -196,10 +197,10 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> StartManualTransferRunsResponse:
         """
-        Start manual transfer runs to be executed now with schedule_time equal
-        to current time. The transfer runs can be created for a time range where
-        the run_time is between start_time (inclusive) and end_time
-        (exclusive), or for a specific run_time.
+        Start manual transfer runs to be executed now with schedule_time equal to current time.
+
+        The transfer runs can be created for a time range where the run_time is between
+        start_time (inclusive) and end_time (exclusive), or for a specific run_time.
 
         :param transfer_config_id: Id of transfer config to be used.
         :param requested_time_range: Time range for the transfer runs that should be started.
@@ -282,13 +283,17 @@ class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             location=location,
             impersonation_chain=impersonation_chain,
         )

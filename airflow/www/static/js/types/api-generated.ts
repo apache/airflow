@@ -143,6 +143,7 @@ export interface paths {
   "/dags/{dag_id}/dagRuns": {
     /** This endpoint allows specifying `~` as the dag_id to retrieve DAG runs for all DAGs. */
     get: operations["get_dag_runs"];
+    /** This will initiate a dagrun. If DAG is paused then dagrun state will remain queued, and the task won't run. */
     post: operations["post_dag_run"];
     parameters: {
       path: {
@@ -483,7 +484,35 @@ export interface paths {
     };
   };
   "/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}": {
-    /** Get logs for a specific task instance and its try number. */
+    /**
+     * Get logs for a specific task instance and its try number.
+     * To get log from specific character position, following way of using
+     * URLSafeSerializer can be used.
+     *
+     * Example:
+     * ```
+     * from itsdangerous.url_safe import URLSafeSerializer
+     *
+     * request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
+     * key = app.config["SECRET_KEY"]
+     * serializer = URLSafeSerializer(key)
+     * token = serializer.dumps({"log_pos": 10000})
+     *
+     * response = self.client.get(
+     *     request_url,
+     *     query_string={"token": token},
+     *     headers={"Accept": "text/plain"},
+     *     environ_overrides={"REMOTE_USER": "test"},
+     * )
+     * continuation_token = response.json["continuation_token"]
+     *     metadata = URLSafeSerializer(key).loads(continuation_token)
+     *     log_pos = metadata["log_pos"]
+     *     end_of_log = metadata["end_of_log"]
+     * ```
+     * If log_pos is passed as 10000 like the above example, it renders the logs starting
+     * from char position 10000 to last (not the end as the logs may be tailing behind in
+     * running state). This way pagination can be done with metadata as part of the token.
+     */
     get: operations["get_log"];
     parameters: {
       path: {
@@ -613,10 +642,13 @@ export interface paths {
   "/config": {
     get: operations["get_config"];
   };
+  "/config/section/{section}/option/{option}": {
+    get: operations["get_value"];
+  };
   "/health": {
     /**
-     * Get the status of Airflow's metadatabase and scheduler. It includes info about
-     * metadatabase and last heartbeat of scheduler.
+     * Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+     * metadatabase and last heartbeat of scheduler and triggerer.
      */
     get: operations["get_health"];
   };
@@ -1045,7 +1077,6 @@ export interface components {
       /** @enum {string} */
       run_type?: "backfill" | "manual" | "scheduled" | "dataset_triggered";
       state?: components["schemas"]["DagState"];
-      /** @default true */
       external_trigger?: boolean;
       /**
        * @description JSON object describing additional configuration parameters.
@@ -1160,6 +1191,8 @@ export interface components {
     HealthInfo: {
       metadatabase?: components["schemas"]["MetadatabaseStatus"];
       scheduler?: components["schemas"]["SchedulerStatus"];
+      triggerer?: components["schemas"]["TriggererStatus"];
+      dag_processor?: components["schemas"]["DagProcessorStatus"];
     };
     /** @description The status of the metadatabase. */
     MetadatabaseStatus: {
@@ -1170,9 +1203,35 @@ export interface components {
       status?: components["schemas"]["HealthStatus"];
       /**
        * Format: datetime
-       * @description The time the scheduler last do a heartbeat.
+       * @description The time the scheduler last did a heartbeat.
        */
       latest_scheduler_heartbeat?: string | null;
+    };
+    /**
+     * @description The status and the latest triggerer heartbeat.
+     *
+     * *New in version 2.6.2*
+     */
+    TriggererStatus: {
+      status?: components["schemas"]["HealthStatus"];
+      /**
+       * Format: datetime
+       * @description The time the triggerer last did a heartbeat.
+       */
+      latest_triggerer_heartbeat?: string | null;
+    };
+    /**
+     * @description The status and the latest dag processor heartbeat.
+     *
+     * *New in version 2.6.3*
+     */
+    DagProcessorStatus: {
+      status?: components["schemas"]["HealthStatus"];
+      /**
+       * Format: datetime
+       * @description The time the dag processor last did a heartbeat.
+       */
+      latest_dag_processor_heartbeat?: string | null;
     };
     /** @description The pool */
     Pool: {
@@ -1180,20 +1239,34 @@ export interface components {
       name?: string;
       /** @description The maximum number of slots that can be assigned to tasks. One job may occupy one or more slots. */
       slots?: number;
-      /** @description The number of slots used by running/queued tasks at the moment. */
+      /** @description The number of slots used by running/queued tasks at the moment. May include deferred tasks if 'include_deferred' is set to true. */
       occupied_slots?: number;
       /** @description The number of slots used by running tasks at the moment. */
-      used_slots?: number;
+      running_slots?: number;
       /** @description The number of slots used by queued tasks at the moment. */
       queued_slots?: number;
       /** @description The number of free slots at the moment. */
       open_slots?: number;
+      /** @description The number of slots used by scheduled tasks at the moment. */
+      scheduled_slots?: number;
+      /**
+       * @description The number of slots used by deferred tasks at the moment. Relevant if 'include_deferred' is set to true.
+       *
+       * *New in version 2.7.0*
+       */
+      deferred_slots?: number;
       /**
        * @description The description of the pool.
        *
        * *New in version 2.3.0*
        */
       description?: string | null;
+      /**
+       * @description If set to true, deferred tasks are considered when calculating open pool slots.
+       *
+       * *New in version 2.7.0*
+       */
+      include_deferred?: boolean;
     };
     /**
      * @description Collection of pools.
@@ -1244,7 +1317,7 @@ export interface components {
       /** Format: datetime */
       created_date?: string;
       triggerer_id?: number | null;
-    };
+    } | null;
     Job: {
       id?: number;
       dag_id?: string | null;
@@ -1259,7 +1332,7 @@ export interface components {
       executor_class?: string | null;
       hostname?: string | null;
       unixname?: string | null;
-    };
+    } | null;
     TaskInstance: {
       task_id?: string;
       dag_id?: string;
@@ -1276,7 +1349,7 @@ export interface components {
       /** Format: datetime */
       end_date?: string | null;
       duration?: number | null;
-      state?: components["schemas"]["TaskState"] | null;
+      state?: components["schemas"]["TaskState"];
       try_number?: number;
       map_index?: number;
       max_tries?: number;
@@ -1291,15 +1364,15 @@ export interface components {
       queued_when?: string | null;
       pid?: number | null;
       executor_config?: string;
-      sla_miss?: components["schemas"]["SLAMiss"] | null;
+      sla_miss?: components["schemas"]["SLAMiss"];
       /**
        * @description JSON object describing rendered fields.
        *
        * *New in version 2.3.0*
        */
       rendered_fields?: { [key: string]: unknown };
-      trigger?: components["schemas"]["Trigger"] | null;
-      triggerer_job?: components["schemas"]["Job"] | null;
+      trigger?: components["schemas"]["Trigger"];
+      triggerer_job?: components["schemas"]["Job"];
       /**
        * @description Contains manually entered notes by the user about the TaskInstance.
        *
@@ -1364,6 +1437,7 @@ export interface components {
       timestamp?: string;
       /** Format: datetime */
       execution_date?: string;
+      map_index?: number;
       task_id?: string;
       dag_id?: string;
     };
@@ -1384,7 +1458,7 @@ export interface components {
      * @description DAG details.
      *
      * For details see:
-     * [airflow.models.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG)
+     * [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
      */
     DAGDetail: components["schemas"]["DAG"] & {
       timezone?: components["schemas"]["Timezone"];
@@ -1398,7 +1472,7 @@ export interface components {
        * *Changed in version 2.0.1*&#58; Field becomes nullable.
        */
       start_date?: string | null;
-      dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
+      dag_run_timeout?: components["schemas"]["TimeDelta"];
       doc_md?: string | null;
       default_view?: string;
       /**
@@ -1452,7 +1526,7 @@ export interface components {
     };
     /**
      * @description For details see:
-     * [airflow.models.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator)
+     * [airflow.models.baseoperator.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/baseoperator/index.html#airflow.models.baseoperator.BaseOperator)
      */
     Task: {
       class_ref?: components["schemas"]["ClassReference"];
@@ -1473,8 +1547,8 @@ export interface components {
       queue?: string | null;
       pool?: string;
       pool_slots?: number;
-      execution_timeout?: components["schemas"]["TimeDelta"] | null;
-      retry_delay?: components["schemas"]["TimeDelta"] | null;
+      execution_timeout?: components["schemas"]["TimeDelta"];
+      retry_delay?: components["schemas"]["TimeDelta"];
       retry_exponential_backoff?: boolean;
       priority_weight?: number;
       weight_rule?: components["schemas"]["WeightRule"];
@@ -1827,7 +1901,7 @@ export interface components {
        * @description Expected new state.
        * @enum {string}
        */
-      new_state?: "success" | "failed";
+      new_state?: "success" | "failed" | "skipped";
     };
     UpdateTaskInstance: {
       /**
@@ -1841,7 +1915,7 @@ export interface components {
        * @description Expected new state.
        * @enum {string}
        */
-      new_state?: "success" | "failed";
+      new_state?: "success" | "failed" | "skipped";
     };
     SetTaskInstanceNote: {
       /** @description The custom note to set for this Task Instance. */
@@ -1922,6 +1996,18 @@ export interface components {
        */
       dag_ids?: string[];
       /**
+       * @description Return objects with specific DAG Run IDs.
+       * The value can be repeated to retrieve multiple matching values (OR condition).
+       * *New in version 2.7.1*
+       */
+      dag_run_ids?: string[];
+      /**
+       * @description Return objects with specific task IDs.
+       * The value can be repeated to retrieve multiple matching values (OR condition).
+       * *New in version 2.7.1*
+       */
+      task_ids?: string[];
+      /**
        * Format: date-time
        * @description Returns objects greater or equal to the specified date.
        *
@@ -1997,7 +2083,7 @@ export interface components {
       days: number;
       seconds: number;
       microseconds: number;
-    };
+    } | null;
     /** @description Relative delta */
     RelativeDelta: {
       __type: string;
@@ -2072,22 +2158,29 @@ export interface components {
      * *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
      * *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
      *
-     * @enum {string}
+     * *Changed in version 2.7.0*&#58; Field becomes nullable and null primitive is added as a possible value.
+     * *Changed in version 2.7.0*&#58; 'none' state is deprecated in favor of null.
+     *
+     * @enum {string|null}
      */
     TaskState:
-      | "success"
-      | "running"
-      | "failed"
-      | "upstream_failed"
-      | "skipped"
-      | "up_for_retry"
-      | "up_for_reschedule"
-      | "queued"
-      | "none"
-      | "scheduled"
-      | "deferred"
-      | "removed"
-      | "restarting";
+      | (
+          | null
+          | "success"
+          | "running"
+          | "failed"
+          | "upstream_failed"
+          | "skipped"
+          | "up_for_retry"
+          | "up_for_reschedule"
+          | "queued"
+          | "none"
+          | "scheduled"
+          | "deferred"
+          | "removed"
+          | "restarting"
+        )
+      | null;
     /**
      * @description DAG State.
      *
@@ -2121,9 +2214,9 @@ export interface components {
     WeightRule: "downstream" | "upstream" | "absolute";
     /**
      * @description Health status
-     * @enum {string}
+     * @enum {string|null}
      */
-    HealthStatus: "healthy" | "unhealthy";
+    HealthStatus: ("healthy" | "unhealthy") | null;
   };
   responses: {
     /** Client specified an invalid argument. */
@@ -2329,6 +2422,8 @@ export interface components {
      * *New in version 2.6.0*
      */
     Paused: boolean;
+    /** @description Only filter the XCom records which have the provided key. */
+    FilterXcomKey: string;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -2868,6 +2963,7 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
     };
   };
+  /** This will initiate a dagrun. If DAG is paused then dagrun state will remain queued, and the task won't run. */
   post_dag_run: {
     parameters: {
       path: {
@@ -3778,6 +3874,10 @@ export interface operations {
         task_id: components["parameters"]["TaskID"];
       };
       query: {
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
+        /** Only filter the XCom records which have the provided key. */
+        xcom_key?: components["parameters"]["FilterXcomKey"];
         /** The numbers of items to return. */
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
@@ -3808,6 +3908,8 @@ export interface operations {
         xcom_key: components["parameters"]["XComKey"];
       };
       query: {
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
         /**
          * Whether to deserialize an XCom value when using a custom XCom backend.
          *
@@ -3858,7 +3960,35 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
-  /** Get logs for a specific task instance and its try number. */
+  /**
+   * Get logs for a specific task instance and its try number.
+   * To get log from specific character position, following way of using
+   * URLSafeSerializer can be used.
+   *
+   * Example:
+   * ```
+   * from itsdangerous.url_safe import URLSafeSerializer
+   *
+   * request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
+   * key = app.config["SECRET_KEY"]
+   * serializer = URLSafeSerializer(key)
+   * token = serializer.dumps({"log_pos": 10000})
+   *
+   * response = self.client.get(
+   *     request_url,
+   *     query_string={"token": token},
+   *     headers={"Accept": "text/plain"},
+   *     environ_overrides={"REMOTE_USER": "test"},
+   * )
+   * continuation_token = response.json["continuation_token"]
+   *     metadata = URLSafeSerializer(key).loads(continuation_token)
+   *     log_pos = metadata["log_pos"]
+   *     end_of_log = metadata["end_of_log"]
+   * ```
+   * If log_pos is passed as 10000 like the above example, it renders the logs starting
+   * from char position 10000 to last (not the end as the logs may be tailing behind in
+   * running state). This way pagination can be done with metadata as part of the token.
+   */
   get_log: {
     parameters: {
       path: {
@@ -4120,6 +4250,12 @@ export interface operations {
     };
   };
   get_config: {
+    parameters: {
+      query: {
+        /** If given, only return config of this section. */
+        section?: string;
+      };
+    };
     responses: {
       /** Success. */
       200: {
@@ -4130,11 +4266,32 @@ export interface operations {
       };
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  get_value: {
+    parameters: {
+      path: {
+        section: string;
+        option: string;
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Config"];
+          "text/plain": string;
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
     };
   };
   /**
-   * Get the status of Airflow's metadatabase and scheduler. It includes info about
-   * metadatabase and last heartbeat of scheduler.
+   * Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+   * metadatabase and last heartbeat of scheduler and triggerer.
    */
   get_health: {
     responses: {
@@ -4562,6 +4719,12 @@ export type MetadatabaseStatus = CamelCasedPropertiesDeep<
 export type SchedulerStatus = CamelCasedPropertiesDeep<
   components["schemas"]["SchedulerStatus"]
 >;
+export type TriggererStatus = CamelCasedPropertiesDeep<
+  components["schemas"]["TriggererStatus"]
+>;
+export type DagProcessorStatus = CamelCasedPropertiesDeep<
+  components["schemas"]["DagProcessorStatus"]
+>;
 export type Pool = CamelCasedPropertiesDeep<components["schemas"]["Pool"]>;
 export type PoolCollection = CamelCasedPropertiesDeep<
   components["schemas"]["PoolCollection"]
@@ -4932,6 +5095,12 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
 >;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
+>;
+export type GetConfigVariables = CamelCasedPropertiesDeep<
+  operations["get_config"]["parameters"]["query"]
+>;
+export type GetValueVariables = CamelCasedPropertiesDeep<
+  operations["get_value"]["parameters"]["path"]
 >;
 export type GetPluginsVariables = CamelCasedPropertiesDeep<
   operations["get_plugins"]["parameters"]["query"]

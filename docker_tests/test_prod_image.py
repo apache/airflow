@@ -85,7 +85,6 @@ class TestPythonPackages:
             lines = PREINSTALLED_PROVIDERS
         else:
             lines = (d.strip() for d in INSTALLED_PROVIDER_PATH.read_text().splitlines())
-            lines = (d for d in lines)
         packages_to_install = {f"apache-airflow-providers-{d.replace('.', '-')}" for d in lines}
         assert len(packages_to_install) != 0
 
@@ -127,7 +126,7 @@ class TestPythonPackages:
         "cncf.kubernetes": ["kubernetes", "cryptography"],
         "dask": ["cloudpickle", "distributed"],
         "docker": ["docker"],
-        "elasticsearch": ["elasticsearch", "es.elastic", "elasticsearch_dsl"],
+        "elasticsearch": ["elasticsearch"],
         "google": [
             "OpenSSL",
             # "google.ads", Remove google ads as it is vendored in google provider now

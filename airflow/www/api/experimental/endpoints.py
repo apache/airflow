@@ -43,7 +43,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):
-    """Decorator for functions that require authentication"""
+    """Decorator for functions that require authentication."""
 
     @wraps(function)
     def decorated(*args, **kwargs):
@@ -58,8 +58,10 @@ api_experimental = Blueprint("api_experimental", __name__)
 
 def add_deprecation_headers(response: Response):
     """
-    Add `Deprecation HTTP Header Field
-    <https://tools.ietf.org/id/draft-dalal-deprecation-header-03.html>`__.
+    Add Deprecation HTTP Header Field.
+
+    .. seealso:: IETF proposal for the header field
+        `here <https://datatracker.ietf.org/doc/draft-dalal-deprecation-header/>`_.
     """
     response.headers["Deprecation"] = "true"
     doc_url = get_docs_url("upgrading-to-2.html#migration-guide-from-experimental-api-to-stable-api-v1")
@@ -79,10 +81,7 @@ api_experimental.after_request(add_deprecation_headers)  # type: ignore[arg-type
 @api_experimental.route("/dags/<string:dag_id>/dag_runs", methods=["POST"])
 @requires_authentication
 def trigger_dag(dag_id):
-    """
-    Trigger a new dag run for a Dag with an execution date of now unless
-    specified in the data.
-    """
+    """Trigger a new dag run for a Dag with an execution date of now unless specified in the data."""
     data = request.get_json(force=True)
 
     run_id = None
@@ -157,9 +156,11 @@ def delete_dag(dag_id):
 def dag_runs(dag_id):
     """
     Returns a list of Dag Runs for a specific DAG ID.
+
     :query param state: a query string parameter '?state=queued|running|success...'
 
     :param dag_id: String identifier of a DAG
+
     :return: List of DAG runs of a DAG with requested state,
         or all runs if the state is not specified
     """
@@ -178,14 +179,14 @@ def dag_runs(dag_id):
 @api_experimental.route("/test", methods=["GET"])
 @requires_authentication
 def test():
-    """Test endpoint to check authentication"""
+    """Test endpoint to check authentication."""
     return jsonify(status="OK")
 
 
 @api_experimental.route("/info", methods=["GET"])
 @requires_authentication
 def info():
-    """Get Airflow Version"""
+    """Get Airflow Version."""
     return jsonify(version=version)
 
 
@@ -205,7 +206,7 @@ def get_dag_code(dag_id):
 @api_experimental.route("/dags/<string:dag_id>/tasks/<string:task_id>", methods=["GET"])
 @requires_authentication
 def task_info(dag_id, task_id):
-    """Returns a JSON with a task's public instance variables"""
+    """Returns a JSON with a task's public instance variables."""
     try:
         t_info = get_task(dag_id, task_id)
     except AirflowException as err:
@@ -223,7 +224,7 @@ def task_info(dag_id, task_id):
 @api_experimental.route("/dags/<string:dag_id>/paused/<string:paused>", methods=["GET"])
 @requires_authentication
 def dag_paused(dag_id, paused):
-    """(Un)pauses a dag"""
+    """(Un)pauses a dag."""
     is_paused = bool(paused == "true")
 
     models.DagModel.get_dagmodel(dag_id).set_is_paused(
@@ -236,7 +237,7 @@ def dag_paused(dag_id, paused):
 @api_experimental.route("/dags/<string:dag_id>/paused", methods=["GET"])
 @requires_authentication
 def dag_is_paused(dag_id):
-    """Get paused state of a dag"""
+    """Get paused state of a dag."""
     is_paused = models.DagModel.get_dagmodel(dag_id).is_paused
 
     return jsonify({"is_paused": is_paused})
@@ -249,6 +250,7 @@ def dag_is_paused(dag_id):
 def task_instance_info(dag_id, execution_date, task_id):
     """
     Returns a JSON with a task instance's public instance variables.
+
     The format for the exec_date is expected to be
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
     of course need to have been encoded for URL in the request.
@@ -285,6 +287,7 @@ def task_instance_info(dag_id, execution_date, task_id):
 def dag_run_status(dag_id, execution_date):
     """
     Returns a JSON with a dag_run's public instance variables.
+
     The format for the exec_date is expected to be
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
     of course need to have been encoded for URL in the request.
@@ -317,7 +320,7 @@ def dag_run_status(dag_id, execution_date):
 @api_experimental.route("/latest_runs", methods=["GET"])
 @requires_authentication
 def latest_dag_runs():
-    """Returns the latest DagRun for each DAG formatted for the UI"""
+    """Returns the latest DagRun for each DAG formatted for the UI."""
     from airflow.models import DagRun
 
     dagruns = DagRun.get_latest_runs()
@@ -401,7 +404,7 @@ def delete_pool(name):
 @api_experimental.route("/lineage/<string:dag_id>/<string:execution_date>", methods=["GET"])
 @requires_authentication
 def get_lineage(dag_id: str, execution_date: str):
-    """Get Lineage details for a DagRun"""
+    """Get Lineage details for a DagRun."""
     # Convert string datetime into actual datetime
     try:
         execution_dt = timezone.parse(execution_date)

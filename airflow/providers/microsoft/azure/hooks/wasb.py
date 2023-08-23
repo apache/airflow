@@ -27,8 +27,8 @@ from __future__ import annotations
 
 import logging
 import os
-from functools import wraps
 from typing import Any, Union
+from urllib.parse import urlparse
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
@@ -49,34 +49,6 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
-
-
-def _ensure_prefixes(conn_type):
-    """
-    Remove when provider min airflow version >= 2.5.0 since this is handled by
-    provider manager from that version.
-    """
-
-    def dec(func):
-        @wraps(func)
-        def inner():
-            field_behaviors = func()
-            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-            def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith("extra__"):
-                    return f"extra__{conn_type}__{field}"
-                else:
-                    return field
-
-            if "placeholders" in field_behaviors:
-                placeholders = field_behaviors["placeholders"]
-                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-            return field_behaviors
-
-        return inner
-
-    return dec
 
 
 class WasbHook(BaseHook):
@@ -103,7 +75,7 @@ class WasbHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -122,15 +94,14 @@ class WasbHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="wasb")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
-            "hidden_fields": ["schema", "port", "extra"],
+            "hidden_fields": ["schema", "port"],
             "relabeling": {
                 "login": "Blob Storage Login (optional)",
                 "password": "Blob Storage Key (optional)",
-                "host": "Account Name (Active Directory Auth)",
+                "host": "Account URL (Active Directory Auth)",
             },
             "placeholders": {
                 "login": "account name",
@@ -140,6 +111,7 @@ class WasbHook(BaseHook):
                 "tenant_id": "tenant",
                 "shared_access_key": "shared access key",
                 "sas_token": "account url or token",
+                "extra": "additional options for use with ClientSecretCredential or DefaultAzureCredential",
             },
         }
 
@@ -151,7 +123,7 @@ class WasbHook(BaseHook):
         super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.blob_service_client = self.get_conn()
+        self.blob_service_client: BlobServiceClient = self.get_conn()
 
         logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
         try:
@@ -174,39 +146,46 @@ class WasbHook(BaseHook):
         """Return the BlobServiceClient object."""
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}
-
-        if self.public_read:
-            # Here we use anonymous public read
-            # more info
-            # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
-            return BlobServiceClient(account_url=conn.host, **extra)
+        client_secret_auth_config = extra.pop("client_secret_auth_config", {})
 
         connection_string = self._get_field(extra, "connection_string")
         if connection_string:
             # connection_string auth takes priority
             return BlobServiceClient.from_connection_string(connection_string, **extra)
 
-        shared_access_key = self._get_field(extra, "shared_access_key")
-        if shared_access_key:
-            # using shared access key
-            return BlobServiceClient(account_url=conn.host, credential=shared_access_key, **extra)
+        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
+        parsed_url = urlparse(account_url)
+
+        if not parsed_url.netloc and "." not in parsed_url.path:
+            # if there's no netloc and no dots in the path, then user only
+            # provided the Active Directory ID, not the full URL or DNS name
+            account_url = f"https://{conn.login}.blob.core.windows.net/"
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = ClientSecretCredential(tenant, app_id, app_secret)
-            return BlobServiceClient(account_url=conn.host, credential=token_credential, **extra)
+            token_credential = ClientSecretCredential(tenant, app_id, app_secret, **client_secret_auth_config)
+            return BlobServiceClient(account_url=account_url, credential=token_credential, **extra)
+
+        if self.public_read:
+            # Here we use anonymous public read
+            # more info
+            # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
+            return BlobServiceClient(account_url=account_url, **extra)
+
+        shared_access_key = self._get_field(extra, "shared_access_key")
+        if shared_access_key:
+            # using shared access key
+            return BlobServiceClient(account_url=account_url, credential=shared_access_key, **extra)
 
         sas_token = self._get_field(extra, "sas_token")
         if sas_token:
             if sas_token.startswith("https"):
                 return BlobServiceClient(account_url=sas_token, **extra)
             else:
-                return BlobServiceClient(
-                    account_url=f"https://{conn.login}.blob.core.windows.net/{sas_token}", **extra
-                )
+                return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
@@ -214,14 +193,14 @@ class WasbHook(BaseHook):
             credential = DefaultAzureCredential()
             self.log.info("Using DefaultAzureCredential as credential")
         return BlobServiceClient(
-            account_url=f"https://{conn.login}.blob.core.windows.net/",
+            account_url=account_url,
             credential=credential,
             **extra,
         )
 
     def _get_container_client(self, container_name: str) -> ContainerClient:
         """
-        Instantiates a container client
+        Instantiates a container client.
 
         :param container_name: The name of the container
         :return: ContainerClient
@@ -230,7 +209,7 @@ class WasbHook(BaseHook):
 
     def _get_blob_client(self, container_name: str, blob_name: str) -> BlobClient:
         """
-        Instantiates a blob client
+        Instantiates a blob client.
 
         :param container_name: The name of the blob container
         :param blob_name: The name of the blob. This needs not be existing
@@ -262,7 +241,7 @@ class WasbHook(BaseHook):
         :return: True if blobs matching the prefix exist, False otherwise.
         """
         blobs = self.get_blobs_list(container_name=container_name, prefix=prefix, **kwargs)
-        return len(blobs) > 0
+        return bool(blobs)
 
     def get_blobs_list(
         self,
@@ -273,7 +252,7 @@ class WasbHook(BaseHook):
         **kwargs,
     ) -> list:
         """
-        List blobs in a given container
+        List blobs in a given container.
 
         :param container_name: The name of the container
         :param prefix: Filters the results to return only blobs whose names
@@ -288,6 +267,33 @@ class WasbHook(BaseHook):
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         for blob in blobs:
             blob_list.append(blob.name)
+        return blob_list
+
+    def get_blobs_list_recursive(
+        self,
+        container_name: str,
+        prefix: str | None = None,
+        include: list[str] | None = None,
+        endswith: str = "",
+        **kwargs,
+    ) -> list:
+        """
+        List blobs in a given container.
+
+        :param container_name: The name of the container
+        :param prefix: Filters the results to return only blobs whose names
+            begin with the specified prefix.
+        :param include: Specifies one or more additional datasets to include in the
+            response. Options include: ``snapshots``, ``metadata``, ``uncommittedblobs``,
+            ``copy`, ``deleted``.
+        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        """
+        container = self._get_container_client(container_name)
+        blob_list = []
+        blobs = container.list_blobs(name_starts_with=prefix, include=include, **kwargs)
+        for blob in blobs:
+            if blob.name.endswith(endswith):
+                blob_list.append(blob.name)
         return blob_list
 
     def load_file(
@@ -400,7 +406,7 @@ class WasbHook(BaseHook):
         self, container_name, blob_name, offset: int | None = None, length: int | None = None, **kwargs
     ) -> StorageStreamDownloader:
         """
-        Downloads a blob to the StorageStreamDownloader
+        Downloads a blob to the StorageStreamDownloader.
 
         :param container_name: The name of the container containing the blob
         :param blob_name: The name of the blob to download
@@ -413,7 +419,7 @@ class WasbHook(BaseHook):
 
     def create_container(self, container_name: str) -> None:
         """
-        Create container object if not already existing
+        Create container object if not already existing.
 
         :param container_name: The name of the container to create
         """
@@ -444,7 +450,7 @@ class WasbHook(BaseHook):
 
     def delete_container(self, container_name: str) -> None:
         """
-        Delete a container object
+        Delete a container object.
 
         :param container_name: The name of the container
         """
@@ -496,7 +502,7 @@ class WasbHook(BaseHook):
             blobs_to_delete = [blob_name]
         else:
             blobs_to_delete = []
-        if not ignore_if_missing and len(blobs_to_delete) == 0:
+        if not ignore_if_missing and not blobs_to_delete:
             raise AirflowException(f"Blob(s) not found: {blob_name}")
 
         # The maximum number of blobs that can be deleted in a single request is 256 using the underlying
@@ -542,13 +548,7 @@ class WasbAsyncHook(WasbHook):
 
         conn = await sync_to_async(self.get_connection)(self.conn_id)
         extra = conn.extra_dejson or {}
-
-        if self.public_read:
-            # Here we use anonymous public read
-            # more info
-            # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
-            self.blob_service_client = AsyncBlobServiceClient(account_url=conn.host, **extra)
-            return self.blob_service_client
+        client_secret_auth_config = extra.pop("client_secret_auth_config", {})
 
         connection_string = self._get_field(extra, "connection_string")
         if connection_string:
@@ -558,22 +558,39 @@ class WasbAsyncHook(WasbHook):
             )
             return self.blob_service_client
 
-        shared_access_key = self._get_field(extra, "shared_access_key")
-        if shared_access_key:
-            # using shared access key
-            self.blob_service_client = AsyncBlobServiceClient(
-                account_url=conn.host, credential=shared_access_key, **extra
-            )
-            return self.blob_service_client
+        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
+        parsed_url = urlparse(account_url)
+
+        if not parsed_url.netloc and "." not in parsed_url.path:
+            # if there's no netloc and no dots in the path, then user only
+            # provided the Active Directory ID, not the full URL or DNS name
+            account_url = f"https://{conn.login}.blob.core.windows.net/"
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = AsyncClientSecretCredential(tenant, app_id, app_secret)
+            token_credential = AsyncClientSecretCredential(
+                tenant, app_id, app_secret, **client_secret_auth_config
+            )
             self.blob_service_client = AsyncBlobServiceClient(
-                account_url=conn.host, credential=token_credential, **extra  # type:ignore[arg-type]
+                account_url=account_url, credential=token_credential, **extra  # type:ignore[arg-type]
+            )
+            return self.blob_service_client
+
+        if self.public_read:
+            # Here we use anonymous public read
+            # more info
+            # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
+            self.blob_service_client = AsyncBlobServiceClient(account_url=account_url, **extra)
+            return self.blob_service_client
+
+        shared_access_key = self._get_field(extra, "shared_access_key")
+        if shared_access_key:
+            # using shared access key
+            self.blob_service_client = AsyncBlobServiceClient(
+                account_url=account_url, credential=shared_access_key, **extra
             )
             return self.blob_service_client
 
@@ -583,7 +600,7 @@ class WasbAsyncHook(WasbHook):
                 self.blob_service_client = AsyncBlobServiceClient(account_url=sas_token, **extra)
             else:
                 self.blob_service_client = AsyncBlobServiceClient(
-                    account_url=f"https://{conn.login}.blob.core.windows.net/{sas_token}", **extra
+                    account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra
                 )
             return self.blob_service_client
 
@@ -593,7 +610,7 @@ class WasbAsyncHook(WasbHook):
             credential = AsyncDefaultAzureCredential()
             self.log.info("Using DefaultAzureCredential as credential")
         self.blob_service_client = AsyncBlobServiceClient(
-            account_url=f"https://{conn.login}.blob.core.windows.net/",
+            account_url=account_url,
             credential=credential,
             **extra,
         )
@@ -651,10 +668,10 @@ class WasbAsyncHook(WasbHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        blob_list = []
+        blob_list: list[BlobProperties] = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         async for blob in blobs:
-            blob_list.append(blob.name)
+            blob_list.append(blob)
         return blob_list
 
     async def check_for_prefix_async(self, container_name: str, prefix: str, **kwargs: Any) -> bool:
@@ -666,4 +683,4 @@ class WasbAsyncHook(WasbHook):
         :param kwargs: Optional keyword arguments for ``ContainerClient.walk_blobs``
         """
         blobs = await self.get_blobs_list_async(container_name=container_name, prefix=prefix, **kwargs)
-        return len(blobs) > 0
+        return bool(blobs)

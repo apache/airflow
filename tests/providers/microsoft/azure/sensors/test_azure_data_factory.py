@@ -84,14 +84,27 @@ class TestPipelineRunStatusSensor:
             with pytest.raises(AzureDataFactoryPipelineRunException, match=error_message):
                 self.sensor.poke({})
 
-    def test_adf_pipeline_status_sensor_async(self):
+    @mock.patch("airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryHook")
+    def test_adf_pipeline_status_sensor_async(self, mock_hook):
         """Assert execute method defer for Azure Data factory pipeline run status sensor"""
-
+        mock_hook.return_value.get_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.QUEUED
         with pytest.raises(TaskDeferred) as exc:
-            self.defered_sensor.execute({})
+            self.defered_sensor.execute(mock.MagicMock())
         assert isinstance(
             exc.value.trigger, ADFPipelineRunStatusSensorTrigger
         ), "Trigger is not a ADFPipelineRunStatusSensorTrigger"
+
+    @mock.patch("airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryHook")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.sensors.data_factory"
+        ".AzureDataFactoryPipelineRunStatusSensor.defer"
+    )
+    def test_adf_pipeline_status_sensor_finish_before_deferred(self, mock_defer, mock_hook):
+        mock_hook.return_value.get_pipeline_run_status.return_value = (
+            AzureDataFactoryPipelineRunStatus.SUCCEEDED
+        )
+        self.defered_sensor.execute(mock.MagicMock())
+        assert not mock_defer.called
 
     def test_adf_pipeline_status_sensor_execute_complete_success(self):
         """Assert execute_complete log success message when trigger fire with target status"""
@@ -115,9 +128,10 @@ class TestAzureDataFactoryPipelineRunStatusAsyncSensor:
         run_id=RUN_ID,
     )
 
-    def test_adf_pipeline_status_sensor_async(self):
+    @mock.patch("airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryHook")
+    def test_adf_pipeline_status_sensor_async(self, mock_hook):
         """Assert execute method defer for Azure Data factory pipeline run status sensor"""
-
+        mock_hook.return_value.get_pipeline_run_status.return_value = AzureDataFactoryPipelineRunStatus.QUEUED
         with pytest.raises(TaskDeferred) as exc:
             self.SENSOR.execute({})
         assert isinstance(

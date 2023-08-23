@@ -15,14 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains Azure Data Lake Storage to
-Google Cloud Storage operator.
-"""
+"""This module contains Azure Data Lake Storage to Google Cloud Storage operator."""
+
 from __future__ import annotations
 
 import os
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
@@ -36,7 +33,7 @@ if TYPE_CHECKING:
 
 class ADLSToGCSOperator(ADLSListOperator):
     """
-    Synchronizes an Azure Data Lake Storage path with a GCS bucket
+    Synchronizes an Azure Data Lake Storage path with a GCS bucket.
 
     :param src_adls: The Azure Data Lake path to find the objects (templated)
     :param dest_gcs: The Google Cloud Storage bucket and prefix to
@@ -46,9 +43,6 @@ class ADLSToGCSOperator(ADLSListOperator):
     :param azure_data_lake_conn_id: The connection ID to use when
         connecting to Azure Data Lake Storage.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -111,7 +105,6 @@ class ADLSToGCSOperator(ADLSListOperator):
         dest_gcs: str,
         azure_data_lake_conn_id: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         replace: bool = False,
         gzip: bool = False,
         google_impersonation_chain: str | Sequence[str] | None = None,
@@ -124,12 +117,6 @@ class ADLSToGCSOperator(ADLSListOperator):
         self.dest_gcs = dest_gcs
         self.replace = replace
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'google_impersonation_chain'",
-                DeprecationWarning,
-            )
-        self.delegate_to = delegate_to
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
 
@@ -138,7 +125,6 @@ class ADLSToGCSOperator(ADLSListOperator):
         files = super().execute(context)
         g_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
 

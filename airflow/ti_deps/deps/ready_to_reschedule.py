@@ -22,7 +22,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 
 class ReadyToRescheduleDep(BaseTIDep):
@@ -31,12 +31,13 @@ class ReadyToRescheduleDep(BaseTIDep):
     NAME = "Ready To Reschedule"
     IGNORABLE = True
     IS_TASK_DEP = True
-    RESCHEDULEABLE_STATES = {State.UP_FOR_RESCHEDULE, State.NONE}
+    RESCHEDULEABLE_STATES = {TaskInstanceState.UP_FOR_RESCHEDULE, None}
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
         """
-        Determines whether a task is ready to be rescheduled.
+        Determine whether a task is ready to be rescheduled.
+
         Only tasks in NONE state with at least one row in task_reschedule table are
         handled by this dependency class, otherwise this dependency is considered as passed.
         This dependency fails if the latest reschedule request's reschedule date is still

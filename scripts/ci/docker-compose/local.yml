@@ -37,9 +37,6 @@ services:
         source: ../../../.build
         target: /opt/airflow/.build
       - type: bind
-        source: ../../../.coveragerc
-        target: /opt/airflow/.coveragerc
-      - type: bind
         source: ../../../.dockerignore
         target: /opt/airflow/.dockerignore
       - type: bind
@@ -114,6 +111,9 @@ services:
       - type: bind
         source: ../../../tests
         target: /opt/airflow/tests
+      - type: bind
+        source: ../../../helm_tests
+        target: /opt/airflow/helm_tests
       - type: bind
         source: ../../../kubernetes_tests
         target: /opt/airflow/kubernetes_tests

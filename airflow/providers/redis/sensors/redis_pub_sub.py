@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.redis.hooks.redis import RedisHook
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
 
 class RedisPubSubSensor(BaseSensorOperator):
     """
-    Redis sensor for reading a message from pub sub channels
+    Redis sensor for reading a message from pub sub channels.
 
     :param channels: The channels to be subscribed to (templated)
     :param redis_conn_id: the redis connection id
@@ -41,12 +42,16 @@ class RedisPubSubSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.channels = channels
         self.redis_conn_id = redis_conn_id
-        self.pubsub = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
-        self.pubsub.subscribe(self.channels)
+
+    @cached_property
+    def pubsub(self):
+        hook = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
+        hook.subscribe(self.channels)
+        return hook
 
     def poke(self, context: Context) -> bool:
         """
-        Check for message on subscribed channels and write to xcom the message with key ``message``
+        Check for message on subscribed channels and write to xcom the message with key ``message``.
 
         An example of message ``{'type': 'message', 'pattern': None, 'channel': b'test', 'data': b'hello'}``
 
@@ -54,7 +59,6 @@ class RedisPubSubSensor(BaseSensorOperator):
         :return: ``True`` if message (with type 'message') is available or ``False`` if not
         """
         self.log.info("RedisPubSubSensor checking for message on channels: %s", self.channels)
-
         message = self.pubsub.get_message()
         self.log.info("Message %s from channel %s", message, self.channels)
 

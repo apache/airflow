@@ -19,6 +19,7 @@ if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
     set -x
 fi
 
+
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "${AIRFLOW_SOURCES:-/opt/airflow}"/scripts/in_container/_in_container_script_init.sh
 
@@ -39,11 +40,13 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.7}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.8}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
 : "${AIRFLOW_SOURCES:?"ERROR: AIRFLOW_SOURCES not set !!!!"}"
+
+ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 
 function wait_for_asset_compilation() {
     if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
@@ -57,7 +60,7 @@ function wait_for_asset_compilation() {
             fi
             sleep 1
             ((counter=counter+1))
-            if [[ ${counter} == "30" ]]; then
+            if [[ ${counter} == 30*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
                 echo
                 echo "${COLOR_YELLOW}The asset compilation is taking too long.${COLOR_YELLOW}"
                 echo """
@@ -66,9 +69,10 @@ If it does not complete soon, you might want to stop it and remove file lock:
    * run 'rm ${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock'
 """
             fi
-            if [[ ${counter} == "60" ]]; then
+            if [[ ${counter} == 60*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
                 echo
                 echo "${COLOR_RED}The asset compilation is taking too long. Exiting.${COLOR_RED}"
+                echo "${COLOR_RED}refer to BREEZE.rst for resolution steps.${COLOR_RED}"
                 echo
                 exit 1
             fi
@@ -189,29 +193,66 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             exit 1
         fi
         echo
+        if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+            IFS=\, read -ra selected_providers <<<"${INSTALL_SELECTED_PROVIDERS}"
+            echo
+            echo "${COLOR_BLUE}Selected providers to install: '${selected_providers[*]}'${COLOR_RESET}"
+            echo
+        else
+            echo
+            echo "${COLOR_BLUE}Installing all found providers${COLOR_RESET}"
+            echo
+            selected_providers=()
+        fi
         installable_files=()
         for file in /dist/*.{whl,tar.gz}
         do
-            if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
-                # Skip Apache Airflow package - it's just been installed above with extras
-                echo "Skipping ${file}"
+            if [[ ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
+                # Skip Apache Airflow package - it's just been installed above if
+                # --use-airflow-version was set and should be skipped otherwise
+                echo "${COLOR_BLUE}Skipping airflow core package ${file} from provider installation.${COLOR_RESET}"
                 continue
             fi
             if [[ ${PACKAGE_FORMAT} == "wheel" && ${file} == *".whl" ]]; then
-                echo "Adding ${file} to install"
-                installable_files+=( "${file}" )
+                provider_name=$(echo "${file}" | sed 's/\/dist\/apache_airflow_providers_//' | sed 's/-[0-9].*//' | sed 's/-/./g')
+                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+                    # shellcheck disable=SC2076
+                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
+                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                        installable_files+=( "${file}" )
+                    else
+                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
+                    fi
+                else
+                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                    installable_files+=( "${file}" )
+                fi
             fi
             if [[ ${PACKAGE_FORMAT} == "sdist" && ${file} == *".tar.gz" ]]; then
-                echo "Adding ${file} to install"
-                installable_files+=( "${file}" )
+                provider_name=$(echo "${file}" | sed 's/\/dist\/apache-airflow-providers-//' | sed 's/-[0-9].*//' | sed 's/-/./g')
+                if [[ ${INSTALL_SELECTED_PROVIDERS=} != "" ]]; then
+                    # shellcheck disable=SC2076
+                    if [[ " ${selected_providers[*]} " =~ " ${provider_name} " ]]; then
+                        echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                        installable_files+=( "${file}" )
+                    else
+                        echo "${COLOR_BLUE}Skipping ${provider_name} as it is not in the list of '${selected_providers[*]}'${COLOR_RESET}"
+                    fi
+                else
+                    echo "${COLOR_BLUE}Adding ${provider_name} to install via ${file}${COLOR_RESET}"
+                    installable_files+=( "${file}" )
+                fi
             fi
         done
-        if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" ]]; then
+        if [[ ${USE_AIRFLOW_VERSION} != "wheel" && ${USE_AIRFLOW_VERSION} != "sdist" && ${USE_AIRFLOW_VERSION} != "none" && ${USE_AIRFLOW_VERSION} != "" ]]; then
             echo
             echo "${COLOR_BLUE}Also adding airflow in specified version ${USE_AIRFLOW_VERSION} to make sure it is not upgraded by >= limits${COLOR_RESET}"
             echo
             installable_files+=( "apache-airflow==${USE_AIRFLOW_VERSION}" )
         fi
+        echo
+        echo "${COLOR_BLUE}Installing: ${installable_files[*]}${COLOR_RESET}"
+        echo
         if (( ${#installable_files[@]} )); then
             pip install --root-user-action ignore "${installable_files[@]}"
         fi
@@ -224,7 +265,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     unset AIRFLOW__CORE__UNIT_TEST_MODE
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
-    cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
     # Change the default worker_concurrency for tests
     export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
@@ -276,7 +316,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     cd "${AIRFLOW_SOURCES}"
 
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
-        export AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         wait_for_asset_compilation
         # shellcheck source=scripts/in_container/bin/run_tmux
@@ -284,9 +323,11 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
-# Remove pytest.ini from the current directory if it exists. It has been removed from the source tree
+# Remove pytest.ini and .coveragerc from the current directory if it exists. It has been removed from the source tree
 # but may still be present in the local directory if the user has old breeze image
 rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+rm -f "${AIRFLOW_SOURCES}/.coveragerc"
+
 
 set +u
 # If we do not want to run tests, we simply drop into bash
@@ -359,10 +400,11 @@ else
 fi
 
 if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
+    _suffix="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)"
     EXTRA_PYTEST_ARGS+=(
         "--cov=airflow"
-        "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+        "--cov-config=pyproject.toml"
+        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}-${_suffix}.xml"
     )
 fi
 
@@ -423,7 +465,7 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
-    HELM_CHART_TESTS=("tests/charts")
+    HELM_CHART_TESTS=("helm_tests")
     INTEGRATION_TESTS=("tests/integration")
     SYSTEM_TESTS=("tests/system")
     ALL_TESTS=("tests")
@@ -460,7 +502,7 @@ else
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
-            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+            SELECTED_TESTS=("helm_tests/${HELM_TEST_PACKAGE}")
         else
             SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
         fi

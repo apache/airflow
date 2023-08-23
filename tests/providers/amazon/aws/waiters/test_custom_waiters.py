@@ -26,6 +26,8 @@ from botocore.exceptions import WaiterError
 from botocore.waiter import WaiterModel
 from moto import mock_eks
 
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, EcsTaskDefinitionStates
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
@@ -71,6 +73,22 @@ class TestBaseWaiter:
         for attr, _ in expected_model.__dict__.items():
             assert waiter.model.__getattribute__(attr) == expected_model.__getattribute__(attr)
         assert waiter.client == client_name
+
+    @pytest.mark.parametrize("boto_type", ["client", "resource"])
+    def test_get_botocore_waiter(self, boto_type, monkeypatch):
+        kw = {f"{boto_type}_type": "s3"}
+        if boto_type == "client":
+            fake_client = boto3.client("s3", region_name="eu-west-3")
+        elif boto_type == "resource":
+            fake_client = boto3.resource("s3", region_name="eu-west-3")
+        else:
+            raise ValueError(f"Unexpected value {boto_type!r} for `boto_type`.")
+        monkeypatch.setattr(AwsBaseHook, "conn", fake_client)
+
+        hook = AwsBaseHook(**kw)
+        with mock.patch("botocore.client.BaseClient.get_waiter") as m:
+            hook.get_waiter(waiter_name="FooBar")
+            m.assert_called_once_with("FooBar")
 
 
 class TestCustomEKSServiceWaiters:
@@ -128,8 +146,6 @@ class TestCustomECSServiceWaiters:
         hook_waiters = EcsHook(aws_conn_id=None).list_waiters()
         assert "cluster_active" in hook_waiters
         assert "cluster_inactive" in hook_waiters
-        assert "task_definition_active" in hook_waiters
-        assert "task_definition_inactive" in hook_waiters
 
     @staticmethod
     def describe_clusters(
@@ -221,31 +237,61 @@ class TestCustomECSServiceWaiters:
             }
         }
 
-    def test_task_definition_active(self, mock_describe_task_definition):
-        """Test task definition reach active state during creation."""
-        mock_describe_task_definition.side_effect = [
-            self.describe_task_definition(EcsTaskDefinitionStates.INACTIVE),
-            self.describe_task_definition(EcsTaskDefinitionStates.INACTIVE),
-            self.describe_task_definition(EcsTaskDefinitionStates.ACTIVE),
-        ]
-        waiter = EcsHook(aws_conn_id=None).get_waiter("task_definition_active")
-        waiter.wait(taskDefinition="spam-egg", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
 
-    def test_task_definition_failure(self, mock_describe_task_definition):
-        """Test task definition reach delete in progress state during creation."""
-        mock_describe_task_definition.side_effect = [
-            self.describe_task_definition(EcsTaskDefinitionStates.DELETE_IN_PROGRESS),
-        ]
-        waiter = EcsHook(aws_conn_id=None).get_waiter("task_definition_active")
-        with pytest.raises(WaiterError, match='matched expected path: "DELETE_IN_PROGRESS"'):
-            waiter.wait(taskDefinition="spam-egg", WaiterConfig={"Delay": 0.01, "MaxAttempts": 1})
+class TestCustomDynamoDBServiceWaiters:
+    """Test waiters from ``amazon/aws/waiters/dynamodb.json``."""
 
-    def test_task_definition_inactive(self, mock_describe_task_definition):
-        """Test task definition reach inactive state during deletion."""
-        mock_describe_task_definition.side_effect = [
-            self.describe_task_definition(EcsTaskDefinitionStates.ACTIVE),
-            self.describe_task_definition(EcsTaskDefinitionStates.ACTIVE),
-            self.describe_task_definition(EcsTaskDefinitionStates.INACTIVE),
+    STATUS_COMPLETED = "COMPLETED"
+    STATUS_FAILED = "FAILED"
+    STATUS_IN_PROGRESS = "IN_PROGRESS"
+
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, monkeypatch):
+        self.resource = boto3.resource("dynamodb", region_name="eu-west-3")
+        monkeypatch.setattr(DynamoDBHook, "conn", self.resource)
+        self.client = self.resource.meta.client
+
+    @pytest.fixture
+    def mock_describe_export(self):
+        """Mock ``DynamoDBHook.Client.describe_export`` method."""
+        with mock.patch.object(self.client, "describe_export") as m:
+            yield m
+
+    def test_service_waiters(self):
+        hook_waiters = DynamoDBHook(aws_conn_id=None).list_waiters()
+        assert "export_table" in hook_waiters
+
+    @staticmethod
+    def describe_export(status: str):
+        """
+        Helper function for generate minimal DescribeExport response for single job.
+        https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_DescribeExport.html
+        """
+        return {"ExportDescription": {"ExportStatus": status}}
+
+    def test_export_table_to_point_in_time_completed(self, mock_describe_export):
+        """Test state transition from `in progress` to `completed` during init."""
+        waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table")
+        mock_describe_export.side_effect = [
+            self.describe_export(self.STATUS_IN_PROGRESS),
+            self.describe_export(self.STATUS_COMPLETED),
         ]
-        waiter = EcsHook(aws_conn_id=None).get_waiter("task_definition_inactive")
-        waiter.wait(taskDefinition="spam-egg", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
+        waiter.wait(
+            ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+        )
+
+    def test_export_table_to_point_in_time_failed(self, mock_describe_export):
+        """Test state transition from `in progress` to `failed` during init."""
+        with mock.patch("boto3.client") as client:
+            client.return_value = self.client
+            mock_describe_export.side_effect = [
+                self.describe_export(self.STATUS_IN_PROGRESS),
+                self.describe_export(self.STATUS_FAILED),
+            ]
+            waiter = DynamoDBHook(aws_conn_id=None).get_waiter("export_table", client=self.client)
+            with pytest.raises(WaiterError, match='we matched expected path: "FAILED"'):
+                waiter.wait(
+                    ExportArn="LoremIpsumissimplydummytextoftheprintingandtypesettingindustry",
+                    WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+                )

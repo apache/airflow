@@ -22,7 +22,7 @@ from typing import Any
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes, get_field
+from airflow.providers.microsoft.azure.utils import get_field
 
 
 class AzureContainerVolumeHook(BaseHook):
@@ -53,7 +53,7 @@ class AzureContainerVolumeHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField
@@ -65,9 +65,8 @@ class AzureContainerVolumeHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_container_volume")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -82,7 +81,7 @@ class AzureContainerVolumeHook(BaseHook):
         }
 
     def get_storagekey(self) -> str:
-        """Get Azure File Volume storage key"""
+        """Get Azure File Volume storage key."""
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
         connection_string = self._get_field(extras, "connection_string")
@@ -96,7 +95,7 @@ class AzureContainerVolumeHook(BaseHook):
     def get_file_volume(
         self, mount_name: str, share_name: str, storage_account_name: str, read_only: bool = False
     ) -> Volume:
-        """Get Azure File Volume"""
+        """Get Azure File Volume."""
         return Volume(
             name=mount_name,
             azure_file=AzureFileVolume(

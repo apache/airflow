@@ -162,6 +162,59 @@ Contributors are responsible for:
 * Adding features
 * Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__.
 
+Security Team
+-------------
+
+Security issues in Airflow are handled by the Airflow Security Team. The team consists
+of selected PMC members that are interested in looking at, discussing and fixing
+security issues, but it can also include committers and non-committer contributors that are
+not PMC members yet and have been approved by the PMC members in a vote. You can request to
+be added to the team by sending a message to private@airflow.apache.org. However, the team
+should be small and focused on solving security issues, so the requests will be evaluated
+on a case-by-case basis and the team size will be kept relatively small, limited to only actively
+security-focused contributors.
+
+There are certain expectations from the members of the security team:
+
+* They are supposed to be active in assessing, discussing, fixing and releasing the
+  security issues in Airflow. While it is perfectly understood that as volunteers, we might have
+  periods of lower activity, prolonged lack of activity and participation will result in removal
+  from the team, pending PMC decision (the decision on removal can be taken by LAZY CONSENSUS among
+  all the PMC members on private@airflow.apache.org mailing list).
+
+* They are not supposed to reveal the information about pending and unfixed security issues to anyone
+  (including their employers) unless specifically authorised by the security team members, specifically
+  if diagnosing and solving the issue might involve the need of external experts - for example security
+  experts that are available through Airflow stakeholders. The intent about involving 3rd parties has
+  to be discussed and agreed upon at security@airflow.apache.org.
+
+* They have to have an [ICLA](https://www.apache.org/licenses/contributor-agreements.html) signed with
+  Apache Software Foundation.
+
+* The security team members might inform 3rd parties about fixes, for example in order to assess if the fix
+  is solving the problem or in order to assess its applicability to be applied by 3rd parties, as soon
+  as a PR solving the issue is opened in the public airflow repository.
+
+* In case of critical security issues, the members of the security team might iterate on a fix in a
+  private repository and only open the PR in the public repository once the fix is ready to be released,
+  with the intent of minimizing the time between the fix being available and the fix being released. In this
+  case the PR might be sent to review and comment to the PMC members on private list, in order to request
+  an expedited voting on the release. The voting for such release might be done on the
+  private@airflow.apache.org mailing list and should be made public at the dev@apache.airflow.org
+  mailing list as soon as the release is ready to be announced.
+
+* The security team members working on the fix might be mentioned as remediation developers in the CVE
+  including their job affiliation if they want to.
+
+* Community members acting as release managers are by default members of the security team and unless they
+  want to, they do not have to be involved in discussing and solving the issues. They are responsible for
+  releasing the CVE information (announcement and publishing to security indexes) as part of the
+  release process. This is facilitated by the security tool provided by the Apache Software Foundation.
+
+* Severity of the issue is determined based on the criteria described in the
+  [Severity Rating blog post](https://security.apache.org/blog/severityrating/)  by the Apache Software
+  Foundation Security team
+
 Contribution Workflow
 =====================
 
@@ -408,13 +461,13 @@ these guidelines:
     Sphinx compatible standards.
 
 -   Make sure your code fulfills all the
-    `static code checks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__ we have in our code. The easiest way
+    `static code checks <STATIC_CODE_CHECKS.rst#static-code-checks>`__ we have in our code. The easiest way
     to make sure of that is to use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__
 
 -   Run tests locally before opening PR.
 
 -   You can use any supported python version to run the tests, but the best is to check
-    if it works for the oldest supported version (Python 3.7 currently). In rare cases
+    if it works for the oldest supported version (Python 3.8 currently). In rare cases
     tests might fail with the oldest version when you use features that are available in newer Python
     versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
     useful features from newer versions.
@@ -593,6 +646,11 @@ Airflow dependencies
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
 
+   There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+   Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+   newer versions of ``bazel`` will handle it.
+
    If you wish to install airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
@@ -610,18 +668,18 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 aiobotocore, airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra,
-apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kylin,
-apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana,
-async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
-common.sql, crypto, dask, databricks, datadog, dbt.cloud, deprecated_api, devel, devel_all,
-devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker, druid, elasticsearch, exasol,
-facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc, hashicorp, hdfs,
-hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
-microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas,
-openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill, password, pinot, plexus,
-postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
-sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram,
-trino, vertica, virtualenv, webhdfs, winrm, zendesk
+apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kafka,
+apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs,
+apprise, arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups,
+cloudant, cncf.kubernetes, common.sql, crypto, dask, daskexecutor, databricks, datadog, dbt.cloud,
+deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker,
+druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
+google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
+ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
+mysql, neo4j, odbc, openfaas, openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill,
+password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba,
+segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd,
+tableau, tabular, telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages
@@ -796,6 +854,11 @@ Pinned constraint files
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
 
+   There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+   Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+   newer versions of ``bazel`` will handle it.
+
    If you wish to install airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
@@ -830,7 +893,7 @@ from the PyPI package:
 .. code-block:: bash
 
   pip install apache-airflow[google,amazon,async]==2.2.5 \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.7.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.8.txt"
 
 The last one can be used to install Airflow in "minimal" mode - i.e when bare Airflow is installed without
 extras.
@@ -842,7 +905,7 @@ requirements).
 .. code-block:: bash
 
   pip install -e . \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 
 This works also with extras - for example:
@@ -850,7 +913,7 @@ This works also with extras - for example:
 .. code-block:: bash
 
   pip install ".[ssh]" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 
 There are different set of fixed constraint files for different python major/minor versions and you should
@@ -862,7 +925,7 @@ If you want to update just airflow dependencies, without paying attention to pro
 .. code-block:: bash
 
   pip install . --upgrade \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.7.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.8.txt"
 
 
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` and ``constraints-no-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``
@@ -1160,7 +1223,11 @@ To install yarn on macOS:
 
     export PATH="$HOME/.yarn/bin:$PATH"
 
-4.  Install third-party libraries defined in ``package.json`` by running the
+4.  Install third-party libraries defined in ``package.json`` by running the following command
+
+.. code-block:: bash
+
+    yarn install
 
 Generate Bundled Files with yarn
 --------------------------------

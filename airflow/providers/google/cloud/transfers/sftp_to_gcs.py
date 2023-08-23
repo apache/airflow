@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import os
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
@@ -57,9 +56,6 @@ class SFTPToGCSOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param mime_type: The mime-type string
     :param gzip: Allows for file to be compressed and uploaded as gzip
     :param move_object: When move object is True, the object is moved instead
@@ -73,6 +69,7 @@ class SFTPToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param sftp_prefetch: Whether to enable SFTP prefetch, the default is True.
     """
 
     template_fields: Sequence[str] = (
@@ -90,11 +87,11 @@ class SFTPToGCSOperator(BaseOperator):
         destination_path: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         sftp_conn_id: str = "ssh_default",
-        delegate_to: str | None = None,
         mime_type: str = "application/octet-stream",
         gzip: bool = False,
         move_object: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
+        sftp_prefetch: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -104,20 +101,15 @@ class SFTPToGCSOperator(BaseOperator):
         self.destination_bucket = self._set_bucket_name(destination_bucket)
         self.gcp_conn_id = gcp_conn_id
         self.mime_type = mime_type
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.gzip = gzip
         self.sftp_conn_id = sftp_conn_id
         self.move_object = move_object
         self.impersonation_chain = impersonation_chain
+        self.sftp_prefetch = sftp_prefetch
 
     def execute(self, context: Context):
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
@@ -162,7 +154,7 @@ class SFTPToGCSOperator(BaseOperator):
         )
 
         with NamedTemporaryFile("w") as tmp:
-            sftp_hook.retrieve_file(source_path, tmp.name)
+            sftp_hook.retrieve_file(source_path, tmp.name, prefetch=self.sftp_prefetch)
 
             gcs_hook.upload(
                 bucket_name=self.destination_bucket,

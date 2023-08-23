@@ -21,7 +21,7 @@ WORKING_DIR="/tmp/armdocker"
 INSTANCE_INFO="${WORKING_DIR}/instance_info.json"
 ARM_AMI="ami-0e43196369d299715"  # AMI ID of latest arm-docker-ami-v*
 INSTANCE_TYPE="m6g.2xlarge"  # m6g.2xlarge -> 8 vCPUS 32 GB RAM
-MARKET_OPTIONS="MarketType=spot,SpotOptions={MaxPrice=0.2,SpotInstanceType=one-time}"
+MARKET_OPTIONS="MarketType=spot,SpotOptions={MaxPrice=0.25,SpotInstanceType=one-time}"
 REGION="us-east-2"
 EC2_USER="ec2-user"
 USER_DATA_FILE="${SCRIPTS_DIR}/initialize.sh"
@@ -45,6 +45,10 @@ function start_arm_instance() {
         > "${INSTANCE_INFO}"
 
     INSTANCE_ID=$(jq < "${INSTANCE_INFO}" ".Instances[0].InstanceId" -r)
+    if [[ ${INSTANCE_ID} == "" ]]; then
+        echo "ERROR!!!! Failed to start ARM instance. Likely because it could not be allocated on spot market."
+        exit 1
+    fi
     AVAILABILITY_ZONE=$(jq < "${INSTANCE_INFO}" ".Instances[0].Placement.AvailabilityZone" -r)
     aws ec2 wait instance-status-ok --instance-ids "${INSTANCE_ID}"
     INSTANCE_PRIVATE_DNS_NAME=$(aws ec2 describe-instances \

@@ -56,7 +56,8 @@ MODEL_DISPLAY_NAME = f"custom-housing-model-{ENV_ID}"
 CUSTOM_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
-CSV_ZIP_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "California-housing.zip")
+RESOURCES_PATH = Path(__file__).parent / "resources"
+CSV_ZIP_FILE_LOCAL_PATH = str(RESOURCES_PATH / "California-housing-custom-job.zip")
 CSV_FILE_LOCAL_PATH = "/custom-job/california_housing_train.csv"
 
 TABULAR_DATASET = lambda bucket_name: {

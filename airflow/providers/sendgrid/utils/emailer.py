@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Airflow module for email backend using sendgrid"""
+"""Airflow module for email backend using sendgrid."""
 from __future__ import annotations
 
 import base64
@@ -38,7 +38,7 @@ from sendgrid.helpers.mail import (
     SandBoxMode,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.utils.email import get_email_address_list
 
@@ -94,8 +94,8 @@ def send_email(
     # Add custom_args to personalization if present
     pers_custom_args = kwargs.get("personalization_custom_args")
     if isinstance(pers_custom_args, dict):
-        for key in pers_custom_args.keys():
-            personalization.add_custom_arg(CustomArg(key, pers_custom_args[key]))
+        for key, val in pers_custom_args.items():
+            personalization.add_custom_arg(CustomArg(key, val))
 
     mail.add_personalization(personalization)
     mail.add_content(Content("text/html", html_content))
@@ -134,7 +134,7 @@ def _post_sendgrid_mail(mail_data: dict, conn_id: str = "sendgrid_default") -> N
         warnings.warn(
             "Fetching Sendgrid credentials from environment variables will be deprecated in a future "
             "release. Please set credentials using a connection instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         api_key = os.environ.get("SENDGRID_API_KEY")

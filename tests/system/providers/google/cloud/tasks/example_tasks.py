@@ -48,17 +48,15 @@ DAG_ID = "cloud_tasks_tasks"
 timestamp = timestamp_pb2.Timestamp()
 timestamp.FromDatetime(datetime.now() + timedelta(hours=12))
 
-LOCATION = "europe-west2"
+LOCATION = "us-central1"
 # queue cannot use recent names even if queue was removed
 QUEUE_ID = f"queue-{ENV_ID}-{DAG_ID.replace('_', '-')}"
 TASK_NAME = "task-to-run"
-
-
 TASK = {
-    "app_engine_http_request": {  # Specify the type of request.
+    "http_request": {
         "http_method": "POST",
-        "relative_uri": "/example_task_handler",
-        "body": b"Hello",
+        "url": "http://www.example.com/example",
+        "body": b"",
     },
     "schedule_time": timestamp,
 }
@@ -127,6 +125,7 @@ with models.DAG(
         location=LOCATION,
         queue_name=QUEUE_ID + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
         task_name=TASK_NAME + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
+        retry=Retry(maximum=10.0),
         task_id="run_task",
     )
     # [END run_task]

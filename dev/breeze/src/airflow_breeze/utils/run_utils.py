@@ -17,17 +17,18 @@
 """Useful tools for running commands."""
 from __future__ import annotations
 
+import atexit
 import contextlib
 import os
 import re
 import shlex
+import signal
 import stat
 import subprocess
 import sys
 from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
-from threading import Thread
 from typing import Mapping, Union
 
 from rich.markup import escape
@@ -96,7 +97,7 @@ def run_command(
             return False
         if _arg.startswith("-"):
             return True
-        if len(_arg) == 0:
+        if not _arg:
             return True
         if _arg.startswith("/"):
             # Skip any absolute paths
@@ -360,10 +361,7 @@ def commit_sha():
 
 def filter_out_none(**kwargs) -> dict:
     """Filters out all None values from parameters passed."""
-    for key in list(kwargs):
-        if kwargs[key] is None:
-            kwargs.pop(key)
-    return kwargs
+    return {key: val for key, val in kwargs.items() if val is not None}
 
 
 def check_if_image_exists(image: str) -> bool:
@@ -378,7 +376,7 @@ def check_if_image_exists(image: str) -> bool:
 
 def get_ci_image_for_pre_commits() -> str:
     github_repository = os.environ.get("GITHUB_REPOSITORY", APACHE_AIRFLOW_GITHUB_REPOSITORY)
-    python_version = "3.7"
+    python_version = "3.8"
     airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
     skip_image_pre_commits = os.environ.get("SKIP_IMAGE_PRE_COMMITS", "false")
     if skip_image_pre_commits[0].lower() == "t":
@@ -443,6 +441,18 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
             sys.exit(1)
 
 
+def kill_process_group(gid: int):
+    """
+    Kills all processes in the process group and ignore if the group is missing.
+
+    :param gid: process group id
+    """
+    try:
+        os.killpg(gid, signal.SIGTERM)
+    except OSError:
+        pass
+
+
 def run_compile_www_assets(
     dev: bool,
     run_in_background: bool,
@@ -470,7 +480,16 @@ def run_compile_www_assets(
         f"{WWW_ASSET_OUT_DEV_MODE_FILE if dev else WWW_ASSET_OUT_FILE}\n"
     )
     if run_in_background:
-        thread = Thread(daemon=True, target=_run_compile_internally, args=(command_to_execute, dev))
-        thread.start()
+        pid = os.fork()
+        if pid:
+            # Parent process - send signal to process group of the child process
+            atexit.register(kill_process_group, pid)
+        else:
+            # Check if we are not a group leader already (We should not be)
+            if os.getpid() != os.getsid(0):
+                # and create a new process group where we are the leader
+                os.setpgid(0, 0)
+            _run_compile_internally(command_to_execute, dev)
+            sys.exit(0)
     else:
         return _run_compile_internally(command_to_execute, dev)

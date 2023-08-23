@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import itertools
 import json
 import os
 import pathlib
@@ -27,7 +28,6 @@ import sys
 import textwrap
 from collections import Counter
 from enum import Enum
-from itertools import chain, product
 from typing import Any, Iterable
 
 import jsonschema
@@ -37,6 +37,18 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow.cli.commands.info_command import Architecture
+from airflow.providers_manager import ProvidersManager
+
+# Those are deprecated modules that contain removed Hooks/Sensors/Operators that we left in the code
+# so that users can get a very specific error message when they try to use them.
+
+EXCLUDED_MODULES = [
+    "airflow.providers.apache.hdfs.sensors.hdfs",
+    "airflow.providers.apache.hdfs.hooks.hdfs",
+    "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
+    "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
+]
+
 
 try:
     from yaml import CSafeLoader as SafeLoader
@@ -208,7 +220,7 @@ def check_if_objects_exist_and_belong_to_package(
 def parse_module_data(provider_data, resource_type, yaml_file_path):
     package_dir = ROOT_DIR.joinpath(yaml_file_path).parent
     provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
-    py_files = chain(
+    py_files = itertools.chain(
         package_dir.glob(f"**/{resource_type}/*.py"),
         package_dir.glob(f"{resource_type}/*.py"),
         package_dir.glob(f"**/{resource_type}/**/*.py"),
@@ -220,16 +232,17 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
 
 
 def check_correctness_of_list_of_sensors_operators_hook_modules(yaml_files: dict[str, dict]):
-    print("Checking completeness of list of {sensors, hooks, operators}")
-    print(" -- {sensors, hooks, operators} - Expected modules (left) : Current modules (right)")
-    for (yaml_file_path, provider_data), resource_type in product(
-        yaml_files.items(), ["sensors", "operators", "hooks"]
+    print("Checking completeness of list of {sensors, hooks, operators, triggers}")
+    print(" -- {sensors, hooks, operators, triggers} - Expected modules (left) : Current modules (right)")
+    for (yaml_file_path, provider_data), resource_type in itertools.product(
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
         )
-
+        expected_modules = {module for module in expected_modules if module not in EXCLUDED_MODULES}
         current_modules = {str(i) for r in resource_data for i in r.get("python-modules", [])}
+
         check_if_objects_exist_and_belong_to_package(
             current_modules, provider_package, yaml_file_path, resource_type, ObjectType.MODULE
         )
@@ -244,9 +257,9 @@ def check_correctness_of_list_of_sensors_operators_hook_modules(yaml_files: dict
 
 
 def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files: dict[str, dict]):
-    print("Checking for duplicates in list of {sensors, hooks, operators}")
-    for (yaml_file_path, provider_data), resource_type in product(
-        yaml_files.items(), ["sensors", "operators", "hooks"]
+    print("Checking for duplicates in list of {sensors, hooks, operators, triggers}")
+    for (yaml_file_path, provider_data), resource_type in itertools.product(
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         resource_data = provider_data.get(resource_type, [])
         current_integrations = [r.get("integration-name", "") for r in resource_data]
@@ -268,8 +281,9 @@ def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]):
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
         )
-
+        expected_modules = {module for module in expected_modules if module not in EXCLUDED_MODULES}
         current_modules = {r.get("python-module") for r in resource_data}
+
         check_if_objects_exist_and_belong_to_package(
             current_modules, provider_package, yaml_file_path, resource_type, ObjectType.MODULE
         )
@@ -283,7 +297,7 @@ def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]):
             )
 
 
-def check_hook_classes(yaml_files: dict[str, dict]):
+def check_hook_connection_classes(yaml_files: dict[str, dict]):
     print("Checking connection classes belong to package, exist and are classes")
     resource_type = "hook-class-names"
     for yaml_file_path, provider_data in yaml_files.items():
@@ -349,8 +363,8 @@ def check_invalid_integration(yaml_files: dict[str, dict]):
     print("Detect unregistered integrations")
     all_integration_names = set(get_all_integration_names(yaml_files))
 
-    for (yaml_file_path, provider_data), resource_type in product(
-        yaml_files.items(), ["sensors", "operators", "hooks"]
+    for (yaml_file_path, provider_data), resource_type in itertools.product(
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         resource_data = provider_data.get(resource_type, [])
         current_names = {r["integration-name"] for r in resource_data}
@@ -361,7 +375,7 @@ def check_invalid_integration(yaml_files: dict[str, dict]):
                 f"Invalid values: {invalid_names}"
             )
 
-    for (yaml_file_path, provider_data), key in product(
+    for (yaml_file_path, provider_data), key in itertools.product(
         yaml_files.items(), ["source-integration-name", "target-integration-name"]
     ):
         resource_data = provider_data.get("transfers", [])
@@ -396,7 +410,7 @@ def check_doc_files(yaml_files: dict[str, dict]):
     console.print("[yellow]Suspended providers:[/]")
     console.print(suspended_providers)
 
-    expected_doc_files = chain(
+    expected_doc_files = itertools.chain(
         DOCS_DIR.glob("apache-airflow-providers-*/operators/**/*.rst"),
         DOCS_DIR.glob("apache-airflow-providers-*/transfer/**/*.rst"),
     )
@@ -406,19 +420,18 @@ def check_doc_files(yaml_files: dict[str, dict]):
         for f in expected_doc_files
         if f.name != "index.rst"
         and "_partials" not in f.parts
-        and not any(f.relative_to(DOCS_DIR).as_posix().startswith(s) for s in suspended_providers)
+        and not f.relative_to(DOCS_DIR).as_posix().startswith(tuple(suspended_providers))
     } | {
         f"/docs/{f.relative_to(DOCS_DIR).as_posix()}"
         for f in DOCS_DIR.glob("apache-airflow-providers-*/operators.rst")
-        if not any(f.relative_to(DOCS_DIR).as_posix().startswith(s) for s in suspended_providers)
+        if not f.relative_to(DOCS_DIR).as_posix().startswith(tuple(suspended_providers))
     }
     console.print("[yellow]Suspended logos:[/]")
     console.print(suspended_logos)
     expected_logo_urls = {
         f"/{f.relative_to(DOCS_DIR).as_posix()}"
         for f in DOCS_DIR.glob("integration-logos/**/*")
-        if f.is_file()
-        and not any(f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(s) for s in suspended_logos)
+        if f.is_file() and not f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(tuple(suspended_logos))
     }
 
     try:
@@ -440,6 +453,7 @@ def check_unique_provider_name(yaml_files: dict[str, dict]):
 
 
 def check_providers_are_mentioned_in_issue_template(yaml_files: dict[str, dict]):
+    print("Checking providers are mentioned in issue template")
     prefix_len = len("apache-airflow-providers-")
     short_provider_names = [d["package-name"][prefix_len:] for d in yaml_files.values()]
     # exclude deprecated provider that shouldn't be in issue template
@@ -476,6 +490,7 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
 
 
 if __name__ == "__main__":
+    ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
     provider_files_pattern = pathlib.Path(ROOT_DIR).glob("airflow/providers/**/provider.yaml")
@@ -494,7 +509,7 @@ if __name__ == "__main__":
 
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
-    check_hook_classes(all_parsed_yaml_files)
+    check_hook_connection_classes(all_parsed_yaml_files)
     check_plugin_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
     check_correctness_of_list_of_sensors_operators_hook_modules(all_parsed_yaml_files)

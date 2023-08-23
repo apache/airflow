@@ -13,6 +13,9 @@ acyclic
 AddressesType
 adhoc
 adls
+adobjects
+AdsInsights
+adsinsights
 afterall
 AgentKey
 aio
@@ -32,6 +35,7 @@ alibaba
 allAuthenticatedUsers
 allowinsert
 allUsers
+alphanumerics
 Alphasort
 amazonaws
 amqp
@@ -293,6 +297,7 @@ ContainerPort
 contentUrl
 contextmgr
 contrib
+CoreV
 coroutine
 coverals
 cp
@@ -331,6 +336,7 @@ dagbags
 DagCallbackRequest
 DagFileProcessorManager
 dagmodel
+DagParam
 Dagre
 dagre
 DagRun
@@ -340,6 +346,7 @@ DagRunState
 DAGs
 Dask
 dask
+daskexecutor
 dat
 Databricks
 databricks
@@ -366,6 +373,8 @@ datapoint
 Dataprep
 Dataproc
 dataproc
+DataScan
+dataScans
 Dataset
 dataset
 datasetId
@@ -381,6 +390,7 @@ DataTransferServiceClient
 datatypes
 DateFrame
 datestamp
+DateTime
 datetime
 Datetimepicker
 Datetimes
@@ -421,12 +431,14 @@ deps
 deques
 deregister
 desc
+descendents
 deserialization
 Deserialize
 deserialize
 Deserialized
 deserialized
 deserializer
+deserializes
 deserializing
 dest
 dev
@@ -474,11 +486,14 @@ Dont
 DOS'ing
 DownloadReportV
 downscaling
+downstreams
+dq
 Drillbit
 Drivy
 dropdown
 druidHook
 ds
+dsl
 Dsn
 dsn
 dttm
@@ -591,6 +606,7 @@ fn
 fo
 followsa
 formatter
+formatters
 Formaturas
 forwardability
 forwardable
@@ -598,6 +614,7 @@ fqdn
 frontend
 fs
 fsGroup
+fullname
 func
 Fundera
 ga
@@ -666,6 +683,7 @@ Harenslak
 Hashable
 Hashicorp
 hashicorp
+hashlib
 hasn
 HCatalog
 hcatalog
@@ -754,6 +772,7 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceGroupConfig
 instanceTemplates
 instantiation
 integrations
@@ -812,6 +831,8 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+Kafka
+kafka
 Kalibrr
 Kamil
 KEDA
@@ -851,6 +872,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Lakehouse
 LanguageServiceClient
 lastname
 latencies
@@ -921,6 +943,7 @@ metadatabase
 metarouter
 Metastore
 metastore
+metavar
 mget
 mgmt
 microservice
@@ -1021,6 +1044,7 @@ onboarded
 OnFailure
 onkill
 Oozie
+openapi
 openfaas
 openlineage
 oper
@@ -1041,6 +1065,7 @@ ot
 otel
 overridable
 oversubscription
+PaaS
 Pagerduty
 pagerduty
 pageviews
@@ -1087,7 +1112,9 @@ pluggable
 pluggy
 plyvel
 png
+PodManager
 podName
+PodSpec
 podSpec
 podspec
 poller
@@ -1110,6 +1137,9 @@ precheck
 Precommit
 preconfigured
 PredictionServiceClient
+Preemptibility
+preemptibility
+Preemptible
 preemptible
 prefetch
 prefetched
@@ -1192,6 +1222,7 @@ RBAC
 rbac
 rc
 rdbms
+RDS
 readfp
 Readme
 readme
@@ -1209,6 +1240,7 @@ redbubble
 Reddit
 Redhat
 redis
+rediss
 redoc
 redownloading
 redshift
@@ -1343,6 +1375,7 @@ sourceArchiveUrl
 sourceRepository
 sourceUploadUrl
 Spark
+sparkappinfo
 sparkApplication
 sparkcmd
 SparkPi
@@ -1410,7 +1443,7 @@ Subdirectory
 subdirectory
 subfolder
 subfolders
-Submodules
+submodule
 submodules
 subnet
 subnets
@@ -1474,6 +1507,7 @@ tblproperties
 TCP
 tcp
 teardown
+teardowns
 templatable
 templateable
 Templated
@@ -1550,6 +1584,7 @@ undead
 Undeads
 ungenerated
 unicode
+unicodecsv
 unindent
 unittest
 unittests
@@ -1569,6 +1604,7 @@ unprocessable
 unqueued
 unterminated
 untransformed
+untrusted
 unutilized
 updateMask
 updateonly
@@ -1576,6 +1612,7 @@ Upsert
 upsert
 upserts
 Upsight
+upstreams
 Uptime
 uri
 uris
@@ -1583,6 +1620,7 @@ Url
 url
 urlencoded
 urlparse
+urls
 useHCatalog
 useLegacySQL
 useQueryCache
@@ -1603,6 +1641,7 @@ vCPU
 ve
 vendored
 Vendorize
+venv
 venvs
 versionable
 Vertica
@@ -1612,6 +1651,7 @@ Vevo
 videointelligence
 VideoIntelligenceServiceClient
 virtualenv
+virtualenvs
 vm
 VolumeMount
 volumeMounts

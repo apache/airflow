@@ -21,6 +21,7 @@
 CONSTRAINTS_DIR="/files/constraints-${PYTHON_MAJOR_MINOR_VERSION}"
 
 LATEST_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/original-${AIRFLOW_CONSTRAINTS_MODE}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+CONSTRAINTS_MARKDOWN_DIFF="${CONSTRAINTS_DIR}/diff-${AIRFLOW_CONSTRAINTS_MODE}-${PYTHON_MAJOR_MINOR_VERSION}.md"
 mkdir -pv "${CONSTRAINTS_DIR}"
 
 
@@ -80,6 +81,26 @@ elif [[ ${AIRFLOW_CONSTRAINTS_MODE} == "constraints" ]]; then
 # We also use those constraints after "apache-airflow" is released and the constraints are tagged with
 # "constraints-X.Y.Z" tag to build the production image for that version.
 #
+# This constraints file is meant to be used only in the "apache-airflow" installation command and not
+# in all subsequent pip commands. By using a constraints.txt file, we ensure that solely the Airflow
+# installation step is reproducible. Subsequent pip commands may install packages that would have
+# been incompatible with the constraints used in Airflow reproducible installation step. Finally, pip
+# commands that might change the installed version of apache-airflow should include "apache-airflow==X.Y.Z"
+# in the list of install targets to prevent Airflow accidental upgrade or downgrade.
+#
+# Typical installation process of airflow for Python 3.8 is (with random selection of extras and custom
+# dependencies added), usually consists of two steps:
+#
+# 1. Reproducible installation of airflow with selected providers (note constraints are used):
+#
+# pip install "apache-airflow[celery,cncf.kubernetes,google,amazon,snowflake]==X.Y.Z" \\
+#     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-X.Y.Z/constraints-3.8.txt"
+#
+# 2. Installing own dependencies that are potentially not matching the constraints (note constraints are not
+#    used, and apache-airflow==X.Y.Z is used to make sure there is no accidental airflow upgrade/downgrade.
+#
+# pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]==2.9.0"
+#
 EOF
 else
     echo
@@ -111,6 +132,25 @@ echo "Constraints generated in ${CURRENT_CONSTRAINT_FILE}"
 echo
 
 set +e
-diff --color=always "${LATEST_CONSTRAINT_FILE}" "${CURRENT_CONSTRAINT_FILE}"
+if diff "--ignore-matching-lines=#" --color=always "${LATEST_CONSTRAINT_FILE}" "${CURRENT_CONSTRAINT_FILE}"; then
+    echo
+    echo "${COLOR_GREEN}No changes in constraints - exiting${COLOR_RESET}"
+    echo
+    rm -f "${CONSTRAINTS_MARKDOWN_DIFF}"
+    exit 0
+fi
+
+cat <<EOF >"${CONSTRAINTS_MARKDOWN_DIFF}"
+# Dependencies updated for Python ${PYTHON_MAJOR_MINOR_VERSION}
+
+\`\`\`diff
+$(diff --unified=0 --ignore-matching-lines=# "${LATEST_CONSTRAINT_FILE}" "${CURRENT_CONSTRAINT_FILE}")
+\`\`\`
+EOF
+
+echo
+echo "Constraints error markdown generated in ${CONSTRAINTS_MARKDOWN_DIFF}"
+echo
+
 
 exit 0

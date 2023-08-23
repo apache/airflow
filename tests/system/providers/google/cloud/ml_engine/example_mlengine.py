@@ -49,14 +49,14 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
 DAG_ID = "example_gcp_mlengine"
 PREDICT_FILE_NAME = "predict.json"
-MODEL_NAME = f"example_mlengine_model_{ENV_ID}"
-BUCKET_NAME = f"example_mlengine_bucket_{ENV_ID}"
+MODEL_NAME = f"model_{DAG_ID}_{ENV_ID}".replace("_", "-")
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 BUCKET_PATH = f"gs://{BUCKET_NAME}"
 JOB_DIR = f"{BUCKET_PATH}/job-dir"
 SAVED_MODEL_PATH = f"{JOB_DIR}/"
 PREDICTION_INPUT = f"{BUCKET_PATH}/{PREDICT_FILE_NAME}"
 PREDICTION_OUTPUT = f"{BUCKET_PATH}/prediction_output/"
-TRAINER_URI = "gs://system-tests-resources/example_gcp_mlengine/trainer-0.1.tar.gz"
+TRAINER_URI = "gs://airflow-system-tests-resources/ml-engine/trainer-0.2.tar.gz"
 TRAINER_PY_MODULE = "trainer.task"
 SUMMARY_TMP = f"{BUCKET_PATH}/tmp/"
 SUMMARY_STAGING = f"{BUCKET_PATH}/staging/"
@@ -66,7 +66,7 @@ PATH_TO_PREDICT_FILE = BASE_DIR / PREDICT_FILE_NAME
 
 
 def generate_model_predict_input_data() -> list[int]:
-    return [i for i in range(0, 201, 10)]
+    return [1, 4, 9, 16, 25, 36]
 
 
 with models.DAG(
@@ -252,7 +252,7 @@ with models.DAG(
         """
 
         def normalize_value(inst: dict):
-            val = float(inst["output_layer"][0])
+            val = int(inst["output_layer"][0])
             return tuple([val])  # returns a tuple.
 
         return normalize_value, ["val"]  # key order must match.

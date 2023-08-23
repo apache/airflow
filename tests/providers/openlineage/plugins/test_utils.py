@@ -14,9 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# Copyright 2018-2023 contributors to the OpenLineage project
-# SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
 import datetime
@@ -174,6 +171,9 @@ def test_redact_with_exclusions(monkeypatch):
         def __init__(self):
             self.password = "passwd"
 
+    class Proxy:
+        pass
+
     def default(self, o):
         if isinstance(o, NotMixin):
             return o.__dict__
@@ -182,6 +182,9 @@ def test_redact_with_exclusions(monkeypatch):
     assert redactor.redact(NotMixin()).password == "passwd"
     monkeypatch.setattr(JSONEncoder, "default", default)
     assert redactor.redact(NotMixin()).password == "***"
+
+    assert redactor.redact(Proxy()) == "<<non-redactable: Proxy>>"
+    assert redactor.redact({"a": "a", "b": Proxy()}) == {"a": "a", "b": "<<non-redactable: Proxy>>"}
 
     class Mixined(RedactMixin):
         _skip_redact = ["password"]

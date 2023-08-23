@@ -34,7 +34,7 @@ from azure.cosmos.exceptions import CosmosHttpResponseError
 
 from airflow.exceptions import AirflowBadRequest
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes, get_field
+from airflow.providers.microsoft.azure.utils import get_field
 
 
 class AzureCosmosDBHook(BaseHook):
@@ -56,7 +56,7 @@ class AzureCosmosDBHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -71,9 +71,8 @@ class AzureCosmosDBHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_cosmos")  # todo: remove when min airflow version >= 2.5
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -154,7 +153,7 @@ class AzureCosmosDBHook(BaseHook):
                 parameters=[json.dumps({"name": "@id", "value": collection_name})],
             )
         )
-        if len(existing_container) == 0:
+        if not existing_container:
             return False
 
         return True
@@ -181,7 +180,7 @@ class AzureCosmosDBHook(BaseHook):
         )
 
         # Only create if we did not find it already existing
-        if len(existing_container) == 0:
+        if not existing_container:
             self.get_conn().get_database_client(self.__get_database_name(database_name)).create_container(
                 collection_name, partition_key=partition_key
             )
@@ -197,7 +196,7 @@ class AzureCosmosDBHook(BaseHook):
                 parameters=[json.dumps({"name": "@id", "value": database_name})],
             )
         )
-        if len(existing_database) == 0:
+        if not existing_database:
             return False
 
         return True
@@ -217,7 +216,7 @@ class AzureCosmosDBHook(BaseHook):
         )
 
         # Only create if we did not find it already existing
-        if len(existing_database) == 0:
+        if not existing_database:
             self.get_conn().create_database(database_name)
 
     def delete_database(self, database_name: str) -> None:
@@ -237,10 +236,7 @@ class AzureCosmosDBHook(BaseHook):
         )
 
     def upsert_document(self, document, database_name=None, collection_name=None, document_id=None):
-        """
-        Inserts a new document (or updates an existing one) into an existing
-        collection in the CosmosDB database.
-        """
+        """Insert or update a document into an existing collection in the CosmosDB database."""
         # Assign unique ID if one isn't provided
         if document_id is None:
             document_id = str(uuid.uuid4())
@@ -357,15 +353,15 @@ class AzureCosmosDBHook(BaseHook):
 
 
 def get_database_link(database_id: str) -> str:
-    """Get Azure CosmosDB database link"""
+    """Get Azure CosmosDB database link."""
     return "dbs/" + database_id
 
 
 def get_collection_link(database_id: str, collection_id: str) -> str:
-    """Get Azure CosmosDB collection link"""
+    """Get Azure CosmosDB collection link."""
     return get_database_link(database_id) + "/colls/" + collection_id
 
 
 def get_document_link(database_id: str, collection_id: str, document_id: str) -> str:
-    """Get Azure CosmosDB document link"""
+    """Get Azure CosmosDB document link."""
     return get_collection_link(database_id, collection_id) + "/docs/" + document_id

@@ -48,7 +48,7 @@ Extra (optional)
 When specifying the connection in environment variable you should specify
 it using URI syntax.
 
-Note that all components of the URI should be URL-encoded. The URI and and the mongo
+Note that all components of the URI should be URL-encoded. The URI and the mongo
 connection string are not the same.
 
 For example:
@@ -56,3 +56,10 @@ For example:
 .. code-block:: bash
 
    export AIRFLOW_CONN_SPARK_DEFAULT='spark://mysparkcluster.com:80?deploy-mode=cluster&spark_binary=command&namespace=kube+namespace'
+
+.. warning::
+
+  Make sure you trust your users with the ability to configure the host settings as it may enable the connection to
+  establish communication with external servers. It's crucial to understand that directing the connection towards a
+  malicious server can lead to significant security vulnerabilities, including the risk of encountering
+  Remote Code Execution (RCE) attacks.

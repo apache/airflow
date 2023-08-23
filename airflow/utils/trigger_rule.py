@@ -26,6 +26,7 @@ class TriggerRule(str, Enum):
     ALL_SUCCESS = "all_success"
     ALL_FAILED = "all_failed"
     ALL_DONE = "all_done"
+    ALL_DONE_SETUP_SUCCESS = "all_done_setup_success"
     ONE_SUCCESS = "one_success"
     ONE_FAILED = "one_failed"
     ONE_DONE = "one_done"
@@ -39,12 +40,12 @@ class TriggerRule(str, Enum):
 
     @classmethod
     def is_valid(cls, trigger_rule: str) -> bool:
-        """Validates a trigger rule."""
+        """Validate a trigger rule."""
         return trigger_rule in cls.all_triggers()
 
     @classmethod
     def all_triggers(cls) -> set[str]:
-        """Returns all trigger rules."""
+        """Return all trigger rules."""
         return set(cls.__members__.values())
 
     def __str__(self) -> str:

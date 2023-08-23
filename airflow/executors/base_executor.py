@@ -17,28 +17,31 @@
 """Base executor - this is the base class for all the implemented executors."""
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 import warnings
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 
+from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Command to execute - list of strings
     # the first element is always "airflow".
@@ -77,14 +80,11 @@ class RunningRetryAttemptType:
 
     @property
     def elapsed(self):
-        """Seconds since first attempt"""
+        """Seconds since first attempt."""
         return (pendulum.now("UTC") - self.first_attempt_time).total_seconds()
 
     def can_try_again(self):
-        """
-        If there has been at least one try greater than MIN_SECONDS after first attempt,
-        then return False.  Otherwise, return True.
-        """
+        """Return False if there has been at least one try greater than MIN_SECONDS, otherwise return True."""
         if self.tries_after_min > 0:
             return False
 
@@ -99,11 +99,9 @@ class RunningRetryAttemptType:
 
 class BaseExecutor(LoggingMixin):
     """
-    Class to derive in order to implement concrete executors.
-    Such as, Celery, Kubernetes, Local, Sequential and the likes.
+    Base class to inherit for concrete executors such as Celery, Kubernetes, Local, Sequential, etc.
 
-    :param parallelism: how many jobs should run at one time. Set to
-        ``0`` for infinity.
+    :param parallelism: how many jobs should run at one time. Set to ``0`` for infinity.
     """
 
     supports_ad_hoc_ti_run: bool = False
@@ -123,7 +121,7 @@ class BaseExecutor(LoggingMixin):
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
-        self.queued_tasks: OrderedDict[TaskInstanceKey, QueuedTaskInstanceType] = OrderedDict()
+        self.queued_tasks: dict[TaskInstanceKey, QueuedTaskInstanceType] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
@@ -190,7 +188,7 @@ class BaseExecutor(LoggingMixin):
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
-        Checks if a task is either queued or running in this executor.
+        Check if a task is either queued or running in this executor.
 
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
@@ -200,6 +198,7 @@ class BaseExecutor(LoggingMixin):
     def sync(self) -> None:
         """
         Sync will get called periodically by the heartbeat method.
+
         Executors should override this to perform gather statuses.
         """
 
@@ -251,7 +250,7 @@ class BaseExecutor(LoggingMixin):
 
     def trigger_tasks(self, open_slots: int) -> None:
         """
-        Initiates async execution of the queued tasks, up to the number of available slots.
+        Initiate async execution of the queued tasks, up to the number of available slots.
 
         :param open_slots: Number of open slots
         """
@@ -297,9 +296,9 @@ class BaseExecutor(LoggingMixin):
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
-    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
+    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
         """
-        Changes state of the task.
+        Change state of the task.
 
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
@@ -319,7 +318,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, State.FAILED, info)
+        self.change_state(key, TaskInstanceState.FAILED, info)
 
     def success(self, key: TaskInstanceKey, info=None) -> None:
         """
@@ -328,7 +327,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, State.SUCCESS, info)
+        self.change_state(key, TaskInstanceState.SUCCESS, info)
 
     def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
@@ -359,7 +358,7 @@ class BaseExecutor(LoggingMixin):
         executor_config: Any | None = None,
     ) -> None:  # pragma: no cover
         """
-        This method will execute the command asynchronously.
+        Execute the command asynchronously.
 
         :param key: Unique key for the task instance
         :param command: Command to run
@@ -370,7 +369,7 @@ class BaseExecutor(LoggingMixin):
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         """
-        This method can be implemented by any child class to return the task logs.
+        Return the task logs.
 
         :param ti: A TaskInstance object
         :param try_number: current try_number to read log from
@@ -383,12 +382,13 @@ class BaseExecutor(LoggingMixin):
         raise NotImplementedError()
 
     def terminate(self):
-        """This method is called when the daemon receives a SIGTERM."""
+        """Get called when the daemon receives a SIGTERM."""
         raise NotImplementedError()
 
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
+
         Tasks can get stuck in queued. If such a task is detected, it will be marked
         as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
         if it doesn't.
@@ -458,7 +458,7 @@ class BaseExecutor(LoggingMixin):
         return None, None
 
     def debug_dump(self):
-        """Called in response to SIGUSR2 by the scheduler."""
+        """Get called in response to SIGUSR2 by the scheduler."""
         self.log.info(
             "executor.queued (%d)\n\t%s",
             len(self.queued_tasks),
@@ -472,7 +472,7 @@ class BaseExecutor(LoggingMixin):
         )
 
     def send_callback(self, request: CallbackRequest) -> None:
-        """Sends callback for execution.
+        """Send callback for execution.
 
         Provides a default implementation which sends the callback to the `callback_sink` object.
 
@@ -481,3 +481,27 @@ class BaseExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
+
+    @staticmethod
+    def get_cli_commands() -> list[GroupCommand]:
+        """Vends CLI commands to be included in Airflow CLI.
+
+        Override this method to expose commands via Airflow CLI to manage this executor. This can
+        be commands to setup/teardown the executor, inspect state, etc.
+        Make sure to choose unique names for those commands, to avoid collisions.
+        """
+        return []
+
+    @classmethod
+    def _get_parser(cls) -> argparse.ArgumentParser:
+        """Generate documentation; used by Sphinx argparse.
+
+        :meta private:
+        """
+        from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
+
+        parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+        subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+        for group_command in cls.get_cli_commands():
+            _add_command(subparsers, group_command)
+        return parser

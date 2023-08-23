@@ -30,7 +30,7 @@ from airflow.serialization.serialized_objects import BaseSerialization
 log = logging.getLogger(__name__)
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
@@ -65,7 +65,7 @@ def _initialize_map() -> dict[str, Callable]:
 
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
-    """Handler for Internal API /internal_api/v1/rpcapi endpoint."""
+    """Handle Internal API /internal_api/v1/rpcapi endpoint."""
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":

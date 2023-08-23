@@ -28,10 +28,9 @@ if TYPE_CHECKING:
 
 class AzureCosmosDocumentSensor(BaseSensorOperator):
     """
-    Checks for the existence of a document which
-    matches the given query in CosmosDB. Example:
+    Checks for the existence of a document which matches the given query in CosmosDB.
 
-    .. code-block::
+    .. code-block:: python
 
         azure_cosmos_sensor = AzureCosmosDocumentSensor(
             database_name="somedatabase_name",

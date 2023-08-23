@@ -18,7 +18,7 @@
 """
 This module contains a Google Cloud Vertex AI hook.
 
-.. spelling::
+.. spelling:word-list::
 
     aiplatform
     au
@@ -64,7 +64,7 @@ from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListTrainingPipelinesPager
 from google.cloud.aiplatform_v1.types import TrainingPipeline
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -74,16 +74,16 @@ class AutoMLHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._job: None | (
@@ -112,7 +112,7 @@ class AutoMLHook(GoogleBaseHook):
         self,
         region: str | None = None,
     ) -> JobServiceClient:
-        """Returns JobServiceClient"""
+        """Returns JobServiceClient."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -137,7 +137,7 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLTabularTrainingJob:
-        """Returns AutoMLTabularTrainingJob object"""
+        """Returns AutoMLTabularTrainingJob object."""
         return AutoMLTabularTrainingJob(
             display_name=display_name,
             optimization_prediction_type=optimization_prediction_type,
@@ -166,7 +166,7 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLForecastingTrainingJob:
-        """Returns AutoMLForecastingTrainingJob object"""
+        """Returns AutoMLForecastingTrainingJob object."""
         return AutoMLForecastingTrainingJob(
             display_name=display_name,
             optimization_objective=optimization_objective,
@@ -193,7 +193,7 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLImageTrainingJob:
-        """Returns AutoMLImageTrainingJob object"""
+        """Returns AutoMLImageTrainingJob object."""
         return AutoMLImageTrainingJob(
             display_name=display_name,
             prediction_type=prediction_type,
@@ -220,7 +220,7 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLTextTrainingJob:
-        """Returns AutoMLTextTrainingJob object"""
+        """Returns AutoMLTextTrainingJob object."""
         return AutoMLTextTrainingJob(
             display_name=display_name,
             prediction_type=prediction_type,
@@ -245,7 +245,7 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLVideoTrainingJob:
-        """Returns AutoMLVideoTrainingJob object"""
+        """Returns AutoMLVideoTrainingJob object."""
         return AutoMLVideoTrainingJob(
             display_name=display_name,
             prediction_type=prediction_type,
@@ -277,7 +277,7 @@ class AutoMLHook(GoogleBaseHook):
             raise AirflowException(error)
 
     def cancel_auto_ml_job(self) -> None:
-        """Cancel Auto ML Job for training pipeline"""
+        """Cancel Auto ML Job for training pipeline."""
         if self._job:
             self._job.cancel()
 
@@ -455,7 +455,7 @@ class AutoMLHook(GoogleBaseHook):
         if column_transformations:
             warnings.warn(
                 "Consider using column_specs as column_transformations will be deprecated eventually.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -682,7 +682,7 @@ class AutoMLHook(GoogleBaseHook):
         if column_transformations:
             warnings.warn(
                 "Consider using column_specs as column_transformations will be deprecated eventually.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 

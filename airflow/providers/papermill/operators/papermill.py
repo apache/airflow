@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Collection, Optional, Sequence
+from typing import TYPE_CHECKING, ClassVar, Collection, Sequence
 
 import attr
 import papermill as pm
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 @attr.s(auto_attribs=True)
 class NoteBook(File):
-    """Jupyter notebook"""
+    """Jupyter notebook."""
 
     # For compatibility with Airflow 2.3:
     # 1. Use predefined set because `File.template_fields` introduced in Airflow 2.4
@@ -42,15 +42,15 @@ class NoteBook(File):
         *(File.template_fields if hasattr(File, "template_fields") else {"url"}),
     }
 
-    type_hint: Optional[str] = "jupyter_notebook"  # noqa: UP007
-    parameters: Optional[dict] = {}  # noqa: UP007
+    type_hint: str | None = "jupyter_notebook"
+    parameters: dict | None = {}
 
     meta_schema: str = __name__ + ".NoteBook"
 
 
 class PapermillOperator(BaseOperator):
     """
-    Executes a jupyter notebook through papermill that is annotated with parameters
+    Executes a jupyter notebook through papermill that is annotated with parameters.
 
     :param input_nb: input notebook, either path or NoteBook inlet.
     :param output_nb: output notebook, either path or NoteBook outlet.

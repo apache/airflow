@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import os
 import tempfile
 from unittest import mock
@@ -26,12 +27,15 @@ from dateutil.parser import parse
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import kubernetes_command
+from tests.test_utils.config import conf_vars
 
 
 class TestGenerateDagYamlCommand:
     @classmethod
     def setup_class(cls):
-        cls.parser = cli_parser.get_parser()
+        with conf_vars({("core", "executor"): "KubernetesExecutor"}):
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
 
     def test_generate_dag_yaml(self):
         with tempfile.TemporaryDirectory("airflow_dry_run_test/") as directory:
@@ -61,16 +65,20 @@ class TestCleanUpPodsCommand:
 
     @classmethod
     def setup_class(cls):
-        cls.parser = cli_parser.get_parser()
+        with conf_vars({("core", "executor"): "KubernetesExecutor"}):
+            importlib.reload(cli_parser)
+            cls.parser = cli_parser.get_parser()
 
     @mock.patch("kubernetes.client.CoreV1Api.delete_namespaced_pod")
-    def test_delete_pod(self, delete_namespaced_pod):
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config")
+    def test_delete_pod(self, load_incluster_config, delete_namespaced_pod):
         kubernetes_command._delete_pod("dummy", "awesome-namespace")
         delete_namespaced_pod.assert_called_with(body=mock.ANY, name="dummy", namespace="awesome-namespace")
+        load_incluster_config.assert_called_once()
 
     @mock.patch("airflow.cli.commands.kubernetes_command._delete_pod")
     @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
-    @mock.patch("airflow.kubernetes.kube_client.config.load_incluster_config")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config")
     def test_running_pods_are_not_cleaned(self, load_incluster_config, list_namespaced_pod, delete_pod):
         pod1 = MagicMock()
         pod1.metadata.name = "dummy"
@@ -92,7 +100,7 @@ class TestCleanUpPodsCommand:
 
     @mock.patch("airflow.cli.commands.kubernetes_command._delete_pod")
     @mock.patch("kubernetes.client.CoreV1Api.list_namespaced_pod")
-    @mock.patch("airflow.kubernetes.kube_client.config.load_incluster_config")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.config.load_incluster_config")
     def test_cleanup_succeeded_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
         pod1 = MagicMock()
         pod1.metadata.name = "dummy"

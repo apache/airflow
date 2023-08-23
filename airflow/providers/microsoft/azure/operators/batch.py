@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class AzureBatchOperator(BaseOperator):
     """
-    Executes a job on Azure Batch Service
+    Executes a job on Azure Batch Service.
 
     :param batch_pool_id: A string that uniquely identifies the Pool within the Account.
     :param batch_pool_vm_size: The size of virtual machines in the Pool
@@ -189,7 +189,7 @@ class AzureBatchOperator(BaseOperator):
             )
 
         if self.use_latest_image:
-            if not all(elem for elem in [self.vm_publisher, self.vm_offer]):
+            if not self.vm_publisher or not self.vm_offer:
                 raise AirflowException(
                     f"If use_latest_image_and_sku is set to True then the parameters vm_publisher, "
                     f"vm_offer, must all be set. "
@@ -316,7 +316,7 @@ class AzureBatchOperator(BaseOperator):
 
     def clean_up(self, pool_id: str | None = None, job_id: str | None = None) -> None:
         """
-        Delete the given pool and job in the batch account
+        Delete the given pool and job in the batch account.
 
         :param pool_id: The id of the pool to delete
         :param job_id: The id of the job to delete

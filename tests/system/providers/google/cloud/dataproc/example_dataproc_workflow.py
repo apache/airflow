@@ -31,10 +31,10 @@ from airflow.providers.google.cloud.operators.dataproc import (
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_workflow"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 REGION = "europe-west1"
-CLUSTER_NAME = f"cluster-dataproc-workflow-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 CLUSTER_CONFIG = {
     "master_config": {
         "num_instances": 1,
@@ -66,7 +66,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "dataproc", "workflow"],
 ) as dag:
     # [START how_to_cloud_dataproc_create_workflow_template]
     create_workflow_template = DataprocCreateWorkflowTemplateOperator(
@@ -83,16 +83,6 @@ with models.DAG(
     )
     # [END how_to_cloud_dataproc_trigger_workflow_template]
 
-    # [START how_to_cloud_dataproc_trigger_workflow_template_async]
-    trigger_workflow_async = DataprocInstantiateWorkflowTemplateOperator(
-        task_id="trigger_workflow_async",
-        region=REGION,
-        project_id=PROJECT_ID,
-        template_id=WORKFLOW_NAME,
-        deferrable=True,
-    )
-    # [END how_to_cloud_dataproc_trigger_workflow_template_async]
-
     # [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
     instantiate_inline_workflow_template = DataprocInstantiateInlineWorkflowTemplateOperator(
         task_id="instantiate_inline_workflow_template", template=WORKFLOW_TEMPLATE, region=REGION
@@ -100,10 +90,12 @@ with models.DAG(
     # [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
 
     (
+        # TEST SETUP
         create_workflow_template
+        # TEST BODY
         >> trigger_workflow
+        # TEST TEARDOWN
         >> instantiate_inline_workflow_template
-        >> trigger_workflow_async
     )
 
     from tests.system.utils.watcher import watcher

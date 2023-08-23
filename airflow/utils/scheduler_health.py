@@ -19,6 +19,8 @@ from __future__ import annotations
 import logging
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+from sqlalchemy import select
+
 from airflow.configuration import conf
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -29,18 +31,18 @@ log = logging.getLogger(__name__)
 
 
 class HealthServer(BaseHTTPRequestHandler):
-    """Small webserver to serve scheduler health check"""
+    """Small webserver to serve scheduler health check."""
 
     def do_GET(self):
         if self.path == "/health":
             try:
                 with create_session() as session:
-                    scheduler_job = (
-                        session.query(Job)
+                    scheduler_job = session.scalar(
+                        select(Job)
                         .filter_by(job_type=SchedulerJobRunner.job_type)
                         .filter_by(hostname=get_hostname())
                         .order_by(Job.latest_heartbeat.desc())
-                        .first()
+                        .limit(1)
                     )
                 if scheduler_job and scheduler_job.is_alive():
                     self.send_response(200)

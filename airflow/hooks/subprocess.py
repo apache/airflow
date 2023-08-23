@@ -60,7 +60,7 @@ class SubprocessHook(BaseHook):
         :return: :class:`namedtuple` containing ``exit_code`` and ``output``, the last line from stderr
             or stdout
         """
-        self.log.info("Tmp dir root location: \n %s", gettempdir())
+        self.log.info("Tmp dir root location: %s", gettempdir())
         with contextlib.ExitStack() as stack:
             if cwd is None:
                 cwd = stack.enter_context(TemporaryDirectory(prefix="airflowtmp"))
@@ -100,7 +100,7 @@ class SubprocessHook(BaseHook):
         return SubprocessResult(exit_code=return_code, output=line)
 
     def send_sigterm(self):
-        """Sends SIGTERM signal to ``self.sub_process`` if one exists."""
+        """Send SIGTERM signal to ``self.sub_process`` if one exists."""
         self.log.info("Sending SIGTERM signal to process group")
         if self.sub_process and hasattr(self.sub_process, "pid"):
             os.killpg(os.getpgid(self.sub_process.pid), signal.SIGTERM)

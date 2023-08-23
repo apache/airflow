@@ -29,33 +29,31 @@ utc = pendulum.tz.timezone("UTC")
 
 
 def is_localized(value):
-    """
-    Determine if a given datetime.datetime is aware.
-    The concept is defined in Python's docs:
-    http://docs.python.org/library/datetime.html#datetime.tzinfo
-    Assuming value.tzinfo is either None or a proper datetime.tzinfo,
-    value.utcoffset() implements the appropriate logic.
+    """Determine if a given datetime.datetime is aware.
+
+    The concept is defined in Python documentation. Assuming the tzinfo is
+    either None or a proper ``datetime.tzinfo`` instance, ``value.utcoffset()``
+    implements the appropriate logic.
+
+    .. seealso:: http://docs.python.org/library/datetime.html#datetime.tzinfo
     """
     return value.utcoffset() is not None
 
 
 def is_naive(value):
-    """
-    Determine if a given datetime.datetime is naive.
-    The concept is defined in Python's docs:
-    http://docs.python.org/library/datetime.html#datetime.tzinfo
-    Assuming value.tzinfo is either None or a proper datetime.tzinfo,
-    value.utcoffset() implements the appropriate logic.
+    """Determine if a given datetime.datetime is naive.
+
+    The concept is defined in Python documentation. Assuming the tzinfo is
+    either None or a proper ``datetime.tzinfo`` instance, ``value.utcoffset()``
+    implements the appropriate logic.
+
+    .. seealso:: http://docs.python.org/library/datetime.html#datetime.tzinfo
     """
     return value.utcoffset() is None
 
 
 def utcnow() -> dt.datetime:
-    """
-    Get the current date and time in UTC
-
-    :return:
-    """
+    """Get the current date and time in UTC."""
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not picklable and also creates issues
     # when using replace()
@@ -66,11 +64,7 @@ def utcnow() -> dt.datetime:
 
 
 def utc_epoch() -> dt.datetime:
-    """
-    Gets the epoch in the users timezone
-
-    :return:
-    """
+    """Get the epoch in the user's timezone."""
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not picklable and also creates issues
     # when using replace()
@@ -91,9 +85,7 @@ def convert_to_utc(value: dt.datetime) -> DateTime:
 
 
 def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
-    """
-    Returns the datetime with the default timezone added if timezone
-    information was not associated
+    """Create a datetime with the default timezone added if none is associated.
 
     :param value: datetime
     :return: datetime with tzinfo
@@ -190,7 +182,7 @@ def make_naive(value, timezone=None):
 
 def datetime(*args, **kwargs):
     """
-    Wrapper around datetime.datetime that adds settings.TIMEZONE if tzinfo not specified
+    Wrap around datetime.datetime to add settings.TIMEZONE if tzinfo not specified.
 
     :return: datetime.datetime
     """
@@ -202,16 +194,17 @@ def datetime(*args, **kwargs):
     return dt.datetime(*args, **kwargs)
 
 
-def parse(string: str, timezone=None) -> DateTime:
+def parse(string: str, timezone=None, *, strict=False) -> DateTime:
     """
-    Parse a time string and return an aware datetime
+    Parse a time string and return an aware datetime.
 
     :param string: time string
     :param timezone: the timezone
+    :param strict: if False, it will fall back on the dateutil parser if unable to parse with pendulum
     """
     from airflow.settings import TIMEZONE
 
-    return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)  # type: ignore
+    return pendulum.parse(string, tz=timezone or TIMEZONE, strict=strict)  # type: ignore
 
 
 @overload
@@ -249,6 +242,7 @@ def coerce_datetime(v: dt.datetime | None, tz: dt.tzinfo | None = None) -> DateT
 def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
     """
     Format a timedelta object or float/int into a readable string for time duration.
+
     For example timedelta(seconds=3752) would become `1h:2M:32s`.
     If the time is less than a second, the return will be `<1s`.
     """

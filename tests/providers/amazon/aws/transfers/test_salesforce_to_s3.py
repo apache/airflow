@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from collections import OrderedDict
 from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -31,18 +30,14 @@ S3_KEY = "path/to/test-file-path/test-file.json"
 AWS_CONNECTION_ID = "aws_default"
 SALESFORCE_RESPONSE = {
     "records": [
-        OrderedDict(
-            [
-                (
-                    "attributes",
-                    OrderedDict(
-                        [("type", "Lead"), ("url", "/services/data/v42.0/sobjects/Lead/00Q3t00001eJ7AnEAK")]
-                    ),
-                ),
-                ("Id", "00Q3t00001eJ7AnEAK"),
-                ("Company", "Hello World Inc"),
-            ]
-        )
+        {
+            "attributes": {
+                "type": "Lead",
+                "url": "/services/data/v42.0/sobjects/Lead/00Q3t00001eJ7AnEAK",
+            },
+            "Id": "00Q3t00001eJ7AnEAK",
+            "Company": "Hello World Inc",
+        }
     ],
     "totalSize": 1,
     "done": True,

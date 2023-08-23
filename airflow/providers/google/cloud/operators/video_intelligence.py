@@ -22,8 +22,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
-from google.cloud.videointelligence_v1 import enums
-from google.cloud.videointelligence_v1.types import VideoContext
+from google.cloud.videointelligence_v1 import Feature, VideoContext
 from google.protobuf.json_format import MessageToDict
 
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
@@ -84,7 +83,7 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(GoogleCloudBaseOperator):
         input_uri: str,
         input_content: bytes | None = None,
         output_uri: str | None = None,
-        video_context: dict | VideoContext = None,
+        video_context: dict | VideoContext | None = None,
         location: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -114,11 +113,11 @@ class CloudVideoIntelligenceDetectVideoLabelsOperator(GoogleCloudBaseOperator):
             video_context=self.video_context,
             location=self.location,
             retry=self.retry,
-            features=[enums.Feature.LABEL_DETECTION],
+            features=[Feature.LABEL_DETECTION],
             timeout=self.timeout,
         )
         self.log.info("Processing video for label annotations")
-        result = MessageToDict(operation.result())
+        result = MessageToDict(operation.result()._pb)
         self.log.info("Finished processing.")
         return result
 
@@ -174,7 +173,7 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(GoogleCloudBaseOp
         input_uri: str,
         output_uri: str | None = None,
         input_content: bytes | None = None,
-        video_context: dict | VideoContext = None,
+        video_context: dict | VideoContext | None = None,
         location: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -204,11 +203,11 @@ class CloudVideoIntelligenceDetectVideoExplicitContentOperator(GoogleCloudBaseOp
             video_context=self.video_context,
             location=self.location,
             retry=self.retry,
-            features=[enums.Feature.EXPLICIT_CONTENT_DETECTION],
+            features=[Feature.EXPLICIT_CONTENT_DETECTION],
             timeout=self.timeout,
         )
         self.log.info("Processing video for explicit content annotations")
-        result = MessageToDict(operation.result())
+        result = MessageToDict(operation.result()._pb)
         self.log.info("Finished processing.")
         return result
 
@@ -264,7 +263,7 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(GoogleCloudBaseOperator):
         input_uri: str,
         output_uri: str | None = None,
         input_content: bytes | None = None,
-        video_context: dict | VideoContext = None,
+        video_context: dict | VideoContext | None = None,
         location: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -294,10 +293,10 @@ class CloudVideoIntelligenceDetectVideoShotsOperator(GoogleCloudBaseOperator):
             video_context=self.video_context,
             location=self.location,
             retry=self.retry,
-            features=[enums.Feature.SHOT_CHANGE_DETECTION],
+            features=[Feature.SHOT_CHANGE_DETECTION],
             timeout=self.timeout,
         )
         self.log.info("Processing video for video shots annotations")
-        result = MessageToDict(operation.result())
+        result = MessageToDict(operation.result()._pb)
         self.log.info("Finished processing.")
         return result

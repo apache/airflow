@@ -21,13 +21,22 @@
 Celery Executor
 ===============
 
+.. note::
+
+    As of Airflow 2.7.0, you need to install the ``celery`` provider package to use this executor.
+    This can be done by installing ``apache-airflow-providers-celery>=3.3.0`` or by installing Airflow
+    with the ``celery`` extra: ``pip install 'apache-airflow[celery]'``.
+
+
 ``CeleryExecutor`` is one of the ways you can scale out the number of workers. For this
-to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, ...) and
+to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, **Redis Sentinel** ...) and
 change your ``airflow.cfg`` to point the executor parameter to
 ``CeleryExecutor`` and provide the related Celery settings.
 
 For more information about setting up a Celery broker, refer to the
 exhaustive `Celery documentation on the topic <https://docs.celeryq.dev/en/latest/getting-started/>`_.
+
+The configuration parameters of the Celery Executor can be found in :doc:`apache-airflow-providers-celery:configurations-ref`.
 
 Here are a few imperative requirements for your workers:
 
@@ -83,6 +92,7 @@ Some caveats:
 
 - Make sure to use a database backed result backend
 - Make sure to set a visibility timeout in ``[celery_broker_transport_options]`` that exceeds the ETA of your longest running task
+- Make sure to specify the password for Redis Server in the ``[celery_broker_transport_options]`` section if you are using Redis Sentinel as your broker and the Redis servers are password-protected
 - Make sure to set umask in ``[worker_umask]`` to set permissions for newly created files by workers.
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions

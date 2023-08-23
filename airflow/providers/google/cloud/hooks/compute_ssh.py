@@ -16,28 +16,32 @@
 # under the License.
 from __future__ import annotations
 
+import random
 import shlex
 import time
-import warnings
+from functools import cached_property
 from io import StringIO
 from typing import Any
 
-from google.api_core.retry import exponential_sleep_generator
+from googleapiclient.errors import HttpError
+from paramiko.ssh_exception import SSHException
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+from airflow.utils.types import NOTSET, ArgNotSet
 
 # Paramiko should be imported after airflow.providers.ssh. Then the import will fail with
 # cannot import "airflow.providers.ssh" and will be correctly discovered as optional feature
 # TODO:(potiuk) We should add test harness detecting such cases shortly
 import paramiko  # isort:skip
 
+CMD_TIMEOUT = 10
+
 
 class _GCloudAuthorizedSSHClient(paramiko.SSHClient):
-    """SSH Client that maintains the context for gcloud authorization during the connection"""
+    """SSH Client that maintains the context for gcloud authorization during the connection."""
 
     def __init__(self, google_hook, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -65,7 +69,7 @@ class _GCloudAuthorizedSSHClient(paramiko.SSHClient):
 
 class ComputeEngineSSHHook(SSHHook):
     """
-    Hook to connect to a remote instance in compute engine
+    Hook to connect to a remote instance in compute engine.
 
     :param instance_name: The name of the Compute Engine instance
     :param zone: The zone of the Compute Engine instance
@@ -80,9 +84,8 @@ class ComputeEngineSSHHook(SSHHook):
         keys are managed using instance metadata
     :param expire_time: The maximum amount of time in seconds before the private key expires
     :param gcp_conn_id: The connection id to use when fetching connection information
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have
-        domain-wide delegation enabled.
+    :param max_retries: Maximum number of retries the process will try to establish connection to instance.
+        Could be decreased/increased by user based on the amount of parallel SSH connections to the instance.
     """
 
     conn_name_attr = "gcp_conn_id"
@@ -109,8 +112,15 @@ class ComputeEngineSSHHook(SSHHook):
         use_iap_tunnel: bool = False,
         use_oslogin: bool = True,
         expire_time: int = 300,
-        delegate_to: str | None = None,
+        cmd_timeout: int | ArgNotSet = NOTSET,
+        max_retries: int = 10,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         # Ignore original constructor
         # super().__init__()
         self.instance_name = instance_name
@@ -123,20 +133,17 @@ class ComputeEngineSSHHook(SSHHook):
         self.use_oslogin = use_oslogin
         self.expire_time = expire_time
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
+        self.cmd_timeout = cmd_timeout
+        self.max_retries = max_retries
         self._conn: Any | None = None
 
     @cached_property
     def _oslogin_hook(self) -> OSLoginHook:
-        return OSLoginHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        return OSLoginHook(gcp_conn_id=self.gcp_conn_id)
 
     @cached_property
     def _compute_hook(self) -> ComputeEngineHook:
-        return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id, delegate_to=self.delegate_to)
+        return ComputeEngineHook(gcp_conn_id=self.gcp_conn_id)
 
     def _load_connection_config(self):
         def _boolify(value):
@@ -179,6 +186,17 @@ class ComputeEngineSSHHook(SSHHook):
                 self.expire_time,
             )
 
+            if conn.extra is not None:
+                extra_options = conn.extra_dejson
+                if "cmd_timeout" in extra_options and self.cmd_timeout is NOTSET:
+                    if extra_options["cmd_timeout"]:
+                        self.cmd_timeout = int(extra_options["cmd_timeout"])
+                    else:
+                        self.cmd_timeout = None
+
+            if self.cmd_timeout is NOTSET:
+                self.cmd_timeout = CMD_TIMEOUT
+
     def get_conn(self) -> paramiko.SSHClient:
         """Return SSH connection."""
         self._load_connection_config()
@@ -213,40 +231,59 @@ class ComputeEngineSSHHook(SSHHook):
             hostname = self.hostname
 
         privkey, pubkey = self._generate_ssh_key(self.user)
-        if self.use_oslogin:
-            user = self._authorize_os_login(pubkey)
-        else:
-            user = self.user
-            self._authorize_compute_engine_instance_metadata(pubkey)
 
-        proxy_command = None
-        if self.use_iap_tunnel:
-            proxy_command_args = [
-                "gcloud",
-                "compute",
-                "start-iap-tunnel",
-                str(self.instance_name),
-                "22",
-                "--listen-on-stdin",
-                f"--project={self.project_id}",
-                f"--zone={self.zone}",
-                "--verbosity=warning",
-            ]
-            proxy_command = " ".join(shlex.quote(arg) for arg in proxy_command_args)
-
-        sshclient = self._connect_to_instance(user, hostname, privkey, proxy_command)
+        max_delay = 10
+        sshclient = None
+        for retry in range(self.max_retries + 1):
+            try:
+                if self.use_oslogin:
+                    user = self._authorize_os_login(pubkey)
+                else:
+                    user = self.user
+                    self._authorize_compute_engine_instance_metadata(pubkey)
+                proxy_command = None
+                if self.use_iap_tunnel:
+                    proxy_command_args = [
+                        "gcloud",
+                        "compute",
+                        "start-iap-tunnel",
+                        str(self.instance_name),
+                        "22",
+                        "--listen-on-stdin",
+                        f"--project={self.project_id}",
+                        f"--zone={self.zone}",
+                        "--verbosity=warning",
+                    ]
+                    proxy_command = " ".join(shlex.quote(arg) for arg in proxy_command_args)
+                sshclient = self._connect_to_instance(user, hostname, privkey, proxy_command)
+                break
+            except (HttpError, AirflowException, SSHException) as exc:
+                if (isinstance(exc, HttpError) and exc.resp.status == 412) or (
+                    isinstance(exc, AirflowException) and "412 PRECONDITION FAILED" in str(exc)
+                ):
+                    self.log.info("Error occurred when trying to update instance metadata: %s", exc)
+                elif isinstance(exc, SSHException):
+                    self.log.info("Error occurred when establishing SSH connection using Paramiko: %s", exc)
+                else:
+                    raise
+                if retry == self.max_retries:
+                    raise AirflowException("Maximum retries exceeded. Aborting operation.")
+                delay = random.randint(0, max_delay)
+                self.log.info(f"Failed establish SSH connection, waiting {delay} seconds to retry...")
+                time.sleep(delay)
+        if not sshclient:
+            raise AirflowException("Unable to establish SSH connection.")
         return sshclient
 
     def _connect_to_instance(self, user, hostname, pkey, proxy_command) -> paramiko.SSHClient:
         self.log.info("Opening remote connection to host: username=%s, hostname=%s", user, hostname)
-        max_time_to_wait = 10
-        for time_to_wait in exponential_sleep_generator(initial=1, maximum=max_time_to_wait):
+        max_time_to_wait = 5
+        for time_to_wait in range(max_time_to_wait + 1):
             try:
                 client = _GCloudAuthorizedSSHClient(self._compute_hook)
                 # Default is RejectPolicy
                 # No known host checking since we are not storing privatekey
                 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-
                 client.connect(
                     hostname=hostname,
                     username=user,
@@ -256,8 +293,6 @@ class ComputeEngineSSHHook(SSHHook):
                 )
                 return client
             except paramiko.SSHException:
-                # exponential_sleep_generator is an infinite generator, so we need to
-                # check the end condition.
                 if time_to_wait == max_time_to_wait:
                     raise
             self.log.info("Failed to connect. Waiting %ds to retry", time_to_wait)

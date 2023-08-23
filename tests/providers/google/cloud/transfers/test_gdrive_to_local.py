@@ -43,9 +43,7 @@ class TestGoogleDriveToLocalOperator:
             hook_mock.return_value.get_file_id.return_value = meta
 
             op.execute(context=None)
-            hook_mock.assert_called_once_with(
-                delegate_to=None, gcp_conn_id=GCP_CONN_ID, impersonation_chain=None
-            )
+            hook_mock.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
 
             hook_mock.return_value.download_file.assert_called_once_with(
                 file_id=meta["id"], file_handle=mock.ANY

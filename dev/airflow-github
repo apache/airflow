@@ -83,26 +83,31 @@ def get_issue_type(issue):
 def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue) -> str | None:
     """For a PR, find the associated merged commit & return its SHA"""
     if issue.pull_request:
-        commit = repo.git.log(f"--grep=#{issue.number}", "origin/main", "--format=%H")
-        if commit:
-            return commit
+        log_output = repo.git.log(f"--grep=(#{issue.number})$", "origin/main", "--format=%H %s")
+        if log_output:
+            for commit_line in log_output.splitlines():
+                # We only want the commit for the PR where squash-merge added (#PR) at the end of subject
+                if commit_line and commit_line.endswith(f"(#{issue.number})"):
+                    return commit_line.split(" ")[0]
+            return None
         else:
             pr: PullRequest = issue.as_pull_request()
             if pr.is_merged():
-                commit = pr.merge_commit_sha
-                return commit
+                return pr.merge_commit_sha
     return None
 
 
 def is_cherrypicked(repo: git.Repo, issue: Issue, previous_version: str | None = None) -> bool:
     """Check if a given issue is cherry-picked in the current branch or not"""
-    log_args = ["--format=%H", f"--grep=#{issue.number}"]
+    log_args = ["--format=%H %s", f"--grep=(#{issue.number})$"]
     if previous_version:
         log_args.append(previous_version + "..")
-    log = repo.git.log(*log_args)
+    log_output = repo.git.log(*log_args)
 
-    if log:
-        return True
+    for commit_line in log_output.splitlines():
+        # We only want the commit for the PR where squash-merge added (#PR) at the end of subject
+        if commit_line and commit_line.endswith(f"(#{issue.number})"):
+            return True
     return False
 
 
@@ -230,7 +235,14 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
     github_handler = Github(github_token)
     milestone_issues: list[Issue] = list(
         github_handler.search_issues(
-            f'repo:apache/airflow milestone:"Airflow {target_version}" is:pull-request is:issue'
+            f'repo:apache/airflow milestone:"Airflow {target_version}" is:pull-request '
+        )
+    )
+    milestone_issues.extend(
+        list(
+            github_handler.search_issues(
+                f'repo:apache/airflow milestone:"Airflow {target_version}" is:issue '
+            )
         )
     )
 
@@ -312,7 +324,15 @@ def changelog(previous_version, target_version, github_token):
             issue_type = get_issue_type(issue)
             files = files_touched(repo, commit["id"])
             if is_core_commit(files):
-                sections[issue_type].append(commit["subject"])
+                if issue_type in ["bug-fix", "doc-only", "misc/internal"]:
+                    with open("../RELEASE_NOTES.rst") as file:
+                        for line in file.readlines():
+                            if line.endswith(f"(#{commit['id']})"):
+                                continue
+                        else:
+                            sections[issue_type].append(commit["subject"])
+                else:
+                    sections[issue_type].append(commit["subject"])
 
         else:
             sections[DEFAULT_SECTION_NAME].append(commit["subject"])

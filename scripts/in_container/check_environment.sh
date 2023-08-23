@@ -110,12 +110,26 @@ function startairflow_if_requested() {
         echo
         echo "Starting Airflow"
         echo
-        export AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
 
         . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
 
-        airflow db init
+        if airflow db migrate
+        then
+            if [[ ${LOAD_DEFAULT_CONNECTIONS=} == "true" || ${LOAD_DEFAULT_CONNECTIONS=} == "True" ]]; then
+                echo
+                echo "${COLOR_BLUE}Creating default connections${COLOR_RESET}"
+                echo
+                airflow connections create-default-connections
+            fi
+        else
+            echo "${COLOR_YELLOW}Failed to run 'airflow db migrate'.${COLOR_RESET}"
+            echo "${COLOR_BLUE}This could be because you are installing old airflow version${COLOR_RESET}"
+            echo "${COLOR_BLUE}Attempting to run deprecated 'airflow db init' instead.${COLOR_RESET}"
+            # For Airflow versions that do not support db migrate, we should run airflow db init and
+            # set the removed AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS
+            AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS} airflow db init
+        fi
         airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain
 
         . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
@@ -159,6 +173,9 @@ if [[ ${INTEGRATION_PINOT} == "true" ]]; then
     check_service "Pinot (Controller API)" "${CMD}" 50
     CMD="curl --max-time 1 -X GET 'http://pinot:8000/health' -H 'accept: text/plain' | grep OK"
     check_service "Pinot (Broker API)" "${CMD}" 50
+fi
+if [[ ${INTEGRATION_KAFKA} == "true" ]]; then
+    check_service "Kakfa Cluster" "run_nc broker 9092" 50
 fi
 
 if [[ ${EXIT_CODE} != 0 ]]; then

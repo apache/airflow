@@ -19,7 +19,7 @@ from __future__ import annotations
 import contextlib
 import json
 import tempfile
-import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generator
 
 from asgiref.sync import sync_to_async
@@ -29,10 +29,11 @@ from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.utils import yaml
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
@@ -46,7 +47,7 @@ def _load_body_to_dict(body: str) -> dict:
     return body_dict
 
 
-class KubernetesHook(BaseHook):
+class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     """
     Creates Kubernetes API connection.
 
@@ -84,7 +85,7 @@ class KubernetesHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
@@ -109,7 +110,7 @@ class KubernetesHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
@@ -141,6 +142,22 @@ class KubernetesHook(BaseHook):
             if param is not None:
                 return param
 
+    @classmethod
+    def get_connection(cls, conn_id: str) -> Connection:
+        """
+        Return requested connection.
+
+        If missing and conn_id is "kubernetes_default", will return empty connection so that hook will
+        default to cluster-derived credentials.
+        """
+        try:
+            return super().get_connection(conn_id)
+        except AirflowNotFoundException:
+            if conn_id == cls.default_conn_name:
+                return Connection(conn_id=cls.default_conn_name)
+            else:
+                raise
+
     @cached_property
     def conn_extras(self):
         if self.conn_id:
@@ -152,6 +169,8 @@ class KubernetesHook(BaseHook):
 
     def _get_field(self, field_name):
         """
+        Handles backcompat for extra fields.
+
         Prior to Airflow 2.3, in order to make use of UI customizations for extra fields,
         we needed to store them with the prefix ``extra__kubernetes__``. This method
         handles the backcompat, i.e. if the extra dict contains prefixed fields.
@@ -167,12 +186,12 @@ class KubernetesHook(BaseHook):
         return self.conn_extras.get(prefixed_name) or None
 
     def get_conn(self) -> client.ApiClient:
-        """Returns kubernetes api session for use with requests"""
+        """Returns kubernetes api session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
         kubeconfig_path = self._coalesce_param(self.config_file, self._get_field("kube_config_path"))
         kubeconfig = self._get_field("kube_config")
-        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
+        num_selected_configuration = sum(1 for o in [in_cluster, kubeconfig, kubeconfig_path] if o)
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -243,7 +262,7 @@ class KubernetesHook(BaseHook):
 
     @property
     def is_in_cluster(self) -> bool:
-        """Expose whether the hook is configured with ``load_incluster_config`` or not"""
+        """Expose whether the hook is configured with ``load_incluster_config`` or not."""
         if self._is_in_cluster is not None:
             return self._is_in_cluster
         self.api_client  # so we can determine if we are in_cluster or not
@@ -253,7 +272,7 @@ class KubernetesHook(BaseHook):
 
     @cached_property
     def api_client(self) -> client.ApiClient:
-        """Cached Kubernetes API client"""
+        """Cached Kubernetes API client."""
         return self.get_conn()
 
     @cached_property
@@ -268,7 +287,8 @@ class KubernetesHook(BaseHook):
         self, group: str, version: str, plural: str, body: str | dict, namespace: str | None = None
     ):
         """
-        Creates custom resource definition object in Kubernetes
+        Creates custom resource definition object in Kubernetes.
+
         :param group: api group
         :param version: api version
         :param plural: api plural
@@ -285,7 +305,7 @@ class KubernetesHook(BaseHook):
         response = api.create_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             body=body_dict,
         )
@@ -297,7 +317,7 @@ class KubernetesHook(BaseHook):
         self, group: str, version: str, plural: str, name: str, namespace: str | None = None
     ):
         """
-        Get custom resource definition object from Kubernetes
+        Get custom resource definition object from Kubernetes.
 
         :param group: api group
         :param version: api version
@@ -309,7 +329,7 @@ class KubernetesHook(BaseHook):
         response = api.get_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             name=name,
         )
@@ -319,7 +339,7 @@ class KubernetesHook(BaseHook):
         self, group: str, version: str, plural: str, name: str, namespace: str | None = None, **kwargs
     ):
         """
-        Delete custom resource definition object from Kubernetes
+        Delete custom resource definition object from Kubernetes.
 
         :param group: api group
         :param version: api version
@@ -331,47 +351,24 @@ class KubernetesHook(BaseHook):
         return api.delete_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             name=name,
             **kwargs,
         )
 
     def get_namespace(self) -> str | None:
-        """
-        Returns the namespace defined in the connection or 'default'.
-
-        TODO: in provider version 6.0, return None when namespace not defined in connection
-        """
-        namespace = self._get_namespace()
-        if self.conn_id and not namespace:
-            warnings.warn(
-                "Airflow connection defined but namespace is not set; returning 'default'.  In "
-                "cncf.kubernetes provider version 6.0 we will return None when namespace is "
-                "not defined in the connection so that it's clear whether user intends 'default' or "
-                "whether namespace is unset (which is required in order to apply precedence logic in "
-                "KubernetesPodOperator).",
-                DeprecationWarning,
-            )
-            return "default"
-        return namespace
-
-    def _get_namespace(self) -> str | None:
-        """
-        Returns the namespace that defined in the connection
-
-        TODO: in provider version 6.0, get rid of this method and make it the behavior of get_namespace.
-        """
+        """Returns the namespace that defined in the connection."""
         if self.conn_id:
             return self._get_field("namespace")
         return None
 
     def get_xcom_sidecar_container_image(self):
-        """Returns the xcom sidecar image that defined in the connection"""
+        """Returns the xcom sidecar image that defined in the connection."""
         return self._get_field("xcom_sidecar_container_image")
 
     def get_xcom_sidecar_container_resources(self):
-        """Returns the xcom sidecar resources that defined in the connection"""
+        """Returns the xcom sidecar resources that defined in the connection."""
         field = self._get_field("xcom_sidecar_container_resources")
         if not field:
             return None
@@ -397,7 +394,7 @@ class KubernetesHook(BaseHook):
                 self.core_v1_client.read_namespaced_pod_log,
                 name=pod_name,
                 container=container,
-                namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+                namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             ),
         )
 
@@ -418,10 +415,11 @@ class KubernetesHook(BaseHook):
             name=pod_name,
             container=container,
             _preload_content=False,
-            namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
         )
 
     def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """Read pod object from kubernetes API."""
         return self.core_v1_client.read_namespaced_pod(
             name=name,
             namespace=namespace,
@@ -435,13 +433,14 @@ class KubernetesHook(BaseHook):
         **kwargs,
     ):
         """
-        Retrieves a list of Kind pod which belong default kubernetes namespace
+        Retrieves a list of Kind pod which belong default kubernetes namespace.
+
         :param label_selector: A selector to restrict the list of returned objects by their labels
         :param namespace: kubernetes namespace
         :param watch: Watch for changes to the described resources and return them as a stream
         """
         return self.core_v1_client.list_namespaced_pod(
-            namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             watch=watch,
             label_selector=label_selector,
             _preload_content=False,
@@ -450,10 +449,7 @@ class KubernetesHook(BaseHook):
 
 
 def _get_bool(val) -> bool | None:
-    """
-    Converts val to bool if can be done with certainty.
-    If we cannot infer intention we return None.
-    """
+    """Converts val to bool if can be done with certainty; if we cannot infer intention we return None."""
     if isinstance(val, bool):
         return val
     elif isinstance(val, str):
@@ -467,19 +463,18 @@ def _get_bool(val) -> bool | None:
 class AsyncKubernetesHook(KubernetesHook):
     """Hook to use Kubernetes SDK asynchronously."""
 
-    def __init__(self, config_dict: dict | None = None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.config_dict = config_dict
-
         self._extras: dict | None = None
 
     async def _load_config(self):
-        """Returns Kubernetes API session for use with requests"""
+        """Returns Kubernetes API session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
+        kubeconfig_path = self._coalesce_param(self.config_file, await self._get_field("kube_config_path"))
         kubeconfig = await self._get_field("kube_config")
 
-        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, self.config_dict] if o])
+        num_selected_configuration = sum(1 for o in [in_cluster, kubeconfig, kubeconfig_path] if o)
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -494,9 +489,14 @@ class AsyncKubernetesHook(KubernetesHook):
             async_config.load_incluster_config()
             return async_client.ApiClient()
 
-        if self.config_dict:
-            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
-            await async_config.load_kube_config_from_dict(self.config_dict)
+        if kubeconfig_path:
+            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("kube_config"))
+            self._is_in_cluster = False
+            await async_config.load_kube_config(
+                config_file=kubeconfig_path,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
             return async_client.ApiClient()
 
         if kubeconfig is not None:
@@ -586,9 +586,12 @@ class AsyncKubernetesHook(KubernetesHook):
 
     async def read_logs(self, name: str, namespace: str):
         """
-        Reads logs inside the pod while starting containers inside. All the logs will be outputted with its
-        timestamp to track the logs after the execution of the pod is completed. The method is used for async
-        output of the logs only in the pod failed it execution or the task was cancelled by the user.
+        Reads logs inside the pod while starting containers inside.
+
+        All the logs will be outputted with its timestamp to track
+        the logs after the execution of the pod is completed. The
+        method is used for async output of the logs only in the pod
+        failed it execution or the task was cancelled by the user.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.

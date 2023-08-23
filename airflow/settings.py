@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import pendulum
 import pluggy
 import sqlalchemy
-from sqlalchemy import create_engine, exc
+from sqlalchemy import create_engine, exc, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session as SASession, scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -118,7 +118,7 @@ def _get_rich_console(file):
 
 
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
-    """Custom function to print rich and visible warnings."""
+    """Print rich and visible warnings."""
     # Delay imports until we need it
     from rich.markup import escape
 
@@ -173,6 +173,14 @@ def get_dagbag_import_timeout(dag_file_path: str):
     return POLICY_PLUGIN_MANAGER.hook.get_dagbag_import_timeout(dag_file_path=dag_file_path)
 
 
+def configure_policy_plugin_manager():
+    global POLICY_PLUGIN_MANAGER
+
+    POLICY_PLUGIN_MANAGER = pluggy.PluginManager(policies.local_settings_hookspec.project_name)
+    POLICY_PLUGIN_MANAGER.add_hookspecs(policies)
+    POLICY_PLUGIN_MANAGER.register(policies.DefaultPolicy)
+
+
 def load_policy_plugins(pm: pluggy.PluginManager):
     # We can't log duration etc  here, as logging hasn't yet been configured!
     pm.load_setuptools_entrypoints("airflow.policy")
@@ -184,7 +192,6 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
-    global POLICY_PLUGIN_MANAGER
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
@@ -196,10 +203,6 @@ def configure_vars():
     # to get all the logs from the print & log statements in the DAG files before a task is run
     # The handlers are restored after the task completes execution.
     DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
-
-    POLICY_PLUGIN_MANAGER = pluggy.PluginManager(policies.local_settings_hookspec.project_name)
-    POLICY_PLUGIN_MANAGER.add_hookspecs(policies)
-    POLICY_PLUGIN_MANAGER.register(policies.DefaultPolicy)
 
 
 def configure_orm(disable_connection_pool=False, pool_class=None):
@@ -216,7 +219,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     else:
         connect_args = {}
 
-    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
+    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
 
     mask_secret(engine.url.password)
 
@@ -393,14 +396,14 @@ def validate_session():
     """Validate ORM Session."""
     global engine
 
-    worker_precheck = conf.getboolean("celery", "worker_precheck", fallback=False)
+    worker_precheck = conf.getboolean("celery", "worker_precheck")
     if not worker_precheck:
         return True
     else:
         check_session = sessionmaker(bind=engine)
         session = check_session()
         try:
-            session.execute("select 1")
+            session.execute(text("select 1"))
             conn_status = True
         except exc.DBAPIError as err:
             log.error(err)
@@ -429,7 +432,7 @@ def prepare_syspath():
 
 
 def get_session_lifetime_config():
-    """Gets session timeout configs and handles outdated configs gracefully."""
+    """Get session timeout configs and handle outdated configs gracefully."""
     session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
     session_lifetime_days = conf.get("webserver", "session_lifetime_days", fallback=None)
     uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
@@ -462,11 +465,23 @@ def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file."""
     try:
         import airflow_local_settings
-
-        if hasattr(airflow_local_settings, "__all__"):
-            names = list(airflow_local_settings.__all__)
+    except ModuleNotFoundError as e:
+        if e.name == "airflow_local_settings":
+            log.debug("No airflow_local_settings to import.", exc_info=True)
         else:
-            names = list(filter(lambda n: not n.startswith("__"), airflow_local_settings.__dict__.keys()))
+            log.critical(
+                "Failed to import airflow_local_settings due to a transitive module not found error.",
+                exc_info=True,
+            )
+            raise
+    except ImportError:
+        log.critical("Failed to import airflow_local_settings.", exc_info=True)
+        raise
+    else:
+        if hasattr(airflow_local_settings, "__all__"):
+            names = set(airflow_local_settings.__all__)
+        else:
+            names = {n for n in airflow_local_settings.__dict__ if not n.startswith("__")}
 
         if "policy" in names and "task_policy" not in names:
             warnings.warn(
@@ -482,36 +497,22 @@ def import_local_settings():
             POLICY_PLUGIN_MANAGER, airflow_local_settings, names
         )
 
-        for name in names:
-            # If we have already handled a function by adding it to the plugin, then don't clobber the global
-            # function
-            if name in plugin_functions:
-                continue
-
+        # If we have already handled a function by adding it to the plugin,
+        # then don't clobber the global function
+        for name in names - plugin_functions:
             globals()[name] = getattr(airflow_local_settings, name)
 
         if POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook.get_hookimpls():
             task_instance_mutation_hook.is_noop = False
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
-    except ModuleNotFoundError as e:
-        if e.name == "airflow_local_settings":
-            log.debug("No airflow_local_settings to import.", exc_info=True)
-        else:
-            log.critical(
-                "Failed to import airflow_local_settings due to a transitive module not found error.",
-                exc_info=True,
-            )
-            raise
-    except ImportError:
-        log.critical("Failed to import airflow_local_settings.", exc_info=True)
-        raise
 
 
 def initialize():
     """Initialize Airflow with all the settings from this file."""
     configure_vars()
     prepare_syspath()
+    configure_policy_plugin_manager()
     # Load policy plugins _before_ importing airflow_local_settings, as Pluggy uses LIFO and we want anything
     # in airflow_local_settings to take precendec
     load_policy_plugins(POLICY_PLUGIN_MANAGER)
@@ -564,12 +565,12 @@ USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=Tru
 
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
 # if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
-LAZY_LOAD_PLUGINS = conf.getboolean("core", "lazy_load_plugins", fallback=True)
+LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=True)
 
 # By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
 # Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
 # loaded from module.
-LAZY_LOAD_PROVIDERS = conf.getboolean("core", "lazy_discover_providers", fallback=True)
+LAZY_LOAD_PROVIDERS: bool = conf.getboolean("core", "lazy_discover_providers", fallback=True)
 
 # Determines if the executor utilizes Kubernetes
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get("core", "EXECUTOR") in {
@@ -607,10 +608,12 @@ AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")
 
 
-# AIP-52: setup/teardown (experimental)
-# This feature is not complete yet, so we disable it by default.
-_ENABLE_AIP_52 = os.environ.get("AIRFLOW_ENABLE_AIP_52", "false").lower() in {"true", "t", "yes", "y", "1"}
-
 # AIP-44: internal_api (experimental)
 # This feature is not complete yet, so we disable it by default.
-_ENABLE_AIP_44 = os.environ.get("AIRFLOW_ENABLE_AIP_44", "false").lower() in {"true", "t", "yes", "y", "1"}
+_ENABLE_AIP_44: bool = os.environ.get("AIRFLOW_ENABLE_AIP_44", "false").lower() in {
+    "true",
+    "t",
+    "yes",
+    "y",
+    "1",
+}

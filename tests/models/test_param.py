@@ -23,6 +23,7 @@ import pytest
 from airflow.decorators import task
 from airflow.exceptions import ParamValidationError, RemovedInAirflow3Warning
 from airflow.models.param import Param, ParamsDict
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
@@ -41,14 +42,20 @@ class TestParam:
         with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             p.resolve()
         assert p.resolve(None) is None
+        assert p.dump()["value"] is None
+        assert not p.has_value
 
         p = Param(None)
         assert p.resolve() is None
         assert p.resolve(None) is None
+        assert p.dump()["value"] is None
+        assert not p.has_value
 
         p = Param(None, type="null")
         assert p.resolve() is None
         assert p.resolve(None) is None
+        assert p.dump()["value"] is None
+        assert not p.has_value
         with pytest.raises(ParamValidationError):
             p.resolve("test")
 
@@ -122,19 +129,30 @@ class TestParam:
         with pytest.raises(ParamValidationError, match=error_pattern):
             Param("24:00:00", type="string", format="time").resolve()
 
-    def test_string_date_format(self):
+    @pytest.mark.parametrize(
+        "date_string",
+        [
+            "2021-01-01",
+        ],
+    )
+    def test_string_date_format(self, date_string):
         """Test string date format."""
-        assert Param("2021-01-01", type="string", format="date").resolve() == "2021-01-01"
+        assert Param(date_string, type="string", format="date").resolve() == date_string
 
-        error_pattern = "is not a 'date'"
-        with pytest.raises(ParamValidationError, match=error_pattern):
-            Param("01/01/2021", type="string", format="date").resolve()
-
-        with pytest.raises(ParamValidationError, match=error_pattern):
-            Param("20120503", type="string", format="date").resolve()
-
-        with pytest.raises(ParamValidationError, match=error_pattern):
-            Param("21 May 1975", type="string", format="date").resolve()
+    # Note that 20120503 behaved differently in 3.11.3 Official python image. It was validated as a date
+    # there but it started to fail again in 3.11.4 released on 2023-07-05.
+    @pytest.mark.parametrize(
+        "date_string",
+        [
+            "01/01/2021",
+            "21 May 1975",
+            "20120503",
+        ],
+    )
+    def test_string_date_format_error(self, date_string):
+        """Test string date format failures."""
+        with pytest.raises(ParamValidationError, match="is not a 'date'"):
+            Param(date_string, type="string", format="date").resolve()
 
     def test_int_param(self):
         p = Param(5)
@@ -150,8 +168,8 @@ class TestParam:
         p = Param(42, type="number")
         assert p.resolve() == 42
 
-        p = Param(1.0, type="number")
-        assert p.resolve() == 1.0
+        p = Param(1.2, type="number")
+        assert p.resolve() == 1.2
 
         with pytest.raises(ParamValidationError):
             p = Param("42", type="number")
@@ -210,6 +228,30 @@ class TestParam:
         assert dump["value"] == "hello"
         assert dump["description"] == "world"
         assert dump["schema"] == {"type": "string", "minLength": 2}
+
+    @pytest.mark.parametrize(
+        "param",
+        [
+            Param("my value", description="hello", schema={"type": "string"}),
+            Param("my value", description="hello"),
+            Param(None, description=None),
+            Param([True], type="array", items={"type": "boolean"}),
+            Param(),
+        ],
+    )
+    def test_param_serialization(self, param: Param):
+        """
+        Test to make sure that native Param objects can be correctly serialized
+        """
+
+        serializer = BaseSerialization()
+        serialized_param = serializer.serialize(param)
+        restored_param: Param = serializer.deserialize(serialized_param)
+
+        assert restored_param.value == param.value
+        assert isinstance(restored_param, Param)
+        assert restored_param.description == param.description
+        assert restored_param.schema == param.schema
 
 
 class TestParamsDict:

@@ -18,7 +18,7 @@
 """
 This module contains Azure Data Explorer hook.
 
-.. spelling::
+.. spelling:word-list::
 
     KustoResponseDataSetV
     kusto
@@ -32,9 +32,8 @@ from azure.kusto.data.exceptions import KustoServiceError
 from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.response import KustoResponseDataSetV2
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes
 
 
 class AzureDataExplorerHook(BaseHook):
@@ -78,7 +77,7 @@ class AzureDataExplorerHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -95,9 +94,8 @@ class AzureDataExplorerHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_data_explorer")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {
@@ -148,7 +146,13 @@ class AzureDataExplorerHook(BaseHook):
             value = extras.get(name)
             if value:
                 warn_if_collison(name, backcompat_key)
-            if not value:
+            if not value and extras.get(backcompat_key):
+                warnings.warn(
+                    f"`{backcompat_key}` is deprecated in azure connection extra,"
+                    f" please use `{name}` instead",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
                 value = extras.get(backcompat_key)
             if not value:
                 raise AirflowException(f"Required connection parameter is missing: `{name}`")
@@ -186,8 +190,9 @@ class AzureDataExplorerHook(BaseHook):
 
     def run_query(self, query: str, database: str, options: dict | None = None) -> KustoResponseDataSetV2:
         """
-        Run KQL query using provided configuration, and return
-        `azure.kusto.data.response.KustoResponseDataSet` instance.
+        Run KQL query using provided configuration, and return KustoResponseDataSet instance.
+
+        See: `azure.kusto.data.response.KustoResponseDataSet`
         If query is unsuccessful AirflowException is raised.
 
         :param query: KQL query to run

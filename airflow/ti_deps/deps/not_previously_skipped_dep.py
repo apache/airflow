@@ -40,7 +40,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
             XCOM_SKIPMIXIN_SKIPPED,
             SkipMixin,
         )
-        from airflow.utils.state import State
+        from airflow.utils.state import TaskInstanceState
 
         upstream = ti.task.get_direct_relatives(upstream=True)
 
@@ -84,10 +84,10 @@ class NotPreviouslySkippedDep(BaseTIDep):
                         )
                         if not past_depends_met:
                             yield self._failing_status(
-                                reason=("Task should be skipped but the the past depends are not met")
+                                reason=("Task should be skipped but the past depends are not met")
                             )
                             return
-                    ti.set_state(State.SKIPPED, session)
+                    ti.set_state(TaskInstanceState.SKIPPED, session)
                     yield self._failing_status(
                         reason=f"Skipping because of previous XCom result from parent task {parent.task_id}"
                     )

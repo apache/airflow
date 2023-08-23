@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import sys
+from unittest import mock
 
 import pytest
 
@@ -26,11 +26,6 @@ from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import provide_session
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 DEFAULT_CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"
@@ -84,6 +79,7 @@ class TestDatabricksExecutionTrigger:
             run_id=RUN_ID,
             databricks_conn_id=DEFAULT_CONN_ID,
             polling_period_seconds=POLLING_INTERVAL_SECONDS,
+            run_page_url=RUN_PAGE_URL,
         )
 
     def test_serialize(self):
@@ -93,6 +89,10 @@ class TestDatabricksExecutionTrigger:
                 "run_id": RUN_ID,
                 "databricks_conn_id": DEFAULT_CONN_ID,
                 "polling_period_seconds": POLLING_INTERVAL_SECONDS,
+                "retry_delay": 10,
+                "retry_limit": 3,
+                "retry_args": None,
+                "run_page_url": RUN_PAGE_URL,
             },
         )
 
@@ -107,24 +107,23 @@ class TestDatabricksExecutionTrigger:
             result_state="SUCCESS",
         )
 
-        trigger_event = self.trigger.run()
-        async for event in trigger_event:
-            assert event == TriggerEvent(
-                {
-                    "run_id": RUN_ID,
-                    "run_state": RunState(
-                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
-                    ).to_json(),
-                    "run_page_url": RUN_PAGE_URL,
-                }
-            )
+        generator = self.trigger.run()
+        actual = await generator.asend(None)
+        assert actual == TriggerEvent(
+            {
+                "run_id": RUN_ID,
+                "run_state": RunState(
+                    life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
+                ).to_json(),
+                "run_page_url": RUN_PAGE_URL,
+            }
+        )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_page_url")
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
-    async def test_sleep_between_retries(self, mock_get_run_state, mock_get_run_page_url, mock_sleep):
-        mock_get_run_page_url.return_value = RUN_PAGE_URL
+    async def test_sleep_between_retries(self, mock_get_run_state, mock_sleep):
+
         mock_get_run_state.side_effect = [
             RunState(
                 life_cycle_state=LIFE_CYCLE_STATE_PENDING,
@@ -138,16 +137,16 @@ class TestDatabricksExecutionTrigger:
             ),
         ]
 
-        trigger_event = self.trigger.run()
-        async for event in trigger_event:
-            assert event == TriggerEvent(
-                {
-                    "run_id": RUN_ID,
-                    "run_state": RunState(
-                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
-                    ).to_json(),
-                    "run_page_url": RUN_PAGE_URL,
-                }
-            )
-            mock_sleep.assert_called_once()
-            mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)
+        generator = self.trigger.run()
+        actual = await generator.asend(None)
+        assert actual == TriggerEvent(
+            {
+                "run_id": RUN_ID,
+                "run_state": RunState(
+                    life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
+                ).to_json(),
+                "run_page_url": RUN_PAGE_URL,
+            }
+        )
+        mock_sleep.assert_called_once()
+        mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)

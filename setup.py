@@ -16,6 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Setup.py for the Airflow project."""
+# To make sure the CI build is using "upgrade to newer dependencies", which is useful when you want to check
+# if the dependencies are still compatible with the latest versions as they seem to break some unrelated
+# tests in main, you can modify this file. The modification can be simply modifying this particular comment.
+# e.g. you can modify the following number "00001" to something else to trigger it.
 from __future__ import annotations
 
 import glob
@@ -54,16 +58,59 @@ PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 CROSS_PROVIDERS_DEPS = "cross-providers-deps"
 DEPS = "deps"
+CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
-#
+def apply_pypi_suffix_to_airflow_packages(dependencies: list[str]) -> None:
+    """
+    Apply version suffix to dependencies that do not have one.
+
+    Looks through the list of dependencies, finds which one are airflow or airflow providers packages
+    and applies the version suffix to those of them that do not have the suffix applied yet.
+
+    :param dependencies: list of dependencies to add suffix to
+    """
+    for i in range(len(dependencies)):
+        dependency = dependencies[i]
+        if dependency.startswith("apache-airflow"):
+            # in case we want to depend on other airflow package, the chance is the package
+            # has not yet been released to PyPI and we only see it as a local package that is
+            # being installed with .dev0 suffix in CI. Unfortunately, there is no way in standard
+            # PEP-440 compliant way to specify version that would be both - releasable, and
+            # testable to install on CI with .dev0 or .rc suffixes. We could add `--pre` flag to
+            # enable it, but `--pre` flag is not selective and will work for all packages so
+            # we would automatically install all "pre-release" packages for all packages that
+            # we install from PyPI - and this is definitely not what we want. So in order to
+            # install only airflow packages that are available in sources in .dev0 or .rc version
+            # we need to dynamically modify the dependencies here.
+            if ">=" in dependency:
+                package, version = dependency.split(">=")
+                version_spec = f">={version}"
+                version_suffix = os.environ.get("VERSION_SUFFIX_FOR_PYPI")
+                if version_suffix and version_suffix not in version_spec:
+                    version_spec += version_suffix
+                dependencies[i] = f"{package}{version_spec}"
+
+
 # NOTE! IN Airflow 2.4.+ dependencies for providers are maintained in `provider.yaml` files for each
 # provider separately. They are loaded here and if you want to modify them, you need to modify
 # corresponding provider.yaml file.
 #
 def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
+    # in case we are loading setup from pre-commits, we want to skip the check for python version
+    # because if someone uses a version of Python where providers are excluded, the setup will fail
+    # to see the extras for those providers
+    skip_python_version_check = os.environ.get("_SKIP_PYTHON_VERSION_CHECK")
     try:
-        return json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+        with AIRFLOW_SOURCES_ROOT.joinpath("generated", "provider_dependencies.json").open() as f:
+            dependencies = json.load(f)
+        provider_dict = {}
+        for key, value in dependencies.items():
+            if value.get(DEPS):
+                apply_pypi_suffix_to_airflow_packages(value[DEPS])
+            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check:
+                provider_dict[key] = value
+        return provider_dict
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
         # we can ignore loading dependencies when they are missing - they are only used to generate
@@ -76,7 +123,7 @@ PROVIDER_DEPENDENCIES = fill_provider_dependencies()
 
 
 def airflow_test_suite() -> unittest.TestSuite:
-    """Test suite for Airflow tests"""
+    """Test suite for Airflow tests."""
     test_loader = unittest.TestLoader()
     test_suite = test_loader.discover(str(AIRFLOW_SOURCES_ROOT / "tests"), pattern="test_*.py")
     return test_suite
@@ -85,6 +132,7 @@ def airflow_test_suite() -> unittest.TestSuite:
 class CleanCommand(Command):
     """
     Command to tidy up the project root.
+
     Registered as cmdclass in setup() so it can be called with ``python setup.py extra_clean``.
     """
 
@@ -99,7 +147,7 @@ class CleanCommand(Command):
 
     @staticmethod
     def rm_all_files(files: list[str]) -> None:
-        """Remove all files from the list"""
+        """Remove all files from the list."""
         for file in files:
             try:
                 os.remove(file)
@@ -121,6 +169,7 @@ class CleanCommand(Command):
 class CompileAssets(Command):
     """
     Compile and build the frontend assets using yarn and webpack.
+
     Registered as cmdclass in setup() so it can be called with ``python setup.py compile_assets``.
     """
 
@@ -142,7 +191,8 @@ class CompileAssets(Command):
 
 class ListExtras(Command):
     """
-    List all available extras
+    List all available extras.
+
     Registered as cmdclass in setup() so it can be called with ``python setup.py list_extras``.
     """
 
@@ -162,11 +212,12 @@ class ListExtras(Command):
 
 def git_version() -> str:
     """
-    Return a version to identify the state of the underlying git repo. The version will
-    indicate whether the head of the current git-backed working directory is tied to a
-    release tag or not : it will indicate the former with a 'release:{version}' prefix
-    and the latter with a '.dev0' suffix. Following the prefix will be a sha of the current
-    branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
+    Return a version to identify the state of the underlying git repo.
+
+    The version will indicate whether the head of the current git-backed working directory
+    is tied to a release tag or not : it will indicate the former with a 'release:{version}'
+    prefix and the latter with a '.dev0' suffix. Following the prefix will be a sha of the
+    current branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
     changes are present.
 
     :return: Found Airflow version in Git repo
@@ -176,7 +227,7 @@ def git_version() -> str:
 
         try:
             repo = git.Repo(str(AIRFLOW_SOURCES_ROOT / ".git"))
-        except (git.NoSuchPathError):
+        except git.NoSuchPathError:
             logger.warning(".git directory not found: Cannot compute the git version")
             return ""
         except git.InvalidGitRepositoryError:
@@ -209,8 +260,8 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # NOTE! IN Airflow 2.4.+ dependencies for providers are maintained in `provider.yaml` files for each
 # provider separately. Before, the provider dependencies were kept here. THEY ARE NOT HERE ANYMORE.
 #
-# 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
-# If you change this mark you should also change ./scripts/ci/check_order_setup.py
+# 'Start dependencies group' and 'End dependencies group' are marks for ./scripts/ci/check_order_setup.py
+# If you change these marks you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
     "eventlet>=0.33.3",
@@ -230,7 +281,7 @@ celery = [
     # limiting minimum airflow version supported in celery provider due to the
     # potential breaking changes in Airflow Core as well (celery is added as extra, so Airflow
     # core is not hard-limited via install-requires, only by extra).
-    "celery>=5.2.3,<6"
+    "celery>=5.3.0,<6"
 ]
 cgroups = [
     # Cgroupspy 0.2.2 added Python 3.10 compatibility
@@ -240,9 +291,10 @@ dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
     "cloudpickle>=1.4.1",
-    # Dask in version 2022.10.1 removed `bokeh` support and we should avoid installing it
-    "dask>=2.9.0,!=2022.10.1",
-    "distributed>=2.11.1",
+    # Dask and distributed in version 2023.5.0 break our tests for Python > 3.7
+    # See https://github.com/dask/dask/issues/10279
+    "dask>=2.9.0,!=2022.10.1,!=2023.5.0",
+    "distributed>=2.11.1,!=2023.5.0",
 ]
 deprecated_api = [
     "requests>=2.26.0",
@@ -250,15 +302,14 @@ deprecated_api = [
 doc = [
     "astroid>=2.12.3",
     "checksumdir",
-    "click>=8.0",
+    # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
+    # https://github.com/pallets/click/issues/2558
+    "click>=8.0,!=8.1.4,!=8.1.5",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections
     "docutils<0.17.0",
     "eralchemy2",
-    # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
-    # even though Sphinx 4.4.0 has this but with python_version<3.10.
-    'importlib-metadata>=4.4; python_version < "3.8"',
     "sphinx-airflow-theme",
     "sphinx-argparse>=0.1.13",
     "sphinx-autoapi>=2.0.0",
@@ -276,7 +327,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.0",
+    "flask-appbuilder[oauth]==4.3.3",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -300,7 +351,7 @@ ldap = [
     "python-ldap",
 ]
 leveldb = ["plyvel"]
-otel = ["opentelemetry-api==1.15.0", "opentelemetry-exporter-otlp", "opentelemetry-exporter-prometheus"]
+otel = ["opentelemetry-exporter-prometheus"]
 pandas = ["pandas>=0.17.1", "pyarrow>=9.0.0"]
 password = [
     "bcrypt>=2.0.0",
@@ -356,14 +407,13 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
-    "asynctest~=0.13",
     "aws_xray_sdk",
     "beautifulsoup4>=4.7.1",
     "black",
     "blinker",
     "bowler",
     "click>=8.0",
-    "coverage",
+    "coverage>=7.2",
     "filelock",
     "gitpython",
     "ipdb",
@@ -382,6 +432,7 @@ devel_only = [
     "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
+    "pytest-mock",
     "pytest-rerunfailures",
     "pytest-timeouts",
     "pytest-xdist",
@@ -466,10 +517,10 @@ ADDITIONAL_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
 CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "aiobotocore": aiobotocore,
     "async": async_packages,
-    "celery": celery,
+    "celery": celery,  # TODO: remove and move to a regular provider package in a separate PR
     "cgroups": cgroups,
-    "cncf.kubernetes": kubernetes,
-    "dask": dask,
+    "cncf.kubernetes": kubernetes,  # TODO: remove and move to a regular provider package in a separate PR
+    "dask": dask,  # TODO: remove and move to a provider package in a separate PR
     "deprecated_api": deprecated_api,
     "github_enterprise": flask_appbuilder_oauth,
     "google_auth": flask_appbuilder_oauth,
@@ -485,16 +536,27 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "virtualenv": virtualenv,
 }
 
+
+def filter_out_excluded_extras() -> Iterable[tuple[str, list[str]]]:
+    for key, value in CORE_EXTRAS_DEPENDENCIES.items():
+        if value:
+            yield key, value
+        else:
+            print(f"Removing extra {key} as it has been excluded")
+
+
+CORE_EXTRAS_DEPENDENCIES = dict(filter_out_excluded_extras())
+
 EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 
 
 def add_extras_for_all_providers() -> None:
-    for (provider_name, provider_dict) in PROVIDER_DEPENDENCIES.items():
+    for provider_name, provider_dict in PROVIDER_DEPENDENCIES.items():
         EXTRAS_DEPENDENCIES[provider_name] = provider_dict[DEPS]
 
 
 def add_additional_extras() -> None:
-    for (extra_name, extra_dependencies) in ADDITIONAL_EXTRAS_DEPENDENCIES.items():
+    for extra_name, extra_dependencies in ADDITIONAL_EXTRAS_DEPENDENCIES.items():
         EXTRAS_DEPENDENCIES[extra_name] = extra_dependencies
 
 
@@ -512,6 +574,7 @@ EXTRAS_DEPRECATED_ALIASES: dict[str, str] = {
     "azure": "microsoft.azure",
     "cassandra": "apache.cassandra",
     "crypto": "",  # this is legacy extra - all dependencies are already "install-requires"
+    "dask": "daskexecutor",
     "druid": "apache.druid",
     "gcp": "google",
     "gcp_api": "google",
@@ -539,8 +602,9 @@ EXTRAS_DEPRECATED_ALIASES_IGNORED_FROM_REF_DOCS: list[str] = [
 
 def add_extras_for_all_deprecated_aliases() -> None:
     """
-    Add extras for all deprecated aliases. Requirements for those deprecated aliases are the same
-    as the extras they are replaced with.
+    Add extras for all deprecated aliases.
+
+    Requirements for those deprecated aliases are the same as the extras they are replaced with.
     The dependencies are not copies - those are the same lists as for the new extras. This is intended.
     Thanks to that if the original extras are later extended with providers, aliases are extended as well.
     """
@@ -553,8 +617,7 @@ def add_extras_for_all_deprecated_aliases() -> None:
 
 def add_all_deprecated_provider_packages() -> None:
     """
-    For deprecated aliases that are providers, we will swap the providers dependencies to instead
-    be the provider itself.
+    For deprecated aliases that are providers, swap the providers dependencies to be the provider itself.
 
     e.g. {"kubernetes": ["kubernetes>=3.0.0, <12.0.0", ...]} becomes
     {"kubernetes": ["apache-airflow-provider-cncf-kubernetes"]}
@@ -636,24 +699,23 @@ devel_all = get_unique_dependency_list(
 )
 
 # Those are packages excluded for "all" dependencies
-PACKAGES_EXCLUDED_FOR_ALL = []
-PACKAGES_EXCLUDED_FOR_ALL.extend(["snakebite"])
+PACKAGES_EXCLUDED_FOR_ALL: list[str] = []
 
 
 def is_package_excluded(package: str, exclusion_list: list[str]) -> bool:
     """
-    Checks if package should be excluded.
+    Check if package should be excluded.
 
     :param package: package name (beginning of it)
     :param exclusion_list: list of excluded packages
     :return: true if package should be excluded
     """
-    return any(package.startswith(excluded_package) for excluded_package in exclusion_list)
+    return package.startswith(tuple(exclusion_list))
 
 
 def remove_provider_limits(package: str) -> str:
     """
-    Removes the limit for providers in devel_all to account for pre-release and development packages.
+    Remove the limit for providers in devel_all to account for pre-release and development packages.
 
     :param package: package name (beginning of it)
     :return: true if package should be excluded
@@ -687,7 +749,8 @@ EXTRAS_DEPENDENCIES["devel_ci"] = devel_ci
 
 def sort_extras_dependencies() -> dict[str, list[str]]:
     """
-    The dictionary order remains when keys() are retrieved.
+    Sort dependencies; the dictionary order remains when keys() are retrieved.
+
     Sort both: extras and list of dependencies to make it easier to analyse problems
     external packages will be first, then if providers are added they are added at the end of the lists.
     """
@@ -714,22 +777,31 @@ PREINSTALLED_PROVIDERS = [
 
 def get_provider_package_name_from_package_id(package_id: str) -> str:
     """
-    Builds the name of provider package out of the package id provided/
+    Build the name of provider package out of the package id provided.
 
     :param package_id: id of the package (like amazon or microsoft.azure)
     :return: full name of package in PyPI
     """
-    package_suffix = package_id.replace(".", "-")
-    return f"apache-airflow-providers-{package_suffix}"
+    version_spec = ""
+    if ">=" in package_id:
+        package, version = package_id.split(">=")
+        version_spec = f">={version}"
+        version_suffix = os.environ.get("VERSION_SUFFIX_FOR_PYPI")
+        if version_suffix:
+            version_spec += version_suffix
+    else:
+        package = package_id
+    package_suffix = package.replace(".", "-")
+    return f"apache-airflow-providers-{package_suffix}{version_spec}"
 
 
 def get_excluded_providers() -> list[str]:
-    """Returns packages excluded for the current python version."""
+    """Return packages excluded for the current python version."""
     return []
 
 
 def get_all_provider_packages() -> str:
-    """Returns all provider packages configured in setup.py"""
+    """Return all provider packages configured in setup.py."""
     excluded_providers = get_excluded_providers()
     return " ".join(
         get_provider_package_name_from_package_id(package)
@@ -739,7 +811,7 @@ def get_all_provider_packages() -> str:
 
 
 class AirflowDistribution(Distribution):
-    """The setuptools.Distribution subclass with Airflow specific behaviour"""
+    """The setuptools.Distribution subclass with Airflow specific behaviour."""
 
     def __init__(self, attrs=None):
         super().__init__(attrs)
@@ -747,8 +819,8 @@ class AirflowDistribution(Distribution):
 
     def parse_config_files(self, *args, **kwargs) -> None:
         """
-        Ensure that when we have been asked to install providers from sources
-        that we don't *also* try to install those providers from PyPI.
+        When asked to install providers from sources, ensure we don't *also* try to install from PyPI.
+
         Also we should make sure that in this case we copy provider.yaml files so that
         Providers manager can find package information.
         """
@@ -772,11 +844,13 @@ class AirflowDistribution(Distribution):
 
 def replace_extra_dependencies_with_provider_packages(extra: str, providers: list[str]) -> None:
     """
-    Replaces extra dependencies with provider package. The intention here is that when
-    the provider is added as dependency of extra, there is no need to add the dependencies
-    separately. This is not needed and even harmful, because in case of future versions of
-    the provider, the dependencies might change, so hard-coding dependencies from the version
-    that was available at the release time might cause dependency conflicts in the future.
+    Replace extra dependencies with provider package.
+
+    The intention here is that when the provider is added as dependency of extra, there is no
+    need to add the dependencies separately. This is not needed and even harmful, because in
+    case of future versions of the provider, the dependencies might change, so hard-coding
+    dependencies from the version that was available at the release time might cause dependency
+    conflicts in the future.
 
     Say for example that you have salesforce provider with those deps:
 
@@ -794,7 +868,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     So transitively 'salesforce' extra has all the dependencies it needs and in case the provider
     changes its dependencies, they will transitively change as well.
 
-    In the constraint mechanism we save both - provider versions and it's dependencies
+    In the constraint mechanism we save both - provider versions and its dependencies
     version, which means that installation using constraints is repeatable.
 
     For K8s and Celery which are both "Core executors" and "Providers" we have to
@@ -807,14 +881,14 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
     """
-    if extra in ["cncf.kubernetes", "kubernetes", "celery"]:
+    if extra in ["cncf.kubernetes", "kubernetes", "celery", "daskexecutor", "dask"]:
         EXTRAS_DEPENDENCIES[extra].extend(
             [get_provider_package_name_from_package_id(package_name) for package_name in providers]
         )
     elif extra == "apache.hive":
         # We moved the hive macros to the hive provider, and they are available in hive provider only as of
         # 5.1.0 version only, so we have to make sure minimum version is used
-        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-hive>=5.1.0"]
+        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-apache-hive>=5.1.0"]
     else:
         EXTRAS_DEPENDENCIES[extra] = [
             get_provider_package_name_from_package_id(package_name) for package_name in providers
@@ -823,9 +897,11 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
 
 def add_provider_packages_to_extra_dependencies(extra: str, providers: list[str]) -> None:
     """
-    Adds provider packages as dependencies to extra. This is used to add provider packages as dependencies
-    to the "bulk" kind of extras. Those bulk extras do not have the detailed 'extra' dependencies as
-    initial values, so instead of replacing them (see previous function) we can extend them.
+    Add provider packages as dependencies to extra.
+
+    This is used to add provider packages as dependencies to the "bulk" kind of extras.
+    Those bulk extras do not have the detailed 'extra' dependencies as initial values,
+    so instead of replacing them (see previous function) we can extend them.
 
     :param extra: Name of the extra to add providers to
     :param providers: list of provider ids
@@ -837,6 +913,8 @@ def add_provider_packages_to_extra_dependencies(extra: str, providers: list[str]
 
 def add_all_provider_packages() -> None:
     """
+    Add extra dependencies when providers are installed from packages.
+
     In case of regular installation (providers installed from packages), we should add extra dependencies to
     Airflow - to get the providers automatically installed when those extras are installed.
 
@@ -900,8 +978,9 @@ def do_setup() -> None:
 
     def include_provider_namespace_packages_when_installing_from_sources() -> None:
         """
-        When installing providers from sources we install all namespace packages found below airflow,
-        including airflow and provider packages, otherwise defaults from setup.cfg control this.
+        When installing providers from sources we install all namespace packages found below airflow.
+
+        Includes airflow and provider packages, otherwise defaults from setup.cfg control this.
         The kwargs in setup() call override those that are specified in setup.cfg.
         """
         if os.getenv(INSTALL_PROVIDERS_FROM_SOURCES) == "true":

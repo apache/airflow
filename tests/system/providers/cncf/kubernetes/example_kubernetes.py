@@ -26,9 +26,9 @@ from datetime import datetime
 from kubernetes.client import models as k8s
 
 from airflow import DAG
-from airflow.kubernetes.secret import Secret
 from airflow.operators.bash import BashOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.secret import Secret
 
 # [START howto_operator_k8s_cluster_resources]
 secret_file = Secret("volume", "/etc/sql_conn", "airflow-secrets", "sql_alchemy_conn")
@@ -122,7 +122,7 @@ with DAG(
         name="airflow-test-pod",
         task_id="task",
         affinity=affinity,
-        is_delete_operator_pod=True,
+        on_finish_action="delete_pod",
         hostnetwork=False,
         tolerations=tolerations,
         init_containers=[init_container],
@@ -138,7 +138,7 @@ with DAG(
         arguments=["echo", "10", "echo pwd"],
         labels={"foo": "bar"},
         name="airflow-private-image-pod",
-        is_delete_operator_pod=True,
+        on_finish_action="delete_pod",
         in_cluster=True,
         task_id="task-two",
         get_logs=True,
@@ -152,7 +152,7 @@ with DAG(
         cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
         name="write-xcom",
         do_xcom_push=True,
-        is_delete_operator_pod=True,
+        on_finish_action="delete_pod",
         in_cluster=True,
         task_id="write-xcom",
         get_logs=True,

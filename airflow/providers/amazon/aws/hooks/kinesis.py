@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains AWS Firehose hook"""
+"""This module contains AWS Firehose hook."""
 from __future__ import annotations
 
 from typing import Iterable
@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class FirehoseHook(AwsBaseHook):
     """
     Interact with Amazon Kinesis Firehose.
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("firehose") <Firehose.Client>`.
 
     :param delivery_stream: Name of the delivery stream
@@ -43,7 +44,7 @@ class FirehoseHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def put_records(self, records: Iterable):
-        """Write batch records to Kinesis Firehose
+        """Write batch records to Kinesis Firehose.
 
         .. seealso::
             - :external+boto3:py:meth:`Firehose.Client.put_record_batch`

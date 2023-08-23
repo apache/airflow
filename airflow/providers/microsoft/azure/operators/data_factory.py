@@ -20,6 +20,7 @@ import time
 import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
@@ -27,13 +28,14 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
+    PipelineRunInfo,
     get_field,
 )
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -90,7 +92,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         ``AzureDataFactoryHook`` will attempt to use the resource group name provided in the corresponding
         connection.
     :param factory_name: The data factory name. If a value is not passed in to the operator, the
-        ``AzureDataFactoryHook`` will attempt to use the factory name name provided in the corresponding
+        ``AzureDataFactoryHook`` will attempt to use the factory name provided in the corresponding
         connection.
     :param reference_pipeline_run_id: The pipeline run identifier. If this run ID is specified the parameters
         of the specified run will be used to create a new run.
@@ -139,7 +141,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         parameters: dict[str, Any] | None = None,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -195,19 +197,32 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                     )
             else:
                 end_time = time.time() + self.timeout
-                self.defer(
-                    timeout=self.execution_timeout,
-                    trigger=AzureDataFactoryTrigger(
-                        azure_data_factory_conn_id=self.azure_data_factory_conn_id,
-                        run_id=self.run_id,
-                        wait_for_termination=self.wait_for_termination,
-                        resource_group_name=self.resource_group_name,
-                        factory_name=self.factory_name,
-                        check_interval=self.check_interval,
-                        end_time=end_time,
-                    ),
-                    method_name="execute_complete",
+                pipeline_run_info = PipelineRunInfo(
+                    run_id=self.run_id,
+                    factory_name=self.factory_name,
+                    resource_group_name=self.resource_group_name,
                 )
+                pipeline_run_status = self.hook.get_pipeline_run_status(**pipeline_run_info)
+                if pipeline_run_status not in AzureDataFactoryPipelineRunStatus.TERMINAL_STATUSES:
+                    self.defer(
+                        timeout=self.execution_timeout,
+                        trigger=AzureDataFactoryTrigger(
+                            azure_data_factory_conn_id=self.azure_data_factory_conn_id,
+                            run_id=self.run_id,
+                            wait_for_termination=self.wait_for_termination,
+                            resource_group_name=self.resource_group_name,
+                            factory_name=self.factory_name,
+                            check_interval=self.check_interval,
+                            end_time=end_time,
+                        ),
+                        method_name="execute_complete",
+                    )
+                elif pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
+                    self.log.info("Pipeline run %s has completed successfully.", self.run_id)
+                elif pipeline_run_status in AzureDataFactoryPipelineRunStatus.FAILURE_STATES:
+                    raise AzureDataFactoryPipelineRunException(
+                        f"Pipeline run {self.run_id} has failed or has been cancelled."
+                    )
         else:
             if self.deferrable is True:
                 warnings.warn(
@@ -218,8 +233,8 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
             if event["status"] == "error":

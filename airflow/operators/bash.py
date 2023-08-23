@@ -20,9 +20,9 @@ from __future__ import annotations
 import os
 import shutil
 import warnings
+from functools import cached_property
 from typing import Container, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.subprocess import SubprocessHook
 from airflow.models.baseoperator import BaseOperator
@@ -172,7 +172,7 @@ class BashOperator(BaseOperator):
         return SubprocessHook()
 
     def get_env(self, context):
-        """Builds the set of environment variables to be exposed for the bash command."""
+        """Build the set of environment variables to be exposed for the bash command."""
         system_env = os.environ.copy()
         env = self.env
         if env is None:

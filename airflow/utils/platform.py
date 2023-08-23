@@ -32,10 +32,7 @@ log = logging.getLogger(__name__)
 
 
 def is_tty():
-    """
-    Checks if the standard output is connected (is associated with a terminal device) to a tty(-like)
-    device.
-    """
+    """Check if stdout is connected (is associated with a terminal device) to a tty(-like) device."""
     if not hasattr(sys.stdout, "isatty"):
         return False
     return sys.stdout.isatty()
@@ -56,7 +53,7 @@ def is_terminal_support_colors() -> bool:
 
 
 def get_airflow_git_version():
-    """Returns the git commit hash representing the current version of the application."""
+    """Return the git commit hash representing the current version of the application."""
     git_version = None
     try:
         git_version = str(pkgutil.get_data("airflow", "git_version"), encoding="UTF-8")
@@ -69,8 +66,7 @@ def get_airflow_git_version():
 @cache
 def getuser() -> str:
     """
-    Gets the username associated with the current user, or error with a nice
-    error message if there's no current user.
+    Get the username of the current user, or error with a nice error message if there's no current user.
 
     We don't want to fall back to os.getuid() because not having a username
     probably means the rest of the user environment is wrong (e.g. no $HOME).

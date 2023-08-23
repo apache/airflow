@@ -37,7 +37,7 @@ runs:
       shell: bash
       run: breeze ci-image pull --tag-as-latest
       env:
-        PYTHON_MAJOR_MINOR_VERSION: "3.7"
+        PYTHON_MAJOR_MINOR_VERSION: "3.8"
     - name: "Cleanup dist and context file"
       shell: bash
       run: rm -fv ./dist/* ./docker-context-files/*
@@ -61,10 +61,8 @@ runs:
       run: >
         breeze prod-image build --tag-as-latest --run-in-parallel --push
         --install-packages-from-context --upgrade-on-failure
-    - name: Push empty PROD images ${{ env.IMAGE_TAG }}
-      shell: bash
-      run: breeze prod-image build --cleanup-context --push --empty-image --run-in-parallel
-      if: failure() || cancelled()
+      env:
+        COMMIT_SHA: ${{ github.sha }}
     - name: "Fix ownership"
       shell: bash
       run: breeze ci fix-ownership

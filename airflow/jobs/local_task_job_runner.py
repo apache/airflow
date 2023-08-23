@@ -35,7 +35,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
@@ -43,7 +43,7 @@ SIGSEGV (Segmentation Violation) signal indicates Segmentation Fault error which
 an attempt by a program/library to write or read outside its allocated memory.
 
 In Python environment usually this signal refers to libraries which use low level C API.
-Make sure that you use use right libraries/Docker Images
+Make sure that you use right libraries/Docker Images
 for your architecture (Intel/ARM) and/or Operational System (Linux/macOS).
 
 Suggested way to debug
@@ -68,7 +68,7 @@ macOS
 ********************************************************************************************************"""
 
 
-class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
+class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
     """LocalTaskJob runs a single task instance."""
 
     job_type = "LocalTaskJob"
@@ -87,15 +87,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         pool: str | None = None,
         external_executor_id: str | None = None,
     ):
-        BaseJobRunner.__init__(self)
+        super().__init__(job)
         LoggingMixin.__init__(self, context=task_instance)
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
         self.task_instance = task_instance
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
@@ -118,13 +111,13 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         self.task_runner = get_task_runner(self)
 
         def signal_handler(signum, frame):
-            """Setting kill signal handler."""
+            """Set kill signal handler."""
             self.log.error("Received SIGTERM. Terminating subprocesses")
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)
 
         def segfault_signal_handler(signum, frame):
-            """Setting sigmentation violation signal handler"""
+            """Set sigmentation violation signal handler."""
             self.log.critical(SIGSEGV_MESSAGE)
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)
@@ -164,8 +157,11 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         return_code = None
         try:
             self.task_runner.start()
-
-            heartbeat_time_limit = conf.getint("scheduler", "scheduler_zombie_task_threshold")
+            local_task_job_heartbeat_sec = conf.getint("scheduler", "local_task_job_heartbeat_sec")
+            if local_task_job_heartbeat_sec < 1:
+                heartbeat_time_limit = conf.getint("scheduler", "scheduler_zombie_task_threshold")
+            else:
+                heartbeat_time_limit = local_task_job_heartbeat_sec
 
             # LocalTaskJob should not run callbacks, which are handled by TaskInstance._run_raw_task
             # 1, LocalTaskJob does not parse DAG, thus cannot run callbacks
@@ -233,7 +229,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
 
         if not self.task_instance.test_mode and not is_deferral:
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
-                self.task_instance.schedule_downstream_tasks()
+                self.task_instance.schedule_downstream_tasks(max_tis_per_query=self.job.max_tis_per_query)
 
     def on_kill(self):
         self.task_runner.terminate()
@@ -250,7 +246,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         self.task_instance.refresh_from_db()
         ti = self.task_instance
 
-        if ti.state == State.RUNNING:
+        if ti.state == TaskInstanceState.RUNNING:
             fqdn = get_hostname()
             same_hostname = fqdn == ti.hostname
             if not same_hostname:
@@ -280,7 +276,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 raise AirflowException("PID of job runner does not match")
         elif self.task_runner.return_code() is None and hasattr(self.task_runner, "process"):
-            if ti.state == State.SKIPPED:
+            if ti.state == TaskInstanceState.SKIPPED:
                 # A DagRun timeout will cause tasks to be externally marked as skipped.
                 dagrun = ti.get_dagrun(session=session)
                 execution_time = (dagrun.end_date or timezone.utcnow()) - dagrun.start_date
@@ -305,4 +301,14 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         Stats.incr(
             "local_task_job.task_exit."
             f"{self.job.id}.{self.task_instance.dag_id}.{self.task_instance.task_id}.{return_code}"
+        )
+        # Same metric with tagging
+        Stats.incr(
+            "local_task_job.task_exit",
+            tags={
+                "job_id": self.job.id,
+                "dag_id": self.task_instance.dag_id,
+                "task_id": self.task_instance.task_id,
+                "return_code": return_code,
+            },
         )

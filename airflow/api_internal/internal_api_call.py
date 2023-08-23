@@ -42,7 +42,8 @@ class InternalApiConfig:
 
     @staticmethod
     def force_database_direct_access():
-        """Current component will not use Internal API.
+        """
+        Block current component from using Internal API.
 
         All methods decorated with internal_api_call will always be executed locally.
         This mode is needed for "trusted" components like Scheduler, Webserver or Internal Api server.
@@ -80,7 +81,8 @@ class InternalApiConfig:
 
 
 def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
-    """Decorator for methods which may be executed in database isolation mode.
+    """
+    Allow methods to be executed in database isolation mode.
 
     If [core]database_access_isolation is true then such method are not executed locally,
     but instead RPC call is made to Database API (aka Internal API). This makes some components

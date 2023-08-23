@@ -20,12 +20,17 @@ from __future__ import annotations
 import warnings
 from typing import Any, Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
 class VerticaOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Vertica database.
+
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
 
     :param vertica_conn_id: reference to a specific Vertica database
     :param sql: the SQL code to be executed as a single string, or
@@ -43,6 +48,6 @@ class VerticaOperator(SQLExecuteQueryOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )

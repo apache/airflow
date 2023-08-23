@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlsplit
@@ -28,10 +27,6 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-_DEPRECATION_MSG = (
-    "The s3_conn_id parameter has been deprecated. You should pass instead the aws_conn_id parameter."
-)
 
 
 class S3ToSFTPOperator(BaseOperator):
@@ -62,15 +57,10 @@ class S3ToSFTPOperator(BaseOperator):
         s3_key: str,
         sftp_path: str,
         sftp_conn_id: str = "ssh_default",
-        s3_conn_id: str | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if s3_conn_id:
-            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
-            aws_conn_id = s3_conn_id
-
         self.sftp_conn_id = sftp_conn_id
         self.sftp_path = sftp_path
         self.s3_bucket = s3_bucket
@@ -79,7 +69,7 @@ class S3ToSFTPOperator(BaseOperator):
 
     @staticmethod
     def get_s3_key(s3_key: str) -> str:
-        """This parses the correct format for S3 keys regardless of how the S3 url is passed."""
+        """Parse the correct format for S3 keys regardless of how the S3 url is passed."""
         parsed_s3_key = urlsplit(s3_key)
         return parsed_s3_key.path.lstrip("/")
 

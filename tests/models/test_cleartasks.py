@@ -27,7 +27,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.python import PythonSensor
 from airflow.utils.session import create_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
@@ -132,7 +132,7 @@ class TestClearTasks:
         assert ti0.next_kwargs is None
 
     @pytest.mark.parametrize(
-        ["state", "last_scheduling"], [(State.QUEUED, None), (State.RUNNING, DEFAULT_DATE)]
+        ["state", "last_scheduling"], [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
     )
     def test_clear_task_instances_dr_state(self, state, last_scheduling, dag_maker):
         """Test that DR state is set to None after clear.
@@ -147,7 +147,7 @@ class TestClearTasks:
             EmptyOperator(task_id="0")
             EmptyOperator(task_id="1", retries=2)
         dr = dag_maker.create_dagrun(
-            state=State.RUNNING,
+            state=DagRunState.SUCCESS,
             run_type=DagRunType.SCHEDULED,
         )
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
@@ -168,8 +168,90 @@ class TestClearTasks:
         session.refresh(dr)
 
         assert dr.state == state
-        assert dr.start_date is None if state == State.QUEUED else dr.start_date
+        assert dr.start_date is None if state == DagRunState.QUEUED else dr.start_date
         assert dr.last_scheduling_decision == last_scheduling
+
+    @pytest.mark.parametrize("state", [DagRunState.QUEUED, DagRunState.RUNNING])
+    def test_clear_task_instances_on_running_dr(self, state, dag_maker):
+        """Test that DagRun state, start_date and last_scheduling_decision
+        are not changed after clearing TI in an unfinished DagRun.
+        """
+        with dag_maker(
+            "test_clear_task_instances",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1", retries=2)
+        dr = dag_maker.create_dagrun(
+            state=state,
+            run_type=DagRunType.SCHEDULED,
+        )
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        dr.last_scheduling_decision = DEFAULT_DATE
+        ti0.state = TaskInstanceState.SUCCESS
+        ti1.state = TaskInstanceState.SUCCESS
+        session = dag_maker.session
+        session.flush()
+
+        # we use order_by(task_id) here because for the test DAG structure of ours
+        # this is equivalent to topological sort. It would not work in general case
+        # but it works for our case because we specifically constructed test DAGS
+        # in the way that those two sort methods are equivalent
+        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        clear_task_instances(qry, session, dag=dag)
+        session.flush()
+
+        session.refresh(dr)
+
+        assert dr.state == state
+        assert dr.start_date
+        assert dr.last_scheduling_decision == DEFAULT_DATE
+
+    @pytest.mark.parametrize(
+        ["state", "last_scheduling"],
+        [
+            (DagRunState.SUCCESS, None),
+            (DagRunState.SUCCESS, DEFAULT_DATE),
+            (DagRunState.FAILED, None),
+            (DagRunState.FAILED, DEFAULT_DATE),
+        ],
+    )
+    def test_clear_task_instances_on_finished_dr(self, state, last_scheduling, dag_maker):
+        """Test that DagRun state, start_date and last_scheduling_decision
+        are changed after clearing TI in a finished DagRun.
+        """
+        with dag_maker(
+            "test_clear_task_instances",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1", retries=2)
+        dr = dag_maker.create_dagrun(
+            state=state,
+            run_type=DagRunType.SCHEDULED,
+        )
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        dr.last_scheduling_decision = DEFAULT_DATE
+        ti0.state = TaskInstanceState.SUCCESS
+        ti1.state = TaskInstanceState.SUCCESS
+        session = dag_maker.session
+        session.flush()
+
+        # we use order_by(task_id) here because for the test DAG structure of ours
+        # this is equivalent to topological sort. It would not work in general case
+        # but it works for our case because we specifically constructed test DAGS
+        # in the way that those two sort methods are equivalent
+        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        clear_task_instances(qry, session, dag=dag)
+        session.flush()
+
+        session.refresh(dr)
+
+        assert dr.state == DagRunState.QUEUED
+        assert dr.start_date is None
+        assert dr.last_scheduling_decision is None
 
     def test_clear_task_instances_without_task(self, dag_maker):
         with dag_maker(

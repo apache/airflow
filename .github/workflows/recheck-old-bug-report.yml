@@ -26,9 +26,9 @@ permissions:
   issues: write
 jobs:
   recheck-old-bug-report:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/stale@v7
+      - uses: actions/stale@v8
         with:
           only-issue-labels: 'kind:bug'
           stale-issue-label: 'Stale Bug Report'

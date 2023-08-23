@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from google.cloud.speech_v1.proto.cloud_speech_pb2 import (
+from google.cloud.speech_v1 import (
     RecognizeResponse,
     SpeechRecognitionAlternative,
     SpeechRecognitionResult,

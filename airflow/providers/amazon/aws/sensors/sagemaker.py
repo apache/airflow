@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 import time
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.sensors.base import BaseSensorOperator
@@ -71,30 +71,29 @@ class SageMakerBaseSensor(BaseSensorOperator):
         return True
 
     def non_terminal_states(self) -> set[str]:
-        """Placeholder for returning states with should not terminate."""
+        """Return states with should not terminate."""
         raise NotImplementedError("Please implement non_terminal_states() in subclass")
 
     def failed_states(self) -> set[str]:
-        """Placeholder for returning states with are considered failed."""
+        """Return states with are considered failed."""
         raise NotImplementedError("Please implement failed_states() in subclass")
 
     def get_sagemaker_response(self) -> dict:
-        """Placeholder for checking status of a SageMaker task."""
+        """Check status of a SageMaker task."""
         raise NotImplementedError("Please implement get_sagemaker_response() in subclass")
 
     def get_failed_reason_from_response(self, response: dict) -> str:
-        """Placeholder for extracting the reason for failure from an AWS response."""
+        """Extract the reason for failure from an AWS response."""
         return "Unknown"
 
     def state_from_response(self, response: dict) -> str:
-        """Placeholder for extracting the state from an AWS response."""
+        """Extract the state from an AWS response."""
         raise NotImplementedError("Please implement state_from_response() in subclass")
 
 
 class SageMakerEndpointSensor(SageMakerBaseSensor):
     """
-    Polls the endpoint state until it reaches a terminal state.  Raises an
-    AirflowException with the failure reason if a failed state is reached.
+    Poll the endpoint state until it reaches a terminal state; raise AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -129,8 +128,7 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
 
 class SageMakerTransformSensor(SageMakerBaseSensor):
     """
-    Polls the transform job until it reaches a terminal state.  Raises an
-    AirflowException with the failure reason if a failed state is reached.
+    Poll the transform job until it reaches a terminal state; raise AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -165,8 +163,7 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
 
 class SageMakerTuningSensor(SageMakerBaseSensor):
     """
-    Asks for the state of the tuning state until it reaches a terminal state.
-    Raises an AirflowException with the failure reason if a failed state is reached.
+    Poll the tuning state until it reaches a terminal state; raise AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -201,8 +198,7 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
 
 class SageMakerTrainingSensor(SageMakerBaseSensor):
     """
-    Polls the training job until it reaches a terminal state.  Raises an
-    AirflowException with the failure reason if a failed state is reached.
+    Poll the training job until it reaches a terminal state; raise AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -280,8 +276,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
 
 class SageMakerPipelineSensor(SageMakerBaseSensor):
     """
-    Polls the pipeline until it reaches a terminal state.  Raises an
-    AirflowException with the failure reason if a failed state is reached.
+    Poll the pipeline until it reaches a terminal state; raise AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -315,8 +310,7 @@ class SageMakerPipelineSensor(SageMakerBaseSensor):
 
 class SageMakerAutoMLSensor(SageMakerBaseSensor):
     """
-    Polls the auto ML job until it reaches a terminal state.
-    Raises an AirflowException with the failure reason if a failed state is reached.
+    Poll the auto ML job until it reaches a terminal state; raise AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

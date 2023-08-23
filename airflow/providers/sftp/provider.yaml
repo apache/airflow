@@ -23,6 +23,10 @@ description: |
 
 suspended: false
 versions:
+  - 4.5.0
+  - 4.4.0
+  - 4.3.1
+  - 4.3.0
   - 4.2.4
   - 4.2.3
   - 4.2.2
@@ -48,8 +52,9 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-ssh>=2.1.0
+  - paramiko>=2.8.0
 
 integrations:
   - integration-name: SSH File Transfer Protocol (SFTP)
@@ -66,6 +71,7 @@ sensors:
   - integration-name: SSH File Transfer Protocol (SFTP)
     python-modules:
       - airflow.providers.sftp.sensors.sftp
+      - airflow.providers.sftp.decorators.sensors.sftp
 
 hooks:
   - integration-name: SSH File Transfer Protocol (SFTP)
@@ -76,3 +82,7 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.sftp.hooks.sftp.SFTPHook
     connection-type: sftp
+
+task-decorators:
+  - class-name: airflow.providers.sftp.decorators.sensors.sftp.sftp_sensor_task
+    name: sftp_sensor

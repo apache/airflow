@@ -150,7 +150,7 @@ class ProjectStructureTest:
             if not isinstance(current_node, ast.ClassDef):
                 continue
             name = current_node.name
-            if not any(name.endswith(suffix) for suffix in self.CLASS_SUFFIXES):
+            if not name.endswith(tuple(self.CLASS_SUFFIXES)):
                 continue
             results[f"{module}.{name}"] = current_node
         return results
@@ -274,6 +274,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
 
     BASE_CLASSES = {
         "airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator",
+        "airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryToSqlBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
@@ -285,7 +286,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
         "airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator",
         "airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator",
-        "airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryToMySqlOperator",
         "airflow.providers.google.cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.GetEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
@@ -405,8 +405,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
         # Glue Catalog sensor difficult to test
         "airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor",
-        # EMR Step sensor difficult to test, see: https://github.com/apache/airflow/pull/27286
-        "airflow.providers.amazon.aws.sensors.emr.EmrStepSensor",
     }
 
     DEPRECATED_CLASSES = {
@@ -430,6 +428,24 @@ class TestCncfProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
         "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
     }
+    BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
+
+
+class TestSlackProviderProjectStructure(ExampleCoverageTest):
+    PROVIDER = "slack"
+    CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
+    BASE_CLASSES = {
+        "airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator",
+    }
+    MISSING_EXAMPLES_FOR_CLASSES = {
+        "airflow.providers.slack.operators.slack.SlackAPIOperator",
+        "airflow.providers.slack.operators.slack.SlackAPIPostOperator",
+        "airflow.providers.slack.operators.slack_webhook.SlackWebhookOperator",
+        "airflow.providers.slack.transfers.sql_to_slack.SqlToSlackApiFileOperator",
+    }
+    DEPRECATED_CLASSES = {
+        "airflow.providers.slack.notifications.slack_notifier.py.",
+    }
 
 
 class TestDockerProviderProjectStructure(ExampleCoverageTest):
@@ -439,14 +455,12 @@ class TestDockerProviderProjectStructure(ExampleCoverageTest):
 class TestOperatorsHooks:
     def test_no_illegal_suffixes(self):
         illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
-        files = itertools.chain(
-            *(
-                glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
-                for resource_type in ["operators", "hooks", "sensors", "example_dags"]
-                for part in ["airflow", "tests"]
-            )
+        files = itertools.chain.from_iterable(
+            glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
+            for resource_type in ["operators", "hooks", "sensors", "example_dags"]
+            for part in ["airflow", "tests"]
         )
 
-        invalid_files = [f for f in files if any(f.endswith(suffix) for suffix in illegal_suffixes)]
+        invalid_files = [f for f in files if f.endswith(tuple(illegal_suffixes))]
 
         assert [] == invalid_files

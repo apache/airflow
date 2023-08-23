@@ -56,6 +56,12 @@ Docker Desktop
 - **Docker problems**: Sometimes it is not obvious that space is an issue when you run into
   a problem with Docker. If you see a weird behaviour, try ``breeze cleanup`` command.
   Also see `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
+- **Docker context**: In recent versions Docker Desktop is by default configured to use ``desktop-linux``
+  docker context that uses docker socket created in user home directory. Older versions (and plain docker)
+  uses ``/var/run/docker.sock`` socket and ``default`` context. Breeze will attempt to detect if you have
+  ``desktop-linux`` context configured and will use it if it is available, but you can force the
+  context by adding ``--builder`` flag to the commands that build image or run the container and forward
+  the socket to inside the image.
 
 Here is an example configuration with more than 200GB disk space for Docker:
 
@@ -84,8 +90,15 @@ Here is an example configuration with more than 200GB disk space for Docker:
 - ``newgrp docker``
 - 4. Check if docker can be run without root
 - ``docker run hello-world``
-|
-|
+- 5. In some cases you might make sure that "Allow the default Docker socket to
+  be used" in "Advanced" tab of "Docker Desktop" settings is checked
+
+.. raw:: html
+
+   <div align="center">
+        <img src="images/docker_socket.png" width="640"
+             alt="Docker socket used">
+    </div>
 
 Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
 /CONTRIBUTORS_QUICK_START.rst>`__
@@ -220,7 +233,7 @@ them, you may end up with some unused image data.
 
 To clean up the Docker environment:
 
-1. Stop Breeze with ``breeze stop``. (If Breeze is already running)
+1. Stop Breeze with ``breeze down``. (If Breeze is already running)
 
 2. Run the ``breeze cleanup`` command.
 
@@ -244,6 +257,17 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
 .. code-block:: bash
 
     pipx install -e ./dev/breeze
+
+
+.. note:: Note for Windows users
+
+    The ``./dev/breeze`` in command about is a PATH to sub-folder where breeze source packages are.
+    If you are on Windows, you should use Windows way to point to the ``dev/breeze`` sub-folder
+    of Airflow either as absolute or relative path. For example:
+
+    .. code-block:: bash
+
+        pipx install -e dev\breeze
 
 Once this is complete, you should have ``breeze`` binary on your PATH and available to run by ``breeze``
 command.
@@ -277,6 +301,26 @@ where it was installed.
 
 You can run ``breeze setup version`` command to see where breeze installed from and what are the current sources
 that Breeze works on
+
+.. warning:: Upgrading from earlier Python version
+
+    If you used Breeze with Python 3.7 and when running it, it will complain that it needs Python 3.8. In this
+    case you should force-reinstall Breeze with ``pipx``:
+
+        .. code-block:: bash
+
+            pipx install --force -e ./dev/breeze
+
+    .. note:: Note for Windows users
+
+        The ``./dev/breeze`` in command about is a PATH to sub-folder where breeze source packages are.
+        If you are on Windows, you should use Windows way to point to the ``dev/breeze`` sub-folder
+        of Airflow either as absolute or relative path. For example:
+
+        .. code-block:: bash
+
+            pipx install --force -e dev\breeze
+
 
 Running Breeze for the first time
 ---------------------------------
@@ -360,12 +404,28 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI.
 
-For example, you can choose to run Python 3.7 tests with MySQL as backend and with mysql version 8
+For example, you can choose to run Python 3.8 tests with MySQL as backend and with mysql version 8
 as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.7 --backend mysql --mysql-version 8
+    breeze --python 3.8 --backend mysql --mysql-version 8
+
+.. note:: Note for Windows WSL2 users
+
+   You may find error messages:
+
+.. code-block:: bash
+
+    Current context is now "..."
+    protocol not available
+    Error 1 returned
+
+Try adding ``--builder=default`` to your command. For example:
+
+.. code-block:: bash
+
+    breeze --builder=default --python 3.8 --backend mysql --mysql-version 8
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -411,7 +471,7 @@ Often errors during documentation generation come from the docstrings of auto-ap
 During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
 easily identify the location the problems with documentation originated from.
 
-Those are all available flags of ``build-docs`` command:
+These are all available flags of ``build-docs`` command:
 
 .. image:: ./images/breeze/output_build-docs.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_build-docs.svg
@@ -434,7 +494,16 @@ For example, this following command:
 
 will run mypy check for currently staged files inside ``airflow/`` excluding providers.
 
-You can also pass specific pre-commit flags, such as ``--all-files``:
+Selecting files to run static checks on
+........................................
+
+Pre-commits run by default on staged changes that you have locally changed. It will run it on all the
+files you run ``git add`` on and it will ignore any changes that you have modified but not staged.
+If you want to run it on all your modified files you should add them with ``git add`` command.
+
+With ``--all-files`` you can run static checks on all files in the repository. This is useful when you
+want to be sure they will not fail in CI, or when you just rebased your changes and want to
+re-run latest pre-commits on your changes, but it can take a long time (few minutes) to wait for the result.
 
 .. code-block:: bash
 
@@ -442,15 +511,32 @@ You can also pass specific pre-commit flags, such as ``--all-files``:
 
 The above will run mypy check for all files.
 
-There is a convenience ``--last-commit`` flag that you can use to run static check on last commit only:
+You can limit that by selecting specific files you want to run static checks on. You can do that by
+specifying (can be multiple times) ``--file`` flag.
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
+
+The above will run mypy check for those to files (note: autocomplete should work for the file selection).
+
+However, often you do not remember files you modified and you want to run checks for files that belong
+to specific commits you already have in your branch. You can use ``breeze static check`` to run the checks
+only on changed files you have already committed to your branch - either for specific commit, for last
+commit, for all changes in your branch since you branched off from main or for specific range
+of commits you choose.
 
 .. code-block:: bash
 
      breeze static-checks -t mypy-core --last-commit
 
-The above will run mypy check for all files in the last commit.
+The above will run mypy check for all files in the last commit in your branch.
 
-There is another convenience ``--commit-ref`` flag that you can use to run static check on specific commit:
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --only-my-changes
+
+The above will run mypy check for all commits in your branch which were added since you branched off from main.
 
 .. code-block:: bash
 
@@ -459,14 +545,15 @@ There is another convenience ``--commit-ref`` flag that you can use to run stati
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
 
-If you ever need to get a list of the files that will be checked (for troubleshooting) use these commands:
-
 .. code-block:: bash
 
-     breeze static-checks -t identity --verbose # currently staged files
-     breeze static-checks -t identity --verbose --from-ref $(git merge-base main HEAD) --to-ref HEAD #  branch updates
+     breeze static-checks -t identity --verbose --from-ref HEAD^^^^ --to-ref HEAD
 
-Those are all available flags of ``static-checks`` command:
+The above will run the check for the last 4 commits in your branch. You can use any ``commit-ish`` references
+in ``--from-ref`` and ``--to-ref`` flags.
+
+
+These are all available flags of ``static-checks`` command:
 
 .. image:: ./images/breeze/output_static-checks.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_static-checks.svg
@@ -478,7 +565,7 @@ Those are all available flags of ``static-checks`` command:
 
     When you run static checks, some of the artifacts (mypy_cache) is stored in docker-compose volume
     so that it can speed up static checks execution significantly. However, sometimes, the cache might
-    get broken, in which case you should run ``breeze stop`` to clean up the cache.
+    get broken, in which case you should run ``breeze down`` to clean up the cache.
 
 
 .. note::
@@ -499,17 +586,32 @@ When you are starting airflow from local sources, www asset compilation is autom
 
 .. code-block:: bash
 
-    breeze --python 3.7 --backend mysql start-airflow
+    breeze --python 3.8 --backend mysql start-airflow
 
-
-You can also use it to start any released version of Airflow from ``PyPI`` with the
-``--use-airflow-version`` flag.
+You can also use it to start different executor.
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.7 --backend mysql --use-airflow-version 2.2.5
+    breeze start-airflow --executor CeleryExecutor
 
-Those are all available flags of ``start-airflow`` command:
+You can also use it to start any released version of Airflow from ``PyPI`` with the
+``--use-airflow-version`` flag - useful for testing and looking at issues raised for specific version.
+
+.. code-block:: bash
+
+    breeze start-airflow --python 3.8 --backend mysql --use-airflow-version 2.7.0
+
+When you are installing version from PyPI, it's also possible to specify extras that should be used
+when installing Airflow - you can provide several extras separated by coma - for example to install
+providers together with Airflow that you are installing. For example when you are using celery executor
+in Airflow 2.7.0+ you need to add ``celery`` extra.
+
+.. code-block:: bash
+
+    breeze start-airflow --use-airflow-version 2.7.0 --executor CeleryExecutor --airflow-extras celery
+
+
+These are all available flags of ``start-airflow`` command:
 
 .. image:: ./images/breeze/output_start-airflow.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_start-airflow.svg
@@ -534,7 +636,7 @@ to enter the running container. It's as easy as launching ``breeze exec`` while 
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
-Those are all available flags of ``exec`` command:
+These are all available flags of ``exec`` command:
 
 .. image:: ./images/breeze/output_exec.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_exec.svg
@@ -572,7 +674,7 @@ need to build the images again from scratch - pulling from the registry might ta
 
 Breeze will ask you to confirm each step, unless you specify ``--answer yes`` flag.
 
-Those are all available flags of ``cleanup`` command:
+These are all available flags of ``cleanup`` command:
 
 .. image:: ./images/breeze/output_cleanup.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_cleanup.svg
@@ -663,14 +765,14 @@ You can always stop it via:
 
 .. code-block:: bash
 
-   breeze stop
+   breeze down
 
-Those are all available flags of ``stop`` command:
+These are all available flags of ``down`` command:
 
-.. image:: ./images/breeze/output_stop.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_stop.svg
+.. image:: ./images/breeze/output_down.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_down.svg
   :width: 100%
-  :alt: Breeze stop
+  :alt: Breeze down
 
 Troubleshooting
 ===============
@@ -679,12 +781,20 @@ If you are having problems with the Breeze environment, try the steps below. Aft
 can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker (Breeze will warn you if not).
-2. Stop Breeze with ``breeze stop``.
-3. Delete the ``.build`` directory and run ``breeze ci-image build``.
-4. Clean up Docker images via ``breeze cleanup`` command.
-5. Restart your Docker Engine and try again.
-6. Restart your machine and try again.
-7. Re-install Docker Desktop and try again.
+2. Stop Breeze with ``breeze down``.
+3. Git fetch the origin and git rebase the current branch with main branch.
+4. Delete the ``.build`` directory and run ``breeze ci-image build``.
+5. Clean up Docker images via ``breeze cleanup`` command.
+6. Restart your Docker Engine and try again.
+7. Restart your machine and try again.
+8. Re-install Docker Desktop and try again.
+
+.. note::
+  If the pip is taking a significant amount of time and your internet connection is causing pip to be unable to download the libraries within the default timeout, it is advisable to modify the default timeout as follows and run the breeze again.
+
+  .. code-block::
+
+      export PIP_DEFAULT_TIMEOUT=1000
 
 In case the problems are not solved, you can set the VERBOSE_COMMANDS variable to "true":
 
@@ -715,10 +825,79 @@ describe your problem.
     stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
     run Breeze with no problems.
 
+
+ETIMEOUT Error
+--------------
+
+When running ``breeze start-airflow``, the following output might be observed:
+
+.. code-block:: bash
+
+    Skip fixing ownership of generated files as Host OS is darwin
+
+
+    Waiting for asset compilation to complete in the background.
+
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+
+    The asset compilation is taking too long.
+
+    If it does not complete soon, you might want to stop it and remove file lock:
+      * press Ctrl-C
+      * run 'rm /opt/airflow/.build/www/.asset_compile.lock'
+
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+
+    The asset compilation failed. Exiting.
+
+    [INFO] Locking pre-commit directory
+
+    Error 1 returned
+
+This timeout can be increased by setting ``ASSET_COMPILATION_WAIT_MULTIPLIER`` a reasonable number
+could be 3-4.
+
+.. code-block:: bash
+
+  export ASSET_COMPILATION_WAIT_MULTIPLIER=3
+
+This error is actually caused by the following error during the asset compilation which resulted in
+ETIMEOUT when ``npm`` command is trying to install required packages:
+
+.. code-block:: bash
+
+    npm ERR! code ETIMEDOUT
+    npm ERR! syscall connect
+    npm ERR! errno ETIMEDOUT
+    npm ERR! network request to https://registry.npmjs.org/yarn failed, reason: connect ETIMEDOUT 2606:4700::6810:1723:443
+    npm ERR! network This is a problem related to network connectivity.
+    npm ERR! network In most cases you are behind a proxy or have bad network settings.
+    npm ERR! network
+    npm ERR! network If you are behind a proxy, please make sure that the
+    npm ERR! network 'proxy' config is set properly.  See: 'npm help config'
+
+In this situation, notice that the IP address ``2606:4700::6810:1723:443`` is in IPv6 format, which was the
+reason why the connection did not go through the router, as the router did not support IPv6 addresses in its DNS lookup.
+In this case, disabling IPv6 in the host machine and using IPv4 instead resolved the issue.
+
+The similar issue could happen if you are behind an HTTP/HTTPS proxy and your access to required websites are
+blocked by it, or your proxy setting has not been done properly.
+
 Advanced commands
 =================
 
-Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testing. Under the
+Airflow Breeze is a Python script serving as a "swiss-army-knife" of Airflow testing. Under the
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
@@ -764,8 +943,7 @@ To run the whole test class:
 You can re-run the tests interactively, add extra parameters to pytest and modify the files before
 re-running the test to iterate over the tests. You can also add more flags when starting the
 ``breeze shell`` command when you run integration tests or system tests. Read more details about it
-in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
-on how to run them.
+in the `testing doc <TESTING.rst>`_ where all the test types and information on how to run them are explained.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
@@ -1247,7 +1425,7 @@ download the latest images before rebuilding because this is usually faster than
 Building CI image
 .................
 
-Those are all available flags of ``ci-image build`` command:
+These are all available flags of ``ci-image build`` command:
 
 .. image:: ./images/breeze/output_ci-image_build.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_build.svg
@@ -1259,7 +1437,7 @@ Pulling CI image
 
 You can also pull the CI images locally in parallel with optional verification.
 
-Those are all available flags of ``pull`` command:
+These are all available flags of ``pull`` command:
 
 .. image:: ./images/breeze/output_ci-image_pull.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_pull.svg
@@ -1272,7 +1450,7 @@ Verifying CI image
 Finally, you can verify CI image by running tests - either with the pulled/built images or
 with an arbitrary image.
 
-Those are all available flags of ``verify`` command:
+These are all available flags of ``verify`` command:
 
 .. image:: ./images/breeze/output_ci-image_verify.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci-image_verify.svg
@@ -1333,15 +1511,15 @@ suffix and they need to also be paired with corresponding runtime dependency add
 
 .. code-block:: bash
 
-     breeze prod-image build --python 3.7 --additional-dev-deps "libasound2-dev" \
+     breeze prod-image build --python 3.8 --additional-dev-deps "libasound2-dev" \
         --additional-runtime-apt-deps "libasound2"
 
-Same as above but uses python 3.7.
+Same as above but uses python 3.8.
 
 Building PROD image
 ...................
 
-Those are all available flags of ``build-prod-image`` command:
+These are all available flags of ``build-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_build.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_build.svg
@@ -1353,7 +1531,7 @@ Pulling PROD image
 
 You can also pull PROD images in parallel with optional verification.
 
-Those are all available flags of ``pull-prod-image`` command:
+These are all available flags of ``pull-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_pull.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_pull.svg
@@ -1366,7 +1544,7 @@ Verifying PROD image
 Finally, you can verify PROD image by running tests - either with the pulled/built images or
 with an arbitrary image.
 
-Those are all available flags of ``verify-prod-image`` command:
+These are all available flags of ``verify-prod-image`` command:
 
 .. image:: ./images/breeze/output_prod-image_verify.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_prod-image_verify.svg
@@ -1381,7 +1559,7 @@ Breeze has tools that you can use to configure defaults and breeze behaviours an
 operations that might be necessary when you add new commands in Breeze. It also allows to configure your
 host operating system for Breeze autocompletion.
 
-Those are all available flags of ``setup`` command:
+These are all available flags of ``setup`` command:
 
 .. image:: ./images/breeze/output_setup.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup.svg
@@ -1405,7 +1583,7 @@ it off by passing ``--no-colour`` to config in which case the messages to the us
 will be printed using different schemes (italic/bold/underline) to indicate different kind of messages
 rather than colours.
 
-Those are all available flags of ``setup config`` command:
+These are all available flags of ``setup config`` command:
 
 .. image:: ./images/breeze/output_setup_config.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_config.svg
@@ -1423,7 +1601,7 @@ also force reinstalling the autocomplete via:
 
    breeze setup autocomplete --force
 
-Those are all available flags of ``setup-autocomplete`` command:
+These are all available flags of ``setup-autocomplete`` command:
 
 .. image:: ./images/breeze/output_setup_autocomplete.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_autocomplete.svg
@@ -1436,7 +1614,7 @@ Breeze version
 You can display Breeze version and with ``--verbose`` flag it can provide more information: where
 Breeze is installed from and details about setup hashes.
 
-Those are all available flags of ``version`` command:
+These are all available flags of ``version`` command:
 
 .. image:: ./images/breeze/output_setup_version.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_version.svg
@@ -1447,7 +1625,7 @@ Those are all available flags of ``version`` command:
 Breeze self-upgrade
 ...................
 
-You can self-upgrade breeze automatically. Those are all available flags of ``self-upgrade`` command:
+You can self-upgrade breeze automatically. These are all available flags of ``self-upgrade`` command:
 
 .. image:: ./images/breeze/output_setup_self-upgrade.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_self-upgrade.svg
@@ -1503,7 +1681,7 @@ Breeze requires certain resources to be available - disk, memory, CPU. When you 
 the resources are checked and information if there is enough resources is displayed. However you can
 manually run resource check any time by ``breeze ci resource-check`` command.
 
-Those are all available flags of ``resource-check`` command:
+These are all available flags of ``resource-check`` command:
 
 .. image:: ./images/breeze/output_ci_resource-check.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_resource-check.svg
@@ -1517,7 +1695,7 @@ When our CI runs a job, it needs all memory and disk it can have. We have a Bree
 the memory and disk space used. You can also use it clear space locally but it performs a few operations
 that might be a bit invasive - such are removing swap file and complete pruning of docker disk space used.
 
-Those are all available flags of ``free-space`` command:
+These are all available flags of ``free-space`` command:
 
 .. image:: ./images/breeze/output_ci_free-space.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_free-space.svg
@@ -1537,7 +1715,7 @@ by the root user, you can fix the ownership of those files by running :
 
   breeze ci fix-ownership
 
-Those are all available flags of ``fix-ownership`` command:
+These are all available flags of ``fix-ownership`` command:
 
 .. image:: ./images/breeze/output_ci_fix-ownership.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_fix-ownership.svg
@@ -1558,7 +1736,7 @@ from the context of the commit/PR to be merged via stderr output.
 More details about the algorithm used to pick the right tests and the available outputs can be
 found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
 
-Those are all available flags of ``selective-check`` command:
+These are all available flags of ``selective-check`` command:
 
 .. image:: ./images/breeze/output_ci_selective-check.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_selective-check.svg
@@ -1572,29 +1750,29 @@ When our CI runs a job, it might be within one of several workflows. Information
 is stored in GITHUB_CONTEXT. Rather than using some jq/bash commands, we retrieve the necessary information
 (like PR labels, event_type, where the job runs on, job description and convert them into GA outputs.
 
-Those are all available flags of ``get-workflow-info`` command:
+These are all available flags of ``get-workflow-info`` command:
 
 .. image:: ./images/breeze/output_ci_get-workflow-info.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_get-workflow-info.svg
   :width: 100%
   :alt: Breeze ci get-workflow-info
 
-Tracking backtracking issues for CI builds
-..........................................
+Finding backtracking candidates
+...............................
 
-When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
-lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.
-Unfortunately those issues are difficult to diagnose so we had to invent our own tool to help us with
-diagnosing them. This tool is ``find-newer-dependencies`` and it works in the way that it helps to guess
-which new dependency might have caused the backtracking. The whole process is described in
-`tracking backtracking issues <dev/TRACKING_BACKTRACKING_ISSUES.md>`_.
+Sometimes the CI build fails because ``pip`` timeouts when trying to resolve the latest set of dependencies
+for that we have the ``find-backtracking-candidates`` command. This command will try to find the
+backtracking candidates that might cause the backtracking.
 
-Those are all available flags of ``find-newer-dependencies`` command:
+The details on how to use that command are explained in
+`Figuring out backtracking dependencies <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md#figuring-out-backtracking-dependencies>`_.
 
-.. image:: ./images/breeze/output_ci_find-newer-dependencies.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-newer-dependencies.svg
+These are all available flags of ``find-backtracking-candidates`` command:
+
+.. image:: ./images/breeze/output_ci_find-backtracking-candidates.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-backtracking-candidates.svg
   :width: 100%
-  :alt: Breeze ci find-newer-dependencies
+  :alt: Breeze ci find-backtracking-candidates
 
 Release management tasks
 ------------------------
@@ -1607,23 +1785,120 @@ do not need or have no access to run). Those are usually connected with releasin
   :width: 100%
   :alt: Breeze release management
 
-Breeze can be used to prepare airflow packages - both "apache-airflow" main package and
-provider packages.
+Airflow release commands
+........................
+
+Running airflow release commands is part of the release procedure performed by the release managers
+and it is described in detail in `dev <dev/README_RELEASE_AIRFLOW.md>`_ .
+
+Preparing airflow packages
+""""""""""""""""""""""""""
+
+You can prepare airflow packages using Breeze:
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-package
+
+This prepares airflow .whl package in the dist folder.
+
+Again, you can specify optional ``--package-format`` flag to build selected formats of airflow packages,
+default is to build ``both`` type of packages ``sdist`` and ``wheel``.
+
+.. code-block:: bash
+
+     breeze release-management prepare-airflow-package --package-format=wheel
+
+.. image:: ./images/breeze/output_release-management_prepare-airflow-package.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-airflow-package.svg
+  :width: 100%
+  :alt: Breeze release-management prepare-airflow-package
+
+
+Start minor branch of Airflow
+"""""""""""""""""""""""""""""
+
+When we create a new minor branch of Airflow, we need to perform a few maintenance tasks. This command
+automates it.
+
+.. code-block:: bash
+
+     breeze release-management create-minor-branch
+
+.. image:: ./images/breeze/output_release-management_create-minor-branch.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_create-minor-branch.svg
+  :width: 100%
+  :alt: Breeze release-management create-minor-branch
+
+
+Start release candidate process
+"""""""""""""""""""""""""""""""
+
+When we prepare release candidate, we automate some of the steps we need to do.
+
+.. code-block:: bash
+
+     breeze release-management start-rc-process
+
+.. image:: ./images/breeze/output_release-management_start-rc-process.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_start-rc-process.svg
+  :width: 100%
+  :alt: Breeze release-management start-rc-process
+
+Start release process
+"""""""""""""""""""""
+
+When we prepare final release, we automate some of the steps we need to do.
+
+.. code-block:: bash
+
+     breeze release-management start-release
+
+.. image:: ./images/breeze/output_release-management_start-release.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_start-rc-process.svg
+  :width: 100%
+  :alt: Breeze release-management start-rc-process
+
+Releasing Production images
+"""""""""""""""""""""""""""
+
+The **Production image** can be released by release managers who have permissions to push the image. This
+happens only when there is an RC candidate or final version of Airflow released.
+
+You release "regular" and "slim" images as separate steps.
+
+Releasing "regular" images:
+
+.. code-block:: bash
+
+     breeze release-management release-prod-images --airflow-version 2.4.0
+
+Or "slim" images:
+
+.. code-block:: bash
+
+     breeze release-management release-prod-images --airflow-version 2.4.0 --slim-images
+
+By default when you are releasing the "final" image, we also tag image with "latest" tags but this
+step can be skipped if you pass the ``--skip-latest`` flag.
+
+These are all of the available flags for the ``release-prod-images`` command:
+
+.. image:: ./images/breeze/output_release-management_release-prod-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_release-prod-images.svg
+  :width: 100%
+  :alt: Breeze release management release prod images
+
+Provider release commands
+.........................
+
+Preparing provider release is part of the release procedure by the release managers
+and it is described in detail in `dev <dev/README_RELEASE_PROVIDER_PACKAGES.md>`_ .
 
 Preparing provider documentation
-................................
+""""""""""""""""""""""""""""""""
 
-You can read more about testing provider packages in
-`TESTING.rst <TESTING.rst#running-tests-with-provider-packages>`_
-
-There are several commands that you can run in Breeze to manage and build packages:
-
-* preparing Provider documentation files
-* preparing Airflow packages
-* preparing Provider packages
-
-Preparing provider documentation files is part of the release procedure by the release managers
-and it is described in detail in `dev <dev/README_RELEASE_PROVIDER_PACKAGES.md>`_ .
+You can use Breeze to prepare provider documentation.
 
 The below example perform documentation preparation for provider packages.
 
@@ -1646,7 +1921,7 @@ You can also add ``--answer yes`` to perform non-interactive build.
   :alt: Breeze prepare-provider-documentation
 
 Preparing provider packages
-...........................
+"""""""""""""""""""""""""""
 
 You can use Breeze to prepare provider packages.
 
@@ -1678,8 +1953,32 @@ You can see all providers available by running this command:
   :width: 100%
   :alt: Breeze prepare-provider-packages
 
+Installing provider packages
+""""""""""""""""""""""""""""
+
+In some cases we want to just see if the provider packages generated can be installed with airflow without
+verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+just prepared provider packages and they are present in ``dist`` folder.
+
+.. code-block:: bash
+
+     breeze release-management install-provider-packages
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+.. code-block:: bash
+
+    breeze release-management install-provider-packages --use-airflow-version 2.4.0
+
+All the command parameters are here:
+
+.. image:: ./images/breeze/output_release-management_install-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_install-provider-packages.svg
+  :width: 100%
+  :alt: Breeze install-provider-packages
+
 Verifying provider packages
-...........................
+"""""""""""""""""""""""""""
 
 Breeze can also be used to verify if provider classes are importable and if they are following the
 right naming conventions. This happens automatically on CI but you can also run it manually if you
@@ -1693,7 +1992,7 @@ You can also run the verification with an earlier airflow version to check for c
 
 .. code-block:: bash
 
-    breeze release-management verify-provider-packages --use-airflow-version 2.1.0
+    breeze release-management verify-provider-packages --use-airflow-version 2.4.0
 
 All the command parameters are here:
 
@@ -1702,8 +2001,23 @@ All the command parameters are here:
   :width: 100%
   :alt: Breeze verify-provider-packages
 
+Generating Providers Metadata
+"""""""""""""""""""""""""""""
+
+The release manager can generate providers metadata per provider version - information about provider versions
+including the associated Airflow version for the provider version (i.e first airflow version released after the
+provider has been released) and date of the release of the provider version.
+
+These are all of the available flags for the ``generate-providers-metadata`` command:
+
+.. image:: ./images/breeze/output_release-management_generate-providers-metadata.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-providers-metadata.svg
+  :width: 100%
+  :alt: Breeze release management generate providers metadata
+
+
 Generating Provider Issue
-.........................
+"""""""""""""""""""""""""
 
 You can use Breeze to generate a provider issue when you release new providers.
 
@@ -1712,31 +2026,101 @@ You can use Breeze to generate a provider issue when you release new providers.
   :width: 100%
   :alt: Breeze generate-issue-content-providers
 
-Preparing airflow packages
-..........................
 
-You can prepare airflow packages using Breeze:
+Other release commands
+......................
 
-.. code-block:: bash
+Publishing the documentation
+""""""""""""""""""""""""""""
 
-     breeze release-management prepare-airflow-package
-
-This prepares airflow .whl package in the dist folder.
-
-Again, you can specify optional ``--package-format`` flag to build selected formats of airflow packages,
-default is to build ``both`` type of packages ``sdist`` and ``wheel``.
+To publish the documentation generated by ``build-docs`` in Breeze to ``airflow-site``,
+use the ``release-management publish-docs`` command:
 
 .. code-block:: bash
 
-     breeze release-management prepare-airflow-package --package-format=wheel
+     breeze release-management publish-docs
 
-.. image:: ./images/breeze/output_release-management_prepare-airflow-package.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_prepare-airflow-package.svg
+The publishing documentation consists  steps:
+
+* checking out the latest ``main`` of cloned ``airflow-site``
+* copying the documentation to ``airflow-site``
+* running post-docs scripts on the docs to generate back referencing HTML for new versions of docs
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --package-filter apache-airflow-providers-amazon
+
+The flag ``--package-filter`` can be used to selectively publish docs during a release. It can take
+values such as apache-airflow, helm-chart, apache-airflow-providers, or any individual providers.
+The documentation publication happens based on this flag.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --override-versioned
+
+The flag ``--override-versioned`` is a boolean flag that is used to override the versioned directories
+while publishing the documentation.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --airflow-site-directory
+
+The flag ``--airflow-site-directory`` takes the path of the cloned ``airflow-site``. The command will
+not proceed if this is an invalid path.
+
+These are all available flags of ``release-management publish-docs`` command:
+
+.. image:: ./images/breeze/output_release-management_publish-docs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_publish-docs.svg
   :width: 100%
-  :alt: Breeze release-management prepare-airflow-package
+  :alt: Breeze Publish documentation
+
+Adding back referencing HTML for the documentation
+""""""""""""""""""""""""""""""""""""""""""""""""""
+
+To add back references to the documentation generated by ``build-docs`` in Breeze to ``airflow-site``,
+use the ``release-management add-back-references`` command. This is important to support backward compatibility
+the airflow documentation.
+
+You have to specify which packages you run it on. For example you can run it for all providers:
+
+.. code-block:: bash
+
+     release-management add-back-references --airflow-site-directory DIRECTORY all-providers
+
+The flag ``--airflow-site-directory`` takes the path of the cloned ``airflow-site``. The command will
+not proceed if this is an invalid path.
+
+You can also run the command for apache-airflow (core documentation):
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --airflow-site-directory DIRECTORY apache-airflow
+
+Also for helm-chart package:
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --airflow-site-directory DIRECTORY helm-chart
+
+
+You can also manually specify (it's auto-completable) list of packages to run the command for including individual
+providers - you can mix apache-airflow, helm-chart and provider packages this way:
+
+.. code-block:: bash
+
+     breeze release-management publish-docs --airflow-site-directory DIRECTORY apache.airflow apache.beam google
+
+
+These are all available flags of ``release-management add-back-references`` command:
+
+.. image:: .images/breeze/output_release-management_add-back-references.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_add-back-references.svg
+  :width: 100%
+  :alt: Breeze Add Back References
 
 Generating constraints
-......................
+""""""""""""""""""""""
 
 Whenever setup.py gets modified, the CI main job will re-generate constraint files. Those constraint
 files are stored in separated orphan branches: ``constraints-main``, ``constraints-2-0``.
@@ -1773,7 +2157,7 @@ Constraints are generated separately for each python version and there are separ
   providers. If you want to manage airflow separately and then add providers individually, you can
   use those.
 
-Those are all available flags of ``generate-constraints`` command:
+These are all available flags of ``generate-constraints`` command:
 
 .. image:: ./images/breeze/output_release-management_generate-constraints.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-constraints.svg
@@ -1782,43 +2166,67 @@ Those are all available flags of ``generate-constraints`` command:
 
 In case someone modifies setup.py, the scheduled CI Tests automatically upgrades and
 pushes changes to the constraint files, however you can also perform test run of this locally using
-the procedure described in `Refreshing CI Cache <dev/REFRESHING_CI_CACHE.md#manually-generating-constraint-files>`_
+the procedure described in the
+`Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
 which utilises multiple processors on your local machine to generate such constraints faster.
 
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.
 
-Releasing Production images
+Updating constraints
+""""""""""""""""""""
+
+Sometimes (very rarely) we might want to update individual packages in constraints that we generated and
+tagged already in the past. This can be done using ``breeze release-management update-constraints`` command.
+
+These are all available flags of ``update-constraints`` command:
+
+.. image:: ./images/breeze/output_release-management_update-constraints.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_update-constraints.svg
+  :width: 100%
+  :alt: Breeze update-constraints
+
+You can read more details about what happens when you update constraints in the
+`Manually generating image cache and constraints <dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md>`_
+
+
+SBOM generation tasks
+----------------------
+
+Maintainers also can use Breeze for SBOM generation:
+
+.. image:: ./images/breeze/output_sbom.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom.svg
+  :width: 100%
+  :alt: Breeze sbom
+
+Generating SBOM information
 ...........................
 
-The **Production image** can be released by release managers who have permissions to push the image. This
-happens only when there is an RC candidate or final version of Airflow released.
+Thanks to our constraints captured for all versions of Airflow we can easily generate SBOM information for
+Apache Airflow. SBOM information contains information about Airflow dependencies that are possible to consume
+by our users and allow them to determine whether security issues in dependencies affect them. The SBOM
+information is written directly to ``docs-archive`` in airflow-site repository.
 
-You release "regular" and "slim" images as separate steps.
+These are all of the available flags for the ``update-sbom-information`` command:
 
-Releasing "regular" images:
-
-.. code-block:: bash
-
-     breeze release-management release-prod-images --airflow-version 2.4.0
-
-Or "slim" images:
-
-.. code-block:: bash
-
-     breeze release-management release-prod-images --airflow-version 2.4.0 --slim-images
-
-By default when you are releasing the "final" image, we also tag image with "latest" tags but this
-step can be skipped if you pass the ``--skip-latest`` flag.
-
-These are all of the available flags for the ``release-prod-images`` command:
-
-.. image:: ./images/breeze/output_release-management_release-prod-images.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_release-prod-images.svg
+.. image:: ./images/breeze/output_sbom_update-sbom-information.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbomt_update-sbom-information.svg
   :width: 100%
-  :alt: Breeze release management release prod images
+  :alt: Breeze update sbom information
 
+Generating Provider requirements
+.................................
+
+In order to generate SBOM information for providers, we need to generate requirements for them. This is
+done by the ``generate-provider-requirements`` command. This command generates requirements for the
+selected provider and python version, using the airflow version specified.
+
+.. image:: ./images/breeze/output_sbom_generate-provider-requirements.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-provider-requirements.svg
+  :width: 100%
+  :alt: Breeze generate SBOM provider requirements
 
 Details of Breeze usage
 =======================
@@ -1827,16 +2235,16 @@ Database volumes in Breeze
 --------------------------
 
 Breeze keeps data for all it's integration in named docker volumes. Each backend and integration
-keeps data in their own volume. Those volumes are persisted until ``breeze stop`` command.
+keeps data in their own volume. Those volumes are persisted until ``breeze down`` command.
 You can also preserve the volumes by adding flag ``--preserve-volumes`` when you run the command.
 Then, next time when you start Breeze, it will have the data pre-populated.
 
-Those are all available flags of ``stop`` command:
+These are all available flags of ``down`` command:
 
-.. image:: ./images/breeze/output-stop.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-stop.svg
+.. image:: ./images/breeze/output-down.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-down.svg
   :width: 100%
-  :alt: Breeze stop
+  :alt: Breeze down
 
 
 Additional tools
@@ -1884,7 +2292,7 @@ Finally you can specify ``--integration all-testable`` to start all testable int
 ``--integration all`` to enable all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with
-``breeze stop`` command. or restarted via ``breeze restart`` command
+``breeze down`` command.
 
 Note that running integrations uses significant resources - CPU and memory.
 
@@ -2067,29 +2475,100 @@ If you set these variables, next time when you enter the environment the new por
 Managing Dependencies
 ---------------------
 
-If you need to change apt dependencies in the ``Dockerfile.ci``, add Python packages in ``setup.py``
-for airflow and in provider.yaml for packages. If you add any "node" dependencies in ``airflow/www``
-, you need to compile them in the host with ``breeze compile-www-assets`` command.
+There are couple of things you might want to do when adding/changing dependencies when developing with
+Breeze. You can add dependencies temporarily (which will last until you exit Breeze shell), or you might
+want to add them permanently (which require you to rebuild the image). Also there are different things
+you need to do when you are adding system level (debian) level, Python (pip) dependencies or Node (yarn)
+dependencies for the webserver.
 
-Adding Dependencies Permanently
-...............................
+Python dependencies
+...................
 
-You can add dependencies to the ``Dockerfile.ci``, ``setup.py``.
-After you exit the container and re-run ``breeze``, Breeze detects changes in dependencies,
-asks you to confirm rebuilding the image and proceeds with rebuilding if you confirm (or skip it
-if you do not confirm). After rebuilding is done, Breeze drops you to shell. You may also use the
-``build`` command to only rebuild CI image and not to go into shell.
+For temporary adding and modifying the dependencies, you just (in Breeze shell) run
+``pip install <dependency>`` or similar - in the same way as you would do it
+in your local environment. You can also use ``pip install -r /files/requirements.txt`` to install several
+dependencies - if you place your requirements file in ``files`` directory. Those dependencies will
+disappear when you exit Breeze shell.
 
-Incremental apt Dependencies in the Dockerfile.ci during development
-....................................................................
+When you want to add dependencies permanently, then it depends what kind of dependency you add.
 
-During development, changing dependencies in ``apt-get`` closer to the top of the ``Dockerfile.ci``
-invalidates cache for most of the image. It takes long time for Breeze to rebuild the image.
-So, it is a recommended practice to add new dependencies initially closer to the end
-of the ``Dockerfile.ci``. This way dependencies will be added incrementally.
+If you want to add core dependency that should always be installed - you need to add it to ``setup.cfg``
+to ``install_requires`` section. If you want to add it to one of the optional core extras, you should
+add it in the extra definition in ``setup.py`` (you need to find out where it is defined). If you want
+to add it to one of the providers, you need to add it to the ``provider.yaml`` file in the provider
+directory - but remember that this should be followed by running pre-commit that will automatically update
+the ``generated/provider_dependencies.json`` directory with the new dependencies:
 
-Before merge, these dependencies should be moved to the appropriate ``apt-get install`` command,
-which is already in the ``Dockerfile.ci``.
+```
+pre-commit run update-providers-dependencies  --all-files
+```
+
+You can also run the pre-commit by ``breeze static-checks --type update-providers-dependencies --all-files``
+command - which provides autocomplete.
+
+After you've updated the dependencies, you need to rebuild the image:
+
+Breeze will automatically detect when you updated dependencies and it will propose you to build image next
+time when you enter it. You can answer ``y`` during 10 seconds to get it done for you.
+
+```
+breeze ci-image build
+```
+
+Sometimes, when you have conflicting change in dependencies (i.e. dependencies in the old constraints
+are conflicting with the new specification, you might want to build the image with
+``--upgrade-to-newer-dependencies`` flag:
+
+```
+breeze ci-image build --upgrade-to-newer-dependencies
+```
+
+
+System (debian) dependencies
+............................
+
+You can install ``apt-get`` dependencies temporarily by running ``apt-get install <dependency>`` in
+Breeze shell. Those dependencies will disappear when you exit Breeze shell.
+
+When you want to add dependencies permanently, you need to add them to ``Dockerfile.ci``. But you need to
+do it indirectly via shell scripts that get automatically inlined in the ``Dockerfile.ci``. Those
+scripts are present in ``scripts/docker`` directory and are aptly (!) named ``install*.sh``. Most
+of the apt dependencies are installed in the ``install_os_dependencies.sh``, but some are installed in
+other scripts (for example ``install_postgres.sh`` or ``install_mysql.sh``).
+
+After you modify the dependencies in the scripts, you need to inline them by running pre-commit:
+
+```
+pre-commit run update-inlined-dockerfile-scripts --all-files
+```
+
+You can also run the pre-commit by ``breeze static-checks --type update-inlined-dockerfile-scripts --all-files``
+command - which provides autocomplete.
+
+
+After you've updated the dependencies, you need to rebuild the image:
+
+Breeze will automatically detect when you updated dependencies and it will propose you to build image next
+time when you enter it. You can answer ``y`` during 10 seconds to get it done for you.
+
+```
+breeze ci-image build
+```
+
+Sometimes, when you have conflicting change in dependencies (i.e. dependencies in the old constraints
+are conflicting with the new specification, you might want to build the image with
+``--upgrade-to-newer-dependencies`` flag:
+
+```
+breeze ci-image build --upgrade-to-newer-dependencies
+```
+
+Node (yarn) dependencies
+........................
+
+If you need to change "node" dependencies in ``airflow/www``, you need to compile them in the
+host with ``breeze compile-www-assets`` command. No need to rebuild the image.
+
 
 Recording command output
 ========================
