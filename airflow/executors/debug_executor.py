@@ -92,7 +92,7 @@ class DebugExecutor(BaseExecutor):
         except Exception as e:
             ti.set_state(TaskInstanceState.FAILED)
             self.change_state(key, TaskInstanceState.FAILED)
-            self.log.exception("Failed to execute task: %s.", str(e))
+            self.log.exception("Failed to execute task: %s.", e)
             return False
 
     def queue_task_instance(

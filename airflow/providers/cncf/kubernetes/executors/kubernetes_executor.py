@@ -509,7 +509,7 @@ class KubernetesExecutor(BaseExecutor):
             if log:
                 messages.append("Found logs through kube API")
         except Exception as e:
-            messages.append(f"Reading from k8s pod logs failed: {str(e)}")
+            messages.append(f"Reading from k8s pod logs failed: {e}")
         return messages, ["\n".join(log)]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:

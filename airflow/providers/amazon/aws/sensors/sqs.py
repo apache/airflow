@@ -174,9 +174,7 @@ class SqsSensor(BaseSensorOperator):
                 response = self.hook.conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
 
                 if "Successful" not in response:
-                    raise AirflowException(
-                        "Delete SQS Messages failed " + str(response) + " for messages " + str(messages)
-                    )
+                    raise AirflowException(f"Delete SQS Messages failed {response} for messages {messages}")
         if not len(message_batch):
             return False
 

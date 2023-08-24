@@ -96,7 +96,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:
             log = (
                 f"*** Unable to read remote logs from Cloudwatch (log_group: {self.log_group}, log_stream: "
-                f"{stream_name})\n*** {str(e)}\n\n"
+                f"{stream_name})\n*** {e}\n\n"
             )
             self.log.error(log)
             local_log, metadata = super()._read(task_instance, try_number, metadata)

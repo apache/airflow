@@ -66,7 +66,7 @@ class FileSensor(BaseSensorOperator):
         for path in glob(full_path, recursive=self.recursive):
             if os.path.isfile(path):
                 mod_time = datetime.datetime.fromtimestamp(os.path.getmtime(path)).strftime("%Y%m%d%H%M%S")
-                self.log.info("Found File %s last modified: %s", str(path), mod_time)
+                self.log.info("Found File %s last modified: %s", path, mod_time)
                 return True
 
             for _, _, files in os.walk(path):

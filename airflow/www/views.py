@@ -1696,7 +1696,7 @@ class Airflow(AirflowBaseView):
                 headers={"Content-Disposition": f"attachment; filename={attachment_filename}"},
             )
         except AttributeError as e:
-            error_messages = [f"Task log handler does not support read logs.\n{str(e)}\n"]
+            error_messages = [f"Task log handler does not support read logs.\n{e}\n"]
             metadata["end_of_log"] = True
             return {"message": error_messages, "error": True, "metadata": metadata}
 

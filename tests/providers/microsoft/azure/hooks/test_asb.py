@@ -30,7 +30,7 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
 
 MESSAGE = "Test Message"
-MESSAGE_LIST = [MESSAGE + " " + str(n) for n in range(0, 10)]
+MESSAGE_LIST = [f"{MESSAGE} {n}" for n in range(0, 10)]
 
 
 class TestAdminClientHook:

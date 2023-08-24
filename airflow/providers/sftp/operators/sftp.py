@@ -188,7 +188,7 @@ class SFTPOperator(BaseOperator):
                     self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
+            raise AirflowException(f"Error while transferring {file_msg}, error: {e}")
 
         return self.local_filepath
 

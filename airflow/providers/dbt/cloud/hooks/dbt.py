@@ -254,7 +254,7 @@ class DbtCloudHook(HttpHook):
             Valid values are "trigger", "job", "repository", and "environment".
         """
         try:
-            self.log.info("Getting the status of job run %s.", str(run_id))
+            self.log.info("Getting the status of job run %s.", run_id)
             response = await self.get_job_details(
                 run_id, account_id=account_id, include_related=include_related
             )
@@ -490,14 +490,12 @@ class DbtCloudHook(HttpHook):
         :param account_id: Optional. The ID of a dbt Cloud account.
         :return: The status of a dbt Cloud job run.
         """
-        self.log.info("Getting the status of job run %s.", str(run_id))
+        self.log.info("Getting the status of job run %s.", run_id)
 
         job_run = self.get_job_run(account_id=account_id, run_id=run_id)
         job_run_status = job_run.json()["data"]["status"]
 
-        self.log.info(
-            "Current status of job run %s: %s", str(run_id), DbtCloudJobRunStatus(job_run_status).name
-        )
+        self.log.info("Current status of job run %s: %s", run_id, DbtCloudJobRunStatus(job_run_status).name)
 
         return job_run_status
 

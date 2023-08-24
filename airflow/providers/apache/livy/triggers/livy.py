@@ -101,7 +101,7 @@ class LivyTrigger(BaseTrigger):
                 {
                     "status": "error",
                     "batch_id": self._batch_id,
-                    "response": f"Batch {self._batch_id} did not succeed with {str(exc)}",
+                    "response": f"Batch {self._batch_id} did not succeed with {exc}",
                     "log_lines": None,
                 }
             )
