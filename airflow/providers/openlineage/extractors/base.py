@@ -17,11 +17,13 @@
 
 from __future__ import annotations
 
+import os
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from attrs import Factory, define
 
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -47,6 +49,13 @@ class BaseExtractor(ABC, LoggingMixin):
     """
 
     _allowed_query_params: list[str] = []
+    _openlineage_disabled_for_operators = os.getenv(
+        "OPENLINEAGE_DISABLED_FOR_OPERATORS",
+        conf.get("openlineage", "openlineage_disabled_for_operators", fallback=""),
+    )
+    openlineage_disabled_for_operators = set(
+        operator.strip() for operator in _openlineage_disabled_for_operators.split(",")
+    )
 
     def __init__(self, operator):  # type: ignore
         super().__init__()
@@ -66,8 +75,17 @@ class BaseExtractor(ABC, LoggingMixin):
         assert self.operator.task_type in self.get_operator_classnames()
 
     @abstractmethod
+    def _execute_extraction(self) -> OperatorLineage | None:
+        ...
+
     def extract(self) -> OperatorLineage | None:
-        pass
+        if self.operator.task_type in self.openlineage_disabled_for_operators:
+            self.log.warning(
+                f"Skipping extraction for operator {self.operator.task_type} "
+                "due to its presence in [openlineage] openlineage_disabled_for_operators."
+            )
+            return None
+        return self._execute_extraction()
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
         return self.extract()
@@ -85,7 +103,7 @@ class DefaultExtractor(BaseExtractor):
         """
         return []
 
-    def extract(self) -> OperatorLineage | None:
+    def _execute_extraction(self) -> OperatorLineage | None:
         # OpenLineage methods are optional - if there's no method, return None
         try:
             return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
@@ -96,6 +114,10 @@ class DefaultExtractor(BaseExtractor):
             )
             return None
         except AttributeError:
+            self.log.warning(
+                f"Operator {self.operator.task_type} does not have the "
+                "get_openlineage_facets_on_start method."
+            )
             return None
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
