@@ -319,7 +319,7 @@ if __name__ == "__main__":
     shutil.rmtree(OUT_DIR, ignore_errors=True)
 
     subprocess.run(
-        ["stubgen", *[os.fspath(path) for path in COMMON_SQL_ROOT.rglob("**/*.py")]],
+        ["stubgen", *[os.fspath(path) for path in COMMON_SQL_ROOT.rglob("*.py")]],
         cwd=AIRFLOW_SOURCES_ROOT_PATH,
     )
     total_removals, total_additions = 0, 0
@@ -327,9 +327,9 @@ if __name__ == "__main__":
     if _force_override:
         console.print("\n[yellow]The committed stub APIs are force-updated\n")
     # reformat the generated stubs first
-    for stub_path in OUT_DIR.rglob("**/*.pyi"):
+    for stub_path in OUT_DIR.rglob("*.pyi"):
         write_pyi_file(stub_path, stub_path.read_text(encoding="utf-8"))
-    for stub_path in OUT_DIR.rglob("**/*.pyi"):
+    for stub_path in OUT_DIR.rglob("*.pyi"):
         _new_removals, _new_additions = compare_stub_files(stub_path, force_override=_force_override)
         total_removals += _new_removals
         total_additions += _new_additions
