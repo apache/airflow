@@ -132,15 +132,11 @@ class TestStandardTaskRunner:
 
         assert task_runner.return_code() is not None
 
-    def test_notifies_about_start_and_stop(self):
-        path_listener_writer = "/tmp/test_notifies_about_start_and_stop"
-        try:
-            os.unlink(path_listener_writer)
-        except OSError:
-            pass
+    def test_notifies_about_start_and_stop(self, tmp_path):
+        path_listener_writer = tmp_path / "test_notifies_about_start_and_stop"
 
         lm = get_listener_manager()
-        lm.add_listener(FileWriteListener(path_listener_writer))
+        lm.add_listener(FileWriteListener(os.fspath(path_listener_writer)))
 
         dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
@@ -170,21 +166,17 @@ class TestStandardTaskRunner:
 
             # Wait till process finishes
         assert task_runner.return_code(timeout=10) is not None
-        with open(path_listener_writer) as f:
+        with path_listener_writer.open() as f:
             assert f.readline() == "on_starting\n"
             assert f.readline() == "on_task_instance_running\n"
             assert f.readline() == "on_task_instance_success\n"
             assert f.readline() == "before_stopping\n"
 
-    def test_notifies_about_fail(self):
-        path_listener_writer = "/tmp/test_notifies_about_fail"
-        try:
-            os.unlink(path_listener_writer)
-        except OSError:
-            pass
+    def test_notifies_about_fail(self, tmp_path):
+        path_listener_writer = tmp_path / "test_notifies_about_fail"
 
         lm = get_listener_manager()
-        lm.add_listener(FileWriteListener(path_listener_writer))
+        lm.add_listener(FileWriteListener(os.fspath(path_listener_writer)))
 
         dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
@@ -214,24 +206,20 @@ class TestStandardTaskRunner:
 
             # Wait till process finishes
         assert task_runner.return_code(timeout=10) is not None
-        with open(path_listener_writer) as f:
+        with path_listener_writer.open() as f:
             assert f.readline() == "on_starting\n"
             assert f.readline() == "on_task_instance_running\n"
             assert f.readline() == "on_task_instance_failed\n"
             assert f.readline() == "before_stopping\n"
 
-    def test_ol_does_not_block_xcoms(self):
+    def test_ol_does_not_block_xcoms(self, tmp_path):
         """
         Test that ensures that pushing and pulling xcoms both in listener and task does not collide
         """
 
-        path_listener_writer = "/tmp/test_ol_does_not_block_xcoms"
-        try:
-            os.unlink(path_listener_writer)
-        except OSError:
-            pass
+        path_listener_writer = tmp_path / "test_ol_does_not_block_xcoms"
 
-        listener = xcom_listener.XComListener(path_listener_writer, "push_and_pull")
+        listener = xcom_listener.XComListener(os.fspath(path_listener_writer), "push_and_pull")
         get_listener_manager().add_listener(listener)
 
         dagbag = DagBag(
@@ -264,7 +252,7 @@ class TestStandardTaskRunner:
         # Wait till process finishes
         assert task_runner.return_code(timeout=10) is not None
 
-        with open(path_listener_writer) as f:
+        with path_listener_writer.open() as f:
             assert f.readline() == "on_task_instance_running\n"
             assert f.readline() == "on_task_instance_success\n"
             assert f.readline() == "listener\n"
@@ -354,16 +342,10 @@ class TestStandardTaskRunner:
         Test that ensures that clearing in the UI SIGTERMS
         the task
         """
-        path_on_kill_running = "/tmp/airflow_on_kill_running"
-        path_on_kill_killed = "/tmp/airflow_on_kill_killed"
-        try:
-            os.unlink(path_on_kill_running)
-        except OSError:
-            pass
-        try:
-            os.unlink(path_on_kill_killed)
-        except OSError:
-            pass
+        path_on_kill_running = Path("/tmp/airflow_on_kill_running")
+        path_on_kill_killed = Path("/tmp/airflow_on_kill_killed")
+        path_on_kill_running.unlink(missing_ok=True)
+        path_on_kill_killed.unlink(missing_ok=True)
 
         dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
@@ -394,9 +376,7 @@ class TestStandardTaskRunner:
 
         logging.info("Waiting for the task to start")
         with timeout(seconds=20):
-            while True:
-                if os.path.exists(path_on_kill_running):
-                    break
+            while not path_on_kill_running.exists():
                 time.sleep(0.01)
         logging.info("Task started. Give the task some time to settle")
         time.sleep(3)
@@ -405,13 +385,11 @@ class TestStandardTaskRunner:
 
         logging.info("Waiting for the on kill killed file to appear")
         with timeout(seconds=4):
-            while True:
-                if os.path.exists(path_on_kill_killed):
-                    break
+            while not path_on_kill_killed.exists():
                 time.sleep(0.01)
         logging.info("The file appeared")
 
-        with open(path_on_kill_killed) as f:
+        with path_on_kill_killed.open() as f:
             assert "ON_KILL_TEST" == f.readline()
 
         for process in processes:
@@ -419,10 +397,7 @@ class TestStandardTaskRunner:
 
     def test_parsing_context(self):
         context_file = Path("/tmp/airflow_parsing_context")
-        try:
-            context_file.unlink()
-        except FileNotFoundError:
-            pass
+        context_file.unlink(missing_ok=True)
         dagbag = DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,

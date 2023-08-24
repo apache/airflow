@@ -410,10 +410,7 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
         )
     else:
         WWW_ASSET_COMPILE_LOCK.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            WWW_ASSET_COMPILE_LOCK.unlink()
-        except FileNotFoundError:
-            pass
+        WWW_ASSET_COMPILE_LOCK.unlink(missing_ok=True)
         try:
             with SoftFileLock(WWW_ASSET_COMPILE_LOCK, timeout=5):
                 with open(WWW_ASSET_OUT_FILE, "w") as output_file:
@@ -427,10 +424,7 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
                         stdout=output_file,
                     )
                 if result.returncode == 0:
-                    try:
-                        WWW_ASSET_OUT_FILE.unlink()
-                    except FileNotFoundError:
-                        pass
+                    WWW_ASSET_OUT_FILE.unlink(missing_ok=True)
                 return result
         except Timeout:
             get_console().print("[error]Another asset compilation is running. Exiting[/]\n")

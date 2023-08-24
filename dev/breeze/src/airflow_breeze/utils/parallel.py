@@ -449,10 +449,7 @@ def check_async_run_results(
     finally:
         if not skip_cleanup:
             for output in outputs:
-                try:
-                    os.unlink(output.file_name)
-                except FileNotFoundError:
-                    pass
+                Path(output.file_name).unlink(missing_ok=True)
 
 
 @contextmanager
