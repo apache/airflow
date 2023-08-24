@@ -462,7 +462,7 @@ class TestXComGet:
             task_ids="task_1",
             include_prior_dates=True,
             session=session,
-        )
+        ).all()
 
         # The retrieved XComs should be ordered by logical date, latest first.
         assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]
@@ -482,7 +482,7 @@ class TestXComGet:
                 task_ids="task_1",
                 include_prior_dates=True,
                 session=session,
-            )
+            ).all()
 
         # The retrieved XComs should be ordered by logical date, latest first.
         assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]

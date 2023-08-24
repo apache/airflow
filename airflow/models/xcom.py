@@ -40,8 +40,10 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     delete,
+    select,
     text,
 )
+from sqlalchemy.engine.result import ScalarResult
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
@@ -208,15 +210,15 @@ class BaseXCom(Base, LoggingMixin):
             message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
             try:
-                dag_run_id, run_id = (
-                    session.query(DagRun.id, DagRun.run_id)
-                    .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
-                    .one()
-                )
+                dag_run_id, run_id = session.execute(
+                    select(DagRun.id, DagRun.run_id).where(
+                        DagRun.dag_id == dag_id, DagRun.execution_date == execution_date
+                    )
+                ).one()
             except NoResultFound:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} at {execution_date}") from None
         else:
-            dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+            dag_run_id = session.scalar(select(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id))
             if dag_run_id is None:
                 raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
@@ -415,7 +417,7 @@ class BaseXCom(Base, LoggingMixin):
         else:
             raise RuntimeError("Should not happen?")
 
-        result = query.with_entities(BaseXCom.value).first()
+        result = session.execute(select(BaseXCom.value).select_from(query)).one_or_none()
         if result:
             return BaseXCom.deserialize_value(result)
         return None
@@ -490,7 +492,7 @@ class BaseXCom(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         run_id: str | None = None,
-    ) -> Query:
+    ) -> ScalarResult:
         """Composes a query to get one or more XCom entries.
 
         :sphinx-autoapi-skip:
@@ -506,45 +508,45 @@ class BaseXCom(Base, LoggingMixin):
             message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
 
-        query = session.query(BaseXCom).join(BaseXCom.dag_run)
+        query = select(BaseXCom).join(BaseXCom.dag_run)
 
         if key:
-            query = query.filter(BaseXCom.key == key)
+            query = query.where(BaseXCom.key == key)
 
         if is_container(task_ids):
-            query = query.filter(BaseXCom.task_id.in_(task_ids))
+            query = query.where(BaseXCom.task_id.in_(task_ids))
         elif task_ids is not None:
-            query = query.filter(BaseXCom.task_id == task_ids)
+            query = query.where(BaseXCom.task_id == task_ids)
 
         if is_container(dag_ids):
-            query = query.filter(BaseXCom.dag_id.in_(dag_ids))
+            query = query.where(BaseXCom.dag_id.in_(dag_ids))
         elif dag_ids is not None:
-            query = query.filter(BaseXCom.dag_id == dag_ids)
+            query = query.where(BaseXCom.dag_id == dag_ids)
 
         if isinstance(map_indexes, range) and map_indexes.step == 1:
-            query = query.filter(
+            query = query.where(
                 BaseXCom.map_index >= map_indexes.start, BaseXCom.map_index < map_indexes.stop
             )
         elif is_container(map_indexes):
-            query = query.filter(BaseXCom.map_index.in_(map_indexes))
+            query = query.where(BaseXCom.map_index.in_(map_indexes))
         elif map_indexes is not None:
-            query = query.filter(BaseXCom.map_index == map_indexes)
+            query = query.where(BaseXCom.map_index == map_indexes)
 
         if include_prior_dates:
             if execution_date is not None:
-                query = query.filter(DagRun.execution_date <= execution_date)
+                query = query.where(DagRun.execution_date <= execution_date)
             else:
-                dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
-                query = query.filter(BaseXCom.execution_date <= dr.c.execution_date)
+                dr = select(DagRun.execution_date).where(DagRun.run_id == run_id).subquery()
+                query = query.where(BaseXCom.execution_date <= dr.c.execution_date)
         elif execution_date is not None:
-            query = query.filter(DagRun.execution_date == execution_date)
+            query = query.where(DagRun.execution_date == execution_date)
         else:
-            query = query.filter(BaseXCom.run_id == run_id)
+            query = query.where(BaseXCom.run_id == run_id)
 
         query = query.order_by(DagRun.execution_date.desc(), BaseXCom.timestamp.desc())
         if limit:
             return query.limit(limit)
-        return query
+        return session.scalars(query)
 
     @classmethod
     @provide_session
@@ -631,16 +633,26 @@ class BaseXCom(Base, LoggingMixin):
         if execution_date is not None:
             message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
             warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
-            run_id = (
-                session.query(DagRun.run_id)
-                .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
-                .scalar()
+            run_id = session.scalar(
+                select(DagRun.run_id).where(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
             )
-
-        query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
         if map_index is not None:
-            query = query.filter_by(map_index=map_index)
-        query.delete()
+            session.execute(
+                delete(BaseXCom).where(
+                    BaseXCom.dag_id == dag_id,
+                    BaseXCom.task_id == task_id,
+                    BaseXCom.run_id == run_id,
+                    BaseXCom.map_index == map_index,
+                )
+            )
+        else:
+            session.execute(
+                delete(BaseXCom).where(
+                    BaseXCom.dag_id == dag_id,
+                    BaseXCom.task_id == task_id,
+                    BaseXCom.run_id == run_id,
+                )
+            )
 
     @staticmethod
     def serialize_value(
