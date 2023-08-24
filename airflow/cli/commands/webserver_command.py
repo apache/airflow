@@ -138,14 +138,14 @@ class GunicornMonitor(LoggingMixin):
         def ready_prefix_on_cmdline(proc):
             try:
                 cmdline = proc.cmdline()
-                if len(cmdline) > 0:
+                if cmdline:
                     return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
             except psutil.NoSuchProcess:
                 pass
             return False
 
-        ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
-        return len(ready_workers)
+        nb_ready_workers = sum(1 for proc in workers if ready_prefix_on_cmdline(proc))
+        return nb_ready_workers
 
     def _get_num_workers_running(self) -> int:
         """Return number of running Gunicorn workers processes."""

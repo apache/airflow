@@ -1694,7 +1694,7 @@ class Airflow(AirflowBaseView):
                 headers={"Content-Disposition": f"attachment; filename={attachment_filename}"},
             )
         except AttributeError as e:
-            error_messages = [f"Task log handler does not support read logs.\n{str(e)}\n"]
+            error_messages = [f"Task log handler does not support read logs.\n{e}\n"]
             metadata["end_of_log"] = True
             return {"message": error_messages, "error": True, "metadata": metadata}
 
@@ -3236,10 +3236,12 @@ class Airflow(AirflowBaseView):
             if failed_task_instance.duration:
                 fails_totals[dict_key] += failed_task_instance.duration
 
-        # we must group any mapped TIs by dag_id, task_id, run_id
+        # We must group any mapped TIs by dag_id, task_id, run_id
+        def grouping_key(ti: TaskInstance):
+            return ti.dag_id, ti.task_id, ti.run_id
+
         mapped_tis = set()
-        tis_grouped = itertools.groupby(task_instances, lambda x: (x.dag_id, x.task_id, x.run_id))
-        for _, group in tis_grouped:
+        for _, group in itertools.groupby(sorted(task_instances, key=grouping_key), key=grouping_key):
             tis = list(group)
             duration = sum(x.duration for x in tis if x.duration)
             if duration:
@@ -3857,7 +3859,7 @@ class Airflow(AirflowBaseView):
 
         for dag, dependencies in SerializedDagModel.get_dag_dependencies().items():
             dag_node_id = f"dag:{dag}"
-            if dag_node_id not in nodes_dict and len(dependencies) > 0:
+            if dag_node_id not in nodes_dict:
                 for dep in dependencies:
                     if dep.dependency_type == "dag" or dep.dependency_type == "dataset":
                         nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")

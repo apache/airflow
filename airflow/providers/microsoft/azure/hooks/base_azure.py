@@ -24,6 +24,7 @@ from azure.common.credentials import ServicePrincipalCredentials
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter
 
 
 class AzureBaseHook(BaseHook):
@@ -124,10 +125,17 @@ class AzureBaseHook(BaseHook):
             self.log.info("Getting connection using a JSON config.")
             return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
 
-        self.log.info("Getting connection using specific credentials and subscription_id.")
-        return self.sdk_client(
-            credentials=ServicePrincipalCredentials(
+        credentials: ServicePrincipalCredentials | AzureIdentityCredentialAdapter
+        if all([conn.login, conn.password, tenant]):
+            self.log.info("Getting connection using specific credentials and subscription_id.")
+            credentials = ServicePrincipalCredentials(
                 client_id=conn.login, secret=conn.password, tenant=tenant
-            ),
+            )
+        else:
+            self.log.info("Using DefaultAzureCredential as credential")
+            credentials = AzureIdentityCredentialAdapter()
+
+        return self.sdk_client(
+            credentials=credentials,
             subscription_id=subscription_id,
         )

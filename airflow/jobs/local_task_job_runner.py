@@ -43,7 +43,7 @@ SIGSEGV (Segmentation Violation) signal indicates Segmentation Fault error which
 an attempt by a program/library to write or read outside its allocated memory.
 
 In Python environment usually this signal refers to libraries which use low level C API.
-Make sure that you use use right libraries/Docker Images
+Make sure that you use right libraries/Docker Images
 for your architecture (Intel/ARM) and/or Operational System (Linux/macOS).
 
 Suggested way to debug
@@ -285,7 +285,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
                 else:
                     dagrun_timeout = None
                 if dagrun_timeout and execution_time > dagrun_timeout:
-                    self.log.warning("DagRun timed out after %s.", str(execution_time))
+                    self.log.warning("DagRun timed out after %s.", execution_time)
 
             # potential race condition, the _run_raw_task commits `success` or other state
             # but task_runner does not exit right away due to slow process shutdown or any other reasons

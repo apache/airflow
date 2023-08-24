@@ -218,7 +218,7 @@ index = 0
                 ]
             ],
             [[3, 4], [13, 14]],
-            id="The return_last set set on multiple queries in list",
+            id="The return_last set on multiple queries in list",
         ),
         pytest.param(
             False,

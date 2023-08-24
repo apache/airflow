@@ -145,7 +145,7 @@ def make_report() -> list[Query]:
     for query in raw_queries:
         time, info, stack, sql = query.replace("@SQLALCHEMY ", "").split("|$")
         func, file, loc = info.split(":")
-        file_name = file.rpartition("/")[-1] if "/" in file else file
+        file_name = file.rpartition("/")[-1]
         queries.append(
             Query(
                 function=func.strip(),

@@ -149,9 +149,7 @@ class SqsSensorTrigger(BaseTrigger):
                 response = await client.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
 
                 if "Successful" not in response:
-                    raise AirflowException(
-                        f"Delete SQS Messages failed {str(response)} for messages {str(messages)}"
-                    )
+                    raise AirflowException(f"Delete SQS Messages failed {response} for messages {messages}")
 
         return message_batch
 

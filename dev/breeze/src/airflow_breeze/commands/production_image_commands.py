@@ -435,26 +435,22 @@ def check_docker_context_files(install_packages_from_context: bool):
 
     :param install_packages_from_context: whether we want to install from docker-context-files
     """
-    context_file = DOCKER_CONTEXT_DIR.glob("**/*")
-    number_of_context_files = len(
-        [context for context in context_file if context.is_file() and context.name != ".README.md"]
-    )
-    if number_of_context_files == 0:
-        if install_packages_from_context:
-            get_console().print("[warning]\nERROR! You want to install packages from docker-context-files")
-            get_console().print("[warning]\n but there are no packages to install in this folder.")
-            sys.exit(1)
-    else:
-        if not install_packages_from_context:
-            get_console().print(
-                "[warning]\n ERROR! There are some extra files in docker-context-files except README.md"
-            )
-            get_console().print("[warning]\nAnd you did not choose --install-packages-from-context flag")
-            get_console().print(
-                "[warning]\nThis might result in unnecessary cache invalidation and long build times"
-            )
-            get_console().print("[warning]Please restart the command with --cleanup-context switch\n")
-            sys.exit(1)
+    context_file = DOCKER_CONTEXT_DIR.rglob("*")
+    any_context_files = any(context.is_file() and context.name != ".README.md" for context in context_file)
+    if not any_context_files and install_packages_from_context:
+        get_console().print("[warning]\nERROR! You want to install packages from docker-context-files")
+        get_console().print("[warning]\n but there are no packages to install in this folder.")
+        sys.exit(1)
+    elif any_context_files and not install_packages_from_context:
+        get_console().print(
+            "[warning]\n ERROR! There are some extra files in docker-context-files except README.md"
+        )
+        get_console().print("[warning]\nAnd you did not choose --install-packages-from-context flag")
+        get_console().print(
+            "[warning]\nThis might result in unnecessary cache invalidation and long build times"
+        )
+        get_console().print("[warning]Please restart the command with --cleanup-context switch\n")
+        sys.exit(1)
 
 
 def run_build_production_image(

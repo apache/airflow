@@ -182,7 +182,7 @@ class StandaloneCommand:
         # server. Thus, we make a random password and store it in AIRFLOW_HOME,
         # with the reasoning that if you can read that directory, you can see
         # the database credentials anyway.
-        from airflow.utils.cli_app_builder import get_application_builder
+        from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
 
         with get_application_builder() as appbuilder:
             user_exists = appbuilder.sm.find_user("admin")
