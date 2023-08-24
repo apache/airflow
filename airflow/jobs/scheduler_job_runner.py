@@ -899,7 +899,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 if callback_to_run:
                     self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
-            self.log.exception("Failed to update dag run state for paused dags due to %s", str(e))
+            self.log.exception("Failed to update dag run state for paused dags due to %s", e)
 
     def _run_scheduler_loop(self) -> None:
         """
@@ -1752,7 +1752,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         Find all dags that were not updated by Dag Processor recently and mark them as inactive.
 
         In case one of DagProcessors is stopped (in case there are multiple of them
-        for different dag folders), it's dags are never marked as inactive.
+        for different dag folders), its dags are never marked as inactive.
         Also remove dags from SerializedDag table.
         Executed on schedule only if [scheduler]standalone_dag_processor is True.
         """

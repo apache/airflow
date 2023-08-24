@@ -709,7 +709,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
     :param messages_callback: (Optional) Callback to process received messages.
-        It's return value will be saved to XCom.
+        Its return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
         If not provided, the default implementation will convert `ReceivedMessage` objects
         into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.

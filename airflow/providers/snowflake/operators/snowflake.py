@@ -213,6 +213,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
         if any([warehouse, database, role, schema, authenticator, session_parameters]):
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {
@@ -282,6 +283,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
         if any([warehouse, database, role, schema, authenticator, session_parameters]):
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {
@@ -362,6 +364,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
         if any([warehouse, database, role, schema, authenticator, session_parameters]):
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {

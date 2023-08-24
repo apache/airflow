@@ -302,7 +302,7 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
         :param queries: queries
         """
         if queries and queries[-1] == "":
-            del queries[-1]
+            queries.pop()
 
 
 class SpannerDeployDatabaseInstanceOperator(GoogleCloudBaseOperator):

@@ -615,6 +615,88 @@ class TestKubernetesPodOperator:
         assert pod.spec.containers[0].termination_message_policy == "File"
 
     @pytest.mark.parametrize(
+        "task_kwargs, base_container_fail, expect_to_delete_pod",
+        [
+            ({"on_finish_action": "delete_pod"}, True, True),
+            ({"on_finish_action": "delete_pod"}, False, True),
+            ({"on_finish_action": "keep_pod"}, False, False),
+            ({"on_finish_action": "keep_pod"}, True, False),
+            ({"on_finish_action": "delete_succeeded_pod"}, False, True),
+            ({"on_finish_action": "delete_succeeded_pod"}, True, False),
+        ],
+    )
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.kill_istio_sidecar")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.is_istio_enabled")
+    @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_pod_with_istio_delete_after_await_container_error(
+        self,
+        find_pod_mock,
+        await_pod_completion_mock,
+        is_istio_enabled_mock,
+        kill_istio_sidecar_mock,
+        task_kwargs,
+        base_container_fail,
+        expect_to_delete_pod,
+    ):
+        """
+        When KPO fails unexpectedly during await_container, we should still try to delete the pod,
+        and the pod we try to delete should be the one returned from find_pod earlier.
+        """
+        sidecar = MagicMock()
+        sidecar.name = "istio-proxy"
+        sidecar.namespace = "default"
+        sidecar.image = "istio/proxyv2:1.18.2"
+        sidecar.args = []
+        sidecar.state.running = True
+
+        cont_status_1 = MagicMock()
+        cont_status_1.name = "base"
+        cont_status_1.state.running = False
+        cont_status_1.state.terminated.exit_code = 0
+        if base_container_fail:
+            cont_status_1.state.terminated.exit_code = 1
+            cont_status_1.state.terminated.message = "my-failure"
+
+        cont_status_2 = MagicMock()
+        cont_status_2.name = "istio-proxy"
+        cont_status_2.state.running = True
+        cont_status_2.state.terminated = False
+
+        await_pod_completion_mock.return_value.spec.containers = [sidecar]
+        await_pod_completion_mock.return_value.status.phase = "Running"
+        await_pod_completion_mock.return_value.status.container_statuses = [cont_status_1, cont_status_2]
+        await_pod_completion_mock.return_value.metadata.name = "pod-with-istio-sidecar"
+        await_pod_completion_mock.return_value.metadata.namespace = "default"
+
+        find_pod_mock.return_value.spec.containers = [sidecar]
+        find_pod_mock.return_value.status.phase = "Running"
+        find_pod_mock.return_value.status.container_statuses = [cont_status_1, cont_status_2]
+        find_pod_mock.return_value.metadata.name = "pod-with-istio-sidecar"
+        find_pod_mock.return_value.metadata.namespace = "default"
+
+        k = KubernetesPodOperator(task_id="task", **task_kwargs)
+
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+        if base_container_fail:
+            self.await_pod_mock.side_effect = AirflowException("fake failure")
+            with pytest.raises(AirflowException, match="my-failure"):
+                k.execute(context=context)
+        else:
+            k.execute(context=context)
+
+        assert is_istio_enabled_mock(find_pod_mock.return_value)
+        if task_kwargs["on_finish_action"] == "delete_pod":
+            kill_istio_sidecar_mock.assert_called_with(await_pod_completion_mock.return_value)
+        elif expect_to_delete_pod and base_container_fail:
+            kill_istio_sidecar_mock.assert_called_with(find_pod_mock.return_value)
+        elif expect_to_delete_pod and not base_container_fail:
+            kill_istio_sidecar_mock.assert_called_with(await_pod_completion_mock.return_value)
+        else:
+            kill_istio_sidecar_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
         "task_kwargs, should_be_deleted",
         [
             ({}, True),  # default values

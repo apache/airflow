@@ -183,7 +183,7 @@ class AzureSynapseHook(BaseHook):
                 )
 
             # Wait to check the status of the job run based on the ``check_interval`` configured.
-            self.log.info("Sleeping for %s seconds", str(check_interval))
+            self.log.info("Sleeping for %s seconds", check_interval)
             time.sleep(check_interval)
 
             job_run_status = self.get_job_run_status()

@@ -353,8 +353,7 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
     install_requires = [
         apply_version_suffix(clause) for clause in ALL_DEPENDENCIES[provider_package_id][DEPS]
     ]
-    prefix = "\n    "
-    return prefix + prefix.join(install_requires)
+    return "".join(f"\n    {ir}" for ir in install_requires)
 
 
 def get_setup_requirements() -> str:

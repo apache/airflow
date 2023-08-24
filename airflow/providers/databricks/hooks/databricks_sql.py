@@ -91,10 +91,12 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         result = self._do_api_call(LIST_SQL_ENDPOINTS_ENDPOINT)
         if "endpoints" not in result:
             raise AirflowException("Can't list Databricks SQL endpoints")
-        lst = [endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name]
-        if not lst:
-            raise AirflowException(f"Can't f Databricks SQL endpoint with name '{endpoint_name}'")
-        return lst[0]
+        try:
+            endpoint = next(endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name)
+        except StopIteration:
+            raise AirflowException(f"Can't find Databricks SQL endpoint with name '{endpoint_name}'")
+        else:
+            return endpoint
 
     def get_conn(self) -> Connection:
         """Returns a Databricks SQL connection object."""
