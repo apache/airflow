@@ -506,7 +506,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             self.awslogs_region = self.region
 
         self.arn: str | None = None
-        self.started_by: str | None = None
+        self._started_by: str | None = None
 
         self.retry_args = quota_retry
         self.task_log_fetcher: AwsTaskLogFetcher | None = None
@@ -535,9 +535,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if self.reattach:
             # Generate deterministic UUID which refers to unique TaskInstanceKey
             ti: TaskInstance = context["ti"]
-            self.started_by = generate_uuid(*map(str, ti.key.primary))
-            self.log.info("Try to find run with startedBy=%r", self.started_by)
-            self._try_reattach_task()
+            self._started_by = generate_uuid(*map(str, ti.key.primary))
+            self.log.info("Try to find run with startedBy=%r", self._started_by)
+            self._try_reattach_task(started_by=self._started_by)
 
         if not self.arn:
             # start the task except if we reattached to an existing one just before.
@@ -610,7 +610,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             "cluster": self.cluster,
             "taskDefinition": self.task_definition,
             "overrides": self.overrides,
-            "startedBy": self.started_by or self.owner,
+            "startedBy": self._started_by or self.owner,
         }
 
         if self.capacity_provider_strategy:
@@ -642,9 +642,11 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.arn = response["tasks"][0]["taskArn"]
         self.log.info("ECS task ID is: %s", self._get_ecs_task_id(self.arn))
 
-    def _try_reattach_task(self):
+    def _try_reattach_task(self, started_by: str):
+        if not started_by:
+            raise AirflowException("`started_by` should not be empty or None")
         list_tasks_resp = self.client.list_tasks(
-            cluster=self.cluster, desiredStatus="RUNNING", startedBy=self.started_by
+            cluster=self.cluster, desiredStatus="RUNNING", startedBy=started_by
         )
         running_tasks = list_tasks_resp["taskArns"]
         if running_tasks:
