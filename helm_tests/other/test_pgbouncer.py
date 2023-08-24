@@ -540,6 +540,24 @@ class TestPgbouncerConfig:
 
         assert jmespath.search("spec.template.spec.containers[0].env", docs) == [env1]
 
+    def test_should_add_extra_containers(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "extraContainers": [
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
 
 class TestPgbouncerExporter:
     """Tests PgBouncer exporter."""
