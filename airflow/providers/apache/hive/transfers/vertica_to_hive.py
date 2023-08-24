@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import csv
-from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -121,7 +120,7 @@ class VerticaToHiveOperator(BaseOperator):
         cursor.execute(self.sql)
         with NamedTemporaryFile(mode="w", encoding="utf-8") as f:
             csv_writer = csv.writer(f, delimiter=self.delimiter)
-            field_dict = OrderedDict()
+            field_dict = {}
             for col_count, field in enumerate(cursor.description, start=1):
                 col_position = f"Column{col_count}"
                 field_dict[col_position if field[0] == "" else field[0]] = self.type_map(field[1])

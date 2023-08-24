@@ -1238,7 +1238,7 @@ class DagRun(Base, LoggingMixin):
                 TI.run_id == self.run_id,
             )
         )
-        existing_indexes = {i for i in query}
+        existing_indexes = set(query)
 
         removed_indexes = existing_indexes.difference(range(total_length))
         if removed_indexes:
@@ -1320,7 +1320,7 @@ class DagRun(Base, LoggingMixin):
         """
         Set the given task instances in to the scheduled state.
 
-        Each element of ``schedulable_tis`` should have it's ``task`` attribute already set.
+        Each element of ``schedulable_tis`` should have its ``task`` attribute already set.
 
         Any EmptyOperator without callbacks or outlets is instead set straight to the success state.
 

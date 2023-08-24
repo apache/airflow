@@ -26,7 +26,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 @providers_configuration_loaded
 def sync_perm(args):
     """Update permissions for existing roles and DAGs."""
-    from airflow.utils.cli_app_builder import get_application_builder
+    from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
 
     with get_application_builder() as appbuilder:
         print("Updating actions and resources for all existing roles")
