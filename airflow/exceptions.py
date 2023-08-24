@@ -362,13 +362,21 @@ class TaskDeferred(BaseException):
         trigger,
         method_name: str,
         kwargs: dict[str, Any] | None = None,
-        timeout: datetime.datetime | None = None,
+        timeout: datetime.datetime | datetime.timedelta | None = None,
         timeout_reason: str | None = None,
     ):
         super().__init__()
         self.trigger = trigger
         self.method_name = method_name
         self.kwargs = kwargs
+        # Check timeout type at runtime
+        if (
+            timeout is not None
+            and not isinstance(timeout, datetime.datetime)
+            and not hasattr(timeout, "total_seconds")
+        ):
+            raise ValueError("Timeout value must be a timedelta or datetime")
+
         self.timeout = timeout
         self.timeout_reason = timeout_reason
 
