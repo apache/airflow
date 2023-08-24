@@ -21,7 +21,7 @@ import argparse
 import logging
 import sys
 import warnings
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
@@ -121,7 +121,7 @@ class BaseExecutor(LoggingMixin):
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
-        self.queued_tasks: OrderedDict[TaskInstanceKey, QueuedTaskInstanceType] = OrderedDict()
+        self.queued_tasks: dict[TaskInstanceKey, QueuedTaskInstanceType] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
@@ -308,7 +308,7 @@ class BaseExecutor(LoggingMixin):
         try:
             self.running.remove(key)
         except KeyError:
-            self.log.debug("Could not find key: %s", str(key))
+            self.log.debug("Could not find key: %s", key)
         self.event_buffer[key] = state, info
 
     def fail(self, key: TaskInstanceKey, info=None) -> None:
@@ -488,6 +488,7 @@ class BaseExecutor(LoggingMixin):
 
         Override this method to expose commands via Airflow CLI to manage this executor. This can
         be commands to setup/teardown the executor, inspect state, etc.
+        Make sure to choose unique names for those commands, to avoid collisions.
         """
         return []
 

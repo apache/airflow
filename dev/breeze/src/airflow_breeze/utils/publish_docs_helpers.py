@@ -138,7 +138,7 @@ def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int 
     with open(file_path) as text_file:
         # Highlight code
         code = text_file.read()
-        code_lines = code.split("\n")
+        code_lines = code.splitlines()
         # Prepend line number
         code_lines = [
             f">{lno:3} | {line}" if line_no == lno else f"{lno:4} | {line}"

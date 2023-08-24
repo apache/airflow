@@ -38,7 +38,7 @@ class SetContextPropagate(enum.Enum):
     :meta private:
     """
 
-    # If a `set_context` function wants to _keep_ propagation set on it's logger it needs to return this
+    # If a `set_context` function wants to _keep_ propagation set on its logger it needs to return this
     # special value.
     MAINTAIN_PROPAGATE = object()
     # Don't use this one anymore!
@@ -165,7 +165,7 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
     def flush(self):
         """Ensure all logging output has been flushed."""
         buf = self._buffer
-        if len(buf) > 0:
+        if buf:
             self._buffer = ""
             self._propagate_log(buf)
 

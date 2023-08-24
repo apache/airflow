@@ -278,7 +278,7 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         )
 
         if finished_prediction_job["state"] != "SUCCEEDED":
-            self.log.error("MLEngine batch prediction job failed: %s", str(finished_prediction_job))
+            self.log.error("MLEngine batch prediction job failed: %s", finished_prediction_job)
             raise RuntimeError(finished_prediction_job["errorMessage"])
 
         return finished_prediction_job["predictionOutput"]
@@ -1153,7 +1153,7 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
 
     def _handle_job_error(self, finished_training_job) -> None:
         if finished_training_job["state"] != "SUCCEEDED":
-            self.log.error("MLEngine training job failed: %s", str(finished_training_job))
+            self.log.error("MLEngine training job failed: %s", finished_training_job)
             raise RuntimeError(finished_training_job["errorMessage"])
 
     def execute(self, context: Context):

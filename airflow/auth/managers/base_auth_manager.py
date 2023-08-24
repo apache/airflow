@@ -21,7 +21,6 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.auth.managers.models.authorized_action import AuthorizedAction
-from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
 from airflow.exceptions import AirflowException
@@ -30,6 +29,8 @@ from airflow.security.permissions import RESOURCE_DAG, RESOURCE_DAG_PREFIX
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.cli.cli_config import CLICommand
     from airflow.www.security import AirflowSecurityManager
 
 
@@ -42,6 +43,14 @@ class BaseAuthManager(LoggingMixin):
 
     def __init__(self):
         self._security_manager: AirflowSecurityManager | None = None
+
+    @staticmethod
+    def get_cli_commands() -> list[CLICommand]:
+        """Vends CLI commands to be included in Airflow CLI.
+
+        Override this method to expose commands via Airflow CLI to manage this auth manager.
+        """
+        return []
 
     @abstractmethod
     def get_user_name(self) -> str:

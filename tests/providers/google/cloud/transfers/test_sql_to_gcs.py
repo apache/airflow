@@ -555,9 +555,7 @@ class TestBaseSQLToGCSOperator:
         files = op._write_local_data_files(cursor)
         # Raises StopIteration when next is called because generator returns no files
         with pytest.raises(StopIteration):
-            next(files)["file_handle"]
-
-        assert len([f for f in files]) == 0
+            next(files)
 
     def test__write_local_data_files_csv_writes_empty_file_with_write_on_empty(self):
         op = DummySQLToGCSOperator(

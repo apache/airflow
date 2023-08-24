@@ -104,10 +104,8 @@ def process_fd(
     fd_to_log = {proc.stderr: log.warning, proc.stdout: log.info}
     func_log = fd_to_log[fd]
 
-    while True:
-        line = fd.readline().decode()
-        if not line:
-            return
+    for line in iter(fd.readline, b""):
+        line = line.decode()
         if process_line_callback:
             process_line_callback(line)
         func_log(line.rstrip("\n"))

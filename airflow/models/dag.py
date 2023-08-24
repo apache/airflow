@@ -575,7 +575,7 @@ class DAG(LoggingMixin):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
         self.template_undefined = template_undefined
-        self.last_loaded = timezone.utcnow()
+        self.last_loaded: datetime = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
         if self.timetable.active_runs_limit is not None:
@@ -620,8 +620,8 @@ class DAG(LoggingMixin):
 
         # To keep it in parity with Serialized DAGs
         # and identify if DAG has on_*_callback without actually storing them in Serialized JSON
-        self.has_on_success_callback = self.on_success_callback is not None
-        self.has_on_failure_callback = self.on_failure_callback is not None
+        self.has_on_success_callback: bool = self.on_success_callback is not None
+        self.has_on_failure_callback: bool = self.on_failure_callback is not None
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
@@ -1583,7 +1583,7 @@ class DAG(LoggingMixin):
             .limit(num)
         ).all()
 
-        if len(execution_dates) == 0:
+        if not execution_dates:
             return self.get_task_instances(start_date=base_date, end_date=base_date, session=session)
 
         min_date: datetime | None = execution_dates[-1]._mapping.get(
@@ -2029,8 +2029,7 @@ class DAG(LoggingMixin):
             raise ValueError("TaskGroup {group_id} could not be found")
         tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
         task_ids = [task.task_id for task in task_group.iter_tasks()]
-
-        dag_runs_query = session.query(DagRun.id).where(DagRun.dag_id == self.dag_id)
+        dag_runs_query = select(DagRun.id).where(DagRun.dag_id == self.dag_id)
         if start_date is None and end_date is None:
             dag_runs_query = dag_runs_query.where(DagRun.execution_date == start_date)
         else:
@@ -3147,7 +3146,7 @@ class DAG(LoggingMixin):
         :param active_dag_ids: list of DAG IDs that are active
         :return: None
         """
-        if len(active_dag_ids) == 0:
+        if not active_dag_ids:
             return
         for dag in session.scalars(select(DagModel).where(~DagModel.dag_id.in_(active_dag_ids))).all():
             dag.is_active = False

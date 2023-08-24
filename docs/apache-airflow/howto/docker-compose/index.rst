@@ -364,7 +364,7 @@ runtime user id which is unknown at the time of building the image.
 | ``AIRFLOW_IMAGE_NAME``         | Airflow Image to use.                               | apache/airflow:|version| |
 +--------------------------------+-----------------------------------------------------+--------------------------+
 | ``AIRFLOW_UID``                | UID of the user to run Airflow containers as.       | ``50000``                |
-|                                | Override if you want to use use non-default Airflow |                          |
+|                                | Override if you want to use non-default Airflow     |                          |
 |                                | UID (for example when you map folders from host,    |                          |
 |                                | it should be set to result of ``id -u`` call.       |                          |
 |                                | When it is changed, a user with the UID is          |                          |

@@ -359,6 +359,33 @@ class TestWasbHook:
         conn = hook.get_conn()
         assert conn.credential._authority == self.authority
 
+    @pytest.mark.parametrize(
+        "provided_host, expected_host",
+        [
+            (
+                "https://testaccountname.blob.core.windows.net",
+                "https://testaccountname.blob.core.windows.net",
+            ),
+            ("testhost", "https://accountlogin.blob.core.windows.net/"),
+            ("testhost.dns", "testhost.dns"),
+            ("testhost.blob.net", "testhost.blob.net"),
+        ],
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook.get_connection")
+    def test_proper_account_url_update(
+        self, mock_get_conn, mock_blob_service_client, provided_host, expected_host
+    ):
+        mock_get_conn.return_value = Connection(
+            conn_id="test_conn",
+            conn_type=self.connection_type,
+            password="testpass",
+            login="accountlogin",
+            host=provided_host,
+        )
+        WasbHook(wasb_conn_id=self.shared_key_conn_id)
+        mock_blob_service_client.assert_called_once_with(account_url=expected_host, credential="testpass")
+
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook.get_connection")
     def test_check_for_blob(self, mock_get_conn, mock_service):

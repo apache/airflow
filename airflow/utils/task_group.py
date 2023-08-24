@@ -475,14 +475,14 @@ class TaskGroup(DAGNode):
         graph_sorted: list[DAGNode] = []
 
         # special case
-        if len(self.children) == 0:
+        if not self.children:
             return graph_sorted
 
         # Run until the unsorted graph is empty.
         while graph_unsorted:
             # Go through each of the node/edges pairs in the unsorted graph. If a set of edges doesn't contain
             # any nodes that haven't been resolved, that is, that are still in the unsorted graph, remove the
-            # pair from the unsorted graph, and append it to the sorted graph. Note here that by using using
+            # pair from the unsorted graph, and append it to the sorted graph. Note here that by using
             # the values() method for iterating, a copy of the unsorted graph is used, allowing us to modify
             # the unsorted graph as we move through it.
             #

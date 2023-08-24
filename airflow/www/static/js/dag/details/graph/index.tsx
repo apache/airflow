@@ -24,7 +24,6 @@ import ReactFlow, {
   Controls,
   Background,
   MiniMap,
-  Node as ReactFlowNode,
   useReactFlow,
   Panel,
 } from "reactflow";
@@ -35,7 +34,7 @@ import { useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
 import Edge from "src/components/Graph/Edge";
 
-import Node, { CustomNodeProps } from "./Node";
+import Node from "./Node";
 import { buildEdges, nodeStrokeColor, nodeColor, flattenNodes } from "./utils";
 
 const nodeTypes = { custom: Node };
@@ -72,19 +71,17 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
   const offsetTop = useOffsetTop(graphRef);
 
-  const nodes: ReactFlowNode<CustomNodeProps>[] = useMemo(
+  const { nodes, edges: nodeEdges } = useMemo(
     () =>
-      graphData?.children
-        ? flattenNodes({
-            children: graphData.children,
-            selected,
-            openGroupIds,
-            onToggleGroups,
-            latestDagRunId,
-            groups,
-            hoveredTaskState,
-          })
-        : [],
+      flattenNodes({
+        children: graphData?.children,
+        selected,
+        openGroupIds,
+        onToggleGroups,
+        latestDagRunId,
+        groups,
+        hoveredTaskState,
+      }),
     [
       graphData?.children,
       selected,
@@ -110,8 +107,13 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     setHasRendered(true);
   }, [fitView, hasRendered, selected.taskId, getZoom]);
 
+  // merge & dedupe edges
+  const flatEdges = [...(graphData?.edges || []), ...(nodeEdges || [])].filter(
+    (value, index, self) => index === self.findIndex((t) => t.id === value.id)
+  );
+
   const edges = buildEdges({
-    edges: graphData?.edges,
+    edges: flatEdges,
     nodes,
     selectedTaskId: selected.taskId,
   });

@@ -141,7 +141,7 @@ class WinRMOperator(BaseOperator):
             self.winrm_hook.winrm_protocol.close_shell(winrm_client)  # type: ignore[attr-defined]
 
         except Exception as e:
-            raise AirflowException(f"WinRM operator error: {str(e)}")
+            raise AirflowException(f"WinRM operator error: {e}")
 
         if return_code == 0:
             # returning output if do_xcom_push is set

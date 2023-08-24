@@ -179,7 +179,7 @@ def render_template(
     keep_trailing_newline: bool = False,
 ) -> str:
     """
-    Renders template based on it's name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
+    Renders template based on its name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
     :param template_name: name of the template to use
     :param context: Jinja2 context
     :param autoescape: Whether to autoescape HTML
@@ -212,13 +212,12 @@ def print_issue_content(
     if is_helm_chart:
         link = f"https://dist.apache.org/repos/dist/dev/airflow/{current_release}"
         link_text = f"Apache Airflow Helm Chart {current_release.split('/')[-1]}"
-    pr_list = list(pull_requests.keys())
-    pr_list.sort()
-    user_logins: dict[int, str] = {pr: "@" + " @".join(users[pr]) for pr in users}
+    pr_list = sorted(pull_requests.keys())
+    user_logins: dict[int, str] = {pr: " ".join(f"@{u}" for u in uu) for pr, uu in users.items()}
     all_users: set[str] = set()
     for user_list in users.values():
         all_users.update(user_list)
-    all_user_logins = "@" + " @".join(all_users)
+    all_user_logins = " ".join(f"@{u}" for u in all_users)
     content = render_template(
         template_name="ISSUE",
         context={

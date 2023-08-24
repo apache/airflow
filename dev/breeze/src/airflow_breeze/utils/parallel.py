@@ -402,7 +402,7 @@ def check_async_run_results(
             completed_number = current_completed_number
             get_console().print(
                 f"\n[info]Completed {completed_number} out of {total_number_of_results} "
-                f"({int(100*completed_number/total_number_of_results)}%).[/]\n"
+                f"({completed_number / total_number_of_results:.0%}).[/]\n"
             )
             print_async_summary(completed_list)
         time.sleep(poll_time_seconds)
@@ -410,7 +410,7 @@ def check_async_run_results(
     completed_number = len(completed_list)
     get_console().print(
         f"\n[info]Completed {completed_number} out of {total_number_of_results} "
-        f"({int(100*completed_number/total_number_of_results)}%).[/]\n"
+        f"({completed_number / total_number_of_results:.0%}).[/]\n"
     )
     print_async_summary(completed_list)
     errors = False
