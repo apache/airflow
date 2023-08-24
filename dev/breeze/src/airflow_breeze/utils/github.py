@@ -83,7 +83,7 @@ def get_active_airflow_versions(confirm: bool = True) -> list[str]:
     repo = Repo(AIRFLOW_SOURCES_ROOT)
     all_active_tags: list[str] = []
     try:
-        ref_tags = repo.git.ls_remote("--tags", "apache").split("\n")
+        ref_tags = repo.git.ls_remote("--tags", "apache").splitlines()
     except GitCommandError as ex:
         get_console().print(
             "[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n"
