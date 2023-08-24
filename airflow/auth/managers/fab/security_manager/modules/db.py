@@ -22,7 +22,7 @@ import uuid
 
 from flask_appbuilder import const
 from flask_appbuilder.models.sqla import Base
-from sqlalchemy import func, inspect
+from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
@@ -257,10 +257,10 @@ class FabAirflowSecurityManagerOverrideDb:
                 return None
 
     def find_register_user(self, registration_hash):
-        return (
-            self.get_session.query(self.registeruser_model)
-            .filter(self.registeruser_model.registration_hash == registration_hash)
-            .scalar()
+        return self.get_session.scalar(
+            select(self.registeruser_mode)
+            .where(self.registeruser_model.registration_hash == registration_hash)
+            .limit(1)
         )
 
     def update_user(self, user):
