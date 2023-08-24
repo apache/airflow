@@ -543,6 +543,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
             # start the task except if we reattached to an existing one just before.
             self._start_task()
 
+        self.xcom_push(context, key="ecs_task_arn", value=self.arn)
+
         if self.deferrable:
             self.defer(
                 trigger=TaskDoneTrigger(
