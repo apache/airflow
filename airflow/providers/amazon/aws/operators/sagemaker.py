@@ -1632,7 +1632,7 @@ class SageMakerCreateNotebookOperator(BaseOperator):
             "DirectInternetAccess": self.direct_internet_access,
             "RootAccess": self.root_access,
         }
-        if len(self.create_instance_kwargs) > 0:
+        if self.create_instance_kwargs:
             create_notebook_instance_kwargs.update(self.create_instance_kwargs)
 
         self.log.info("Creating SageMaker notebook %s.", self.instance_name)

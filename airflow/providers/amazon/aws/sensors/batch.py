@@ -176,7 +176,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
             computeEnvironments=[self.compute_environment]
         )
 
-        if len(response["computeEnvironments"]) == 0:
+        if not response["computeEnvironments"]:
             raise AirflowException(f"AWS Batch compute environment {self.compute_environment} not found")
 
         status = response["computeEnvironments"][0]["status"]
@@ -241,7 +241,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
             jobQueues=[self.job_queue]
         )
 
-        if len(response["jobQueues"]) == 0:
+        if not response["jobQueues"]:
             if self.treat_non_existing_as_deleted:
                 return True
             else:
