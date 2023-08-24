@@ -3161,7 +3161,8 @@ class TestSchedulerJob:
             task_id = dag_id + "_task"
             EmptyOperator(task_id=task_id)
 
-        self.scheduler_job = Job()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
 
         dr1 = dag_maker.create_dagrun(external_trigger=True)
@@ -3171,7 +3172,7 @@ class TestSchedulerJob:
         session.merge(dr1)
         session.commit()
 
-        num_reset_tis = self.scheduler_job.adopt_or_reset_orphaned_tasks(session=session)
+        num_reset_tis = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
         assert 1 == num_reset_tis
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker):
