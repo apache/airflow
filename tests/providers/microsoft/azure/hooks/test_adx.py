@@ -110,6 +110,37 @@ class TestAzureDataExplorerHook:
             )
         )
 
+    @mock.patch("azure.identity._credentials.environment.ClientSecretCredential")
+    def test_conn_method_token_creds(self, mock1):
+        db.merge_conn(
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type="azure_data_explorer",
+                host="https://help.kusto.windows.net",
+                extra=json.dumps(
+                    {
+                        "auth_method": "AZURE_TOKEN_CRED",
+                    }
+                ),
+            )
+        )
+        with patch.dict(
+            in_dict=os.environ,
+            values={
+                "AZURE_TENANT_ID": "tenant",
+                "AZURE_CLIENT_ID": "client",
+                "AZURE_CLIENT_SECRET": "secret",
+            },
+        ):
+            hook = AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
+            assert hook.connection._kcsb.data_source == "https://help.kusto.windows.net"
+            mock1.assert_called_once_with(
+                tenant_id="tenant",
+                client_id="client",
+                client_secret="secret",
+                authority="https://login.microsoftonline.com",
+            )
+
     @mock.patch.object(KustoClient, "__init__")
     def test_conn_method_aad_app(self, mock_init):
         mock_init.return_value = None
