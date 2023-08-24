@@ -680,7 +680,7 @@ class TestCliDags:
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_trigger(args)
             # get the last line from the logs ignoring all logging lines
-            out = temp_stdout.getvalue().strip().split("\n")[-1]
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
         parsed_out = json.loads(out)
 
         assert 1 == len(parsed_out)
