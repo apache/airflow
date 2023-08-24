@@ -265,6 +265,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             ],
         ],
     )
+    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsRunTaskOperator, "_wait_for_task_ended")
     @mock.patch.object(EcsRunTaskOperator, "_check_success_task")
     @mock.patch.object(EcsBaseOperator, "client")
@@ -273,6 +274,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock,
         check_mock,
         wait_mock,
+        xcom_mock,
         launch_type,
         capacity_provider_strategy,
         platform_version,
@@ -626,9 +628,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
         assert "No active previously launched task found to reattach" in caplog.messages
 
+    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
-    def test_execute_xcom_with_log(self, log_fetcher_mock, client_mock):
+    def test_execute_xcom_with_log(self, log_fetcher_mock, client_mock, xcom_mock):
         self.ecs.do_xcom_push = True
         self.ecs.task_log_fetcher = log_fetcher_mock
 
@@ -636,9 +639,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert self.ecs.execute(None) == "Log output"
 
+    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
-    def test_execute_xcom_with_no_log(self, log_fetcher_mock, client_mock):
+    def test_execute_xcom_with_no_log(self, log_fetcher_mock, client_mock, xcom_mock):
         self.ecs.do_xcom_push = True
         self.ecs.task_log_fetcher = log_fetcher_mock
 
@@ -646,8 +650,9 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
 
         assert self.ecs.execute(None) is None
 
+    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsBaseOperator, "client")
-    def test_execute_xcom_with_no_log_fetcher(self, client_mock):
+    def test_execute_xcom_with_no_log_fetcher(self, client_mock, xcom_mock):
         self.ecs.do_xcom_push = True
         assert self.ecs.execute(None) is None
 
@@ -657,8 +662,9 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs.do_xcom_push = False
         assert self.ecs.execute(None) is None
 
+    @mock.patch.object(EcsRunTaskOperator, "xcom_push")
     @mock.patch.object(EcsRunTaskOperator, "client")
-    def test_with_defer(self, client_mock):
+    def test_with_defer(self, client_mock, xcom_mock):
         self.ecs.deferrable = True
 
         client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
