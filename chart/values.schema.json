@@ -6015,7 +6015,7 @@
                     }
                 },
                 "extraContainers": {
-                    "description": "Launch additional containers into pgbouncer.",
+                    "description": "Launch additional containers into `pgbouncer`.",
                     "type": "array",
                     "default": [],
                     "items": {
