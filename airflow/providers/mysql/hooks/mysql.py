@@ -58,6 +58,7 @@ class MySqlHook(DbApiHook):
     :param schema: The MySQL database schema to connect to.
     :param connection: The :ref:`MySQL connection id <howto/connection:mysql>` used for MySQL credentials.
     :param local_infile: Boolean flag determining if local_infile should be used
+    :param init_command: Initial command to issue to MySQL server upon connection
     """
 
     conn_name_attr = "mysql_conn_id"
@@ -71,6 +72,7 @@ class MySqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.connection = kwargs.pop("connection", None)
         self.local_infile = kwargs.pop("local_infile", False)
+        self.init_command = kwargs.pop("init_command", None)
 
     def set_autocommit(self, conn: MySQLConnectionTypes, autocommit: bool) -> None:
         """
@@ -144,6 +146,8 @@ class MySqlHook(DbApiHook):
             conn_config["unix_socket"] = conn.extra_dejson["unix_socket"]
         if self.local_infile:
             conn_config["local_infile"] = 1
+        if self.init_command:
+            conn_config["init_command"] = self.init_command
         return conn_config
 
     def _get_conn_config_mysql_connector_python(self, conn: Connection) -> dict:
@@ -157,6 +161,8 @@ class MySqlHook(DbApiHook):
 
         if self.local_infile:
             conn_config["allow_local_infile"] = True
+        if self.init_command:
+            conn_config["init_command"] = self.init_command
         # Ref: https://dev.mysql.com/doc/connector-python/en/connector-python-connectargs.html
         for key, value in conn.extra_dejson.items():
             if key.startswith("ssl_"):
@@ -298,3 +304,28 @@ class MySqlHook(DbApiHook):
         cursor.close()
         conn.commit()
         conn.close()  # type: ignore[misc]
+
+    def get_openlineage_database_info(self, connection):
+        """Returns MySQL specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=DbApiHook.get_openlineage_authority_part(connection, default_port=3306),
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "column_type",
+            ],
+            normalize_name_method=lambda name: name.upper(),
+        )
+
+    def get_openlineage_database_dialect(self, _):
+        """Returns database dialect."""
+        return "mysql"
+
+    def get_openlineage_default_schema(self):
+        """MySQL has no concept of schema."""
+        return None

@@ -20,6 +20,7 @@ from __future__ import annotations
 import collections.abc
 import logging
 import sys
+from enum import Enum
 from functools import cached_property
 from typing import (
     TYPE_CHECKING,
@@ -85,7 +86,11 @@ def get_sensitive_variables_fields():
 
 
 def should_hide_value_for_key(name):
-    """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden."""
+    """
+    Return if the value for this given name should be hidden.
+
+    Name might be a Variable name, or key in conn.extra_dejson, for example.
+    """
     from airflow import settings
 
     if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
@@ -242,6 +247,8 @@ class SecretsMasker(logging.Filter):
                     for dict_key, subval in item.items()
                 }
                 return to_return
+            elif isinstance(item, Enum):
+                return self._redact(item=item.value, name=name, depth=depth, max_depth=max_depth)
             elif _is_v1_env_var(item):
                 tmp: dict = item.to_dict()
                 if should_hide_value_for_key(tmp.get("name", "")) and "value" in tmp:
@@ -270,13 +277,13 @@ class SecretsMasker(logging.Filter):
         # I think this should never happen, but it does not hurt to leave it just in case
         # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)
         # but it caused infinite recursion, so we need to cast it to str first.
-        except Exception as e:
+        except Exception as exc:
             log.warning(
-                "Unable to redact %s, please report this via <https://github.com/apache/airflow/issues>. "
+                "Unable to redact %r, please report this via <https://github.com/apache/airflow/issues>. "
                 "Error was: %s: %s",
-                repr(item),
-                type(e).__name__,
-                str(e),
+                item,
+                type(exc).__name__,
+                exc,
             )
             return item
 
@@ -310,7 +317,7 @@ class SecretsMasker(logging.Filter):
         return conf.getboolean("core", "unit_test_mode")
 
     def _adaptations(self, secret: str) -> Generator[str, None, None]:
-        """Yields the secret along with any adaptations to the secret that should be masked."""
+        """Yield the secret along with any adaptations to the secret that should be masked."""
         yield secret
 
         if self._mask_adapter:

@@ -69,25 +69,11 @@ def summarize_changes(results: list[str]) -> tuple[int, int]:
     """
     removals, additions = 0, 0
     for line in results:
-        if (
-            line.startswith("+")
-            or line.startswith("[green]+")
-            and not (
-                # Skip additions of comments in counting removals
-                line.startswith("+#")
-                or line.startswith("[green]+#")
-            )
-        ):
+        if line.startswith(("+", "[green]+")) and not line.startswith(("+#", "[green]+#")):
+            # Skip additions of comments in counting removals
             additions += 1
-        if (
-            line.startswith("-")
-            or line.startswith("[red]-")
-            and not (
-                # Skip removals of comments in counting removals
-                line.startswith("-#")
-                or line.startswith("[red]-#")
-            )
-        ):
+        if line.startswith(("-", "[red]+")) and not line.startswith(("-#", "[red]+#")):
+            # Skip removals of comments in counting removals
             removals += 1
     return removals, additions
 
@@ -313,7 +299,7 @@ PREAMBLE = """# Licensed to the Apache Software Foundation (ASF) under one
 # This is automatically generated stub for the `common.sql` provider
 #
 # This file is generated automatically by the `update-common-sql-api stubs` pre-commit
-# and the .pyi file represents part of the the "public" API that the
+# and the .pyi file represents part of the "public" API that the
 # `common.sql` provider exposes to other providers.
 #
 # Any, potentially breaking change in the stubs will require deliberate manual action from the contributor

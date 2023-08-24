@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import sys
 import warnings
+from pathlib import Path
 
 import jinja2
 
@@ -51,6 +52,16 @@ def _generate_pip_install_cmd_from_list(
     return cmd + requirements
 
 
+def _generate_pip_conf(conf_file: Path, index_urls: list[str]) -> None:
+    if index_urls:
+        pip_conf_options = f"index-url = {index_urls[0]}"
+        if len(index_urls) > 1:
+            pip_conf_options += f"\nextra-index-url = {' '.join(x for x in index_urls[1:])}"
+    else:
+        pip_conf_options = "no-index = true"
+    conf_file.write_text(f"[global]\n{pip_conf_options}")
+
+
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     warnings.warn(
         "Import remove_task_decorator from airflow.utils.decorators instead",
@@ -67,8 +78,10 @@ def prepare_virtualenv(
     requirements: list[str] | None = None,
     requirements_file_path: str | None = None,
     pip_install_options: list[str] | None = None,
+    index_urls: list[str] | None = None,
 ) -> str:
-    """Creates a virtual environment and installs the additional python packages.
+    """
+    Create a virtual environment and install the additional python packages.
 
     :param venv_directory: The path for directory where the environment will be created.
     :param python_bin: Path to the Python executable.
@@ -76,10 +89,17 @@ def prepare_virtualenv(
         See virtualenv documentation for more information.
     :param requirements: List of additional python packages.
     :param requirements_file_path: Path to the ``requirements.txt`` file.
+    :param pip_install_options: a list of pip install options when installing requirements
+        See 'pip install -h' for available options
+    :param index_urls: an optional list of index urls to load Python packages from.
+        If not provided the system pip conf will be used to source packages from.
     :return: Path to a binary file with Python in a virtual environment.
     """
     if pip_install_options is None:
         pip_install_options = []
+
+    if index_urls is not None:
+        _generate_pip_conf(Path(venv_directory) / "pip.conf", index_urls)
 
     virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
     execute_in_subprocess(virtualenv_cmd)
@@ -107,7 +127,7 @@ def write_python_script(
     render_template_as_native_obj: bool = False,
 ):
     """
-    Renders the python script to a file to execute in the virtual environment.
+    Render the python script to a file to execute in the virtual environment.
 
     :param jinja_context: The jinja context variables to unpack and replace with its placeholders in the
         template file.

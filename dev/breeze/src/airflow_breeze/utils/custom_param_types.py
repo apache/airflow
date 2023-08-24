@@ -191,6 +191,28 @@ class CacheableChoice(click.Choice):
         super().__init__(choices=choices, case_sensitive=case_sensitive)
 
 
+class MySQLBackendVersionType(CacheableChoice):
+    def convert(self, value, param, ctx):
+        if isinstance(value, CacheableDefault):
+            param_name = param.envvar if param.envvar else param.name.upper()
+            mysql_version = read_from_cache_file(param_name)
+            if mysql_version == "8":
+                value = "8.0"
+                get_console().print(
+                    f"\n[warning]Found outdated cached value {mysql_version} for parameter {param.name}. "
+                    f"Replaced by {value}"
+                )
+                write_to_cache_file(param_name, "8.0", check_allowed_values=False)
+        else:
+            if value == "8":
+                value = "8.0"
+                get_console().print(
+                    f"\n[warning]Provided outdated value {8} for parameter {param.name}. "
+                    f"Will use {value} instead"
+                )
+        return super().convert(value, param, ctx)
+
+
 class UseAirflowVersionType(BetterChoice):
     """Extends choice with dynamic version number."""
 

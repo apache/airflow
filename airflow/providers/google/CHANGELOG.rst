@@ -27,6 +27,114 @@
 Changelog
 ---------
 
+10.6.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+* ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
+* ``Add GCS Requester Pays bucket support to GCSToS3Operator (#32760)``
+* ``Add system test and docs for CloudDataTransferServiceGCSToGCSOperator (#32960)``
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DataFusionAsyncHook' catch 404 (#32855)``
+* ``Fix system test for MetastoreHivePartitionSensor (#32861)``
+* ``Fix catching 409 error (#33173)``
+* ``make 'sql' a cached property in 'BigQueryInsertJobOperator' (#33218)``
+
+Misc
+~~~~
+
+* ``refactor(providers.google): use module level __getattr__ for DATAPROC_JOB_LOG_LINK to DATAPROC_JOB_LINK and add deprecation warning (#33189)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Get rid of Python2 numeric relics (#33050)``
+   * ``Refactor of links in Dataproc. (#31895)``
+   * ``Handle multiple connections using exceptions (#32365)``
+   * ``openlineage,gcs: use proper name for openlineage methods (#32956)``
+   * ``Fix DataflowStartSqlJobOperator system test (#32823)``
+   * ``Alias 'DATAPROC_JOB_LOG_LINK' to 'DATAPROC_JOB_LINK' (#33148)``
+   * ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+   * ``Prepare docs for RC2 providers (google, redis) (#33185)``
+
+10.5.0
+......
+
+Features
+~~~~~~~~
+
+* ``openlineage, gcs: add openlineage methods for GcsToGcsOperator (#31350)``
+* ``Add Spot Instances support with Dataproc Operators (#31644)``
+* ``Install sqlalchemy-spanner package into Google provider (#31925)``
+* ``Filtering and ordering results of DataprocListBatchesOperator (#32500)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BigQueryGetDataOperator where project_id is not being respected in deferrable mode (#32488)``
+* ``Refresh GKE OAuth2 tokens (#32673)``
+* ``Fix 'BigQueryInsertJobOperator' not exiting deferred state (#31591)``
+
+Misc
+~~~~
+
+* ``Fixup docstring for deprecated DataprocSubmitSparkJobOperator and refactoring system tests (#32743)``
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+* ``Fixup docstring for deprecated DataprocSubmitHiveJobOperator (#32723)``
+* ``Fixup docstring for deprecated DataprocSubmitPigJobOperator (#32739)``
+* ``Fix Datafusion system tests (#32749)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixup docs and optimize system test for DataprocSubmitJobOperator (Hadoop job) (#32722)``
+   * ``Fixup system test for DataprocSubmitJobOperator (SparkSQL job) (#32745)``
+   * ``Fixup system test for DataprocSubmitJobOperator (PySpark job) (#32740)``
+   * ``Migrate system test for PostgresToGCSOperator to new design AIP-47 (#32641)``
+   * ``misc: update MLEngine system tests (#32881)``
+
+10.4.0
+......
+
+Features
+~~~~~~~~
+
+Implement deferrable mode for S3ToGCSOperator
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix GCSToGCSOperator when copy files to folder without wildcard (#32486)``
+* ``Fix 'cache_control' parameter of upload function in 'GCSHook'  (#32440)``
+* ``Fix BigQuery transfer operators to respect project_id arguments (#32232)``
+* ``Fix the gcp_gcs_delete_objects on empty list (#32383)``
+* ``Fix endless loop of defer in cloud_build (#32387)``
+* ``Fix GCSToGCSOperator copy without wildcard and exact_match=True (#32376)``
+
+Misc
+~~~~
+
+* ``Allow a destination folder to be provided (#31885)``
+* ``Moves 'AzureBlobStorageToGCSOperator' from Azure to Google provider (#32306)``
+* ``Give better link to job configuration docs in BigQueryInsertJobOperator (#31736)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Combine 8 into 1 (#29462)``
+   * ``D205 Support - Provider: Google (#32356)``
+   * ``Migrating Google AutoML example_dags to sys tests (#32368)``
+   * ``build(pre-commit): check deferrable default value (#32370)``
+
 10.3.0
 ......
 

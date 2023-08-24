@@ -18,7 +18,14 @@
  */
 
 import type { CamelCase } from "type-fest";
-import type { ElkShape } from "elkjs";
+import type {
+  ElkExtendedEdge,
+  ElkEdgeSection,
+  ElkLabel,
+  ElkPoint,
+  ElkShape,
+  LayoutOptions,
+} from "elkjs";
 import type * as API from "./api-generated";
 
 type RunState = "success" | "running" | "queued" | "failed";
@@ -71,6 +78,7 @@ interface TaskInstance {
   mappedStates?: {
     [key: string]: number;
   };
+  queuedDttm?: string | null;
   mapIndex?: number;
   tryNumber?: number;
   triggererJob?: Job;
@@ -99,6 +107,7 @@ interface Task {
   operator?: string;
   hasOutletDatasets?: boolean;
   triggerRule?: API.TriggerRule;
+  setupTeardownType?: "setup" | "teardown";
 }
 
 type RunOrdering = (
@@ -106,6 +115,20 @@ type RunOrdering = (
   | "executionDate"
   | "dataIntervalEnd"
 )[];
+
+export interface MidEdge {
+  id: string;
+  sources: string[];
+  targets: string[];
+  isSetupTeardown: boolean | undefined;
+  parentNode: string | undefined;
+  labels: {
+    id: string;
+    text: string;
+    height: number;
+    width: number;
+  }[];
+}
 
 interface DepNode {
   id: string;
@@ -118,9 +141,12 @@ interface DepNode {
     isOpen?: boolean;
     isJoinNode?: boolean;
     childCount?: number;
+    labelStyle: string;
+    style: string;
     setupTeardownType?: "setup" | "teardown";
   };
   children?: DepNode[];
+  edges?: MidEdge[];
 }
 
 interface DepEdge {
@@ -128,15 +154,33 @@ interface DepEdge {
   target: string;
 }
 
+export interface EdgeData {
+  rest: {
+    isSelected: boolean;
+    sources: string[];
+    targets: string[];
+    sections: ElkEdgeSection[];
+    junctionPoints?: ElkPoint[];
+    id: string;
+    labels?: ElkLabel[];
+    layoutOptions?: LayoutOptions;
+    isSetupTeardown?: boolean;
+    parentNode?: string;
+  };
+}
+
 export interface NodeType extends ElkShape {
   value: DepNode["value"];
   children?: NodeType[];
+  edges?: ElkExtendedEdge[];
 }
 
 export interface WebserverEdge {
   label?: string;
   sourceId: string;
   targetId: string;
+  isSetupTeardown?: boolean;
+  parentNode?: string;
 }
 
 interface DatasetListItem extends API.Dataset {

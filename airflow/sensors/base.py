@@ -35,6 +35,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
+    TaskDeferralError,
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.baseoperator import BaseOperator
@@ -199,7 +200,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 )
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
-        """Function defined by the sensors while deriving this class should override."""
+        """Override when deriving this class."""
         raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
@@ -281,13 +282,21 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
 
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        try:
+            return super().resume_execution(next_method, next_kwargs, context)
+        except (AirflowException, TaskDeferralError) as e:
+            if self.soft_fail:
+                raise AirflowSkipException(str(e)) from e
+            raise
+
     def _get_next_poke_interval(
         self,
         started_at: datetime.datetime | float,
         run_duration: Callable[[], float],
         try_number: int,
     ) -> float:
-        """Using the similar logic which is used for exponential backoff retry delay for operators."""
+        """Use similar logic which is used for exponential backoff retry delay for operators."""
         if not self.exponential_backoff:
             return self.poke_interval
 

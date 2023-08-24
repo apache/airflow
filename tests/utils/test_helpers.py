@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import re
-from itertools import product
 
 import pytest
 
@@ -264,7 +264,7 @@ class TestHelpers:
                 expected = True if true + truthy == 1 else False
                 assert exactly_one(*sample) is expected
 
-        for row in product(range(4), range(4), range(4), range(4)):
+        for row in itertools.product(range(4), repeat=4):
             assert_exactly_one(*row)
 
     def test_exactly_one_should_fail(self):
@@ -295,7 +295,7 @@ class TestHelpers:
                 expected = True if true + truthy in (0, 1) else False
                 assert at_most_one(*sample) is expected
 
-        for row in product(range(4), range(4), range(4), range(4), range(4)):
+        for row in itertools.product(range(4), repeat=4):
             print(row)
             assert_at_most_one(*row)
 
@@ -309,6 +309,8 @@ class TestHelpers:
                     "c": {"b": "", "c": "hi", "d": ["", 0, "1"]},
                     "d": ["", 0, "1"],
                     "e": ["", 0, {"b": "", "c": "hi", "d": ["", 0, "1"]}, ["", 0, "1"], [""]],
+                    "f": {},
+                    "g": [""],
                 },
             ),
             (
@@ -324,7 +326,7 @@ class TestHelpers:
     def test_prune_dict(self, mode, expected):
         l1 = ["", 0, "1", None]
         d1 = {"a": None, "b": "", "c": "hi", "d": l1}
-        d2 = {"a": None, "b": "", "c": d1, "d": l1, "e": [None, "", 0, d1, l1, [""]]}
+        d2 = {"a": None, "b": "", "c": d1, "d": l1, "e": [None, "", 0, d1, l1, [""]], "f": {}, "g": [""]}
         assert prune_dict(d2, mode=mode) == expected
 
 
@@ -341,3 +343,11 @@ class MockJobRunner(BaseJobRunner):
         if self.func is not None:
             return self.func()
         return None
+
+
+class SchedulerJobRunner(MockJobRunner):
+    job_type = "SchedulerJob"
+
+
+class TriggererJobRunner(MockJobRunner):
+    job_type = "TriggererJob"

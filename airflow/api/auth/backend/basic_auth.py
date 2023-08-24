@@ -24,8 +24,8 @@ from flask import Response, request
 from flask_appbuilder.const import AUTH_LDAP
 from flask_login import login_user
 
+from airflow.auth.managers.fab.models import User
 from airflow.utils.airflow_flask_app import get_airflow_app
-from airflow.www.fab_security.sqla.models import User
 
 CLIENT_AUTH: tuple[str, str] | Any | None = None
 

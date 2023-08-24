@@ -20,6 +20,19 @@ from __future__ import annotations
 from enum import Enum
 
 
+class JobState(str, Enum):
+    """All possible states that a Job can be in."""
+
+    RUNNING = "running"
+    SUCCESS = "success"
+    SHUTDOWN = "shutdown"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class TaskInstanceState(str, Enum):
     """All possible states that a Task Instance can be in.
 
@@ -69,10 +82,7 @@ class DagRunState(str, Enum):
 
 
 class State:
-    """
-    Static class with task instance state constants and color methods to
-    avoid hardcoding.
-    """
+    """Static class with task instance state constants and color methods to avoid hardcoding."""
 
     # Backwards-compat constants for code that does not yet use the enum
     # These first three are shared by DagState and TaskState
@@ -124,7 +134,7 @@ class State:
 
     @classmethod
     def color(cls, state):
-        """Returns color for a state."""
+        """Return color for a state."""
         return cls.state_color.get(state, "white")
 
     @classmethod

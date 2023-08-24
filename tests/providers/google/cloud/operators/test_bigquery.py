@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+from contextlib import suppress
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 
@@ -24,6 +26,13 @@ import pandas as pd
 import pytest
 from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
+from openlineage.client.facet import (
+    DataSourceDatasetFacet,
+    ExternalQueryRunFacet,
+    SqlJobFacet,
+)
+from openlineage.client.run import Dataset
+from openlineage.common.provider.bigquery import BigQueryErrorRunFacet
 
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout, TaskDeferred
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -64,11 +73,14 @@ TASK_ID = "test-bq-generic-operator"
 TEST_DATASET = "test-dataset"
 TEST_DATASET_LOCATION = "EU"
 TEST_GCP_PROJECT_ID = "test-project"
+TEST_JOB_PROJECT_ID = "test-job-project"
 TEST_DELETE_CONTENTS = True
 TEST_TABLE_ID = "test-table-id"
 TEST_GCS_BUCKET = "test-bucket"
-TEST_GCS_DATA = ["dir1/*.csv"]
-TEST_SOURCE_FORMAT = "CSV"
+TEST_GCS_CSV_DATA = ["dir1/*.csv"]
+TEST_SOURCE_CSV_FORMAT = "CSV"
+TEST_GCS_PARQUET_DATA = ["dir1/*.parquet"]
+TEST_SOURCE_PARQUET_FORMAT = "PARQUET"
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "test-bigquery-operators"
 TEST_TABLE_RESOURCES = {"tableReference": {"tableId": TEST_TABLE_ID}, "expirationTime": 1234567}
@@ -236,15 +248,15 @@ class TestBigQueryCreateEmptyTableOperator:
 
 class TestBigQueryCreateExternalTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_execute(self, mock_hook):
+    def test_execute_with_csv_format(self, mock_hook):
         operator = BigQueryCreateExternalTableOperator(
             task_id=TASK_ID,
             destination_project_dataset_table=f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
             schema_fields=[],
             bucket=TEST_GCS_BUCKET,
             gcs_schema_bucket=TEST_GCS_BUCKET,
-            source_objects=TEST_GCS_DATA,
-            source_format=TEST_SOURCE_FORMAT,
+            source_objects=TEST_GCS_CSV_DATA,
+            source_format=TEST_SOURCE_CSV_FORMAT,
             autodetect=True,
         )
 
@@ -266,9 +278,9 @@ class TestBigQueryCreateExternalTableOperator:
                 "schema": {"fields": []},
                 "externalDataConfiguration": {
                     "source_uris": [
-                        f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_DATA
+                        f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_CSV_DATA
                     ],
-                    "source_format": TEST_SOURCE_FORMAT,
+                    "source_format": TEST_SOURCE_CSV_FORMAT,
                     "maxBadRecords": 0,
                     "autodetect": True,
                     "compression": "NONE",
@@ -279,6 +291,49 @@ class TestBigQueryCreateExternalTableOperator:
                         "allowQuotedNewlines": False,
                         "allowJaggedRows": False,
                     },
+                },
+                "location": None,
+                "encryptionConfiguration": None,
+            }
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_with_parquet_format(self, mock_hook):
+        operator = BigQueryCreateExternalTableOperator(
+            task_id=TASK_ID,
+            destination_project_dataset_table=f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
+            schema_fields=[],
+            bucket=TEST_GCS_BUCKET,
+            gcs_schema_bucket=TEST_GCS_BUCKET,
+            source_objects=TEST_GCS_PARQUET_DATA,
+            source_format=TEST_SOURCE_PARQUET_FORMAT,
+            autodetect=True,
+        )
+
+        mock_hook.return_value.split_tablename.return_value = (
+            TEST_GCP_PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+
+        operator.execute(context=MagicMock())
+        mock_hook.return_value.create_empty_table.assert_called_once_with(
+            table_resource={
+                "tableReference": {
+                    "projectId": TEST_GCP_PROJECT_ID,
+                    "datasetId": TEST_DATASET,
+                    "tableId": TEST_TABLE_ID,
+                },
+                "labels": None,
+                "schema": {"fields": []},
+                "externalDataConfiguration": {
+                    "source_uris": [
+                        f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_PARQUET_DATA
+                    ],
+                    "source_format": TEST_SOURCE_PARQUET_FORMAT,
+                    "maxBadRecords": 0,
+                    "autodetect": True,
+                    "compression": "NONE",
                 },
                 "location": None,
                 "encryptionConfiguration": None,
@@ -804,7 +859,7 @@ class TestBigQueryGetDataOperator:
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
-            project_id=TEST_GCP_PROJECT_ID,
+            table_project_id=TEST_GCP_PROJECT_ID,
             max_results=max_results,
             selected_fields=selected_fields,
             location=TEST_DATASET_LOCATION,
@@ -823,13 +878,13 @@ class TestBigQueryGetDataOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_generate_query__with_project_id(self, mock_hook):
+    def test_generate_query__with_table_project_id(self, mock_hook):
         operator = BigQueryGetDataOperator(
             gcp_conn_id=GCP_CONN_ID,
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
-            project_id=TEST_GCP_PROJECT_ID,
+            table_project_id=TEST_GCP_PROJECT_ID,
             max_results=100,
             use_legacy_sql=False,
         )
@@ -839,7 +894,7 @@ class TestBigQueryGetDataOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_generate_query__without_project_id(self, mock_hook):
+    def test_generate_query__without_table_project_id(self, mock_hook):
         hook_project_id = mock_hook.project_id
         operator = BigQueryGetDataOperator(
             gcp_conn_id=GCP_CONN_ID,
@@ -868,6 +923,7 @@ class TestBigQueryGetDataOperator:
             task_id="get_data_from_bq",
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
+            job_project_id=TEST_JOB_PROJECT_ID,
             max_results=100,
             selected_fields="value,name",
             deferrable=True,
@@ -896,6 +952,7 @@ class TestBigQueryGetDataOperator:
             task_id="get_data_from_bq",
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
+            job_project_id=TEST_JOB_PROJECT_ID,
             max_results=100,
             deferrable=True,
             as_dict=as_dict,
@@ -917,6 +974,7 @@ class TestBigQueryGetDataOperator:
             task_id="get_data_from_bq",
             dataset_id=TEST_DATASET,
             table_id="any",
+            job_project_id=TEST_JOB_PROJECT_ID,
             max_results=100,
             deferrable=True,
             as_dict=as_dict,
@@ -936,6 +994,7 @@ class TestBigQueryGetDataOperator:
             task_id="get_data_from_bq",
             dataset_id=TEST_DATASET,
             table_id="any",
+            job_project_id=TEST_JOB_PROJECT_ID,
             max_results=100,
             deferrable=True,
             as_dict=as_dict,
@@ -1514,6 +1573,88 @@ class TestBigQueryInsertJobOperator:
             configuration=configuration,
             force_rerun=True,
         )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_openlineage_events(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM test_table",
+                "useLegacySql": False,
+            }
+        }
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        result = op.execute(context=MagicMock())
+
+        mock_hook.return_value.insert_job.assert_called_once_with(
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=real_job_id,
+            nowait=True,
+            project_id=TEST_GCP_PROJECT_ID,
+            retry=DEFAULT_RETRY,
+            timeout=None,
+        )
+
+        assert result == real_job_id
+
+        with open(file="tests/providers/google/cloud/operators/job_details.json") as f:
+            job_details = json.loads(f.read())
+        mock_hook.return_value.get_client.return_value.get_job.return_value._properties = job_details
+
+        lineage = op.get_openlineage_facets_on_complete(None)
+        assert lineage.inputs == [
+            Dataset(
+                namespace="bigquery",
+                name="airflow-openlineage.new_dataset.test_table",
+                facets={"dataSource": DataSourceDatasetFacet(name="bigquery", uri="bigquery")},
+            )
+        ]
+
+        assert lineage.run_facets == {
+            "bigQuery_job": mock.ANY,
+            "externalQuery": ExternalQueryRunFacet(externalQueryId=mock.ANY, source="bigquery"),
+        }
+        assert lineage.job_facets == {"sql": SqlJobFacet(query="SELECT * FROM test_table")}
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_fails_openlineage_events(self, mock_hook):
+        job_id = "1234"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM test_table",
+                "useLegacySql": False,
+            }
+        }
+        operator = BigQueryInsertJobOperator(
+            task_id="insert_query_job_failed",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        mock_hook.return_value.generate_job_id.return_value = "1234"
+        mock_hook.return_value.get_client.return_value.get_job.side_effect = RuntimeError()
+        mock_hook.return_value.insert_job.side_effect = RuntimeError()
+
+        with suppress(RuntimeError):
+            operator.execute(MagicMock())
+        lineage = operator.get_openlineage_facets_on_complete(None)
+
+        assert lineage.run_facets == {"bigQuery_error": BigQueryErrorRunFacet(clientError=mock.ANY)}
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_force_rerun_async(self, mock_hook, create_task_instance_of_operator):

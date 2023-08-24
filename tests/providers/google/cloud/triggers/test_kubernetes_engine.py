@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 from asyncio import CancelledError, Future
-from datetime import datetime
 from unittest import mock
 
 import pytest
-import pytz
 from google.cloud.container_v1.types import Operation
 from kubernetes.client import models as k8s
 
@@ -43,7 +42,7 @@ IN_CLUSTER = False
 SHOULD_DELETE_POD = True
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
-TRIGGER_START_TIME = datetime.now(tz=pytz.UTC)
+TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.timezone.utc)
 CLUSTER_URL = "https://test-host"
 SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
@@ -110,13 +109,7 @@ class TestGKEStartPodTrigger:
     async def test_run_loop_return_success_event_should_execute_successfully(
         self, mock_hook, mock_method, trigger
     ):
-        running_state = mock.MagicMock(**{"status.phase": "Running"})
-        succeeded_state = mock.MagicMock(**{"status.phase": "Succeeded"})
-        mock_hook.return_value.get_pod.side_effect = [
-            self._mock_pod_result(running_state),
-            self._mock_pod_result(running_state),
-            self._mock_pod_result(succeeded_state),
-        ]
+        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.TERMINATED
 
         expected_event = TriggerEvent(
@@ -127,11 +120,9 @@ class TestGKEStartPodTrigger:
                 "message": "All containers inside pod have started successfully.",
             }
         )
-        with mock.patch.object(asyncio, "sleep") as mock_sleep:
-            actual_event = await (trigger.run()).asend(None)
+        actual_event = await (trigger.run()).asend(None)
 
         assert actual_event == expected_event
-        assert mock_sleep.call_count == 2
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")

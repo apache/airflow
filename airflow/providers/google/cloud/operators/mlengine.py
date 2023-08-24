@@ -278,7 +278,7 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         )
 
         if finished_prediction_job["state"] != "SUCCEEDED":
-            self.log.error("MLEngine batch prediction job failed: %s", str(finished_prediction_job))
+            self.log.error("MLEngine batch prediction job failed: %s", finished_prediction_job)
             raise RuntimeError(finished_prediction_job["errorMessage"])
 
         return finished_prediction_job["predictionOutput"]
@@ -1002,6 +1002,9 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:MLEngineStartTrainingJobOperator`
 
+    For more information about used parameters, check:
+        https://cloud.google.com/sdk/gcloud/reference/ml-engine/jobs/submit/training
+
     :param job_id: A unique templated id for the submitted Google MLEngine
         training job. (templated)
     :param region: The Google Compute Engine region to run the MLEngine training
@@ -1150,7 +1153,7 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
 
     def _handle_job_error(self, finished_training_job) -> None:
         if finished_training_job["state"] != "SUCCEEDED":
-            self.log.error("MLEngine training job failed: %s", str(finished_training_job))
+            self.log.error("MLEngine training job failed: %s", finished_training_job)
             raise RuntimeError(finished_training_job["errorMessage"])
 
     def execute(self, context: Context):

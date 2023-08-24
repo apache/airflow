@@ -16,15 +16,35 @@
 # under the License.
 from __future__ import annotations
 
-RELEASE_MANAGEMENT_COMMANDS: dict[str, str | list[str]] = {
-    "name": "Release management",
+RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Airflow release commands",
     "commands": [
-        "verify-provider-packages",
+        "prepare-airflow-package",
+        "create-minor-branch",
+        "start-rc-process",
+        "start-release",
+        "release-prod-images",
+    ],
+}
+
+RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Providers release commands",
+    "commands": [
         "prepare-provider-documentation",
         "prepare-provider-packages",
-        "prepare-airflow-package",
-        "release-prod-images",
+        "install-provider-packages",
+        "verify-provider-packages",
+        "generate-providers-metadata",
+        "generate-issue-content-providers",
+    ],
+}
+
+RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Other release commands",
+    "commands": [
+        "publish-docs",
         "generate-constraints",
+        "add-back-references",
     ],
 }
 
@@ -137,8 +157,25 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--limit-python",
                 "--limit-platform",
                 "--skip-latest",
+                "--commit-sha",
             ],
         }
+    ],
+    "breeze release-management publish-docs": [
+        {
+            "name": "Publish Docs",
+            "options": [
+                "--override-versioned",
+                "--package-filter",
+                "--airflow-site-directory",
+            ],
+        },
+    ],
+    "breeze release-management add-back-references": [
+        {
+            "name": "Add Back References to Docs",
+            "options": ["--airflow-site-directory"],
+        },
     ],
     "breeze release-management generate-issue-content-providers": [
         {
@@ -175,5 +212,29 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze release-management start-release": [
         {"name": "Start release flags", "options": ["--release-candidate", "--previous-release"]}
+    ],
+    "breeze release-management update-constraints": [
+        {
+            "name": "Update constraints flags",
+            "options": [
+                "--constraints-repo",
+                "--commit-message",
+                "--remote-name",
+            ],
+        },
+        {
+            "name": "Selection criteria",
+            "options": [
+                "--airflow-versions",
+                "--airflow-constraints-mode",
+            ],
+        },
+        {
+            "name": "Action to perform",
+            "options": [
+                "--updated-constraint",
+                "--comment-file",
+            ],
+        },
     ],
 }

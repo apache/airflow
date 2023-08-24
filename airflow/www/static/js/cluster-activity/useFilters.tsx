@@ -49,9 +49,13 @@ export const now = date.toISOString();
 const useFilters = (): FilterHookReturn => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const endDate = searchParams.get(END_DATE_PARAM) || now;
+  const endDate =
+    searchParams.get(END_DATE_PARAM) ||
+    // @ts-ignore
+    moment(now).add(1, "h").toISOString();
   const startDate =
     searchParams.get(START_DATE_PARAM) ||
+    // @ts-ignore
     moment(endDate).subtract(1, "d").toISOString();
 
   const makeOnChangeFn =
@@ -68,10 +72,12 @@ const useFilters = (): FilterHookReturn => {
 
   const onStartDateChange = makeOnChangeFn(
     START_DATE_PARAM,
+    // @ts-ignore
     (localDate: string) => moment(localDate).utc().format()
   );
 
   const onEndDateChange = makeOnChangeFn(END_DATE_PARAM, (localDate: string) =>
+    // @ts-ignore
     moment(localDate).utc().format()
   );
 

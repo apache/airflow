@@ -388,7 +388,7 @@ class DataSyncOperator(BaseOperator):
         self._cancel_datasync_task_execution()
 
     def _delete_datasync_task(self) -> None:
-        """Deletes an AWS DataSync Task."""
+        """Delete an AWS DataSync Task."""
         if not self.task_arn:
             return
 

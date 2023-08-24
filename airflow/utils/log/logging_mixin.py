@@ -38,7 +38,7 @@ class SetContextPropagate(enum.Enum):
     :meta private:
     """
 
-    # If a `set_context` function wants to _keep_ propagation set on it's logger it needs to return this
+    # If a `set_context` function wants to _keep_ propagation set on its logger it needs to return this
     # special value.
     MAINTAIN_PROPAGATE = object()
     # Don't use this one anymore!
@@ -54,10 +54,7 @@ def __getattr__(name):
 
 
 def remove_escape_codes(text: str) -> str:
-    """
-    Remove ANSI escapes codes from string. It's used to remove
-    "colors" from log messages.
-    """
+    """Remove ANSI escapes codes from string; used to remove "colors" from log messages."""
     return ANSI_ESCAPE.sub("", text)
 
 
@@ -80,12 +77,12 @@ class LoggingMixin:
 
     @classmethod
     def logger(cls) -> Logger:
-        """Returns a logger."""
+        """Return a logger."""
         return LoggingMixin._get_log(cls, cls)
 
     @property
     def log(self) -> Logger:
-        """Returns a logger."""
+        """Return a logger."""
         return LoggingMixin._get_log(self, self.__class__)
 
     def _set_context(self, context):
@@ -118,15 +115,15 @@ class ExternalLoggingMixin:
 # IO generics (and apparently it has not even been intended)
 # See more: https://giters.com/python/typeshed/issues/6077
 class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
-    """Allows to redirect stdout and stderr to logger."""
+    """
+    Allows to redirect stdout and stderr to logger.
+
+    :param log: The log level method to write to, ie. log.debug, log.warning
+    """
 
     encoding: None = None
 
     def __init__(self, logger, level):
-        """
-        :param log: The log level method to write to, ie. log.debug, log.warning
-        :return:
-        """
         self.logger = logger
         self.level = level
         self._buffer = ""
@@ -141,8 +138,9 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
     @property
     def closed(self):
         """
-        Returns False to indicate that the stream is not closed, as it will be
-        open for the duration of Airflow's lifecycle.
+        Return False to indicate that the stream is not closed.
+
+        Streams will be open for the duration of Airflow's lifecycle.
 
         For compatibility with the io.IOBase interface.
         """
@@ -167,13 +165,14 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
     def flush(self):
         """Ensure all logging output has been flushed."""
         buf = self._buffer
-        if len(buf) > 0:
+        if buf:
             self._buffer = ""
             self._propagate_log(buf)
 
     def isatty(self):
         """
-        Returns False to indicate the fd is not connected to a tty(-like) device.
+        Return False to indicate the fd is not connected to a tty(-like) device.
+
         For compatibility reasons.
         """
         return False
@@ -181,8 +180,10 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
 
 class RedirectStdHandler(StreamHandler):
     """
+    Custom StreamHandler that uses current sys.stderr/stdout as the stream for logging.
+
     This class is like a StreamHandler using sys.stderr/stdout, but uses
-    whatever sys.stderr/stderr is currently set to rather than the value of
+    whatever sys.stderr/stdout is currently set to rather than the value of
     sys.stderr/stdout at handler construction time, except when running a
     task in a kubernetes executor pod.
     """
@@ -217,7 +218,7 @@ class RedirectStdHandler(StreamHandler):
 
 def set_context(logger, value):
     """
-    Walks the tree of loggers and tries to set the context for each handler.
+    Walk the tree of loggers and try to set the context for each handler.
 
     :param logger: logger
     :param value: value to set

@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 import os
+import socket
+from ftplib import FTP_PORT
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Sequence
@@ -134,6 +136,68 @@ class FTPFileTransmitOperator(BaseOperator):
                 self.hook.store_file(_remote_filepath, _local_filepath)
 
         return self.local_filepath
+
+    def get_openlineage_facets_on_start(self):
+        """
+        Returns OpenLineage datasets.
+
+        Dataset will have the following structure:
+                input: file://hostname/path
+                output file://<conn.host>:<conn.port>/path.
+        """
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        scheme = "file"
+
+        local_host = socket.gethostname()
+        try:
+            local_host = socket.gethostbyname(local_host)
+        except Exception as e:
+            self.log.warning(
+                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",  # noqa: E501
+                exc_info=True,
+            )
+
+        conn = self.hook.get_conn()
+        remote_host = conn.host
+        remote_port = conn.port
+
+        if isinstance(self.local_filepath, str):
+            local_filepath = [self.local_filepath]
+        else:
+            local_filepath = self.local_filepath
+        if isinstance(self.remote_filepath, str):
+            remote_filepath = [self.remote_filepath]
+        else:
+            remote_filepath = self.remote_filepath
+
+        local_datasets = [
+            Dataset(namespace=self._get_namespace(scheme, local_host, None, path), name=path)
+            for path in local_filepath
+        ]
+        remote_datasets = [
+            Dataset(namespace=self._get_namespace(scheme, remote_host, remote_port, path), name=path)
+            for path in remote_filepath
+        ]
+
+        if self.operation.lower() == FTPOperation.GET:
+            inputs = remote_datasets
+            outputs = local_datasets
+        else:
+            inputs = local_datasets
+            outputs = remote_datasets
+
+        return OperatorLineage(
+            inputs=inputs,
+            outputs=outputs,
+        )
+
+    def _get_namespace(self, scheme, host, port, path) -> str:
+        port = port or FTP_PORT
+        authority = f"{host}:{port}"
+        return f"{scheme}://{authority}"
 
 
 class FTPSFileTransmitOperator(FTPFileTransmitOperator):

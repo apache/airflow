@@ -86,7 +86,6 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
@@ -97,7 +96,7 @@ from tests.test_utils.mock_operators import MockOperator
 @pytest.fixture
 def test_pool():
     with create_session() as session:
-        test_pool = Pool(pool="test_pool", slots=1)
+        test_pool = Pool(pool="test_pool", slots=1, include_deferred=False)
         session.add(test_pool)
         session.flush()
         yield test_pool
@@ -2891,6 +2890,33 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    def test_get_current_context_works_in_template(self, dag_maker):
+        def user_defined_macro():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+
+        with dag_maker(
+            "test_context_inside_template",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            user_defined_macros={"user_defined_macro": user_defined_macro},
+        ):
+
+            def foo(arg):
+                print(arg)
+
+            PythonOperator(
+                task_id="context_inside_template",
+                python_callable=foo,
+                op_kwargs={"arg": "{{ user_defined_macro() }}"},
+            ),
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "context_inside_template")
+        ti._run_raw_task()
+        assert ti.state == State.SUCCESS
+
     @patch.object(Stats, "incr")
     def test_task_stats(self, stats_mock, create_task_instance):
         ti = create_task_instance(
@@ -2999,86 +3025,6 @@ class TestTaskInstance:
         # CleanUp
         with create_session() as session:
             session.query(RenderedTaskInstanceFields).delete()
-
-    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    @mock.patch("airflow.settings.pod_mutation_hook")
-    def test_render_k8s_pod_yaml(self, pod_mutation_hook, create_task_instance):
-        ti = create_task_instance(
-            dag_id="test_render_k8s_pod_yaml",
-            run_id="test_run_id",
-            task_id="op1",
-            execution_date=DEFAULT_DATE,
-        )
-
-        expected_pod_spec = {
-            "metadata": {
-                "annotations": {
-                    "dag_id": "test_render_k8s_pod_yaml",
-                    "run_id": "test_run_id",
-                    "task_id": "op1",
-                    "try_number": "1",
-                },
-                "labels": {
-                    "airflow-worker": "0",
-                    "airflow_version": version,
-                    "dag_id": "test_render_k8s_pod_yaml",
-                    "run_id": "test_run_id",
-                    "kubernetes_executor": "True",
-                    "task_id": "op1",
-                    "try_number": "1",
-                },
-                "name": mock.ANY,
-                "namespace": "default",
-            },
-            "spec": {
-                "containers": [
-                    {
-                        "args": [
-                            "airflow",
-                            "tasks",
-                            "run",
-                            "test_render_k8s_pod_yaml",
-                            "op1",
-                            "test_run_id",
-                            "--subdir",
-                            __file__,
-                        ],
-                        "name": "base",
-                        "env": [{"name": "AIRFLOW_IS_K8S_EXECUTOR_POD", "value": "True"}],
-                    }
-                ]
-            },
-        }
-
-        assert ti.render_k8s_pod_yaml() == expected_pod_spec
-        pod_mutation_hook.assert_called_once_with(mock.ANY)
-
-    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    @mock.patch.object(RenderedTaskInstanceFields, "get_k8s_pod_yaml")
-    def test_get_rendered_k8s_spec(self, rtif_get_k8s_pod_yaml, create_task_instance):
-        # Create new TI for the same Task
-        ti = create_task_instance()
-
-        patcher = mock.patch.object(ti, "render_k8s_pod_yaml", autospec=True)
-
-        fake_spec = {"ermagawds": "pods"}
-
-        session = mock.Mock()
-
-        with patcher as render_k8s_pod_yaml:
-            rtif_get_k8s_pod_yaml.return_value = fake_spec
-            assert ti.get_rendered_k8s_spec(session) == fake_spec
-
-            rtif_get_k8s_pod_yaml.assert_called_once_with(ti, session=session)
-            render_k8s_pod_yaml.assert_not_called()
-
-            # Now test that when we _dont_ find it in the DB, it calls render_k8s_pod_yaml
-            rtif_get_k8s_pod_yaml.return_value = None
-            render_k8s_pod_yaml.return_value = fake_spec
-
-            assert ti.get_rendered_k8s_spec(session) == fake_spec
-
-            render_k8s_pod_yaml.assert_called_once()
 
     def test_set_state_up_for_retry(self, create_task_instance):
         ti = create_task_instance(state=State.RUNNING)

@@ -24,7 +24,7 @@ def max_partition(
     table, schema="default", field=None, filter_map=None, metastore_conn_id="metastore_default"
 ):
     """
-    Gets the max partition for a table.
+    Get the max partition for a table.
 
     :param schema: The hive schema the table lives in
     :param table: The hive table you are interested in, supports the dot
@@ -52,7 +52,7 @@ def max_partition(
 
 def _closest_date(target_dt, date_list, before_target=None) -> datetime.date | None:
     """
-    This function finds the date in a list closest to the target date.
+    Find the date in a list closest to the target date.
 
     An optional parameter can be given to get the closest before or after.
 
@@ -76,7 +76,7 @@ def closest_ds_partition(
     table, ds, before=True, schema="default", metastore_conn_id="metastore_default"
 ) -> str | None:
     """
-    This function finds the date in a list closest to the target date.
+    Find the date in a list closest to the target date.
 
     An optional parameter can be given to get the closest before or after.
 

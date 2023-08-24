@@ -27,7 +27,6 @@ class DocBuildParams:
     package_filter: tuple[str]
     docs_only: bool
     spellcheck_only: bool
-    for_production: bool
     skip_environment_initialization: bool = False
     one_pass_only: bool = False
     github_actions = os.environ.get("GITHUB_ACTIONS", "false")
@@ -39,13 +38,11 @@ class DocBuildParams:
             doc_args.append("--docs-only")
         if self.spellcheck_only:
             doc_args.append("--spellcheck-only")
-        if self.for_production:
-            doc_args.append("--for-production")
         if self.one_pass_only:
             doc_args.append("--one-pass-only")
         if AIRFLOW_BRANCH != "main":
             doc_args.append("--disable-provider-checks")
-        if self.package_filter and len(self.package_filter) > 0:
+        if self.package_filter:
             for single_filter in self.package_filter:
                 doc_args.extend(["--package-filter", single_filter])
         return doc_args

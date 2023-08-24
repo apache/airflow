@@ -21,7 +21,6 @@ import logging
 import logging.config
 import os
 import re
-import tempfile
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -254,25 +253,26 @@ class TestFileTaskLogHandler:
         mock_read_local.assert_called_with(path)
         assert actual == ("*** the messages\nthe log", {"end_of_log": True, "log_pos": 7})
 
-    def test__read_from_local(self):
+    def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
 
-        with tempfile.TemporaryDirectory() as td:
-            file1 = Path(td, "hello1.log")
-            file2 = Path(td, "hello1.log.suffix.log")
-            file1.write_text("file1 content")
-            file2.write_text("file2 content")
-            fth = FileTaskHandler("")
-            assert fth._read_from_local(file1) == (
-                [
-                    "Found local files:",
-                    f"  * {td}/hello1.log",
-                    f"  * {td}/hello1.log.suffix.log",
-                ],
-                ["file1 content", "file2 content"],
-            )
+        path1 = tmp_path / "hello1.log"
+        path2 = tmp_path / "hello1.log.suffix.log"
+        path1.write_text("file1 content")
+        path2.write_text("file2 content")
+        fth = FileTaskHandler("")
+        assert fth._read_from_local(path1) == (
+            [
+                "Found local files:",
+                f"  * {path1}",
+                f"  * {path2}",
+            ],
+            ["file1 content", "file2 content"],
+        )
 
-    @mock.patch("airflow.executors.kubernetes_executor.KubernetesExecutor.get_task_log")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_task_log"
+    )
     @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS])
     def test__read_for_k8s_executor(self, mock_k8s_get_task_log, create_task_instance, state):
         """Test for k8s executor, the log is read from get_task_log method"""
@@ -296,7 +296,7 @@ class TestFileTaskLogHandler:
 
     def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
-        log from worker"""
+        log from worker. But it happens only for the latest try_number."""
         executor_name = "CeleryExecutor"
 
         ti = create_task_instance(
@@ -306,14 +306,24 @@ class TestFileTaskLogHandler:
             execution_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 2
         with conf_vars({("core", "executor"): executor_name}):
             fth = FileTaskHandler("")
 
             fth._read_from_logs_server = mock.Mock()
             fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
-            actual = fth._read(ti=ti, try_number=1)
+            actual = fth._read(ti=ti, try_number=2)
             fth._read_from_logs_server.assert_called_once()
-        assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
+            assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": False, "log_pos": 16})
+
+            # Previous try_number is from remote logs without reaching worker server
+            fth._read_from_logs_server.reset_mock()
+            fth._read_remote_logs = mock.Mock()
+            fth._read_remote_logs.return_value = ["remote logs"], ["remote\nlog\ncontent"]
+            actual = fth._read(ti=ti, try_number=1)
+            fth._read_remote_logs.assert_called_once()
+            fth._read_from_logs_server.assert_not_called()
+            assert actual == ("*** remote logs\nremote\nlog\ncontent", {"end_of_log": True, "log_pos": 18})
 
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
@@ -372,7 +382,7 @@ class TestFileTaskLogHandler:
         ],
     )
     @patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="KubernetesExecutor")
-    @patch("airflow.kubernetes.kube_client.get_kube_client")
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_read_from_k8s_under_multi_namespace_mode(
         self, mock_kube_client, pod_override, namespace_to_call
     ):
@@ -443,7 +453,7 @@ class TestFileTaskLogHandler:
         assert FileTaskHandler.add_triggerer_suffix(sample, job_id="123") == sample + ".trigger.123.log"
 
     @pytest.mark.parametrize("is_a_trigger", [True, False])
-    def test_set_context_trigger(self, create_dummy_dag, dag_maker, is_a_trigger, session):
+    def test_set_context_trigger(self, create_dummy_dag, dag_maker, is_a_trigger, session, tmp_path):
         create_dummy_dag(dag_id="test_fth", task_id="dummy")
         (ti,) = dag_maker.create_dagrun(execution_date=pendulum.datetime(2023, 1, 1, tz="UTC")).task_instances
         assert isinstance(ti, TaskInstance)
@@ -454,14 +464,13 @@ class TestFileTaskLogHandler:
             t.triggerer_job = job
             ti.triggerer = t
             t.task_instance = ti
-        with tempfile.TemporaryDirectory() as td:
-            h = FileTaskHandler(base_log_folder=td)
-            h.set_context(ti)
-            expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=1.log"
-            if is_a_trigger:
-                expected += f".trigger.{job.id}.log"
-            actual = h.handler.baseFilename
-            assert actual.replace(td + "/", "") == expected
+        h = FileTaskHandler(base_log_folder=os.fspath(tmp_path))
+        h.set_context(ti)
+        expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=1.log"
+        if is_a_trigger:
+            expected += f".trigger.{job.id}.log"
+        actual = h.handler.baseFilename
+        assert actual == os.fspath(tmp_path / expected)
 
 
 class TestFilenameRendering:

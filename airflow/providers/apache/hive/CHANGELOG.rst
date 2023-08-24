@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+The provider now uses pure-sasl, a pure-Python implementation of SASL,
+which is better maintained than previous sasl implementation, even
+if a bit slower for sasl interface. It also allows hive to be
+installed for Python 3.11.
+
+
+6.1.4
+.....
+
+Misc
+~~~~
+
+* ``Bring back mysql-connector-python as required depednency (#32989)``
+
+6.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Pandas2 compatibility for Hive (#32752)``
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Move Hive configuration to Apache Hive provider (#32777)``
+
+
 6.1.2
 .....
 

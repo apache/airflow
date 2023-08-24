@@ -33,7 +33,7 @@ from azure.storage.filedatalake import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes, get_field
+from airflow.providers.microsoft.azure.utils import get_field
 
 
 class AzureDataLakeHook(BaseHook):
@@ -73,7 +73,6 @@ class AzureDataLakeHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_data_lake")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
@@ -242,7 +241,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     accounts that have a hierarchical namespace. Using Adls_v2 connection
     details create DataLakeServiceClient object.
 
-    Due to Wasb is marked as legacy and and retirement of the (ADLS1), it would
+    Due to Wasb is marked as legacy and retirement of the (ADLS1), it would
     be nice to implement ADLS gen2 hook for interacting with the storage account.
 
     .. seealso::

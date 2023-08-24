@@ -28,13 +28,13 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
+from azure.identity import DefaultAzureCredential
+from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoServiceError
-from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.response import KustoResponseDataSetV2
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes
 
 
 class AzureDataExplorerHook(BaseHook):
@@ -95,7 +95,6 @@ class AzureDataExplorerHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_data_explorer")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
@@ -107,7 +106,7 @@ class AzureDataExplorerHook(BaseHook):
             "placeholders": {
                 "login": "Varies with authentication method",
                 "password": "Varies with authentication method",
-                "auth_method": "AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE",
+                "auth_method": "AAD_APP/AAD_APP_CERT/AAD_CREDS/AAD_DEVICE/AZURE_TOKEN_CRED",
                 "tenant": "Used with AAD_APP/AAD_APP_CERT/AAD_CREDS",
                 "certificate": "Used with AAD_APP_CERT",
                 "thumbprint": "Used with AAD_APP_CERT",
@@ -148,7 +147,13 @@ class AzureDataExplorerHook(BaseHook):
             value = extras.get(name)
             if value:
                 warn_if_collison(name, backcompat_key)
-            if not value:
+            if not value and extras.get(backcompat_key):
+                warnings.warn(
+                    f"`{backcompat_key}` is deprecated in azure connection extra,"
+                    f" please use `{name}` instead",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
                 value = extras.get(backcompat_key)
             if not value:
                 raise AirflowException(f"Required connection parameter is missing: `{name}`")
@@ -179,6 +184,11 @@ class AzureDataExplorerHook(BaseHook):
             )
         elif auth_method == "AAD_DEVICE":
             kcsb = KustoConnectionStringBuilder.with_aad_device_authentication(cluster)
+        elif auth_method == "AZURE_TOKEN_CRED":
+            kcsb = KustoConnectionStringBuilder.with_azure_token_credential(
+                connection_string=cluster,
+                credential=DefaultAzureCredential(),
+            )
         else:
             raise AirflowException(f"Unknown authentication method: {auth_method}")
 

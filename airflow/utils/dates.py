@@ -140,7 +140,7 @@ def round_time(
     delta: str | timedelta | relativedelta,
     start_date: datetime = timezone.make_aware(datetime.min),
 ):
-    """Returns ``start_date + i * delta`` for given ``i`` where the result is closest to ``dt``.
+    """Return ``start_date + i * delta`` for given ``i`` where the result is closest to ``dt``.
 
     .. code-block:: pycon
 
@@ -227,7 +227,7 @@ def infer_time_unit(time_seconds_arr: Collection[float]) -> TimeUnit:
 
     e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
     """
-    if len(time_seconds_arr) == 0:
+    if not time_seconds_arr:
         return "hours"
     max_time_seconds = max(time_seconds_arr)
     if max_time_seconds <= 60 * 2:

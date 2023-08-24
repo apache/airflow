@@ -34,7 +34,7 @@ from azure.cosmos.exceptions import CosmosHttpResponseError
 
 from airflow.exceptions import AirflowBadRequest
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes, get_field
+from airflow.providers.microsoft.azure.utils import get_field
 
 
 class AzureCosmosDBHook(BaseHook):
@@ -71,7 +71,6 @@ class AzureCosmosDBHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_cosmos")  # todo: remove when min airflow version >= 2.5
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
@@ -154,7 +153,7 @@ class AzureCosmosDBHook(BaseHook):
                 parameters=[json.dumps({"name": "@id", "value": collection_name})],
             )
         )
-        if len(existing_container) == 0:
+        if not existing_container:
             return False
 
         return True
@@ -181,7 +180,7 @@ class AzureCosmosDBHook(BaseHook):
         )
 
         # Only create if we did not find it already existing
-        if len(existing_container) == 0:
+        if not existing_container:
             self.get_conn().get_database_client(self.__get_database_name(database_name)).create_container(
                 collection_name, partition_key=partition_key
             )
@@ -197,7 +196,7 @@ class AzureCosmosDBHook(BaseHook):
                 parameters=[json.dumps({"name": "@id", "value": database_name})],
             )
         )
-        if len(existing_database) == 0:
+        if not existing_database:
             return False
 
         return True
@@ -217,7 +216,7 @@ class AzureCosmosDBHook(BaseHook):
         )
 
         # Only create if we did not find it already existing
-        if len(existing_database) == 0:
+        if not existing_database:
             self.get_conn().create_database(database_name)
 
     def delete_database(self, database_name: str) -> None:

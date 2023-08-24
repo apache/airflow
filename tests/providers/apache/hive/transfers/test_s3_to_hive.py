@@ -20,11 +20,10 @@ from __future__ import annotations
 import bz2
 import errno
 import filecmp
+import itertools
 import logging
 import shutil
-from collections import OrderedDict
 from gzip import GzipFile
-from itertools import product
 from tempfile import NamedTemporaryFile, mkdtemp
 from unittest import mock
 
@@ -43,7 +42,7 @@ class TestS3ToHiveTransfer:
         self.file_names = {}
         self.task_id = "S3ToHiveTransferTest"
         self.s3_key = "S32hive_test_file"
-        self.field_dict = OrderedDict([("Sno", "BIGINT"), ("Some,Text", "STRING")])
+        self.field_dict = {"Sno": "BIGINT", "Some,Text": "STRING"}
         self.hive_table = "S32hive_test_table"
         self.delimiter = "\t"
         self.create = True
@@ -168,7 +167,7 @@ class TestS3ToHiveTransfer:
         assert header_list == ["Sno\tSome", "Text"], "Top row from file doesn't matched expected value"
 
     def test__match_headers(self):
-        self.kwargs["field_dict"] = OrderedDict([("Sno", "BIGINT"), ("Some,Text", "STRING")])
+        self.kwargs["field_dict"] = {"Sno": "BIGINT", "Some,Text": "STRING"}
         assert S3ToHiveOperator(**self.kwargs)._match_headers(
             ["Sno", "Some,Text"]
         ), "Header row doesn't match expected value"
@@ -205,7 +204,7 @@ class TestS3ToHiveTransfer:
             )
 
         # Testing txt, zip, bz2 files with and without header row
-        for (ext, has_header) in product([".txt", ".gz", ".bz2", ".GZ"], [True, False]):
+        for ext, has_header in itertools.product([".txt", ".gz", ".bz2", ".GZ"], [True, False]):
             self.kwargs["headers"] = has_header
             self.kwargs["check_headers"] = has_header
             logging.info("Testing %s format %s header", ext, "with" if has_header else "without")
@@ -243,7 +242,7 @@ class TestS3ToHiveTransfer:
         # Only testing S3ToHiveTransfer calls S3Hook.select_key with
         # the right parameters and its execute method succeeds here,
         # since Moto doesn't support select_object_content as of 1.3.2.
-        for (ext, has_header) in product([".txt", ".gz", ".GZ"], [True, False]):
+        for ext, has_header in itertools.product([".txt", ".gz", ".GZ"], [True, False]):
             input_compressed = ext.lower() != ".txt"
             key = self.s3_key + ext
 

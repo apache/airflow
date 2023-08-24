@@ -19,24 +19,13 @@
 
 import React from "react";
 import { Text, useTheme } from "@chakra-ui/react";
-import type { ElkEdgeSection, ElkLabel, ElkPoint, LayoutOptions } from "elkjs";
 
 import { Group } from "@visx/group";
 import { LinePath } from "@visx/shape";
+import type { EdgeData } from "src/types";
 
-interface EdgeProps {
-  data?: {
-    rest: {
-      isSelected: boolean;
-      sources: string[];
-      targets: string[];
-      sections: ElkEdgeSection[];
-      junctionPoints?: ElkPoint[];
-      id: string;
-      labels?: ElkLabel[];
-      layoutOptions?: LayoutOptions;
-    };
-  };
+export interface EdgeProps {
+  data?: EdgeData;
 }
 
 const CustomEdge = ({ data }: EdgeProps) => {
@@ -63,6 +52,7 @@ const CustomEdge = ({ data }: EdgeProps) => {
           x={(d) => d.x || 0}
           y={(d) => d.y || 0}
           data={[s.startPoint, ...(s.bendPoints || []), s.endPoint]}
+          strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
         />
       ))}
     </>

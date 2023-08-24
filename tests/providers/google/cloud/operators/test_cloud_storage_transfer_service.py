@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import itertools
 from copy import deepcopy
 from datetime import date, time
 from unittest import mock
@@ -220,10 +219,10 @@ class TestTransferJobValidator:
     @pytest.mark.parametrize(
         "transfer_spec",
         [
-            dict(itertools.chain(SOURCE_AWS.items(), SOURCE_GCS.items(), SOURCE_HTTP.items())),
-            dict(itertools.chain(SOURCE_AWS.items(), SOURCE_GCS.items())),
-            dict(itertools.chain(SOURCE_AWS.items(), SOURCE_HTTP.items())),
-            dict(itertools.chain(SOURCE_GCS.items(), SOURCE_HTTP.items())),
+            {**SOURCE_AWS, **SOURCE_GCS, **SOURCE_HTTP},
+            {**SOURCE_AWS, **SOURCE_GCS},
+            {**SOURCE_AWS, **SOURCE_HTTP},
+            {**SOURCE_GCS, **SOURCE_HTTP},
         ],
     )
     def test_verify_data_source(self, transfer_spec):

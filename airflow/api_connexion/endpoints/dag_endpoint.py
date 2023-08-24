@@ -22,7 +22,7 @@ from typing import Collection
 from connexion import NoContent
 from flask import g, request
 from marshmallow import ValidationError
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import or_
 
@@ -41,6 +41,7 @@ from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
 
@@ -99,7 +100,7 @@ def get_dags(
         cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
         dags_query = dags_query.where(or_(*cond))
 
-    total_entries = session.scalar(select(func.count()).select_from(dags_query))
+    total_entries = get_query_count(dags_query, session=session)
     dags_query = apply_sorting(dags_query, order_by, {}, allowed_attrs)
     dags = session.scalars(dags_query.offset(offset).limit(limit)).all()
 
@@ -159,7 +160,7 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
         cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
         dags_query = dags_query.where(or_(*cond))
 
-    total_entries = session.scalar(select(func.count()).select_from(dags_query))
+    total_entries = get_query_count(dags_query, session=session)
 
     dags = session.scalars(dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit)).all()
 

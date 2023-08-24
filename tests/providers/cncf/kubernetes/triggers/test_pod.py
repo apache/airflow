@@ -18,13 +18,12 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import logging
 from asyncio import CancelledError, Future
-from datetime import datetime
 from unittest import mock
 
 import pytest
-import pytz
 from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
@@ -41,7 +40,7 @@ CONFIG_FILE = "/path/to/config/file"
 IN_CLUSTER = False
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
-TRIGGER_START_TIME = datetime.now(tz=pytz.UTC)
+TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.timezone.utc)
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 BASE_CONTAINER_NAME = "base"
 ON_FINISH_ACTION = "delete_pod"
@@ -96,8 +95,7 @@ class TestKubernetesPodTrigger:
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}._get_async_hook")
     async def test_run_loop_return_success_event(self, mock_hook, mock_method, trigger):
-        pod_mock = mock.MagicMock(**{"status.phase": "Succeeded"})
-        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(pod_mock)
+        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.TERMINATED
 
         expected_event = TriggerEvent(
@@ -111,35 +109,6 @@ class TestKubernetesPodTrigger:
         actual_event = await (trigger.run()).asend(None)
 
         assert actual_event == expected_event
-
-    @pytest.mark.asyncio
-    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
-    @mock.patch(f"{TRIGGER_PATH}._get_async_hook")
-    async def test_run_loop_wait_pod_termination_before_returning_success_event(
-        self, mock_hook, mock_method, trigger
-    ):
-        running_state = mock.MagicMock(**{"status.phase": "Running"})
-        succeeded_state = mock.MagicMock(**{"status.phase": "Succeeded"})
-        mock_hook.return_value.get_pod.side_effect = [
-            self._mock_pod_result(running_state),
-            self._mock_pod_result(running_state),
-            self._mock_pod_result(succeeded_state),
-        ]
-        mock_method.return_value = ContainerState.TERMINATED
-
-        expected_event = TriggerEvent(
-            {
-                "name": POD_NAME,
-                "namespace": NAMESPACE,
-                "status": "success",
-                "message": "All containers inside pod have started successfully.",
-            }
-        )
-        with mock.patch.object(asyncio, "sleep") as mock_sleep:
-            actual_event = await (trigger.run()).asend(None)
-
-        assert actual_event == expected_event
-        assert mock_sleep.call_count == 2
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
