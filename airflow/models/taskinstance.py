@@ -1641,7 +1641,9 @@ class TaskInstance(Base, LoggingMixin):
             # Set the validated/merged params on the task object.
             self.task.params = context["params"]
 
-            task_orig = self.render_templates(context=context)
+            with set_current_context(context):
+                task_orig = self.render_templates(context=context)
+
             if not test_mode:
                 rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
                 RenderedTaskInstanceFields.write(rtif)
