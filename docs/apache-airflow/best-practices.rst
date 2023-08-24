@@ -331,7 +331,7 @@ Example of watcher pattern with trigger rules
 ---------------------------------------------
 
 The watcher pattern is how we call a DAG with a task that is "watching" the states of the other tasks.
-It's primary purpose is to fail a DAG Run when any other task fail.
+Its primary purpose is to fail a DAG Run when any other task fail.
 The need came from the Airflow system tests that are DAGs with different tasks (similarly like a test containing steps).
 
 Normally, when any task fails, all other tasks are not executed and the whole DAG Run gets failed status too. But
