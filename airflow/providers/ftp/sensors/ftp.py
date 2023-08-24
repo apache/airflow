@@ -73,10 +73,10 @@ class FTPSensor(BaseSensorOperator):
             self.log.info("Poking for %s", self.path)
             try:
                 mod_time = hook.get_mod_time(self.path)
-                self.log.info("Found File %s last modified: %s", str(self.path), str(mod_time))
+                self.log.info("Found File %s last modified: %s", self.path, mod_time)
 
             except ftplib.error_perm as e:
-                self.log.error("Ftp error encountered: %s", str(e))
+                self.log.error("Ftp error encountered: %s", e)
                 error_code = self._get_error_code(e)
                 if (error_code != 550) and (
                     self.fail_on_transient_errors or (error_code not in self.transient_errors)

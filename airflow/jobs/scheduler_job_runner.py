@@ -899,7 +899,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 if callback_to_run:
                     self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
-            self.log.exception("Failed to update dag run state for paused dags due to %s", str(e))
+            self.log.exception("Failed to update dag run state for paused dags due to %s", e)
 
     def _run_scheduler_loop(self) -> None:
         """

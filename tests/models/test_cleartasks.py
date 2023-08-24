@@ -532,11 +532,11 @@ class TestClearTasks:
         num_of_dags = 5
         for i in range(num_of_dags):
             dag = DAG(
-                "test_dag_clear_" + str(i),
+                f"test_dag_clear_{i}",
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE + datetime.timedelta(days=10),
             )
-            task = EmptyOperator(task_id="test_task_clear_" + str(i), owner="test", dag=dag)
+            task = EmptyOperator(task_id=f"test_task_clear_{i}", owner="test", dag=dag)
 
             dr = dag.create_dagrun(
                 execution_date=DEFAULT_DATE,

@@ -23,6 +23,7 @@ import itertools
 import json
 import os
 
+from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
 from airflow.auth.managers.fab.models import Action, Permission, Resource, Role
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
@@ -35,8 +36,6 @@ from airflow.www.security import EXISTING_ROLES
 @providers_configuration_loaded
 def roles_list(args):
     """List all existing roles."""
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         roles = appbuilder.sm.get_all_roles()
 
@@ -63,8 +62,6 @@ def roles_list(args):
 @providers_configuration_loaded
 def roles_create(args):
     """Create new empty role in DB."""
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         for role_name in args.role:
             appbuilder.sm.add_role(role_name)
@@ -76,8 +73,6 @@ def roles_create(args):
 @providers_configuration_loaded
 def roles_delete(args):
     """Delete role in DB."""
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         for role_name in args.role:
             role = appbuilder.sm.find_role(role_name)
@@ -90,8 +85,6 @@ def roles_delete(args):
 
 
 def __roles_add_or_remove_permissions(args):
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         is_add: bool = args.subcommand.startswith("add")
 
@@ -165,8 +158,6 @@ def roles_export(args):
     Note, this function does not export the permissions associated for each role.
     Strictly, it exports the role names into the passed role json file.
     """
-    from airflow.utils.cli_app_builder import get_application_builder
-
     with get_application_builder() as appbuilder:
         roles = appbuilder.sm.get_all_roles()
         exporting_roles = [role.name for role in roles if role.name not in EXISTING_ROLES]
@@ -196,7 +187,6 @@ def roles_import(args):
     except ValueError as e:
         print(f"File '{json_file}' is not a valid JSON file. Error: {e}")
         exit(1)
-    from airflow.utils.cli_app_builder import get_application_builder
 
     with get_application_builder() as appbuilder:
         existing_roles = [role.name for role in appbuilder.sm.get_all_roles()]

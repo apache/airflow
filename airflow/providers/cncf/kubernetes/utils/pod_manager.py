@@ -145,6 +145,21 @@ def container_is_completed(pod: V1Pod, container_name: str) -> bool:
     return container_status.state.terminated is not None
 
 
+def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examines V1Pod ``pod`` to determine whether ``container_name`` is completed and succeeded.
+
+    If that container is present and completed and succeeded, returns True.  Returns False otherwise.
+    """
+    if not container_is_completed(pod, container_name):
+        return False
+
+    container_status = get_container_status(pod, container_name)
+    if not container_status:
+        return False
+    return container_status.state.terminated.exit_code == 0
+
+
 def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
     """
     Examines V1Pod ``pod`` to determine whether ``container_name`` is terminated.
@@ -383,7 +398,7 @@ class PodManager(LoggingMixin):
 
             Returns the last timestamp observed in logs.
             """
-            timestamp = None
+            last_captured_timestamp = None
             try:
                 logs = self.read_pod_logs(
                     pod=pod,
@@ -397,7 +412,9 @@ class PodManager(LoggingMixin):
                 )
                 for raw_line in logs:
                     line = raw_line.decode("utf-8", errors="backslashreplace")
-                    timestamp, message = self.parse_log_line(line)
+                    line_timestamp, message = self.parse_log_line(line)
+                    if line_timestamp is not None:
+                        last_captured_timestamp = line_timestamp
                     self.log.info("[%s] %s", container_name, message)
             except BaseHTTPError as e:
                 self.log.warning(
@@ -411,7 +428,7 @@ class PodManager(LoggingMixin):
                     pod.metadata.name,
                     exc_info=True,
                 )
-            return timestamp or since_time
+            return last_captured_timestamp or since_time
 
         # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
         # loop as we do here. But in a long-running process we might temporarily lose connectivity.
@@ -508,16 +525,22 @@ class PodManager(LoggingMixin):
             self.log.info("Waiting for container '%s' state to be completed", container_name)
             time.sleep(1)
 
-    def await_pod_completion(self, pod: V1Pod) -> V1Pod:
+    def await_pod_completion(
+        self, pod: V1Pod, istio_enabled: bool = False, container_name: str = "base"
+    ) -> V1Pod:
         """
         Monitors a pod and returns the final state.
 
+        :param istio_enabled: whether istio is enabled in the namespace
         :param pod: pod spec that will be monitored
+        :param container_name: name of the container within the pod
         :return: tuple[State, str | None]
         """
         while True:
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
+                break
+            if istio_enabled and container_is_completed(remote_pod, container_name):
                 break
             self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
@@ -530,16 +553,14 @@ class PodManager(LoggingMixin):
         :param line: k8s log line
         :return: timestamp and log message
         """
-        split_at = line.find(" ")
-        if split_at == -1:
+        timestamp, sep, message = line.strip().partition(" ")
+        if not sep:
             self.log.error(
                 "Error parsing timestamp (no timestamp in message %r). "
                 "Will continue execution but won't update timestamp",
                 line,
             )
             return None, line
-        timestamp = line[:split_at]
-        message = line[split_at + 1 :].rstrip()
         try:
             last_log_time = cast(DateTime, pendulum.parse(timestamp))
         except ParserError:

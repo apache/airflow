@@ -78,7 +78,7 @@ class SequentialExecutor(BaseExecutor):
                 self.change_state(key, TaskInstanceState.SUCCESS)
             except subprocess.CalledProcessError as e:
                 self.change_state(key, TaskInstanceState.FAILED)
-                self.log.error("Failed to execute task %s.", str(e))
+                self.log.error("Failed to execute task %s.", e)
 
         self.commands_to_run = []
 

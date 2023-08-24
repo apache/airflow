@@ -37,7 +37,6 @@ from celery import states as celery_states
 
 try:
     from airflow.cli.cli_config import (
-        ARG_AUTOSCALE,
         ARG_DAEMON,
         ARG_LOG_FILE,
         ARG_PID,
@@ -143,6 +142,7 @@ ARG_FLOWER_BASIC_AUTH = Arg(
 )
 
 # worker cli args
+ARG_AUTOSCALE = Arg(("-a", "--autoscale"), help="Minimum and Maximum number of worker to autoscale")
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",

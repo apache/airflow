@@ -153,7 +153,7 @@ class Job(Base, LoggingMixin):
         try:
             self.on_kill()
         except Exception as e:
-            self.log.error("on_kill() method failed: %s", str(e))
+            self.log.error("on_kill() method failed: %s", e)
         session.merge(job)
         session.commit()
         raise AirflowException("Job shut down externally.")

@@ -23,7 +23,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
+from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from pytest import param
 
 from airflow.exceptions import AirflowException
@@ -109,6 +109,37 @@ class TestAzureDataExplorerHook:
                 "https://help.kusto.windows.net", "client_id", "client secret", "tenant"
             )
         )
+
+    @mock.patch("azure.identity._credentials.environment.ClientSecretCredential")
+    def test_conn_method_token_creds(self, mock1):
+        db.merge_conn(
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type="azure_data_explorer",
+                host="https://help.kusto.windows.net",
+                extra=json.dumps(
+                    {
+                        "auth_method": "AZURE_TOKEN_CRED",
+                    }
+                ),
+            )
+        )
+        with patch.dict(
+            in_dict=os.environ,
+            values={
+                "AZURE_TENANT_ID": "tenant",
+                "AZURE_CLIENT_ID": "client",
+                "AZURE_CLIENT_SECRET": "secret",
+            },
+        ):
+            hook = AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
+            assert hook.connection._kcsb.data_source == "https://help.kusto.windows.net"
+            mock1.assert_called_once_with(
+                tenant_id="tenant",
+                client_id="client",
+                client_secret="secret",
+                authority="https://login.microsoftonline.com",
+            )
 
     @mock.patch.object(KustoClient, "__init__")
     def test_conn_method_aad_app(self, mock_init):
@@ -225,21 +256,23 @@ class TestAzureDataExplorerHook:
             param("a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP", id="no-prefix"),
         ],
     )
-    @patch("airflow.providers.microsoft.azure.hooks.adx.KustoConnectionStringBuilder")
-    def test_backcompat_prefix_works(self, mock_client, uri):
-        mock_with = mock_client.with_aad_application_key_authentication
+    def test_backcompat_prefix_works(self, uri):
         with patch.dict(os.environ, AIRFLOW_CONN_MY_CONN=uri):
-            AzureDataExplorerHook(azure_data_explorer_conn_id="my_conn")  # get_conn is called in init
-        mock_with.assert_called_once_with("host", "usr", "pw", "my-tenant")
+            hook = AzureDataExplorerHook(azure_data_explorer_conn_id="my_conn")  # get_conn is called in init
+        assert hook.connection._kcsb.data_source == "host"
+        assert hook.connection._kcsb.application_client_id == "usr"
+        assert hook.connection._kcsb.application_key == "pw"
+        assert hook.connection._kcsb.authority_id == "my-tenant"
 
-    @patch("airflow.providers.microsoft.azure.hooks.adx.KustoConnectionStringBuilder")
-    def test_backcompat_prefix_both_causes_warning(self, mock_client):
-        mock_with = mock_client.with_aad_application_key_authentication
+    def test_backcompat_prefix_both_causes_warning(self):
         with patch.dict(
             in_dict=os.environ,
             AIRFLOW_CONN_MY_CONN="a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP"
             "&extra__azure_data_explorer__auth_method=AAD_APP",
         ):
             with pytest.warns(Warning, match="Using value for `auth_method`"):
-                AzureDataExplorerHook(azure_data_explorer_conn_id="my_conn")  # get_conn is called in init
-        mock_with.assert_called_once_with("host", "usr", "pw", "my-tenant")
+                hook = AzureDataExplorerHook(azure_data_explorer_conn_id="my_conn")
+            assert hook.connection._kcsb.data_source == "host"
+            assert hook.connection._kcsb.application_client_id == "usr"
+            assert hook.connection._kcsb.application_key == "pw"
+            assert hook.connection._kcsb.authority_id == "my-tenant"
