@@ -130,7 +130,7 @@ class TestAzureDataExplorerHook:
                 "AZURE_TENANT_ID": "tenant",
                 "AZURE_CLIENT_ID": "client",
                 "AZURE_CLIENT_SECRET": "secret",
-            }
+            },
         ):
             hook = AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
             assert hook.connection._kcsb.data_source == "https://help.kusto.windows.net"
