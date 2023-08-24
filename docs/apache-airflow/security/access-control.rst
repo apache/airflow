@@ -235,33 +235,46 @@ These DAG-level controls can be set directly through the UI / CLI, or encoded in
 Order of precedence for DAG-level permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Since DAG-level access control can be configured in multiple places, conflicts are inevitable and a clear resolution strategy is required.
+Since DAG-level access control can be configured in multiple places, conflicts are inevitable and a clear resolution strategy is required. As a result,
+Airflow considers the ``access_control`` argument supplied on a DAG itself to be completely authoritative if present, which has a few effects:
 
-As a result, Airflow considers the `access_control` argument supplied on a DAG itself to be completely authoritative if present, which has a few effects:
+Setting ``access_control`` on a DAG will overwrite any previously existing DAG-level permissions if it is any value other than ``None``:
 
- - `access_control` will overwrite any previously existing DAG-level permissions if it is any value other than `None`.
+.. code-block:: python
 
-.. exampleinclude:: /../../airflow/example_dags/example_dag_level_access_control.py
-    :language: python
-    :start-after: [START howto_fine_grained_access_control]
-    :end-before: [END howto_fine_grained_access_control]
+    with DAG(
+        dag_id="example_fine_grained_access",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        access_control={
+            "Viewer": {"can_edit", "can_create", "can_delete"},
+        }
+    ) as fine_grained_access:
 
- - Setting `access_control={}` will wipe any existing DAG-level permissions for a given DAG from the DB.
 
-.. exampleinclude:: /../../airflow/example_dags/example_dag_level_access_control.py
-    :language: python
-    :start-after: [START howto_no_fine_grained_access_control]
-    :end-before: [END howto_no_fine_grained_access_control]
+This also means that setting ``access_control={}`` will wipe any existing DAG-level permissions for a given DAG from the DB:
 
- - Removing the access_control block from a DAG altogether (or setting it to `None`) can leave dangling permissions.
+.. code-block:: python
 
-.. exampleinclude:: /../../airflow/example_dags/example_dag_level_access_control.py
-    :language: python
-    :start-after: [START howto_indifferent_fine_grained_access_control]
-    :end-before: [END howto_indifferent_fine_grained_access_control]
+    with DAG(
+        dag_id="example_no_fine_grained_access",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        access_control={},
+    ) as no_fine_grained_access:
 
-In the case that there is no `access_control` defined on the DAG itself, Airflow will defer to existing permissions defined in the DB, which
+
+Conversely, removing the access_control block from a DAG altogether (or setting it to ``None``) won't make any changes and can leave dangling permissions.
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="example_indifferent_to_fine_grained_access",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        access_control={},
+    ) as indifferent_to_fine_grained_access:
+
+
+In the case that there is no ``access_control`` defined on the DAG itself, Airflow will defer to existing permissions defined in the DB, which
 may have been set through the UI, CLI or by previous access_control args on the DAG in question.
 
-In all cases, system-wide roles such as `Can edit on DAG` take precedence over dag-level access controls, such that they can be considered `Can edit on DAG: *`
+In all cases, system-wide roles such as ``Can edit on DAG`` take precedence over dag-level access controls, such that they can be considered ``Can edit on DAG: *``
 
