@@ -200,10 +200,10 @@ class State:
     A list of states indicating that a task has been terminated.
     """
 
-    resettable_states = frozenset(
+    adoptable_states = frozenset(
         [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING]
     )
     """
-    A list of states indicating that a task can be reset or adopted by a scheduler job
-    if it was queued by another scheduler job is not running anymore.
+    A list of states indicating that a task can be adopted or reset by a scheduler job
+    if it was queued by another scheduler job that is not running anymore.
     """

@@ -3152,11 +3152,11 @@ class TestSchedulerJob:
         assert 0 == self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
 
     @pytest.mark.parametrize(
-        "resettable_state",
-        State.resettable_states,
+        "adoptable_state",
+        State.adoptable_states,
     )
-    def test_adopt_or_reset_resettable_tasks(self, dag_maker, resettable_state):
-        dag_id = "test_adopt_or_reset_resettable_tasks_" + resettable_state.name
+    def test_adopt_or_reset_resettable_tasks(self, dag_maker, adoptable_state):
+        dag_id = "test_adopt_or_reset_adoptable_tasks_" + adoptable_state.name
         with dag_maker(dag_id=dag_id, schedule="@daily"):
             task_id = dag_id + "_task"
             EmptyOperator(task_id=task_id)
@@ -3167,7 +3167,7 @@ class TestSchedulerJob:
 
         dr1 = dag_maker.create_dagrun(external_trigger=True)
         ti = dr1.get_task_instances(session=session)[0]
-        ti.state = resettable_state
+        ti.state = adoptable_state
         session.merge(ti)
         session.merge(dr1)
         session.commit()
