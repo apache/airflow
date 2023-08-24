@@ -486,7 +486,7 @@ class DockerOperator(BaseOperator):
 
         :return: the command (or commands)
         """
-        if isinstance(command, str) and command.strip().find("[") == 0:
+        if isinstance(command, str) and command.strip().startswith("["):
             command = ast.literal_eval(command)
         return command
 
