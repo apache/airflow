@@ -277,4 +277,3 @@ In the case that there is no ``access_control`` defined on the DAG itself, Airfl
 may have been set through the UI, CLI or by previous access_control args on the DAG in question.
 
 In all cases, system-wide roles such as ``Can edit on DAG`` take precedence over dag-level access controls, such that they can be considered ``Can edit on DAG: *``
-
