@@ -247,7 +247,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
                 pass
             else:
                 log += self._add_message(
-                    f"Error checking for previous log; if exists, may be overwritten: {str(e)}"
+                    f"Error checking for previous log; if exists, may be overwritten: {e}"
                 )
                 self.log.warning("Error checking for previous log: %s", e)
         try:

@@ -285,7 +285,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
                 else:
                     dagrun_timeout = None
                 if dagrun_timeout and execution_time > dagrun_timeout:
-                    self.log.warning("DagRun timed out after %s.", str(execution_time))
+                    self.log.warning("DagRun timed out after %s.", execution_time)
 
             # potential race condition, the _run_raw_task commits `success` or other state
             # but task_runner does not exit right away due to slow process shutdown or any other reasons

@@ -108,7 +108,7 @@ class ArangoDBHook(BaseHook):
                     f"Failed to execute AQLQuery, error connecting to database: {self.database}"
                 )
         except AQLQueryExecuteError as error:
-            raise AirflowException(f"Failed to execute AQLQuery, error: {str(error)}")
+            raise AirflowException(f"Failed to execute AQLQuery, error: {error}")
 
     def create_collection(self, name):
         if not self.db_conn.has_collection(name):
