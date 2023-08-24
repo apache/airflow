@@ -31,6 +31,15 @@ To set up ``dag.test``, add these two lines to the bottom of your dag file:
   if __name__ == "__main__":
       dag.test()
 
+Using TaskFlow API:
+
+.. code-block:: python
+
+  dag = taskflow_example()
+  
+  if __name__ == "__main__":
+      dag.test()
+
 and that's it! You can add argument such as ``execution_date`` if you want to test argument-specific DAG runs, but otherwise
 you can run or debug DAGs as needed.
 
