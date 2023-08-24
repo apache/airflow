@@ -21,7 +21,6 @@ import contextlib
 import io
 import json
 import os
-import tempfile
 from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
@@ -701,17 +700,17 @@ class TestCliDags:
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
             )
 
-    def test_delete_dag_existing_file(self):
+    def test_delete_dag_existing_file(self, tmp_path):
         # Test to check that the DAG should be deleted even if
         # the file containing it is not deleted
+        path = tmp_path / "testfile"
         DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
-        with tempfile.NamedTemporaryFile() as f:
-            session.add(DM(dag_id=key, fileloc=f.name))
-            session.commit()
-            dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-            assert session.query(DM).filter_by(dag_id=key).count() == 0
+        session.add(DM(dag_id=key, fileloc=os.fspath(path)))
+        session.commit()
+        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
+        assert session.query(DM).filter_by(dag_id=key).count() == 0
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(["dags", "list-jobs"])
