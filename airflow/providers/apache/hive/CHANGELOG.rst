@@ -41,6 +41,7 @@ Misc
 * ``Add more accurate typing for DbApiHook.run method (#31846)``
 * ``Move Hive configuration to Apache Hive provider (#32777)``
 
+
 6.1.2
 .....
 
