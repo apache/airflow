@@ -1579,7 +1579,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
         """
-        Reset any TaskInstance in QUEUED or SCHEDULED state if its SchedulerJob is no longer running.
+        Adopt or reset any TaskInstance in resettable state if its SchedulerJob is no longer running.
 
         :return: the number of TIs reset
         """
@@ -1609,10 +1609,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
                         Stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
 
-                    resettable_states = [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING]
                     query = (
                         select(TI)
-                        .where(TI.state.in_(resettable_states))
+                        .where(TI.state.in_(State.resettable_states))
                         # outerjoin is because we didn't use to have queued_by_job
                         # set, so we need to pick up anything pre upgrade. This (and the
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
