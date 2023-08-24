@@ -1570,7 +1570,7 @@ sql_alchemy_conn=sqlite://test
         all_sections_including_defaults = airflow_cfg.get_sections_including_defaults()
         assert "core" in all_sections_including_defaults
         assert "test-section" in all_sections_including_defaults
-        assert len([section for section in all_sections_including_defaults if section == "core"]) == 1
+        assert sum(1 for section in all_sections_including_defaults if section == "core") == 1
 
     def test_get_options_including_defaults(self):
         airflow_cfg = AirflowConfigParser()
@@ -1594,7 +1594,7 @@ sql_alchemy_conn=sqlite://test
         assert "dags_folder" in all_core_options_including_defaults
         assert "test-value" == airflow_cfg.get("core", "new-test-key")
         assert "test-runner" == airflow_cfg.get("core", "task_runner")
-        assert len([option for option in all_core_options_including_defaults if option == "task_runner"]) == 1
+        assert sum(1 for option in all_core_options_including_defaults if option == "task_runner") == 1
 
 
 def test_sensitive_values():
