@@ -122,8 +122,6 @@ with DAG(
                 "assignPublicIp": "ENABLED",
             },
         },
-        # You must set `reattach=True` in order to get ecs_task_arn if you plan to use a Sensor.
-        reattach=True,
     )
     # [END howto_operator_ecs]
 
