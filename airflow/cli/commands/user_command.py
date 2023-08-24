@@ -73,7 +73,7 @@ def users_create(args):
             valid_roles = appbuilder.sm.get_all_roles()
             raise SystemExit(f"{args.role} is not a valid role. Valid roles are: {valid_roles}")
         if args.use_random_password:
-            password = "".join(random.choice(string.printable) for _ in range(16))
+            password = "".join(random.choices(string.printable, k=16))
         elif args.password:
             password = args.password
         else:
