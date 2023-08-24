@@ -23,12 +23,11 @@ from typing import Any
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
-from azure.identity import DefaultAzureCredential
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
 from airflow.utils import timezone
 
 
@@ -97,11 +96,14 @@ class AzureBatchHook(BaseHook):
         if not batch_account_url:
             raise AirflowException("Batch Account URL parameter is missing.")
 
-        credentials: batch_auth.SharedKeyCredentials | DefaultAzureCredential
+        credentials: batch_auth.SharedKeyCredentials | AzureIdentityCredentialAdapter
         if all([conn.login, conn.password]):
             credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
         else:
-            credentials = DefaultAzureCredential()
+            credentials = AzureIdentityCredentialAdapter(
+                None, resource_id="https://batch.core.windows.net/.default"
+            )
+            # credentials = AzureIdentityCredentialAdapter()
 
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
         return batch_client
