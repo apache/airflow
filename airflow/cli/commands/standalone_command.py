@@ -140,7 +140,7 @@ class StandaloneCommand:
             "standalone": "white",
         }.get(name, "white")
         colorised_name = colored("%10s" % name, color)
-        for line in output.split("\n"):
+        for line in output.splitlines():
             print(f"{colorised_name} | {line.strip()}")
 
     def print_error(self, name: str, output):
