@@ -731,10 +731,10 @@ class KubernetesPodOperator(BaseOperator):
                     (x for x in container_statuses if x.name == self.base_container_name), None
                 )
                 exit_code = (
-                    base_container_status.last_state.terminated.exit_code
+                    base_container_status.state.terminated.exit_code
                     if base_container_status
-                    and base_container_status.last_state
-                    and base_container_status.last_state.terminated
+                    and base_container_status.state
+                    and base_container_status.state.terminated
                     else None
                 )
                 if exit_code in self.skip_on_exit_code:
