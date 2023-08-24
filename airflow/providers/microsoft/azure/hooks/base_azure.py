@@ -21,10 +21,10 @@ from typing import Any
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
-from azure.identity import DefaultAzureCredential
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter
 
 
 class AzureBaseHook(BaseHook):
@@ -125,7 +125,7 @@ class AzureBaseHook(BaseHook):
             self.log.info("Getting connection using a JSON config.")
             return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
 
-        credentials: ServicePrincipalCredentials | DefaultAzureCredential
+        credentials: ServicePrincipalCredentials | AzureIdentityCredentialAdapter
         if all([conn.login, conn.password, tenant]):
             self.log.info("Getting connection using specific credentials and subscription_id.")
             credentials = ServicePrincipalCredentials(
@@ -133,7 +133,7 @@ class AzureBaseHook(BaseHook):
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")
-            credentials = DefaultAzureCredential()
+            credentials = AzureIdentityCredentialAdapter()
 
         return self.sdk_client(
             credentials=credentials,
