@@ -169,7 +169,7 @@ def get_changes(
         cwd=SOURCE_DIR_PATH,
         text=True,
     )
-    return [get_change_from_line(line) for line in change_strings.split("\n")]
+    return [get_change_from_line(line) for line in change_strings.splitlines()]
 
 
 def render_template(
@@ -301,7 +301,7 @@ def generate_issue_content(
             # GitHub does not have linked issues in PR - but we quite rigorously add Fixes/Closes
             # Relate so we can find those from the body
             if pr.body:
-                body = pr.body.replace("\n", " ").replace("\r", " ")
+                body = " ".join(pr.body.splitlines())
                 linked_issue_numbers = {
                     int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
                 }

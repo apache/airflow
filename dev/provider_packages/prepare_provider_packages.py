@@ -483,7 +483,7 @@ def convert_git_changes_to_table(
     """
     from tabulate import tabulate
 
-    lines = changes.split("\n")
+    lines = changes.splitlines()
     headers = ["Commit", "Committed", "Subject"]
     table_data = []
     changes_list: list[Change] = []

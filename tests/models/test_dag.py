@@ -1368,7 +1368,7 @@ class TestDag:
                 dag.tree_view()
                 stdout = stdout.getvalue()
 
-            stdout_lines = stdout.split("\n")
+            stdout_lines = stdout.splitlines()
             assert "t1" in stdout_lines[0]
             assert "t2" in stdout_lines[1]
             assert "t3" in stdout_lines[2]

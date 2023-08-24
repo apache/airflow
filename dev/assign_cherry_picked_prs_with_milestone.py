@@ -226,7 +226,7 @@ def get_changes(verbose: bool, previous_release: str, current_release: str) -> l
         cwd=SOURCE_DIR_PATH,
         text=True,
     )
-    return [get_change_from_line(line) for line in change_strings.split("\n")]
+    return [get_change_from_line(line) for line in change_strings.splitlines()]
 
 
 def update_milestone(r: Repository, pr: PullRequest, m: Milestone):
