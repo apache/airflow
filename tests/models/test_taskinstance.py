@@ -2893,19 +2893,22 @@ class TestTaskInstance:
     def test_context_inside_template(self, dag_maker):
         def user_defined_macro():
             from airflow.operators.python import get_current_context
+
             get_current_context()
 
         with dag_maker(
             "test_context_inside_template",
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
-            user_defined_macros={"user_defined_macro": user_defined_macro}
+            user_defined_macros={"user_defined_macro": user_defined_macro},
         ):
             def foo(arg):
                 print(arg)
             
-            PythonOperator(task_id="context_inside_template", python_callable=foo,
-                           op_kwargs={"arg": "{{ user_defined_macro() }}"})
+            PythonOperator(
+                task_id="context_inside_template",
+                python_callable=foo,
+                op_kwargs={"arg": "{{ user_defined_macro() }}"}),
         dagrun = dag_maker.create_dagrun()
         tis = dagrun.get_task_instances()
         ti: TaskInstance = next(x for x in tis if x.task_id == "context_inside_template")
