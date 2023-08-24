@@ -293,9 +293,8 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         while True:
             try:
-                cg_state = self._ci_hook.get_state(resource_group, name)
+                cg_state = self._ci_hook.list_container_group(resource_group, name)
                 instance_view = cg_state.containers[0].instance_view
-
                 # If there is no instance view, we show the provisioning state
                 if instance_view is not None:
                     c_state = instance_view.current_state
