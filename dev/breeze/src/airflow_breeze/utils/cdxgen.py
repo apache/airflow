@@ -205,7 +205,7 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
     )
     get_console().print(provider_packages)
     provider_file = target_dir / provider_file_name
-    provider_file.write_text("\n".join(provider_packages) + "\n")
+    provider_file.write_text("".join(f"{p}\n" for p in provider_packages))
     get_console().print(
         f"[success]Generated {provider_id}:{provider_version} requirements in {provider_file}"
     )
