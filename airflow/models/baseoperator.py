@@ -1580,7 +1580,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def _trigger_timeout(
         self, context: Context, timeout: timedelta | None = None
     ) -> tuple[datetime | None, str | None]:
-        """Returns the earliest time to fail the task and the reason for it."""
+        """
+        Returns the earliest time to fail the task and the reason for it.
+
+        :param context: Task instance execution Context Dictionary
+        :param timeout: Timeout for the Trigger.
+        :return: trigger_timeout, trigger_timeout_reason calculated by comparing the different
+            timeout options and choosing the earliest one.
+        """
         trigger_timeout: datetime | None = None
         trigger_timeout_reason: str | None = None
 
