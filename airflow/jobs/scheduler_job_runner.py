@@ -1581,11 +1581,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
         """
-        Reset any TaskInstance in QUEUED or SCHEDULED state if its SchedulerJob is no longer running.
+        Adopt or reset any TaskInstance in resettable state if its SchedulerJob is no longer running.
 
         :return: the number of TIs reset
         """
-        self.log.info("Resetting orphaned tasks for active dag runs")
+        self.log.info("Adopting or resetting orphaned tasks for active dag runs")
         timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
 
         for attempt in run_with_db_retries(logger=self.log):
@@ -1611,10 +1611,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
                         Stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
 
-                    resettable_states = [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING]
                     query = (
                         select(TI)
-                        .where(TI.state.in_(resettable_states))
+                        .where(TI.state.in_(State.adoptable_states))
                         # outerjoin is because we didn't use to have queued_by_job
                         # set, so we need to pick up anything pre upgrade. This (and the
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
@@ -1630,11 +1629,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too
-                    tis_to_reset_or_adopt = with_row_locks(
+                    tis_to_adopt_or_reset = with_row_locks(
                         query, of=TI, session=session, **skip_locked(session=session)
                     )
-                    tis_to_reset_or_adopt = session.scalars(tis_to_reset_or_adopt).all()
-                    to_reset = self.job.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
+                    tis_to_adopt_or_reset = session.scalars(tis_to_adopt_or_reset).all()
+                    to_reset = self.job.executor.try_adopt_task_instances(tis_to_adopt_or_reset)
 
                     reset_tis_message = []
                     for ti in to_reset:
@@ -1642,11 +1641,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         ti.state = None
                         ti.queued_by_job_id = None
 
-                    for ti in set(tis_to_reset_or_adopt) - set(to_reset):
+                    for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
 
                     Stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
-                    Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_reset_or_adopt) - len(to_reset))
+                    Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
 
                     if to_reset:
                         task_instance_str = "\n\t".join(reset_tis_message)
