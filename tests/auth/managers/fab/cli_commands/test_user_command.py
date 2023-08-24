@@ -25,7 +25,8 @@ from contextlib import redirect_stdout
 
 import pytest
 
-from airflow.cli.commands import user_command
+from airflow.auth.managers.fab.cli_commands import user_command
+from airflow.cli import cli_parser
 from tests.test_utils.api_connexion_utils import delete_users
 
 TEST_USER1_EMAIL = "test-user1@example.com"
@@ -44,10 +45,9 @@ def _does_user_belong_to_role(appbuilder, email, rolename):
 
 class TestCliUsers:
     @pytest.fixture(autouse=True)
-    def _set_attrs(self, app, dagbag, parser):
+    def _set_attrs(self, app):
         self.app = app
-        self.dagbag = dagbag
-        self.parser = parser
+        self.parser = cli_parser.get_parser()
         self.appbuilder = self.app.appbuilder
         delete_users(app)
         yield

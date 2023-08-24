@@ -105,11 +105,8 @@ class DatabricksReposCreateOperator(BaseOperator):
     def __detect_repo_provider__(url):
         provider = None
         try:
-            netloc = urlsplit(url).netloc
-            idx = netloc.rfind("@")
-            if idx != -1:
-                netloc = netloc[(idx + 1) :]
-            netloc = netloc.lower()
+            netloc = urlsplit(url).netloc.lower()
+            _, _, netloc = netloc.rpartition("@")
             provider = DatabricksReposCreateOperator.__git_providers__.get(netloc)
             if provider is None and DatabricksReposCreateOperator.__aws_code_commit_regexp__.match(netloc):
                 provider = "awsCodeCommit"

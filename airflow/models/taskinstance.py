@@ -2141,7 +2141,7 @@ class TaskInstance(Base, LoggingMixin):
             execution_date = get_prev_execution_date()
             if execution_date is None:
                 return None
-            return execution_date.strftime(r"%Y-%m-%d")
+            return execution_date.strftime("%Y-%m-%d")
 
         def get_prev_ds_nodash() -> str | None:
             prev_ds = get_prev_ds()

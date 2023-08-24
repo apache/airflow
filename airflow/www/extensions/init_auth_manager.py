@@ -26,12 +26,10 @@ if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import BaseAuthManager
 
 
-@cache
-def get_auth_manager() -> BaseAuthManager:
-    """
-    Initialize auth manager.
+def get_auth_manager_cls() -> type[BaseAuthManager]:
+    """Returns just the auth manager class without initializing it.
 
-    Import the user manager class, instantiate it and return it.
+    Useful to save execution time if only static methods need to be called.
     """
     auth_manager_cls = conf.getimport(section="core", key="auth_manager")
 
@@ -40,5 +38,17 @@ def get_auth_manager() -> BaseAuthManager:
             "No auth manager defined in the config. "
             "Please specify one using section/key [core/auth_manager]."
         )
+
+    return auth_manager_cls
+
+
+@cache
+def get_auth_manager() -> BaseAuthManager:
+    """
+    Initialize auth manager.
+
+    Import the user manager class, instantiate it and return it.
+    """
+    auth_manager_cls = get_auth_manager_cls()
 
     return auth_manager_cls()

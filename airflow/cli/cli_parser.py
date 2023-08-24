@@ -46,6 +46,7 @@ from airflow.cli.utils import CliConflictError
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
+from airflow.www.extensions.init_auth_manager import get_auth_manager_cls
 
 airflow_commands = core_commands.copy()  # make a copy to prevent bad interactions in tests
 
@@ -63,6 +64,13 @@ except Exception:
     )
     # Do not re-raise the exception since we want the CLI to still function for
     # other commands.
+
+try:
+    auth_mgr = get_auth_manager_cls()
+    airflow_commands.extend(auth_mgr.get_cli_commands())
+except Exception:
+    log.exception("cannot load CLI commands from auth manager")
+    # do not re-raise for the same reason as above
 
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
