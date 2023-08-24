@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import io
 import os
-import tempfile
 from contextlib import redirect_stdout
 
 import pytest
@@ -130,33 +129,25 @@ class TestCliVariables:
         """Test variables_export command"""
         variable_command.variables_export(self.parser.parse_args(["variables", "export", os.devnull]))
 
-    def test_variables_isolation(self):
+    def test_variables_isolation(self, tmp_path):
         """Test isolation of variables"""
-        with tempfile.NamedTemporaryFile(delete=True) as tmp1, tempfile.NamedTemporaryFile(
-            delete=True
-        ) as tmp2:
+        path1 = tmp_path / "testfile1"
+        path2 = tmp_path / "testfile2"
 
-            # First export
-            variable_command.variables_set(
-                self.parser.parse_args(["variables", "set", "foo", '{"foo":"bar"}'])
-            )
-            variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "original"]))
-            variable_command.variables_export(self.parser.parse_args(["variables", "export", tmp1.name]))
+        # First export
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", '{"foo":"bar"}']))
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "original"]))
+        variable_command.variables_export(self.parser.parse_args(["variables", "export", os.fspath(path1)]))
 
-            with open(tmp1.name) as first_exp:
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "updated"]))
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", '{"foo":"oops"}']))
+        variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "foo"]))
+        variable_command.variables_import(self.parser.parse_args(["variables", "import", os.fspath(path1)]))
 
-                variable_command.variables_set(self.parser.parse_args(["variables", "set", "bar", "updated"]))
-                variable_command.variables_set(
-                    self.parser.parse_args(["variables", "set", "foo", '{"foo":"oops"}'])
-                )
-                variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "foo"]))
-                variable_command.variables_import(self.parser.parse_args(["variables", "import", tmp1.name]))
+        assert "original" == Variable.get("bar")
+        assert '{\n  "foo": "bar"\n}' == Variable.get("foo")
 
-                assert "original" == Variable.get("bar")
-                assert '{\n  "foo": "bar"\n}' == Variable.get("foo")
+        # Second export
+        variable_command.variables_export(self.parser.parse_args(["variables", "export", os.fspath(path2)]))
 
-                # Second export
-                variable_command.variables_export(self.parser.parse_args(["variables", "export", tmp2.name]))
-
-                with open(tmp2.name) as second_exp:
-                    assert first_exp.read() == second_exp.read()
+        assert path1.read_text() == path2.read_text()
