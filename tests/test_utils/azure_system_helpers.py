@@ -146,7 +146,7 @@ class AzureSystemTest(SystemTest):
         cls.create_directory(
             share_name=share_name, azure_fileshare_conn_id=azure_fileshare_conn_id, directory=directory
         )
-        string_data = "".join(random.choice(string.ascii_letters) for _ in range(1024))
+        string_data = "".join(random.choices(string.ascii_letters, k=1024))
         cls.upload_file_from_string(
             string_data=string_data,
             share_name=share_name,

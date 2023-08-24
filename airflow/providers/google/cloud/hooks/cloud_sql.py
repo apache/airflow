@@ -887,7 +887,7 @@ class CloudSQLDatabaseHook(BaseHook):
         random.seed()
         while True:
             candidate = os.path.join(
-                gettempdir(), "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(8))
+                gettempdir(), "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
             )
             if not os.path.exists(candidate):
                 return candidate
