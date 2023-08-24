@@ -1309,10 +1309,10 @@ class TestKubernetesPodOperator:
 
         base_container = MagicMock()
         base_container.name = k.base_container_name
-        base_container.last_state.terminated.exit_code = actual_exit_code
+        base_container.state.terminated.exit_code = actual_exit_code
         sidecar_container = MagicMock()
         sidecar_container.name = "airflow-xcom-sidecar"
-        sidecar_container.last_state.terminated.exit_code = 0
+        sidecar_container.state.terminated.exit_code = 0
         remote_pod.return_value.status.container_statuses = [base_container, sidecar_container]
         remote_pod.return_value.status.phase = "Succeeded" if actual_exit_code == 0 else "Failed"
 
@@ -1569,10 +1569,10 @@ class TestKubernetesPodOperatorAsync:
 
         base_container = MagicMock()
         base_container.name = k.base_container_name
-        base_container.last_state.terminated.exit_code = actual_exit_code
+        base_container.state.terminated.exit_code = actual_exit_code
         sidecar_container = MagicMock()
         sidecar_container.name = "airflow-xcom-sidecar"
-        sidecar_container.last_state.terminated.exit_code = 0
+        sidecar_container.state.terminated.exit_code = 0
         remote_pod = MagicMock()
         remote_pod.status.phase = pod_status
         remote_pod.status.container_statuses = [base_container, sidecar_container]

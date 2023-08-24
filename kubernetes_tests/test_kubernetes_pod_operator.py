@@ -35,7 +35,7 @@ from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 from pytest import param
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -224,6 +224,22 @@ class TestKubernetesPodOperatorSystem:
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
+
+    def test_skip_on_specified_exit_code(self, mock_get_connection):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["exit 42"],
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=True,
+            skip_on_exit_code=42,
+        )
+        context = create_context(k)
+        with pytest.raises(AirflowSkipException):
+            k.execute(context)
 
     def test_already_checked_on_success(self, mock_get_connection):
         """
