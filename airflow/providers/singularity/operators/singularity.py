@@ -167,7 +167,7 @@ class SingularityOperator(BaseOperator):
         self.log.info("Output from command %s", result["message"])
 
     def _get_command(self) -> Any | None:
-        if self.command is not None and self.command.strip().find("[") == 0:  # type: ignore
+        if self.command is not None and self.command.strip().startswith("["):  # type: ignore
             commands = ast.literal_eval(self.command)
         else:
             commands = self.command

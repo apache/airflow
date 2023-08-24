@@ -261,14 +261,13 @@ def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files
         yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         resource_data = provider_data.get(resource_type, [])
-        current_integrations = [r.get("integration-name", "") for r in resource_data]
-        if len(current_integrations) != len(set(current_integrations)):
-            for integration in current_integrations:
-                if current_integrations.count(integration) > 1:
-                    errors.append(
-                        f"Duplicated content of '{resource_type}/integration-name/{integration}' "
-                        f"in file: {yaml_file_path}"
-                    )
+        count_integrations = Counter(r.get("integration-name", "") for r in resource_data)
+        for integration, count in count_integrations.items():
+            if count > 1:
+                errors.append(
+                    f"Duplicated content of '{resource_type}/integration-name/{integration}' "
+                    f"in file: {yaml_file_path}"
+                )
 
 
 def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]):
@@ -343,19 +342,18 @@ def check_duplicates_in_list_of_transfers(yaml_files: dict[str, dict]):
     for yaml_file_path, provider_data in yaml_files.items():
         resource_data = provider_data.get(resource_type, [])
 
-        source_target_integrations = [
+        count_integrations = Counter(
             (r.get("source-integration-name", ""), r.get("target-integration-name", ""))
             for r in resource_data
-        ]
-        if len(source_target_integrations) != len(set(source_target_integrations)):
-            for integration_couple in source_target_integrations:
-                if source_target_integrations.count(integration_couple) > 1:
-                    errors.append(
-                        f"Duplicated content of \n"
-                        f" '{resource_type}/source-integration-name/{integration_couple[0]}' "
-                        f" '{resource_type}/target-integration-name/{integration_couple[1]}' "
-                        f"in file: {yaml_file_path}"
-                    )
+        )
+        for (source, target), count in count_integrations.items():
+            if count > 1:
+                errors.append(
+                    f"Duplicated content of \n"
+                    f" '{resource_type}/source-integration-name/{source}' "
+                    f" '{resource_type}/target-integration-name/{target}' "
+                    f"in file: {yaml_file_path}"
+                )
 
 
 def check_invalid_integration(yaml_files: dict[str, dict]):
@@ -445,8 +443,8 @@ def check_doc_files(yaml_files: dict[str, dict]):
 
 
 def check_unique_provider_name(yaml_files: dict[str, dict]):
-    provider_names = [d["name"] for d in yaml_files.values()]
-    duplicates = {x for x in provider_names if provider_names.count(x) > 1}
+    name_counter = Counter(d["name"] for d in yaml_files.values())
+    duplicates = {k for k, v in name_counter.items() if v > 1}
     if duplicates:
         errors.append(f"Provider name must be unique. Duplicates: {duplicates}")
 

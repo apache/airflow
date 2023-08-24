@@ -33,7 +33,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(
     dag_id=Path(__file__).stem,
-    description=__doc__[0 : __doc__.find(".")],
+    description=__doc__.partition(".")[0],
     doc_md=__doc__,
     schedule=None,
     start_date=datetime.datetime(2022, 3, 4),

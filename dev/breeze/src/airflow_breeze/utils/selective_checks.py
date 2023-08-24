@@ -676,20 +676,9 @@ class SelectiveChecks:
 
         # this should be hard-coded as we want to have very specific sequence of tests
         sorting_order = ["Core", "Providers[-amazon,google]", "Other", "Providers[amazon]", "WWW"]
-
-        def sort_key(t: str) -> str:
-            # Put the test types in the order we want them to run
-            if t in sorting_order:
-                return str(sorting_order.index(t))
-            else:
-                return str(len(sorting_order)) + t
-
-        return " ".join(
-            sorted(
-                current_test_types,
-                key=sort_key,
-            )
-        )
+        sort_key = {item: i for i, item in enumerate(sorting_order)}
+        # Put the test types in the order we want them to run
+        return " ".join(sorted(current_test_types, key=lambda x: (sort_key.get(x, len(sorting_order)), x)))
 
     @cached_property
     def basic_checks_only(self) -> bool:
