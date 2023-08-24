@@ -62,7 +62,7 @@ variety of operations that could be considered as vulnerabilities in other produ
 Therefore, some potential security vulnerabilities do not apply to Airflow, or have a different severity
 than some generic scoring systems (for example `CVSS`) calculation suggests. Severity of the issue is
 determined based on the criteria described in the
-[Severity Rating blog post](https://security.apache.org/blog/severityrating/)  by the Apache Software
+[Severity Rating blog post](https://security.apache.org/blog/severityrating/) by the Apache Software
 Foundation Security team.
 
 The [Airflow Security Team](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#security-team) will get back to you after assessing the report.
