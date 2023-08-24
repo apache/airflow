@@ -126,7 +126,11 @@ class TestAzureDataExplorerHook:
         )
         with patch.dict(
             in_dict=os.environ,
-            values={"AZURE_TENANT_ID": "tenant", "AZURE_CLIENT_ID": "client", "AZURE_CLIENT_SECRET": "secret"}
+            values={
+                "AZURE_TENANT_ID": "tenant",
+                "AZURE_CLIENT_ID": "client",
+                "AZURE_CLIENT_SECRET": "secret",
+            }
         ):
             hook = AzureDataExplorerHook(azure_data_explorer_conn_id=ADX_TEST_CONN_ID)
             assert hook.connection._kcsb.data_source == "https://help.kusto.windows.net"
@@ -134,7 +138,7 @@ class TestAzureDataExplorerHook:
                 tenant_id="tenant",
                 client_id="client",
                 client_secret="secret",
-                authority="https://login.microsoftonline.com"
+                authority="https://login.microsoftonline.com",
             )
 
     @mock.patch.object(KustoClient, "__init__")
