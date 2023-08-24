@@ -2902,13 +2902,15 @@ class TestTaskInstance:
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
             user_defined_macros={"user_defined_macro": user_defined_macro},
         ):
+
             def foo(arg):
                 print(arg)
-            
+
             PythonOperator(
                 task_id="context_inside_template",
                 python_callable=foo,
-                op_kwargs={"arg": "{{ user_defined_macro() }}"}),
+                op_kwargs={"arg": "{{ user_defined_macro() }}"},
+            ),
         dagrun = dag_maker.create_dagrun()
         tis = dagrun.get_task_instances()
         ti: TaskInstance = next(x for x in tis if x.task_id == "context_inside_template")
