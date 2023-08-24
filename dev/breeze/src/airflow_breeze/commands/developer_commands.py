@@ -779,7 +779,7 @@ def find_airflow_container() -> str | None:
         return None
 
     output = docker_compose_ps_command.stdout
-    container_info = output.strip().split("\n")
+    container_info = output.strip().splitlines()
     if container_info:
         container_running = container_info[-1].split(" ")[0]
         if container_running.startswith("-"):

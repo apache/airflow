@@ -45,7 +45,7 @@ def print_backtracking_candidates():
     last_constraint_date = match_generated_date(constraints_text)
     get_console().print(f"Last constraint date: {last_constraint_date}")
     dependency_array = [
-        dep for dep in constraints_text.split("\n") if not dep.startswith("#") and not dep.strip() == ""
+        dep for dep in constraints_text.splitlines() if not dep.startswith("#") and dep.strip()
     ]
     candidates_for_backtracking = []
     for x in dependency_array:
