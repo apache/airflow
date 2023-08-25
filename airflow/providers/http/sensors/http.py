@@ -103,8 +103,9 @@ class HttpSensor(BaseSensorOperator):
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
         self.method = method
-        self.response_error_codes_whitelist = ["404"] if response_error_codes_whitelist is None \
-            else response_error_codes_whitelist
+        self.response_error_codes_whitelist = (
+            ["404"] if response_error_codes_whitelist is None else response_error_codes_whitelist
+        )
         self.request_params = request_params or {}
         self.headers = headers or {}
         self.extra_options = extra_options or {}
