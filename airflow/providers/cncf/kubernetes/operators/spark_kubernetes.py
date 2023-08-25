@@ -26,8 +26,8 @@ import jinja2
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import pod_generator
-from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
+from airflow.providers.cncf.kubernetes import pod_generator
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, MAX_LABEL_LEN
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
