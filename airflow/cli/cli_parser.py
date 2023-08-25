@@ -81,12 +81,12 @@ class AirflowHelpFormatter(RichHelpFormatter):
             action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
-            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Groups"), nargs=0)
+            yield Action([], f"\n{' ':{self._current_indent}}Groups", nargs=0)
             self._indent()
             yield from group_subcommands
             self._dedent()
 
-            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Commands"), nargs=0)
+            yield Action([], f"\n{' ':{self._current_indent}}Commands:", nargs=0)
             self._indent()
             yield from action_subcommands
             self._dedent()

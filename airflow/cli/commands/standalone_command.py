@@ -139,7 +139,7 @@ class StandaloneCommand:
             "triggerer": "cyan",
             "standalone": "white",
         }.get(name, "white")
-        colorised_name = colored("%10s" % name, color)
+        colorised_name = colored(f"{name:10}", color)
         for line in output.splitlines():
             print(f"{colorised_name} | {line.strip()}")
 
