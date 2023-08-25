@@ -154,6 +154,7 @@ BaseView
 BaseXCom
 bashrc
 batchGet
+BatchServiceClient
 bc
 bcc
 bdist
