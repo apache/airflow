@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+5.1.3
+.....
+
+Misc
+~~~~
+
+* ``Consolidate import and usage of pandas (#33480)``
+
 5.1.2
 .....
 

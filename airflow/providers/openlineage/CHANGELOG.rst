@@ -26,6 +26,23 @@
 Changelog
 ---------
 
+1.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``openlineage: don't run task instance listener in executor (#33366)``
+* ``openlineage: do not try to redact Proxy objects from deprecated config (#33393)``
+* ``openlineage: defensively check for provided datetimes in listener (#33343)``
+
+Misc
+~~~~
+
+* ``Add OpenLineage support for Trino. (#32910)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Replace repr() with proper formatting (#33520)``
+
 1.0.1
 .....
 
