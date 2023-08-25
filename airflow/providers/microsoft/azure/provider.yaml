@@ -87,6 +87,8 @@ dependencies:
 integrations:
   - integration-name: Microsoft Azure Batch
     external-doc-url: https://azure.microsoft.com/en-us/services/batch/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/batch.rst
     logo: /integration-logos/azure/Microsoft-Azure-Batch.png
     tags: [azure]
   - integration-name: Microsoft Azure Blob Storage
