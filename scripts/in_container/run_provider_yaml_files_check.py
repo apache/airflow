@@ -427,7 +427,7 @@ def check_doc_files(yaml_files: dict[str, dict]):
     console.print(suspended_logos)
     expected_logo_urls = {
         f"/{f.relative_to(DOCS_DIR).as_posix()}"
-        for f in DOCS_DIR.glob("integration-logos/**/*")
+        for f in (DOCS_DIR / "integration-logos").rglob("*")
         if f.is_file() and not f"/{f.relative_to(DOCS_DIR).as_posix()}".startswith(tuple(suspended_logos))
     }
 
@@ -490,7 +490,7 @@ if __name__ == "__main__":
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
-    provider_files_pattern = pathlib.Path(ROOT_DIR).glob("airflow/providers/**/provider.yaml")
+    provider_files_pattern = pathlib.Path(ROOT_DIR, "airflow", "providers").rglob("provider.yaml")
     all_provider_files = sorted(str(path) for path in provider_files_pattern)
     if len(sys.argv) > 1:
         paths = [os.fspath(ROOT_DIR / f) for f in sorted(sys.argv[1:])]
