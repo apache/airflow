@@ -33,7 +33,9 @@ class HttpSensor(BaseSensorOperator):
 
     HTTP Error codes other than 404 (like 403) or Connection Refused Error
     would raise an exception and fail the sensor itself directly (no more poking).
-    To avoid failing the task for other codes than 404, the argument ``extra_option``
+    To avoid failing the task for other codes than 404, the argument ``response_error_codes_whitelist``
+    can be passed with the list containing all the allowed error status codes, like ``["404", "503"]``
+    To skip error status code check at all, the argument ``extra_option``
     can be passed with the value ``{'check_response': False}``. It will make the ``response_check``
     be execute for any http status code.
 
