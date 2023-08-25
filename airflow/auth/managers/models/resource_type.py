@@ -17,19 +17,29 @@
 # under the License.
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import ResourceDetails
-from airflow.auth.managers.models.resource_method import ResourceMethod
-from airflow.auth.managers.models.resource_type import ResourceType
+from enum import Enum
 
 
-@dataclass
-class AuthorizedAction:
-    """Represents an action that is being checked for authorization."""
+class ResourceType(Enum):
+    """
+    Define all the resource types in Airflow.
 
-    action: ResourceMethod
-    resource_type: ResourceType
-    resource_details: ResourceDetails | None = None
-    user: BaseUser | None = None
+    This is used when doing authorization check to define the type of resource the user is trying to access.
+    """
+
+    AUDIT_LOG = "Audit Logs"
+    CLUSTER_ACTIVITY = "Cluster Activity"
+    CONFIG = "Configurations"
+    CONNECTION = "Connections"
+    DAG = "DAGs"
+    DAG_CODE = "DAG Code"
+    DAG_DEPENDENCIES = "DAG Dependencies"
+    DAG_RUN = "DAG Runs"
+    DATASET = "Datasets"
+    PLUGIN = "Plugins"
+    PROVIDER = "Providers"
+    TASK_INSTANCE = "Task Instances"
+    TASK_LOG = "Task Logs"
+    VARIABLE = "Variables"
+    WEBSITE = "Website"
+    XCOM = "XComs"

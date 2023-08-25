@@ -25,6 +25,7 @@ from airflow.auth.managers.models.authorized_action import AuthorizedAction
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import ResourceDetails
 from airflow.auth.managers.models.resource_method import ResourceMethod
+from airflow.auth.managers.models.resource_type import ResourceType
 from airflow.exceptions import AirflowException
 from airflow.www.security import ApplessAirflowSecurityManager
 
@@ -45,7 +46,7 @@ class EmptyAuthManager(BaseAuthManager):
     def is_authorized(
         self,
         action: ResourceMethod,
-        resource_type: str,
+        resource_type: ResourceType,
         resource_details: ResourceDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
@@ -78,22 +79,22 @@ class TestBaseAuthManager:
             ),
             # One action with permissions
             (
-                [AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource")],
+                [AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.VARIABLE)],
                 [True],
                 True,
             ),
             # One action without permissions
             (
-                [AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource")],
+                [AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.VARIABLE)],
                 [False],
                 False,
             ),
             # Several actions, one without permission
             (
                 [
-                    AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource"),
-                    AuthorizedAction(action=ResourceMethod.POST, resource_type="test_resource"),
-                    AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource2"),
+                    AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.VARIABLE),
+                    AuthorizedAction(action=ResourceMethod.POST, resource_type=ResourceType.VARIABLE),
+                    AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.XCOM),
                 ],
                 [True, True, False],
                 False,
@@ -101,9 +102,9 @@ class TestBaseAuthManager:
             # Several actions, all with permission
             (
                 [
-                    AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource"),
-                    AuthorizedAction(action=ResourceMethod.POST, resource_type="test_resource"),
-                    AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource2"),
+                    AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.VARIABLE),
+                    AuthorizedAction(action=ResourceMethod.POST, resource_type=ResourceType.VARIABLE),
+                    AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.XCOM),
                 ],
                 [True, True, True],
                 True,
@@ -131,13 +132,11 @@ class TestBaseAuthManager:
         assert type(_security_manager) is ApplessAirflowSecurityManager
 
     @pytest.mark.parametrize(
-        "resource_name, result",
+        "resource_type, result",
         [
-            ("DAGs", True),
-            ("DAG:test", True),
-            ("DAG:dag_id", True),
-            ("test", False),
+            (ResourceType.DAG, True),
+            (ResourceType.VARIABLE, False),
         ],
     )
-    def test_is_dag_resource(self, resource_name, result):
-        assert BaseAuthManager.is_dag_resource(resource_name) is result
+    def test_is_dag_resource(self, resource_type, result):
+        assert BaseAuthManager.is_dag_resource(resource_type) is result

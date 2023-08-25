@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.auth.managers.models.authorized_action import AuthorizedAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
 from airflow.auth.managers.models.resource_method import ResourceMethod
+from airflow.auth.managers.models.resource_type import ResourceType
 from airflow.exceptions import AirflowException
-from airflow.security.permissions import RESOURCE_DAG, RESOURCE_DAG_PREFIX
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -71,7 +71,7 @@ class BaseAuthManager(LoggingMixin):
     def is_authorized(
         self,
         action: ResourceMethod,
-        resource_type: str,
+        resource_type: ResourceType,
         resource_details: ResourceDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
@@ -156,6 +156,6 @@ class BaseAuthManager(LoggingMixin):
         self._security_manager = security_manager
 
     @staticmethod
-    def is_dag_resource(resource_name: str) -> bool:
+    def is_dag_resource(resource_type: ResourceType) -> bool:
         """Determines if a resource relates to a DAG."""
-        return resource_name == RESOURCE_DAG or resource_name.startswith(RESOURCE_DAG_PREFIX)
+        return resource_type == ResourceType.DAG

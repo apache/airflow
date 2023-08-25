@@ -82,6 +82,7 @@ from airflow.api.common.mark_tasks import (
     set_state,
 )
 from airflow.auth.managers.models.resource_method import ResourceMethod
+from airflow.auth.managers.models.resource_type import ResourceType
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import (
@@ -720,7 +721,7 @@ class Airflow(AirflowBaseView):
     @expose("/home")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_WEBSITE),
+            (ResourceMethod.GET, ResourceType.WEBSITE),
         ]
     )
     def index(self):
@@ -1032,7 +1033,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/datasets")
-    @auth.has_access([(ResourceMethod.GET, permissions.RESOURCE_DATASET)])
+    @auth.has_access([(ResourceMethod.GET, ResourceType.DATASET)])
     def datasets(self):
         """Datasets view."""
         state_color_mapping = State.state_color.copy()
@@ -1045,7 +1046,7 @@ class Airflow(AirflowBaseView):
     @expose("/cluster_activity")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_CLUSTER_ACTIVITY),
+            (ResourceMethod.GET, ResourceType.CLUSTER_ACTIVITY),
         ]
     )
     def cluster_activity(self):
@@ -1059,7 +1060,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/next_run_datasets_summary", methods=["POST"])
-    @auth.has_access([(ResourceMethod.GET, permissions.RESOURCE_DAG)])
+    @auth.has_access([(ResourceMethod.GET, ResourceType.DAG)])
     @provide_session
     def next_run_datasets_summary(self, session: Session = NEW_SESSION):
         """Next run info for dataset triggered DAGs."""
@@ -1096,8 +1097,8 @@ class Airflow(AirflowBaseView):
     @expose("/dag_stats", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_DAG_RUN),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.DAG_RUN),
         ]
     )
     @provide_session
@@ -1133,9 +1134,9 @@ class Airflow(AirflowBaseView):
     @expose("/task_stats", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_DAG_RUN),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.DAG_RUN),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @provide_session
@@ -1240,8 +1241,8 @@ class Airflow(AirflowBaseView):
     @expose("/last_dagruns", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_DAG_RUN),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.DAG_RUN),
         ]
     )
     @provide_session
@@ -1305,8 +1306,8 @@ class Airflow(AirflowBaseView):
     @expose("/code")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_DAG_CODE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.DAG_CODE),
         ]
     )
     def legacy_code(self):
@@ -1316,8 +1317,8 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/code")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_DAG_CODE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.DAG_CODE),
         ]
     )
     @provide_session
@@ -1334,8 +1335,8 @@ class Airflow(AirflowBaseView):
     @expose("/dag_details")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_DAG_RUN),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.DAG_RUN),
         ]
     )
     def legacy_dag_details(self):
@@ -1345,8 +1346,8 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/details")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_DAG_RUN),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.DAG_RUN),
         ]
     )
     @provide_session
@@ -1426,8 +1427,8 @@ class Airflow(AirflowBaseView):
     @expose("/rendered-templates")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -1550,8 +1551,8 @@ class Airflow(AirflowBaseView):
     @expose("/rendered-k8s")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -1615,9 +1616,9 @@ class Airflow(AirflowBaseView):
     @expose("/get_logs_with_metadata")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.TASK_LOG),
         ]
     )
     @action_logging
@@ -1702,9 +1703,9 @@ class Airflow(AirflowBaseView):
     @expose("/log")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.TASK_LOG),
         ]
     )
     @action_logging
@@ -1753,9 +1754,9 @@ class Airflow(AirflowBaseView):
     @expose("/redirect_to_external_log")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.TASK_LOG),
         ]
     )
     @action_logging
@@ -1791,8 +1792,8 @@ class Airflow(AirflowBaseView):
     @expose("/task")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -1922,9 +1923,9 @@ class Airflow(AirflowBaseView):
     @expose("/xcom")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
-            (ResourceMethod.GET, permissions.RESOURCE_XCOM),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.XCOM),
         ]
     )
     @action_logging
@@ -1975,7 +1976,7 @@ class Airflow(AirflowBaseView):
     @expose("/delete", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.DELETE, permissions.RESOURCE_DAG),
+            (ResourceMethod.DELETE, ResourceType.DAG),
         ]
     )
     @action_logging
@@ -2010,8 +2011,8 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/trigger", methods=["POST", "GET"])
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
-            (ResourceMethod.POST, permissions.RESOURCE_DAG_RUN),
+            (ResourceMethod.PUT, ResourceType.DAG),
+            (ResourceMethod.POST, ResourceType.DAG_RUN),
         ]
     )
     @action_logging
@@ -2299,8 +2300,8 @@ class Airflow(AirflowBaseView):
     @expose("/clear", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
-            (ResourceMethod.DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.PUT, ResourceType.DAG),
+            (ResourceMethod.DELETE, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -2394,8 +2395,8 @@ class Airflow(AirflowBaseView):
     @expose("/dagrun_clear", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
-            (ResourceMethod.DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.PUT, ResourceType.DAG),
+            (ResourceMethod.DELETE, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -2424,8 +2425,8 @@ class Airflow(AirflowBaseView):
     @expose("/blocked", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_DAG_RUN),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.DAG_RUN),
         ]
     )
     @provide_session
@@ -2544,8 +2545,8 @@ class Airflow(AirflowBaseView):
     @expose("/dagrun_failed", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG_RUN),
+            (ResourceMethod.PUT, ResourceType.DAG),
+            (ResourceMethod.PUT, ResourceType.DAG_RUN),
         ]
     )
     @action_logging
@@ -2559,8 +2560,8 @@ class Airflow(AirflowBaseView):
     @expose("/dagrun_success", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG_RUN),
+            (ResourceMethod.PUT, ResourceType.DAG),
+            (ResourceMethod.PUT, ResourceType.DAG_RUN),
         ]
     )
     @action_logging
@@ -2574,8 +2575,8 @@ class Airflow(AirflowBaseView):
     @expose("/dagrun_queued", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG_RUN),
+            (ResourceMethod.PUT, ResourceType.DAG),
+            (ResourceMethod.PUT, ResourceType.DAG_RUN),
         ]
     )
     @action_logging
@@ -2662,8 +2663,8 @@ class Airflow(AirflowBaseView):
     @expose("/confirm", methods=["GET"])
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
-            (ResourceMethod.PUT, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.PUT, ResourceType.DAG),
+            (ResourceMethod.PUT, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -2764,8 +2765,8 @@ class Airflow(AirflowBaseView):
     @expose("/failed", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
-            (ResourceMethod.PUT, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.PUT, ResourceType.DAG),
+            (ResourceMethod.PUT, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -2820,8 +2821,8 @@ class Airflow(AirflowBaseView):
     @expose("/success", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
-            (ResourceMethod.PUT, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.PUT, ResourceType.DAG),
+            (ResourceMethod.PUT, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -2876,9 +2877,9 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.TASK_LOG),
         ]
     )
     @gzipped
@@ -2891,9 +2892,9 @@ class Airflow(AirflowBaseView):
     @expose("/tree")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.TASK_LOG),
         ]
     )
     @gzipped
@@ -2905,9 +2906,9 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/grid")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.TASK_LOG),
         ]
     )
     @gzipped
@@ -2972,8 +2973,8 @@ class Airflow(AirflowBaseView):
     @expose("/calendar")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @gzipped
@@ -2985,8 +2986,8 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/calendar")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @gzipped
@@ -3106,9 +3107,9 @@ class Airflow(AirflowBaseView):
     @expose("/graph")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.TASK_LOG),
         ]
     )
     @gzipped
@@ -3120,9 +3121,9 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/graph")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.TASK_LOG),
         ]
     )
     @gzipped
@@ -3148,8 +3149,8 @@ class Airflow(AirflowBaseView):
     @expose("/duration")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3160,8 +3161,8 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/duration")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3312,8 +3313,8 @@ class Airflow(AirflowBaseView):
     @expose("/tries")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3324,8 +3325,8 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/tries")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3407,8 +3408,8 @@ class Airflow(AirflowBaseView):
     @expose("/landing_times")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3419,8 +3420,8 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/landing-times")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3515,7 +3516,7 @@ class Airflow(AirflowBaseView):
     @expose("/paused", methods=["POST"])
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
+            (ResourceMethod.PUT, ResourceType.DAG),
         ]
     )
     @action_logging
@@ -3529,8 +3530,8 @@ class Airflow(AirflowBaseView):
     @expose("/gantt")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3541,8 +3542,8 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/gantt")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3562,8 +3563,8 @@ class Airflow(AirflowBaseView):
     @expose("/extra_links")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3623,9 +3624,9 @@ class Airflow(AirflowBaseView):
     @expose("/object/graph_data")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.TASK_LOG),
         ]
     )
     @gzipped
@@ -3659,8 +3660,8 @@ class Airflow(AirflowBaseView):
     @expose("/object/task_instances")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3686,8 +3687,8 @@ class Airflow(AirflowBaseView):
     @expose("/object/grid_data")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_TASK_INSTANCE),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.TASK_INSTANCE),
         ]
     )
     def grid_data(self):
@@ -3744,7 +3745,7 @@ class Airflow(AirflowBaseView):
     @expose("/object/historical_metrics_data")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_CLUSTER_ACTIVITY),
+            (ResourceMethod.GET, ResourceType.CLUSTER_ACTIVITY),
         ]
     )
     def historical_metrics_data(self):
@@ -3805,7 +3806,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/object/next_run_datasets/<string:dag_id>")
-    @auth.has_access([(ResourceMethod.GET, permissions.RESOURCE_DAG)])
+    @auth.has_access([(ResourceMethod.GET, ResourceType.DAG)])
     def next_run_datasets(self, dag_id):
         """Returns datasets necessary, and their status, for the next dag run."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
@@ -3850,7 +3851,7 @@ class Airflow(AirflowBaseView):
     @expose("/object/dataset_dependencies")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG_DEPENDENCIES),
+            (ResourceMethod.GET, ResourceType.DAG_DEPENDENCIES),
         ]
     )
     def dataset_dependencies(self):
@@ -3887,7 +3888,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/object/datasets_summary")
-    @auth.has_access([(ResourceMethod.GET, permissions.RESOURCE_DATASET)])
+    @auth.has_access([(ResourceMethod.GET, ResourceType.DATASET)])
     def datasets_summary(self):
         """
         Get a summary of datasets.
@@ -3997,8 +3998,8 @@ class Airflow(AirflowBaseView):
     @expose("/audit_log")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_AUDIT_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.AUDIT_LOG),
         ]
     )
     def legacy_audit_log(self):
@@ -4008,8 +4009,8 @@ class Airflow(AirflowBaseView):
     @expose("/dags/<string:dag_id>/audit_log")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG),
-            (ResourceMethod.GET, permissions.RESOURCE_AUDIT_LOG),
+            (ResourceMethod.GET, ResourceType.DAG),
+            (ResourceMethod.GET, ResourceType.AUDIT_LOG),
         ]
     )
     @provide_session
@@ -4086,7 +4087,7 @@ class ConfigurationView(AirflowBaseView):
     @expose("/configuration")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_CONFIG),
+            (ResourceMethod.GET, ResourceType.CONFIG),
         ]
     )
     def conf(self):
@@ -4599,7 +4600,7 @@ class ConnectionModelView(AirflowModelView):
     @action("muldelete", "Delete", "Are you sure you want to delete selected records?", single=False)
     @auth.has_access(
         [
-            (ResourceMethod.PUT, permissions.RESOURCE_DAG),
+            (ResourceMethod.PUT, ResourceType.DAG),
         ]
     )
     def action_muldelete(self, items):
@@ -4617,8 +4618,8 @@ class ConnectionModelView(AirflowModelView):
     @provide_session
     @auth.has_access(
         [
-            (ResourceMethod.POST, permissions.RESOURCE_CONNECTION),
-            (ResourceMethod.GET, permissions.RESOURCE_CONNECTION),
+            (ResourceMethod.POST, ResourceType.CONNECTION),
+            (ResourceMethod.GET, ResourceType.CONNECTION),
         ]
     )
     def action_mulduplicate(self, connections, session: Session = NEW_SESSION):
@@ -4798,7 +4799,7 @@ class PluginView(AirflowBaseView):
     @expose("/plugin")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_PLUGIN),
+            (ResourceMethod.GET, ResourceType.PLUGIN),
         ]
     )
     def list(self):
@@ -4850,7 +4851,7 @@ class ProviderView(AirflowBaseView):
     @expose("/provider")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_PROVIDER),
+            (ResourceMethod.GET, ResourceType.PROVIDER),
         ]
     )
     def list(self):
@@ -5125,8 +5126,8 @@ class VariableModelView(AirflowModelView):
         return response
 
     @expose("/varimport", methods=["POST"])
-    @auth.has_access([(ResourceMethod.POST, permissions.RESOURCE_VARIABLE)])
-    @action_logging(event=f"{permissions.RESOURCE_VARIABLE.lower()}.varimport")
+    @auth.has_access([(ResourceMethod.POST, ResourceType.VARIABLE)])
+    @action_logging(event=f"{ResourceType.VARIABLE.value.lower()}.varimport")
     def varimport(self):
         """Import variables."""
         try:
@@ -5835,7 +5836,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 class AutocompleteView(AirflowBaseView):
     """View to provide autocomplete results."""
 
-    @auth.has_access([(ResourceMethod.GET, permissions.RESOURCE_DAG)])
+    @auth.has_access([(ResourceMethod.GET, ResourceType.DAG)])
     @provide_session
     @expose("/dagmodel/autocomplete")
     def autocomplete(self, session: Session = NEW_SESSION):
@@ -5897,7 +5898,7 @@ class DagDependenciesView(AirflowBaseView):
     @expose("/dag-dependencies")
     @auth.has_access(
         [
-            (ResourceMethod.GET, permissions.RESOURCE_DAG_DEPENDENCIES),
+            (ResourceMethod.GET, ResourceType.DAG_DEPENDENCIES),
         ]
     )
     @gzipped

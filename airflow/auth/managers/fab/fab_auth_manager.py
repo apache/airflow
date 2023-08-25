@@ -29,6 +29,7 @@ from airflow.auth.managers.fab.cli_commands.definition import (
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import ResourceDetails
 from airflow.auth.managers.models.resource_method import ResourceMethod
+from airflow.auth.managers.models.resource_type import ResourceType
 from airflow.cli.cli_config import (
     CLICommand,
     GroupCommand,
@@ -108,7 +109,7 @@ class FabAuthManager(BaseAuthManager):
     def is_authorized(
         self,
         action: ResourceMethod,
-        resource_type: str,
+        resource_type: ResourceType,
         resource_details: ResourceDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
@@ -126,14 +127,10 @@ class FabAuthManager(BaseAuthManager):
         fab_action = self._get_fab_action(action)
         user_permissions = self._get_user_permissions(user)
 
-        if (fab_action, resource_type) in user_permissions:
+        if (fab_action, resource_type.value) in user_permissions:
             return True
 
         if self.is_dag_resource(resource_type):
-            # Check whether the user has permissions to access all DAGs
-            if (fab_action, RESOURCE_DAG) in user_permissions:
-                return True
-
             if resource_details and resource_details.id:
                 # Check whether the user has permissions to access a specific DAG
                 resource_dag_name = self._resource_name_for_dag(resource_details.id)
