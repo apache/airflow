@@ -65,7 +65,7 @@ class HttpSensor(BaseSensorOperator):
     :param request_params: The parameters to be added to the GET url
     :param headers: The HTTP headers to be added to the GET request
     :param response_error_codes_whitelist: An whitelist to return False on poke(), not to raise exception.
-        If the ``None`` value comes in, it is assigned ["404"] by default, to backward compatibility.
+        If the ``None`` value comes in, it is assigned ["404"] by default, for backward compatibility.
         When you also want ``404 Not Found`` to raise the error, explicitly deliver the blank list ``[]``.
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
@@ -104,7 +104,7 @@ class HttpSensor(BaseSensorOperator):
         self.http_conn_id = http_conn_id
         self.method = method
         self.response_error_codes_whitelist = (
-            ["404"] if response_error_codes_whitelist is None else response_error_codes_whitelist
+            ("404",) if response_error_codes_whitelist is None else tuple(response_error_codes_whitelist)
         )
         self.request_params = request_params or {}
         self.headers = headers or {}
@@ -139,9 +139,8 @@ class HttpSensor(BaseSensorOperator):
                 kwargs = determine_kwargs(self.response_check, [response], context)
                 return self.response_check(response, **kwargs)
         except AirflowException as exc:
-            for code_in_whitelist in self.response_error_codes_whitelist:
-                if str(exc).startswith(code_in_whitelist):
-                    return False
+            if str(exc).startswith(self.response_error_codes_whitelist):
+                return False
 
             raise exc
 
