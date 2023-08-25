@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+4.4.0
+.....
+
+.. note::
+  This release excluded databricks-sql-connector version 2.9.0 due to a bug that it does not properly declare urllib3
+  for more information please see https://github.com/databricks/databricks-sql-python/issues/190
+
+Features
+~~~~~~~~
+
+* ``Add Service Principal OAuth for Databricks. (#33005)``
+
+Misc
+~~~~
+
+* ``Update docs in databricks.py - we use 2.1 now (#32340)``
+* ``Do not create lists we don't need (#33519)``
+* ``Refactor: Improve detection of duplicates and list sorting (#33675)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Ecldude databrick connector 2.9.0 due to a bug (#33311)``
+
 4.3.3
 .....
 

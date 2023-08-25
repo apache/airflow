@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+4.6.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add parameter sftp_prefetch to SFTPToGCSOperator (#33274)``
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers - Final Pass (#33303)``
+
 4.5.0
 .....
 

@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+3.3.1
+.....
+
+Misc
+~~~~
+
+* ``Simplify conditions on len() in other providers (#33569)``
+
 3.3.0
 .....
 
