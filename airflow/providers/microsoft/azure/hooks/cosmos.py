@@ -144,6 +144,8 @@ class AzureCosmosDBHook(BaseHook):
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_container = list(
             self.get_conn()
             .get_database_client(self.__get_database_name(database_name))
@@ -169,6 +171,8 @@ class AzureCosmosDBHook(BaseHook):
 
         # We need to check to see if this container already exists so we don't try
         # to create it twice
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_container = list(
             self.get_conn()
             .get_database_client(self.__get_database_name(database_name))
@@ -189,6 +193,8 @@ class AzureCosmosDBHook(BaseHook):
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_database = list(
             self.get_conn().query_databases(
                 "SELECT * FROM r WHERE r.id=@id",
@@ -207,6 +213,8 @@ class AzureCosmosDBHook(BaseHook):
 
         # We need to check to see if this database already exists so we don't try
         # to create it twice
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_database = list(
             self.get_conn().query_databases(
                 "SELECT * FROM r WHERE r.id=@id",
