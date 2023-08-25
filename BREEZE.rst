@@ -769,6 +769,26 @@ You can connect to these ports using:
 * Prometheus Targets: http://127.0.0.1:29090/targets
 * Grafana Dashboards: http://127.0.0.1:23000/dashboards
 
+Running Breeze with OpenLineage
+..........................................
+
+You can launch an instance of Breeze pre-configured to emit OpenLineage metrics using
+``breeze start-airflow --integration openlineage``.  This will launch an Airflow webserver
+within the Breeze environment as well as containers running a [Marquez](https://marquezproject.ai/)
+webserver and API server.
+
+When you run Airflow Breeze with this integration, in addition to the standard ports
+(See "Port Forwarding" below), the following are also automatically forwarded:
+
+* 25000 -> forwarded to Marquez API -> marquez:5000
+* 25001 -> forwarded to Marquez Admin API -> marquez:5001
+* 23100 -> forwarded to Marquez -> marquez_web:3000
+
+You can connect to these services using:
+
+* Marquez Webserver: http://127.0.0.1:23100
+* Marquez API: http://127.0.0.1:25000/api/v1
+* Marquez Admin API: http://127.0.0.1:25001
 
 Stopping the environment
 ------------------------

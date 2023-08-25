@@ -57,6 +57,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
         "all",
         "otel",
         "statsd",
+        "openlineage",
         *ALL_INTEGRATIONS,
     ]
 )
