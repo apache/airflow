@@ -66,7 +66,7 @@ config:
         type: string
         example: "BashOperator,PythonOperatorOperator"
         default: ""
-        version_added: 1.0.1
+        version_added: 1.1.0
       namespace:
         description: |
           OpenLineage namespace
