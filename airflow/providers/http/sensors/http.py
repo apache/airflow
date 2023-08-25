@@ -62,6 +62,9 @@ class HttpSensor(BaseSensorOperator):
     :param endpoint: The relative part of the full url
     :param request_params: The parameters to be added to the GET url
     :param headers: The HTTP headers to be added to the GET request
+    :param response_error_codes_whitelist: An whitelist to return False on poke(), not to raise exception.
+        If the ``None`` value comes in, it is assigned ["404"] by default, to backward compatibility.
+        When you also want ``404 Not Found`` to raise the error, explicitly deliver the blank list ``[]``.
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.
@@ -85,6 +88,7 @@ class HttpSensor(BaseSensorOperator):
         method: str = "GET",
         request_params: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
+        response_error_codes_whitelist: list[str] | None = None,
         response_check: Callable[..., bool] | None = None,
         extra_options: dict[str, Any] | None = None,
         tcp_keep_alive: bool = True,
@@ -97,6 +101,8 @@ class HttpSensor(BaseSensorOperator):
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
         self.method = method
+        self.response_error_codes_whitelist = ["404"] if response_error_codes_whitelist is None \
+            else response_error_codes_whitelist
         self.request_params = request_params or {}
         self.headers = headers or {}
         self.extra_options = extra_options or {}
@@ -130,8 +136,9 @@ class HttpSensor(BaseSensorOperator):
                 kwargs = determine_kwargs(self.response_check, [response], context)
                 return self.response_check(response, **kwargs)
         except AirflowException as exc:
-            if str(exc).startswith("404"):
-                return False
+            for code_in_whitelist in self.response_error_codes_whitelist:
+                if str(exc).startswith(code_in_whitelist):
+                    return False
 
             raise exc
 
