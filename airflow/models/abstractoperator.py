@@ -300,8 +300,9 @@ class AbstractOperator(Templater, DAGNode):
         This method is meant to be used when we are checking task dependencies where we need
         to wait for all the upstream setups to complete before we can run the task.
         """
-        upstream_setups = {x for x in self.get_flat_relatives(upstream=True) if x.is_setup}
-        yield from upstream_setups
+        for task in self.get_upstreams_only_setups_and_teardowns():
+            if task.is_setup:
+                yield task
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.

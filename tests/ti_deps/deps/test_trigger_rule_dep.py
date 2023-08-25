@@ -793,6 +793,7 @@ class TestTriggerRuleDep:
             normal_tasks=[f"w{x}" for x in range(task_cfg["work"])],
             setup_tasks=[f"s{x}" for x in range(task_cfg["setup"])],
         )
+        ti.task.is_teardown = True
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,

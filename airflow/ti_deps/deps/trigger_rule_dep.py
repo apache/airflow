@@ -167,7 +167,14 @@ class TriggerRuleDep(BaseTIDep):
             """Whether a task instance is a "relevant upstream" of the current task."""
             # All the setup tasks upstreams are relevant event if they are not a direct upstream.
             if upstream.task_id in map(lambda t: t.task_id, setup_upstream_tasks):
-                return True
+                relevant = _get_relevant_upstream_map_indexes(upstream.task_id)
+                if relevant is None:
+                    return True
+                if relevant == upstream.map_index:
+                    return True
+                if isinstance(relevant, collections.abc.Container) and upstream.map_index in relevant:
+                    return True
+                return False
             # Not actually an upstream task.
             if upstream.task_id not in task.upstream_task_ids:
                 return False
@@ -196,8 +203,6 @@ class TriggerRuleDep(BaseTIDep):
             if _is_relevant_upstream(finished_ti)
         )
         upstream_states = _UpstreamTIStates.calculate(finished_upstream_tis)
-
-        upstream_setup = len(setup_upstream_tasks)  # count of setup tasks upstream of this task
 
         success = upstream_states.success
         skipped = upstream_states.skipped
@@ -242,6 +247,7 @@ class TriggerRuleDep(BaseTIDep):
         # "simple" tasks (no task or task group mapping involved).
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
+            upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
         else:
             task_id_counts = session.execute(
                 select(TaskInstance.task_id, func.count(TaskInstance.task_id))
@@ -250,15 +256,15 @@ class TriggerRuleDep(BaseTIDep):
                 .group_by(TaskInstance.task_id)
             ).all()
             upstream = sum(count for _, count in task_id_counts)
+            upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
 
         upstream_done = done >= upstream
         setup_done = (success_setup + skipped_setup + failed_setup) >= upstream_setup
-        is_tear_down = task.is_teardown or trigger_rule == TR.ALL_DONE_SETUP_SUCCESS
 
         changed = False
         new_state = None
         if dep_context.flag_upstream_failed:
-            if not is_tear_down and failed_setup:
+            if not task.is_teardown and failed_setup:
                 # we should exclude the teardown tasks from this check,
                 # because they should be run even if there is only one success setup task
                 new_state = TaskInstanceState.UPSTREAM_FAILED
@@ -308,7 +314,7 @@ class TriggerRuleDep(BaseTIDep):
                     # when there is an upstream setup, if none succeeded, mark upstream failed
                     # if at least one setup ran, we'll let it run
                     new_state = TaskInstanceState.UPSTREAM_FAILED
-            if not is_tear_down and upstream_setup and not new_state and setup_done and skipped_setup > 0:
+            if not task.is_teardown and upstream_setup and not new_state and setup_done and skipped_setup > 0:
                 # when there are upstream setup tasks and at least one of them is skipped, then skip
                 new_state = TaskInstanceState.SKIPPED
 
@@ -330,7 +336,7 @@ class TriggerRuleDep(BaseTIDep):
         # first, check if all the setup upstream tasks are done, if not, we can't run this task
         # we should exclude the teardown tasks from this check, because they should be run even
         # if there is only one success setup task
-        if not is_tear_down and (success_setup + skipped_setup) < upstream_setup:
+        if not task.is_teardown and (success_setup + skipped_setup) < upstream_setup:
             yield self._failing_status(
                 reason=f"Waiting {upstream_setup - (success_setup + skipped_setup)}"
                 " setup task(s) to complete."
