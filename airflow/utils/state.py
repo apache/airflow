@@ -25,7 +25,6 @@ class JobState(str, Enum):
 
     RUNNING = "running"
     SUCCESS = "success"
-    SHUTDOWN = "shutdown"
     RESTARTING = "restarting"
     FAILED = "failed"
 
