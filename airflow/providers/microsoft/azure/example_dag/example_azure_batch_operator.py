@@ -41,12 +41,13 @@ with DAG(
     doc_md=__doc__,
     tags=["example"],
 ) as dag:
+    # [START howto_azure_batch_operator]
     azure_batch_operator = AzureBatchOperator(
         task_id="azure_batch",
         batch_pool_id=POOL_ID,
         batch_pool_vm_size="standard_d2s_v3",
         batch_job_id="example-job",
-        batch_task_command_line=("/bin/bash -c 'set -e; set -o pipefail; echo hello world!; wait'"),
+        batch_task_command_line="/bin/bash -c 'set -e; set -o pipefail; echo hello world!; wait'",
         batch_task_id="example-task",
         vm_node_agent_sku_id="batch.node.ubuntu 22.04",
         vm_publisher="Canonical",
@@ -54,3 +55,4 @@ with DAG(
         vm_sku="22_04-lts-gen2",
         target_dedicated_nodes=1,
     )
+    # [END howto_azure_batch_operator]
