@@ -175,7 +175,7 @@ In some cases you may want to disable template rendering on specific fields or p
 
     print_script = BashOperator(
         task_id="print_script",
-        bash_callable="cat script.sh,
+        bash_callable="cat script.sh",
     )
 
 
@@ -185,7 +185,7 @@ This will fail with ``TemplateNotFound: cat script.sh``, but we can prevent airf
 
     fixed_print_script = BashOperator(
         task_id="fixed_print_script",
-        bash_callable="cat script.sh,
+        bash_callable="cat script.sh",
     )
     fixed_print_script.template_ext = ()
 
