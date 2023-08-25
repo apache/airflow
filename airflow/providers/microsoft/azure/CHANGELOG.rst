@@ -40,9 +40,8 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-
 * ``Fix updating account url for WasbHook (#33457)``
-
+* ``Fix Azure Batch Hook instantation (#33731)``
 
 Misc
 ~~~~

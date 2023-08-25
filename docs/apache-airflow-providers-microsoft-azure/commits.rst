@@ -36,6 +36,7 @@ Latest change: 2023-08-25
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`38f2737153 <https://github.com/apache/airflow/commit/38f27371532b9f906bdeff0251d1c35956daf05c>`_  2023-08-25   ``Fix Azure Batch Hook instantation (#33731)``
 `0931abdb25 <https://github.com/apache/airflow/commit/0931abdb2563f1f46240c3b1ce82415e05bd48d4>`_  2023-08-25   ``Add AzureBatchOperator example (#33716)``
 `faa50cbe2f <https://github.com/apache/airflow/commit/faa50cbe2f6dbf816e599bbbb933ac4976a55778>`_  2023-08-24   ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerInstanceHook (#33467)``
 `96efcfb830 <https://github.com/apache/airflow/commit/96efcfb8301ed938ce62d46a12b429b724e7cf0f>`_  2023-08-24   ``Further improvements for provider verification (#33670)``
