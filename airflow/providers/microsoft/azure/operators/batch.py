@@ -179,7 +179,8 @@ class AzureBatchOperator(BaseOperator):
         self.should_delete_pool = should_delete_pool
 
     @cached_property
-    def hook(self):
+    def hook(self) -> AzureBatchHook:
+        """Create and return an AzureBatchHook (cached)."""
         return self.get_hook()
 
     def _check_inputs(self) -> Any:

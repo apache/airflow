@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import logging
 import os
+from functools import cached_property
 from typing import Any, Union
 from urllib.parse import urlparse
 
@@ -123,7 +124,6 @@ class WasbHook(BaseHook):
         super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.blob_service_client: BlobServiceClient = self.get_conn()
 
         logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
         try:
@@ -141,6 +141,11 @@ class WasbHook(BaseHook):
         if field_name in extra_dict:
             return extra_dict[field_name] or None
         return extra_dict.get(f"{prefix}{field_name}") or None
+
+    @cached_property
+    def blob_service_client(self) -> BlobServiceClient:
+        """Return the BlobServiceClient object (cached)."""
+        return self.get_conn()
 
     def get_conn(self) -> BlobServiceClient:
         """Return the BlobServiceClient object."""

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
+from functools import cached_property
 from typing import Any
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
@@ -52,8 +53,8 @@ class AzureBatchHook(BaseHook):
             field_name=name,
         )
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -63,8 +64,8 @@ class AzureBatchHook(BaseHook):
             "account_url": StringField(lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
@@ -77,14 +78,18 @@ class AzureBatchHook(BaseHook):
     def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_batch_conn_id
-        self.connection = self.get_conn()
 
     def _connection(self) -> Connection:
         """Get connected to Azure Batch service."""
         conn = self.get_connection(self.conn_id)
         return conn
 
-    def get_conn(self):
+    @cached_property
+    def connection(self) -> BatchServiceClient:
+        """Get the Batch client connection (cached)."""
+        return self.get_conn()
+
+    def get_conn(self) -> BatchServiceClient:
         """
         Get the Batch client connection.
 

@@ -68,6 +68,9 @@ class TestAzureBatchHook:
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         assert isinstance(hook._connection(), Connection)
         assert isinstance(hook.get_conn(), BatchServiceClient)
+        conn = hook.connection
+        assert isinstance(conn, BatchServiceClient)
+        assert hook.connection is conn, "`connection` property should be cached"
 
     @mock.patch(f"{MODULE}.batch_auth.SharedKeyCredentials")
     @mock.patch(f"{MODULE}.AzureIdentityCredentialAdapter")
@@ -195,7 +198,7 @@ class TestAzureBatchHook:
     @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def test_connection_success(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
-        hook.get_conn().job.return_value = {}
+        hook.connection.job.return_value = {}
         status, msg = hook.test_connection()
         assert status is True
         assert msg == "Successfully connected to Azure Batch."
@@ -203,7 +206,7 @@ class TestAzureBatchHook:
     @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def test_connection_failure(self, mock_batch):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_cloud_conn_id)
-        hook.get_conn().job.list = PropertyMock(side_effect=Exception("Authentication failed."))
+        hook.connection.job.list = PropertyMock(side_effect=Exception("Authentication failed."))
         status, msg = hook.test_connection()
         assert status is False
         assert msg == "Authentication failed."

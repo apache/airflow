@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
@@ -256,8 +257,8 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     conn_type = "adls"
     hook_name = "Azure Date Lake Storage V2"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -272,8 +273,8 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port"],
@@ -296,7 +297,11 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         super().__init__()
         self.conn_id = adls_conn_id
         self.public_read = public_read
-        self.service_client = self.get_conn()
+
+    @cached_property
+    def service_client(self) -> DataLakeServiceClient:
+        """Return the DataLakeServiceClient object (cached)."""
+        return self.get_conn()
 
     def get_conn(self) -> DataLakeServiceClient:  # type: ignore[override]
         """Return the DataLakeServiceClient object."""

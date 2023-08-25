@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import time
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
@@ -159,8 +160,12 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.check_interval = check_interval
         self.deferrable = deferrable
 
+    @cached_property
+    def hook(self) -> AzureDataFactoryHook:
+        """Create and return an AzureDataFactoryHook (cached)."""
+        return AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
+
     def execute(self, context: Context) -> None:
-        self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
         self.log.info("Executing the %s pipeline.", self.pipeline_name)
         response = self.hook.run_pipeline(
             pipeline_name=self.pipeline_name,
