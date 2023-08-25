@@ -17,33 +17,35 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import uuid
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.operators.cosmos import AzureCosmosInsertDocumentOperator
-from airflow.utils import db
 
 
 class TestAzureCosmosDbHook:
 
     # Set up an environment to test with
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, create_mock_connection):
         # set up some test variables
         self.test_end_point = "https://test_endpoint:443"
         self.test_master_key = "magic_test_key"
         self.test_database_name = "test_database_name"
         self.test_collection_name = "test_collection_name"
-        db.merge_conn(
+        create_mock_connection(
             Connection(
                 conn_id="azure_cosmos_test_key_id",
                 conn_type="azure_cosmos",
                 login=self.test_end_point,
                 password=self.test_master_key,
-                extra=json.dumps(
-                    {"database_name": self.test_database_name, "collection_name": self.test_collection_name}
-                ),
+                extra={
+                    "database_name": self.test_database_name,
+                    "collection_name": self.test_collection_name,
+                },
             )
         )
 

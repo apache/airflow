@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest.mock import patch
 
+import pytest
 from azure.mgmt.containerinstance.models import (
     Container,
     ContainerGroup,
@@ -30,27 +30,26 @@ from azure.mgmt.containerinstance.models import (
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
-from airflow.utils import db
 
 
 class TestAzureContainerInstanceHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, create_mock_connection):
+        mock_connection = create_mock_connection(
             Connection(
                 conn_id="azure_container_instance_test",
                 conn_type="azure_container_instances",
                 login="login",
                 password="key",
-                extra=json.dumps({"tenantId": "tenant_id", "subscriptionId": "subscription_id"}),
+                extra={"tenantId": "tenant_id", "subscriptionId": "subscription_id"},
             )
         )
-
         self.resources = ResourceRequirements(requests=ResourceRequests(memory_in_gb="4", cpu="1"))
-        with patch(
+        self.hook = AzureContainerInstanceHook(azure_conn_id=mock_connection.conn_id)
+        with patch("azure.mgmt.containerinstance.ContainerInstanceManagementClient"), patch(
             "azure.common.credentials.ServicePrincipalCredentials.__init__", autospec=True, return_value=None
         ):
-            with patch("azure.mgmt.containerinstance.ContainerInstanceManagementClient"):
-                self.hook = AzureContainerInstanceHook(azure_conn_id="azure_container_instance_test")
+            yield
 
     @patch("azure.mgmt.containerinstance.models.ContainerGroup")
     @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.create_or_update")

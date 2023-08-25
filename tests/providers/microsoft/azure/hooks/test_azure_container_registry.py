@@ -17,14 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
-from airflow.utils import db
 
 
 class TestAzureContainerRegistryHook:
-    def test_get_conn(self):
-        db.merge_conn(
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
             Connection(
                 conn_id="azure_container_registry",
                 conn_type="azure_container_registry",
@@ -32,8 +34,11 @@ class TestAzureContainerRegistryHook:
                 password="password",
                 host="test.cr",
             )
-        )
-        hook = AzureContainerRegistryHook(conn_id="azure_container_registry")
+        ],
+        indirect=True,
+    )
+    def test_get_conn(self, mocked_connection):
+        hook = AzureContainerRegistryHook(conn_id=mocked_connection.conn_id)
         assert hook.connection is not None
         assert hook.connection.username == "myuser"
         assert hook.connection.password == "password"

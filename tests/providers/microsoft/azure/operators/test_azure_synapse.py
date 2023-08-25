@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -24,7 +23,7 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.operators.synapse import AzureSynapseRunSparkBatchOperator
-from airflow.utils import db, timezone
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 SUBSCRIPTION_ID = "my-subscription-id"
@@ -39,7 +38,8 @@ JOB_RUN_RESPONSE = {"id": 123}
 
 
 class TestAzureSynapseRunSparkBatchOperator:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, create_mock_connection):
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.config = {
@@ -50,22 +50,21 @@ class TestAzureSynapseRunSparkBatchOperator:
             "timeout": 3,
         }
 
-        db.merge_conn(
+        create_mock_connection(
             Connection(
                 conn_id=AZURE_SYNAPSE_CONN_ID,
                 conn_type="azure_synapse",
                 host="https://synapsetest.net",
                 login="client-id",
                 password="client-secret",
-                extra=json.dumps(CONN_EXTRAS),
+                extra=CONN_EXTRAS,
             )
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_conn")
     @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
     def test_azure_synapse_run_spark_batch_operator_success(
-        self, mock_run_spark_job, mock_conn, mock_get_job_run_status
+        self, mock_run_spark_job, mock_get_job_run_status
     ):
         mock_get_job_run_status.return_value = "success"
         mock_run_spark_job.return_value = MagicMock(**JOB_RUN_RESPONSE)
@@ -76,11 +75,8 @@ class TestAzureSynapseRunSparkBatchOperator:
         assert op.job_id == JOB_RUN_RESPONSE["id"]
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_conn")
     @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
-    def test_azure_synapse_run_spark_batch_operator_error(
-        self, mock_run_spark_job, mock_conn, mock_get_job_run_status
-    ):
+    def test_azure_synapse_run_spark_batch_operator_error(self, mock_run_spark_job, mock_get_job_run_status):
         mock_get_job_run_status.return_value = "error"
         mock_run_spark_job.return_value = MagicMock(**JOB_RUN_RESPONSE)
         op = AzureSynapseRunSparkBatchOperator(
@@ -93,11 +89,10 @@ class TestAzureSynapseRunSparkBatchOperator:
             op.execute(context=self.mock_context)
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_conn")
     @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
     @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.cancel_job_run")
     def test_azure_synapse_run_spark_batch_operator_on_kill(
-        self, mock_cancel_job_run, mock_run_spark_job, mock_conn, mock_get_job_run_status
+        self, mock_cancel_job_run, mock_run_spark_job, mock_get_job_run_status
     ):
         mock_get_job_run_status.return_value = "success"
         mock_run_spark_job.return_value = MagicMock(**JOB_RUN_RESPONSE)

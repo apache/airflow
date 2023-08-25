@@ -27,7 +27,6 @@ from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParamet
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
 from airflow.utils import timezone
 
@@ -79,11 +78,6 @@ class AzureBatchHook(BaseHook):
         super().__init__()
         self.conn_id = azure_batch_conn_id
 
-    def _connection(self) -> Connection:
-        """Get connected to Azure Batch service."""
-        conn = self.get_connection(self.conn_id)
-        return conn
-
     @cached_property
     def connection(self) -> BatchServiceClient:
         """Get the Batch client connection (cached)."""
@@ -95,7 +89,7 @@ class AzureBatchHook(BaseHook):
 
         :return: Azure Batch client
         """
-        conn = self._connection()
+        conn = self.get_connection(self.conn_id)
 
         batch_account_url = self._get_field(conn.extra_dejson, "account_url")
         if not batch_account_url:

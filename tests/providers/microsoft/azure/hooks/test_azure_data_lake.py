@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -26,18 +25,18 @@ from azure.storage.filedatalake._models import FileSystemProperties
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeStorageV2Hook
-from airflow.utils import db
 
 
 class TestAzureDataLakeHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_mock_connections):
+        create_mock_connections(
             Connection(
                 conn_id="adl_test_key",
                 conn_type="azure_data_lake",
                 login="client_id",
                 password="client secret",
-                extra=json.dumps({"tenant": "tenant", "account_name": "accountname"}),
+                extra={"tenant": "tenant", "account_name": "accountname"},
             )
         )
 
@@ -58,9 +57,10 @@ class TestAzureDataLakeHook:
     def test_check_for_blob(self, mock_lib, mock_filesystem):
         from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
+        mocked_glob = mock_filesystem.return_value.glob
         hook = AzureDataLakeHook(azure_data_lake_conn_id="adl_test_key")
         hook.check_for_file("file_path")
-        mock_filesystem.glob.called
+        mocked_glob.assert_called()
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.multithread.ADLUploader", autospec=True)
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
@@ -140,7 +140,7 @@ class TestAzureDataLakeHook:
 
 class TestAzureDataLakeStorageV2Hook:
     def setup_class(self) -> None:
-        self.conn_id: str = "adls_conn_id"
+        self.conn_id: str = "adls_conn_id1"
         self.file_system_name = "test_file_system"
         self.directory_name = "test_directory"
         self.file_name = "test_file_name"

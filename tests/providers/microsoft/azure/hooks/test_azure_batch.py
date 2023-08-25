@@ -17,22 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 from unittest.mock import PropertyMock
 
+import pytest
 from azure.batch import BatchServiceClient, models as batch_models
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
-from airflow.utils import db
 
 MODULE = "airflow.providers.microsoft.azure.hooks.batch"
 
 
 class TestAzureBatchHook:
-    # set up the test environment
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, create_mock_connections):
         # set up the test variable
         self.test_vm_conn_id = "test_azure_batch_vm"
         self.test_cloud_conn_id = "test_azure_batch_cloud"
@@ -47,26 +46,23 @@ class TestAzureBatchHook:
         self.test_cloud_os_version = "test-version"
         self.test_node_agent_sku = "test-node-agent-sku"
 
-        # connect with vm configuration
-        db.merge_conn(
+        create_mock_connections(
+            # connect with vm configuration
             Connection(
                 conn_id=self.test_vm_conn_id,
-                conn_type="azure_batch",
-                extra=json.dumps({"account_url": self.test_account_url}),
-            )
-        )
-        # connect with cloud service
-        db.merge_conn(
+                conn_type="azure-batch",
+                extra={"account_url": self.test_account_url},
+            ),
+            # connect with cloud service
             Connection(
                 conn_id=self.test_cloud_conn_id,
-                conn_type="azure_batch",
-                extra=json.dumps({"account_url": self.test_account_url}),
-            )
+                conn_type="azure-batch",
+                extra={"account_url": self.test_account_url},
+            ),
         )
 
     def test_connection_and_client(self):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
-        assert isinstance(hook._connection(), Connection)
         assert isinstance(hook.get_conn(), BatchServiceClient)
         conn = hook.connection
         assert isinstance(conn, BatchServiceClient)

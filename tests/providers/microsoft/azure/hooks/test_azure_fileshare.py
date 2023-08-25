@@ -25,7 +25,6 @@ and password (=Storage account key), or login and SAS token in the extra field
 """
 from __future__ import annotations
 
-import json
 import os
 from unittest import mock
 from unittest.mock import patch
@@ -36,51 +35,36 @@ from pytest import param
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
-from airflow.utils import db
 
 
 class TestAzureFileshareHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, create_mock_connections):
+        create_mock_connections(
             Connection(
                 conn_id="azure_fileshare_test_key",
                 conn_type="azure_file_share",
                 login="login",
                 password="key",
-            )
-        )
-        db.merge_conn(
+            ),
             Connection(
                 conn_id="azure_fileshare_extras",
                 conn_type="azure_fileshare",
                 login="login",
-                extra=json.dumps(
-                    {
-                        "sas_token": "token",
-                        "protocol": "http",
-                    }
-                ),
-            )
-        )
-        db.merge_conn(
+                extra={"sas_token": "token", "protocol": "http"},
+            ),
             # Neither password nor sas_token present
             Connection(
                 conn_id="azure_fileshare_missing_credentials",
                 conn_type="azure_fileshare",
                 login="login",
-            )
-        )
-        db.merge_conn(
+            ),
             Connection(
                 conn_id="azure_fileshare_extras_wrong",
                 conn_type="azure_fileshare",
                 login="login",
-                extra=json.dumps(
-                    {
-                        "wrong_key": "token",
-                    }
-                ),
-            )
+                extra={"wrong_key": "token"},
+            ),
         )
 
     def test_key_and_connection(self):
