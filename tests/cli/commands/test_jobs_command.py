@@ -109,7 +109,7 @@ class TestCliConfigList:
             for _ in range(3):
                 scheduler_job = Job()
                 job_runner = SchedulerJobRunner(job=scheduler_job)
-                scheduler_job.state = State.SHUTDOWN
+                scheduler_job.state = State.FAILED
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
                 job_runners.append(job_runner)
