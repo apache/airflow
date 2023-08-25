@@ -21,8 +21,8 @@ from abc import abstractmethod
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.auth.managers.models.authorized_action import AuthorizedAction
-from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
+from airflow.auth.managers.models.resource_method import ResourceMethod
 from airflow.exceptions import AirflowException
 from airflow.security.permissions import RESOURCE_DAG, RESOURCE_DAG_PREFIX
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -70,7 +70,7 @@ class BaseAuthManager(LoggingMixin):
     @abstractmethod
     def is_authorized(
         self,
-        action: ResourceAction,
+        action: ResourceMethod,
         resource_type: str,
         resource_details: ResourceDetails | None = None,
         user: BaseUser | None = None,

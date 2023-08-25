@@ -20,11 +20,11 @@ from __future__ import annotations
 from enum import Enum
 
 
-class ResourceAction(Enum):
+class ResourceMethod(Enum):
     """
-    Define the type of action/operation the user is doing.
+    Define the type of method/operation the user is doing.
 
-    This is used when doing authorization check to define the type of action/operation
+    This is used when doing authorization check to define the type of method/operation
     the user is doing.
     """
 

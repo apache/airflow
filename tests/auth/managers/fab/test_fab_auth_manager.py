@@ -25,8 +25,8 @@ from airflow import AirflowException
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User
 from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
-from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
+from airflow.auth.managers.models.resource_method import ResourceMethod
 from airflow.security.permissions import ACTION_CAN_ACCESS_MENU, ACTION_CAN_CREATE, ACTION_CAN_READ
 from airflow.www.security import ApplessAirflowSecurityManager
 
@@ -86,7 +86,7 @@ class TestFabAuthManager:
         [
             # Action with permission
             (
-                ResourceAction.POST,
+                ResourceMethod.POST,
                 "resource_test",
                 None,
                 [(ACTION_CAN_CREATE, "resource_test")],
@@ -94,7 +94,7 @@ class TestFabAuthManager:
             ),
             # Action with permission
             (
-                ResourceAction.GET,
+                ResourceMethod.GET,
                 "resource_test",
                 None,
                 [(ACTION_CAN_READ, "resource_test")],
@@ -102,7 +102,7 @@ class TestFabAuthManager:
             ),
             # Action with permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
             (
-                ResourceAction.GET,
+                ResourceMethod.GET,
                 "resource_test",
                 None,
                 [(ACTION_CAN_ACCESS_MENU, "resource_test")],
@@ -110,7 +110,7 @@ class TestFabAuthManager:
             ),
             # Action with permission (with several user permissions)
             (
-                ResourceAction.POST,
+                ResourceMethod.POST,
                 "resource_test",
                 None,
                 [(ACTION_CAN_CREATE, "resource_test"), (ACTION_CAN_CREATE, "resource_test2")],
@@ -118,7 +118,7 @@ class TestFabAuthManager:
             ),
             # Action without permission (action is different)
             (
-                ResourceAction.POST,
+                ResourceMethod.POST,
                 "resource_test",
                 None,
                 [(ACTION_CAN_READ, "resource_test")],
@@ -126,7 +126,7 @@ class TestFabAuthManager:
             ),
             # Action without permission (resource is different)
             (
-                ResourceAction.POST,
+                ResourceMethod.POST,
                 "resource_test",
                 None,
                 [(ACTION_CAN_CREATE, "resource_test2")],
@@ -134,7 +134,7 @@ class TestFabAuthManager:
             ),
             # Action without permission (multiple permissions)
             (
-                ResourceAction.POST,
+                ResourceMethod.POST,
                 "resource_test",
                 None,
                 [(ACTION_CAN_READ, "resource_test"), (ACTION_CAN_CREATE, "resource_test2")],
@@ -142,7 +142,7 @@ class TestFabAuthManager:
             ),
             # Action related to DAGs, with access to all DAGs
             (
-                ResourceAction.GET,
+                ResourceMethod.GET,
                 "DAG:test",
                 None,
                 [(ACTION_CAN_READ, "DAGs"), (ACTION_CAN_CREATE, "resource_test2")],
@@ -150,7 +150,7 @@ class TestFabAuthManager:
             ),
             # Action related to DAGs, with access specific to given DAG
             (
-                ResourceAction.GET,
+                ResourceMethod.GET,
                 "DAGs",
                 ResourceDetails(id="test"),
                 [(ACTION_CAN_READ, "DAG:test")],
@@ -158,7 +158,7 @@ class TestFabAuthManager:
             ),
             # Action related to DAGs, with access specific to another DAG
             (
-                ResourceAction.GET,
+                ResourceMethod.GET,
                 "DAGs",
                 ResourceDetails(id="test"),
                 [(ACTION_CAN_READ, "DAG:test2")],
@@ -166,7 +166,7 @@ class TestFabAuthManager:
             ),
             # Action related to DAGs, with no access to all DAGs and no resource details
             (
-                ResourceAction.GET,
+                ResourceMethod.GET,
                 "DAGs",
                 None,
                 [(ACTION_CAN_READ, "DAG:other_test")],

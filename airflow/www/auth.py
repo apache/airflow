@@ -22,8 +22,8 @@ from typing import Callable, Sequence, TypeVar, cast
 from flask import flash, g, redirect, render_template, request
 
 from airflow.auth.managers.models.authorized_action import AuthorizedAction
-from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
+from airflow.auth.managers.models.resource_method import ResourceMethod
 from airflow.configuration import conf
 from airflow.utils.net import get_hostname
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -35,7 +35,7 @@ def get_access_denied_message():
     return conf.get("webserver", "access_denied_message")
 
 
-def has_access(permissions: Sequence[tuple[ResourceAction, str]] | None = None) -> Callable[[T], T]:
+def has_access(permissions: Sequence[tuple[ResourceMethod, str]] | None = None) -> Callable[[T], T]:
     """Factory for decorator that checks current user's permissions against required permissions."""
 
     def requires_access_decorator(func: T):

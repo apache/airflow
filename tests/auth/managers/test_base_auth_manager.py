@@ -23,8 +23,8 @@ import pytest
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.models.authorized_action import AuthorizedAction
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
+from airflow.auth.managers.models.resource_method import ResourceMethod
 from airflow.exceptions import AirflowException
 from airflow.www.security import ApplessAirflowSecurityManager
 
@@ -44,7 +44,7 @@ class EmptyAuthManager(BaseAuthManager):
 
     def is_authorized(
         self,
-        action: ResourceAction,
+        action: ResourceMethod,
         resource_type: str,
         resource_details: ResourceDetails | None = None,
         user: BaseUser | None = None,
@@ -78,22 +78,22 @@ class TestBaseAuthManager:
             ),
             # One action with permissions
             (
-                [AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource")],
+                [AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource")],
                 [True],
                 True,
             ),
             # One action without permissions
             (
-                [AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource")],
+                [AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource")],
                 [False],
                 False,
             ),
             # Several actions, one without permission
             (
                 [
-                    AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource"),
-                    AuthorizedAction(action=ResourceAction.POST, resource_type="test_resource"),
-                    AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource2"),
+                    AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource"),
+                    AuthorizedAction(action=ResourceMethod.POST, resource_type="test_resource"),
+                    AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource2"),
                 ],
                 [True, True, False],
                 False,
@@ -101,9 +101,9 @@ class TestBaseAuthManager:
             # Several actions, all with permission
             (
                 [
-                    AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource"),
-                    AuthorizedAction(action=ResourceAction.POST, resource_type="test_resource"),
-                    AuthorizedAction(action=ResourceAction.GET, resource_type="test_resource2"),
+                    AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource"),
+                    AuthorizedAction(action=ResourceMethod.POST, resource_type="test_resource"),
+                    AuthorizedAction(action=ResourceMethod.GET, resource_type="test_resource2"),
                 ],
                 [True, True, True],
                 True,

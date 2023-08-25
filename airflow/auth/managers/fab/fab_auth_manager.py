@@ -27,8 +27,8 @@ from airflow.auth.managers.fab.cli_commands.definition import (
     USERS_COMMANDS,
 )
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
+from airflow.auth.managers.models.resource_method import ResourceMethod
 from airflow.cli.cli_config import (
     CLICommand,
     GroupCommand,
@@ -48,10 +48,10 @@ if TYPE_CHECKING:
     from airflow.auth.managers.fab.models import User
 
 _MAP_ACTION_NAME_TO_FAB_ACTION_NAME = {
-    ResourceAction.POST: ACTION_CAN_CREATE,
-    ResourceAction.GET: ACTION_CAN_READ,
-    ResourceAction.PUT: ACTION_CAN_EDIT,
-    ResourceAction.DELETE: ACTION_CAN_DELETE,
+    ResourceMethod.POST: ACTION_CAN_CREATE,
+    ResourceMethod.GET: ACTION_CAN_READ,
+    ResourceMethod.PUT: ACTION_CAN_EDIT,
+    ResourceMethod.DELETE: ACTION_CAN_DELETE,
 }
 
 
@@ -107,7 +107,7 @@ class FabAuthManager(BaseAuthManager):
 
     def is_authorized(
         self,
-        action: ResourceAction,
+        action: ResourceMethod,
         resource_type: str,
         resource_details: ResourceDetails | None = None,
         user: BaseUser | None = None,
@@ -175,7 +175,7 @@ class FabAuthManager(BaseAuthManager):
         return self.url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
 
     @staticmethod
-    def _get_fab_action(action: ResourceAction) -> str:
+    def _get_fab_action(action: ResourceMethod) -> str:
         """
         Convert the action to a FAB action.
 

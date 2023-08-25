@@ -20,15 +20,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
+from airflow.auth.managers.models.resource_method import ResourceMethod
 
 
 @dataclass
 class AuthorizedAction:
     """Represents an action that is being checked for authorization."""
 
-    action: ResourceAction
+    action: ResourceMethod
     resource_type: str
     resource_details: ResourceDetails | None = None
     user: BaseUser | None = None
