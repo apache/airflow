@@ -24,7 +24,6 @@ from airflow.auth.managers.models.authorized_action import AuthorizedAction
 from airflow.auth.managers.models.resource_action import ResourceAction
 from airflow.auth.managers.models.resource_details import ResourceDetails
 from airflow.exceptions import AirflowException
-from airflow.models.dag import DagModel
 from airflow.security.permissions import RESOURCE_DAG, RESOURCE_DAG_PREFIX
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -115,21 +114,6 @@ class BaseAuthManager(LoggingMixin):
             )
             for action in actions
         )
-
-    def _get_root_dag_id(self, dag_id: str) -> str:
-        """
-        Return the root DAG id in case of sub DAG, return the DAG id otherwise.
-
-        :param dag_id: the DAG id
-        """
-        if "." in dag_id:
-            dm = (
-                self.security_manager.appbuilder.get_session.query(DagModel.dag_id, DagModel.root_dag_id)
-                .filter(DagModel.dag_id == dag_id)
-                .first()
-            )
-            return dm.root_dag_id or dm.dag_id
-        return dag_id
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:

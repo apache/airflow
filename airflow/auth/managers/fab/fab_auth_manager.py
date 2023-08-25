@@ -33,6 +33,7 @@ from airflow.cli.cli_config import (
     CLICommand,
     GroupCommand,
 )
+from airflow.models import DagModel
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -218,3 +219,18 @@ class FabAuthManager(BaseAuthManager):
             (ACTION_CAN_READ if perm[0] == ACTION_CAN_ACCESS_MENU else perm[0], perm[1])
             for perm in user.perms
         ]
+
+    def _get_root_dag_id(self, dag_id: str) -> str:
+        """
+        Return the root DAG id in case of sub DAG, return the DAG id otherwise.
+
+        :param dag_id: the DAG id
+        """
+        if "." in dag_id:
+            dm = (
+                self.security_manager.appbuilder.get_session.query(DagModel.dag_id, DagModel.root_dag_id)
+                .filter(DagModel.dag_id == dag_id)
+                .first()
+            )
+            return dm.root_dag_id or dm.dag_id
+        return dag_id
