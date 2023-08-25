@@ -91,7 +91,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                 else:
                     user = get_auth_manager().get_user_name()
 
-                fields_skip_logging = {"csrf_token", "_csrf_token"}
+                fields_skip_logging = {"csrf_token", "_csrf_token", "is_paused"}
                 extra_fields = [
                     (k, secrets_masker.redact(v, k))
                     for k, v in itertools.chain(request.values.items(multi=True), request.view_args.items())
@@ -104,6 +104,8 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
 
                 params = {k: v for k, v in itertools.chain(request.values.items(), request.view_args.items())}
 
+                if params and "is_paused" in params:
+                    extra_fields.append(("is_paused", params["is_paused"] == "false"))
                 log = Log(
                     event=event or f.__name__,
                     task_instance=None,
