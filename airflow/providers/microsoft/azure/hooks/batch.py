@@ -27,7 +27,7 @@ from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParamet
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
 from airflow.utils import timezone
 
 
@@ -96,7 +96,15 @@ class AzureBatchHook(BaseHook):
         if not batch_account_url:
             raise AirflowException("Batch Account URL parameter is missing.")
 
-        credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
+        credentials: batch_auth.SharedKeyCredentials | AzureIdentityCredentialAdapter
+        if all([conn.login, conn.password]):
+            credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
+        else:
+            credentials = AzureIdentityCredentialAdapter(
+                None, resource_id="https://batch.core.windows.net/.default"
+            )
+            # credentials = AzureIdentityCredentialAdapter()
+
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
         return batch_client
 
@@ -344,7 +352,6 @@ class AzureBatchHook(BaseHook):
         :param task: The task to add
         """
         try:
-
             self.connection.task.add(job_id=job_id, task=task)
         except batch_models.BatchErrorException as err:
             if not err.error or err.error.code != "TaskExists":

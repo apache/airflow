@@ -27,6 +27,8 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 from airflow.utils import db
 
+MODULE = "airflow.providers.microsoft.azure.hooks.batch"
+
 
 class TestAzureBatchHook:
     # set up the test environment
@@ -66,6 +68,24 @@ class TestAzureBatchHook:
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         assert isinstance(hook._connection(), Connection)
         assert isinstance(hook.get_conn(), BatchServiceClient)
+
+    @mock.patch(f"{MODULE}.batch_auth.SharedKeyCredentials")
+    @mock.patch(f"{MODULE}.AzureIdentityCredentialAdapter")
+    def test_fallback_to_azure_identity_credential_adppter_when_name_and_key_is_not_provided(
+        self, mock_azure_identity_credential_adapter, mock_shared_key_credentials
+    ):
+        self.test_account_name = None
+        self.test_account_key = None
+
+        hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
+        assert isinstance(hook.get_conn(), BatchServiceClient)
+        mock_azure_identity_credential_adapter.assert_called_with(
+            None, resource_id="https://batch.core.windows.net/.default"
+        )
+        assert not mock_shared_key_credentials.auth.called
+
+        self.test_account_name = "test_account_name"
+        self.test_account_key = "test_account_key"
 
     def test_configure_pool_with_vm_config(self):
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)

@@ -100,7 +100,7 @@ class TestPool:
         long_name = "".join(random.choices(string.ascii_lowercase, k=300))
         column_length = models.Pool.pool.property.columns[0].type.length
         with pytest.raises(
-            AirflowBadRequest, match="^Pool name can't be more than %d characters$" % column_length
+            AirflowBadRequest, match=f"^Pool name can't be more than {column_length} characters$"
         ):
             pool_api.create_pool(
                 name=long_name,

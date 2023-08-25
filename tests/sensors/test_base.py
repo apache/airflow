@@ -25,9 +25,11 @@ import time_machine
 
 from airflow.exceptions import (
     AirflowException,
+    AirflowFailException,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    AirflowTaskTimeout,
 )
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.executors.executor_constants import (
@@ -48,9 +50,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
-from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import (
-    LocalKubernetesExecutor,
-)
+from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor import LocalKubernetesExecutor
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
@@ -166,6 +166,28 @@ class TestBaseSensor:
 
     def test_soft_fail(self, make_sensor):
         sensor, dr = make_sensor(False, soft_fail=True)
+
+        self._run(sensor)
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.SKIPPED
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
+
+    @pytest.mark.parametrize(
+        "exception_cls",
+        (
+            AirflowSensorTimeout,
+            AirflowTaskTimeout,
+            AirflowFailException,
+            Exception,
+        ),
+    )
+    def test_soft_fail_with_non_skip_exception(self, make_sensor, exception_cls):
+        sensor, dr = make_sensor(False, soft_fail=True)
+        sensor.poke = Mock(side_effect=[exception_cls(None)])
 
         self._run(sensor)
         tis = dr.get_task_instances()
@@ -518,7 +540,6 @@ class TestBaseSensor:
         assert sensor._get_next_poke_interval(started_at, run_duration, 2) == sensor.poke_interval
 
     def test_sensor_with_exponential_backoff_on(self):
-
         sensor = DummySensor(
             task_id=SENSOR_OP, return_value=None, poke_interval=5, timeout=60, exponential_backoff=True
         )
@@ -575,7 +596,6 @@ class TestBaseSensor:
                 assert intervals[0] == intervals[-1]
 
     def test_sensor_with_exponential_backoff_on_and_max_wait(self):
-
         sensor = DummySensor(
             task_id=SENSOR_OP,
             return_value=None,
