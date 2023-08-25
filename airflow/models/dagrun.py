@@ -530,7 +530,7 @@ class DagRun(Base, LoggingMixin):
         ]
         if state is not None:
             filters.append(DagRun.state == state)
-        return session.scalar(select(DagRun).where(*filters).order_by(DagRun.execution_date.desc()))
+        return session.scalar(select(DagRun).where(*filters).order_by(DagRun.execution_date.desc()).limit(1))
 
     @provide_session
     def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
@@ -543,6 +543,7 @@ class DagRun(Base, LoggingMixin):
                 DagRun.run_type != DagRunType.MANUAL,
             )
             .order_by(DagRun.execution_date.desc())
+            .limit(1)
         )
 
     def _tis_for_dagrun_state(self, *, dag, tis):
@@ -1387,7 +1388,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate:
         if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
-            template = session.scalar(select(LogTemplate).order_by(LogTemplate.id))
+            template = session.scalar(select(LogTemplate).order_by(LogTemplate.id).limit(1))
         else:
             template = session.get(LogTemplate, self.log_template_id)
         if template is None:

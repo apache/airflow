@@ -1971,6 +1971,9 @@ pgbouncer:
   extraVolumes: []
   extraVolumeMounts: []
 
+  # Launch additional containers into pgbouncer.
+  extraContainers: []
+
   # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
   affinity: {}

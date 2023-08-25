@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import os
 import sys
 from typing import Any
@@ -419,11 +418,10 @@ def clean_docker_context_files():
         get_console().print("[info]Cleaning docker-context-files[/]")
     if get_dry_run():
         return
-    with contextlib.suppress(FileNotFoundError):
-        context_files_to_delete = DOCKER_CONTEXT_DIR.glob("**/*")
-        for file_to_delete in context_files_to_delete:
-            if file_to_delete.name != ".README.md":
-                file_to_delete.unlink()
+    context_files_to_delete = DOCKER_CONTEXT_DIR.rglob("*")
+    for file_to_delete in context_files_to_delete:
+        if file_to_delete.name != ".README.md":
+            file_to_delete.unlink(missing_ok=True)
 
 
 def check_docker_context_files(install_packages_from_context: bool):

@@ -102,7 +102,7 @@ class BaseK8STest:
     @staticmethod
     def _num_pods_in_namespace(namespace):
         air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
-        air_pod = air_pod.split("\n")
+        air_pod = air_pod.splitlines()
         names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
         return len(names)
 
@@ -110,7 +110,7 @@ class BaseK8STest:
     def _delete_airflow_pod(name=""):
         suffix = "-" + name if name else ""
         air_pod = check_output(["kubectl", "get", "pods"]).decode()
-        air_pod = air_pod.split("\n")
+        air_pod = air_pod.splitlines()
         names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x]
         if names:
             check_call(["kubectl", "delete", "pod", names[0]])

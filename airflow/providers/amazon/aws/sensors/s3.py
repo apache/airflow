@@ -116,7 +116,7 @@ class S3KeySensor(BaseSensorOperator):
             prefix = re.split(r"[\[\*\?]", key, 1)[0]
             keys = self.hook.get_file_metadata(prefix, bucket_name)
             key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if len(key_matches) == 0:
+            if not key_matches:
                 return False
 
             # Reduce the set of metadata to size only

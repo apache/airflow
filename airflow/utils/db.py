@@ -1210,9 +1210,8 @@ def _create_table_as(
         )
     else:
         # Postgres and SQLite both support the same "CREATE TABLE a AS SELECT ..." syntax
-        session.execute(
-            f"CREATE TABLE {target_table_name} AS {source_query.selectable.compile(bind=session.get_bind())}"
-        )
+        select_table = source_query.selectable.compile(bind=session.get_bind())
+        session.execute(text(f"CREATE TABLE {target_table_name} AS {select_table}"))
 
 
 def _move_dangling_data_to_new_table(
