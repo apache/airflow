@@ -132,11 +132,14 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         self._validate_arg_names("expand", kwargs)
         prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="mapping already partial")
         expand_input = DictOfListsExpandInput(kwargs)
-        return self._create_task_group(
+        new_task_group = self._create_task_group(
             functools.partial(MappedTaskGroup, expand_input=expand_input),
             **self.partial_kwargs,
             **{k: MappedArgument(input=expand_input, key=k) for k in kwargs},
         )
+        for op, _ in expand_input.iter_references():
+            new_task_group.set_upstream(op)
+        return new_task_group
 
     def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument) -> DAGNode:
         if isinstance(kwargs, Sequence):
@@ -161,11 +164,14 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         map_kwargs = (k for k in self.function_signature.parameters if k not in self.partial_kwargs)
 
         expand_input = ListOfDictsExpandInput(kwargs)
-        return self._create_task_group(
+        new_task_group = self._create_task_group(
             functools.partial(MappedTaskGroup, expand_input=expand_input),
             **self.partial_kwargs,
             **{k: MappedArgument(input=expand_input, key=k) for k in map_kwargs},
         )
+        for op, _ in expand_input.iter_references():
+            new_task_group.set_upstream(op)
+        return new_task_group
 
 
 # This covers the @task_group() case. Annotations are copied from the TaskGroup
