@@ -28,6 +28,15 @@
 Changelog
 ---------
 
+3.2.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
 3.2.2
 .....
 

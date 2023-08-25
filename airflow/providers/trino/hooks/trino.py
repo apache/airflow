@@ -233,3 +233,32 @@ class TrinoHook(DbApiHook):
         :return: The cell
         """
         return cell
+
+    def get_openlineage_database_info(self, connection):
+        """Returns Trino specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme="trino",
+            authority=DbApiHook.get_openlineage_authority_part(
+                connection, default_port=trino.constants.DEFAULT_PORT
+            ),
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            database=connection.extra_dejson.get("catalog", "hive"),
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, _):
+        """Returns Trino dialect."""
+        return "trino"
+
+    def get_openlineage_default_schema(self):
+        """Returns Trino default schema."""
+        return trino.constants.DEFAULT_SCHEMA

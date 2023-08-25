@@ -24,7 +24,6 @@ import socket
 import subprocess
 import time
 import warnings
-from collections import OrderedDict
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Iterable, Mapping
 
@@ -231,7 +230,7 @@ class HiveCliHook(BaseHook):
 
         invalid_chars_list = re.findall(r"[^a-z0-9_]", schema)
         if invalid_chars_list:
-            invalid_chars = "".join(char for char in invalid_chars_list)
+            invalid_chars = "".join(invalid_chars_list)
             raise RuntimeError(f"The schema `{schema}` contains invalid characters: {invalid_chars}")
 
         if schema:
@@ -278,13 +277,11 @@ class HiveCliHook(BaseHook):
                 )
                 self.sub_process = sub_process
                 stdout = ""
-                while True:
-                    line = sub_process.stdout.readline()
-                    if not line:
-                        break
-                    stdout += line.decode("UTF-8")
+                for line in iter(sub_process.stdout.readline, b""):
+                    line = line.decode()
+                    stdout += line
                     if verbose:
-                        self.log.info(line.decode("UTF-8").strip())
+                        self.log.info(line.strip())
                 sub_process.wait()
 
                 if sub_process.returncode:
@@ -318,14 +315,14 @@ class HiveCliHook(BaseHook):
                 try:
                     self.run_cli(query, verbose=False)
                 except AirflowException as e:
-                    message = e.args[0].split("\n")[-2]
+                    message = e.args[0].splitlines()[-2]
                     self.log.info(message)
                     error_loc = re.search(r"(\d+):(\d+)", message)
                     if error_loc and error_loc.group(1).isdigit():
                         lst = int(error_loc.group(1))
                         begin = max(lst - 2, 0)
-                        end = min(lst + 3, len(query.split("\n")))
-                        context = "\n".join(query.split("\n")[begin:end])
+                        end = min(lst + 3, len(query.splitlines()))
+                        context = "\n".join(query.splitlines()[begin:end])
                         self.log.info("Context :\n %s", context)
                 else:
                     self.log.info("SUCCESS")
@@ -350,7 +347,7 @@ class HiveCliHook(BaseHook):
         :param table: target Hive table, use dot notation to target a
             specific database
         :param field_dict: mapping from column name to hive data type.
-            Note that it must be OrderedDict so as to keep columns' order.
+            Note that Python dict is ordered so it keeps columns' order.
         :param delimiter: field delimiter in the file
         :param encoding: str encoding to use when writing DataFrame to file
         :param pandas_kwargs: passed to DataFrame.to_csv
@@ -371,7 +368,7 @@ class HiveCliHook(BaseHook):
                 "V": "STRING",  # void
             }
 
-            order_type = OrderedDict()
+            order_type = {}
             for col, dtype in df.dtypes.items():
                 order_type[col] = dtype_kind_hive_type[dtype.kind]
             return order_type
@@ -427,7 +424,7 @@ class HiveCliHook(BaseHook):
         :param delimiter: field delimiter in the file
         :param field_dict: A dictionary of the fields name in the file
             as keys and their Hive types as values.
-            Note that it must be OrderedDict so as to keep columns' order.
+            Note that Python dict is ordered so it keeps columns' order.
         :param create: whether to create the table if it doesn't exist
         :param overwrite: whether to overwrite the data in table or partition
         :param partition: target partition as a dict of partition columns
@@ -664,9 +661,7 @@ class HiveMetastoreHook(BaseHook):
         """
         with self.metastore as client:
             table = client.get_table(dbname=schema, tbl_name=table_name)
-            if len(table.partitionKeys) == 0:
-                raise AirflowException("The table isn't partitioned")
-            else:
+            if table.partitionKeys:
                 if partition_filter:
                     parts = client.get_partitions_by_filter(
                         db_name=schema,
@@ -681,6 +676,8 @@ class HiveMetastoreHook(BaseHook):
 
                 pnames = [p.name for p in table.partitionKeys]
                 return [dict(zip(pnames, p.values)) for p in parts]
+            else:
+                raise AirflowException("The table isn't partitioned")
 
     @staticmethod
     def _get_max_partition_from_part_specs(
@@ -705,25 +702,20 @@ class HiveMetastoreHook(BaseHook):
         # Assuming all specs have the same keys.
         if partition_key not in part_specs[0].keys():
             raise AirflowException(f"Provided partition_key {partition_key} is not in part_specs.")
-        is_subset = None
-        if filter_map:
-            is_subset = set(filter_map.keys()).issubset(set(part_specs[0].keys()))
-        if filter_map and not is_subset:
+        if filter_map and not set(filter_map).issubset(part_specs[0]):
             raise AirflowException(
                 f"Keys in provided filter_map {', '.join(filter_map.keys())} "
                 f"are not subset of part_spec keys: {', '.join(part_specs[0].keys())}"
             )
 
-        candidates = [
-            p_dict[partition_key]
-            for p_dict in part_specs
-            if filter_map is None or all(item in p_dict.items() for item in filter_map.items())
-        ]
-
-        if not candidates:
-            return None
-        else:
-            return max(candidates)
+        return max(
+            (
+                p_dict[partition_key]
+                for p_dict in part_specs
+                if filter_map is None or all(item in p_dict.items() for item in filter_map.items())
+            ),
+            default=None,
+        )
 
     def max_partition(
         self,
@@ -924,8 +916,8 @@ class HiveServer2Hook(DbApiHook):
                     description = cur.description
                     if previous_description and previous_description != description:
                         message = f"""The statements are producing different descriptions:
-                                     Current: {repr(description)}
-                                     Previous: {repr(previous_description)}"""
+                                     Current: {description!r}
+                                     Previous: {previous_description!r}"""
                         raise ValueError(message)
                     elif not previous_description:
                         previous_description = description

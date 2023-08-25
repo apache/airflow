@@ -186,7 +186,7 @@ class SqsSensor(BaseSensorOperator):
                 self.message_filtering_config,
             )
 
-            if not len(messages):
+            if not messages:
                 continue
 
             message_batch.extend(messages)
@@ -202,10 +202,8 @@ class SqsSensor(BaseSensorOperator):
                 response = self.hook.conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
 
                 if "Successful" not in response:
-                    raise AirflowException(
-                        "Delete SQS Messages failed " + str(response) + " for messages " + str(messages)
-                    )
-        if not len(message_batch):
+                    raise AirflowException(f"Delete SQS Messages failed {response} for messages {messages}")
+        if not message_batch:
             return False
 
         context["ti"].xcom_push(key="messages", value=message_batch)

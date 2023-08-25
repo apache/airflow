@@ -69,7 +69,7 @@ class UtcDateTime(TypeDecorator):
         if not isinstance(value, datetime.datetime):
             if value is None:
                 return None
-            raise TypeError("expected datetime.datetime, not " + repr(value))
+            raise TypeError(f"expected datetime.datetime, not {value!r}")
         elif value.tzinfo is None:
             raise ValueError("naive datetime is disallowed")
         elif dialect.name == "mysql":
@@ -436,7 +436,7 @@ def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
 
     :meta private:
     """
-    locked_rows = with_row_locks(query, session).all()
+    locked_rows = with_row_locks(query, session)
     yield
     del locked_rows
 
@@ -590,7 +590,9 @@ def tuple_not_in_condition(
 
     :meta private:
     """
-    if settings.engine.dialect.name != "mssql":
+    dialect = session.bind.dialect if session else settings.engine.dialect
+
+    if dialect.name != "mssql":
         return tuple_(*columns).not_in(collection)
     if not isinstance(collection, Select):
         rows = collection

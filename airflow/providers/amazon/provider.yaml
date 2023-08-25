@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.6.0
   - 8.5.1
   - 8.5.0
   - 8.4.0
@@ -67,7 +68,19 @@ dependencies:
   - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
   - apache-airflow-providers-http
-  - boto3>=1.24.0
+  # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
+  # of candidates to consider. We should also make sure that all the below related packages have also the
+  # same minimum version specified. Boto3 1.28.0 has been released on July 6 2023. We should also make sure we
+  # set it to the version that `aiobotocore` supports (see `aiobotocore` optional dependency at the end
+  # of this file). Currently we set aiobotocore as minimum 2.5.3 - as this is was the first version
+  # that supported boto3 1.28. NOTE!!! BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
+  - boto3>=1.28.0
+  - mypy-boto3-rds>=1.28.0
+  - mypy-boto3-redshift-data>=1.28.0
+  - mypy-boto3-s3>=1.28.0
+  - mypy-boto3-appflow>=1.28.0
+  # NOTE!!! BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
+  - botocore>=1.31.0
   - asgiref
   # watchtower 3 has been released end Jan and introduced breaking change across the board that might
   # change logging behaviour:
@@ -77,11 +90,7 @@ dependencies:
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
-  - mypy-boto3-rds>=1.24.0
-  - mypy-boto3-redshift-data>=1.24.0
-  - mypy-boto3-appflow>=1.28.16
   - asgiref
-  - mypy-boto3-s3>=1.24.0
 
 integrations:
   - integration-name: Amazon Athena
@@ -699,7 +708,7 @@ additional-extras:
   # boto3 have native async support and we move away from aio aiobotocore
   - name: aiobotocore
     dependencies:
-      - aiobotocore[boto3]>=2.2.0
+      - aiobotocore[boto3]>=2.5.3
   - name: cncf.kubernetes
     dependencies:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0

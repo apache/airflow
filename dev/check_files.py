@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import os
 import re
-from itertools import product
 
 import rich_click as click
 from rich import print
@@ -65,7 +65,7 @@ def get_packages() -> list[tuple[str, str]]:
     # e.g. https://pypi.org/project/apache-airflow-providers-airbyte/3.1.0rc1/
 
     packages = []
-    for line in content.split("\n"):
+    for line in content.splitlines():
         if not line:
             continue
         name, version = line.rstrip("/").split("/")[-2:]
@@ -141,7 +141,7 @@ def check_release(files: list[str], version: str):
 
 
 def expand_name_variations(files):
-    return sorted(base + suffix for base, suffix in product(files, ["", ".asc", ".sha512"]))
+    return sorted(base + suffix for base, suffix in itertools.product(files, ["", ".asc", ".sha512"]))
 
 
 def check_upgrade_check(files: list[str], version: str):

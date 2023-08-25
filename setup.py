@@ -281,7 +281,7 @@ celery = [
     # limiting minimum airflow version supported in celery provider due to the
     # potential breaking changes in Airflow Core as well (celery is added as extra, so Airflow
     # core is not hard-limited via install-requires, only by extra).
-    "celery>=5.2.3,<6"
+    "celery>=5.3.0,<6"
 ]
 cgroups = [
     # Cgroupspy 0.2.2 added Python 3.10 compatibility
@@ -413,7 +413,7 @@ devel_only = [
     "blinker",
     "bowler",
     "click>=8.0",
-    "coverage",
+    "coverage>=7.2",
     "filelock",
     "gitpython",
     "ipdb",
@@ -868,7 +868,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     So transitively 'salesforce' extra has all the dependencies it needs and in case the provider
     changes its dependencies, they will transitively change as well.
 
-    In the constraint mechanism we save both - provider versions and it's dependencies
+    In the constraint mechanism we save both - provider versions and its dependencies
     version, which means that installation using constraints is repeatable.
 
     For K8s and Celery which are both "Core executors" and "Providers" we have to

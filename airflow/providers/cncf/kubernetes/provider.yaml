@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 7.5.0
   - 7.4.2
   - 7.4.1
   - 7.4.0
@@ -100,7 +101,6 @@ integrations:
 operators:
   - integration-name: Kubernetes
     python-modules:
-      - airflow.providers.cncf.kubernetes.operators.kubernetes_pod
       - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
       - airflow.providers.cncf.kubernetes.operators.resource

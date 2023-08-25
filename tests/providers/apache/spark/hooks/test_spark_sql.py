@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import io
-from itertools import dropwhile
+import itertools
 from unittest.mock import call, patch
 
 import pytest
@@ -32,7 +32,7 @@ from tests.test_utils.db import clear_db_connections
 
 def get_after(sentinel, iterable):
     """Get the value after `sentinel` in an `iterable`"""
-    truncated = dropwhile(lambda el: el != sentinel, iterable)
+    truncated = itertools.dropwhile(lambda el: el != sentinel, iterable)
     next(truncated)
     return next(truncated)
 

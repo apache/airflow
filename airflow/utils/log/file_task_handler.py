@@ -520,7 +520,7 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            messages.append(f"Could not read served logs: {str(e)}")
+            messages.append(f"Could not read served logs: {e}")
             logger.exception("Could not read served logs")
         return messages, logs
 

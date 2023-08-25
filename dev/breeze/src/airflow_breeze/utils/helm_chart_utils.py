@@ -16,17 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import yaml
 
-CHART_DIR = Path(__file__).resolve().parents[5] / "chart"
-CHART_YAML_PATH = os.path.join(CHART_DIR, "Chart.yaml")
+CHART_YAML_PATH = Path(__file__).resolve().parents[5] / "chart" / "Chart.yaml"
 
 
 def chart_yaml() -> dict:
-    with open(CHART_YAML_PATH) as f:
+    with CHART_YAML_PATH.open() as f:
         return yaml.safe_load(f)
 
 

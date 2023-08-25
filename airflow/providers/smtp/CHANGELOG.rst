@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+1.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+
 1.3.0
 .....
 

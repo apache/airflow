@@ -226,7 +226,7 @@ def get_changes(verbose: bool, previous_release: str, current_release: str) -> l
         cwd=SOURCE_DIR_PATH,
         text=True,
     )
-    return [get_change_from_line(line) for line in change_strings.split("\n")]
+    return [get_change_from_line(line) for line in change_strings.splitlines()]
 
 
 def update_milestone(r: Repository, pr: PullRequest, m: Milestone):
@@ -381,7 +381,7 @@ def assign_prs(
     if output_folder:
 
         def write_commits(type: str, path: Path, changes_to_write: list[Change]):
-            path.write_text("\n".join(change.short_hash for change in changes_to_write) + "\n")
+            path.write_text("".join(f"{change.short_hash}\n" for change in changes_to_write))
             console.print(f"\n{type} commits written in {path}")
 
         write_commits("Changelog", Path(output_folder) / CHANGELOG_CHANGES_FILE, changelog_changes)

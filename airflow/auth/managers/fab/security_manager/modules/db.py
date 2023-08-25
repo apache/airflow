@@ -22,7 +22,7 @@ import uuid
 
 from flask_appbuilder import const
 from flask_appbuilder.models.sqla import Base
-from sqlalchemy import func, inspect
+from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
@@ -86,7 +86,7 @@ class FabAirflowSecurityManagerOverrideDb:
             if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
                 log.warning(const.LOGMSG_WAR_SEC_NO_USER)
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_CREATE_DB.format(str(e)))
+            log.error(const.LOGMSG_ERR_SEC_CREATE_DB.format(e))
             exit(1)
 
     """
@@ -106,7 +106,7 @@ class FabAirflowSecurityManagerOverrideDb:
             self.get_session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_ROLE.format(role))
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_UPD_ROLE.format(str(e)))
+            log.error(const.LOGMSG_ERR_SEC_UPD_ROLE.format(e))
             self.get_session.rollback()
             return None
         return role
@@ -123,7 +123,7 @@ class FabAirflowSecurityManagerOverrideDb:
                 log.info(const.LOGMSG_INF_SEC_ADD_ROLE.format(name))
                 return role
             except Exception as e:
-                log.error(const.LOGMSG_ERR_SEC_ADD_ROLE.format(str(e)))
+                log.error(const.LOGMSG_ERR_SEC_ADD_ROLE.format(e))
                 self.get_session.rollback()
         return role
 
@@ -190,7 +190,7 @@ class FabAirflowSecurityManagerOverrideDb:
             log.info(const.LOGMSG_INF_SEC_ADD_USER.format(username))
             return user
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_ADD_USER.format(str(e)))
+            log.error(const.LOGMSG_ERR_SEC_ADD_USER.format(e))
             self.get_session.rollback()
             return False
 
@@ -226,7 +226,7 @@ class FabAirflowSecurityManagerOverrideDb:
             self.get_session.commit()
             return register_user
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_ADD_REGISTER_USER.format(str(e)))
+            log.error(const.LOGMSG_ERR_SEC_ADD_REGISTER_USER.format(e))
             self.get_session.rollback()
             return None
 
@@ -257,10 +257,10 @@ class FabAirflowSecurityManagerOverrideDb:
                 return None
 
     def find_register_user(self, registration_hash):
-        return (
-            self.get_session.query(self.registeruser_model)
-            .filter(self.registeruser_model.registration_hash == registration_hash)
-            .scalar()
+        return self.get_session.scalar(
+            select(self.registeruser_mode)
+            .where(self.registeruser_model.registration_hash == registration_hash)
+            .limit(1)
         )
 
     def update_user(self, user):
@@ -269,7 +269,7 @@ class FabAirflowSecurityManagerOverrideDb:
             self.get_session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_USER.format(user))
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_UPD_USER.format(str(e)))
+            log.error(const.LOGMSG_ERR_SEC_UPD_USER.format(e))
             self.get_session.rollback()
             return False
 
@@ -284,7 +284,7 @@ class FabAirflowSecurityManagerOverrideDb:
             self.get_session.commit()
             return True
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_DEL_REGISTER_USER.format(str(e)))
+            log.error(const.LOGMSG_ERR_SEC_DEL_REGISTER_USER.format(e))
             self.get_session.rollback()
             return False
 
@@ -322,7 +322,7 @@ class FabAirflowSecurityManagerOverrideDb:
                 self.get_session.commit()
                 return action
             except Exception as e:
-                log.error(const.LOGMSG_ERR_SEC_ADD_PERMISSION.format(str(e)))
+                log.error(const.LOGMSG_ERR_SEC_ADD_PERMISSION.format(e))
                 self.get_session.rollback()
         return action
 
@@ -349,7 +349,7 @@ class FabAirflowSecurityManagerOverrideDb:
             self.get_session.commit()
             return True
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
+            log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION.format(e))
             self.get_session.rollback()
             return False
 
@@ -383,7 +383,7 @@ class FabAirflowSecurityManagerOverrideDb:
                 self.get_session.commit()
                 return resource
             except Exception as e:
-                log.error(const.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(str(e)))
+                log.error(const.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(e))
                 self.get_session.rollback()
         return resource
 
@@ -419,7 +419,7 @@ class FabAirflowSecurityManagerOverrideDb:
             self.get_session.commit()
             return True
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
+            log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION.format(e))
             self.get_session.rollback()
             return False
 
@@ -481,10 +481,10 @@ class FabAirflowSecurityManagerOverrideDb:
         try:
             self.get_session.add(perm)
             self.get_session.commit()
-            log.info(const.LOGMSG_INF_SEC_ADD_PERMVIEW.format(str(perm)))
+            log.info(const.LOGMSG_INF_SEC_ADD_PERMVIEW.format(perm))
             return perm
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(str(e)))
+            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(e))
             self.get_session.rollback()
             return None
 
@@ -518,7 +518,7 @@ class FabAirflowSecurityManagerOverrideDb:
                 self.delete_action(perm.action.name)
             log.info(const.LOGMSG_INF_SEC_DEL_PERMVIEW.format(action_name, resource_name))
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_DEL_PERMVIEW.format(str(e)))
+            log.error(const.LOGMSG_ERR_SEC_DEL_PERMVIEW.format(e))
             self.get_session.rollback()
 
     def add_permission_to_role(self, role: Role, permission: Permission | None) -> None:
@@ -534,9 +534,9 @@ class FabAirflowSecurityManagerOverrideDb:
                 role.permissions.append(permission)
                 self.get_session.merge(role)
                 self.get_session.commit()
-                log.info(const.LOGMSG_INF_SEC_ADD_PERMROLE.format(str(permission), role.name))
+                log.info(const.LOGMSG_INF_SEC_ADD_PERMROLE.format(permission, role.name))
             except Exception as e:
-                log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE.format(str(e)))
+                log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE.format(e))
                 self.get_session.rollback()
 
     def remove_permission_from_role(self, role: Role, permission: Permission) -> None:
@@ -551,7 +551,7 @@ class FabAirflowSecurityManagerOverrideDb:
                 role.permissions.remove(permission)
                 self.get_session.merge(role)
                 self.get_session.commit()
-                log.info(const.LOGMSG_INF_SEC_DEL_PERMROLE.format(str(permission), role.name))
+                log.info(const.LOGMSG_INF_SEC_DEL_PERMROLE.format(permission, role.name))
             except Exception as e:
-                log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE.format(str(e)))
+                log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE.format(e))
                 self.get_session.rollback()

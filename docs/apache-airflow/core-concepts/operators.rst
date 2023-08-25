@@ -156,6 +156,39 @@ You can pass custom options to the Jinja ``Environment`` when creating your DAG.
 
 See the `Jinja documentation <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_ to find all available options.
 
+Some operators will also consider strings ending in specific suffixes (defined in ``template_ext``) to be references to files when rendering fields. This can be useful for loading scripts or queries directly from files rather than including them into DAG code.
+
+For example, consider a BashOperator which runs a multi-line bash script, this will load the file at ``script.sh`` and use its contents as the value for ``bash_callable``:
+
+.. code-block:: python
+
+    run_script = BashOperator(
+        task_id="run_script",
+        bash_callable="script.sh",
+    )
+
+By default, paths provided in this way should be provided relative to the DAG's folder (as this is the default Jinja template search path), but additional paths can be added by setting the ``template_searchpath`` arg on the DAG.
+
+In some cases you may want to disable template rendering on specific fields or prevent airflow from trying to read template files for a given suffix. Consider the following task:
+
+.. code-block:: python
+
+    print_script = BashOperator(
+        task_id="print_script",
+        bash_callable="cat script.sh",
+    )
+
+
+This will fail with ``TemplateNotFound: cat script.sh``, but we can prevent airflow from treating this value as a reference to a file by overriding ``template_ext``:
+
+.. code-block:: python
+
+    fixed_print_script = BashOperator(
+        task_id="fixed_print_script",
+        bash_callable="cat script.sh",
+    )
+    fixed_print_script.template_ext = ()
+
 .. _concepts:templating-native-objects:
 
 Rendering Fields as Native Python Objects

@@ -134,7 +134,7 @@ def trace_sql(request):
             # It is very unlikely that the user wants to display only numbers, but probably
             # the user just wants to count the queries.
             exit_stack.enter_context(count_queries(print_fn=pytest_print))
-        elif any(c for c in ["time", "trace", "sql", "parameters"]):
+        elif any(c in columns for c in ["time", "trace", "sql", "parameters"]):
             exit_stack.enter_context(
                 trace_queries(
                     display_num="num" in columns,

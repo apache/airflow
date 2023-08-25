@@ -16,7 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example use of Snowflake related operators.
+Example Airflow DAG that trigger a task in Azure Batch.
+
+This DAG relies on the following OS environment variables
+
+* POOL_ID - The Pool ID in Batch accounts.
 """
 from __future__ import annotations
 
@@ -24,41 +28,32 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.snowflake.transfers.snowflake_to_slack import SnowflakeToSlackOperator
+from airflow.providers.microsoft.azure.operators.batch import AzureBatchOperator
 
-SNOWFLAKE_CONN_ID = "my_snowflake_conn"
-SLACK_CONN_ID = "my_slack_conn"
-SNOWFLAKE_SAMPLE_TABLE = "sample_table"
-
-# SQL commands
-SNOWFLAKE_SLACK_SQL = f"SELECT name, id FROM {SNOWFLAKE_SAMPLE_TABLE} LIMIT 10;"
-SNOWFLAKE_SLACK_MESSAGE = (
-    "Results in an ASCII table:\n```{{ results_df | tabulate(tablefmt='pretty', headers='keys') }}```"
-)
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_snowflake_to_slack"
-
-# [START howto_operator_snowflake]
+POOL_ID = os.environ.get("POOL_ID", "example-pool")
 
 with DAG(
-    DAG_ID,
+    dag_id="example_azure_batch",
     start_date=datetime(2021, 1, 1),
-    default_args={"snowflake_conn_id": SNOWFLAKE_CONN_ID},
-    tags=["example"],
-    schedule="@once",
     catchup=False,
+    doc_md=__doc__,
+    tags=["example"],
 ) as dag:
-    # [START howto_operator_snowflake_to_slack]
-
-    slack_report = SnowflakeToSlackOperator(
-        task_id="slack_report",
-        sql=SNOWFLAKE_SLACK_SQL,
-        slack_message=SNOWFLAKE_SLACK_MESSAGE,
-        slack_conn_id=SLACK_CONN_ID,
+    # [START howto_azure_batch_operator]
+    azure_batch_operator = AzureBatchOperator(
+        task_id="azure_batch",
+        batch_pool_id=POOL_ID,
+        batch_pool_vm_size="standard_d2s_v3",
+        batch_job_id="example-job",
+        batch_task_command_line="/bin/bash -c 'set -e; set -o pipefail; echo hello world!; wait'",
+        batch_task_id="example-task",
+        vm_node_agent_sku_id="batch.node.ubuntu 22.04",
+        vm_publisher="Canonical",
+        vm_offer="0001-com-ubuntu-server-jammy",
+        vm_sku="22_04-lts-gen2",
+        target_dedicated_nodes=1,
     )
-
-    # [END howto_operator_snowflake_to_slack]
-
+    # [END howto_azure_batch_operator]
 
 from tests.system.utils import get_test_run  # noqa: E402
 

@@ -46,6 +46,7 @@ from airflow.cli.utils import CliConflictError
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
+from airflow.www.extensions.init_auth_manager import get_auth_manager_cls
 
 airflow_commands = core_commands.copy()  # make a copy to prevent bad interactions in tests
 
@@ -63,6 +64,13 @@ except Exception:
     )
     # Do not re-raise the exception since we want the CLI to still function for
     # other commands.
+
+try:
+    auth_mgr = get_auth_manager_cls()
+    airflow_commands.extend(auth_mgr.get_cli_commands())
+except Exception:
+    log.exception("cannot load CLI commands from auth manager")
+    # do not re-raise for the same reason as above
 
 
 ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_commands}
@@ -93,12 +101,12 @@ class AirflowHelpFormatter(RichHelpFormatter):
             action_subcommands, group_subcommands = partition(
                 lambda d: isinstance(ALL_COMMANDS_DICT[d.dest], GroupCommand), subactions
             )
-            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Groups"), nargs=0)
+            yield Action([], f"\n{' ':{self._current_indent}}Groups", nargs=0)
             self._indent()
             yield from group_subcommands
             self._dedent()
 
-            yield Action([], "\n%*s%s:" % (self._current_indent, "", "Commands"), nargs=0)
+            yield Action([], f"\n{' ':{self._current_indent}}Commands:", nargs=0)
             self._indent()
             yield from action_subcommands
             self._dedent()

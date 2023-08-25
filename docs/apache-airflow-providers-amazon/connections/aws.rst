@@ -60,10 +60,10 @@ automatically the credentials from there.
 .. caution:: If you do not run "airflow connections create-default-connections" command,
     most probably you do not have ``aws_default``. For historical reasons, the Amazon Provider
     components (Hooks, Operators, Sensors, etc.) fallback to the default boto3 credentials strategy
-    in case of a missing Connection ID. This behaviour is deprecated and will be removed in a future releases.
+    in case of a missing Connection ID.
 
     If you need to use the default boto3 credential strategy (credentials in environment variables, IAM Profile, etc.)
-    please provide ``None`` instead of a connection ID.
+    please provide ``None``, instead of a missing connection ID, to avoid getting a warning in your logs.
 
 .. _howto/connection:aws:configuring-the-connection:
 
@@ -746,7 +746,7 @@ Using IAM Roles for Service Accounts (IRSA) on EKS
 
 If you are running Airflow on `Amazon EKS <https://aws.amazon.com/eks/>`_,
 you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service
-by granting the IAM role to it's service account.
+by granting the IAM role to its service account.
 IRSA provides fine-grained permission management for apps(e.g., pods) that run on EKS and use other AWS services.
 These could be apps that use S3, any other AWS services like Secrets Manager, CloudWatch, DynamoDB etc.
 
@@ -779,7 +779,7 @@ Create IAM Role for Service Account(IRSA) using eksctl
 
     eksctl utils associate-iam-oidc-provider --cluster="<EKS_CLUSTER_ID>" --approve
 
-4. Replace ``EKS_CLUSTER_ID``, ``SERVICE_ACCOUNT_NAME`` and ``NAMESPACE`` and execute the the following command.
+4. Replace ``EKS_CLUSTER_ID``, ``SERVICE_ACCOUNT_NAME`` and ``NAMESPACE`` and execute the following command.
 This command will use an existing EKS Cluster ID and create an IAM role, service account and namespace.
 
 .. code-block:: bash

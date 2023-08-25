@@ -25,7 +25,6 @@ from typing import Any, Sequence
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
-from airflow.utils.log.secrets_masker import mask_secret
 
 
 class SlackAPIOperator(BaseOperator):
@@ -44,25 +43,20 @@ class SlackAPIOperator(BaseOperator):
     def __init__(
         self,
         *,
-        slack_conn_id: str | None = None,
-        token: str | None = None,
+        slack_conn_id: str,
         method: str | None = None,
         api_params: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if token:
-            mask_secret(token)
-        self.token = token
         self.slack_conn_id = slack_conn_id
-
         self.method = method
         self.api_params = api_params
 
     @cached_property
     def hook(self) -> SlackHook:
         """Slack Hook."""
-        return SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
+        return SlackHook(slack_conn_id=self.slack_conn_id)
 
     def construct_api_call_params(self) -> Any:
         """API call parameters used by the execute function.

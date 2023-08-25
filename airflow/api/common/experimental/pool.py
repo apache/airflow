@@ -45,7 +45,7 @@ def get_pool(name, session: Session = NEW_SESSION):
 @provide_session
 def get_pools(session: Session = NEW_SESSION):
     """Get all pools."""
-    return session.query(Pool).all()
+    return session.scalars(select(Pool)).all()
 
 
 @deprecated(reason="Use Pool.create_pool() instead", version="2.2.4")
