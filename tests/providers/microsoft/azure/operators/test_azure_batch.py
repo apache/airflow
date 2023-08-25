@@ -162,6 +162,7 @@ class TestAzureBatchOperator:
         self.batch_client = mock_batch.return_value
         self.mock_instance = mock_hook.return_value
         assert self.batch_client == self.operator.hook.connection
+        assert self.batch_client == self.operator2_pass.hook.connection
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_execute_without_failures(self, wait_mock):
