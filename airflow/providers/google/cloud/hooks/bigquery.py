@@ -3156,15 +3156,15 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         if "rows" in query_results and query_results["rows"]:
             rows = query_results["rows"]
             fields = query_results["schema"]["fields"]
+            fields_names = [field["name"] for field in fields]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
-                typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
-                if not as_dict:
-                    buffer.append(typed_row)
-                else:
-                    fields_names = [field["name"] for field in fields]
-                    typed_row_dict = {k: v for k, v in zip(fields_names, typed_row)}
+                typed_row = [bq_cast(vs["v"], col_type) for vs, col_type in zip(dict_row["f"], col_types)]
+                if as_dict:
+                    typed_row_dict = dict(zip(fields_names, typed_row))
                     buffer.append(typed_row_dict)
+                else:
+                    buffer.append(typed_row)
         return buffer
 
     def value_check(
