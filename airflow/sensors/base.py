@@ -240,14 +240,19 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             except (
                 AirflowSensorTimeout,
                 AirflowTaskTimeout,
-                AirflowSkipException,
                 AirflowFailException,
             ) as e:
+                if self.soft_fail:
+                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+                raise e
+            except AirflowSkipException as e:
                 raise e
             except Exception as e:
                 if self.silent_fail:
                     logging.error("Sensor poke failed: \n %s", traceback.format_exc())
                     poke_return = False
+                elif self.soft_fail:
+                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
                 else:
                     raise e
 
