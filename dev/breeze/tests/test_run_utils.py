@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import stat
-from pathlib import Path
 
 from airflow_breeze.utils.run_utils import (
     change_directory_permission,
@@ -27,17 +25,19 @@ from airflow_breeze.utils.run_utils import (
 )
 
 
-def test_change_file_permission(tmpdir):
-    tmpfile = Path(tmpdir, "test.config")
+def test_change_file_permission(tmp_path):
+    tmpfile = tmp_path / "test.config"
     tmpfile.write_text("content")
     change_file_permission(tmpfile)
-    mode = os.stat(tmpfile).st_mode
+    mode = tmpfile.stat().st_mode
     assert not (mode & stat.S_IWGRP) and not (mode & stat.S_IWOTH)
 
 
-def test_change_directory_permission(tmpdir):
-    change_directory_permission(tmpdir)
-    mode = os.stat(tmpdir).st_mode
+def test_change_directory_permission(tmp_path):
+    subdir = tmp_path / "testdir"
+    subdir.mkdir()
+    change_directory_permission(subdir)
+    mode = subdir.stat().st_mode
     assert (
         not (mode & stat.S_IWGRP)
         and not (mode & stat.S_IWOTH)
