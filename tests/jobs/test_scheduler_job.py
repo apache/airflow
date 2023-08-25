@@ -3257,10 +3257,10 @@ class TestSchedulerJob:
         session.flush()
 
         dr1 = dag_maker.create_dagrun()
+        dr1.state = State.QUEUED
         tis = dr1.get_task_instances(session=session)
         assert 1 == len(tis)
         tis[0].state = State.SCHEDULED
-        tis[0].queued_by_job_id = scheduler_job.id
         session.merge(dr1)
         session.merge(tis[0])
         session.flush()
