@@ -63,10 +63,10 @@ config:
       disabled_for_operators:
         description: |
           Comma separated string of Airflow Operator names to disable
-        type: boolean
+        type: string
         example: "BashOperator,PythonOperatorOperator"
         default: ""
-        version_added: ~
+        version_added: 1.0.1
       namespace:
         description: |
           OpenLineage namespace
