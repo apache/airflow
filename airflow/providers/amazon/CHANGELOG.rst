@@ -26,6 +26,8 @@
 Changelog
 ---------
 
+* ``Fix revert default waiter max attempts to sys.maxsize in 'EcsRunTaskOperator' (partial revert of #30586) (#33712)``
+
 8.5.1
 .....
 
