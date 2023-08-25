@@ -64,7 +64,7 @@ config:
         description: |
           Comma separated string of Airflow Operator names to disable
         type: string
-        example: "BashOperator,PythonOperatorOperator"
+        example: "airflow.operators.bash.BashOperator,airflow.operators.python.PythonOperator"
         default: ""
         version_added: 1.1.0
       namespace:

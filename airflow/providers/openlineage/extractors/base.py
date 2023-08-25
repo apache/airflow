@@ -79,7 +79,10 @@ class BaseExtractor(ABC, LoggingMixin):
         ...
 
     def extract(self) -> OperatorLineage | None:
-        if self.operator.task_type in self.openlineage_disabled_for_operators:
+        fully_qualified_class_name = (
+            self.operator.__class__.__module__ + "." + self.operator.__class__.__name__
+        )
+        if fully_qualified_class_name in self.openlineage_disabled_for_operators:
             self.log.warning(
                 f"Skipping extraction for operator {self.operator.task_type} "
                 "due to its presence in [openlineage] openlineage_disabled_for_operators."
