@@ -103,7 +103,10 @@ class Arg:
         """Add this argument to an ArgumentParser."""
         if "metavar" in self.kwargs and "type" not in self.kwargs:
             if self.kwargs["metavar"] == "DIRPATH":
-                type = lambda x: self._is_valid_directory(parser, x)
+
+                def type(x):
+                    return self._is_valid_directory(parser, x)
+
                 self.kwargs["type"] = type
         parser.add_argument(*self.flags, **self.kwargs)
 
