@@ -116,11 +116,11 @@ class ElasticsearchSQLHook(DbApiHook):
 
         login = ""
         if conn.login:
-            login = "{conn.login}:{conn.password}@".format(conn=conn)
+            login = f"{conn.login}:{conn.password}@"
         host = conn.host
         if conn.port is not None:
             host += f":{conn.port}"
-        uri = "{conn.conn_type}+{conn.schema}://{login}{host}/".format(conn=conn, login=login, host=host)
+        uri = f"{conn.conn_type}+{conn.schema}://{login}{host}/"
 
         extras_length = len(conn.extra_dejson)
         if not extras_length:
