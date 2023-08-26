@@ -69,7 +69,7 @@ class OracleToOracleOperator(BaseOperator):
             cursor = src_conn.cursor()
             self.log.info("Querying data from source: %s", self.oracle_source_conn_id)
             cursor.execute(self.source_sql, self.source_sql_params)
-            target_fields = list(map(lambda field: field[0], cursor.description))
+            target_fields = [field[0] for field in cursor.description]
 
             rows_total = 0
             for rows in iter(lambda: cursor.fetchmany(self.rows_chunk), []):

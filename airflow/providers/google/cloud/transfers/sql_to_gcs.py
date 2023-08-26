@@ -235,7 +235,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        org_schema = [schema_tuple[0] for schema_tuple in cursor.description]
         schema = [column for column in org_schema if column not in self.exclude_columns]
 
         col_type_dict = self._get_col_type_dict()
