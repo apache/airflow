@@ -430,14 +430,14 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         self._write_args(input_path)
         self._write_string_args(string_args_path)
         write_python_script(
-            jinja_context=dict(
-                op_args=self.op_args,
-                op_kwargs=op_kwargs,
-                expect_airflow=self.expect_airflow,
-                pickling_library=self.pickling_library.__name__,
-                python_callable=self.python_callable.__name__,
-                python_callable_source=self.get_python_source(),
-            ),
+            jinja_context={
+                "op_args": self.op_args,
+                "op_kwargs": op_kwargs,
+                "expect_airflow": self.expect_airflow,
+                "pickling_library": self.pickling_library.__name__,
+                "python_callable": self.python_callable.__name__,
+                "python_callable_source": self.get_python_source(),
+            },
             filename=os.fspath(script_path),
             render_template_as_native_obj=self.dag.render_template_as_native_obj,
         )

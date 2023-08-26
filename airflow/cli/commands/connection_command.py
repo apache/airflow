@@ -96,16 +96,16 @@ def connections_list(args):
 
 
 def _connection_to_dict(conn: Connection) -> dict:
-    return dict(
-        conn_type=conn.conn_type,
-        description=conn.description,
-        login=conn.login,
-        password=conn.password,
-        host=conn.host,
-        port=conn.port,
-        schema=conn.schema,
-        extra=conn.extra,
-    )
+    return {
+        "conn_type": conn.conn_type,
+        "description": conn.description,
+        "login": conn.login,
+        "password": conn.password,
+        "host": conn.host,
+        "port": conn.port,
+        "schema": conn.schema,
+        "extra": conn.extra,
+    }
 
 
 def create_default_connections(args):

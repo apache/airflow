@@ -628,7 +628,7 @@ class DagFileProcessor(LoggingMixin):
         for filename, stacktrace in import_errors.items():
             if filename in existing_import_error_files:
                 session.query(errors.ImportError).filter(errors.ImportError.filename == filename).update(
-                    dict(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace),
+                    {"filename": filename, "timestamp": timezone.utcnow(), "stacktrace": stacktrace},
                     synchronize_session="fetch",
                 )
             else:
