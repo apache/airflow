@@ -18,18 +18,21 @@
 """TaskReschedule tracks rescheduled task instances."""
 from __future__ import annotations
 
-import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, event, text
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Query, Session, relationship
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
+    import datetime
+
+    from sqlalchemy.orm import Query, Session
+
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
 

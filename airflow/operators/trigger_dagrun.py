@@ -34,7 +34,6 @@ from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
 from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
@@ -48,6 +47,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.utils.context import Context
 
 
 class TriggerDagRunLink(BaseOperatorLink):

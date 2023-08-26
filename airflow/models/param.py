@@ -28,7 +28,6 @@ from pendulum.parsing import parse_iso8601
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+    from airflow.utils.context import Context
 
 logger = logging.getLogger(__name__)
 

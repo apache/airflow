@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from connexion import NoContent
 from flask import request
@@ -33,10 +34,13 @@ from airflow.api_connexion.schemas.user_schema import (
     user_collection_schema,
     user_schema,
 )
-from airflow.api_connexion.types import APIResponse, UpdateMask
-from airflow.auth.managers.fab.models import Role, User
+from airflow.auth.managers.fab.models import User
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+
+if TYPE_CHECKING:
+    from airflow.api_connexion.types import APIResponse, UpdateMask
+    from airflow.auth.managers.fab.models import Role
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])

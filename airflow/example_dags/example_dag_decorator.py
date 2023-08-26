@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import httpx
 import pendulum
@@ -25,7 +25,9 @@ import pendulum
 from airflow.decorators import dag, task
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.email import EmailOperator
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GetRequestOperator(BaseOperator):

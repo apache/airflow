@@ -21,23 +21,28 @@ import logging
 import random
 import warnings
 from functools import partial
-from typing import Callable, Iterable, Union
+from typing import TYPE_CHECKING, Callable, Iterable, Union
 
 from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
-from opentelemetry.metrics import Instrument, Observation
+from opentelemetry.metrics import Observation
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.util.types import Attributes
 
 from airflow.configuration import conf
-from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
+from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
     AllowListValidator,
     stat_name_otel_handler,
 )
+
+if TYPE_CHECKING:
+    from opentelemetry.metrics import Instrument
+    from opentelemetry.util.types import Attributes
+
+    from airflow.metrics.protocols import DeltaType, TimerProtocol
 
 log = logging.getLogger(__name__)
 

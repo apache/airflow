@@ -22,13 +22,14 @@ import warnings
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models.connection import Connection
 
 

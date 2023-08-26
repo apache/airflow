@@ -20,12 +20,16 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
 # [START howto_timetable]
 from pendulum import UTC, Date, DateTime, Time
 
 from airflow.plugins_manager import AirflowPlugin
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+
+if TYPE_CHECKING:
+    from airflow.timetables.base import TimeRestriction
 
 log = logging.getLogger(__name__)
 try:

@@ -33,7 +33,7 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.models.taskmixin import DAGNode
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
 
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
+    from airflow.models.taskmixin import DependencyMixin
     from airflow.utils.edgemodifier import EdgeModifier
 
 

@@ -17,18 +17,16 @@
 """Base executor - this is the base class for all the implemented executors."""
 from __future__ import annotations
 
-import argparse
 import logging
 import sys
 import warnings
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 
-from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
+from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
@@ -38,8 +36,12 @@ from airflow.utils.state import TaskInstanceState
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
 if TYPE_CHECKING:
+    import argparse
+    from datetime import datetime
+
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.cli.cli_config import GroupCommand
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 

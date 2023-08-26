@@ -30,7 +30,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from inspect import signature
-from types import ClassMethodDescriptorType, FunctionType
+from types import FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -50,7 +50,6 @@ import attr
 import pendulum
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
@@ -75,7 +74,6 @@ from airflow.models.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
-    TaskStateChangeCallback,
 )
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
@@ -83,12 +81,10 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
-from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.decorators import fixup_decorator_warning_stack
@@ -98,18 +94,27 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.utils.types import NOTSET
 from airflow.utils.weight_rule import WeightRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
-    import jinja2  # Slow import.
+    from types import ClassMethodDescriptorType
 
+    import jinja2  # Slow import.
+    from sqlalchemy.orm import Session
+
+    from airflow.models.abstractoperator import (
+        TaskStateChangeCallback,
+    )
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.models.xcom_arg import XComArg
+    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.triggers.base import BaseTrigger
     from airflow.utils.task_group import TaskGroup
+    from airflow.utils.types import ArgNotSet
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 

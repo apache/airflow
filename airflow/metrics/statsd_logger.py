@@ -23,16 +23,20 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
+from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     AllowListValidator,
     BlockListValidator,
-    ListValidator,
     validate_stat,
 )
 
 if TYPE_CHECKING:
     from statsd import StatsClient
+
+    from airflow.metrics.protocols import DeltaType, TimerProtocol
+    from airflow.metrics.validators import (
+        ListValidator,
+    )
 
 T = TypeVar("T", bound=Callable)
 

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import itertools
-import logging
 import multiprocessing
 import os
 import signal
@@ -27,15 +26,14 @@ import time
 import warnings
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
-from sqlalchemy.engine import Result
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Query, Session, joinedload, load_only, make_transient, selectinload
+from sqlalchemy.orm import joinedload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -57,7 +55,7 @@ from airflow.models.dataset import (
     TaskOutletDatasetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
@@ -67,7 +65,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
-    CommitProhibitorGuard,
     is_lock_not_available_error,
     prohibit_commit,
     skip_locked,
@@ -78,9 +75,18 @@ from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
+    import logging
+    from datetime import datetime
     from types import FrameType
 
+    from sqlalchemy.engine import Result
+    from sqlalchemy.orm import Query, Session
+
     from airflow.dag_processing.manager import DagFileProcessorAgent
+    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.utils.sqlalchemy import (
+        CommitProhibitorGuard,
+    )
 
 TI = TaskInstance
 DR = DagRun

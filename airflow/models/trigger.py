@@ -18,21 +18,25 @@ from __future__ import annotations
 
 import datetime
 from traceback import format_exception
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from sqlalchemy import Column, Integer, String, delete, func, or_, select, update
-from sqlalchemy.orm import Session, joinedload, relationship
+from sqlalchemy.orm import joinedload, relationship
 from sqlalchemy.sql.functions import coalesce
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
-from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.triggers.base import BaseTrigger
 
 
 class Trigger(Base):

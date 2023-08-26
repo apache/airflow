@@ -36,8 +36,6 @@ from airflow.models.expandinput import (
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
     MappedArgument,
-    OperatorExpandArgument,
-    OperatorExpandKwargsArgument,
 )
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg
@@ -47,6 +45,10 @@ from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+    from airflow.models.expandinput import (
+        OperatorExpandArgument,
+        OperatorExpandKwargsArgument,
+    )
 
 FParams = ParamSpec("FParams")
 FReturn = TypeVar("FReturn", None, DAGNode)

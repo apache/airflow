@@ -24,8 +24,6 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequ
 
 import attr
 
-from airflow.typing_compat import TypeGuard
-from airflow.utils.context import Context
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -34,6 +32,8 @@ if TYPE_CHECKING:
 
     from airflow.models.operator import Operator
     from airflow.models.xcom_arg import XComArg
+    from airflow.typing_compat import TypeGuard
+    from airflow.utils.context import Context
 
 ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 

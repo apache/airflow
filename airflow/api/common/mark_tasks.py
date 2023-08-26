@@ -18,15 +18,12 @@
 """Marks tasks APIs."""
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Iterable, Iterator, NamedTuple
 
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session as SASession, lazyload
+from sqlalchemy.orm import lazyload
 
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.operator import Operator
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
@@ -34,6 +31,14 @@ from airflow.utils.helpers import exactly_one
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session as SASession
+
+    from airflow.models.dag import DAG
+    from airflow.models.operator import Operator
 
 
 class _DagRunInfo(NamedTuple):

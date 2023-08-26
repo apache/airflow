@@ -18,12 +18,14 @@ from __future__ import annotations
 
 import datetime
 import warnings
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BranchDateTimeOperator(BaseBranchOperator):

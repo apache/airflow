@@ -20,16 +20,19 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
 
 import psutil
 from setproctitle import setproctitle
 
-from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.process_utils import reap_process_group, set_new_process_group
+
+if TYPE_CHECKING:
+    from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 
 
 class StandardTaskRunner(BaseTaskRunner):

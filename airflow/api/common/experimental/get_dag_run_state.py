@@ -18,11 +18,14 @@
 """DAG run APIs."""
 from __future__ import annotations
 
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from deprecated import deprecated
 
 from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 @deprecated(reason="Use DagRun().get_state() instead", version="2.2.4")

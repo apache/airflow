@@ -20,13 +20,16 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from functools import lru_cache
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
 
 from flask import Flask
 
 import airflow
-from airflow.www.extensions.init_appbuilder import AirflowAppBuilder, init_appbuilder
+from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_views import init_plugins
+
+if TYPE_CHECKING:
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
 @lru_cache(maxsize=None)

@@ -30,7 +30,6 @@ from lazy_object_proxy import Proxy
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
 from airflow.utils.types import NOTSET
 
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.context import Context
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")
 GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")

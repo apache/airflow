@@ -31,15 +31,13 @@ from queue import SimpleQueue
 from typing import TYPE_CHECKING
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
+from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
-from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.triggers.base import TriggerEvent
 from airflow.typing_compat import TypedDict
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -58,7 +56,12 @@ from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.jobs.job import Job
     from airflow.models import TaskInstance
+    from airflow.serialization.pydantic.job import JobPydantic
+    from airflow.triggers.base import BaseTrigger
 
 HANDLER_SUPPORTS_TRIGGERER = False
 """

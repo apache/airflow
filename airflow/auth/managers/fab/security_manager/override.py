@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import warnings
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 from flask import flash, g
 from flask_appbuilder import const
@@ -32,11 +33,14 @@ from itsdangerous import want_bytes
 from markupsafe import Markup
 from werkzeug.security import generate_password_hash
 
-from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role, User
+from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
 from airflow.auth.managers.fab.security_manager.modules.db import FabAirflowSecurityManagerOverrideDb
 from airflow.auth.managers.fab.security_manager.modules.oauth import FabAirflowSecurityManagerOverrideOauth
 from airflow.www.session import AirflowDatabaseSessionInterface
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.fab.models import User
 
 log = logging.getLogger(__name__)
 

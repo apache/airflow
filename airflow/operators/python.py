@@ -46,13 +46,15 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
-from airflow.utils.context import Context, context_copy_partial, context_merge
+from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
+
+    from airflow.utils.context import Context
 
 
 def is_venv_installed() -> bool:

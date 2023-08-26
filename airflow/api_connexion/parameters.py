@@ -17,17 +17,20 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from functools import wraps
-from typing import Any, Callable, Container, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Container, TypeVar, cast
 
 from pendulum.parsing import ParserError
 from sqlalchemy import text
-from sqlalchemy.sql import Select
 
 from airflow.api_connexion.exceptions import BadRequest
 from airflow.configuration import conf
 from airflow.utils import timezone
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.sql import Select
 
 log = logging.getLogger(__name__)
 

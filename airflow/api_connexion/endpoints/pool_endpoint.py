@@ -17,22 +17,26 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from flask import Response
 from marshmallow import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
-from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.models.pool import Pool
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.api_connexion.types import APIResponse, UpdateMask
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL)])

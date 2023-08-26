@@ -20,12 +20,11 @@ from __future__ import annotations
 
 import datetime
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import re2
-from flask import Flask, g, session, url_for
-from flask_appbuilder import AppBuilder
+from flask import g, session, url_for
 from flask_appbuilder.const import (
     AUTH_DB,
     AUTH_LDAP,
@@ -63,9 +62,14 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.security import check_password_hash
 
-from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role, User
 from airflow.configuration import conf
 from airflow.www.extensions.init_auth_manager import get_auth_manager
+
+if TYPE_CHECKING:
+    from flask import Flask
+    from flask_appbuilder import AppBuilder
+
+    from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role, User
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).

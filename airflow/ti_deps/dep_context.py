@@ -20,12 +20,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import attr
-from sqlalchemy.orm.session import Session
 
 from airflow.exceptions import TaskNotFound
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
 

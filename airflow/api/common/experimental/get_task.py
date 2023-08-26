@@ -18,10 +18,14 @@
 """Task APIs."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from deprecated import deprecated
 
 from airflow.api.common.experimental import check_and_get_dag
-from airflow.models import TaskInstance
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 
 @deprecated(reason="Use DAG().get_task", version="2.2.4")

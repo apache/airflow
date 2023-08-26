@@ -24,10 +24,9 @@ import subprocess
 import sys
 import textwrap
 import time
-import types
 from contextlib import suppress
 from time import sleep
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import daemon
 import psutil
@@ -43,6 +42,9 @@ from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+if TYPE_CHECKING:
+    import types
 
 log = logging.getLogger(__name__)
 

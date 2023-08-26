@@ -19,15 +19,17 @@
 from __future__ import annotations
 
 import collections
-import datetime
-from typing import Any
-
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING, Any
 
 from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
 from airflow.lineage import PIPELINE_INLETS, PIPELINE_OUTLETS
 from airflow.models.xcom import XCom
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    import datetime
+
+    from sqlalchemy.orm import Session
 
 
 @provide_session

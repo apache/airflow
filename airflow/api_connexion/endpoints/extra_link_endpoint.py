@@ -16,18 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import select
-from sqlalchemy.orm.session import Session
+from typing import TYPE_CHECKING
 
-from airflow import DAG
+from sqlalchemy import select
+
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
-from airflow.api_connexion.types import APIResponse
 from airflow.exceptions import TaskNotFound
-from airflow.models.dagbag import DagBag
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
+    from airflow import DAG
+    from airflow.api_connexion.types import APIResponse
+    from airflow.models.dagbag import DagBag
 
 
 @security.requires_access(

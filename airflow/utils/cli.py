@@ -33,7 +33,6 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 import re2
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
@@ -45,6 +44,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.models.dag import DAG
 
 logger = logging.getLogger(__name__)

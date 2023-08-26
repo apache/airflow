@@ -54,7 +54,6 @@ import jinja2
 import pendulum
 import re2
 from dateutil.relativedelta import relativedelta
-from pendulum.tz.timezone import Timezone
 from sqlalchemy import (
     Boolean,
     Column,
@@ -73,8 +72,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, joinedload, relationship
-from sqlalchemy.orm.query import Query
-from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import Select, expression
 
 import airflow.templates
@@ -97,7 +94,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
@@ -111,7 +107,6 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
-from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -133,10 +128,16 @@ from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 if TYPE_CHECKING:
     from types import ModuleType
 
+    from pendulum.tz.timezone import Timezone
+    from sqlalchemy.orm.query import Query
+    from sqlalchemy.orm.session import Session
+
     from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
+    from airflow.models.operator import Operator
     from airflow.models.slamiss import SlaMiss
+    from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
 log = logging.getLogger(__name__)

@@ -23,23 +23,29 @@ The module which provides a way to nest your DAGs and so your levels of complexi
 from __future__ import annotations
 
 import warnings
-from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
-from sqlalchemy.orm.session import Session
 
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskInstanceNotFound
 from airflow.models import DagRun
-from airflow.models.dag import DAG, DagContext
+from airflow.models.dag import DagContext
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm.session import Session
+
+    from airflow.models.dag import DAG
+    from airflow.utils.context import Context
 
 
 class SkippedStatePropagationOptions(Enum):

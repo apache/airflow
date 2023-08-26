@@ -20,11 +20,10 @@ import logging
 import os
 import struct
 from datetime import datetime
-from typing import Collection, Iterable
+from typing import TYPE_CHECKING, Collection, Iterable
 
 from sqlalchemy import BigInteger, Column, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import literal
 
 from airflow.exceptions import AirflowException, DagCodeNotFound
@@ -33,6 +32,9 @@ from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 

@@ -18,17 +18,22 @@ from __future__ import annotations
 
 import asyncio
 import typing
-from datetime import datetime
 
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import utcnow
+
+if typing.TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session
+
+    from airflow.utils.state import DagRunState
 
 
 class TaskStateTrigger(BaseTrigger):

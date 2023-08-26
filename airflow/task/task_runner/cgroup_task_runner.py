@@ -21,15 +21,18 @@ from __future__ import annotations
 import datetime
 import os
 import uuid
+from typing import TYPE_CHECKING
 
 import psutil
 from cgroupspy import trees
 
-from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.platform import getuser
 from airflow.utils.process_utils import reap_process_group
+
+if TYPE_CHECKING:
+    from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 
 
 class CgroupTaskRunner(BaseTaskRunner):

@@ -42,10 +42,11 @@ import re2
 
 from airflow import settings
 from airflow.compat.functools import cache
-from airflow.typing_compat import TypeGuard
 
 if TYPE_CHECKING:
     from kubernetes.client import V1EnvVar
+
+    from airflow.typing_compat import TypeGuard
 
 Redactable = TypeVar("Redactable", str, "V1EnvVar", Dict[Any, Any], Tuple[Any, ...], List[Any])
 Redacted = Union[Redactable, str]

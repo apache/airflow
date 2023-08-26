@@ -20,11 +20,13 @@ from __future__ import annotations
 import datetime
 import os
 from glob import glob
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.hooks.filesystem import FSHook
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class FileSensor(BaseSensorOperator):

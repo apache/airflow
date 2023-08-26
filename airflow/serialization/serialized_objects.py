@@ -25,7 +25,7 @@ import logging
 import warnings
 import weakref
 from dataclasses import dataclass
-from inspect import Parameter, signature
+from inspect import signature
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union
 
 import cattr
@@ -39,27 +39,24 @@ from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
 from airflow.jobs.job import Job
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
 from airflow.models.dagrun import DagRun
-from airflow.models.expandinput import EXPAND_INPUT_EMPTY, ExpandInput, create_expand_input, get_map_type_key
+from airflow.models.expandinput import EXPAND_INPUT_EMPTY, create_expand_input, get_map_type_key
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
-from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
-from airflow.serialization.json_schema import Validator, load_dag_schema
+from airflow.serialization.json_schema import load_dag_schema
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.settings import _ENABLE_AIP_44, DAGS_FOLDER, json
-from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
@@ -68,9 +65,17 @@ from airflow.utils.task_group import MappedTaskGroup, TaskGroup
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
+    from inspect import Parameter
+
     from pydantic import BaseModel
 
+    from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.models.expandinput import ExpandInput
+    from airflow.models.operator import Operator
+    from airflow.models.taskmixin import DAGNode
+    from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.timetables.base import Timetable
 
     HAS_KUBERNETES: bool
     try:

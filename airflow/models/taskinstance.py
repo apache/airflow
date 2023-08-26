@@ -27,10 +27,8 @@ import os
 import signal
 import warnings
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from enum import Enum
-from pathlib import PurePath
-from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
 from urllib.parse import quote
 
@@ -62,9 +60,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy.orm.session import Session
-from sqlalchemy.sql.elements import BooleanClauseList
-from sqlalchemy.sql.expression import ColumnOperators, case
+from sqlalchemy.sql.expression import case
 
 from airflow import settings
 from airflow.compat.functools import cache
@@ -102,8 +98,6 @@ from airflow.stats import Stats
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
-from airflow.timetables.base import DataInterval
-from airflow.typing_compat import Literal, TypeGuard
 from airflow.utils import timezone
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
 from airflow.utils.email import send_email
@@ -134,12 +128,22 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
+    from datetime import datetime
+    from pathlib import PurePath
+    from types import TracebackType
+
+    from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql.elements import BooleanClauseList
+    from sqlalchemy.sql.expression import ColumnOperators
+
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.timetables.base import DataInterval
+    from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
 
     # This is a workaround because mypy doesn't work with hybrid_property
@@ -1835,8 +1839,6 @@ class TaskInstance(Base, LoggingMixin):
 
     def dry_run(self) -> None:
         """Only Renders Templates for the TI."""
-        from airflow.models.baseoperator import BaseOperator
-
         self.task = self.task.prepare_for_execution()
         self.render_templates()
         if TYPE_CHECKING:

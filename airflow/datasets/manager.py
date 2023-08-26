@@ -20,15 +20,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc, select
-from sqlalchemy.orm.session import Session
 
 from airflow.configuration import conf
-from airflow.datasets import Dataset
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
+    from airflow.datasets import Dataset
     from airflow.models.taskinstance import TaskInstance
 
 

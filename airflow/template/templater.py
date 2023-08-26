@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Sequence
 
-from airflow.utils.context import Context
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import ResolveMixin
@@ -30,6 +29,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.utils.context import Context
 
 
 class Templater(LoggingMixin):

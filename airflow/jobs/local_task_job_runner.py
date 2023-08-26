@@ -18,16 +18,15 @@
 from __future__ import annotations
 
 import signal
+from typing import TYPE_CHECKING
 
 import psutil
-from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
-from airflow.models.taskinstance import TaskInstance, TaskReturnCode
-from airflow.serialization.pydantic.job import JobPydantic
+from airflow.jobs.job import perform_heartbeat
+from airflow.models.taskinstance import TaskReturnCode
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
@@ -36,6 +35,13 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.jobs.job import Job
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.job import JobPydantic
 
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************

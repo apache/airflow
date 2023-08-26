@@ -20,11 +20,13 @@ from __future__ import annotations
 import os
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowFailException
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BashSensor(BaseSensorOperator):
