@@ -23,11 +23,6 @@ Qubole delivers a Self-Service Platform for Big Data Analytics built on Amazon W
 
 Airflow provides operators to execute tasks (commands) on QDS and perform checks against Qubole Commands.
 
-Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
-
-.. include:: /operators/_partials/prerequisite_tasks.rst
-
 .. _howto/operator:QuboleCheckOperator:
 
 Perform checks
