@@ -120,7 +120,7 @@ class DAGDetailSchema(DAGSchema):
         """Dump tags as objects."""
         tags = obj.tags
         if tags:
-            return [DagTagSchema().dump(dict(name=tag)) for tag in tags]
+            return [DagTagSchema().dump({"name": tag}) for tag in tags]
         return []
 
     @staticmethod
