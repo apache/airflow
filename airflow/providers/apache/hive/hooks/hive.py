@@ -907,11 +907,8 @@ class HiveServer2Hook(DbApiHook):
                 cur.execute(statement)
                 # we only get results of statements that returns
                 lowered_statement = statement.lower().strip()
-                if (
-                    lowered_statement.startswith("select")
-                    or lowered_statement.startswith("with")
-                    or lowered_statement.startswith("show")
-                    or (lowered_statement.startswith("set") and "=" not in lowered_statement)
+                if lowered_statement.startswith(("select", "with", "show")) or (
+                    lowered_statement.startswith("set") and "=" not in lowered_statement
                 ):
                     description = cur.description
                     if previous_description and previous_description != description:
