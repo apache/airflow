@@ -476,7 +476,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         number_logs_exception: int = 10,
         wait_for_completion: bool = True,
         waiter_delay: int = 6,
-        waiter_max_attempts: int = 100,
+        waiter_max_attempts: int = sys.maxsize, # Default to letting airflow manage timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -665,7 +665,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
             return
 
         waiter = self.client.get_waiter("tasks_stopped")
-        waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
         waiter.wait(
             cluster=self.cluster,
             tasks=[self.arn],
