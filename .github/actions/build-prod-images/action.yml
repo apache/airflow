@@ -56,11 +56,18 @@ runs:
     - name: "Move dist packages to docker-context files"
       shell: bash
       run: mv -v ./dist/*.whl ./docker-context-files
+    - name: "Download constraints from the CI build"
+      uses: actions/download-artifact@v3
+      with:
+        name: constraints
+        path: ./docker-context-files
+      if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
     - name: "Build & Push PROD images ${{ env.IMAGE_TAG }}:${{ env.PYTHON_VERSIONS }}"
       shell: bash
       run: >
         breeze prod-image build --tag-as-latest --run-in-parallel --push
-        --install-packages-from-context --upgrade-on-failure
+        --install-packages-from-context --airflow-constraints-mode constraints-source-providers
+        --use-constraints-for-context-packages
       env:
         COMMIT_SHA: ${{ github.sha }}
     - name: "Fix ownership"

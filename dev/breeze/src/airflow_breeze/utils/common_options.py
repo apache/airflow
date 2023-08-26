@@ -25,6 +25,7 @@ from airflow_breeze.global_constants import (
     ALL_HISTORICAL_PYTHON_VERSIONS,
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
+    ALLOWED_BUILD_PROGRESS,
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
@@ -510,6 +511,14 @@ option_builder = click.option(
     envvar="BUILDER",
     show_default=True,
     default="autodetect",
+)
+option_build_progress = click.option(
+    "--build-progress",
+    help="Build progress.",
+    type=BetterChoice(ALLOWED_BUILD_PROGRESS),
+    envvar="BUILD_PROGRESS",
+    show_default=True,
+    default=ALLOWED_BUILD_PROGRESS[0],
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
