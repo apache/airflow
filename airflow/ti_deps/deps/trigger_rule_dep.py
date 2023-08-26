@@ -101,7 +101,7 @@ class TriggerRuleDep(BaseTIDep):
         # get all the setup tasks upstream of this task
         setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
         # Checking that all upstream dependencies have succeeded.
-        if not ti.task.upstream_task_ids and not setup_upstream_tasks:
+        if not ti.task.upstream_task_ids:
             yield self._passing_status(reason="The task instance did not have any upstream tasks.")
             return
         if ti.task.trigger_rule == TR.ALWAYS and not setup_upstream_tasks:
