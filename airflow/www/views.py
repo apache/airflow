@@ -4254,7 +4254,7 @@ def action_has_dag_edit_access(action_func: Callable) -> Callable:
             dag_ids: set[str] = set()
         elif isinstance(items, list):
             dag_ids = {item.dag_id for item in items if item is not None}
-        elif isinstance(items, TaskInstance) or isinstance(items, DagRun):
+        elif isinstance(items, (TaskInstance, DagRun)):
             dag_ids = {items.dag_id}
         else:
             raise ValueError(
