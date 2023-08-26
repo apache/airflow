@@ -576,7 +576,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         assert 1 == len(res)
-        res_keys = map(lambda x: x.key, res)
+        res_keys = (x.key for x in res)
         assert ti_with_dagrun.key in res_keys
         session.rollback()
 
@@ -1017,7 +1017,7 @@ class TestSchedulerJob:
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
         assert 1 == len(res)
-        res_keys = map(lambda x: x.key, res)
+        res_keys = (x.key for x in res)
         assert ti2.key in res_keys
 
         ti2.state = State.RUNNING
