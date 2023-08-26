@@ -1490,6 +1490,8 @@ class TestTaskInstance:
         setup_upstream_tasks = []
         with dag_maker() as dag:
             downstream = EmptyOperator(task_id="downstream", trigger_rule=trigger_rule)
+            if trigger_rule == "all_done_setup_success":
+                downstream.is_teardown = True
             for i in range(5):
                 task = EmptyOperator(task_id=f"work_{i}", dag=dag)
                 task.set_downstream(downstream)

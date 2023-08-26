@@ -245,9 +245,13 @@ class TriggerRuleDep(BaseTIDep):
 
         # Optimization: Don't need to hit the database if all upstreams are
         # "simple" tasks (no task or task group mapping involved).
+        if not ti.task.is_teardown:
+            upstream_setup = len(setup_upstream_tasks)  # count of setup tasks upstream of this task
+        else:
+            upstream_setup = None
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
-            upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
+            upstream_setup = upstream_setup or sum(1 for x in upstream_tasks.values() if x.is_setup)
         else:
             task_id_counts = session.execute(
                 select(TaskInstance.task_id, func.count(TaskInstance.task_id))
@@ -256,7 +260,7 @@ class TriggerRuleDep(BaseTIDep):
                 .group_by(TaskInstance.task_id)
             ).all()
             upstream = sum(count for _, count in task_id_counts)
-            upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
+            upstream_setup = upstream_setup or sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
 
         upstream_done = done >= upstream
         setup_done = (success_setup + skipped_setup + failed_setup) >= upstream_setup
