@@ -314,16 +314,16 @@ class SSHHook(BaseHook):
                     f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
                 )
 
-        connect_kwargs: dict[str, Any] = dict(
-            hostname=self.remote_host,
-            username=self.username,
-            timeout=self.conn_timeout,
-            compress=self.compress,
-            port=self.port,
-            sock=self.host_proxy,
-            look_for_keys=self.look_for_keys,
-            banner_timeout=self.banner_timeout,
-        )
+        connect_kwargs: dict[str, Any] = {
+            "hostname": self.remote_host,
+            "username": self.username,
+            "timeout": self.conn_timeout,
+            "compress": self.compress,
+            "port": self.port,
+            "sock": self.host_proxy,
+            "look_for_keys": self.look_for_keys,
+            "banner_timeout": self.banner_timeout,
+        }
 
         if self.password:
             password = self.password.strip()
@@ -397,15 +397,15 @@ class SSHHook(BaseHook):
         else:
             local_bind_address = ("localhost",)
 
-        tunnel_kwargs = dict(
-            ssh_port=self.port,
-            ssh_username=self.username,
-            ssh_pkey=self.key_file or self.pkey,
-            ssh_proxy=self.host_proxy,
-            local_bind_address=local_bind_address,
-            remote_bind_address=(remote_host, remote_port),
-            logger=self.log,
-        )
+        tunnel_kwargs = {
+            "ssh_port": self.port,
+            "ssh_username": self.username,
+            "ssh_pkey": self.key_file or self.pkey,
+            "ssh_proxy": self.host_proxy,
+            "local_bind_address": local_bind_address,
+            "remote_bind_address": (remote_host, remote_port),
+            "logger": self.log,
+        }
 
         if self.password:
             password = self.password.strip()
