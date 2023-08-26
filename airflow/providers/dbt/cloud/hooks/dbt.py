@@ -241,7 +241,7 @@ class DbtCloudHook(HttpHook):
                 response.raise_for_status()
                 return await response.json()
             except ClientResponseError as e:
-                raise AirflowException(str(e.status) + ":" + e.message)
+                raise AirflowException(f"{e.status}:{e.message}")
 
     async def get_job_status(
         self, run_id: int, account_id: int | None = None, include_related: list[str] | None = None
