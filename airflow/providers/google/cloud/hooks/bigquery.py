@@ -3033,12 +3033,10 @@ def _api_resource_configs_duplication_check(
 ) -> None:
     if key in config_dict and value != config_dict[key]:
         raise ValueError(
-            "Values of {param_name} param are duplicated. "
-            "{dict_name} contained {param_name} param "
-            "in `query` config and {param_name} was also provided "
-            "with arg to run_query() method. Please remove duplicates.".format(
-                param_name=key, dict_name=config_dict_name
-            )
+            f"Values of {key} param are duplicated. "
+            f"{config_dict_name} contained {key} param "
+            f"in `query` config and {key} was also provided "
+            "with arg to run_query() method. Please remove duplicates."
         )
 
 

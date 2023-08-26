@@ -282,9 +282,9 @@ class ZipPathPreprocessor:
         if self._is_present_and_empty(self.body, GCF_SOURCE_UPLOAD_URL):
             if not self.zip_path:
                 raise AirflowException(
-                    "Parameter '{url}' is empty in the body and argument '{path}' "
-                    "is missing or empty. You need to have non empty '{path}' "
-                    "when '{url}' is present and empty.".format(url=GCF_SOURCE_UPLOAD_URL, path=GCF_ZIP_PATH)
+                    f"Parameter '{GCF_SOURCE_UPLOAD_URL}' is empty in the body and argument '{GCF_ZIP_PATH}' "
+                    f"is missing or empty. You need to have non empty '{GCF_ZIP_PATH}' "
+                    f"when '{GCF_SOURCE_UPLOAD_URL}' is present and empty."
                 )
 
     def _verify_upload_url_and_zip_path(self) -> None:
