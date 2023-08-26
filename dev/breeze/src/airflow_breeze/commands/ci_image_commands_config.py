@@ -36,6 +36,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--tag-as-latest",
                 "--docker-cache",
                 "--force-build",
+                "--build-progress",
             ],
         },
         {

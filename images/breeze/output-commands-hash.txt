@@ -10,10 +10,10 @@ ci:get-workflow-info:8246038093359b9c3c110043419473e2
 ci:resource-check:bfcca92f18a403ca630955074eb5e9ad
 ci:selective-check:6657ed5d42affb7264b5efcc86f17a2a
 ci:5315c29bd9f68725ef92e4db8aff5cda
-ci-image:build:93537e0c8f99923fe9e958884c36af38
+ci-image:build:96ed67d4e1008b3860e20faccfad1069
 ci-image:pull:7f14482a588f018f76df84719e77723f
 ci-image:verify:c90dc7e20fce2351eb89d8d1ebbd35e7
-ci-image:1b912129939634c0e67f648e7a854998
+ci-image:ecf4756b5c00d0574b660d3b27658c2a
 cleanup:8d92d453a6700f6d8cb11fb6a8b50461
 compile-www-assets:0963f1409f0aa1e3b137cddd4cc52e87
 down:4580f5b3b178ea00182694f134a751f3
@@ -32,10 +32,10 @@ k8s:status:1529ccd444b41c4b0b5f943289957100
 k8s:tests:2a1e2928faea2eddafaff94176a46690
 k8s:upload-k8s-image:6b3a20cdeb692f3c3d727f6b9e68c901
 k8s:8c1e4287deb0533a74f3b302f9c574be
-prod-image:build:7b971535fd4a1b93bebacd58b52b073a
+prod-image:build:789f32a07099033b49936d4cfbeb5322
 prod-image:pull:76f1f27e6119928412abecf153fce4bb
 prod-image:verify:bd2b78738a7c388dbad6076c41a9f906
-prod-image:6877cb974df8918504234536f6a35886
+prod-image:2946a9cee30c8ad7bd738ea3c77bff55
 release-management:add-back-references:0d4eb5ed82e5381bc630b343ba605a72
 release-management:create-minor-branch:a3834afc4aa5d1e98002c9e9e7a9931d
 release-management:generate-constraints:b8fcaf8f0acd35ed5dbd48659bdb6485

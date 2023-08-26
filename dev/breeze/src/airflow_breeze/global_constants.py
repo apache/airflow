@@ -135,6 +135,7 @@ ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
 ALLOWED_INSTALLATION_PACKAGE_FORMATS = ["wheel", "sdist"]
 ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
+ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
 SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
