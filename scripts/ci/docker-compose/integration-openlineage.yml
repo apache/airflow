@@ -24,8 +24,8 @@ services:
       - POSTGRES_PASSWORD=marquez
       - POSTGRES_DB=marquez
     ports:
-      - "25000:5000"
-      - "25001:5001"
+      - "${MARQUEZ_API_HOST_PORT:-25000}:5000"
+      - "${MARQUEZ_API_ADMIN_HOST_PORT:-25001}:5001"
     depends_on:
       - postgres
     entrypoint: ["./entrypoint.sh"]
@@ -36,7 +36,7 @@ services:
       - MARQUEZ_HOST=marquez
       - MARQUEZ_PORT=5000
     ports:
-      - "23100:3000"
+      - "${MARQUEZ_HOST_PORT:-23100}:3000"
     stdin_open: true
     tty: true
     depends_on:

@@ -780,15 +780,17 @@ webserver and API server.
 When you run Airflow Breeze with this integration, in addition to the standard ports
 (See "Port Forwarding" below), the following are also automatically forwarded:
 
-* 25000 -> forwarded to Marquez API -> marquez:5000
-* 25001 -> forwarded to Marquez Admin API -> marquez:5001
-* 23100 -> forwarded to Marquez -> marquez_web:3000
+* MARQUEZ_API_HOST_PORT (default 25000) -> forwarded to Marquez API -> marquez:5000
+* MARQUEZ_API_ADMIN_HOST_PORT (default 25001) -> forwarded to Marquez Admin API -> marquez:5001
+* MARQUEZ_HOST_PORT (default 23100) -> forwarded to Marquez -> marquez_web:3000
 
 You can connect to these services using:
 
 * Marquez Webserver: http://127.0.0.1:23100
 * Marquez API: http://127.0.0.1:25000/api/v1
 * Marquez Admin API: http://127.0.0.1:25001
+
+Make sure to substitute the port numbers if you have customized them via the above env vars.
 
 Stopping the environment
 ------------------------
