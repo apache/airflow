@@ -338,9 +338,10 @@ class SSHHook(BaseHook):
         if self.disabled_algorithms:
             connect_kwargs.update(disabled_algorithms=self.disabled_algorithms)
 
-        log_before_sleep = lambda retry_state: self.log.info(
-            "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
-        )
+        def log_before_sleep(retry_state):
+            return self.log.info(
+                "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
+            )
 
         for attempt in Retrying(
             reraise=True,
