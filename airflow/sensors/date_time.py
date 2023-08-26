@@ -85,9 +85,13 @@ class DateTimeSensorAsync(DateTimeSensor):
     :param target_time: datetime after which the job succeeds. (templated)
     """
 
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.trigger = DateTimeTrigger(moment=timezone.parse(self.target_time))
+
     def execute(self, context: Context):
         self.defer(
-            trigger=DateTimeTrigger(moment=timezone.parse(self.target_time)),
+            trigger=self.trigger,
             method_name="execute_complete",
         )
 
