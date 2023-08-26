@@ -486,7 +486,7 @@ class BaseSecurityManager:
         def wraps(provider, response=None):
             ret = f(self, provider, response=response)
             # Checks if decorator is well behaved and returns a dict as supposed.
-            if not type(ret) == dict:
+            if not isinstance(ret, dict):
                 log.error("OAuth user info decorated function did not returned a dict, but: %s", type(ret))
                 return {}
             return ret
