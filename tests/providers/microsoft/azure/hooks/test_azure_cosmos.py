@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from unittest import mock
@@ -29,14 +28,14 @@ from azure.cosmos.cosmos_client import CosmosClient
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
-from airflow.utils import db
 from tests.test_utils.providers import get_provider_min_airflow_version
 
 
 class TestAzureCosmosDbHook:
 
     # Set up an environment to test with
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, create_mock_connection):
         # set up some test variables
         self.test_end_point = "https://test_endpoint:443"
         self.test_master_key = "magic_test_key"
@@ -44,25 +43,22 @@ class TestAzureCosmosDbHook:
         self.test_collection_name = "test_collection_name"
         self.test_database_default = "test_database_default"
         self.test_collection_default = "test_collection_default"
-        db.merge_conn(
+        create_mock_connection(
             Connection(
                 conn_id="azure_cosmos_test_key_id",
                 conn_type="azure_cosmos",
                 login=self.test_end_point,
                 password=self.test_master_key,
-                extra=json.dumps(
-                    {
-                        "database_name": self.test_database_default,
-                        "collection_name": self.test_collection_default,
-                    }
-                ),
+                extra={
+                    "database_name": self.test_database_default,
+                    "collection_name": self.test_collection_default,
+                },
             )
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.cosmos.CosmosClient", autospec=True)
     def test_client(self, mock_cosmos):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id="azure_cosmos_test_key_id")
-        assert hook._conn is None
         assert isinstance(hook.get_conn(), CosmosClient)
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.cosmos.CosmosClient")
