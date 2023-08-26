@@ -23,7 +23,6 @@
 """
 from __future__ import annotations
 
-import argparse
 import logging
 import math
 import operator
@@ -83,6 +82,8 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 
 
 if TYPE_CHECKING:
+    import argparse
+
     from celery import Task
 
     from airflow.executors.base_executor import CommandType, TaskTuple

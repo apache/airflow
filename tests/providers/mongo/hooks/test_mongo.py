@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import importlib
-from types import ModuleType
+from typing import TYPE_CHECKING
 
 import pymongo
 import pytest
@@ -26,6 +26,9 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.utils import db
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 mongomock: ModuleType | None
 

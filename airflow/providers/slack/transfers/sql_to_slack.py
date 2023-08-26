@@ -24,7 +24,6 @@ from tabulate import tabulate
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.slack.utils import parse_filename
@@ -32,6 +31,7 @@ from airflow.providers.slack.utils import parse_filename
 if TYPE_CHECKING:
     import pandas as pd
 
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.utils.context import Context
 
 

@@ -19,15 +19,18 @@
 from __future__ import annotations
 
 from ssl import CERT_NONE
-from types import TracebackType
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 from urllib.parse import quote_plus, urlunsplit
 
 import pymongo
 from pymongo import MongoClient, ReplaceOne
 
 from airflow.hooks.base import BaseHook
-from airflow.typing_compat import Literal
+
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from airflow.typing_compat import Literal
 
 
 class MongoHook(BaseHook):

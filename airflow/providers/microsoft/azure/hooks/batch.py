@@ -20,15 +20,17 @@ from __future__ import annotations
 import time
 from datetime import timedelta
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from azure.batch import BatchServiceClient, batch_auth, models as batch_models
-from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
 from airflow.utils import timezone
+
+if TYPE_CHECKING:
+    from azure.batch.models import JobAddParameter, PoolAddParameter, TaskAddParameter
 
 
 class AzureBatchHook(BaseHook):

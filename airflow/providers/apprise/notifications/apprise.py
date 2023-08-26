@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 
@@ -29,9 +29,11 @@ except ImportError:
         "Failed to import BaseNotifier. This feature is only available in Airflow versions >= 2.6.0"
     )
 
-from apprise import AppriseConfig, NotifyFormat, NotifyType
 
 from airflow.providers.apprise.hooks.apprise import AppriseHook
+
+if TYPE_CHECKING:
+    from apprise import AppriseConfig, NotifyFormat, NotifyType
 
 
 class AppriseNotifier(BaseNotifier):

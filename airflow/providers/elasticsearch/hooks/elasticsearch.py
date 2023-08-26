@@ -19,15 +19,17 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib import parse
 
 from elasticsearch import Elasticsearch
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection as AirflowConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection as AirflowConnection
 
 
 def connect(

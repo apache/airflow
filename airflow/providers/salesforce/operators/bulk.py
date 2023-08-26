@@ -20,9 +20,9 @@ from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
-from airflow.typing_compat import Literal
 
 if TYPE_CHECKING:
+    from airflow.typing_compat import Literal
     from airflow.utils.context import Context
 
 
