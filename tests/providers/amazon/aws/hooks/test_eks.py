@@ -19,19 +19,17 @@ from __future__ import annotations
 
 import sys
 from copy import deepcopy
-from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from urllib.parse import ParseResult, urlsplit
 
 import pytest
 import time_machine
 import yaml
-from _pytest._code import ExceptionInfo
 from botocore.exceptions import ClientError
 from moto import mock_eks
 from moto.core import DEFAULT_ACCOUNT_ID
-from moto.core.exceptions import AWSError
 from moto.eks.exceptions import (
     InvalidParameterException,
     InvalidRequestException,
@@ -94,6 +92,12 @@ from ..utils.eks_test_utils import (
     iso_date,
     region_matches_partition,
 )
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from _pytest._code import ExceptionInfo
+    from moto.core.exceptions import AWSError
 
 
 @pytest.fixture(scope="function")
