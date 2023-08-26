@@ -125,7 +125,6 @@ class TriggerRuleDep(BaseTIDep):
         from airflow.models.operator import needs_expansion
         from airflow.models.taskinstance import TaskInstance
 
-        # get all the setup tasks upstream of this task
         setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
 
         task = ti.task
