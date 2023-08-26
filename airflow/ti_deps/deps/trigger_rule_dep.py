@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import ColumnOperators
 
-    from airflow.models import Operator
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -98,33 +97,27 @@ class TriggerRuleDep(BaseTIDep):
         session: Session,
         dep_context: DepContext,
     ) -> Iterator[TIDepStatus]:
-        # get all the setup tasks upstream of this task
-        setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
         # Checking that all upstream dependencies have succeeded.
         if not ti.task.upstream_task_ids:
             yield self._passing_status(reason="The task instance did not have any upstream tasks.")
             return
-        if ti.task.trigger_rule == TR.ALWAYS and not setup_upstream_tasks:
+        if ti.task.trigger_rule == TR.ALWAYS:
             # even with ALWAYS trigger rule, we still need to check setup tasks
             yield self._passing_status(reason="The task had a always trigger rule set.")
             return
-        yield from self._evaluate_trigger_rule(
-            ti=ti, dep_context=dep_context, setup_upstream_tasks=setup_upstream_tasks, session=session
-        )
+        yield from self._evaluate_trigger_rule(ti=ti, dep_context=dep_context, session=session)
 
     def _evaluate_trigger_rule(
         self,
         *,
         ti: TaskInstance,
         dep_context: DepContext,
-        setup_upstream_tasks: list[Operator] | None = None,
         session: Session,
     ) -> Iterator[TIDepStatus]:
         """Evaluate whether ``ti``'s trigger rule was met.
 
         :param ti: Task instance to evaluate the trigger rule of.
         :param dep_context: The current dependency context.
-        setup_upstream_tasks: The setup tasks upstream of the current task.
         :param session: Database session.
         """
         from airflow.models.abstractoperator import NotMapped
@@ -132,7 +125,9 @@ class TriggerRuleDep(BaseTIDep):
         from airflow.models.operator import needs_expansion
         from airflow.models.taskinstance import TaskInstance
 
-        setup_upstream_tasks = setup_upstream_tasks or []
+        # get all the setup tasks upstream of this task
+        setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
+
         task = ti.task
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
         trigger_rule = task.trigger_rule
@@ -167,8 +162,6 @@ class TriggerRuleDep(BaseTIDep):
         def _is_relevant_upstream(upstream: TaskInstance) -> bool:
             """Whether a task instance is a "relevant upstream" of the current task."""
             # All the setup tasks upstreams are relevant event if they are not a direct upstream.
-            if TYPE_CHECKING:
-                assert isinstance(setup_upstream_tasks, list)
             if upstream.task_id in map(lambda t: t.task_id, setup_upstream_tasks):
                 relevant = _get_relevant_upstream_map_indexes(upstream.task_id)
                 if relevant is None:

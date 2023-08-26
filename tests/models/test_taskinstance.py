@@ -1520,7 +1520,6 @@ class TestTaskInstance:
         assert s.success >= s.success_setup - indirect_upstream_setups
         assert s.done == s.failed + s.success + s.removed + s.upstream_failed + s.skipped
 
-        setup_upstream_tasks = []
         with dag_maker() as dag:
             downstream = EmptyOperator(task_id="downstream", trigger_rule=trigger_rule)
             if trigger_rule == "all_done_setup_success":
@@ -1531,13 +1530,11 @@ class TestTaskInstance:
             for i in range(direct_upstream_setups):
                 task = EmptyOperator(task_id=f"direct_setup_{i}", dag=dag).as_setup()
                 task.set_downstream(downstream)
-                setup_upstream_tasks.append(task)
             for i in range(indirect_upstream_setups):
                 setup_task = EmptyOperator(task_id=f"indirect_setup_{i}", dag=dag).as_setup()
                 task = EmptyOperator(task_id=f"indirect_setup_downstream_{i}", dag=dag)
                 setup_task.set_downstream(task)
                 task.set_downstream(downstream)
-                setup_upstream_tasks.append(setup_task)
             assert task.start_date is not None
             run_date = task.start_date + datetime.timedelta(days=5)
 
@@ -1547,7 +1544,6 @@ class TestTaskInstance:
         dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
             dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-            setup_upstream_tasks=setup_upstream_tasks,  # type: ignore
             session=dag_maker.session,
         )
         completed = all(dep.passed for dep in dep_results)
@@ -1665,7 +1661,6 @@ class TestTaskInstance:
         dep_results = TriggerRuleDep()._evaluate_trigger_rule(
             ti=ti,
             dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-            setup_upstream_tasks=[],
             session=session,
         )
         completed = all(dep.passed for dep in dep_results)

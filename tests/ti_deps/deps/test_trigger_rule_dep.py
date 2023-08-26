@@ -776,7 +776,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=True),
-                setup_upstream_tasks=[t for t in ti.task.upstream_list if t.is_setup],
                 session=session,
             )
         )
