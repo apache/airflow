@@ -2029,7 +2029,7 @@ core_commands: list[CLICommand] = [
         name="standalone",
         help="Run an all-in-one copy of Airflow",
         func=lazy_load_command("airflow.cli.commands.standalone_command.standalone"),
-        args=tuple(),
+        args=(),
     ),
 ]
 
