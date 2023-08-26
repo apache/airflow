@@ -56,12 +56,12 @@ class ExasolHook(DbApiHook):
     def get_conn(self) -> ExaConnection:
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.get_connection(conn_id)
-        conn_args = dict(
-            dsn=f"{conn.host}:{conn.port}",
-            user=conn.login,
-            password=conn.password,
-            schema=self.schema or conn.schema,
-        )
+        conn_args = {
+            "dsn": f"{conn.host}:{conn.port}",
+            "user": conn.login,
+            "password": conn.password,
+            "schema": self.schema or conn.schema,
+        }
         # check for parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name in ["compression", "encryption", "json_lib", "client_name"]:

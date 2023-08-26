@@ -92,11 +92,11 @@ class OSLoginHook(GoogleBaseHook):
         """
         conn = self.get_conn()
         return conn.import_ssh_public_key(
-            request=dict(
-                parent=f"users/{user}",
-                ssh_public_key=ssh_public_key,
-                project_id=project_id,
-            ),
+            request={
+                "parent": f"users/{user}",
+                "ssh_public_key": ssh_public_key,
+                "project_id": project_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,

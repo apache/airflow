@@ -852,10 +852,10 @@ class KubernetesPodOperator(BaseOperator):
     def on_kill(self) -> None:
         if self.pod:
             pod = self.pod
-            kwargs = dict(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-            )
+            kwargs = {
+                "name": pod.metadata.name,
+                "namespace": pod.metadata.namespace,
+            }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
             self.client.delete_namespaced_pod(**kwargs)

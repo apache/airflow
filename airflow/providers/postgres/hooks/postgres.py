@@ -127,13 +127,13 @@ class PostgresHook(DbApiHook):
         if conn.extra_dejson.get("iam", False):
             conn.login, conn.password, conn.port = self.get_iam_token(conn)
 
-        conn_args = dict(
-            host=conn.host,
-            user=conn.login,
-            password=conn.password,
-            dbname=self.database or conn.schema,
-            port=conn.port,
-        )
+        conn_args = {
+            "host": conn.host,
+            "user": conn.login,
+            "password": conn.password,
+            "dbname": self.database or conn.schema,
+            "port": conn.port,
+        }
         raw_cursor = conn.extra_dejson.get("cursor", False)
         if raw_cursor:
             conn_args["cursor_factory"] = self._get_cursor(raw_cursor)

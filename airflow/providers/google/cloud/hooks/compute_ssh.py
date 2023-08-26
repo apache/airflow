@@ -314,7 +314,7 @@ class ComputeEngineSSHHook(SSHHook):
                 item["value"] = keys
                 break
         else:
-            new_dict = dict(key="ssh-keys", value=keys)
+            new_dict = {"key": "ssh-keys", "value": keys}
             metadata["items"] = [new_dict]
 
         self._compute_hook.set_instance_metadata(

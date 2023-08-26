@@ -148,11 +148,11 @@ class BigtableHook(GoogleBaseHook):
             instance_labels,
         )
 
-        cluster_kwargs = dict(
-            cluster_id=main_cluster_id,
-            location_id=main_cluster_zone,
-            default_storage_type=cluster_storage_type,
-        )
+        cluster_kwargs = {
+            "cluster_id": main_cluster_id,
+            "location_id": main_cluster_zone,
+            "default_storage_type": cluster_storage_type,
+        }
         if instance_type != enums.Instance.Type.DEVELOPMENT and cluster_nodes:
             cluster_kwargs["serve_nodes"] = cluster_nodes
         clusters = [instance.cluster(**cluster_kwargs)]

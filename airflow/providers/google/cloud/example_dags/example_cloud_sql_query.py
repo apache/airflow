@@ -100,19 +100,19 @@ def get_absolute_path(path):
         return os.path.join(HOME_DIR, path)
 
 
-postgres_kwargs = dict(
-    user=quote_plus(GCSQL_POSTGRES_USER),
-    password=quote_plus(GCSQL_POSTGRES_PASSWORD),
-    public_port=GCSQL_POSTGRES_PUBLIC_PORT,
-    public_ip=quote_plus(GCSQL_POSTGRES_PUBLIC_IP),
-    project_id=quote_plus(GCP_PROJECT_ID),
-    location=quote_plus(GCP_REGION),
-    instance=quote_plus(GCSQL_POSTGRES_INSTANCE_NAME_QUERY),
-    database=quote_plus(GCSQL_POSTGRES_DATABASE_NAME),
-    client_cert_file=quote_plus(get_absolute_path(GCSQL_POSTGRES_CLIENT_CERT_FILE)),
-    client_key_file=quote_plus(get_absolute_path(GCSQL_POSTGRES_CLIENT_KEY_FILE)),
-    server_ca_file=quote_plus(get_absolute_path(GCSQL_POSTGRES_SERVER_CA_FILE)),
-)
+postgres_kwargs = {
+    "user": quote_plus(GCSQL_POSTGRES_USER),
+    "password": quote_plus(GCSQL_POSTGRES_PASSWORD),
+    "public_port": GCSQL_POSTGRES_PUBLIC_PORT,
+    "public_ip": quote_plus(GCSQL_POSTGRES_PUBLIC_IP),
+    "project_id": quote_plus(GCP_PROJECT_ID),
+    "location": quote_plus(GCP_REGION),
+    "instance": quote_plus(GCSQL_POSTGRES_INSTANCE_NAME_QUERY),
+    "database": quote_plus(GCSQL_POSTGRES_DATABASE_NAME),
+    "client_cert_file": quote_plus(get_absolute_path(GCSQL_POSTGRES_CLIENT_CERT_FILE)),
+    "client_key_file": quote_plus(get_absolute_path(GCSQL_POSTGRES_CLIENT_KEY_FILE)),
+    "server_ca_file": quote_plus(get_absolute_path(GCSQL_POSTGRES_SERVER_CA_FILE)),
+}
 
 # The connections below are created using one of the standard approaches - via environment
 # variables named AIRFLOW_CONN_* . The connections can also be created in the database
@@ -166,19 +166,19 @@ os.environ["AIRFLOW_CONN_PUBLIC_POSTGRES_TCP_SSL"] = (
     "sslrootcert={server_ca_file}".format(**postgres_kwargs)
 )
 
-mysql_kwargs = dict(
-    user=quote_plus(GCSQL_MYSQL_USER),
-    password=quote_plus(GCSQL_MYSQL_PASSWORD),
-    public_port=GCSQL_MYSQL_PUBLIC_PORT,
-    public_ip=quote_plus(GCSQL_MYSQL_PUBLIC_IP),
-    project_id=quote_plus(GCP_PROJECT_ID),
-    location=quote_plus(GCP_REGION),
-    instance=quote_plus(GCSQL_MYSQL_INSTANCE_NAME_QUERY),
-    database=quote_plus(GCSQL_MYSQL_DATABASE_NAME),
-    client_cert_file=quote_plus(get_absolute_path(GCSQL_MYSQL_CLIENT_CERT_FILE)),
-    client_key_file=quote_plus(get_absolute_path(GCSQL_MYSQL_CLIENT_KEY_FILE)),
-    server_ca_file=quote_plus(get_absolute_path(GCSQL_MYSQL_SERVER_CA_FILE)),
-)
+mysql_kwargs = {
+    "user": quote_plus(GCSQL_MYSQL_USER),
+    "password": quote_plus(GCSQL_MYSQL_PASSWORD),
+    "public_port": GCSQL_MYSQL_PUBLIC_PORT,
+    "public_ip": quote_plus(GCSQL_MYSQL_PUBLIC_IP),
+    "project_id": quote_plus(GCP_PROJECT_ID),
+    "location": quote_plus(GCP_REGION),
+    "instance": quote_plus(GCSQL_MYSQL_INSTANCE_NAME_QUERY),
+    "database": quote_plus(GCSQL_MYSQL_DATABASE_NAME),
+    "client_cert_file": quote_plus(get_absolute_path(GCSQL_MYSQL_CLIENT_CERT_FILE)),
+    "client_key_file": quote_plus(get_absolute_path(GCSQL_MYSQL_CLIENT_KEY_FILE)),
+    "server_ca_file": quote_plus(get_absolute_path(GCSQL_MYSQL_SERVER_CA_FILE)),
+}
 
 # MySQL: connect via proxy over TCP (specific proxy version)
 os.environ["AIRFLOW_CONN_PROXY_MYSQL_TCP"] = (

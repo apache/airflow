@@ -517,7 +517,7 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
         """
         client = self.get_conn()
         jobs_list_request = ListTransferJobsRequest(
-            filter=json.dumps(dict(project_id=self.project_id, job_names=job_names))
+            filter=json.dumps({"project_id": self.project_id, "job_names": job_names})
         )
         return await client.list_transfer_jobs(request=jobs_list_request)
 

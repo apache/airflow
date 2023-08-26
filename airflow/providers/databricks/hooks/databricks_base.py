@@ -121,12 +121,12 @@ class BaseDatabricksHook(BaseHook):
             self.retry_args["retry"] = retry_if_exception(self._retryable_error)
             self.retry_args["after"] = my_after_func
         else:
-            self.retry_args = dict(
-                stop=stop_after_attempt(self.retry_limit),
-                wait=wait_exponential(min=self.retry_delay, max=(2**retry_limit)),
-                retry=retry_if_exception(self._retryable_error),
-                after=my_after_func,
-            )
+            self.retry_args = {
+                "stop": stop_after_attempt(self.retry_limit),
+                "wait": wait_exponential(min=self.retry_delay, max=(2**retry_limit)),
+                "retry": retry_if_exception(self._retryable_error),
+                "after": my_after_func,
+            }
 
     @cached_property
     def databricks_conn(self) -> Connection:

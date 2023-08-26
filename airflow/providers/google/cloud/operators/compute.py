@@ -661,7 +661,7 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
 
 
 SET_MACHINE_TYPE_VALIDATION_SPECIFICATION = [
-    dict(name="machineType", regexp="^.+$"),
+    {"name": "machineType", "regexp": "^.+$"},
 ]
 
 
@@ -768,44 +768,44 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
 
 
 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION: list[dict[str, Any]] = [
-    dict(name="name", regexp="^.+$"),
-    dict(name="description", optional=True),
-    dict(
-        name="properties",
-        type="dict",
-        optional=True,
-        fields=[
-            dict(name="description", optional=True),
-            dict(name="tags", optional=True, fields=[dict(name="items", optional=True)]),
-            dict(name="machineType", optional=True),
-            dict(name="canIpForward", optional=True),
-            dict(name="networkInterfaces", optional=True),  # not validating deeper
-            dict(name="disks", optional=True),  # not validating the array deeper
-            dict(
-                name="metadata",
-                optional=True,
-                fields=[
-                    dict(name="fingerprint", optional=True),
-                    dict(name="items", optional=True),
-                    dict(name="kind", optional=True),
+    {"name": "name", "regexp": "^.+$"},
+    {"name": "description", "optional": True},
+    {
+        "name": "properties",
+        "type": "dict",
+        "optional": True,
+        "fields": [
+            {"name": "description", "optional": True},
+            {"name": "tags", "optional": True, "fields": [{"name": "items", "optional": True}]},
+            {"name": "machineType", "optional": True},
+            {"name": "canIpForward", "optional": True},
+            {"name": "networkInterfaces", "optional": True},  # not validating deeper
+            {"name": "disks", "optional": True},  # not validating the array deeper
+            {
+                "name": "metadata",
+                "optional": True,
+                "fields": [
+                    {"name": "fingerprint", "optional": True},
+                    {"name": "items", "optional": True},
+                    {"name": "kind", "optional": True},
                 ],
-            ),
-            dict(name="serviceAccounts", optional=True),  # not validating deeper
-            dict(
-                name="scheduling",
-                optional=True,
-                fields=[
-                    dict(name="onHostMaintenance", optional=True),
-                    dict(name="automaticRestart", optional=True),
-                    dict(name="preemptible", optional=True),
-                    dict(name="nodeAffinities", optional=True),  # not validating deeper
+            },
+            {"name": "serviceAccounts", "optional": True},  # not validating deeper
+            {
+                "name": "scheduling",
+                "optional": True,
+                "fields": [
+                    {"name": "onHostMaintenance", "optional": True},
+                    {"name": "automaticRestart", "optional": True},
+                    {"name": "preemptible", "optional": True},
+                    {"name": "nodeAffinities", "optional": True},  # not validating deeper
                 ],
-            ),
-            dict(name="labels", optional=True),
-            dict(name="guestAccelerators", optional=True),  # not validating deeper
-            dict(name="minCpuPlatform", optional=True),
+            },
+            {"name": "labels", "optional": True},
+            {"name": "guestAccelerators", "optional": True},  # not validating deeper
+            {"name": "minCpuPlatform", "optional": True},
         ],
-    ),
+    },
 ]
 
 GCE_INSTANCE_FIELDS_TO_SANITIZE = [

@@ -312,11 +312,11 @@ class SnowflakeHook(DbApiHook):
         engine_kwargs = engine_kwargs or {}
         conn_params = self._get_conn_params()
         if "insecure_mode" in conn_params:
-            engine_kwargs.setdefault("connect_args", dict())
+            engine_kwargs.setdefault("connect_args", {})
             engine_kwargs["connect_args"]["insecure_mode"] = True
         for key in ["session_parameters", "private_key"]:
             if conn_params.get(key):
-                engine_kwargs.setdefault("connect_args", dict())
+                engine_kwargs.setdefault("connect_args", {})
                 engine_kwargs["connect_args"][key] = conn_params[key]
         return create_engine(self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs)
 
