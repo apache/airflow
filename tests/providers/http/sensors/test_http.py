@@ -230,10 +230,8 @@ class TestHttpSensor:
             timeout=5,
             poke_interval=1,
         )
-        with pytest.raises(AirflowException) as excinfo:
+        with pytest.raises(AirflowException, match="500:Internal Server Error"):
             task.execute(context={})
-
-        assert str(excinfo.value) == "500:Internal Server Error"
 
 
 class FakeSession:
