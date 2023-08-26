@@ -171,12 +171,6 @@ def test_default_extraction():
     )
 
 
-def test_default_extraction_disabled_operator():
-    extractor = ExtractorManager().get_extractor_class(ExampleOperator)
-    metadata = extractor(ExampleOperator(task_id="test")).extract()
-    assert metadata is None
-
-
 def test_extraction_without_on_complete():
     extractor = ExtractorManager().get_extractor_class(OperatorWithoutComplete)
     assert extractor is DefaultExtractor
