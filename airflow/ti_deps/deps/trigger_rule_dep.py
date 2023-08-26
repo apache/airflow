@@ -54,7 +54,9 @@ class _UpstreamTIStates(NamedTuple):
     failed_setup: int
 
     @classmethod
-    def calculate(cls, finished_upstreams: Iterator[TaskInstance]) -> _UpstreamTIStates:
+    def calculate(
+        cls, finished_upstreams: Iterator[TaskInstance], finished_setup_upstream_tis
+    ) -> _UpstreamTIStates:
         """Calculate states for a task instance.
 
         ``counter`` is inclusive of ``setup_counter`` -- e.g. if there are 2 skipped upstreams, one
@@ -68,8 +70,9 @@ class _UpstreamTIStates(NamedTuple):
         for ti in finished_upstreams:
             curr_state = {ti.state: 1}
             counter.update(curr_state)
-            if ti.task.is_setup:
-                setup_counter.update(curr_state)
+        for ti in finished_setup_upstream_tis:
+            curr_state = {ti.state: 1}
+            setup_counter.update(curr_state)
         return _UpstreamTIStates(
             success=counter.get(TaskInstanceState.SUCCESS, 0),
             skipped=counter.get(TaskInstanceState.SKIPPED, 0),
@@ -125,7 +128,10 @@ class TriggerRuleDep(BaseTIDep):
         from airflow.models.operator import needs_expansion
         from airflow.models.taskinstance import TaskInstance
 
-        setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
+        if ti.task.is_teardown:
+            setup_upstream_tasks = [task for task in ti.task.upstream_list if task.is_setup]
+        else:
+            setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
 
         task = ti.task
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
@@ -160,16 +166,6 @@ class TriggerRuleDep(BaseTIDep):
 
         def _is_relevant_upstream(upstream: TaskInstance) -> bool:
             """Whether a task instance is a "relevant upstream" of the current task."""
-            # All the setup tasks upstreams are relevant event if they are not a direct upstream.
-            if upstream.task_id in map(lambda t: t.task_id, setup_upstream_tasks):
-                relevant = _get_relevant_upstream_map_indexes(upstream.task_id)
-                if relevant is None:
-                    return True
-                if relevant == upstream.map_index:
-                    return True
-                if isinstance(relevant, collections.abc.Container) and upstream.map_index in relevant:
-                    return True
-                return False
             # Not actually an upstream task.
             if upstream.task_id not in task.upstream_task_ids:
                 return False
@@ -192,12 +188,32 @@ class TriggerRuleDep(BaseTIDep):
                 return True
             return False
 
+        def _is_relevant_setup_upstream(upstream: TaskInstance) -> bool:
+            """Whether a task instance is a "relevant setup" of the current task."""
+            if upstream.task_id in map(lambda t: t.task_id, setup_upstream_tasks):
+                relevant = _get_relevant_upstream_map_indexes(upstream.task_id)
+                if relevant is None:
+                    return True
+                if relevant == upstream.map_index:
+                    return True
+                if isinstance(relevant, collections.abc.Container) and upstream.map_index in relevant:
+                    return True
+                return False
+            return False
+
         finished_upstream_tis = (
             finished_ti
             for finished_ti in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
             if _is_relevant_upstream(finished_ti)
         )
-        upstream_states = _UpstreamTIStates.calculate(finished_upstream_tis)
+
+        finished_setup_upstream_tis = (
+            finished_ti
+            for finished_ti in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+            if _is_relevant_setup_upstream(finished_ti)
+        )
+
+        upstream_states = _UpstreamTIStates.calculate(finished_upstream_tis, finished_setup_upstream_tis)
 
         success = upstream_states.success
         skipped = upstream_states.skipped

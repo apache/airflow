@@ -1103,35 +1103,32 @@ class TestTaskInstance:
     # Numeric fields are in order:
     #   successes, skipped, failed, upstream_failed, removed, done
     @pytest.mark.parametrize(
-        "trigger_rule, direct_upstream_setups, indirect_upstream_setups, upstream_states,"
-        " flag_upstream_failed, expect_state, expect_passed",
+        "trigger_rule, upstream_setups,, upstream_states, flag_upstream_failed, expect_state, expect_passed",
         [
             #
             # Tests for all_success
             #
-            ["all_success", 0, 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, None, True],
-            ["all_success", 0, 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, None, False],
+            ["all_success", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, None, True],
+            ["all_success", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, None, False],
             [
                 "all_success",
-                0,
                 0,
                 _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0),
                 True,
                 State.UPSTREAM_FAILED,
                 False,
             ],
-            ["all_success", 0, 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, State.SKIPPED, False],
+            ["all_success", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, State.SKIPPED, False],
             #
             # Tests for one_success
             #
-            ["one_success", 0, 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, None, True],
-            ["one_success", 0, 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, None, True],
-            ["one_success", 0, 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0), True, None, True],
-            ["one_success", 0, 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, None, True],
-            ["one_success", 0, 0, _UpstreamTIStates(0, 5, 0, 0, 0, 5, 0, 0, 0), True, State.SKIPPED, False],
+            ["one_success", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, None, True],
+            ["one_success", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, None, True],
+            ["one_success", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0), True, None, True],
+            ["one_success", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, None, True],
+            ["one_success", 0, _UpstreamTIStates(0, 5, 0, 0, 0, 5, 0, 0, 0), True, State.SKIPPED, False],
             [
                 "one_success",
-                0,
                 0,
                 _UpstreamTIStates(0, 4, 1, 0, 0, 5, 0, 0, 0),
                 True,
@@ -1141,7 +1138,6 @@ class TestTaskInstance:
             [
                 "one_success",
                 0,
-                0,
                 _UpstreamTIStates(0, 3, 1, 1, 0, 5, 0, 0, 0),
                 True,
                 State.UPSTREAM_FAILED,
@@ -1149,7 +1145,6 @@ class TestTaskInstance:
             ],
             [
                 "one_success",
-                0,
                 0,
                 _UpstreamTIStates(0, 4, 0, 1, 0, 5, 0, 0, 0),
                 True,
@@ -1159,7 +1154,6 @@ class TestTaskInstance:
             [
                 "one_success",
                 0,
-                0,
                 _UpstreamTIStates(0, 0, 5, 0, 0, 5, 0, 0, 0),
                 True,
                 State.UPSTREAM_FAILED,
@@ -1167,7 +1161,6 @@ class TestTaskInstance:
             ],
             [
                 "one_success",
-                0,
                 0,
                 _UpstreamTIStates(0, 0, 4, 1, 0, 5, 0, 0, 0),
                 True,
@@ -1177,7 +1170,6 @@ class TestTaskInstance:
             [
                 "one_success",
                 0,
-                0,
                 _UpstreamTIStates(0, 0, 0, 5, 0, 5, 0, 0, 0),
                 True,
                 State.UPSTREAM_FAILED,
@@ -1186,33 +1178,33 @@ class TestTaskInstance:
             #
             # Tests for all_failed
             #
-            ["all_failed", 0, 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, State.SKIPPED, False],
-            ["all_failed", 0, 0, _UpstreamTIStates(0, 0, 5, 0, 0, 5, 0, 0, 0), True, None, True],
-            ["all_failed", 0, 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, State.SKIPPED, False],
-            ["all_failed", 0, 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0), True, State.SKIPPED, False],
-            ["all_failed", 0, 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, State.SKIPPED, False],
+            ["all_failed", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, State.SKIPPED, False],
+            ["all_failed", 0, _UpstreamTIStates(0, 0, 5, 0, 0, 5, 0, 0, 0), True, None, True],
+            ["all_failed", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, State.SKIPPED, False],
+            ["all_failed", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0), True, State.SKIPPED, False],
+            ["all_failed", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, State.SKIPPED, False],
             #
             # Tests for one_failed
             #
-            ["one_failed", 0, 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, State.SKIPPED, False],
-            ["one_failed", 0, 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, None, False],
-            ["one_failed", 0, 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0), True, None, True],
-            ["one_failed", 0, 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, None, False],
-            ["one_failed", 0, 0, _UpstreamTIStates(2, 3, 0, 0, 0, 5, 0, 0, 0), True, State.SKIPPED, False],
+            ["one_failed", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, State.SKIPPED, False],
+            ["one_failed", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, None, False],
+            ["one_failed", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0), True, None, True],
+            ["one_failed", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, None, False],
+            ["one_failed", 0, _UpstreamTIStates(2, 3, 0, 0, 0, 5, 0, 0, 0), True, State.SKIPPED, False],
             #
             # Tests for done
             #
-            ["all_done", 0, 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, None, True],
-            ["all_done", 0, 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, None, False],
-            ["all_done", 0, 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0), True, None, False],
-            ["all_done", 0, 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, None, False],
+            ["all_done", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, None, True],
+            ["all_done", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, None, False],
+            ["all_done", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0), True, None, False],
+            ["all_done", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, None, False],
             #
             # Tests for all_done_setup_success: no upstream setups -> same as all_done
             #
-            ["all_done_setup_success", 0, 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, None, True],
-            ["all_done_setup_success", 0, 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, None, False],
-            ["all_done_setup_success", 0, 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0), True, None, False],
-            ["all_done_setup_success", 0, 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, None, False],
+            ["all_done_setup_success", 0, _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 0), True, None, True],
+            ["all_done_setup_success", 0, _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0, 0), True, None, False],
+            ["all_done_setup_success", 0, _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0, 0), True, None, False],
+            ["all_done_setup_success", 0, _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0, 0), True, None, False],
             #
             # Tests for all_done_setup_success: with upstream setups -> different from all_done
             #
@@ -1228,7 +1220,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 1,
-                0,
                 _UpstreamTIStates(6, 0, 0, 0, 0, 6, 1, 0, 0),
                 True,
                 None,
@@ -1238,7 +1229,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 2,
-                0,
                 _UpstreamTIStates(7, 0, 0, 0, 0, 7, 2, 0, 0),
                 True,
                 None,
@@ -1248,7 +1238,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 1,
-                0,
                 _UpstreamTIStates(5, 0, 1, 0, 0, 6, 0, 0, 1),
                 True,
                 State.UPSTREAM_FAILED,
@@ -1258,7 +1247,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 2,
-                0,
                 _UpstreamTIStates(5, 0, 2, 0, 0, 7, 0, 0, 2),
                 True,
                 State.UPSTREAM_FAILED,
@@ -1268,7 +1256,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 1,
-                0,
                 _UpstreamTIStates(5, 1, 0, 0, 0, 6, 0, 1, 0),
                 True,
                 State.SKIPPED,
@@ -1278,7 +1265,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 2,
-                0,
                 _UpstreamTIStates(5, 2, 0, 0, 0, 7, 0, 2, 0),
                 True,
                 State.SKIPPED,
@@ -1288,7 +1274,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 2,
-                0,
                 _UpstreamTIStates(5, 1, 1, 0, 0, 7, 0, 1, 1),
                 True,
                 State.UPSTREAM_FAILED,
@@ -1298,7 +1283,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 2,
-                0,
                 _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0, 1),
                 True,
                 None,
@@ -1308,7 +1292,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 2,
-                0,
                 _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1, 0),
                 True,
                 None,
@@ -1318,7 +1301,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 1,
-                0,
                 _UpstreamTIStates(3, 0, 0, 0, 0, 3, 1, 0, 0),
                 True,
                 None,
@@ -1328,7 +1310,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 1,
-                0,
                 _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0, 0),
                 True,
                 None,
@@ -1338,7 +1319,6 @@ class TestTaskInstance:
             param(
                 "all_done_setup_success",
                 1,
-                0,
                 _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0, 0),
                 True,
                 None,
