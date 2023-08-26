@@ -97,9 +97,8 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.execute(sql, parameters)) as cur:
-                return cur.fetchall()
+        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+            return cur.fetchall()
 
     def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """Execute the SQL and return the first resulting row.
@@ -108,9 +107,8 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.execute(sql, parameters)) as cur:
-                return cur.fetchone()
+        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+            return cur.fetchone()
 
     def export_to_file(
         self,

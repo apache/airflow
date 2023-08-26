@@ -493,19 +493,18 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with Token(scopes=self.scopes) as token:
-            async with self.get_conn(token) as connection:
-                try:
-                    v1_api = async_client.CoreV1Api(connection)
-                    await v1_api.delete_namespaced_pod(
-                        name=name,
-                        namespace=namespace,
-                        body=client.V1DeleteOptions(),
-                    )
-                except async_client.ApiException as e:
-                    # If the pod is already deleted
-                    if e.status != 404:
-                        raise
+        async with Token(scopes=self.scopes) as token, self.get_conn(token) as connection:
+            try:
+                v1_api = async_client.CoreV1Api(connection)
+                await v1_api.delete_namespaced_pod(
+                    name=name,
+                    namespace=namespace,
+                    body=client.V1DeleteOptions(),
+                )
+            except async_client.ApiException as e:
+                # If the pod is already deleted
+                if e.status != 404:
+                    raise
 
     async def read_logs(self, name: str, namespace: str):
         """Read logs inside the pod while starting containers inside.
@@ -518,20 +517,19 @@ class GKEPodAsyncHook(GoogleBaseAsyncHook):
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
-        async with Token(scopes=self.scopes) as token:
-            async with self.get_conn(token) as connection:
-                try:
-                    v1_api = async_client.CoreV1Api(connection)
-                    logs = await v1_api.read_namespaced_pod_log(
-                        name=name,
-                        namespace=namespace,
-                        follow=False,
-                        timestamps=True,
-                    )
-                    logs = logs.splitlines()
-                    for line in logs:
-                        self.log.info("Container logs from %s", line)
-                    return logs
-                except HTTPError:
-                    self.log.exception("There was an error reading the kubernetes API.")
-                    raise
+        async with Token(scopes=self.scopes) as token, self.get_conn(token) as connection:
+            try:
+                v1_api = async_client.CoreV1Api(connection)
+                logs = await v1_api.read_namespaced_pod_log(
+                    name=name,
+                    namespace=namespace,
+                    follow=False,
+                    timestamps=True,
+                )
+                logs = logs.splitlines()
+                for line in logs:
+                    self.log.info("Container logs from %s", line)
+                return logs
+            except HTTPError:
+                self.log.exception("There was an error reading the kubernetes API.")
+                raise
