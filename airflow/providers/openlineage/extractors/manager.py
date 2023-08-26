@@ -42,15 +42,7 @@ def try_import_from_string(string):
         return import_string(string)
 
 
-_extractors: list[type[BaseExtractor]] = list(
-    filter(
-        lambda t: t is not None,
-        [
-            PythonExtractor,
-            BashExtractor,
-        ],
-    )
-)
+_extractors: list[type[BaseExtractor]] = [t for t in [PythonExtractor, BashExtractor] if t is not None]
 
 
 class ExtractorManager(LoggingMixin):

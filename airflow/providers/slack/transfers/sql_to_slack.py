@@ -153,7 +153,7 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         # If this is the first render of the template fields, exclude slack_message from rendering since
         # the SQL results haven't been retrieved yet.
         if self.times_rendered == 0:
-            fields_to_render: Iterable[str] = filter(lambda x: x != "slack_message", self.template_fields)
+            fields_to_render: Iterable[str] = (x for x in self.template_fields if x != "slack_message")
         else:
             fields_to_render = self.template_fields
 
