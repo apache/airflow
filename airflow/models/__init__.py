@@ -18,30 +18,6 @@
 """Airflow models."""
 from __future__ import annotations
 
-from airflow.models.base import ID_LEN, Base
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
-from airflow.models.connection import Connection
-from airflow.models.dag import DAG, DagModel, DagTag
-from airflow.models.dagbag import DagBag
-from airflow.models.dagpickle import DagPickle
-from airflow.models.dagrun import DagRun
-from airflow.models.db_callback_request import DbCallbackRequest
-from airflow.models.errors import ImportError
-from airflow.models.log import Log
-from airflow.models.mappedoperator import MappedOperator
-from airflow.models.operator import Operator
-from airflow.models.param import Param
-from airflow.models.pool import Pool
-from airflow.models.renderedtifields import RenderedTaskInstanceFields
-from airflow.models.skipmixin import SkipMixin
-from airflow.models.slamiss import SlaMiss
-from airflow.models.taskfail import TaskFail
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.models.taskreschedule import TaskReschedule
-from airflow.models.trigger import Trigger
-from airflow.models.variable import Variable
-from airflow.models.xcom import XCom
-
 # Do not add new models to this -- this is for compat only
 __all__ = [
     "DAG",
@@ -133,3 +109,30 @@ __lazy_imports = {
     "XCom": "airflow.models.xcom",
     "clear_task_instances": "airflow.models.taskinstance",
 }
+
+if TYPE_CHECKING:
+    # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
+    # having to resort back to this hacky method
+    from airflow.models.base import ID_LEN, Base
+    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.connection import Connection
+    from airflow.models.dag import DAG, DagModel, DagTag
+    from airflow.models.dagbag import DagBag
+    from airflow.models.dagpickle import DagPickle
+    from airflow.models.dagrun import DagRun
+    from airflow.models.db_callback_request import DbCallbackRequest
+    from airflow.models.errors import ImportError
+    from airflow.models.log import Log
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.models.operator import Operator
+    from airflow.models.param import Param
+    from airflow.models.pool import Pool
+    from airflow.models.renderedtifields import RenderedTaskInstanceFields
+    from airflow.models.skipmixin import SkipMixin
+    from airflow.models.slamiss import SlaMiss
+    from airflow.models.taskfail import TaskFail
+    from airflow.models.taskinstance import TaskInstance, clear_task_instances
+    from airflow.models.taskreschedule import TaskReschedule
+    from airflow.models.trigger import Trigger
+    from airflow.models.variable import Variable
+    from airflow.models.xcom import XCom
