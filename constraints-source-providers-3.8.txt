@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-26T10:05:28Z
+# This constraints file was automatically generated on 2023-08-26T17:50:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -461,7 +461,7 @@ pyzmq==25.1.1
 qds-sdk==1.16.1
 reactivex==4.0.4
 readme-renderer==41.0
-redis==5.0.0
+redis==4.6.0
 redshift-connector==2.0.913
 referencing==0.30.2
 regex==2023.8.8
