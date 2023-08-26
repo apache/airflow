@@ -160,7 +160,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -183,7 +182,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -207,7 +205,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -231,7 +228,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -254,7 +250,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -277,7 +272,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -300,7 +294,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -323,7 +316,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -347,7 +339,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -372,7 +363,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -396,7 +386,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -425,7 +414,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -458,7 +446,6 @@ class TestTriggerRuleDep:
                     dep_context=DepContext(
                         flag_upstream_failed=True, wait_for_past_depends_before_skipping=True
                     ),
-                    setup_upstream_tasks=[],
                     session=session,
                 )
             )
@@ -493,7 +480,6 @@ class TestTriggerRuleDep:
                     dep_context=DepContext(
                         flag_upstream_failed=True, wait_for_past_depends_before_skipping=True
                     ),
-                    setup_upstream_tasks=[],
                     session=session,
                 )
             )
@@ -520,7 +506,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -545,7 +530,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -570,7 +554,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -594,7 +577,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=True),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -619,7 +601,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -644,7 +625,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -668,7 +648,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -693,7 +672,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -830,7 +808,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -856,7 +833,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -882,7 +858,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -908,7 +883,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -933,7 +907,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -959,7 +932,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -985,7 +957,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -1059,7 +1030,6 @@ class TestTriggerRuleDep:
                 ti=ti,
                 # Marks the task as removed if upstream is removed.
                 dep_context=DepContext(flag_upstream_failed=True),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -1099,7 +1069,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -1143,7 +1112,6 @@ class TestTriggerRuleDep:
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
                 dep_context=DepContext(flag_upstream_failed=False),
-                setup_upstream_tasks=[],
                 session=session,
             )
         )
@@ -1251,7 +1219,6 @@ def test_mapped_task_check_before_expand(dag_maker, session):
         # of expansion does not fail the dependency-checking logic.
         ti=next(ti for ti in dr.task_instances if ti.task_id == "tg.t3" and ti.map_index == -1),
         dep_context=DepContext(),
-        setup_upstream_tasks=[],
         session=session,
     )
     results = list(result_iterator)

@@ -117,7 +117,7 @@ class TriggerRuleDep(BaseTIDep):
         *,
         ti: TaskInstance,
         dep_context: DepContext,
-        setup_upstream_tasks: list[Operator],
+        setup_upstream_tasks: list[Operator] | None = None,
         session: Session,
     ) -> Iterator[TIDepStatus]:
         """Evaluate whether ``ti``'s trigger rule was met.
@@ -132,6 +132,7 @@ class TriggerRuleDep(BaseTIDep):
         from airflow.models.operator import needs_expansion
         from airflow.models.taskinstance import TaskInstance
 
+        setup_upstream_tasks = setup_upstream_tasks or []
         task = ti.task
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
         trigger_rule = task.trigger_rule
@@ -166,6 +167,8 @@ class TriggerRuleDep(BaseTIDep):
         def _is_relevant_upstream(upstream: TaskInstance) -> bool:
             """Whether a task instance is a "relevant upstream" of the current task."""
             # All the setup tasks upstreams are relevant event if they are not a direct upstream.
+            if TYPE_CHECKING:
+                assert isinstance(setup_upstream_tasks, list)
             if upstream.task_id in map(lambda t: t.task_id, setup_upstream_tasks):
                 relevant = _get_relevant_upstream_map_indexes(upstream.task_id)
                 if relevant is None:
