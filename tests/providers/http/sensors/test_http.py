@@ -183,6 +183,56 @@ class TestHttpSensor:
             ]
             mock_log.error.assert_has_calls(calls)
 
+    @patch("airflow.providers.http.hooks.http.requests.Session.send")
+    def test_response_error_codes_allowlist(self, mock_session_send, create_task_of_operator):
+        allowed_error_response_gen = iter(
+            [
+                (503, "Service Unavailable"),
+                (503, "Service Unavailable"),
+                (503, "Service Unavailable"),
+                (404, "Not Found"),
+                (499, "Allowed Non-standard Error Code"),
+            ]
+        )
+
+        def mocking_allowed_error_responses(*_, **__):
+            try:
+                error_code, error_reason = next(allowed_error_response_gen)
+            except StopIteration:
+                return mock.DEFAULT
+
+            error_response = requests.Response()
+            error_response.status_code = error_code
+            error_response.reason = error_reason
+
+            return error_response
+
+        def resp_check(_):
+            return True
+
+        final_response = requests.Response()
+        final_response.status_code = 500
+        final_response.reason = "Internal Server Error"
+
+        mock_session_send.side_effect = mocking_allowed_error_responses
+        mock_session_send.return_value = final_response
+
+        task = create_task_of_operator(
+            HttpSensor,
+            dag_id="http_sensor_response_error_codes_allowlist",
+            task_id="http_sensor_response_error_codes_allowlist",
+            response_error_codes_allowlist=["404", "499", "503"],
+            http_conn_id="http_default",
+            endpoint="",
+            request_params={},
+            method="GET",
+            response_check=resp_check,
+            timeout=5,
+            poke_interval=1,
+        )
+        with pytest.raises(AirflowException, match="500:Internal Server Error"):
+            task.execute(context={})
+
 
 class FakeSession:
     def __init__(self):
