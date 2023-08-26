@@ -28,7 +28,7 @@ Also, there are provided sensors that waits for a file, folder or partition to b
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:QuboleOperator:
 

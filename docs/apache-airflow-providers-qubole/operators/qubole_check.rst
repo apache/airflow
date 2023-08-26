@@ -26,7 +26,7 @@ Airflow provides operators to execute tasks (commands) on QDS and perform checks
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:QuboleCheckOperator:
 
