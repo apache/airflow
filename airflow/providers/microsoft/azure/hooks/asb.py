@@ -215,19 +215,18 @@ class MessageHook(BaseAzureServiceBusHook):
             raise ValueError("Messages list cannot be empty.")
         with self.get_conn() as service_bus_client, service_bus_client.get_queue_sender(
             queue_name=queue_name
-        ) as sender:
-            with sender:
-                if isinstance(messages, str):
-                    if not batch_message_flag:
-                        msg = ServiceBusMessage(messages)
-                        sender.send_messages(msg)
-                    else:
-                        self.send_batch_message(sender, [messages])
+        ) as sender, sender:
+            if isinstance(messages, str):
+                if not batch_message_flag:
+                    msg = ServiceBusMessage(messages)
+                    sender.send_messages(msg)
                 else:
-                    if not batch_message_flag:
-                        self.send_list_messages(sender, messages)
-                    else:
-                        self.send_batch_message(sender, messages)
+                    self.send_batch_message(sender, [messages])
+            else:
+                if not batch_message_flag:
+                    self.send_list_messages(sender, messages)
+                else:
+                    self.send_batch_message(sender, messages)
 
     @staticmethod
     def send_list_messages(sender: ServiceBusSender, messages: list[str]):
@@ -256,14 +255,13 @@ class MessageHook(BaseAzureServiceBusHook):
 
         with self.get_conn() as service_bus_client, service_bus_client.get_queue_receiver(
             queue_name=queue_name
-        ) as receiver:
-            with receiver:
-                received_msgs = receiver.receive_messages(
-                    max_message_count=max_message_count, max_wait_time=max_wait_time
-                )
-                for msg in received_msgs:
-                    self.log.info(msg)
-                    receiver.complete_message(msg)
+        ) as receiver, receiver:
+            received_msgs = receiver.receive_messages(
+                max_message_count=max_message_count, max_wait_time=max_wait_time
+            )
+            for msg in received_msgs:
+                self.log.info(msg)
+                receiver.complete_message(msg)
 
     def receive_subscription_message(
         self,
@@ -293,11 +291,10 @@ class MessageHook(BaseAzureServiceBusHook):
             raise TypeError("Topic name cannot be None.")
         with self.get_conn() as service_bus_client, service_bus_client.get_subscription_receiver(
             topic_name, subscription_name
-        ) as subscription_receiver:
-            with subscription_receiver:
-                received_msgs = subscription_receiver.receive_messages(
-                    max_message_count=max_message_count, max_wait_time=max_wait_time
-                )
-                for msg in received_msgs:
-                    self.log.info(msg)
-                    subscription_receiver.complete_message(msg)
+        ) as subscription_receiver, subscription_receiver:
+            received_msgs = subscription_receiver.receive_messages(
+                max_message_count=max_message_count, max_wait_time=max_wait_time
+            )
+            for msg in received_msgs:
+                self.log.info(msg)
+                subscription_receiver.complete_message(msg)

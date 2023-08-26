@@ -170,12 +170,10 @@ class PostgresHook(DbApiHook):
             with open(filename, "w"):
                 pass
 
-        with open(filename, "r+") as file:
-            with closing(self.get_conn()) as conn:
-                with closing(conn.cursor()) as cur:
-                    cur.copy_expert(sql, file)
-                    file.truncate(file.tell())
-                    conn.commit()
+        with open(filename, "r+") as file, closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
+            cur.copy_expert(sql, file)
+            file.truncate(file.tell())
+            conn.commit()
 
     def get_uri(self) -> str:
         """Extract the URI from the connection.
