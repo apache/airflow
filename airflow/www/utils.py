@@ -198,7 +198,7 @@ def check_import_errors(fileloc, session):
     ).all()
     if import_errors:
         for import_error in import_errors:
-            flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
+            flash(f"Broken DAG: [{import_error.filename}] {import_error.stacktrace}", "dag_import_error")
 
 
 def check_dag_warnings(dag_id, session):

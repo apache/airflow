@@ -87,13 +87,13 @@ class _TableConfig:
 
     @property
     def readable_config(self):
-        return dict(
-            table=self.orm_model.name,
-            recency_column=str(self.recency_column),
-            keep_last=self.keep_last,
-            keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
-            keep_last_group_by=str(self.keep_last_group_by),
-        )
+        return {
+            "table": self.orm_model.name,
+            "recency_column": str(self.recency_column),
+            "keep_last": self.keep_last,
+            "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
+            "keep_last_group_by": str(self.keep_last_group_by),
+        }
 
 
 config_list: list[_TableConfig] = [

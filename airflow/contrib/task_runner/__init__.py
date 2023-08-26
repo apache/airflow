@@ -28,8 +28,8 @@ warnings.warn(
 )
 
 __deprecated_classes = {
-    'cgroup_task_runner': {
-        'CgroupTaskRunner': 'airflow.task.task_runner.cgroup_task_runner.CgroupTaskRunner',
+    "cgroup_task_runner": {
+        "CgroupTaskRunner": "airflow.task.task_runner.cgroup_task_runner.CgroupTaskRunner",
     },
 }
 

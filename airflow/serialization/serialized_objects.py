@@ -481,7 +481,7 @@ class BaseSerialization:
         elif isinstance(var, XComArg):
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, Dataset):
-            return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
+            return cls._encode({"uri": var.uri, "extra": var.extra}, type_=DAT.DATASET)
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
                 cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
@@ -621,12 +621,12 @@ class BaseSerialization:
 
     @classmethod
     def _serialize_param(cls, param: Param):
-        return dict(
-            __class=f"{param.__module__}.{param.__class__.__name__}",
-            default=cls.serialize(param.value),
-            description=cls.serialize(param.description),
-            schema=cls.serialize(param.schema),
-        )
+        return {
+            "__class": f"{param.__module__}.{param.__class__.__name__}",
+            "default": cls.serialize(param.value),
+            "description": cls.serialize(param.description),
+            "schema": cls.serialize(param.schema),
+        }
 
     @classmethod
     def _deserialize_param(cls, param_dict: dict):

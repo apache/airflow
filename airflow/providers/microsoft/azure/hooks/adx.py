@@ -26,6 +26,7 @@ This module contains Azure Data Explorer hook.
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
 from typing import Any
 
 from azure.identity import DefaultAzureCredential
@@ -76,8 +77,8 @@ class AzureDataExplorerHook(BaseHook):
     conn_type = "azure_data_explorer"
     hook_name = "Azure Data Explorer"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -94,8 +95,8 @@ class AzureDataExplorerHook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
@@ -116,7 +117,11 @@ class AzureDataExplorerHook(BaseHook):
     def __init__(self, azure_data_explorer_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_data_explorer_conn_id
-        self.connection = self.get_conn()  # todo: make this a property, or just delete
+
+    @cached_property
+    def connection(self) -> KustoClient:
+        """Return a KustoClient object (cached)."""
+        return self.get_conn()
 
     def get_conn(self) -> KustoClient:
         """Return a KustoClient object."""
