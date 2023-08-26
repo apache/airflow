@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     try:
         import importlib_metadata
     except ImportError:
-        from importlib import metadata as importlib_metadata
+        from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
     from types import ModuleType
 
     from airflow.hooks.base import BaseHook
