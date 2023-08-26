@@ -319,9 +319,15 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
 
     sort_order = conf.get("webserver", "grid_view_sorting_order", fallback="topological")
     if sort_order == "topological":
-        sort_children_fn = lambda task_group: task_group.topological_sort()
+
+        def sort_children_fn(task_group):
+            return task_group.topological_sort()
+
     elif sort_order == "hierarchical_alphabetical":
-        sort_children_fn = lambda task_group: task_group.hierarchical_alphabetical_sort()
+
+        def sort_children_fn(task_group):
+            return task_group.hierarchical_alphabetical_sort()
+
     else:
         raise AirflowConfigException(f"Unsupported grid_view_sorting_order: {sort_order}")
 
