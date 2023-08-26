@@ -301,5 +301,3 @@ class MessageHook(BaseAzureServiceBusHook):
                 for msg in received_msgs:
                     self.log.info(msg)
                     subscription_receiver.complete_message(msg)
-                    self.log.info(msg)
-                    subscription_receiver.complete_message(msg)
