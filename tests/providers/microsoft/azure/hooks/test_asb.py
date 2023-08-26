@@ -49,10 +49,26 @@ class TestAdminClientHook:
                 schema=self.connection_string,
             )
         )
+        self.mock_conn_without_schema = Connection(
+            conn_id="azure_service_bus_default",
+            conn_type="azure_service_bus",
+            schema="",
+            extra={"fully_qualified_namespace": "fully_qualified_namespace"},
+        )
 
     def test_get_conn(self):
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusAdministrationClient)
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.DefaultAzureCredential")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_connection")
+    def test_get_conn_fallback_to_default_azure_credential_when_schema_is_not_provided(
+        self, mock_connection, mock_default_azure_credential
+    ):
+        mock_connection.return_value = self.mock_conn_without_schema
+        hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        assert isinstance(hook.get_conn(), ServiceBusAdministrationClient)
+        mock_default_azure_credential.assert_called_once()
 
     @mock.patch("azure.servicebus.management.QueueProperties")
     @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
@@ -140,6 +156,12 @@ class TestMessageHook:
                 schema=self.connection_string,
             )
         )
+        self.mock_conn_without_schema = Connection(
+            conn_id="azure_service_bus_default",
+            conn_type="azure_service_bus",
+            schema="",
+            extra={"fully_qualified_namespace": "fully_qualified_namespace"},
+        )
 
     def test_get_service_bus_message_conn(self):
         """
@@ -148,6 +170,16 @@ class TestMessageHook:
         """
         hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusClient)
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.DefaultAzureCredential")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_connection")
+    def test_get_conn_fallback_to_default_azure_credential_when_schema_is_not_provided(
+        self, mock_connection, mock_default_azure_credential
+    ):
+        mock_connection.return_value = self.mock_conn_without_schema
+        hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
+        assert isinstance(hook.get_conn(), ServiceBusClient)
+        mock_default_azure_credential.assert_called_once()
 
     @pytest.mark.parametrize(
         "mock_message, mock_batch_flag",
