@@ -225,7 +225,7 @@ class DockerOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.api_version = api_version
-        if type(auto_remove) == bool:
+        if isinstance(auto_remove, bool):
             warnings.warn(
                 "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
                 AirflowProviderDeprecationWarning,
