@@ -22,11 +22,11 @@ import math
 import time
 import warnings
 from datetime import datetime as dt
+from typing import TYPE_CHECKING
 
 import pendulum
 import tenacity
 from kubernetes import client, watch
-from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import HTTPError
@@ -37,6 +37,9 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from kubernetes.client.models.v1_pod import V1Pod
 
 warnings.warn(
     """
