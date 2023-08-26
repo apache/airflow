@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Misc
+~~~~
+
+* ``Replace repr() with proper formatting (#33520)``
+
+
 1.0.0
 .....
 

@@ -28,14 +28,37 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.3.0
+.....
+
+Latest change: 2023-08-25
+
+=================================================================================================  ===========  ========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================
+`38f2737153 <https://github.com/apache/airflow/commit/38f27371532b9f906bdeff0251d1c35956daf05c>`_  2023-08-25   ``Fix Azure Batch Hook instantation (#33731)``
+`0931abdb25 <https://github.com/apache/airflow/commit/0931abdb2563f1f46240c3b1ce82415e05bd48d4>`_  2023-08-25   ``Add AzureBatchOperator example (#33716)``
+`faa50cbe2f <https://github.com/apache/airflow/commit/faa50cbe2f6dbf816e599bbbb933ac4976a55778>`_  2023-08-24   ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerInstanceHook (#33467)``
+`96efcfb830 <https://github.com/apache/airflow/commit/96efcfb8301ed938ce62d46a12b429b724e7cf0f>`_  2023-08-24   ``Further improvements for provider verification (#33670)``
+`85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
+`9dac4878c7 <https://github.com/apache/airflow/commit/9dac4878c70f4178b89c2f7667b0d8ca0ca7dff7>`_  2023-08-24   ``Add DefaultAzureCredential auth for ADX service (#33627)``
+`4a7cd606cc <https://github.com/apache/airflow/commit/4a7cd606ccd0de041781437813507448240798a5>`_  2023-08-23   ``Bump azure-kusto-data>=4.1.0 (#33598)``
+`a54c2424df <https://github.com/apache/airflow/commit/a54c2424df51bf1acec420f4792a237dabcfa12b>`_  2023-08-23   ``Fix typos (double words and it's/its) (#33623)``
+`b43fcae14b <https://github.com/apache/airflow/commit/b43fcae14bc592017850d172f17a6782082321e8>`_  2023-08-21   ``Simplify conditions on len() in providers/microsoft (#33566)``
+`7700fb12cc <https://github.com/apache/airflow/commit/7700fb12cc6c7a97901662e6ac6aa1e4e932d969>`_  2023-08-20   ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+`bd608a56ab <https://github.com/apache/airflow/commit/bd608a56abd1a6c2a98987daf7f092d2dabea555>`_  2023-08-17   ``Fix updating account url for WasbHook (#33457)``
+`4460356c03 <https://github.com/apache/airflow/commit/4460356c03e5c1dedd72ce87a8ccfb9b19a33d76>`_  2023-08-14   ``Set logging level to WARNING (#33314)``
+=================================================================================================  ===========  ========================================================================================================
+
 6.2.4
 .....
 
-Latest change: 2023-08-07
+Latest change: 2023-08-11
 
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
 `8da1ff573b <https://github.com/apache/airflow/commit/8da1ff573bf598225f79899636efa0f9c55c4881>`_  2023-08-07   ``Clean microsoft azure provider by deleting the custom prefix from conn extra fields (#30558)``
 =================================================================================================  ===========  ================================================================================================
 

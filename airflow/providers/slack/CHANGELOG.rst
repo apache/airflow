@@ -64,6 +64,13 @@ Breaking changes
   ``tcp_keep_alive_idle``, ``tcp_keep_alive_idle``, ``tcp_keep_alive_count``, ``tcp_keep_alive_interval``
   from the ``SlackWebhookOperator``. Those parameters has no affect in the past, you should not provide it.
 
+* ``Remove deprecated parts from Slack provider (#33557)``
+* ``Replace deprecated slack notification in provider.yaml with new one (#33643)``
+
+Misc
+~~~~
+* ``Avoid importing pandas and numpy in runtime and module level (#33483)``
+* ``Consolidate import and usage of pandas (#33480)``
 
 7.3.2
 .....

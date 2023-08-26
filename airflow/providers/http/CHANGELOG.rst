@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+4.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
 4.5.0
 .....
 

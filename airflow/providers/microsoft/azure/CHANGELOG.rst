@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add AzureBatchOperator example (#33716)``
+* ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerInstanceHook (#33467)``
+* ``Add DefaultAzureCredential auth for ADX service (#33627)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix updating account url for WasbHook (#33457)``
+* ``Fix Azure Batch Hook instantation (#33731)``
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+* ``Bump azure-kusto-data>=4.1.0 (#33598)``
+* ``Simplify conditions on len() in providers/microsoft (#33566)``
+* ``Set logging level to WARNING (#33314)``
+* ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typos (double words and it's/its) (#33623)``
+   * ``Further improvements for provider verification (#33670)``
+
 6.2.4
 .....
 

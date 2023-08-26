@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.0.2
+.....
+
+Latest change: 2023-08-24
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`626d3daa9b <https://github.com/apache/airflow/commit/626d3daa9b5348fec6dfb4d29edcff97bba20298>`_  2023-08-24   ``Add OpenLineage support for Trino. (#32910)``
+`1cdd82391e <https://github.com/apache/airflow/commit/1cdd82391e0f7a24ab7f0badbe8f44a54f51d757>`_  2023-08-21   ``Simplify conditions on len() in other providers (#33569)``
+`abef61ff3d <https://github.com/apache/airflow/commit/abef61ff3d6b9ae8dcb7f9dbbea78a9648a0c50b>`_  2023-08-20   ``Replace repr() with proper formatting (#33520)``
+`6d3b71c333 <https://github.com/apache/airflow/commit/6d3b71c33390c8063502acfe0fc2cd936db74814>`_  2023-08-19   ``openlineage: don't run task instance listener in executor (#33366)``
+`8e738cd0ad <https://github.com/apache/airflow/commit/8e738cd0ad0e7dce644f66bb749a7b46770badee>`_  2023-08-15   ``openlineage: do not try to redact Proxy objects from deprecated config (#33393)``
+`23d5076635 <https://github.com/apache/airflow/commit/23d507663541ab49f02d7863d42f9baf458cc48f>`_  2023-08-13   ``openlineage: defensively check for provided datetimes in listener (#33343)``
+=================================================================================================  ===========  ===================================================================================
+
 1.0.1
 .....
 
-Latest change: 2023-08-04
+Latest change: 2023-08-05
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `bdc10a5ff6 <https://github.com/apache/airflow/commit/bdc10a5ff6fea0fd968345fd4a9b732be49b9761>`_  2023-08-04   ``Move openlineage configuration to provider (#33124)``
 `11ff650e1b <https://github.com/apache/airflow/commit/11ff650e1b122aadebcea462adfae5492a76ed94>`_  2023-08-04   ``openlineage: disable running listener if not configured (#33120)``
 `e10aa6ae6a <https://github.com/apache/airflow/commit/e10aa6ae6ad07830cbf5ec59d977654c52012c22>`_  2023-08-04   ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
