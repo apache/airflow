@@ -1651,10 +1651,9 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
     connection = settings.engine.connect()
 
-    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        with connection.begin():
-            drop_airflow_models(connection)
-            drop_airflow_moved_tables(connection)
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
+        drop_airflow_models(connection)
+        drop_airflow_moved_tables(connection)
 
     if not skip_init:
         initdb(session=session)
