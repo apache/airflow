@@ -1188,7 +1188,9 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         pipeline_options.update(self.options)
 
         # Convert argument names from lowerCamelCase to snake case.
-        camel_to_snake = lambda name: re.sub(r"[A-Z]", lambda x: "_" + x.group(0).lower(), name)
+        def camel_to_snake(name):
+            return re.sub("[A-Z]", lambda x: "_" + x.group(0).lower(), name)
+
         formatted_pipeline_options = {camel_to_snake(key): pipeline_options[key] for key in pipeline_options}
 
         def set_current_job_id(job_id):
