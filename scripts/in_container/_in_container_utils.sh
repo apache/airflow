@@ -303,6 +303,12 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
         if [[ ${provider_package} == "apache-airflow-providers-yandex" ]]; then
             continue
         fi
+        # Until we release latest `hive` provider with pure-sasl support, we need to remove it from the
+        # list of providers to install for Python 3.11 because we cannot build sasl it for Python 3.11
+        if [[ ${provider_package} == "apache-airflow-providers-apache-hive" \
+            && ${PYTHON_MAJOR_MINOR_VERSION} == "3.11" ]]; then
+            continue
+        fi
         echo -n "Checking if ${provider_package} is available in PyPI: "
         res=$(curl --head -s -o /dev/null -w "%{http_code}" "https://pypi.org/project/${provider_package}/")
         if [[ ${res} == "200" ]]; then
