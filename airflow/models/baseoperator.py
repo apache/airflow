@@ -1379,7 +1379,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return self.downstream_list
 
     def __repr__(self):
-        return "<Task({self.task_type}): {self.task_id}>".format(self=self)
+        return f"<Task({self.task_type}): {self.task_id}>"
 
     @property
     def operator_class(self) -> type[BaseOperator]:  # type: ignore[override]
