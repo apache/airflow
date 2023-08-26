@@ -92,13 +92,13 @@ class ElasticsearchSQLHook(DbApiHook):
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 
-        conn_args = dict(
-            host=conn.host,
-            port=conn.port,
-            user=conn.login or None,
-            password=conn.password or None,
-            scheme=conn.schema or "http",
-        )
+        conn_args = {
+            "host": conn.host,
+            "port": conn.port,
+            "user": conn.login or None,
+            "password": conn.password or None,
+            "scheme": conn.schema or "http",
+        }
 
         if conn.extra_dejson.get("http_compress", False):
             conn_args["http_compress"] = bool(["http_compress"])
@@ -116,11 +116,11 @@ class ElasticsearchSQLHook(DbApiHook):
 
         login = ""
         if conn.login:
-            login = "{conn.login}:{conn.password}@".format(conn=conn)
+            login = f"{conn.login}:{conn.password}@"
         host = conn.host
         if conn.port is not None:
             host += f":{conn.port}"
-        uri = "{conn.conn_type}+{conn.schema}://{login}{host}/".format(conn=conn, login=login, host=host)
+        uri = f"{conn.conn_type}+{conn.schema}://{login}{host}/"
 
         extras_length = len(conn.extra_dejson)
         if not extras_length:

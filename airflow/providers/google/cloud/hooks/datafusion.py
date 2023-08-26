@@ -17,6 +17,7 @@
 """This module contains Google DataFusion hook."""
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from time import monotonic, sleep
@@ -528,7 +529,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                     break
                 except Exception as exc:
                     if "404" in str(exc):
-                        sleep(time_to_wait)
+                        await asyncio.sleep(time_to_wait)
                     else:
                         raise
         if pipeline:

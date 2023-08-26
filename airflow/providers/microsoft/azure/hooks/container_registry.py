@@ -18,6 +18,7 @@
 """Hook for Azure Container Registry."""
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any
 
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
@@ -39,8 +40,8 @@ class AzureContainerRegistryHook(BaseHook):
     conn_type = "azure_container_registry"
     hook_name = "Azure Container Registry"
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
@@ -59,7 +60,10 @@ class AzureContainerRegistryHook(BaseHook):
     def __init__(self, conn_id: str = "azure_registry") -> None:
         super().__init__()
         self.conn_id = conn_id
-        self.connection = self.get_conn()
+
+    @cached_property
+    def connection(self) -> ImageRegistryCredential:
+        return self.get_conn()
 
     def get_conn(self) -> ImageRegistryCredential:
         conn = self.get_connection(self.conn_id)
