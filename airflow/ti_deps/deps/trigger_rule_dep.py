@@ -124,6 +124,8 @@ class TriggerRuleDep(BaseTIDep):
         task = ti.task
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
         trigger_rule = task.trigger_rule
+        all_upstream_setups = {x.task_id: x for x in ti.task.get_upstreams_only_setups()}
+        all_relevant_upstreams = {**upstream_tasks, **all_upstream_setups}
 
         @functools.lru_cache
         def _get_expanded_ti_count() -> int:
