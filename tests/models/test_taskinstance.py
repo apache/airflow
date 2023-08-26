@@ -1522,6 +1522,187 @@ class TestTaskInstance:
         assert completed == expect_passed
         assert ti.state == expect_state
 
+    @pytest.mark.parametrize(
+        "trigger_rule, direct_upstream_setups, indirect_upstream_setups, upstream_states,"
+        " flag_upstream_failed, expect_state, expect_passed",
+        [
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(7, 0, 0, 0, 0, 7, 2, 0, 0),
+                True,
+                None,
+                True,
+                id="indirect upstream setups - all success",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(7, 0, 0, 0, 0, 7, 1, 0, 0),
+                True,
+                None,
+                False,
+                id="indirect upstream setups - one not done and one success",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(7, 0, 0, 0, 0, 7, 0, 1, 0),
+                True,
+                None,
+                False,
+                id="indirect upstream setups - one not done and one skipped",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(7, 0, 0, 0, 0, 7, 1, 1, 0),
+                True,
+                TaskInstanceState.SKIPPED,
+                True,
+                id="indirect upstream setups - all done: one skipped and one success",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(7, 0, 0, 0, 0, 7, 1, 0, 1),
+                True,
+                TaskInstanceState.UPSTREAM_FAILED,
+                False,
+                id="indirect upstream setups - all done: one success and one failed",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(7, 0, 0, 0, 0, 7, 0, 1, 1),
+                True,
+                TaskInstanceState.UPSTREAM_FAILED,
+                False,
+                id="indirect upstream setups - all done: one skipped and one failed",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(7, 0, 0, 0, 0, 7, 0, 0, 1),
+                True,
+                TaskInstanceState.UPSTREAM_FAILED,
+                False,
+                id="indirect upstream setups - one not done and one failed",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(0, 0, 1, 0, 0, 1, 2, 0, 0),
+                True,
+                TaskInstanceState.UPSTREAM_FAILED,
+                False,
+                id="indirect upstream setups - all setup success but upstream failed",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(5, 0, 0, 0, 0, 5, 2, 0, 0),
+                True,
+                None,
+                False,
+                id="indirect upstream setups - all setup success but upstream still running",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0, 1),
+                True,
+                TaskInstanceState.UPSTREAM_FAILED,
+                False,
+                id="indirect upstream setups - one setup failed but upstream still running",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(4, 0, 1, 0, 0, 5, 0, 2, 0),
+                True,
+                TaskInstanceState.UPSTREAM_FAILED,
+                False,
+                id="indirect upstream setups - all setup skipped but upstream failed",
+            ),
+            param(
+                "all_success",
+                0,
+                2,
+                _UpstreamTIStates(0, 7, 0, 0, 0, 7, 0, 0, 1),
+                True,
+                TaskInstanceState.UPSTREAM_FAILED,
+                False,
+                id="indirect upstream setups - one setup failed but upstream skipped",
+            ),
+        ],
+    )
+    def test_check_task_dependencies_indirect_upstream(
+        self,
+        monkeypatch,
+        dag_maker,
+        trigger_rule: str,
+        direct_upstream_setups: int,
+        indirect_upstream_setups: int,
+        upstream_states: _UpstreamTIStates,
+        flag_upstream_failed: bool,
+        expect_state: State,
+        expect_passed: bool,
+    ):
+        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
+
+        # sanity checks
+        s = upstream_states
+        assert s.skipped >= s.skipped_setup - indirect_upstream_setups
+        assert s.success >= s.success_setup - indirect_upstream_setups
+        assert s.done == s.failed + s.success + s.removed + s.upstream_failed + s.skipped
+
+        setup_upstream_tasks = []
+        with dag_maker() as dag:
+            downstream = EmptyOperator(task_id="downstream", trigger_rule=trigger_rule)
+            if trigger_rule == "all_done_setup_success":
+                downstream.is_teardown = True
+            for i in range(5):
+                task = EmptyOperator(task_id=f"work_{i}", dag=dag)
+                task.set_downstream(downstream)
+            for i in range(direct_upstream_setups):
+                task = EmptyOperator(task_id=f"direct_setup_{i}", dag=dag).as_setup()
+                task.set_downstream(downstream)
+                setup_upstream_tasks.append(task)
+            for i in range(indirect_upstream_setups):
+                setup_task = EmptyOperator(task_id=f"indirect_setup_{i}", dag=dag).as_setup()
+                task = EmptyOperator(task_id=f"indirect_setup_downstream_{i}", dag=dag)
+                setup_task.set_downstream(task)
+                task.set_downstream(downstream)
+                setup_upstream_tasks.append(setup_task)
+            assert task.start_date is not None
+            run_date = task.start_date + datetime.timedelta(days=5)
+
+        ti = dag_maker.create_dagrun(execution_date=run_date).get_task_instance(downstream.task_id)
+        ti.task = downstream
+
+        dep_results = TriggerRuleDep()._evaluate_trigger_rule(
+            ti=ti,
+            dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+            setup_upstream_tasks=setup_upstream_tasks,  # type: ignore
+            session=dag_maker.session,
+        )
+        completed = all(dep.passed for dep in dep_results)
+
+        assert completed == expect_passed
+        assert ti.state == expect_state
+
     # Parameterized tests to check for the correct firing
     # of the trigger_rule under various circumstances of mapped task
     # Numeric fields are in order:
