@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import os
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from connexion import NoContent
 from flask import Response, request
 from marshmallow import ValidationError
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.update_mask import extract_update_mask_data
@@ -35,7 +35,6 @@ from airflow.api_connexion.schemas.connection_schema import (
     connection_schema,
     connection_test_schema,
 )
-from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
@@ -45,6 +44,11 @@ from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.strings import get_random_string
 from airflow.www.decorators import action_logging
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.api_connexion.types import APIResponse, UpdateMask
 
 RESOURCE_EVENT_PREFIX = "connection"
 

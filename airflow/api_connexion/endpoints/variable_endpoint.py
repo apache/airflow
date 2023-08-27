@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from flask import Response
 from marshmallow import ValidationError
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
@@ -29,12 +29,16 @@ from airflow.api_connexion.endpoints.update_mask import extract_update_mask_data
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
-from airflow.api_connexion.types import UpdateMask
 from airflow.models import Variable
 from airflow.security import permissions
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.api_connexion.types import UpdateMask
 
 RESOURCE_EVENT_PREFIX = "variable"
 
