@@ -645,13 +645,13 @@ jobs:
           breeze release-management publish-docs
           --override-versioned
           ${{ needs.build-info.outputs.docs-filter-list-as-string }}
-      - name: "Generate back-reference for providers"
+      - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
-      - name: "Generate back-reference for apache-airflow"
+      - name: "Generate back references for apache-airflow"
         run: breeze release-management add-back-references apache-airflow
-      - name: "Generate back-reference for docker-stack"
+      - name: "Generate back references for docker-stack"
         run: breeze release-management add-back-references docker-stack
-      - name: "Generate back-reference for helm-chart"
+      - name: "Generate back references for helm-chart"
         run: breeze release-management add-back-references helm-chart
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
