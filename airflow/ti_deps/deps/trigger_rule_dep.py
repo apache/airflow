@@ -131,7 +131,7 @@ class TriggerRuleDep(BaseTIDep):
         if ti.task.is_teardown:
             setup_upstream_tasks = [task for task in ti.task.upstream_list if task.is_setup]
         else:
-            setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
+            setup_upstream_tasks = list(ti.task.get_indirect_upstreams_only_setups())
 
         task = ti.task
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
@@ -189,8 +189,15 @@ class TriggerRuleDep(BaseTIDep):
             return False
 
         def _is_relevant_setup_upstream(upstream: TaskInstance) -> bool:
-            """Whether a task instance is a "relevant setup" of the current task."""
+            """Whether a task instance is a "relevant indirect upstream setup" of the current task.
+
+            For teardown tasks, all relevant setup task should be considered as upstream setup.
+            """
             if upstream.task_id in map(lambda t: t.task_id, setup_upstream_tasks):
+                if upstream.task_id in ti.task.upstream_task_ids and not ti.task.is_teardown:
+                    # We should treat direct upstream setup tasks as normal upstream tasks,
+                    # except for teardown tasks
+                    return False
                 relevant = _get_relevant_upstream_map_indexes(upstream.task_id)
                 if relevant is None:
                     return True
@@ -258,11 +265,10 @@ class TriggerRuleDep(BaseTIDep):
         # "simple" tasks (no task or task group mapping involved).
         if not ti.task.is_teardown:
             upstream_setup = len(setup_upstream_tasks)  # count of setup tasks upstream of this task
-        else:
-            upstream_setup = None
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
-            upstream_setup = upstream_setup or sum(1 for x in upstream_tasks.values() if x.is_setup)
+            if ti.task.is_teardown:
+                upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
         else:
             task_id_counts = session.execute(
                 select(TaskInstance.task_id, func.count(TaskInstance.task_id))
@@ -271,7 +277,8 @@ class TriggerRuleDep(BaseTIDep):
                 .group_by(TaskInstance.task_id)
             ).all()
             upstream = sum(count for _, count in task_id_counts)
-            upstream_setup = upstream_setup or sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
+            if ti.task.is_teardown:
+                upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
 
         upstream_done = done >= upstream
         setup_done = (success_setup + skipped_setup + failed_setup) >= upstream_setup
