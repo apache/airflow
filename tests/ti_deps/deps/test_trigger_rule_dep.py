@@ -774,9 +774,7 @@ class TestTriggerRuleDep:
         ti.task.is_teardown = True
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
-                ti=ti,
-                dep_context=DepContext(flag_upstream_failed=True),
-                session=session,
+                ti=ti, dep_context=DepContext(flag_upstream_failed=True), session=session
             )
         )
         if exp_reason:

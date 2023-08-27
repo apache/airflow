@@ -20,7 +20,8 @@ from __future__ import annotations
 import collections
 import collections.abc
 import functools
-from typing import TYPE_CHECKING, Iterator, NamedTuple
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Iterator
 
 from sqlalchemy import and_, func, or_, select
 
@@ -37,7 +38,8 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
-class _UpstreamTIStates(NamedTuple):
+@dataclass
+class _UpstreamTIStates:
     """States of the upstream tis for a specific ti.
 
     This is used to determine whether the specific ti can run in this iteration.
@@ -51,7 +53,7 @@ class _UpstreamTIStates(NamedTuple):
     done: int
     success_setup: int
     skipped_setup: int
-    failed_setup: int
+    failed_setup: int = 0
 
     @classmethod
     def calculate(
