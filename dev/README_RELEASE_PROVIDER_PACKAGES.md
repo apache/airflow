@@ -385,7 +385,6 @@ If you have providers as list of provider ids because you just released them, yo
 All providers (including overriding documentation for doc-only changes) - note that publishing is
 way faster on multi-cpu machines when you are publishing multiple providers:
 
-```shell script
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
