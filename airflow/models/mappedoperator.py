@@ -21,13 +21,10 @@ import collections
 import collections.abc
 import contextlib
 import copy
-import datetime
 import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Mapping, Sequence, Union
 
 import attr
-import pendulum
-from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.compat.functools import cache
@@ -45,37 +42,46 @@ from airflow.models.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     NotMapped,
-    TaskStateChangeCallback,
 )
 from airflow.models.expandinput import (
     DictOfListsExpandInput,
-    ExpandInput,
     ListOfDictsExpandInput,
-    OperatorExpandArgument,
-    OperatorExpandKwargsArgument,
     is_mappable,
 )
-from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
-from airflow.utils.context import Context, context_update_for_unmapped
+from airflow.utils.context import context_update_for_unmapped
 from airflow.utils.helpers import is_container, prevent_duplicates
-from airflow.utils.operator_resources import Resources
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
-    import jinja2  # Slow import.
+    import datetime
 
+    import jinja2  # Slow import.
+    import pendulum
+    from sqlalchemy.orm.session import Session
+
+    from airflow.models.abstractoperator import (
+        TaskStateChangeCallback,
+    )
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
+    from airflow.models.expandinput import (
+        ExpandInput,
+        OperatorExpandArgument,
+        OperatorExpandKwargsArgument,
+    )
     from airflow.models.operator import Operator
+    from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
+    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.utils.context import Context
+    from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
+    from airflow.utils.trigger_rule import TriggerRule
 
 ValidationSource = Union[Literal["expand"], Literal["partial"]]
 
