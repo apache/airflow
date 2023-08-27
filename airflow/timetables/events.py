@@ -56,7 +56,7 @@ class EventsTimetable(Timetable):
         self.event_dates = list(event_dates)  # Must be reversible and indexable
         if not presorted:
             # For long lists this could take a while, so only want to do it once
-            self.event_dates = sorted(self.event_dates)
+            self.event_dates.sort()
         self.restrict_to_events = restrict_to_events
         if description is None:
             self.description = (

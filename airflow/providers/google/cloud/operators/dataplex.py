@@ -24,13 +24,14 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow import AirflowException
 
 if TYPE_CHECKING:
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataplex_v1.types import Asset, DataScan, DataScanJob, Lake, Task, Zone
-from google.protobuf.field_mask_pb2 import FieldMask
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanException, DataplexHook

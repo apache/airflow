@@ -28,7 +28,7 @@ from __future__ import annotations
 import logging
 import os
 from functools import cached_property
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, Union
 from urllib.parse import urlparse
 
 from asgiref.sync import sync_to_async
@@ -39,7 +39,6 @@ from azure.identity.aio import (
     DefaultAzureCredential as AsyncDefaultAzureCredential,
 )
 from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient, StorageStreamDownloader
-from azure.storage.blob._models import BlobProperties
 from azure.storage.blob.aio import (
     BlobClient as AsyncBlobClient,
     BlobServiceClient as AsyncBlobServiceClient,
@@ -48,6 +47,9 @@ from azure.storage.blob.aio import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from azure.storage.blob._models import BlobProperties
 
 AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
 

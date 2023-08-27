@@ -868,7 +868,7 @@ class DagFileProcessorManager(LoggingMixin):
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
         # Sort by longest last runtime. (Can't sort None values in python3)
-        rows = sorted(rows, key=lambda x: x[3] or 0.0)
+        rows.sort(key=lambda x: x[3] or 0.0)
 
         formatted_rows = []
         for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows:
@@ -1170,7 +1170,7 @@ class DagFileProcessorManager(LoggingMixin):
         if is_mtime_mode:
             file_paths = sorted(files_with_mtime, key=files_with_mtime.get, reverse=True)
         elif list_mode == "alphabetical":
-            file_paths = sorted(file_paths)
+            file_paths.sort()
         elif list_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple schedulers can work on different
             # set of files. Since we set the seed, the sort order will remain same per host

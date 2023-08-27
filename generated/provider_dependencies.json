@@ -754,7 +754,7 @@
   "redis": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "redis>=3.2.0"
+      "redis>=4.5.2,<5.0.0,!=4.5.5"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []

@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
-from kubernetes.client.models import V1Pod
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -46,6 +45,8 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperati
 from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
+    from kubernetes.client.models import V1Pod
+
     from airflow.utils.context import Context
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"

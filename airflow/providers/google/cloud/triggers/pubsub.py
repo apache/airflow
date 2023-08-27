@@ -20,12 +20,12 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Sequence
 
-from google.cloud.pubsub_v1.types import ReceivedMessage
-
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
+    from google.cloud.pubsub_v1.types import ReceivedMessage
+
     from airflow.utils.context import Context
 
 

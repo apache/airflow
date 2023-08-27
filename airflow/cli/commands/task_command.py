@@ -25,12 +25,13 @@ import os
 import sys
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import TYPE_CHECKING, Generator, Union, cast
+from typing import TYPE_CHECKING, Generator, Protocol, Union, cast
 
 import pendulum
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
+from typing_extensions import Literal
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
@@ -49,7 +50,6 @@ from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
-from airflow.typing_compat import Literal, Protocol
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_dag,

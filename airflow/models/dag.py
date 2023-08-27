@@ -131,13 +131,13 @@ if TYPE_CHECKING:
     from pendulum.tz.timezone import Timezone
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
+    from typing_extensions import Literal
 
     from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
     from airflow.models.slamiss import SlaMiss
-    from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
 log = logging.getLogger(__name__)

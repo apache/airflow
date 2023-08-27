@@ -18,13 +18,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from attrs import Factory, define
-from openlineage.client.facet import BaseFacet
-from openlineage.client.run import Dataset
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from openlineage.client.facet import BaseFacet
+    from openlineage.client.run import Dataset
 
 
 @define
