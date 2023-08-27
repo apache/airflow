@@ -73,7 +73,9 @@ hooks:
 
 connection-types:
   - hook-class-name: airflow.providers.apache.druid.hooks.druid.DruidDbApiHook
-    connection-type: druid
+    connection-type: druid_broker
+  - hook-class-name: airflow.providers.apache.druid.hooks.druid.DruidHook
+    connection-type: druid_ingest
 
 transfers:
   - source-integration-name: Apache Hive

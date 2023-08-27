@@ -55,9 +55,14 @@ class DruidHook(BaseHook):
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     """
 
+    conn_name_attr = "druid_ingest_conn_id"
+    default_conn_name = "druid_ingest_default"
+    conn_type = "druid_ingest"
+    hook_name = "Druid Ingest"
+
     def __init__(
         self,
-        druid_ingest_conn_id: str = "druid_ingest_default",
+        druid_ingest_conn_id: str = default_conn_name,
         timeout: int = 1,
         max_ingestion_time: int | None = None,
     ) -> None:
@@ -149,6 +154,19 @@ class DruidHook(BaseHook):
 
         self.log.info("Successful index")
 
+    def test_connection(self) -> tuple[bool, str]:
+        try:
+            conn = self.get_connection(self.druid_ingest_conn_id)
+            host = conn.host
+            port = conn.port
+            # ref : https://druid.apache.org/docs/latest/operations/api-reference/#tasks
+            response = requests.get(f"http://{host}:{port}/druid/indexer/v1/tasks")
+            if response.status_code == 200:
+                return True, "Connection successfully tested"
+            else:
+                return False, response.reason
+        except Exception as e:
+            return False, str(e)
 
 class DruidDbApiHook(DbApiHook):
     """
@@ -160,8 +178,8 @@ class DruidDbApiHook(DbApiHook):
 
     conn_name_attr = "druid_broker_conn_id"
     default_conn_name = "druid_broker_default"
-    conn_type = "druid"
-    hook_name = "Druid"
+    conn_type = "druid_broker"
+    hook_name = "Druid Broker"
     supports_autocommit = False
 
     def get_conn(self) -> connect:
