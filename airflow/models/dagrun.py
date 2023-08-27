@@ -72,10 +72,10 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from sqlalchemy.orm import Query, Session
+    from typing_extensions import Literal
 
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
-    from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])

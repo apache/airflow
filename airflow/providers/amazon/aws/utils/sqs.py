@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Literal
+from typing import Any
 
 from jsonpath_ng import parse
+from typing_extensions import Literal
 
 log = logging.getLogger(__name__)
 
