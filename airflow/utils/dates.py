@@ -23,9 +23,9 @@ from typing import Collection
 
 from croniter import croniter
 from dateutil.relativedelta import relativedelta  # for doctest
+from typing_extensions import Literal
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.typing_compat import Literal
 from airflow.utils import timezone
 
 cron_presets: dict[str, str] = {

@@ -71,9 +71,9 @@ from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
     import jinja2
+    from typing_extensions import Literal
 
     from airflow.providers.cncf.kubernetes.secret import Secret
-    from airflow.typing_compat import Literal
     from airflow.utils.context import Context
 
 alphanum_lower = string.ascii_lowercase + string.digits
