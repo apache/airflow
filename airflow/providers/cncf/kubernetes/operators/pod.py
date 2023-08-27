@@ -52,7 +52,6 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
@@ -65,7 +64,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     get_container_termination_message,
 )
 from airflow.settings import pod_mutation_hook
-from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.utils.timezone import utcnow
@@ -74,6 +72,8 @@ from airflow.version import version as airflow_version
 if TYPE_CHECKING:
     import jinja2
 
+    from airflow.providers.cncf.kubernetes.secret import Secret
+    from airflow.typing_compat import Literal
     from airflow.utils.context import Context
 
 alphanum_lower = string.ascii_lowercase + string.digits
