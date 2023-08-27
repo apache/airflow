@@ -19,14 +19,16 @@
 from __future__ import annotations
 
 import sys
-from logging import LogRecord
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import re2
 from colorlog import TTYColoredFormatter
 from colorlog.escape_codes import esc, escape_codes
 
 from airflow.utils.log.timezone_aware import TimezoneAware
+
+if TYPE_CHECKING:
+    from logging import LogRecord
 
 DEFAULT_COLORS = {
     "DEBUG": "green",
