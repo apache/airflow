@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models import Operator
+from typing import TYPE_CHECKING
+
 from airflow.models.abstractoperator import AbstractOperator
-from airflow.models.dag import DAG
+
+if TYPE_CHECKING:
+    from airflow.models import Operator
+    from airflow.models.dag import DAG
 
 
 def dag_edges(dag: DAG):
