@@ -131,7 +131,7 @@ class TriggerRuleDep(BaseTIDep):
         if ti.task.is_teardown:
             setup_upstream_tasks = [task for task in ti.task.upstream_list if task.is_setup]
         else:
-            setup_upstream_tasks = list(ti.task.get_indirect_upstreams_only_setups())
+            setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
 
         task = ti.task
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
@@ -189,15 +189,8 @@ class TriggerRuleDep(BaseTIDep):
             return False
 
         def _is_relevant_setup_upstream(upstream: TaskInstance) -> bool:
-            """Whether a task instance is a "relevant indirect upstream setup" of the current task.
-
-            For teardown tasks, all relevant setup task should be considered as upstream setup.
-            """
+            """Whether a task instance is a "relevant upstream setup" of the current task."""
             if upstream.task_id in map(lambda t: t.task_id, setup_upstream_tasks):
-                if upstream.task_id in ti.task.upstream_task_ids and not ti.task.is_teardown:
-                    # We should treat direct upstream setup tasks as normal upstream tasks,
-                    # except for teardown tasks
-                    return False
                 relevant = _get_relevant_upstream_map_indexes(upstream.task_id)
                 if relevant is None:
                     return True
@@ -290,55 +283,58 @@ class TriggerRuleDep(BaseTIDep):
                 # we should exclude the teardown tasks from this check,
                 # because they should be run even if there is only one success setup task
                 new_state = TaskInstanceState.UPSTREAM_FAILED
-            elif trigger_rule == TR.ALL_SUCCESS:
-                if upstream_failed or failed:
-                    new_state = TaskInstanceState.UPSTREAM_FAILED
-                elif skipped:
-                    new_state = TaskInstanceState.SKIPPED
-                elif removed and success and ti.map_index > -1:
-                    if ti.map_index >= success:
-                        new_state = TaskInstanceState.REMOVED
-            elif trigger_rule == TR.ALL_FAILED:
-                if success or skipped:
-                    new_state = TaskInstanceState.SKIPPED
-            elif trigger_rule == TR.ONE_SUCCESS:
-                if upstream_done and done == skipped:
-                    # if upstream is done and all are skipped mark as skipped
-                    new_state = TaskInstanceState.SKIPPED
-                elif upstream_done and success <= 0:
-                    # if upstream is done and there are no success mark as upstream failed
-                    new_state = TaskInstanceState.UPSTREAM_FAILED
-            elif trigger_rule == TR.ONE_FAILED:
-                if upstream_done and not (failed or upstream_failed):
-                    new_state = TaskInstanceState.SKIPPED
-            elif trigger_rule == TR.ONE_DONE:
-                if upstream_done and not (failed or success):
-                    new_state = TaskInstanceState.SKIPPED
-            elif trigger_rule == TR.NONE_FAILED:
-                if upstream_failed or failed:
-                    new_state = TaskInstanceState.UPSTREAM_FAILED
-            elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
-                if upstream_failed or failed:
-                    new_state = TaskInstanceState.UPSTREAM_FAILED
-                elif skipped == upstream:
-                    new_state = TaskInstanceState.SKIPPED
-            elif trigger_rule == TR.NONE_SKIPPED:
-                if skipped:
-                    new_state = TaskInstanceState.SKIPPED
-            elif trigger_rule == TR.ALL_SKIPPED:
-                if success or failed:
-                    new_state = TaskInstanceState.SKIPPED
-            elif trigger_rule == TR.ALL_DONE_SETUP_SUCCESS:
-                if upstream_done and upstream_setup and skipped_setup >= upstream_setup:
-                    # when there is an upstream setup and they have all skipped, then skip
-                    new_state = TaskInstanceState.SKIPPED
-                elif upstream_done and upstream_setup and setup_done and success_setup == 0:
-                    # when there is an upstream setup, if none succeeded, mark upstream failed
-                    # if at least one setup ran, we'll let it run
-                    new_state = TaskInstanceState.UPSTREAM_FAILED
-            if not task.is_teardown and upstream_setup and not new_state and setup_done and skipped_setup > 0:
+            elif not task.is_teardown and upstream_setup and setup_done and skipped_setup > 0:
                 # when there are upstream setup tasks and at least one of them is skipped, then skip
                 new_state = TaskInstanceState.SKIPPED
+            elif not upstream_setup or setup_done:
+                # if there are no upstream setup tasks or all of them are done,
+                # and we haven't set a new state, then we can check the upstream tasks
+                if trigger_rule == TR.ALL_SUCCESS:
+                    if upstream_failed or failed:
+                        new_state = TaskInstanceState.UPSTREAM_FAILED
+                    elif skipped:
+                        new_state = TaskInstanceState.SKIPPED
+                    elif removed and success and ti.map_index > -1:
+                        if ti.map_index >= success:
+                            new_state = TaskInstanceState.REMOVED
+                elif trigger_rule == TR.ALL_FAILED:
+                    if success or skipped:
+                        new_state = TaskInstanceState.SKIPPED
+                elif trigger_rule == TR.ONE_SUCCESS:
+                    if upstream_done and done == skipped:
+                        # if upstream is done and all are skipped mark as skipped
+                        new_state = TaskInstanceState.SKIPPED
+                    elif upstream_done and success <= 0:
+                        # if upstream is done and there are no success mark as upstream failed
+                        new_state = TaskInstanceState.UPSTREAM_FAILED
+                elif trigger_rule == TR.ONE_FAILED:
+                    if upstream_done and not (failed or upstream_failed):
+                        new_state = TaskInstanceState.SKIPPED
+                elif trigger_rule == TR.ONE_DONE:
+                    if upstream_done and not (failed or success):
+                        new_state = TaskInstanceState.SKIPPED
+                elif trigger_rule == TR.NONE_FAILED:
+                    if upstream_failed or failed:
+                        new_state = TaskInstanceState.UPSTREAM_FAILED
+                elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
+                    if upstream_failed or failed:
+                        new_state = TaskInstanceState.UPSTREAM_FAILED
+                    elif skipped == upstream:
+                        new_state = TaskInstanceState.SKIPPED
+                elif trigger_rule == TR.NONE_SKIPPED:
+                    if skipped:
+                        new_state = TaskInstanceState.SKIPPED
+                elif trigger_rule == TR.ALL_SKIPPED:
+                    if success or failed:
+                        new_state = TaskInstanceState.SKIPPED
+                elif trigger_rule == TR.ALL_DONE_SETUP_SUCCESS:
+                    if upstream_done and upstream_setup and skipped_setup >= upstream_setup:
+                        # when there is an upstream setup and they have all skipped, then skip
+                        new_state = TaskInstanceState.SKIPPED
+                    elif upstream_done and upstream_setup and setup_done and success_setup == 0:
+                        # when there is an upstream setup, if none succeeded, mark upstream failed
+                        # if at least one setup ran, we'll let it run
+                        new_state = TaskInstanceState.UPSTREAM_FAILED
 
         if new_state is not None:
             if new_state == TaskInstanceState.SKIPPED and dep_context.wait_for_past_depends_before_skipping:

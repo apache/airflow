@@ -293,7 +293,7 @@ class AbstractOperator(Templater, DAGNode):
                     if t.is_teardown and not t == self:
                         yield t
 
-    def get_indirect_upstreams_only_setups(self) -> Iterable[Operator]:
+    def get_upstreams_only_setups(self) -> Iterable[Operator]:
         """
         Only upstream setups.
 
@@ -301,7 +301,7 @@ class AbstractOperator(Templater, DAGNode):
         to wait for all the upstream setups to complete before we can run the task.
         """
         for task in self.get_upstreams_only_setups_and_teardowns():
-            if task.is_setup and task.task_id not in self.upstream_task_ids:
+            if task.is_setup:
                 yield task
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
