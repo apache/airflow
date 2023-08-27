@@ -987,9 +987,15 @@ class TestTriggerRuleDep:
             return (ti for ti in tis.values() if ti.task_id in tis[task_id].task.upstream_task_ids)
 
         # check handling with cases that tasks are triggered from backfill with no finished tasks
-        assert _UpstreamTIStates.calculate(_get_finished_tis("op2"), []) == (1, 0, 0, 0, 0, 1, 0, 0, 0)
-        assert _UpstreamTIStates.calculate(_get_finished_tis("op4"), []) == (1, 0, 1, 0, 0, 2, 0, 0, 0)
-        assert _UpstreamTIStates.calculate(_get_finished_tis("op5"), []) == (2, 0, 1, 0, 0, 3, 0, 0, 0)
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op2"), []) == _UpstreamTIStates(
+            1, 0, 0, 0, 0, 1, 0, 0, 0
+        )
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op4"), []) == _UpstreamTIStates(
+            1, 0, 1, 0, 0, 2, 0, 0, 0
+        )
+        assert _UpstreamTIStates.calculate(_get_finished_tis("op5"), []) == _UpstreamTIStates(
+            2, 0, 1, 0, 0, 3, 0, 0, 0
+        )
 
         dr.update_state(session=session)
         assert dr.state == DagRunState.SUCCESS

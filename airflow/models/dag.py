@@ -724,9 +724,7 @@ class DAG(LoggingMixin):
                         TriggerRule.ALL_SUCCESS,
                     ]:
                         # this is required to ensure consistent clearing behavior when upstream
-                        raise ValueError(
-                            "Setup tasks must be followed with trigger rule ALL_SUCCESS."
-                        )
+                        raise ValueError("Setup tasks must be followed with trigger rule ALL_SUCCESS.")
             FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
     def __repr__(self):
