@@ -111,9 +111,12 @@ def generate_back_references(link: str, base_path: Path):
         for old, new in old_to_new:
             # only if old file exists, add the back reference
             if (versioned_provider_path / old).exists():
-                split_new_path, file_name = new.rsplit("/", 1)
-                dest_dir = versioned_provider_path / split_new_path
-
+                if "/" in new:
+                    split_new_path, file_name = new.rsplit("/", 1)
+                    dest_dir = versioned_provider_path / split_new_path
+                else:
+                    file_name = new
+                    dest_dir = versioned_provider_path
                 # finds relative path of old file with respect to new and handles case of different file
                 # names also
                 relative_path = os.path.relpath(old, new)
