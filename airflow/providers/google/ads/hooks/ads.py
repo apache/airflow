@@ -224,7 +224,9 @@ class GoogleAdsHook(BaseHook):
 
         iterators = []
         for client_id in client_ids:
-            iterator = service.search(request=dict(customer_id=client_id, query=query, page_size=page_size))
+            iterator = service.search(
+                request={"customer_id": client_id, "query": query, "page_size": page_size}
+            )
             iterators.append(iterator)
 
         self.log.info("Fetched Google Ads Iterators")

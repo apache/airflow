@@ -250,6 +250,7 @@ class KubernetesPodOperator(BaseOperator):
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
     ISTIO_CONTAINER_NAME = "istio-proxy"
+    KILL_ISTIO_PROXY_SUCCESS_MSG = "HTTP/1.1 200"
     POD_CHECKED_KEY = "already_checked"
     POST_TERMINATION_TIMEOUT = 120
 
@@ -777,25 +778,31 @@ class KubernetesPodOperator(BaseOperator):
         return False
 
     def kill_istio_sidecar(self, pod: V1Pod) -> None:
-        command = "/bin/sh -c curl -fsI -X POST http://localhost:15020/quitquitquit && exit 0"
+        command = "/bin/sh -c 'curl -fsI -X POST http://localhost:15020/quitquitquit'"
         command_to_container = shlex.split(command)
-        try:
-            resp = stream(
-                self.client.connect_get_namespaced_pod_exec,
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                container=self.ISTIO_CONTAINER_NAME,
-                command=command_to_container,
-                stderr=True,
-                stdin=True,
-                stdout=True,
-                tty=False,
-                _preload_content=False,
-            )
-            resp.close()
-        except Exception as e:
-            self.log.error("Error while deleting istio-proxy sidecar: %s", e)
-            raise e
+        resp = stream(
+            self.client.connect_get_namespaced_pod_exec,
+            name=pod.metadata.name,
+            namespace=pod.metadata.namespace,
+            container=self.ISTIO_CONTAINER_NAME,
+            command=command_to_container,
+            stderr=True,
+            stdin=True,
+            stdout=True,
+            tty=False,
+            _preload_content=False,
+        )
+        output = []
+        while resp.is_open():
+            if resp.peek_stdout():
+                output.append(resp.read_stdout())
+
+        resp.close()
+        output_str = "".join(output)
+        self.log.info("Output of curl command to kill istio: %s", output_str)
+        resp.close()
+        if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
+            raise Exception("Error while deleting istio-proxy sidecar: %s", output_str)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         istio_enabled = self.is_istio_enabled(pod)
@@ -852,10 +859,10 @@ class KubernetesPodOperator(BaseOperator):
     def on_kill(self) -> None:
         if self.pod:
             pod = self.pod
-            kwargs = dict(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-            )
+            kwargs = {
+                "name": pod.metadata.name,
+                "namespace": pod.metadata.namespace,
+            }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
             self.client.delete_namespaced_pod(**kwargs)

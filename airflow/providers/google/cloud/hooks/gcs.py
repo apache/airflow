@@ -550,10 +550,9 @@ class GCSHook(GoogleBaseHook):
             if gzip:
                 filename_gz = filename + ".gz"
 
-                with open(filename, "rb") as f_in:
-                    with gz.open(filename_gz, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-                        filename = filename_gz
+                with open(filename, "rb") as f_in, gz.open(filename_gz, "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    filename = filename_gz
 
             _call_with_retry(
                 partial(blob.upload_from_filename, filename=filename, content_type=mime_type, timeout=timeout)

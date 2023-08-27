@@ -742,7 +742,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
 
             if all(key.map_index == -1 for key in ti_keys):
                 headers = ["DAG ID", "Task ID", "Run ID", "Try number"]
-                sorted_ti_keys = map(lambda k: k[0:4], sorted_ti_keys)
+                sorted_ti_keys = (k[0:4] for k in sorted_ti_keys)
             else:
                 headers = ["DAG ID", "Task ID", "Run ID", "Map Index", "Try number"]
 

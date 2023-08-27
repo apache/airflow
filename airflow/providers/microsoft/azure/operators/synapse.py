@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from azure.synapse.spark.models import SparkBatchJobOptions
@@ -73,10 +74,12 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
 
+    @cached_property
+    def hook(self):
+        """Create and return an AzureSynapseHook (cached)."""
+        return AzureSynapseHook(azure_synapse_conn_id=self.azure_synapse_conn_id, spark_pool=self.spark_pool)
+
     def execute(self, context: Context) -> None:
-        self.hook = AzureSynapseHook(
-            azure_synapse_conn_id=self.azure_synapse_conn_id, spark_pool=self.spark_pool
-        )
         self.log.info("Executing the Synapse spark job.")
         response = self.hook.run_spark_job(payload=self.payload)
         self.log.info(response)

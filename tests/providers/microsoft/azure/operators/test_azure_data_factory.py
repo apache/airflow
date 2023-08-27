@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -35,7 +34,7 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 )
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
-from airflow.utils import db, timezone
+from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
@@ -60,7 +59,8 @@ AZ_PIPELINE_RUN_ID = "7f8c6c72-c093-11ec-a83d-0242ac120007"
 
 
 class TestAzureDataFactoryRunPipelineOperator:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, create_mock_connection):
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.config = {
@@ -73,13 +73,13 @@ class TestAzureDataFactoryRunPipelineOperator:
             "timeout": 3,
         }
 
-        db.merge_conn(
+        create_mock_connection(
             Connection(
                 conn_id="azure_data_factory_test",
                 conn_type="azure_data_factory",
                 login="client-id",
                 password="client-secret",
-                extra=json.dumps(CONN_EXTRAS),
+                extra=CONN_EXTRAS,
             )
         )
 

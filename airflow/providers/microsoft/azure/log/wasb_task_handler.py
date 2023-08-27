@@ -67,7 +67,6 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
         self.log_relative_path = ""
-        self._hook = None
         self.closed = False
         self.upload_on_close = True
         self.delete_local_copy = (
