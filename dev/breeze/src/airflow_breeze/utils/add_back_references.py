@@ -23,8 +23,6 @@ from pathlib import Path
 from urllib.error import URLError
 from urllib.request import urlopen
 
-from rich import print
-
 from airflow_breeze.utils.console import get_console
 
 airflow_redirects_link = (
@@ -43,9 +41,9 @@ def download_file(url):
         return True, file_name
     except URLError as e:
         if e.reason == "Not Found":
-            print(f"[blue]The {url} does not exist. Skipping.")
+            get_console().print(f"[blue]The {url} does not exist. Skipping.")
         else:
-            print(f"[yellow]Could not download file {url}: {e}")
+            get_console().print(f"[yellow]Could not download file {url}: {e}")
         return False, "no-file"
 
 
@@ -74,9 +72,9 @@ def crete_redirect_html_if_not_exist(path: Path, content: str):
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content)
-        print(f"[green]Created back reference redirect: {path}")
+        get_console().print(f"[green]Created back reference redirect: {path}")
     else:
-        print(f"Skipping file:{path}, redirects already exist")
+        get_console().print(f"Skipping file:{path}, redirects already exist")
 
 
 def create_back_reference_html(back_ref_url: str, target_path: Path):
@@ -99,14 +97,14 @@ def generate_back_references(link: str, base_path: Path):
     if not is_downloaded:
         old_to_new: list[tuple[str, str]] = []
     else:
-        print(f"Constructs old to new mapping from redirects.txt for {base_path}")
+        get_console().print(f"Constructs old to new mapping from redirects.txt for {base_path}")
         old_to_new = construct_old_to_new_tuple_mapping(file_name)
     old_to_new.append(("index.html", "changelog.html"))
     old_to_new.append(("index.html", "security.html"))
     old_to_new.append(("security.html", "security/security-model.html"))
 
     for versioned_provider_path in (p for p in base_path.iterdir() if p.is_dir()):
-        print(f"Processing {base_path}, version: {versioned_provider_path.name}")
+        get_console().print(f"Processing {base_path}, version: {versioned_provider_path.name}")
 
         for old, new in old_to_new:
             # only if old file exists, add the back reference
@@ -145,5 +143,5 @@ def start_generating_back_references(airflow_site_directory: Path, short_provide
             f"apache-airflow-providers-{package.replace('.','-')}" for package in short_provider_package_ids
         ]
         for p in all_providers:
-            print(f"Processing airflow provider: {p}")
+            get_console().print(f"Processing airflow provider: {p}")
             generate_back_references(get_github_redirects_url(p), docs_archive_path / p)
