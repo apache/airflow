@@ -24,10 +24,7 @@ from functools import cached_property, lru_cache
 from re import match
 from typing import Any, Dict, List, TypeVar
 
-if sys.version_info >= (3, 9):
-    from typing import Literal
-else:
-    from typing import Literal
+from typing_extensions import Literal
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,

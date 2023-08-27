@@ -30,7 +30,7 @@ from airflow.hooks.base import BaseHook
 if TYPE_CHECKING:
     from types import TracebackType
 
-    from airflow.typing_compat import Literal
+    from typing_extensions import Literal
 
 
 class MongoHook(BaseHook):
