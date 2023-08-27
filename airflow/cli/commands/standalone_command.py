@@ -24,18 +24,21 @@ import subprocess
 import threading
 import time
 from collections import deque
+from typing import TYPE_CHECKING
 
 from termcolor import colored
 
 from airflow.configuration import AIRFLOW_HOME, conf, make_group_other_inaccessible
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import most_recent_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import db
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+if TYPE_CHECKING:
+    from airflow.jobs.base_job_runner import BaseJobRunner
 
 
 class StandaloneCommand:

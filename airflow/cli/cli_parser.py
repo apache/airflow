@@ -28,7 +28,7 @@ import collections
 import logging
 from argparse import Action
 from functools import lru_cache
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
@@ -36,8 +36,6 @@ from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
 from airflow.cli.cli_config import (
     DAG_CLI_DICT,
     ActionCommand,
-    Arg,
-    CLICommand,
     DefaultHelpParser,
     GroupCommand,
     core_commands,
@@ -47,6 +45,12 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.helpers import partition
 from airflow.www.extensions.init_auth_manager import get_auth_manager_cls
+
+if TYPE_CHECKING:
+    from airflow.cli.cli_config import (
+        Arg,
+        CLICommand,
+    )
 
 airflow_commands = core_commands.copy()  # make a copy to prevent bad interactions in tests
 
