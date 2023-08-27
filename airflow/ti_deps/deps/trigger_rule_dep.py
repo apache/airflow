@@ -81,6 +81,154 @@ class _UpstreamTIStates(NamedTuple):
         )
 
 
+@functools.lru_cache
+def _get_expanded_ti_count(task, ti, session) -> int:
+    """Get how many tis the current task is supposed to be expanded into.
+
+    This extra closure allows us to query the database only when needed,
+    and at most once.
+    """
+    return task.get_mapped_ti_count(ti.run_id, session=session)
+
+
+@functools.lru_cache
+def _get_relevant_upstream_map_indexes(
+    *, ti, upstream_tasks, upstream_id: str, session
+) -> int | range | None:
+    """Get the given task's map indexes relevant to the current ti.
+
+    This extra closure allows us to query the database only when needed,
+    and at most once for each task (instead of once for each expanded
+    task instance of the same task).
+    """
+    from airflow.models.abstractoperator import NotMapped
+    from airflow.models.expandinput import NotFullyPopulated
+
+    try:
+        expanded_ti_count = _get_expanded_ti_count()
+    except (NotFullyPopulated, NotMapped):
+        return None
+    return ti.get_relevant_upstream_map_indexes(
+        upstream_tasks[upstream_id],
+        expanded_ti_count,
+        session=session,
+    )
+
+
+def _iter_upstream_conditions(*, ti, task, upstream_tasks, session) -> Iterator[ColumnOperators]:
+    """
+    Get filter conditions for the upstream tasks we are concerned with.
+
+    :param task: the object task
+    :param upstream_tasks: the upstreams we care about
+    """
+    # Optimization: If the current task is not in a mapped task group,
+    # it depends on all upstream task instances.
+    if task.get_closest_mapped_task_group() is None:
+        yield TaskInstance.task_id.in_(upstream_tasks)
+        return
+    # Otherwise we need to figure out which map indexes are depended on
+    # for each upstream by the current task instance.
+    for upstream_id in upstream_tasks:
+        map_indexes = _get_relevant_upstream_map_indexes(
+            ti=ti, upstream_tasks=upstream_tasks, upstream_id=upstream_id, session=session
+        )
+        if map_indexes is None:  # All tis of this upstream are dependencies.
+            yield (TaskInstance.task_id == upstream_id)
+            continue
+        # At this point we know we want to depend on only selected tis
+        # of this upstream task. Since the upstream may not have been
+        # expanded at this point, we also depend on the non-expanded ti
+        # to ensure at least one ti is included for the task.
+        yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index < 0)
+        if isinstance(map_indexes, range) and map_indexes.step == 1:
+            yield and_(
+                TaskInstance.task_id == upstream_id,
+                TaskInstance.map_index >= map_indexes.start,
+                TaskInstance.map_index < map_indexes.stop,
+            )
+        elif isinstance(map_indexes, collections.abc.Container):
+            yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index.in_(map_indexes))
+        else:
+            yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
+
+
+class IndirectSetupTasksDep(BaseTIDep):
+    """Determines if a task's upstream tasks are in a state that allows a given task instance to run."""
+
+    NAME = "Indirect setup tasks"
+    IGNORABLE = True
+    IS_TASK_DEP = True
+
+    def _get_dep_statuses(
+        self,
+        ti: TaskInstance,
+        session: Session,
+        dep_context: DepContext,
+    ) -> Iterator[TIDepStatus]:
+        if ti.task.trigger_rule == TR.ALWAYS:
+            yield self._passing_status(reason="The task had a always trigger rule set.")
+            return
+        if not ti.task.upstream_task_ids:
+            yield self._passing_status(reason="The task instance does not have any upstream tasks.")
+            return
+        if ti.task.is_teardown:
+            yield self._passing_status(reason="Indirect setup does not apply to teardowns.")
+            return
+        all_upstream_setups = {x.task_id: x for x in ti.task.get_upstreams_only_setups()}
+        indirect_setups = {
+            k: v for k, v in all_upstream_setups.items() if v.task_id not in ti.task.upstream_task_ids
+        }
+        if indirect_setups:
+            yield from self._evaluate_indirect_setup(
+                ti=ti, dep_context=dep_context, indirect_setups=indirect_setups, session=session
+            )
+
+    def _evaluate_indirect_setup(self, *, ti, dep_context, indirect_setups, session):
+        # we know that this task has indirect setups
+        # Optimization: Don't need to hit the database if all upstreams are
+        # "simple" tasks (no task or task group mapping involved).
+        from airflow.models.operator import needs_expansion
+
+        upstream_tasks = indirect_setups
+
+        finished_upstream_setup_tis = (
+            x
+            for x in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+            if x.task_id in upstream_tasks
+        )
+        counter: dict[str, int] = collections.Counter()
+        for ti in finished_upstream_setup_tis:
+            curr_state = {ti.state: 1}
+            counter.update(curr_state)
+            if ti.task.is_setup:
+                counter.update(curr_state)
+        states_dict = {
+            "success": counter.get(TaskInstanceState.SUCCESS, 0),
+            "skipped": counter.get(TaskInstanceState.SKIPPED, 0),
+            "failed": counter.get(TaskInstanceState.FAILED, 0),
+            "upstream_failed": counter.get(TaskInstanceState.UPSTREAM_FAILED, 0),
+            "removed": counter.get(TaskInstanceState.REMOVED, 0),
+            "done": sum(counter.values()),
+        }
+        if not any(needs_expansion(t) for t in upstream_tasks.values()):
+            upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
+        else:
+            task_id_counts = session.execute(
+                select(TaskInstance.task_id, func.count(TaskInstance.task_id))
+                .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                .where(
+                    or_(
+                        *_iter_upstream_conditions(
+                            ti=ti, task=ti.task, upstream_tasks=upstream_tasks, session=session
+                        )
+                    )
+                )
+                .group_by(TaskInstance.task_id)
+            ).all()
+            upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
+
+
 class TriggerRuleDep(BaseTIDep):
     """Determines if a task's upstream tasks are in a state that allows a given task instance to run."""
 
@@ -116,43 +264,12 @@ class TriggerRuleDep(BaseTIDep):
         :param dep_context: The current dependency context.
         :param session: Database session.
         """
-        from airflow.models.abstractoperator import NotMapped
-        from airflow.models.expandinput import NotFullyPopulated
         from airflow.models.operator import needs_expansion
         from airflow.models.taskinstance import TaskInstance
 
         task = ti.task
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
         trigger_rule = task.trigger_rule
-        all_upstream_setups = {x.task_id: x for x in ti.task.get_upstreams_only_setups()}
-        all_relevant_upstreams = {**upstream_tasks, **all_upstream_setups}
-
-        @functools.lru_cache
-        def _get_expanded_ti_count() -> int:
-            """Get how many tis the current task is supposed to be expanded into.
-
-            This extra closure allows us to query the database only when needed,
-            and at most once.
-            """
-            return task.get_mapped_ti_count(ti.run_id, session=session)
-
-        @functools.lru_cache
-        def _get_relevant_upstream_map_indexes(upstream_id: str) -> int | range | None:
-            """Get the given task's map indexes relevant to the current ti.
-
-            This extra closure allows us to query the database only when needed,
-            and at most once for each task (instead of once for each expanded
-            task instance of the same task).
-            """
-            try:
-                expanded_ti_count = _get_expanded_ti_count()
-            except (NotFullyPopulated, NotMapped):
-                return None
-            return ti.get_relevant_upstream_map_indexes(
-                upstream_tasks[upstream_id],
-                expanded_ti_count,
-                session=session,
-            )
 
         def _is_relevant_upstream(upstream: TaskInstance) -> bool:
             """Whether a task instance is a "relevant upstream" of the current task."""
@@ -169,7 +286,9 @@ class TriggerRuleDep(BaseTIDep):
                 return True
             # Now we need to perform fine-grained check on whether this specific
             # upstream ti's map index is relevant.
-            relevant = _get_relevant_upstream_map_indexes(upstream.task_id)
+            relevant = _get_relevant_upstream_map_indexes(
+                ti=ti, upstream_tasks=upstream_tasks, upstream_id=upstream.task_id, session=session
+            )
             if relevant is None:
                 return True
             if relevant == upstream.map_index:
@@ -194,35 +313,6 @@ class TriggerRuleDep(BaseTIDep):
         success_setup = upstream_states.success_setup
         skipped_setup = upstream_states.skipped_setup
 
-        def _iter_upstream_conditions() -> Iterator[ColumnOperators]:
-            # Optimization: If the current task is not in a mapped task group,
-            # it depends on all upstream task instances.
-            if task.get_closest_mapped_task_group() is None:
-                yield TaskInstance.task_id.in_(upstream_tasks)
-                return
-            # Otherwise we need to figure out which map indexes are depended on
-            # for each upstream by the current task instance.
-            for upstream_id in upstream_tasks:
-                map_indexes = _get_relevant_upstream_map_indexes(upstream_id)
-                if map_indexes is None:  # All tis of this upstream are dependencies.
-                    yield (TaskInstance.task_id == upstream_id)
-                    continue
-                # At this point we know we want to depend on only selected tis
-                # of this upstream task. Since the upstream may not have been
-                # expanded at this point, we also depend on the non-expanded ti
-                # to ensure at least one ti is included for the task.
-                yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index < 0)
-                if isinstance(map_indexes, range) and map_indexes.step == 1:
-                    yield and_(
-                        TaskInstance.task_id == upstream_id,
-                        TaskInstance.map_index >= map_indexes.start,
-                        TaskInstance.map_index < map_indexes.stop,
-                    )
-                elif isinstance(map_indexes, collections.abc.Container):
-                    yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index.in_(map_indexes))
-                else:
-                    yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
-
         # Optimization: Don't need to hit the database if all upstreams are
         # "simple" tasks (no task or task group mapping involved).
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
@@ -232,7 +322,13 @@ class TriggerRuleDep(BaseTIDep):
             task_id_counts = session.execute(
                 select(TaskInstance.task_id, func.count(TaskInstance.task_id))
                 .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
-                .where(or_(*_iter_upstream_conditions()))
+                .where(
+                    or_(
+                        *_iter_upstream_conditions(
+                            ti=ti, task=task, upstream_tasks=upstream_tasks, session=session
+                        )
+                    )
+                )
                 .group_by(TaskInstance.task_id)
             ).all()
             upstream = sum(count for _, count in task_id_counts)
