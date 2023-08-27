@@ -2068,6 +2068,9 @@ while publishing the documentation.
 The flag ``--airflow-site-directory`` takes the path of the cloned ``airflow-site``. The command will
 not proceed if this is an invalid path.
 
+When you have multi-processor machine docs publishing can be vastly sped up by using ``--run-in-parallel`` option when
+publishing docs for multiple providers.
+
 These are all available flags of ``release-management publish-docs`` command:
 
 .. image:: ./images/breeze/output_release-management_publish-docs.svg
