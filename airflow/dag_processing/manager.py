@@ -33,12 +33,10 @@ import zipfile
 from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
-from multiprocessing.connection import Connection as MultiprocessingConnection
 from pathlib import Path
-from typing import Any, Callable, Iterator, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, NamedTuple, cast
 
 from setproctitle import setproctitle
-from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 import airflow.models
@@ -66,6 +64,11 @@ from airflow.utils.process_utils import (
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
+
+if TYPE_CHECKING:
+    from multiprocessing.connection import Connection as MultiprocessingConnection
+
+    from sqlalchemy.orm import Session
 
 
 class DagParsingStat(NamedTuple):
@@ -865,7 +868,7 @@ class DagFileProcessorManager(LoggingMixin):
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
         # Sort by longest last runtime. (Can't sort None values in python3)
-        rows.sort(key=lambda x: x[3] or 0.0)
+        rows = sorted(rows, key=lambda x: x[3] or 0.0)
 
         formatted_rows = []
         for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows:
@@ -1167,7 +1170,7 @@ class DagFileProcessorManager(LoggingMixin):
         if is_mtime_mode:
             file_paths = sorted(files_with_mtime, key=files_with_mtime.get, reverse=True)
         elif list_mode == "alphabetical":
-            file_paths.sort()
+            file_paths = sorted(file_paths)
         elif list_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple schedulers can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
