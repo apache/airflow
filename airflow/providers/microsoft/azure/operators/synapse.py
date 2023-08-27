@@ -19,12 +19,12 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from azure.synapse.spark.models import SparkBatchJobOptions
-
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, AzureSynapseSparkBatchRunStatus
 
 if TYPE_CHECKING:
+    from azure.synapse.spark.models import SparkBatchJobOptions
+
     from airflow.utils.context import Context
 
 

@@ -23,7 +23,6 @@ import contextlib
 import copy
 import functools
 import json
-import logging
 import os
 import select
 import shlex
@@ -31,7 +30,7 @@ import shutil
 import subprocess
 import tempfile
 import textwrap
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from packaging.version import Version
 
@@ -39,6 +38,9 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.go_module_utils import init_module, install_dependencies
 from airflow.utils.python_virtualenv import prepare_virtualenv
+
+if TYPE_CHECKING:
+    import logging
 
 
 class BeamRunnerType:

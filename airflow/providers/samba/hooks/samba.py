@@ -20,11 +20,14 @@ from __future__ import annotations
 import posixpath
 from functools import wraps
 from shutil import copyfileobj
+from typing import TYPE_CHECKING
 
 import smbclient
-import smbprotocol.connection
 
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    import smbprotocol.connection
 
 
 class SambaHook(BaseHook):

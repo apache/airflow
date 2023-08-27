@@ -23,12 +23,13 @@ import os
 import stat
 import warnings
 from fnmatch import fnmatch
-from typing import Any, Callable
-
-import paramiko
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.ssh.hooks.ssh import SSHHook
+
+if TYPE_CHECKING:
+    import paramiko
 
 
 class SFTPHook(SSHHook):
