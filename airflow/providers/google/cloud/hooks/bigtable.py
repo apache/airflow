@@ -18,17 +18,20 @@
 """This module contains a Google Cloud Bigtable Hook."""
 from __future__ import annotations
 
-import enum
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.cluster import Cluster
-from google.cloud.bigtable.column_family import ColumnFamily, GarbageCollectionRule
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    import enum
+
+    from google.cloud.bigtable.column_family import ColumnFamily, GarbageCollectionRule
 
 
 class BigtableHook(GoogleBaseHook):
