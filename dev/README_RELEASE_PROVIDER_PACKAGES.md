@@ -382,7 +382,10 @@ If you have providers as list of provider ids because you just released them, yo
 
 - Copy the documentation to the ``airflow-site`` repository
 
-All providers (including overriding documentation for doc-only changes):
+All providers (including overriding documentation for doc-only changes) - note that publishing is
+way faster on multi-cpu machines when you are publishing multiple providers:
+
+```shell script
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
@@ -390,7 +393,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze release-management publish-docs \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
-    --override-versioned
+    --override-versioned --run-in-parallel
 
 breeze release-management add-back-references all-providers
 ```
