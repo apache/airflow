@@ -22,6 +22,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 from sqlalchemy import select
+
 from airflow.api_internal.internal_api_call import internal_api_call
 
 from airflow.exceptions import RemovedInAirflow3Warning
