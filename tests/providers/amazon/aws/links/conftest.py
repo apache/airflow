@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from tests.providers.amazon.aws.utils.links_test_utils import link_test_operator
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 
 
 @pytest.fixture()

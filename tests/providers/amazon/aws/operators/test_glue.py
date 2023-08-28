@@ -16,17 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
 
 from airflow.configuration import conf
 from airflow.exceptions import TaskDeferred
-from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 TASK_ID = "test_glue_operator"
 DAG_ID = "test_dag_id"
