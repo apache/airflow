@@ -107,7 +107,6 @@ class TriggerRuleDep(BaseTIDep):
             yield self._passing_status(reason="The task instance did not have any upstream tasks.")
             return
         if ti.task.trigger_rule == TR.ALWAYS:
-            # even with ALWAYS trigger rule, we still need to check setup tasks
             yield self._passing_status(reason="The task had a always trigger rule set.")
             return
         yield from self._evaluate_trigger_rule(ti=ti, dep_context=dep_context, session=session)
