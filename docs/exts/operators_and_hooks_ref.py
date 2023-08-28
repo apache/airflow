@@ -163,9 +163,8 @@ def _prepare_transfer_data(tags: set[str] | None):
         ]
 
     for transfer in to_display_transfers:
-        if "how-to-guide" not in transfer:
-            continue
-        transfer["how-to-guide"] = _docs_path(transfer["how-to-guide"])
+        if "how-to-guide" in transfer:
+            transfer["how-to-guide"] = _docs_path(transfer["how-to-guide"])
     return to_display_transfers
 
 
@@ -200,15 +199,12 @@ def _render_deferrable_operator_content(*, header_separator: str):
         provider_parent_path = Path(provider_yaml_path).parent
         provider_info: dict[str, Any] = {"name": "", "operators": []}
         for root, _, file_names in os.walk(provider_parent_path):
-            if all([target not in root for target in ["operators", "sensors"]]):
-                continue
-
-            for file_name in file_names:
-                if not file_name.endswith(".py") or file_name == "__init__.py":
-                    continue
-                provider_info["operators"].extend(
-                    iter_deferrable_operators(f"{os.path.relpath(root)}/{file_name}")
-                )
+            if "operators" in root or "sensors" in root:
+                for file_name in file_names:
+                    if file_name.endswith(".py") and file_name != "__init__.py":
+                        provider_info["operators"].extend(
+                            iter_deferrable_operators(f"{os.path.relpath(root)}/{file_name}")
+                        )
 
         if provider_info["operators"]:
             provider_yaml_content = yaml.safe_load(Path(provider_yaml_path).read_text())
