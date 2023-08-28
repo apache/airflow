@@ -59,7 +59,7 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState, JobState
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
