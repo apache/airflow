@@ -43,19 +43,17 @@ def translate_classname(classname):
 
     parts = classname.split(".")
 
-    for i, component in enumerate(parts):
+    for offset, component in enumerate(parts, 1):
         candidate = context / component
 
         if candidate.is_dir():
             context = candidate
-            continue
-        candidate = context / (component + ".py")
-        if candidate.is_file():
-            context = candidate
-            i += 1
+        else:
+            candidate = context / (component + ".py")
+            if candidate.is_file():
+                context = candidate
             break
-        break
-    parts = parts[i:]
+    parts = parts[offset:]
 
     val = str(context.relative_to(Path.cwd()))
 
