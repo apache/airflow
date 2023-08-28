@@ -128,14 +128,14 @@ config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(conf
 
 def _check_for_rows(*, query: Query, print_rows=False):
     num_entities = query.count()
-    print(f"Found {num_entities} rows meeting deletion criteria.")
+    logger.info("Found %s rows meeting deletion criteria.", num_entities)
     if print_rows:
         max_rows_to_print = 100
         if num_entities > 0:
-            print(f"Printing first {max_rows_to_print} rows.")
+            logger.info("Printing first %s rows.", max_rows_to_print)
         logger.debug("print entities query: %s", query)
         for entry in query.limit(max_rows_to_print):
-            print(entry.__dict__)
+            logger.info(entry.__dict__)
     return num_entities
 
 
@@ -155,12 +155,12 @@ def _do_delete(*, query, orm_model, skip_archive, session):
 
     import re2
 
-    print("Performing Delete...")
+    logger.info("Performing Delete...")
     # using bulk delete
     # create a new table and copy the rows there
     timestamp_str = re2.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
     target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
-    print(f"Moving data to table {target_table_name}")
+    logger.info("Moving data to table %s", target_table_name)
     bind = session.get_bind()
     dialect_name = bind.dialect.name
     if dialect_name == "mysql":
@@ -201,7 +201,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
         metadata.bind = session.get_bind()
         target_table.drop()
     session.commit()
-    print("Finished Performing Delete")
+    logger.info("Finished Performing Delete")
 
 
 def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, max_date_colname, session):
@@ -287,7 +287,6 @@ def _cleanup_table(
     session,
     **kwargs,
 ):
-    print()
     if dry_run:
         print(f"Performing dry run for table {orm_model.name}")
     query = _build_query(
@@ -300,7 +299,7 @@ def _cleanup_table(
         session=session,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
-    print(f"Checking table {orm_model.name}")
+    logger.info("Checking table %s", orm_model.name)
     num_rows = _check_for_rows(query=query, print_rows=False)
 
     if num_rows and not dry_run:
@@ -317,7 +316,7 @@ def _confirm_delete(*, date: DateTime, tables: list[str]):
         f"with option --dry-run.\n"
         f"Enter 'delete rows' (without quotes) to proceed."
     )
-    print(question)
+    logger.info(question)
     answer = input().strip()
     if not answer == "delete rows":
         raise SystemExit("User did not confirm; exiting.")
@@ -333,11 +332,11 @@ def _confirm_drop_archives(*, tables: list[str]):
         f"You have requested that we drop {text_}.\n"
         f"This is irreversible. Consider backing up the tables first \n"
     )
-    print(question)
+    logger.info(question)
     if len(tables) > 3:
         show_tables = ask_yesno("Show tables? (y/n): ")
         if show_tables:
-            print(tables, "\n")
+            logger.info(tables, "\n")
     answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
     if not answer == "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")
@@ -425,7 +424,7 @@ def run_cleanup(
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
     effective_table_names, effective_config_dict = _effective_table_names(table_names=table_names)
     if dry_run:
-        print("Performing dry run for db cleanup.")
+        logger.info("Performing dry run for db cleanup.")
         print(
             f"Data prior to {clean_before_timestamp} would be purged "
             f"from tables {effective_table_names} with the following config:\n"
