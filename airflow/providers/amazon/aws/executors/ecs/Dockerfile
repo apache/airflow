@@ -1,21 +1,25 @@
+# hadolint ignore=DL3007
 FROM apache/airflow:latest
 USER root
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends unzip
-RUN	curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-RUN	unzip awscliv2.zip && ./aws/install
+  && apt-get install -y --no-install-recommends unzip \
+  # The below helps to keep the image size down
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
+RUN    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+RUN    unzip awscliv2.zip && ./aws/install
 
 # Add a script to run the aws s3 sync command when the container is run
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 USER airflow
-## AWS Authentication 
+## AWS Authentication
 # The image requires access to AWS services. This Dockerfile supports 2 ways to authenticate with AWS.
 # The first is using build arguments where you can provide the AWS credentials as arguments
 # passed when building the image. The other option is to copy the ~/.aws folder to the container,
 # and authenticate using the credentials in that folder.
-# If you would like to use an alternative method of authentication, feel free to make the 
+# If you would like to use an alternative method of authentication, feel free to make the
 # necessary changes to this file.
 
 # Use these arguments to provide AWS authentication information
@@ -34,12 +38,12 @@ ENV AWS_SESSION_TOKEN=$aws_session_token
 # of the .aws folder.
 # COPY --chown=airflow:root ./.aws /home/airflow/.aws
 
-## Loading DAGs 
+## Loading DAGs
 # This Dockerfile supports 2 ways to load DAGs onto the container.
-# One is to upload all the DAGs onto an S3 bucket, and then 
+# One is to upload all the DAGs onto an S3 bucket, and then
 # download them onto the container. The other is to copy a local folder with
 # the DAGs onto the container.
-# If you would like to use an alternative method of loading DAGs, feel free to make the 
+# If you would like to use an alternative method of loading DAGs, feel free to make the
 # necessary changes to this file.
 
 ARG host_dag_path=./dags
@@ -57,6 +61,3 @@ ARG container_dag_path=/opt/airflow/dags
 ENV CONTAINER_DAG_PATH=$container_dag_path
 # Uncomment the line if using S3 bucket as the source of DAGs
 # ENTRYPOINT ["/entrypoint.sh"]
-
-
-
