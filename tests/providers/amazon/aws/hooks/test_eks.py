@@ -96,8 +96,8 @@ from ..utils.eks_test_utils import (
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from _pytest._code import ExceptionInfo
     from moto.core.exceptions import AWSError
+    from pytest import ExceptionInfo
 
 
 @pytest.fixture(scope="function")
