@@ -17,11 +17,10 @@
 from __future__ import annotations
 
 import json
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import pytest
-from flask import Flask
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -32,6 +31,9 @@ from airflow.utils.state import State
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
+
+if TYPE_CHECKING:
+    from flask import Flask
 
 TEST_METHOD_NAME = "test_method"
 TEST_METHOD_WITH_LOG_NAME = "test_method_with_log"

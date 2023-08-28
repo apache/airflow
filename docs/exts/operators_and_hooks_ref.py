@@ -20,13 +20,12 @@ import ast
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Iterable, Iterator
 
 import jinja2
 import rich_click as click
 import yaml
 from docutils import nodes
-from docutils.nodes import Element
 
 # No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
 from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
@@ -34,6 +33,9 @@ from docutils.statemachine import StringList
 from provider_yaml_utils import get_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
 from sphinx.util.docutils import switch_source_input
+
+if TYPE_CHECKING:
+    from docutils.nodes import Element
 
 CMD_OPERATORS_AND_HOOKS = "operators-and-hooks"
 

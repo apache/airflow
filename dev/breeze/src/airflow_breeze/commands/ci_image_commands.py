@@ -24,12 +24,11 @@ import sys
 import time
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import click
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
-from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
@@ -106,6 +105,9 @@ from airflow_breeze.utils.run_utils import (
     run_command,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+
+if TYPE_CHECKING:
+    from airflow_breeze.params.shell_params import ShellParams
 
 
 @click.group(

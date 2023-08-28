@@ -18,10 +18,13 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
+from typing import TYPE_CHECKING
 
 from airflow_breeze.utils.console import MessageType, get_console
-from airflow_breeze.utils.parallel import Output
 from airflow_breeze.utils.path_utils import skip_group_output
+
+if TYPE_CHECKING:
+    from airflow_breeze.utils.parallel import Output
 
 # only allow top-level group
 _in_ci_group = False

@@ -24,10 +24,7 @@ from copy import deepcopy
 from random import randint
 from subprocess import DEVNULL, CalledProcessError, CompletedProcess
 
-from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.params.common_build_params import CommonBuildParams
-from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -38,6 +35,8 @@ try:
 except ImportError:
     # We handle the ImportError so that autocomplete works with just click installed
     version = None  # type: ignore[assignment]
+
+from typing import TYPE_CHECKING
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
@@ -64,6 +63,11 @@ from airflow_breeze.utils.run_utils import (
     commit_sha,
     run_command,
 )
+
+if TYPE_CHECKING:
+    from airflow_breeze.params.build_ci_params import BuildCiParams
+    from airflow_breeze.params.common_build_params import CommonBuildParams
+    from airflow_breeze.params.shell_params import ShellParams
 
 # Those are volumes that are mounted when MOUNT_SELECTED is chosen (which is the default when
 # entering Breeze. MOUNT_SELECTED prevents to mount the files that you can have accidentally added
