@@ -102,7 +102,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                 if event and event.startswith("connection."):
                     extra_fields = _mask_connection_fields(extra_fields)
 
-                params = {k: v for k, v in itertools.chain(request.values.items(), request.view_args.items())}
+                params = dict(itertools.chain(request.values.items(), request.view_args.items()))
 
                 log = Log(
                     event=event or f.__name__,
