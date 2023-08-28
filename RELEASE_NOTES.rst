@@ -21,6 +21,111 @@
 
 .. towncrier release notes start
 
+Airflow 2.7.1 (2023-09-07)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+CronTriggerTimetable is now less aggressive when trying to skip a run (#33404)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+When setting ``catchup=False``, CronTriggerTimetable no longer skips a run if
+the scheduler does not query the timetable immediately after the previous run
+has been triggered.
+
+This should not affect scheduling in most cases, but can change the behaviour if
+a DAG is paused-unpaused to manually skip a run. Previously, the timetable (with
+``catchup=False``) would only start a run after a DAG is unpaused, but with this
+change, the scheduler would try to look at little bit back to schedule the
+previous run that covers a part of the period when the DAG was paused. This
+means you will need to keep a DAG paused longer (namely, for the entire cron
+period to pass) to really skip a run.
+
+Note that this is also the behaviour exhibited by various other cron-based
+scheduling tools, such as ``anacron``.
+
+``conf.set()`` becomes case insensitive to match ``conf.get()`` behavior (#33452)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Also, ``conf.get()`` will now break if used with non-string parameters.
+
+``conf.set(section, key, value)`` used to be case sensitive, i.e. ``conf.set("SECTION", "KEY", value)``
+and ``conf.set("section", "key", value)`` were stored as two distinct configurations.
+This was inconsistent with the behavior of ``conf.get(section, key)``, which was always converting the section and key to lower case.
+
+As a result, configuration options set with upper case characters in the section or key were unreachable.
+That's why we are now converting section and key to lower case in ``conf.set`` too.
+
+We also changed a bit the behavior of ``conf.get()``. It used to allow objects that are not strings in the section or key.
+Doing this will now result in an exception. For instance, ``conf.get("section", 123)`` needs to be replaced with ``conf.get("section", "123")``.
+
+Bug Fixes
+"""""""""
+- Ensure that tasks wait for running indirect setup (#33903)
+- Respect "soft_fail" for core async sensors (#33403)
+- Differentiate 0 and unset as a default param values (#33965)
+- Raise 404 from Variable PATCH API if variable is not found (#33885)
+- Fix ``MappedTaskGroup`` tasks not respecting upstream dependency (#33732)
+- Add limit 1 if required first value from query result (#33672)
+- Fix UI DAG counts including deleted DAGs (#33778)
+- Fix cleaning zombie RESTARTING tasks (#33706)
+- ``SECURITY_MANAGER_CLASS`` should be a reference to class, not a string (#33690)
+- Add back ``get_url_for_login`` in security manager (#33660)
+- Fix ``2.7.0 db`` migration job errors (#33652)
+- Set context inside templates (#33645)
+- Treat dag-defined access_control as authoritative if defined (#33632)
+- Bind engine before attempting to drop archive tables (#33622)
+- Add a fallback in case no first name and last name are set (#33617)
+- Sort data before ``groupby`` in TIS duration calculation (#33535)
+- Stop adding values to rendered templates UI when there is no dagrun (#33516)
+- Set strict to True when parsing dates in webserver views (#33512)
+- Use ``dialect.name`` in custom SA types (#33503)
+- Do not return ongoing dagrun when a ``end_date`` is less than ``utcnow`` (#33488)
+- Fix a bug in ``formatDuration`` method (#33486)
+- Make ``conf.set`` case insensitive (#33452)
+- Allow timetable to slightly miss catchup cutoff (#33404)
+- Respect ``soft_fail`` argument when ``poke`` is called (#33401)
+- Create a new method used to resume the task in order to implement specific logic for operators (#33424)
+- Fix DagFileProcessor interfering with dags outside its ``processor_subdir`` (#33357)
+- Remove the unnecessary ``<br>`` text in Provider's view (#33326)
+- Respect ``soft_fail`` argument when ExternalTaskSensor runs in deferrable mode (#33196)
+- Fix handling of default value and serialization of Param class (#33141)
+- Check if the dynamically-added index is in the table schema before adding (#32731)
+- Fix rendering the mapped parameters when using ``expand_kwargs`` method (#32272)
+- Fix dependencies for celery and opentelemetry for Python 3.8 (#33579)
+
+Misc/Internal
+"""""""""""""
+- Use a trimmed version of README.md for PyPI (#33637)
+- Upgrade to ``Pydantic`` 2 (#33956)
+- Reorganize ``devel_only`` extra in Airflow's setup.py (#33907)
+- Bumping ``FAB`` to ``4.3.4`` in order to fix issues with filters (#33931)
+- Add minimum requirement for ``sqlalchemy to 1.4.24`` (#33892)
+- Update version_added field for configs in config file (#33509)
+- Replace ``OrderedDict`` with plain dict (#33508)
+- Consolidate import and usage of itertools (#33479)
+- Static check fixes (#33462)
+- Import utc from datetime and normalize its import (#33450)
+- D401 Support (#33352, #33339, #33337, #33336, #33335, #33333, #33338)
+- Fix some missing type hints (#33334)
+- D205 Support - Stragglers (#33301, #33298, #33297)
+- Refactor: Simplify code (#33160, #33270, #33268, #33267, #33266, #33264, #33292, #33453, #33476, #33567,
+  #33568, #33480, #33753, #33520, #33623)
+- Fix ``Pydantic`` warning about ``orm_mode`` rename (#33220)
+- Add MySQL 8.1 to supported versions. (#33576)
+- Remove ``Pydantic`` limitation for version < 2 (#33507)
+
+Doc only changes
+"""""""""""""""""
+- Add documentation explaining template_ext (and how to override it) (#33735)
+- Explain how users can check if python code is top-level (#34006)
+- Clarify that DAG authors can also run code in DAG File Processor (#33920)
+- Fix broken link in Modules Management page (#33499)
+- Fix secrets backend docs (#33471)
+- Fix config description for base_log_folder (#33388)
+
+
 Airflow 2.7.0 (2023-08-18)
 --------------------------
 
