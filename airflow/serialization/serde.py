@@ -23,8 +23,7 @@ import functools
 import logging
 import sys
 from importlib import import_module
-from types import ModuleType
-from typing import Any, Pattern, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Pattern, TypeVar, Union, cast
 
 import attr
 import re2
@@ -33,6 +32,9 @@ import airflow.serialization.serializers
 from airflow.configuration import conf
 from airflow.stats import Stats
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 log = logging.getLogger(__name__)
 
