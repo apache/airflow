@@ -971,12 +971,10 @@ class Airflow(AirflowBaseView):
         def _iter_parsed_moved_data_table_names():
             for table_name in inspect(session.get_bind()).get_table_names():
                 segments = table_name.split("__", 3)
-                if len(segments) < 3:
-                    continue
-                if segments[0] != settings.AIRFLOW_MOVED_TABLE_PREFIX:
-                    continue
-                # Second segment is a version marker that we don't need to show.
-                yield segments[-1], table_name
+                if len(segments) >= 3:
+                    if segments[0] == settings.AIRFLOW_MOVED_TABLE_PREFIX:
+                        # Second segment is a version marker that we don't need to show.
+                        yield segments[-1], table_name
 
         if (
             permissions.ACTION_CAN_ACCESS_MENU,
@@ -3379,12 +3377,11 @@ class Airflow(AirflowBaseView):
             y_points = []
             x_points = []
             for ti in tis:
-                if ti.task_id != task.task_id:
-                    continue
-                dttm = wwwutils.epoch(ti.execution_date)
-                x_points.append(dttm)
-                # y value should reflect completed tries to have a 0 baseline.
-                y_points.append(ti.prev_attempted_tries)
+                if ti.task_id == task.task_id:
+                    dttm = wwwutils.epoch(ti.execution_date)
+                    x_points.append(dttm)
+                    # y value should reflect completed tries to have a 0 baseline.
+                    y_points.append(ti.prev_attempted_tries)
             if x_points:
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
@@ -3476,14 +3473,13 @@ class Airflow(AirflowBaseView):
         for task in dag.tasks:
             task_id = task.task_id
             for ti in tis:
-                if ti.task_id != task.task_id:
-                    continue
-                ts = dag.get_run_data_interval(ti.dag_run).end
-                if ti.end_date:
-                    dttm = wwwutils.epoch(ti.execution_date)
-                    secs = (ti.end_date - ts).total_seconds()
-                    x_points[task_id].append(dttm)
-                    y_points[task_id].append(secs)
+                if ti.task_id == task.task_id:
+                    ts = dag.get_run_data_interval(ti.dag_run).end
+                    if ti.end_date:
+                        dttm = wwwutils.epoch(ti.execution_date)
+                        secs = (ti.end_date - ts).total_seconds()
+                        x_points[task_id].append(dttm)
+                        y_points[task_id].append(secs)
 
         # determine the most relevant time unit for the set of landing times
         # for the DAG
