@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Iterable, TypeVar
+from typing import TYPE_CHECKING, Any, Iterable, TypeVar
 
 from marshmallow import ValidationError
 from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import MultipleResultsFound
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.sql import ClauseElement, Select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
@@ -41,7 +40,6 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_reference_schema,
     task_instance_schema,
 )
-from airflow.api_connexion.types import APIResponse
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.operator import needs_expansion
@@ -52,6 +50,12 @@ from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.www.extensions.init_auth_manager import get_auth_manager
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import ClauseElement, Select
+
+    from airflow.api_connexion.types import APIResponse
 
 T = TypeVar("T")
 

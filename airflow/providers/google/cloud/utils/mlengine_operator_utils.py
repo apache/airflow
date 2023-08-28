@@ -21,18 +21,20 @@ import base64
 import json
 import os
 import re
-from typing import Callable, Iterable, TypeVar
+from typing import TYPE_CHECKING, Callable, Iterable, TypeVar
 from urllib.parse import urlsplit
 
 import dill
 
-from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.mlengine import MLEngineStartBatchPredictionJobOperator
+
+if TYPE_CHECKING:
+    from airflow import DAG
 
 T = TypeVar("T", bound=Callable)
 

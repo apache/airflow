@@ -32,8 +32,6 @@ from typing import TYPE_CHECKING, Any, Iterable, Mapping, NoReturn, Sequence, Un
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
-from google.api_core.page_iterator import HTTPIterator
-from google.api_core.retry import Retry
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
     Client,
@@ -70,6 +68,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     import pandas as pd
+    from google.api_core.page_iterator import HTTPIterator
+    from google.api_core.retry import Retry
 
 log = logging.getLogger(__name__)
 

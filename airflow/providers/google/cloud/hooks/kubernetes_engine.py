@@ -30,13 +30,11 @@ import json
 import time
 import warnings
 from functools import cached_property
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
-import google.auth.credentials
 from gcloud.aio.auth import Token
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.auth.transport import requests as google_requests
 
 # not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
@@ -45,7 +43,6 @@ from google.cloud.container_v1 import ClusterManagerAsyncClient, ClusterManagerC
 from google.cloud.container_v1.types import Cluster, Operation
 from kubernetes import client
 from kubernetes_asyncio import client as async_client
-from kubernetes_asyncio.client.models import V1Pod
 from kubernetes_asyncio.config.kube_config import FileOrData
 from urllib3.exceptions import HTTPError
 
@@ -58,6 +55,11 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseAsyncHook,
     GoogleBaseHook,
 )
+
+if TYPE_CHECKING:
+    import google.auth.credentials
+    from google.api_core.retry import Retry
+    from kubernetes_asyncio.client.models import V1Pod
 
 OPERATIONAL_POLL_INTERVAL = 15
 

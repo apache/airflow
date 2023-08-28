@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -24,7 +25,6 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, Connection
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.microsoft.azure.hooks.data_factory import (
@@ -36,6 +36,9 @@ from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFa
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 SUBSCRIPTION_ID = "my-subscription-id"

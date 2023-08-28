@@ -19,12 +19,15 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
-from azure.mgmt.containerinstance.models import ContainerGroup
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+
+if TYPE_CHECKING:
+    from azure.mgmt.containerinstance.models import ContainerGroup
 
 
 class AzureContainerInstanceHook(AzureBaseHook):

@@ -643,7 +643,7 @@ jobs:
       - name: "Publish docs"
         run: >
           breeze release-management publish-docs
-          --override-versioned
+          --override-versioned --run-in-parallel
           ${{ needs.build-info.outputs.docs-filter-list-as-string }}
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers

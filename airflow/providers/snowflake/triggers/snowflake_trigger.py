@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import timedelta
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from datetime import timedelta
 
 
 class SnowflakeSqlApiTrigger(BaseTrigger):

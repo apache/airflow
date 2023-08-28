@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import os
 import shutil
 from functools import cached_property
@@ -30,6 +29,9 @@ from packaging.version import Version
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    import logging
 
 
 def get_default_delete_local_copy():

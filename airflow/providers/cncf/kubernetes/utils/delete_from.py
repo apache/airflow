@@ -20,9 +20,12 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from kubernetes import client
-from kubernetes.client import ApiClient
+
+if TYPE_CHECKING:
+    from kubernetes.client import ApiClient
 
 DEFAULT_DELETION_BODY = client.V1DeleteOptions(
     propagation_policy="Background",

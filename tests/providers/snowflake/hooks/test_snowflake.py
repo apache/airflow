@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pytest
@@ -31,6 +30,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _PASSWORD = "snowflake42"
 

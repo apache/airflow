@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
@@ -36,6 +35,8 @@ from airflow.providers.google.cloud.links.vertex_ai import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 
