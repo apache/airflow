@@ -67,16 +67,15 @@ def _create_dagruns(
     }
 
     for info in infos:
-        if info.logical_date in dag_runs:
-            continue
-        dag_runs[info.logical_date] = dag.create_dagrun(
-            execution_date=info.logical_date,
-            data_interval=info.data_interval,
-            start_date=timezone.utcnow(),
-            external_trigger=False,
-            state=state,
-            run_type=run_type,
-        )
+        if info.logical_date not in dag_runs:
+            dag_runs[info.logical_date] = dag.create_dagrun(
+                execution_date=info.logical_date,
+                data_interval=info.data_interval,
+                start_date=timezone.utcnow(),
+                external_trigger=False,
+                state=state,
+                run_type=run_type,
+            )
     return dag_runs.values()
 
 
@@ -493,10 +492,9 @@ def set_dag_run_state_to_failed(
 
     tasks = []
     for task in dag.tasks:
-        if task.task_id not in task_ids_of_running_tis:
-            continue
-        task.dag = dag
-        tasks.append(task)
+        if task.task_id in task_ids_of_running_tis:
+            task.dag = dag
+            tasks.append(task)
 
     # Mark non-finished tasks as SKIPPED.
     tis = session.scalars(
