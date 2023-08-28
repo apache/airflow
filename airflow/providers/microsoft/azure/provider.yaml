@@ -83,7 +83,7 @@ dependencies:
   - azure-kusto-data>=4.1.0
   # TODO: upgrade to newer versions of all the below libraries.
   #   See issue https://github.com/apache/airflow/issues/30199
-  - azure-mgmt-containerinstance>=1.5.0,<2.0
+  - azure-mgmt-containerinstance>=7.0.0,<9.0.0
   - azure-mgmt-datafactory>=1.0.0,<2.0
 
 integrations:
