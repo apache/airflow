@@ -33,12 +33,10 @@ import zipfile
 from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
-from multiprocessing.connection import Connection as MultiprocessingConnection
 from pathlib import Path
-from typing import Any, Callable, Iterator, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, NamedTuple, cast
 
 from setproctitle import setproctitle
-from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 import airflow.models
@@ -66,6 +64,11 @@ from airflow.utils.process_utils import (
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
+
+if TYPE_CHECKING:
+    from multiprocessing.connection import Connection as MultiprocessingConnection
+
+    from sqlalchemy.orm import Session
 
 
 class DagParsingStat(NamedTuple):

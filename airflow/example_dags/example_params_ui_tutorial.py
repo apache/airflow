@@ -25,13 +25,16 @@ from __future__ import annotations
 import datetime
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.exceptions import AirflowSkipException
-from airflow.models.dagrun import DagRun
 from airflow.models.param import Param
-from airflow.models.taskinstance import TaskInstance
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
 
 with DAG(
     dag_id=Path(__file__).stem,
