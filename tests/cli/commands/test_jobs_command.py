@@ -83,7 +83,7 @@ class TestCliConfigList:
             for _ in range(3):
                 scheduler_job = Job()
                 job_runner = SchedulerJobRunner(job=scheduler_job)
-                scheduler_job.state = JobState.RUNNING
+                scheduler_job.state = State.RUNNING
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
                 job_runners.append(job_runner)
@@ -129,7 +129,7 @@ class TestCliConfigList:
                 scheduler_job = Job()
                 job_runner = SchedulerJobRunner(job=scheduler_job)
                 job_runner.job = scheduler_job
-                scheduler_job.state = JobState.RUNNING
+                scheduler_job.state = State.RUNNING
                 scheduler_job.hostname = "HOSTNAME"
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
