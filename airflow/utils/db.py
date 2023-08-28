@@ -841,23 +841,23 @@ def check_and_run_migrations():
         verb = "upgrade"
 
     if sys.stdout.isatty() and verb:
-        print()
         question = f"Please confirm database {verb} (or wait 4 seconds to skip it). Are you sure? [y/N]"
         try:
             answer = helpers.prompt_with_timeout(question, timeout=4, default=False)
             if answer:
                 try:
                     db_command()
-                    print(f"DB {verb} done")
+                    log.info("DB %s done", verb)
                 except Exception as error:
                     from airflow.version import version
 
-                    print(error)
-                    print(
-                        "You still have unapplied migrations. "
-                        f"You may need to {verb} the database by running `airflow db {command_name}`. ",
-                        f"Make sure the command is run using Airflow version {version}.",
-                        file=sys.stderr,
+                    log.warning(error)
+                    log.error(
+                        "You still have unapplied migrations.\n You may need to %s the database by"
+                        " running `airflow db %s`.\n Make sure the command is run using Airflow version %s.",
+                        verb,
+                        command_name,
+                        version,
                     )
                     sys.exit(1)
         except AirflowException:
@@ -865,10 +865,12 @@ def check_and_run_migrations():
     elif source_heads != db_heads:
         from airflow.version import version
 
-        print(
-            f"ERROR: You need to {verb} the database. Please run `airflow db {command_name}`. "
-            f"Make sure the command is run using Airflow version {version}.",
-            file=sys.stderr,
+        log.error(
+            "ERROR: You need to %s the database. Please run `airflow db %s`. "
+            "Make sure the command is run using Airflow version %s.",
+            verb,
+            command_name,
+            version,
         )
         sys.exit(1)
 
