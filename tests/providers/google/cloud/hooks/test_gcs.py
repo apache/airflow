@@ -370,10 +370,7 @@ class TestGCSHook:
 
         assert str(ctx.value) == (
             "Either source/destination bucket or source/destination object must be different, "
-            "not both the same: bucket={}, object={}"
-        ).format(
-            source_bucket,
-            source_object,
+            f"not both the same: bucket={source_bucket}, object={source_object}"
         )
 
     def test_copy_empty_source_bucket(self):
