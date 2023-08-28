@@ -92,8 +92,13 @@ class AwsEcsExecutor(BaseExecutor):
         self.run_task_kwargs = self._load_run_kwargs()
 
     def sync(self):
-        self.sync_running_tasks()
-        self.attempt_task_runs()
+        try:
+            self.sync_running_tasks()
+            self.attempt_task_runs()
+        except Exception:
+            # We catch any and all exceptions because otherwise they would bubble
+            # up and kill the scheduler process
+            self.log.exception("Failed to sync %s", self.__class__.__name__)
 
     def sync_running_tasks(self):
         """Checks and update state on all running tasks."""
@@ -180,10 +185,25 @@ class AwsEcsExecutor(BaseExecutor):
         for _ in range(queue_len):
             ecs_task = self.pending_tasks.popleft()
             task_key, cmd, queue, exec_config = ecs_task
-            run_task_response = self._run_task(task_key, cmd, queue, exec_config)
-            if run_task_response["failures"]:
-                for f in run_task_response["failures"]:
-                    failure_reasons[f["reason"]] += 1
+            _failure_reasons = []
+            try:
+                run_task_response = self._run_task(task_key, cmd, queue, exec_config)
+            except Exception as e:
+                # Failed to even get a response back from the Boto3 API or something else went
+                # wrong.  For any possible failure we want to add the exception reasons to the
+                # failure list so that it is logged to the user and most importantly the task is
+                # added back to the pending list to be retried later.
+                _failure_reasons.append(str(e))
+            else:
+                # We got a response back, check if there were failures. If so, add them to the
+                # failures list so that it is logged to the user and most importantly the task
+                # is added back to the pending list to be retried later.
+                if run_task_response["failures"]:
+                    _failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
+
+            if _failure_reasons:
+                for reason in _failure_reasons:
+                    failure_reasons[reason] += 1
                 self.pending_tasks.append(ecs_task)
             elif not run_task_response["tasks"]:
                 self.log.error("ECS RunTask Response: %s", run_task_response)
@@ -194,7 +214,7 @@ class AwsEcsExecutor(BaseExecutor):
                 task = run_task_response["tasks"][0]
                 self.active_workers.add_task(task, task_key, queue, cmd, exec_config)
         if failure_reasons:
-            self.log.debug(
+            self.log.error(
                 "Pending tasks failed to launch for the following reasons: %s. Will retry later.",
                 dict(failure_reasons),
             )
@@ -242,17 +262,29 @@ class AwsEcsExecutor(BaseExecutor):
 
     def end(self, heartbeat_interval=10):
         """Waits for all currently running tasks to end, and doesn't launch any tasks."""
-        while True:
-            self.sync()
-            if not self.active_workers:
-                break
-            time.sleep(heartbeat_interval)
+        try:
+            while True:
+                self.sync()
+                if not self.active_workers:
+                    break
+                time.sleep(heartbeat_interval)
+        except Exception:
+            # We catch any and all exceptions because otherwise they would bubble
+            # up and kill the scheduler process.
+            self.log.exception("Failed to end %s", self.__class__.__name__)
 
     def terminate(self):
         """Kill all ECS processes by calling Boto3's StopTask API."""
-        for arn in self.active_workers.get_all_arns():
-            self.ecs.stop_task(cluster=self.cluster, task=arn, reason="Airflow Executor received a SIGTERM")
-        self.end()
+        try:
+            for arn in self.active_workers.get_all_arns():
+                self.ecs.stop_task(
+                    cluster=self.cluster, task=arn, reason="Airflow Executor received a SIGTERM"
+                )
+            self.end()
+        except Exception:
+            # We catch any and all exceptions because otherwise they would bubble
+            # up and kill the scheduler process.
+            self.log.exception("Failed to terminate %s", self.__class__.__name__)
 
     def _load_run_kwargs(self) -> dict:
         try:
