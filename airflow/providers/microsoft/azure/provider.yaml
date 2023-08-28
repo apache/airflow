@@ -85,6 +85,7 @@ dependencies:
   #   See issue https://github.com/apache/airflow/issues/30199
   - azure-mgmt-containerinstance>=7.0.0,<9.0.0
   - azure-mgmt-datafactory>=1.0.0,<2.0
+  - azure-mgmt-containerregistry
 
 integrations:
   - integration-name: Microsoft Azure Batch
