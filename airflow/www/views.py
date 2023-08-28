@@ -4185,7 +4185,7 @@ class DagFilter(BaseFilter):
 
 class AirflowModelView(ModelView):
     """
-    Airflow Mode View.
+    Airflow Model View.
 
     Overridden `__getattribute__` to wraps REST methods with action_logger
     """
