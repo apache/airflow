@@ -108,7 +108,6 @@ priority: list[None | TaskInstanceState] = [
     TaskInstanceState.SCHEDULED,
     TaskInstanceState.DEFERRED,
     TaskInstanceState.RUNNING,
-    TaskInstanceState.SHUTDOWN,
     TaskInstanceState.RESTARTING,
     None,
     TaskInstanceState.SUCCESS,
