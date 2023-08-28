@@ -2967,12 +2967,9 @@ class SimpleTaskInstance:
             stacklevel=2,
         )
         new_dict = dict(self.__dict__)
-        for key in new_dict:
-            if key in ["start_date", "end_date"]:
-                val = new_dict[key]
-                if not val or isinstance(val, str):
-                    continue
-                new_dict.update({key: val.isoformat()})
+        for key, val in new_dict.items():
+            if key in ["start_date", "end_date"] and not isinstance(val, str):
+                new_dict[key] = val.isoformat()
         return new_dict
 
     @classmethod

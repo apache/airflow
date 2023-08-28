@@ -245,10 +245,9 @@ class AbstractOperator(Templater, DAGNode):
         while task_ids_to_trace:
             task_ids_to_trace_next: set[str] = set()
             for task_id in task_ids_to_trace:
-                if task_id in relatives:
-                    continue
-                task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
-                relatives.add(task_id)
+                if task_id not in relatives:
+                    task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
+                    relatives.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
 
         return relatives
@@ -256,9 +255,10 @@ class AbstractOperator(Templater, DAGNode):
     def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
         dag = self.get_dag()
-        if not dag:
+        if dag:
+            return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
+        else:
             return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
 
     def get_upstreams_follow_setups(self) -> Iterable[Operator]:
         """All upstreams and, for each upstream setup, its respective teardowns."""
@@ -283,15 +283,14 @@ class AbstractOperator(Templater, DAGNode):
             x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
         }
         for task in self.get_flat_relatives(upstream=True):
-            if not task.is_setup:
-                continue
-            has_no_teardowns = not any(True for x in task.downstream_list if x.is_teardown)
-            # if task has no teardowns or has teardowns downstream of self
-            if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
-                yield task
-                for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
-                        yield t
+            if task.is_setup:
+                has_no_teardowns = not any(x.is_teardown for x in task.downstream_list)
+                # if task has no teardowns or has teardowns downstream of self
+                if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
+                    yield task
+                    for t in task.downstream_list:
+                        if t.is_teardown and not t == self:
+                            yield t
 
     def get_upstreams_only_setups(self) -> Iterable[Operator]:
         """
@@ -337,11 +336,11 @@ class AbstractOperator(Templater, DAGNode):
         if not dag:
             raise RuntimeError("Cannot check for mapped dependants when not attached to a DAG")
         for key, child in _walk_group(dag.task_group):
-            if key == self.node_id:
-                continue
-            if not isinstance(child, (MappedOperator, MappedTaskGroup)):
-                continue
-            if self.node_id in child.upstream_task_ids:
+            if (
+                key != self.node_id
+                and isinstance(child, (MappedOperator, MappedTaskGroup))
+                and self.node_id in child.upstream_task_ids
+            ):
                 yield child
 
     def iter_mapped_dependants(self) -> Iterator[MappedOperator | MappedTaskGroup]:

@@ -152,11 +152,8 @@ class TaskReschedule(Base):
 
 @event.listens_for(TaskReschedule.__table__, "before_create")
 def add_ondelete_for_mssql(table, conn, **kw):
-    if conn.dialect.name != "mssql":
-        return
-
-    for constraint in table.constraints:
-        if constraint.name != "task_reschedule_dr_fkey":
-            continue
-        constraint.ondelete = "NO ACTION"
-        return
+    if conn.dialect.name == "mssql":
+        for constraint in table.constraints:
+            if constraint.name == "task_reschedule_dr_fkey":
+                constraint.ondelete = "NO ACTION"
+                return

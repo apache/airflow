@@ -1253,15 +1253,14 @@ class DagRun(Base, LoggingMixin):
             session.flush()
 
         for index in range(total_length):
-            if index in existing_indexes:
-                continue
-            ti = TI(task, run_id=self.run_id, map_index=index, state=None)
-            self.log.debug("Expanding TIs upserted %s", ti)
-            task_instance_mutation_hook(ti)
-            ti = session.merge(ti)
-            ti.refresh_from_task(task)
-            session.flush()
-            yield ti
+            if index not in existing_indexes:
+                ti = TI(task, run_id=self.run_id, map_index=index, state=None)
+                self.log.debug("Expanding TIs upserted %s", ti)
+                task_instance_mutation_hook(ti)
+                ti = session.merge(ti)
+                ti.refresh_from_task(task)
+                session.flush()
+                yield ti
 
     @staticmethod
     def get_run(session: Session, dag_id: str, execution_date: datetime) -> DagRun | None:

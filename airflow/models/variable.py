@@ -277,14 +277,15 @@ class Variable(Base, LoggingMixin):
         for secrets_backend in ensure_secrets_loaded():
             try:
                 var_val = secrets_backend.get_variable(key=key)
-                if var_val is not None:
-                    break
             except Exception:
                 log.exception(
                     "Unable to retrieve variable from secrets backend (%s). "
                     "Checking subsequent secrets backend.",
                     type(secrets_backend).__name__,
                 )
+            else:
+                if var_val is not None:
+                    break
 
         SecretCache.save_variable(key, var_val)  # we save None as well
         return var_val

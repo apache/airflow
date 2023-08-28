@@ -90,31 +90,21 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
     # use a dict so order of args is same as code order
     unknown_args = value.copy()
     for klass in op.mro():
-        init = klass.__init__  # type: ignore[misc]
-        try:
-            param_names = init._BaseOperatorMeta__param_names
-        except AttributeError:
-            continue
-        for name in param_names:
+        for name in getattr(klass.__init__, "_BaseOperatorMeta__param_names", []):  # type: ignore[misc]
             value = unknown_args.pop(name, NOTSET)
-            if func != "expand":
-                continue
-            if value is NOTSET:
-                continue
-            if is_mappable(value):
-                continue
-            type_name = type(value).__name__
-            error = f"{op.__name__}.expand() got an unexpected type {type_name!r} for keyword argument {name}"
-            raise ValueError(error)
+            if func == "expand" and not (value is NOTSET or is_mappable(value)):
+                raise ValueError(
+                    f"{op.__name__}.expand() got an unexpected type "
+                    f"{type(value).__name__!r} for keyword argument {name}"
+                )
         if not unknown_args:
-            return  # If we have no args left to check: stop looking at the MRO chain.
-
-    if len(unknown_args) == 1:
-        error = f"an unexpected keyword argument {unknown_args.popitem()[0]!r}"
+            break  # If we have no args left to check: stop looking at the MRO chain.
     else:
-        names = ", ".join(repr(n) for n in unknown_args)
-        error = f"unexpected keyword arguments {names}"
-    raise TypeError(f"{op.__name__}.{func}() got {error}")
+        if len(unknown_args) == 1:
+            error = f"an unexpected keyword argument {unknown_args.popitem()[0]!r}"
+        else:
+            error = f"unexpected keyword arguments {', '.join(repr(n) for n in unknown_args)}"
+        raise TypeError(f"{op.__name__}.{func}() got {error}")
 
 
 def ensure_xcomarg_return_value(arg: Any) -> None:

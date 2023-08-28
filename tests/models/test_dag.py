@@ -342,11 +342,9 @@ class TestDag:
                 [EmptyOperator(task_id=f"stage{i}.{j}", priority_weight=weight) for j in range(width)]
                 for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
+            for prev_stage, stage in zip(pipeline, pipeline[1:]):
                 for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
+                    for prev_task in prev_stage:
                         current_task.set_upstream(prev_task)
 
             for task in dag.task_dict.values():
@@ -376,11 +374,9 @@ class TestDag:
                 ]
                 for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
+            for prev_stage, stage in zip(pipeline, pipeline[1:]):
                 for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
+                    for prev_task in prev_stage:
                         current_task.set_upstream(prev_task)
 
             for task in dag.task_dict.values():
@@ -409,11 +405,9 @@ class TestDag:
                 ]
                 for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
+            for prev_stage, stage in zip(pipeline, pipeline[1:]):
                 for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
+                    for prev_task in prev_stage:
                         current_task.set_upstream(prev_task)
 
             for task in dag.task_dict.values():
