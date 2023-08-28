@@ -22,7 +22,10 @@ import socket
 from typing import TYPE_CHECKING, Callable
 
 from airflow.configuration import conf
-from airflow.metrics.base_stats_logger import NoStatsLogger, StatsLogger
+from airflow.metrics.base_stats_logger import NoStatsLogger
+
+if TYPE_CHECKING:
+    from airflow.metrics.base_stats_logger import StatsLogger
 
 log = logging.getLogger(__name__)
 

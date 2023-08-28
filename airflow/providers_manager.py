@@ -83,6 +83,8 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 
 
 if TYPE_CHECKING:
+    from typing_extensions import Literal
+
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
 

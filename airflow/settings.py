@@ -30,8 +30,7 @@ import pendulum
 import pluggy
 import sqlalchemy
 from sqlalchemy import create_engine, exc, text
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session as SASession, scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import policies
@@ -43,6 +42,9 @@ from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.orm import Session as SASession
+
     from airflow.www.utils import UIAlert
 
 log = logging.getLogger(__name__)
