@@ -100,7 +100,7 @@ def get_active_airflow_versions(confirm: bool = True) -> list[str]:
         match = ACTIVE_TAG_MATCH.match(tag)
         if match and match.group(1) == "2":
             all_active_tags.append(tag)
-    airflow_versions = sorted(all_active_tags, key=lambda x: Version(x))
+    airflow_versions = sorted(all_active_tags, key=Version)
     if confirm:
         get_console().print(f"All Airflow 2 versions: {all_active_tags}")
         answer = user_confirm(
