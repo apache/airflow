@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import os
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
@@ -49,12 +48,9 @@ class BaseExtractor(ABC, LoggingMixin):
     """
 
     _allowed_query_params: list[str] = []
-    _openlineage_disabled_for_operators = os.getenv(
-        "OPENLINEAGE_DISABLED_FOR_OPERATORS",
-        conf.get("openlineage", "openlineage_disabled_for_operators", fallback=""),
-    )
+    _openlineage_disabled_for_operators = conf.get("openlineage", "disabled_for_operators")
     openlineage_disabled_for_operators = set(
-        operator.strip() for operator in _openlineage_disabled_for_operators.split(",")
+        operator.strip() for operator in _openlineage_disabled_for_operators.split(";")
     )
 
     def __init__(self, operator):  # type: ignore
