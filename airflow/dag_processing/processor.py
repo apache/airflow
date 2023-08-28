@@ -61,9 +61,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
-    from airflow.callbacks.callback_requests import (
-        CallbackRequest,
-    )
+    from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
