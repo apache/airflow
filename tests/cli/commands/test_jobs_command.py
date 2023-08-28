@@ -26,7 +26,7 @@ from airflow.cli.commands import jobs_command
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import JobState
 from tests.test_utils.db import clear_db_jobs
 
 
@@ -49,7 +49,7 @@ class TestCliConfigList:
         with create_session() as session:
             self.scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=self.scheduler_job)
-            self.scheduler_job.state = State.RUNNING
+            self.scheduler_job.state = JobState.RUNNING
             session.add(self.scheduler_job)
             session.commit()
             self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
@@ -62,7 +62,7 @@ class TestCliConfigList:
         with create_session() as session:
             self.scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=self.scheduler_job)
-            self.scheduler_job.state = State.RUNNING
+            self.scheduler_job.state = JobState.RUNNING
             self.scheduler_job.hostname = "HOSTNAME"
             session.add(self.scheduler_job)
             session.commit()
@@ -83,7 +83,7 @@ class TestCliConfigList:
             for _ in range(3):
                 scheduler_job = Job()
                 job_runner = SchedulerJobRunner(job=scheduler_job)
-                scheduler_job.state = State.RUNNING
+                scheduler_job.state = JobState.RUNNING
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
                 job_runners.append(job_runner)
@@ -109,7 +109,7 @@ class TestCliConfigList:
             for _ in range(3):
                 scheduler_job = Job()
                 job_runner = SchedulerJobRunner(job=scheduler_job)
-                scheduler_job.state = State.FAILED
+                scheduler_job.state = JobState.FAILED
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
                 job_runners.append(job_runner)
@@ -129,7 +129,7 @@ class TestCliConfigList:
                 scheduler_job = Job()
                 job_runner = SchedulerJobRunner(job=scheduler_job)
                 job_runner.job = scheduler_job
-                scheduler_job.state = State.RUNNING
+                scheduler_job.state = JobState.RUNNING
                 scheduler_job.hostname = "HOSTNAME"
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
