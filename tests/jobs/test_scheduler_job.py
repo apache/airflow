@@ -59,7 +59,7 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
@@ -4559,7 +4559,7 @@ class TestSchedulerJob:
 
                 local_job = Job(dag_id=ti.dag_id)
                 LocalTaskJobRunner(job=local_job, task_instance=ti)
-                local_job.state = State.SHUTDOWN
+                local_job.state = TaskInstanceState.FAILED
 
                 session.add(local_job)
                 session.flush()
@@ -4622,7 +4622,7 @@ class TestSchedulerJob:
                 ti.queued_by_job_id = 999
 
                 local_job = Job(dag_id=ti.dag_id)
-                local_job.state = State.SHUTDOWN
+                local_job.state = TaskInstanceState.FAILED
 
                 session.add(local_job)
                 session.flush()
@@ -4683,7 +4683,7 @@ class TestSchedulerJob:
 
             local_job = Job(dag_id=ti.dag_id)
             LocalTaskJobRunner(job=local_job, task_instance=ti)
-            local_job.state = State.SHUTDOWN
+            local_job.state = JobState.FAILED
             session.add(local_job)
             session.flush()
 
