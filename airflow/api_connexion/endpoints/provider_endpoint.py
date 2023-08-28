@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import re2
 
 from airflow.api_connexion import security
@@ -24,9 +26,12 @@ from airflow.api_connexion.schemas.provider_schema import (
     ProviderCollection,
     provider_collection_schema,
 )
-from airflow.api_connexion.types import APIResponse
-from airflow.providers_manager import ProviderInfo, ProvidersManager
+from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
+
+if TYPE_CHECKING:
+    from airflow.api_connexion.types import APIResponse
+    from airflow.providers_manager import ProviderInfo
 
 
 def _remove_rst_syntax(value: str) -> str:

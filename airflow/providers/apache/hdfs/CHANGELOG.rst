@@ -28,7 +28,7 @@ Changelog
 ---------
 
 4.1.0
------
+.....
 
 .. note::
   This release dropped support for Python 3.7
@@ -45,7 +45,7 @@ Features
    * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 4.0.0
------
+.....
 
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the

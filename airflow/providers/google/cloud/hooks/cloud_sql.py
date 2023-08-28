@@ -35,7 +35,7 @@ from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import gettempdir
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import quote_plus
 
 import httpx
@@ -43,7 +43,6 @@ from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
-from requests import Session
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
@@ -54,6 +53,9 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHoo
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from requests import Session
 
 UNIX_PATH_MAX = 108
 

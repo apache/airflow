@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 from typing import TYPE_CHECKING, Any, Sequence
 
 from azure.core.exceptions import ResourceNotFoundError
@@ -25,6 +24,8 @@ from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
 
 if TYPE_CHECKING:
+    import datetime
+
     from azure.servicebus.management._models import AuthorizationRule
 
     from airflow.utils.context import Context

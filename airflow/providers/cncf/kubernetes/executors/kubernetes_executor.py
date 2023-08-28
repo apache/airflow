@@ -23,7 +23,6 @@ KubernetesExecutor.
 """
 from __future__ import annotations
 
-import argparse
 import json
 import logging
 import multiprocessing
@@ -35,7 +34,6 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Sequence
 
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException
 
@@ -83,8 +81,11 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    import argparse
+
     from kubernetes import client
     from kubernetes.client import models as k8s
+    from sqlalchemy.orm import Session
 
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstance import TaskInstance

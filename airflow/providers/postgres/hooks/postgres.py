@@ -26,14 +26,15 @@ from typing import TYPE_CHECKING, Any, Iterable, Union
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
+    from psycopg2.extensions import connection
+
+    from airflow.models.connection import Connection
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]

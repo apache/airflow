@@ -57,6 +57,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
     option_airflow_extras,
+    option_airflow_site_directory,
     option_answer,
     option_commit_sha,
     option_debug_resources,
@@ -119,7 +120,7 @@ from airflow_breeze.utils.run_utils import (
     run_command,
     run_compile_www_assets,
 )
-from airflow_breeze.utils.shared_options import get_dry_run, get_forced_answer
+from airflow_breeze.utils.shared_options import get_dry_run, get_forced_answer, get_verbose
 from airflow_breeze.utils.suspended_providers import get_suspended_provider_ids
 
 option_debug_release_management = click.option(
@@ -769,30 +770,95 @@ def alias_image(image_from: str, image_to: str):
     )
 
 
+def run_docs_publishing(
+    package_name: str,
+    airflow_site_directory: str,
+    override_versioned: bool,
+    verbose: bool,
+    output: Output | None,
+) -> tuple[int, str]:
+    builder = PublishDocsBuilder(package_name=package_name, output=output, verbose=verbose)
+    builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
+    return (
+        0,
+        f"Docs published: {package_name}",
+    )
+
+
+PUBLISHING_DOCS_PROGRESS_MATCHER = r"Publishing docs|Copy directory"
+
+
+def run_publish_docs_in_parallel(
+    package_list: list[str],
+    airflow_site_directory: str,
+    override_versioned: bool,
+    include_success_outputs: bool,
+    parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+):
+    """Run docs publishing in parallel"""
+    with ci_group("Publishing docs for packages"):
+        all_params = [f"Publishing docs {package_name}" for package_name in package_list]
+        with run_with_pool(
+            parallelism=parallelism,
+            all_params=all_params,
+            debug_resources=debug_resources,
+            progress_matcher=GenericRegexpProgressMatcher(
+                regexp=PUBLISHING_DOCS_PROGRESS_MATCHER, lines_to_search=6
+            ),
+        ) as (pool, outputs):
+            results = [
+                pool.apply_async(
+                    run_docs_publishing,
+                    kwds={
+                        "package_name": package_name,
+                        "airflow_site_directory": airflow_site_directory,
+                        "override_versioned": override_versioned,
+                        "output": outputs[index],
+                        "verbose": get_verbose(),
+                    },
+                )
+                for index, package_name in enumerate(package_list)
+            ]
+    check_async_run_results(
+        results=results,
+        success="All package documentation published.",
+        outputs=outputs,
+        include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
+        summarize_on_ci=SummarizeAfter.NO_SUMMARY,
+    )
+
+
 @release_management.command(
     name="publish-docs",
     help="Command to publish generated documentation to airflow-site",
 )
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
-@click.option(
-    "-a",
-    "--airflow-site-directory",
-    envvar="AIRFLOW_SITE_DIRECTORY",
-    help="Local directory path of cloned airflow-site repo.",
-    required=True,
-)
+@option_airflow_site_directory
 @click.option(
     "--package-filter",
     help="List of packages to consider.",
     type=NotVerifiedBetterChoice(get_available_documentation_packages()),
     multiple=True,
 )
+@option_run_in_parallel
+@option_parallelism
+@option_debug_resources
+@option_include_success_outputs
+@option_skip_cleanup
 @option_verbose
 @option_dry_run
 def publish_docs(
     override_versioned: bool,
     airflow_site_directory: str,
     package_filter: tuple[str],
+    run_in_parallel: bool,
+    parallelism: int,
+    debug_resources: bool,
+    include_success_outputs: bool,
+    skip_cleanup: bool,
 ):
     """Publishes documentation to airflow-site."""
     if not os.path.isdir(airflow_site_directory):
@@ -809,23 +875,28 @@ def publish_docs(
     for pkg in current_packages:
         print(f" - {pkg}")
     print()
-    for package_name in current_packages:
-        builder = PublishDocsBuilder(package_name=package_name)
-        builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
+    if run_in_parallel:
+        run_publish_docs_in_parallel(
+            package_list=current_packages,
+            parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
+            include_success_outputs=True,
+            airflow_site_directory=airflow_site_directory,
+            override_versioned=override_versioned,
+        )
+    else:
+        for package_name in current_packages:
+            run_docs_publishing(
+                package_name, airflow_site_directory, override_versioned, verbose=get_verbose(), output=None
+            )
 
 
 @release_management.command(
     name="add-back-references",
     help="Command to add back references for documentation to make it backward compatible.",
 )
-@click.option(
-    "-a",
-    "--airflow-site-directory",
-    envvar="AIRFLOW_SITE_DIRECTORY",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
-    help="Local directory path of cloned airflow-site repo.",
-    required=True,
-)
+@option_airflow_site_directory
 @argument_packages_plus_all_providers
 @option_verbose
 @option_dry_run

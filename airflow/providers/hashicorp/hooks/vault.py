@@ -19,11 +19,9 @@ from __future__ import annotations
 
 import json
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import hvac
 from hvac.exceptions import VaultError
-from requests import Response
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -33,6 +31,10 @@ from airflow.providers.hashicorp._internal_client.vault_client import (
     _VaultClient,
 )
 from airflow.utils.helpers import merge_dicts
+
+if TYPE_CHECKING:
+    import hvac
+    from requests import Response
 
 
 class VaultHook(BaseHook):

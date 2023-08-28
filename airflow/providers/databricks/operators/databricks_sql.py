@@ -22,7 +22,6 @@ import csv
 import json
 from typing import TYPE_CHECKING, Any, Sequence
 
-from databricks.sql.types import Row
 from databricks.sql.utils import ParamEscaper
 
 from airflow.exceptions import AirflowException
@@ -31,6 +30,8 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 
 if TYPE_CHECKING:
+    from databricks.sql.types import Row
+
     from airflow.utils.context import Context
 
 

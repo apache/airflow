@@ -17,15 +17,17 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.spark import SparkClient
-from azure.synapse.spark.models import SparkBatchJobOptions
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import get_field
+
+if TYPE_CHECKING:
+    from azure.synapse.spark.models import SparkBatchJobOptions
 
 Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
 

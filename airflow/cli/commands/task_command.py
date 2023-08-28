@@ -25,13 +25,13 @@ import os
 import sys
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import Generator, Union, cast
+from typing import TYPE_CHECKING, Generator, Protocol, Union, cast
 
 import pendulum
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm.session import Session
+from typing_extensions import Literal
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
@@ -44,13 +44,12 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.operator import Operator, needs_expansion
+from airflow.models.operator import needs_expansion
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
-from airflow.typing_compat import Literal, Protocol
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_dag,
@@ -68,6 +67,11 @@ from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
+    from airflow.models.operator import Operator
 
 log = logging.getLogger(__name__)
 

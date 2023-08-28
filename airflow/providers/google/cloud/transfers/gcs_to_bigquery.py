@@ -22,7 +22,6 @@ import json
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import BadRequest, Conflict
-from google.api_core.retry import Retry
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
     CopyJob,
@@ -44,6 +43,8 @@ from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 ALLOWED_FORMATS = [

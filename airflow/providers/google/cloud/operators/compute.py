@@ -22,7 +22,6 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core import exceptions
-from google.api_core.retry import Retry
 from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 from json_merge_patch import merge
 
@@ -38,6 +37,8 @@ from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSan
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 

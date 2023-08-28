@@ -27,15 +27,17 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from azure.identity import DefaultAzureCredential
 from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
 from azure.kusto.data.exceptions import KustoServiceError
-from azure.kusto.data.response import KustoResponseDataSetV2
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from azure.kusto.data.response import KustoResponseDataSetV2
 
 
 class AzureDataExplorerHook(BaseHook):

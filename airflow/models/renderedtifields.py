@@ -33,18 +33,20 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Session, relationship
+from sqlalchemy.orm import relationship
 
 from airflow.configuration import conf
 from airflow.models.base import Base, StringID
-from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
     from sqlalchemy.sql import FromClause
+
+    from airflow.models.taskinstance import TaskInstance
 
 
 class RenderedTaskInstanceFields(Base):
