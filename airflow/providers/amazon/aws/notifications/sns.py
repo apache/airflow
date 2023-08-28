@@ -41,7 +41,7 @@ class SnsNotifier(BaseNotifier):
 
     :param aws_conn_id: The :ref:`Amazon Web Services Connection id <howto/connection:aws>`
         used for AWS credentials. If this is None or empty then the default boto3 behaviour is used.
-    :param target_arn: either a TopicArn or an EndpointArn.
+    :param target_arn: Either a TopicArn or an EndpointArn.
     :param message: The message you want to send.
     :param subject: The message subject you want to send.
     :param message_attributes: The message attributes you want to send as a flat dict (data type will be
