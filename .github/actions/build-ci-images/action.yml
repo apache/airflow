@@ -39,13 +39,12 @@ runs:
       run: >
         breeze release-management generate-constraints --run-in-parallel
         --airflow-constraints-mode constraints-source-providers
-      if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
     - name: "Generate PyPI constraints"
       shell: bash
       run: >
         breeze release-management generate-constraints --run-in-parallel
         --airflow-constraints-mode constraints
-      if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false' and ${{ inputs.build-provider-packages != 'true' }}
+      if: ${{ inputs.build-provider-packages != 'true' }}
     - name: "Print dependency upgrade summary"
       shell: bash
       run: |
@@ -53,7 +52,6 @@ runs:
           echo "Summarizing Python $PYTHON_VERSION"
           cat "files/constraints-${PYTHON_VERSION}/*.md" >> $GITHUB_STEP_SUMMARY || true
         done
-      if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
     - name: "Upload constraint artifacts"
       uses: actions/upload-artifact@v3
       with:

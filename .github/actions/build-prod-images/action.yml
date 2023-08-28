@@ -61,7 +61,6 @@ runs:
       with:
         name: constraints
         path: ./docker-context-files
-      if: env.UPGRADE_TO_NEWER_DEPENDENCIES != 'false'
     - name: "Build & Push PROD images with source providers ${{ env.IMAGE_TAG }}:${{ env.PYTHON_VERSIONS }}"
       shell: bash
       run: >
