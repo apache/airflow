@@ -66,10 +66,9 @@ def get_packages() -> list[tuple[str, str]]:
 
     packages = []
     for line in content.splitlines():
-        if not line:
-            continue
-        name, version = line.rstrip("/").split("/")[-2:]
-        packages.append((name, version))
+        if line:
+            _, name, version = line.rstrip("/").rsplit("/", 2)
+            packages.append((name, version))
 
     return packages
 
