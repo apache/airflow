@@ -28,6 +28,7 @@ or the ``api/2.1/jobs/runs/submit``
 from __future__ import annotations
 
 import json
+import warnings
 from typing import Any
 
 from requests import exceptions as requests_exceptions
@@ -179,7 +180,12 @@ class DatabricksHook(BaseDatabricksHook):
         all_jobs = []
         use_token_pagination = (page_token is not None) or (offset is None)
         if offset is not None:
-            print("[WARN] You are using the offset parameter in list_jobs which will be deprecated soon")
+            warnings.warn(
+                """You are using the deprecated offset parameter in list_jobs.
+                Please paginate using page_token.""",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         if page_token is None:
             page_token = ""
         if offset is None:
