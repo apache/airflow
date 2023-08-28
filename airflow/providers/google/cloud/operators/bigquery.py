@@ -1039,7 +1039,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             self.log.info("Total extracted rows: %s", len(rows))
 
             if self.as_dict:
-                table_data = [{k: v for k, v in row.items()} for row in rows]
+                table_data = [dict(row.items()) for row in rows]
             else:
                 table_data = [row.values() for row in rows]
 
