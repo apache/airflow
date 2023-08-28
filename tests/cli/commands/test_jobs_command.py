@@ -26,7 +26,7 @@ from airflow.cli.commands import jobs_command
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.session import create_session
-from airflow.utils.state import JobState
+from airflow.utils.state import State, JobState
 from tests.test_utils.db import clear_db_jobs
 
 
@@ -49,7 +49,7 @@ class TestCliConfigList:
         with create_session() as session:
             self.scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=self.scheduler_job)
-            self.scheduler_job.state = JobState.RUNNING
+            self.scheduler_job.state = State.RUNNING
             session.add(self.scheduler_job)
             session.commit()
             self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
@@ -62,7 +62,7 @@ class TestCliConfigList:
         with create_session() as session:
             self.scheduler_job = Job()
             self.job_runner = SchedulerJobRunner(job=self.scheduler_job)
-            self.scheduler_job.state = JobState.RUNNING
+            self.scheduler_job.state = State.RUNNING
             self.scheduler_job.hostname = "HOSTNAME"
             session.add(self.scheduler_job)
             session.commit()
