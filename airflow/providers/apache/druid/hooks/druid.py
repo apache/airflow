@@ -168,6 +168,7 @@ class DruidHook(BaseHook):
         except Exception as e:
             return False, str(e)
 
+
 class DruidDbApiHook(DbApiHook):
     """
     Interact with Druid broker.
