@@ -682,10 +682,11 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             try:
                 cluster = self._get_cluster(hook)
                 self._handle_error_state(hook, cluster)
-            finally:
+            except AirflowException as ae_inner:
                 # We could get any number of failures here, including cluster not found and we
                 # can just ignore to ensure we surface the original cluster create failure
-                self.log.error(ae)
+                self.log.error(ae_inner, exc_info=True)
+            finally:
                 raise ae
 
         # Check if cluster is not in ERROR state
