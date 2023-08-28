@@ -229,8 +229,8 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
 
         if not self.task_instance.test_mode and not is_deferral:
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
-                self.task_instance.schedule_downstream_tasks(max_tis_per_query=self.job.max_tis_per_query)
-
+                # self.task_instance.schedule_downstream_tasks(max_tis_per_query=self.job.max_tis_per_query)
+                pass
     def on_kill(self):
         self.task_runner.terminate()
         self.task_runner.on_finish()

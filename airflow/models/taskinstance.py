@@ -1161,7 +1161,14 @@ class TaskInstance(Base, LoggingMixin):
     def get_failed_dep_statuses(self, dep_context: DepContext | None = None, session: Session = NEW_SESSION):
         """Get failed Dependencies."""
         dep_context = dep_context or DepContext()
-        for dep in dep_context.deps | self.task.deps:
+        deps_to_check = dep_context.deps | self.task.deps
+        from airflow.ti_deps.deps.trigger_rule_dep import IndirectSetupTasksDep
+
+        setup_dep = IndirectSetupTasksDep()
+        if setup_dep in deps_to_check:
+            deps_to_check.remove(setup_dep)
+            deps_to_check = (setup_dep, *deps_to_check)
+        for dep in deps_to_check:
             for dep_status in dep.get_dep_statuses(self, session, dep_context):
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
@@ -1170,8 +1177,9 @@ class TaskInstance(Base, LoggingMixin):
                     dep_status.passed,
                     dep_status.reason,
                 )
-
                 if not dep_status.passed:
+                    if dep.__hash__() == setup_dep.__hash__():
+                        dep_context.flag_upstream_failed = False
                     yield dep_status
 
     def __repr__(self) -> str:

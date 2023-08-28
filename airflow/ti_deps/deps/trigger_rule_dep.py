@@ -20,6 +20,7 @@ from __future__ import annotations
 import collections
 import collections.abc
 import functools
+import logging
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
@@ -122,6 +123,8 @@ def _iter_upstream_conditions(*, ti, task, upstream_tasks, session) -> Iterator[
     :param task: the object task
     :param upstream_tasks: the upstreams we care about
     """
+    from airflow.models.taskinstance import TaskInstance
+
     # Optimization: If the current task is not in a mapped task group,
     # it depends on all upstream task instances.
     if task.get_closest_mapped_task_group() is None:
@@ -153,6 +156,9 @@ def _iter_upstream_conditions(*, ti, task, upstream_tasks, session) -> Iterator[
             yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
 
 
+log = logging.getLogger(__name__)
+
+
 class IndirectSetupTasksDep(BaseTIDep):
     """Determines if a task's upstream tasks are in a state that allows a given task instance to run."""
 
@@ -175,42 +181,41 @@ class IndirectSetupTasksDep(BaseTIDep):
         if ti.task.is_teardown:
             yield self._passing_status(reason="Indirect setup does not apply to teardowns.")
             return
-        all_upstream_setups = {x.task_id: x for x in ti.task.get_upstreams_only_setups()}
-        indirect_setups = {
-            k: v for k, v in all_upstream_setups.items() if v.task_id not in ti.task.upstream_task_ids
-        }
-        if indirect_setups:
-            yield from self._evaluate_indirect_setup(
-                ti=ti, dep_context=dep_context, indirect_setups=indirect_setups, session=session
+        relevant_setups = {x.task_id: x for x in ti.task.get_upstreams_only_setups()}
+        if relevant_setups:
+            log.warning(f"evaluating setup for task {ti.task_id}")
+            yield from self._evaluate_setup(
+                ti=ti, dep_context=dep_context, relevant_setups=relevant_setups, session=session
             )
+        else:
+            log.warning(f"NOT evaluating setup for task {ti.task_id}")
 
-    def _evaluate_indirect_setup(self, *, ti, dep_context, indirect_setups, session):
+    def _evaluate_setup(self, *, ti, dep_context, relevant_setups, session):
         # we know that this task has indirect setups
         # Optimization: Don't need to hit the database if all upstreams are
         # "simple" tasks (no task or task group mapping involved).
         from airflow.models.operator import needs_expansion
+        from airflow.models.taskinstance import TaskInstance
 
-        upstream_tasks = indirect_setups
+        upstream_tasks = relevant_setups
 
-        finished_upstream_setup_tis = (
+        finished_upstream_tis = (
             x
             for x in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
             if x.task_id in upstream_tasks
         )
         counter: dict[str, int] = collections.Counter()
-        for ti in finished_upstream_setup_tis:
-            curr_state = {ti.state: 1}
+        for ti_ in finished_upstream_tis:
+            curr_state = {ti_.state: 1}
             counter.update(curr_state)
-            if ti.task.is_setup:
+            if ti_.task.is_setup:
                 counter.update(curr_state)
-        states_dict = {
-            "success": counter.get(TaskInstanceState.SUCCESS, 0),
-            "skipped": counter.get(TaskInstanceState.SKIPPED, 0),
-            "failed": counter.get(TaskInstanceState.FAILED, 0),
-            "upstream_failed": counter.get(TaskInstanceState.UPSTREAM_FAILED, 0),
-            "removed": counter.get(TaskInstanceState.REMOVED, 0),
-            "done": sum(counter.values()),
-        }
+        success = counter.get(TaskInstanceState.SUCCESS, 0)
+        skipped = counter.get(TaskInstanceState.SKIPPED, 0)
+        failed = counter.get(TaskInstanceState.FAILED, 0)
+        upstream_failed = counter.get(TaskInstanceState.UPSTREAM_FAILED, 0)
+        counter.get(TaskInstanceState.REMOVED, 0)
+        done = sum(counter.values())
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
         else:
@@ -227,6 +232,50 @@ class IndirectSetupTasksDep(BaseTIDep):
                 .group_by(TaskInstance.task_id)
             ).all()
             upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
+        upstream_done = done >= upstream_setup
+
+        changed = False
+        new_state = None
+        if upstream_done:
+            log.warning(f"task={ti.task_id}: upstream done")
+            if success >= done:
+                # log.warning(f"task={ti.task_id}: all success")
+                pass
+            elif upstream_failed or failed:
+                # log.warning(f"task={ti.task_id}: one failed")
+                new_state = TaskInstanceState.UPSTREAM_FAILED
+            elif skipped:
+                # log.warning(f"task={ti.task_id}: one skipped")
+                new_state = TaskInstanceState.SKIPPED
+            else:
+                # log.warning(f"task={ti.task_id}: fail by default")
+                new_state = TaskInstanceState.UPSTREAM_FAILED
+        else:
+            log.warning(f"task={ti.task_id}: upstream not done: {done=} {upstream_setup=}")
+        # log.warning(f"task={ti.task_id}: upstream not done: {done.__class__=} {upstream_setup.__class__=}")
+
+        if new_state is not None:
+            log.warning(f"updating {ti.task_id=} to state {new_state}")
+            if new_state == TaskInstanceState.SKIPPED and dep_context.wait_for_past_depends_before_skipping:
+                past_depends_met = ti.xcom_pull(
+                    task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
+                )
+                if not past_depends_met:
+                    yield self._failing_status(
+                        reason=("Task should be skipped but the past depends are not met")
+                    )
+                    return
+            changed = ti.set_state(new_state, session)
+
+        if changed:
+            dep_context.have_changed_ti_states = True
+
+        if not upstream_done:
+            reason = (
+                f"All setups must be completed, but found {len(upstream_tasks) - done} task(s) "
+                "that were not done. "
+            )
+            yield self._failing_status(reason=reason)
 
 
 class TriggerRuleDep(BaseTIDep):
@@ -386,6 +435,7 @@ class TriggerRuleDep(BaseTIDep):
                     # if at least one setup ran, we'll let it run
                     new_state = TaskInstanceState.UPSTREAM_FAILED
         if new_state is not None:
+            log.warning(f"trigger rule dep changing {ti.task_id} to {new_state}")
             if new_state == TaskInstanceState.SKIPPED and dep_context.wait_for_past_depends_before_skipping:
                 past_depends_met = ti.xcom_pull(
                     task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
