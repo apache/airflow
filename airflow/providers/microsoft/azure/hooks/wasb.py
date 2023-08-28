@@ -173,8 +173,8 @@ class WasbHook(BaseHook):
                 # provided the DNS name without the https:// prefix.
                 # Azure storage account name can only be 3 to 24 characters in length
                 # https://learn.microsoft.com/en-us/azure/storage/common/storage-account-overview#storage-account-name
-                acc_name = parsed_url.path.split(".")[0][:24]
-                account_url = f"https://{acc_name}." + ".".join(parsed_url.path.split(".")[1:])
+                acc_name = account_url.split(".")[0][:24]
+                account_url = f"https://{acc_name}." + ".".join(account_url.split(".")[1:])
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
