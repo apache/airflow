@@ -20,13 +20,14 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Sequence
 
-import jinja2
-
 from airflow.template.templater import Templater
-from airflow.utils.context import Context, context_merge
+from airflow.utils.context import context_merge
 
 if TYPE_CHECKING:
+    import jinja2
+
     from airflow import DAG
+    from airflow.utils.context import Context
 
 
 class BaseNotifier(Templater):

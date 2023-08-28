@@ -18,13 +18,14 @@ from __future__ import annotations
 
 import asyncio
 from enum import Enum
-from typing import Any, AsyncIterator, Sequence
-
-from google.longrunning import operations_pb2
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from google.longrunning import operations_pb2
 
 DEFAULT_BATCH_LOCATION = "us-central1"
 

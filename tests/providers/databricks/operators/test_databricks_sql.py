@@ -21,9 +21,10 @@ import os
 from unittest.mock import patch
 
 import pytest
+from databricks.sql.types import Row
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator, Row
+from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator
 from airflow.serialization.serde import serialize
 
 DATE = "2017-04-20"

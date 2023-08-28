@@ -52,7 +52,6 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
@@ -65,7 +64,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     get_container_termination_message,
 )
 from airflow.settings import pod_mutation_hook
-from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.utils.timezone import utcnow
@@ -73,7 +71,9 @@ from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
     import jinja2
+    from typing_extensions import Literal
 
+    from airflow.providers.cncf.kubernetes.secret import Secret
     from airflow.utils.context import Context
 
 alphanum_lower = string.ascii_lowercase + string.digits
@@ -250,6 +250,7 @@ class KubernetesPodOperator(BaseOperator):
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
     ISTIO_CONTAINER_NAME = "istio-proxy"
+    KILL_ISTIO_PROXY_SUCCESS_MSG = "HTTP/1.1 200"
     POD_CHECKED_KEY = "already_checked"
     POST_TERMINATION_TIMEOUT = 120
 
@@ -777,25 +778,31 @@ class KubernetesPodOperator(BaseOperator):
         return False
 
     def kill_istio_sidecar(self, pod: V1Pod) -> None:
-        command = "/bin/sh -c curl -fsI -X POST http://localhost:15020/quitquitquit && exit 0"
+        command = "/bin/sh -c 'curl -fsI -X POST http://localhost:15020/quitquitquit'"
         command_to_container = shlex.split(command)
-        try:
-            resp = stream(
-                self.client.connect_get_namespaced_pod_exec,
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                container=self.ISTIO_CONTAINER_NAME,
-                command=command_to_container,
-                stderr=True,
-                stdin=True,
-                stdout=True,
-                tty=False,
-                _preload_content=False,
-            )
-            resp.close()
-        except Exception as e:
-            self.log.error("Error while deleting istio-proxy sidecar: %s", e)
-            raise e
+        resp = stream(
+            self.client.connect_get_namespaced_pod_exec,
+            name=pod.metadata.name,
+            namespace=pod.metadata.namespace,
+            container=self.ISTIO_CONTAINER_NAME,
+            command=command_to_container,
+            stderr=True,
+            stdin=True,
+            stdout=True,
+            tty=False,
+            _preload_content=False,
+        )
+        output = []
+        while resp.is_open():
+            if resp.peek_stdout():
+                output.append(resp.read_stdout())
+
+        resp.close()
+        output_str = "".join(output)
+        self.log.info("Output of curl command to kill istio: %s", output_str)
+        resp.close()
+        if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
+            raise Exception("Error while deleting istio-proxy sidecar: %s", output_str)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         istio_enabled = self.is_istio_enabled(pod)

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import collections.abc
 import contextlib
-import datetime
 import inspect
 import itertools
 import json
@@ -30,7 +29,6 @@ from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, Generator, Iterable, cast, overload
 
 import attr
-import pendulum
 from sqlalchemy import (
     Column,
     ForeignKeyConstraint,
@@ -43,7 +41,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Query, Session, reconstructor, relationship
+from sqlalchemy.orm import Query, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow import settings
@@ -68,6 +66,11 @@ from airflow.utils.xcom import (
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    import datetime
+
+    import pendulum
+    from sqlalchemy.orm import Session
+
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 

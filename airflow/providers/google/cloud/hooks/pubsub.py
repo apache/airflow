@@ -28,23 +28,13 @@ from __future__ import annotations
 import warnings
 from base64 import b64decode
 from functools import cached_property
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
-from google.cloud.pubsub_v1.types import (
-    DeadLetterPolicy,
-    Duration,
-    ExpirationPolicy,
-    MessageStoragePolicy,
-    PushConfig,
-    ReceivedMessage,
-    RetryPolicy,
-)
 from google.pubsub_v1.services.subscriber.async_client import SubscriberAsyncClient
 from googleapiclient.errors import HttpError
 
@@ -56,6 +46,18 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
 )
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.cloud.pubsub_v1.types import (
+        DeadLetterPolicy,
+        Duration,
+        ExpirationPolicy,
+        MessageStoragePolicy,
+        PushConfig,
+        ReceivedMessage,
+        RetryPolicy,
+    )
 
 
 class PubSubException(Exception):

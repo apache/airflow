@@ -21,7 +21,6 @@ import logging
 import sys
 import warnings
 from collections import defaultdict
-from datetime import datetime
 from operator import attrgetter
 from time import time
 from typing import TYPE_CHECKING, Any, Callable, List, Tuple
@@ -35,13 +34,17 @@ from elasticsearch.exceptions import NotFoundError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from airflow.models.taskinstance import TaskInstance
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type

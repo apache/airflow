@@ -19,9 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from google.api_core import operation
 from google.cloud.run_v2 import Job
-from google.cloud.run_v2.types import Execution
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -30,6 +28,9 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.cloud_run import CloudRunJobFinishedTrigger, RunJobStatus
 
 if TYPE_CHECKING:
+    from google.api_core import operation
+    from google.cloud.run_v2.types import Execution
+
     from airflow.utils.context import Context
 
 

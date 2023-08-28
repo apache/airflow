@@ -21,18 +21,20 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
-from httplib2 import Response
-from requests import Session
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.version import version as airflow_version
+
+if TYPE_CHECKING:
+    from httplib2 import Response
+    from requests import Session
 
 log = logging.getLogger(__name__)
 

@@ -18,13 +18,15 @@
 """This module contains Google Campaign Manager hook."""
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-from googleapiclient import http
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from googleapiclient import http
 
 
 class GoogleCampaignManagerHook(GoogleBaseHook):

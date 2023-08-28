@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
@@ -25,7 +26,6 @@ import pytest
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
@@ -36,6 +36,9 @@ from airflow.providers.microsoft.azure.sensors.wasb import (
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 TEST_DATA_STORAGE_BLOB_NAME = "test_blob_providers.txt"
 TEST_DATA_STORAGE_CONTAINER_NAME = "test-container-providers"

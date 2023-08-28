@@ -21,14 +21,15 @@ import datetime
 import warnings
 from asyncio import CancelledError
 from enum import Enum
-from typing import Any, AsyncIterator
-
-from kubernetes_asyncio.client.models import V1Pod
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodPhase
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from kubernetes_asyncio.client.models import V1Pod
 
 
 class ContainerState(str, Enum):

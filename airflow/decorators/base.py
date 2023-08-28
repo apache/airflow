@@ -22,6 +22,7 @@ import warnings
 from functools import cached_property
 from textwrap import dedent
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
@@ -39,7 +40,6 @@ from typing import (
 import attr
 import re2
 import typing_extensions
-from sqlalchemy.orm import Session
 
 from airflow import Dataset
 from airflow.exceptions import AirflowException
@@ -51,27 +51,37 @@ from airflow.models.baseoperator import (
     get_merged_defaults,
     parse_retries,
 )
-from airflow.models.dag import DAG, DagContext
+from airflow.models.dag import DagContext
 from airflow.models.expandinput import (
     EXPAND_INPUT_EMPTY,
     DictOfListsExpandInput,
-    ExpandInput,
     ListOfDictsExpandInput,
-    OperatorExpandArgument,
-    OperatorExpandKwargsArgument,
     is_mappable,
 )
-from airflow.models.mappedoperator import MappedOperator, ValidationSource, ensure_xcomarg_return_value
+from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
-from airflow.utils.context import KNOWN_CONTEXT_KEYS, Context
+from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates
-from airflow.utils.task_group import TaskGroup, TaskGroupContext
+from airflow.utils.task_group import TaskGroupContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.dag import DAG
+    from airflow.models.expandinput import (
+        ExpandInput,
+        OperatorExpandArgument,
+        OperatorExpandKwargsArgument,
+    )
+    from airflow.models.mappedoperator import ValidationSource
+    from airflow.utils.context import Context
+    from airflow.utils.task_group import TaskGroup
 
 
 class ExpandableFactory(Protocol):

@@ -19,9 +19,10 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Collection, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Sequence
 
 from deprecated import deprecated
+from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException

@@ -23,14 +23,14 @@ import tempfile
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
-from facebook_business.adobjects.adsinsights import AdsInsights
-
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 if TYPE_CHECKING:
+    from facebook_business.adobjects.adsinsights import AdsInsights
+
     from airflow.utils.context import Context
 
 

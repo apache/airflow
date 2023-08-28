@@ -20,7 +20,9 @@ from __future__ import annotations
 import enum
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+
+from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook

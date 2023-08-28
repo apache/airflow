@@ -25,11 +25,11 @@ is supported and no serialization need be written.
 from __future__ import annotations
 
 import copy
-import datetime
 import logging
 import os
 import warnings
 from functools import reduce
+from typing import TYPE_CHECKING
 
 import re2
 from dateutil import parser
@@ -54,6 +54,9 @@ from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
 from airflow.providers.cncf.kubernetes.utils.k8s_hashlib_wrapper import md5
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
+
+if TYPE_CHECKING:
+    import datetime
 
 log = logging.getLogger(__name__)
 

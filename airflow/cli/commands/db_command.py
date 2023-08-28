@@ -22,9 +22,10 @@ import os
 import textwrap
 import warnings
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING
 
 from packaging.version import parse as parse_version
-from tenacity import RetryCallState, Retrying, stop_after_attempt, wait_fixed
+from tenacity import Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -33,6 +34,9 @@ from airflow.utils.db import _REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+if TYPE_CHECKING:
+    from tenacity import RetryCallState
 
 log = logging.getLogger(__name__)
 

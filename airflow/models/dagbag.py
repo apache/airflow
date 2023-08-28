@@ -31,7 +31,6 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 from airflow import settings
@@ -53,12 +52,15 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import pathlib
 
+    from sqlalchemy.orm import Session
+
     from airflow.models.dag import DAG
+    from airflow.utils.types import ArgNotSet
 
 
 class FileLoadStat(NamedTuple):

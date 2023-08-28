@@ -22,16 +22,12 @@ import inspect
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
 
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.taskmixin import DAGNode, DependencyMixin
-from airflow.utils.context import Context
+from airflow.models.taskmixin import DependencyMixin
 from airflow.utils.db import exists_query
-from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
@@ -41,8 +37,14 @@ from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.models.taskmixin import DAGNode
+    from airflow.utils.context import Context
+    from airflow.utils.edgemodifier import EdgeModifier
 
 # Callable objects contained by MapXComArg. We only accept callables from
 # the user, but deserialize them into strings in a serialized XComArg for
