@@ -18,16 +18,19 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from functools import cached_property
+from typing import Any, TYPE_CHECKING
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
-from azure.mgmt.containerinstance.models import ContainerGroup
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+
+if TYPE_CHECKING:
+    from azure.mgmt.containerinstance.models import ContainerGroup
 
 
 class AzureContainerInstanceHook(AzureBaseHook):
@@ -51,7 +54,10 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def __init__(self, azure_conn_id: str = default_conn_name) -> None:
         super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=azure_conn_id)
-        self.connection = self.get_conn()
+
+    @cached_property
+    def connection(self):
+        return self.get_conn()
 
     def get_conn(self) -> Any:
         """

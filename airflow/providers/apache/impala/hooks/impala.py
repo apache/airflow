@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from impala.dbapi import connect
-from impala.interface import Connection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from impala.interface import Connection
 
 
 class ImpalaHook(DbApiHook):

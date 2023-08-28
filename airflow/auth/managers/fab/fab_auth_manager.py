@@ -27,12 +27,14 @@ from airflow.auth.managers.fab.cli_commands.definition import (
     USERS_COMMANDS,
 )
 from airflow.cli.cli_config import (
-    CLICommand,
     GroupCommand,
 )
 
 if TYPE_CHECKING:
     from airflow.auth.managers.fab.models import User
+    from airflow.cli.cli_config import (
+        CLICommand,
+    )
 
 
 class FabAuthManager(BaseAuthManager):

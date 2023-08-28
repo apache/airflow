@@ -18,9 +18,8 @@
 from __future__ import annotations
 
 import itertools
-from typing import Iterable, Sequence
+from typing import TYPE_CHECKING, Iterable, Sequence
 
-from google.api_core import operation
 from google.cloud.run_v2 import (
     CreateJobRequest,
     DeleteJobRequest,
@@ -32,12 +31,15 @@ from google.cloud.run_v2 import (
     RunJobRequest,
     UpdateJobRequest,
 )
-from google.cloud.run_v2.services.jobs import pagers
 from google.longrunning import operations_pb2
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core import operation
+    from google.cloud.run_v2.services.jobs import pagers
 
 
 class CloudRunHook(GoogleBaseHook):

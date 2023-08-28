@@ -20,17 +20,21 @@ import logging
 import warnings
 from functools import cached_property
 from os import path
+from typing import TYPE_CHECKING
 
 from connexion import FlaskApi, ProblemException, Resolver
 from connexion.decorators.validation import RequestBodyValidator
 from connexion.exceptions import BadRequestProblem
-from flask import Flask, request
+from flask import request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
 from airflow.utils.yaml import safe_load
+
+if TYPE_CHECKING:
+    from flask import Flask
 
 log = logging.getLogger(__name__)
 

@@ -46,6 +46,9 @@ def revision_heads_map():
     sorted_filenames = sorted(filenames, key=sorting_key)
 
     for filename in sorted_filenames:
+        if not filename.endswith(".py"):
+            print(f"skipping non-migration file: {filename}")
+            continue
         with open(os.path.join(MIGRATION_PATH, filename)) as file:
             content = file.read()
             revision_match = re2.search(pattern, content)

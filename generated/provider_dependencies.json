@@ -560,6 +560,7 @@
       "azure-keyvault-secrets>=4.1.0",
       "azure-kusto-data>=4.1.0",
       "azure-mgmt-containerinstance>=7.0.0,<9.0.0",
+      "azure-mgmt-cosmosdb",
       "azure-mgmt-datafactory>=1.0.0,<2.0",
       "azure-mgmt-datalake-store>=0.5.0",
       "azure-mgmt-resource>=2.2.0",
@@ -753,7 +754,7 @@
   "redis": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "redis>=3.2.0"
+      "redis>=4.5.2,<5.0.0,!=4.5.5"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []

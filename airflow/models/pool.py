@@ -17,10 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, Column, Integer, String, Text, func, select
-from sqlalchemy.orm.session import Session
 
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
@@ -30,6 +29,9 @@ from airflow.utils.db import exists_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import nowait, with_row_locks
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
 
 
 class PoolStats(TypedDict):

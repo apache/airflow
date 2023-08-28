@@ -236,58 +236,55 @@ class HiveCliHook(BaseHook):
         if schema:
             hql = f"USE {schema};\n{hql}"
 
-        with TemporaryDirectory(prefix="airflow_hiveop_") as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir) as f:
-                hql += "\n"
-                f.write(hql.encode("UTF-8"))
-                f.flush()
-                hive_cmd = self._prepare_cli_cmd()
-                env_context = get_context_from_env_var()
-                # Only extend the hive_conf if it is defined.
-                if hive_conf:
-                    env_context.update(hive_conf)
-                hive_conf_params = self._prepare_hiveconf(env_context)
-                if self.mapred_queue:
-                    hive_conf_params.extend(
-                        [
-                            "-hiveconf",
-                            f"mapreduce.job.queuename={self.mapred_queue}",
-                            "-hiveconf",
-                            f"mapred.job.queue.name={self.mapred_queue}",
-                            "-hiveconf",
-                            f"tez.queue.name={self.mapred_queue}",
-                        ]
-                    )
-
-                if self.mapred_queue_priority:
-                    hive_conf_params.extend(
-                        ["-hiveconf", f"mapreduce.job.priority={self.mapred_queue_priority}"]
-                    )
-
-                if self.mapred_job_name:
-                    hive_conf_params.extend(["-hiveconf", f"mapred.job.name={self.mapred_job_name}"])
-
-                hive_cmd.extend(hive_conf_params)
-                hive_cmd.extend(["-f", f.name])
-
-                if verbose:
-                    self.log.info("%s", " ".join(hive_cmd))
-                sub_process: Any = subprocess.Popen(
-                    hive_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=tmp_dir, close_fds=True
+        with TemporaryDirectory(prefix="airflow_hiveop_") as tmp_dir, NamedTemporaryFile(dir=tmp_dir) as f:
+            hql += "\n"
+            f.write(hql.encode("UTF-8"))
+            f.flush()
+            hive_cmd = self._prepare_cli_cmd()
+            env_context = get_context_from_env_var()
+            # Only extend the hive_conf if it is defined.
+            if hive_conf:
+                env_context.update(hive_conf)
+            hive_conf_params = self._prepare_hiveconf(env_context)
+            if self.mapred_queue:
+                hive_conf_params.extend(
+                    [
+                        "-hiveconf",
+                        f"mapreduce.job.queuename={self.mapred_queue}",
+                        "-hiveconf",
+                        f"mapred.job.queue.name={self.mapred_queue}",
+                        "-hiveconf",
+                        f"tez.queue.name={self.mapred_queue}",
+                    ]
                 )
-                self.sub_process = sub_process
-                stdout = ""
-                for line in iter(sub_process.stdout.readline, b""):
-                    line = line.decode()
-                    stdout += line
-                    if verbose:
-                        self.log.info(line.strip())
-                sub_process.wait()
 
-                if sub_process.returncode:
-                    raise AirflowException(stdout)
+            if self.mapred_queue_priority:
+                hive_conf_params.extend(["-hiveconf", f"mapreduce.job.priority={self.mapred_queue_priority}"])
 
-                return stdout
+            if self.mapred_job_name:
+                hive_conf_params.extend(["-hiveconf", f"mapred.job.name={self.mapred_job_name}"])
+
+            hive_cmd.extend(hive_conf_params)
+            hive_cmd.extend(["-f", f.name])
+
+            if verbose:
+                self.log.info("%s", " ".join(hive_cmd))
+            sub_process: Any = subprocess.Popen(
+                hive_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=tmp_dir, close_fds=True
+            )
+            self.sub_process = sub_process
+            stdout = ""
+            for line in iter(sub_process.stdout.readline, b""):
+                line = line.decode()
+                stdout += line
+                if verbose:
+                    self.log.info(line.strip())
+            sub_process.wait()
+
+            if sub_process.returncode:
+                raise AirflowException(stdout)
+
+            return stdout
 
     def test_hql(self, hql: str) -> None:
         """Test an hql statement using the hive cli and EXPLAIN."""
@@ -376,25 +373,26 @@ class HiveCliHook(BaseHook):
         if pandas_kwargs is None:
             pandas_kwargs = {}
 
-        with TemporaryDirectory(prefix="airflow_hiveop_") as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir, mode="w") as f:
-                if field_dict is None:
-                    field_dict = _infer_field_types_from_df(df)
+        with TemporaryDirectory(prefix="airflow_hiveop_") as tmp_dir, NamedTemporaryFile(
+            dir=tmp_dir, mode="w"
+        ) as f:
+            if field_dict is None:
+                field_dict = _infer_field_types_from_df(df)
 
-                df.to_csv(
-                    path_or_buf=f,
-                    sep=delimiter,
-                    header=False,
-                    index=False,
-                    encoding=encoding,
-                    date_format="%Y-%m-%d %H:%M:%S",
-                    **pandas_kwargs,
-                )
-                f.flush()
+            df.to_csv(
+                path_or_buf=f,
+                sep=delimiter,
+                header=False,
+                index=False,
+                encoding=encoding,
+                date_format="%Y-%m-%d %H:%M:%S",
+                **pandas_kwargs,
+            )
+            f.flush()
 
-                return self.load_file(
-                    filepath=f.name, table=table, delimiter=delimiter, field_dict=field_dict, **kwargs
-                )
+            return self.load_file(
+                filepath=f.name, table=table, delimiter=delimiter, field_dict=field_dict, **kwargs
+            )
 
     def load_file(
         self,
@@ -907,11 +905,8 @@ class HiveServer2Hook(DbApiHook):
                 cur.execute(statement)
                 # we only get results of statements that returns
                 lowered_statement = statement.lower().strip()
-                if (
-                    lowered_statement.startswith("select")
-                    or lowered_statement.startswith("with")
-                    or lowered_statement.startswith("show")
-                    or (lowered_statement.startswith("set") and "=" not in lowered_statement)
+                if lowered_statement.startswith(("select", "with", "show")) or (
+                    lowered_statement.startswith("set") and "=" not in lowered_statement
                 ):
                     description = cur.description
                     if previous_description and previous_description != description:

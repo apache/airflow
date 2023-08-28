@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.3.1
+.....
+
+Latest change: 2023-08-20
+
+=================================================================================================  ===========  ============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================
+`7700fb12cc <https://github.com/apache/airflow/commit/7700fb12cc6c7a97901662e6ac6aa1e4e932d969>`_  2023-08-20   ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+=================================================================================================  ===========  ============================================================
+
 1.3.0
 .....
 
-Latest change: 2023-08-04
+Latest change: 2023-08-05
 
 =================================================================================================  ===========  =====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `cf7e0c5aa5 <https://github.com/apache/airflow/commit/cf7e0c5aa5ccc7b8a3963b14eadde0c8bc7c4eb7>`_  2023-08-04   ``Add possibility to use 'ssl_context' extra for SMTP and IMAP connections (#33112)``
 `e20325db38 <https://github.com/apache/airflow/commit/e20325db38fdfdd9db423a345b13d18aab6fe578>`_  2023-08-04   ``Allows to choose SSL context for SMTP provider (#33075)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``

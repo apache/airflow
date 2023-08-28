@@ -28,7 +28,7 @@ import copy
 import platform
 import time
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 import aiohttp
@@ -48,8 +48,10 @@ from tenacity import (
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 from airflow.providers_manager import ProvidersManager
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 # https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--get-an-azure-active-directory-access-token
 # https://docs.microsoft.com/en-us/graph/deployments#app-registration-and-token-service-root-endpoints
@@ -121,12 +123,12 @@ class BaseDatabricksHook(BaseHook):
             self.retry_args["retry"] = retry_if_exception(self._retryable_error)
             self.retry_args["after"] = my_after_func
         else:
-            self.retry_args = dict(
-                stop=stop_after_attempt(self.retry_limit),
-                wait=wait_exponential(min=self.retry_delay, max=(2**retry_limit)),
-                retry=retry_if_exception(self._retryable_error),
-                after=my_after_func,
-            )
+            self.retry_args = {
+                "stop": stop_after_attempt(self.retry_limit),
+                "wait": wait_exponential(min=self.retry_delay, max=(2**retry_limit)),
+                "retry": retry_if_exception(self._retryable_error),
+                "after": my_after_func,
+            }
 
     @cached_property
     def databricks_conn(self) -> Connection:

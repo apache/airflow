@@ -17,12 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from zenpy import Zenpy
-from zenpy.lib.api import BaseApi
-from zenpy.lib.api_objects import JobStatus, Ticket, TicketAudit
-from zenpy.lib.generator import SearchResultGenerator
 
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from zenpy.lib.api import BaseApi
+    from zenpy.lib.api_objects import JobStatus, Ticket, TicketAudit
+    from zenpy.lib.generator import SearchResultGenerator
 
 
 class ZendeskHook(BaseHook):

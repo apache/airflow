@@ -39,6 +39,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_location,
     option_airflow_constraints_mode_prod,
     option_airflow_constraints_reference_build,
+    option_build_progress,
     option_builder,
     option_commit_sha,
     option_debug_resources,
@@ -67,8 +68,6 @@ from airflow_breeze.utils.common_options import (
     option_runtime_apt_deps,
     option_skip_cleanup,
     option_tag_as_latest,
-    option_upgrade_on_failure,
-    option_upgrade_to_newer_dependencies,
     option_verbose,
     option_verify,
     option_version_suffix_for_pypi,
@@ -156,8 +155,6 @@ def prod_image():
 @option_debug_resources
 @option_include_success_outputs
 @option_python_versions
-@option_upgrade_to_newer_dependencies
-@option_upgrade_on_failure
 @option_platform_multiple
 @option_github_token
 @option_docker_cache
@@ -176,6 +173,12 @@ def prod_image():
     "--install-packages-from-context",
     help="Install wheels from local docker-context-files when building image. "
     "Implies --disable-airflow-repo-cache.",
+    is_flag=True,
+)
+@click.option(
+    "--use-constraints-for-context-packages",
+    help="Uses constraints for context packages installation - "
+    "either from constraints store in docker-context-files or from github.",
     is_flag=True,
 )
 @click.option(
@@ -213,6 +216,7 @@ def prod_image():
 @option_additional_runtime_apt_env
 @option_additional_runtime_apt_command
 @option_builder
+@option_build_progress
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_python_image
@@ -434,7 +438,12 @@ def check_docker_context_files(install_packages_from_context: bool):
     :param install_packages_from_context: whether we want to install from docker-context-files
     """
     context_file = DOCKER_CONTEXT_DIR.rglob("*")
-    any_context_files = any(context.is_file() and context.name != ".README.md" for context in context_file)
+    any_context_files = any(
+        context.is_file()
+        and context.name not in (".README.md", ".DS_Store")
+        and not context.parent.name.startswith("constraints")
+        for context in context_file
+    )
     if not any_context_files and install_packages_from_context:
         get_console().print("[warning]\nERROR! You want to install packages from docker-context-files")
         get_console().print("[warning]\n but there are no packages to install in this folder.")
@@ -501,24 +510,6 @@ def run_build_production_image(
             text=True,
             output=output,
         )
-        if (
-            build_command_result.returncode != 0
-            and prod_image_params.upgrade_on_failure
-            and not prod_image_params.upgrade_to_newer_dependencies
-        ):
-            prod_image_params.upgrade_to_newer_dependencies = True
-            get_console().print("[warning]Attempting to build with upgrade_to_newer_dependencies on failure")
-            build_command_result = run_command(
-                prepare_docker_build_command(
-                    image_params=prod_image_params,
-                ),
-                cwd=AIRFLOW_SOURCES_ROOT,
-                check=False,
-                text=True,
-                env=env,
-                output=output,
-            )
-        if build_command_result.returncode == 0:
-            if prod_image_params.tag_as_latest:
-                build_command_result = tag_image_as_latest(image_params=prod_image_params, output=output)
+        if build_command_result.returncode == 0 and prod_image_params.tag_as_latest:
+            build_command_result = tag_image_as_latest(image_params=prod_image_params, output=output)
     return build_command_result.returncode, f"Image build: {prod_image_params.python}"
