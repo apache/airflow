@@ -77,7 +77,7 @@ class TestUtils:
             last_page = total_pages - 1
 
             if current_page <= mid or total_pages < window:
-                pages = list(range(0, min(total_pages, window)))
+                pages = list(range(min(total_pages, window)))
             elif mid < current_page < last_page - mid:
                 pages = list(range(current_page - mid, current_page + mid + 1))
             else:

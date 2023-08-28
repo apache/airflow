@@ -206,7 +206,7 @@ class TestCliUsers:
             user_command._find_user(args)
 
     def test_cli_list_users(self):
-        for i in range(0, 3):
+        for i in range(3):
             args = self.parser.parse_args(
                 [
                     "users",
@@ -228,7 +228,7 @@ class TestCliUsers:
         with redirect_stdout(io.StringIO()) as stdout:
             user_command.users_list(self.parser.parse_args(["users", "list"]))
             stdout = stdout.getvalue()
-        for i in range(0, 3):
+        for i in range(3):
             assert f"user{i}" in stdout
 
     def test_cli_list_users_with_args(self):
