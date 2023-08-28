@@ -190,7 +190,7 @@ class State:
     A list of states indicating that a task or dag is a success state.
     """
 
-    adoptable_states: frozenset[TaskInstanceState] = frozenset(
+    adoptable_states = frozenset(
         [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING]
     )
     """
