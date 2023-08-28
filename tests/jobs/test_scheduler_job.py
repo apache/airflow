@@ -4559,7 +4559,7 @@ class TestSchedulerJob:
 
                 local_job = Job(dag_id=ti.dag_id)
                 LocalTaskJobRunner(job=local_job, task_instance=ti)
-                local_job.state = State.FAILED
+                local_job.state = TaskInstanceState.FAILED
 
                 session.add(local_job)
                 session.flush()
@@ -4622,7 +4622,7 @@ class TestSchedulerJob:
                 ti.queued_by_job_id = 999
 
                 local_job = Job(dag_id=ti.dag_id)
-                local_job.state = State.FAILED
+                local_job.state = TaskInstanceState.FAILED
 
                 session.add(local_job)
                 session.flush()
