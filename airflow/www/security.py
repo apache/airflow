@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Collection, Container, Iterable, Sequence
 
 from flask import g
 from sqlalchemy import or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 
 from airflow.auth.managers.fab.models import Permission, Resource, Role, User
 from airflow.auth.managers.fab.views.user_details import CustomUserDBModelView
@@ -57,6 +57,8 @@ EXISTING_ROLES = {
 }
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     SecurityManagerOverride: type = object
 else:
     # Fetch the security manager override from the auth manager
