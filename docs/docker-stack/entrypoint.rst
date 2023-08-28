@@ -206,7 +206,7 @@ propagation (See the next chapter).
 
 .. code-block:: Dockerfile
 
-    FROM airflow:2.7.0
+    FROM airflow:2.7.1
     COPY my_entrypoint.sh /
     ENTRYPOINT ["/usr/bin/dumb-init", "--", "/my_entrypoint.sh"]
 
