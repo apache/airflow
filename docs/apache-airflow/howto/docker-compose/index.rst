@@ -290,44 +290,74 @@ to rebuild the images on-the-fly when you run other ``docker compose`` commands.
 Examples of how you can extend the image with custom providers, python packages,
 apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
 
-Special case - adding dependencies via requirements.txt file
-============================================================
+Adding new dependencies
+=======================
 
-Usual case for custom images, is when you want to add a set of requirements to it - usually stored in
-``requirements.txt`` file. For development, you might be tempted to add it dynamically when you are
-starting the original airflow image, but this has a number of side effects (for example your containers
-will start much slower - each additional dependency will further delay your containers start up time).
-Also it is completely unnecessary, because docker compose has the development workflow built-in.
-You can - following the previous chapter, automatically build and use your custom image when you
-iterate with docker compose locally. Specifically when you want to add your own requirement file,
-you should do those steps:
+When you add custom dependencies you can follow one of the two paths:
 
-1) Comment out the ``image: ...`` line and remove comment from the ``build: .`` line in the
-   ``docker-compose.yaml`` file. The relevant part of the docker-compose file of yours should look similar
-   to (use correct image tag):
+* quick testing with using ``_PIP_ADDITIONAL_REQUIREMENTS`` environment variable where you can quickly
+  iterate and add new requirements dynamically when the image starts. This is only useful for testing
+  and iterating and restarting the compose quickly because installing dependencies this way might lead to
+  a number of problems - such as security risks, conflicting dependencies, and prolonged startup time. The
+  lifetime of such images is limited to 10 minutes.
 
-```
-#image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.1}
-build: .
-```
+.. warning::
 
-2) Create ``Dockerfile`` in the same folder your ``docker-compose.yaml`` file is with content similar to:
+     NEVER use image in production with ``_PIP_ADDITIONAL_REQUIREMENTS`` set.
 
-```
-FROM apache/airflow:2.6.1
-ADD requirements.txt .
-RUN pip install apache-airflow==${AIRFLOW_VERSION} -r requirements.txt
-```
+* adding your dependencies to a custom image and building it. You can iterate over the custom image by
+  placing it in the same folder as your ``docker-compose``, uncommenting the ``build: .`` line in the
+  compose file and commenting out the ``image: ...`` line. Then you can build the image with
+  ``docker-compose build``, the image will also be automatically build when you pass
+  ``--build`` flag to ``docker-compose`` commands.
 
-It is the best practice to install apache-airflow in the same version as the one that comes from the
-original image. This way you can be sure that ``pip`` will not try to downgrade or upgrade apache
-airflow while installing other requirements, which might happen in case you try to add a dependency
-that conflicts with the version of apache-airflow that you are using.
+The Dockerfile of yours should usually look like this one  (you need to choose the right airflow version):
 
-3) Place ``requirements.txt`` file in the same directory.
+.. code-block:: Dockerfile
 
-Run ``docker compose build`` to build the image, or add ``--build`` flag to ``docker compose up`` or
-``docker compose run`` commands to build the image automatically as needed.
+    FROM apache/airflow:2.7.2
+    ADD requirements.txt .
+    RUN pip install apache-airflow==${AIRFLOW_VERSION} -r requirements.txt
+
+You should put your requirements to add in requirements.txt in the same folder
+
+You can also place your dependencies directly in your Dockerfile. for example:
+
+.. code-block:: Dockerfile
+
+    FROM apache/airflow:2.7.2
+    ADD requirements.txt .
+    RUN pip install apache-airflow==${AIRFLOW_VERSION} dbt==0.20.0
+
+
+* After iterating and figuring out the right set od dependencies, you should build and tag your image
+  Usually your tag should contain date or unique identifier to make sure that you can replace it in
+  the future with newer version of the image. For example:
+
+.. code-block:: bash
+
+    docker build . --tag my_organization/airflow:2.7.2_v2023_08_10
+
+* When you use the image in production, you should use the tagged image of yours in the uncommented
+  ``image: ...`` line in your ``docker-compose.yaml`` file (and comment out ``build .``.
+
+* Using locally build image works if you build and run airflow on the same machine. This is good for a very
+  small installation, but if you want to use the image on a different machine, you should push it to
+  a registry. usually your organization has a registry where you can push the image. Many registries
+  are also free for individual/small use - for example DockerHub or Github have container registries that
+  are free for hosting images and we are using both of them in Airflow for development and publishing.
+
+.. code-block:: bash
+
+    docker build . --tag <my_organization_path>/airflow:2.7.2_v2023_08_10
+    docker push <my_organization_path>/airflow:2.6.1_v2023_08_10
+
+The `my_organization/airflow" should be the path where your registry is located. For DockerHub, the path
+is <your_dockerhub_username>/airflow. For Github, the path is ``ghcr.io/<your_github_username>/airflow``.
+
+It is recommended that for production use, you automate the pipeline of building and publishing your
+image as well as replacing the image TAG after publishing it and restarting docker-compose.
+
 
 Networking
 ==========

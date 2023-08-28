@@ -296,10 +296,17 @@ if [[ -n "${_AIRFLOW_WWW_USER_CREATE=}" ]] ; then
 fi
 
 if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
+    COLOR_RED=$'\e[31m'
+    COLOR_RESET=$'\e[0m'
+    COLOR_YELLOW=$'\e[33m'
+
+    # The container will shutdown after that many seconds of use automatically when _PIP_ADDITIONAL_REQUIREMENTS ARE USED
+    KILL_TIMEOUT=600
     >&2 echo
-    >&2 echo "!!!!!  Installing additional requirements: '${_PIP_ADDITIONAL_REQUIREMENTS}' !!!!!!!!!!!!"
+    >&2 echo "${COLOR_YELLOW}Installing additional requirements: '${_PIP_ADDITIONAL_REQUIREMENTS}' ${COLOR_RESET}"
     >&2 echo
-    >&2 echo "WARNING: This is a development/test feature only. NEVER use it in production!"
+    >&2 echo "${COLOR_YELLOW}WARNING: This is a development/test feature only. NEVER use it in production!${COLOR_RESET}"
+    >&2 echo
     >&2 echo "         Instead, build a custom image as described in"
     >&2 echo
     >&2 echo "         https://airflow.apache.org/docs/docker-stack/build.html"
@@ -308,7 +315,37 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo "         the container starts, so it is only useful for testing and trying out"
     >&2 echo "         of adding dependencies."
     >&2 echo
-    pip install --root-user-action ignore --no-cache-dir ${_PIP_ADDITIONAL_REQUIREMENTS}
+    >&2 echo
+    pip install "apache-airflow==${AIRFLOW_VERSION}" --root-user-action ignore --no-cache-dir ${_PIP_ADDITIONAL_REQUIREMENTS}
+    >&2 echo
+    >&2 echo "Verifies if installed dependencies are consistent with airflow".
+    >&2 echo
+    pip check
+    >&2 echo
+    >&2 echo
+    >&2 echo "${COLOR_YELLOW}Since you are using the image with ``_PIP_ADDITIONAL_REQUIREMENTS``, the container will shutdown after $((KILL_TIMEOUT / 60)) minutes of use.${COLOR_RESET}".
+    >&2 echo
+    >&2 echo
+    >&2 echo
+    (
+        sleep "${KILL_TIMEOUT}"
+        >&2 echo "${COLOR_RED}Restarting the container after $((KILL_TIMEOUT / 60)) minutes of running with _PIP_ADDITIONAL_REQUIREMENTS${COLOR_RESET}"; \
+        >&2 echo; \
+        >&2 echo "In order to run your container for a longer time build your custom containers"; \
+        >&2 echo; \
+        >&2 echo "See https://airflow.apache.org/docs/docker-stack/build.html"; \
+        >&2 echo
+        >&2 echo "Or follow 'docker-compose build' pattern as described in  docker-compose file:"; \
+        >&2 echo
+        >&2 echo "* Comment the 'image' line, place your Dockerfile with 'FROM apache/airflow:..."; \
+        >&2 echo "   followed by 'RUN pip install ....'"; \
+        >&2 echo "   in the directory where you placed the docker-compose.yaml"; \
+        >&2 echo
+        >&2 echo "* Uncomment the '# build .' line below, then run 'docker-compose build' to build the images."; \
+        >&2 echo ; \
+        sleep 1; \
+        kill -HUP 0
+    ) &
 fi
 
 
