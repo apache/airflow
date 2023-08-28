@@ -72,10 +72,13 @@ def test_extract_operator_code_disables_on_no_env():
     assert "sourceCode" not in extractor.extract().job_facets
 
 
+@patch.dict(
+    os.environ,
+    {"AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS": "airflow.operators.python.PythonOperator"},
+)
 def test_python_extraction_disabled_operator():
     operator = PythonOperator(task_id="taskid", python_callable=callable)
     extractor = PythonExtractor(operator)
-    extractor.openlineage_disabled_for_operators = "airflow.operators.python.PythonOperator"
     metadata = extractor.extract()
     assert metadata is None
 

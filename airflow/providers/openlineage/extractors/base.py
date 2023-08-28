@@ -49,10 +49,6 @@ class BaseExtractor(ABC, LoggingMixin):
     """
 
     _allowed_query_params: list[str] = []
-    _openlineage_disabled_for_operators = conf.get("openlineage", "disabled_for_operators")
-    openlineage_disabled_for_operators = set(
-        operator.strip() for operator in _openlineage_disabled_for_operators.split(";")
-    )
 
     def __init__(self, operator):  # type: ignore
         super().__init__()
