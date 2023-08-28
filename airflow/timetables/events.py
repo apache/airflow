@@ -17,12 +17,16 @@
 from __future__ import annotations
 
 import itertools
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 import pendulum
-from pendulum import DateTime
 
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
+
+    from airflow.timetables.base import TimeRestriction
 
 
 class EventsTimetable(Timetable):
