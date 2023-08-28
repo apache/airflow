@@ -182,7 +182,8 @@ class DatabricksHook(BaseDatabricksHook):
         if offset is not None:
             warnings.warn(
                 """You are using the deprecated offset parameter in list_jobs.
-                Please paginate using page_token.""",
+                It will be hard-limited at the maximum value of 1000 by Databricks API after Oct 9, 2023.
+                Please paginate using page_token instead.""",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
