@@ -134,6 +134,13 @@ class TriggerRuleDep(BaseTIDep):
         else:
             setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
 
+        setup_upstream_tasks_ids = [task.task_id for task in setup_upstream_tasks]
+        setup_upstream_task_instances = [
+            t
+            for t in ti.get_dagrun(session).get_task_instances(session=session)
+            if t.task_id in setup_upstream_tasks_ids
+        ]
+
         task = ti.task
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
         trigger_rule = task.trigger_rule
@@ -258,7 +265,7 @@ class TriggerRuleDep(BaseTIDep):
         # Optimization: Don't need to hit the database if all upstreams are
         # "simple" tasks (no task or task group mapping involved).
         if not ti.task.is_teardown:
-            upstream_setup = len(setup_upstream_tasks)  # count of setup tasks upstream of this task
+            upstream_setup = len(setup_upstream_task_instances)  # count of setup tasks upstream of this task
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
             if ti.task.is_teardown:
