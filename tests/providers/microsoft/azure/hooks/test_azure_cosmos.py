@@ -115,7 +115,7 @@ class TestAzureCosmosDbHook:
          .get_container_client
          .return_value
          .upsert_item
-         .return_value) = {'id': test_id}
+         .return_value) = {"id": test_id}
         # fmt: on
         hook = AzureCosmosDBHook(azure_cosmos_conn_id="azure_cosmos_test_key_id")
         returned_item = hook.upsert_document({"id": test_id})
@@ -141,7 +141,7 @@ class TestAzureCosmosDbHook:
          .get_container_client
          .return_value
          .upsert_item
-         .return_value) = {'id': test_id}
+         .return_value) = {"id": test_id}
         # fmt: on
         hook = AzureCosmosDBHook(azure_cosmos_conn_id="azure_cosmos_test_key_id")
         returned_item = hook.upsert_document(

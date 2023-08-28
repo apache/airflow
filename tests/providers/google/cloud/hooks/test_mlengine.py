@@ -85,7 +85,7 @@ class TestMLEngineHook:
             operations.return_value.
             get.return_value.
             execute.return_value
-        ) = {'name': operation_path, 'done': True}
+        ) = {"name": operation_path, "done": True}
         # fmt: on
         create_version_response = self.hook.create_version(
             project_id=project_id, model_name=model_name, version_spec=deepcopy(version)
@@ -134,7 +134,7 @@ class TestMLEngineHook:
             operations.return_value.
             get.return_value.
             execute.return_value
-        ) = {'name': operation_path, 'done': True}
+        ) = {"name": operation_path, "done": True}
 
         create_version_response = self.hook.create_version(
             project_id=project_id,
@@ -896,7 +896,7 @@ class TestMLEngineHookWithDefaultProjectId:
             operations.return_value.
             get.return_value.
             execute.return_value
-        ) = {'name': operation_path, 'done': True}
+        ) = {"name": operation_path, "done": True}
         # fmt: on
         create_version_response = self.hook.create_version(
             model_name=model_name, version_spec=version, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
@@ -1009,11 +1009,11 @@ class TestMLEngineHookWithDefaultProjectId:
         model_name = "test-model"
         version_name = "test-version"
         # fmt: off
-        operation_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation'
-        version_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}/versions/{version_name}'
-        version = {'name': operation_path}
-        operation_not_done = {'name': operation_path, 'done': False}
-        operation_done = {'name': operation_path, 'done': True}
+        operation_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation"
+        version_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}/versions/{version_name}"
+        version = {"name": operation_path}
+        operation_not_done = {"name": operation_path, "done": False}
+        operation_done = {"name": operation_path, "done": True}
 
         (
             mock_get_conn.return_value.
