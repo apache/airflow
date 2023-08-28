@@ -29,7 +29,7 @@ import json
 import sys
 from copy import deepcopy
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import botocore.client
 import botocore.exceptions
@@ -37,7 +37,9 @@ import botocore.waiter
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 
 class BatchWaitersHook(BatchClientHook):

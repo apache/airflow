@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -29,6 +29,9 @@ from airflow.providers.amazon.aws.operators.eventbridge import (
     EventBridgePutEventsOperator,
     EventBridgePutRuleOperator,
 )
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
 
 ENTRIES = [{"Detail": "test-detail", "Source": "test-source", "DetailType": "test-detail-type"}]
 FAILED_ENTRIES_RESPONSE = [{"ErrorCode": "test_code"}, {"ErrorCode": "test_code"}]
