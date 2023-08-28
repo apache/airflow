@@ -61,7 +61,7 @@ class TestAzureContainerInstanceHook:
     @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.get")
     def test_get_state(self, get_state_mock):
         self.hook.get_state("resource_group", "aci-test")
-        get_state_mock.assert_called_once_with("resource_group", "aci-test", raw=False)
+        get_state_mock.assert_called_once_with("resource_group", "aci-test")
 
     @patch("azure.mgmt.containerinstance.operations.ContainersOperations.list_logs")
     def test_get_logs(self, list_logs_mock):

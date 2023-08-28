@@ -159,7 +159,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param name: the name of the container group
         :return: ContainerGroup
         """
-        return self.connection.container_groups.get(resource_group, name, raw=False)
+        return self.connection.container_groups.get(resource_group, name)
 
     def get_logs(self, resource_group: str, name: str, tail: int = 1000) -> list:
         """
@@ -193,9 +193,6 @@ class AzureContainerInstanceHook(AzureBaseHook):
             if container.name == name:
                 return True
         return False
-
-    def list_container_group(self, resource_group: str, name: str):
-        return self.connection.container_groups.list(resource_group, name)
 
     def test_connection(self):
         """Test a configured Azure Container Instance connection."""

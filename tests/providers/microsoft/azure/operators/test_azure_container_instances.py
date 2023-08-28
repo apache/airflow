@@ -95,7 +95,7 @@ class TestACIOperator:
     def test_execute(self, aci_mock):
         expected_cg = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
 
-        aci_mock.return_value.list_container_group.return_value = expected_cg
+        aci_mock.return_value.get_state.return_value = expected_cg
 
         aci_mock.return_value.exists.return_value = False
 
@@ -131,7 +131,7 @@ class TestACIOperator:
     def test_execute_with_failures(self, aci_mock):
 
         expected_cg = make_mock_container(state="Terminated", exit_code=1, detail_status="test")
-        aci_mock.return_value.list_container_group.return_value = expected_cg
+        aci_mock.return_value.get_state.return_value = expected_cg
 
         aci_mock.return_value.exists.return_value = False
 
@@ -153,7 +153,7 @@ class TestACIOperator:
     def test_execute_with_tags(self, aci_mock):
 
         expected_cg = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
-        aci_mock.return_value.list_container_group.return_value = expected_cg
+        aci_mock.return_value.get_state.return_value = expected_cg
         tags = {"testKey": "testValue"}
 
         aci_mock.return_value.exists.return_value = False
@@ -203,7 +203,7 @@ class TestACIOperator:
             state="Terminated", exit_code=0, detail_status="test", events=events
         )
 
-        aci_mock.return_value.list_container_group.side_effect = [expected_cg1, expected_cg2, expected_cg3]
+        aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg2, expected_cg3]
         aci_mock.return_value.get_logs.return_value = ["test", "logs"]
         aci_mock.return_value.exists.return_value = False
 
@@ -219,7 +219,7 @@ class TestACIOperator:
         aci.execute(None)
 
         assert aci_mock.return_value.create_or_update.call_count == 1
-        assert aci_mock.return_value.list_container_group.call_count == 3
+        assert aci_mock.return_value.get_state.call_count == 3
         assert aci_mock.return_value.get_logs.call_count == 3
 
         assert aci_mock.return_value.delete.call_count == 1
@@ -245,7 +245,7 @@ class TestACIOperator:
     def test_execute_with_ipaddress(self, aci_mock):
         ipaddress = MagicMock()
 
-        aci_mock.return_value.list_container_group.return_value = make_mock_container(
+        aci_mock.return_value.get_state.return_value = make_mock_container(
             state="Terminated", exit_code=0, detail_status="test"
         )
         aci_mock.return_value.exists.return_value = False
@@ -269,7 +269,7 @@ class TestACIOperator:
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_windows_os_and_diff_restart_policy(self, aci_mock):
 
-        aci_mock.return_value.list_container_group.return_value = make_mock_container(
+        aci_mock.return_value.get_state.return_value = make_mock_container(
             state="Terminated", exit_code=0, detail_status="test"
         )
         aci_mock.return_value.exists.return_value = False
@@ -295,7 +295,7 @@ class TestACIOperator:
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_fails_with_incorrect_os_type(self, aci_mock):
 
-        aci_mock.return_value.list_container_group.return_value = make_mock_container(
+        aci_mock.return_value.get_state.return_value = make_mock_container(
             state="Terminated", exit_code=0, detail_status="test"
         )
         aci_mock.return_value.exists.return_value = False
@@ -321,7 +321,7 @@ class TestACIOperator:
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_fails_with_incorrect_restart_policy(self, aci_mock):
 
-        aci_mock.return_value.list_container_group.return_value = make_mock_container(
+        aci_mock.return_value.get_state.return_value = make_mock_container(
             state="Terminated", exit_code=0, detail_status="test"
         )
         aci_mock.return_value.exists.return_value = False
@@ -350,7 +350,7 @@ class TestACIOperator:
         expected_cg1 = make_mock_container(state="Running", exit_code=0, detail_status="test")
         expected_cg2 = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
 
-        aci_mock.return_value.list_container_group.side_effect = [expected_cg1, expected_cg1, expected_cg2]
+        aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg1, expected_cg2]
         aci_mock.return_value.exists.return_value = False
 
         aci = AzureContainerInstancesOperator(
@@ -373,7 +373,7 @@ class TestACIOperator:
         expected_cg1 = make_mock_container(state="Running", exit_code=0, detail_status="test")
         expected_cg2 = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
 
-        aci_mock.return_value.list_container_group.side_effect = [expected_cg1, expected_cg2]
+        aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg2]
         aci_mock.return_value.exists.return_value = False
 
         aci = AzureContainerInstancesOperator(
