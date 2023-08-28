@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from attrs import Factory, define
@@ -67,6 +68,12 @@ class BaseExtractor(ABC, LoggingMixin):
         """
         raise NotImplementedError()
 
+    @cached_property
+    def disabled_operators(self) -> set[str]:
+        return set(
+            operator.strip() for operator in conf.get("openlineage", "disabled_for_operators").split(";")
+        )
+
     def validate(self):
         assert self.operator.task_type in self.get_operator_classnames()
 
@@ -78,7 +85,7 @@ class BaseExtractor(ABC, LoggingMixin):
         fully_qualified_class_name = (
             self.operator.__class__.__module__ + "." + self.operator.__class__.__name__
         )
-        if fully_qualified_class_name in self.openlineage_disabled_for_operators:
+        if fully_qualified_class_name in self.disabled_operators:
             self.log.warning(
                 f"Skipping extraction for operator {self.operator.task_type} "
                 "due to its presence in [openlineage] openlineage_disabled_for_operators."
