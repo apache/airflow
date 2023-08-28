@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add druid ingestion connection test And expose druid ingest hook (#33795)``
+
+.. note::
+  The connection type of Druid has been separated into two(druid_broker, druid_ingest)
+
+---------
+
 3.5.0
 .....
 
