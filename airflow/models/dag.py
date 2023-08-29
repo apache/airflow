@@ -720,9 +720,7 @@ class DAG(LoggingMixin):
         for task in self.tasks:
             if task.is_setup:
                 for down_task in task.downstream_list:
-                    if not down_task.is_teardown and down_task.trigger_rule not in [
-                        TriggerRule.ALL_SUCCESS,
-                    ]:
+                    if not down_task.is_teardown and down_task.trigger_rule != TriggerRule.ALL_SUCCESS:
                         # this is required to ensure consistent clearing behavior when upstream
                         raise ValueError("Setup tasks must be followed with trigger rule ALL_SUCCESS.")
             FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
