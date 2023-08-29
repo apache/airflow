@@ -116,6 +116,8 @@ def patch_variable(
         raise BadRequest("Invalid post body", detail="key from request body doesn't match uri parameter")
     non_update_fields = ["key"]
     variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
+    if not variable:
+        raise NotFound("Variable not found")
     if update_mask:
         data = extract_update_mask_data(update_mask, non_update_fields, data)
     for key, val in data.items():
