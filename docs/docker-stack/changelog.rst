@@ -69,7 +69,7 @@ Airflow 2.7
       this might happen in case some earlier installed dependencies are in conflict with the newly installed ones. Failure of pip check will fail
       the image.
 
-    * Setting __PIP_ADDITIONAL_REQUIREMENTS will cause the image to shutdown after 10 minutes. This has always been a development only feature
+    * Setting _PIP_ADDITIONAL_REQUIREMENTS will cause the image to shutdown after 10 minutes. This has always been a development only feature
       that has been abused and caused numerous issues for the users, often unrelated and difficult to diagnose. The images run with this flag
       set will shutdown automatically after 10 minutes.
 
