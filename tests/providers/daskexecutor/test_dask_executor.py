@@ -43,7 +43,9 @@ except ImportError:
     # In case the tests are skipped because of lacking test harness, get_cert should be
     # overridden to avoid get_cert failing during test discovery as get_cert is used
     # in conf_vars decorator
-    get_cert = lambda x: x
+    def get_cert(x):
+        return x
+
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 SUCCESS_COMMAND = ["airflow", "tasks", "run", "--help"]
