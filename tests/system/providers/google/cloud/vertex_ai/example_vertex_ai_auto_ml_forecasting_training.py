@@ -145,7 +145,8 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
     delete_auto_ml_forecasting_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_forecasting_training_job",
-        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_forecasting_task', key='training_id') }}",
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_forecasting_task', "
+        "key='training_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
     )

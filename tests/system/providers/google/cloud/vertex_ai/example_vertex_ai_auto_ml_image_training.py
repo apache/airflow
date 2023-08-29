@@ -130,7 +130,8 @@ with models.DAG(
 
     delete_auto_ml_image_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_training_job",
-        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_image_task', key='training_id') }}",
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_image_task', "
+        "key='training_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
