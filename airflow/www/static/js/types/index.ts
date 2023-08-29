@@ -34,7 +34,6 @@ type TaskState =
   | RunState
   | "removed"
   | "scheduled"
-  | "shutdown"
   | "restarting"
   | "up_for_retry"
   | "up_for_reschedule"
