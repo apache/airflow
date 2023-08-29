@@ -1328,7 +1328,7 @@ class TaskInstance(Base, LoggingMixin):
             # If the task continues after being deferred (next_method is set), use the original start_date
             self.start_date = self.start_date if self.next_method else timezone.utcnow()
             if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
-                task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
+                task_reschedule: TR = session.scalar(TR.query_for_task_instance(self, session=session))
                 if task_reschedule:
                     self.start_date = task_reschedule.start_date
 

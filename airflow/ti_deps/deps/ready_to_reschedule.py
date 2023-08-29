@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from sqlalchemy import select
+
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -71,10 +73,10 @@ class ReadyToRescheduleDep(BaseTIDep):
             )
             return
 
-        task_reschedule = (
-            TaskReschedule.query_for_task_instance(task_instance=ti, descending=True, session=session)
-            .with_entities(TaskReschedule.reschedule_date)
-            .first()
+        task_reschedule = session.scalar(
+            select(TaskReschedule).select_from(
+                TaskReschedule.query_for_task_instance(task_instance=ti, descending=True, session=session)
+            )
         )
         if not task_reschedule:
             # Because mapped sensors don't have the reschedule property, here's the last resort

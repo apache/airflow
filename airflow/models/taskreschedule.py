@@ -20,7 +20,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, event, text
+import sqlalchemy
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, event, select, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
@@ -31,7 +32,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 if TYPE_CHECKING:
     import datetime
 
-    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.orm import Session
 
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
@@ -104,7 +105,7 @@ class TaskReschedule(Base):
         descending: bool = False,
         session: Session = NEW_SESSION,
         try_number: int | None = None,
-    ) -> Query:
+    ) -> sqlalchemy.Select:
         """
         Return query for task reschedules for a given the task instance.
 
@@ -118,7 +119,7 @@ class TaskReschedule(Base):
             try_number = task_instance.try_number
 
         TR = TaskReschedule
-        qry = session.query(TR).filter(
+        qry = select(TR).where(
             TR.dag_id == task_instance.dag_id,
             TR.task_id == task_instance.task_id,
             TR.run_id == task_instance.run_id,
@@ -145,8 +146,9 @@ class TaskReschedule(Base):
         :param try_number: Look for TaskReschedule of the given try_number. Default is None which
             looks for the same try_number of the given task_instance.
         """
-        return TaskReschedule.query_for_task_instance(
-            task_instance, session=session, try_number=try_number
+        # breakpoint()
+        return session.scalars(
+            TaskReschedule.query_for_task_instance(task_instance, session=session, try_number=try_number)
         ).all()
 
 
