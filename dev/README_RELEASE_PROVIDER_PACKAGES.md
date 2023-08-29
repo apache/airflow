@@ -410,7 +410,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
 
-breeze release-management add-back-references amazon apache.beam google ....
+# No need to add back references as the script has this step as integral part
 ```
 
 
