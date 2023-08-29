@@ -42,6 +42,17 @@ Breaking changes
   ``sql_hook_params`` parameter, and the behavior should stay the same.
 
 
+* ``Remove deprecated 'S3ToSnowflake' and 'SnowflakeToSlack' operators (#33558)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set snowflake_conn_id on Snowflake Operators to avoid error (#33681)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Bump apache-airflow-providers-snowflake due to breaking changes (#33615)``
+
+
 4.4.2
 .....
 

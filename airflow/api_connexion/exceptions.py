@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import flask
 import werkzeug
 from connexion import FlaskApi, ProblemException, problem
 
 from airflow.utils.docs import get_docs_url
+
+if TYPE_CHECKING:
+    import flask
 
 doc_link = get_docs_url("stable-rest-api-ref.html")
 

@@ -617,7 +617,7 @@ class TestPatchUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400, response.json
-        assert response.json["detail"] == "{'%s': ['Missing data for required field.']}" % field
+        assert response.json["detail"] == f"{{'{field}': ['Missing data for required field.']}}"
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_username_can_be_updated(self, autoclean_user_payload, autoclean_username):

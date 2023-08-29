@@ -20,9 +20,8 @@ from __future__ import annotations
 import itertools
 import json
 from time import sleep
-from typing import Iterable, Sequence
+from typing import TYPE_CHECKING, Iterable, Sequence
 
-from google.api_core import operation  # type: ignore
 from google.cloud.batch import ListJobsRequest, ListTasksRequest
 from google.cloud.batch_v1 import (
     BatchServiceAsyncClient,
@@ -32,11 +31,14 @@ from google.cloud.batch_v1 import (
     JobStatus,
     Task,
 )
-from google.cloud.batch_v1.services.batch_service import pagers
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core import operation
+    from google.cloud.batch_v1.services.batch_service import pagers
 
 
 class CloudBatchHook(GoogleBaseHook):

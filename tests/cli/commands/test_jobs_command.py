@@ -26,7 +26,7 @@ from airflow.cli.commands import jobs_command
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import JobState, State
 from tests.test_utils.db import clear_db_jobs
 
 
@@ -109,7 +109,7 @@ class TestCliConfigList:
             for _ in range(3):
                 scheduler_job = Job()
                 job_runner = SchedulerJobRunner(job=scheduler_job)
-                scheduler_job.state = State.SHUTDOWN
+                scheduler_job.state = JobState.FAILED
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
                 job_runners.append(job_runner)

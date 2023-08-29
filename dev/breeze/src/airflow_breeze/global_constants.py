@@ -66,7 +66,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.24.15", "v1.25.11", "v1.26.6", "v1.27.3"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.24.15", "v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["CeleryExecutor", "LocalExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS = START_AIRFLOW_ALLOWED_EXECUTORS[1]
@@ -147,6 +147,7 @@ ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
 ALLOWED_INSTALLATION_PACKAGE_FORMATS = ["wheel", "sdist"]
 ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
+ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
 SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
@@ -312,7 +313,7 @@ AVAILABLE_INTEGRATIONS = [
     "statsd",
     "trino",
 ]
-ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
 
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)

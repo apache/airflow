@@ -31,7 +31,6 @@ from airflow.auth.managers.models.resource_details import ResourceDetails
 from airflow.auth.managers.models.resource_method import ResourceMethod
 from airflow.auth.managers.models.resource_type import ResourceType
 from airflow.cli.cli_config import (
-    CLICommand,
     GroupCommand,
 )
 from airflow.models import DagModel
@@ -47,6 +46,9 @@ from airflow.security.permissions import (
 
 if TYPE_CHECKING:
     from airflow.auth.managers.fab.models import User
+    from airflow.cli.cli_config import (
+        CLICommand,
+    )
 
 _MAP_ACTION_NAME_TO_FAB_ACTION_NAME = {
     ResourceMethod.POST: ACTION_CAN_CREATE,

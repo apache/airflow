@@ -16,11 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 from unittest import mock
 
 from google.api_core.exceptions import AlreadyExists
-from google.api_core.gapic_v1.method import _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.datacatalog import Entry, EntryGroup, Tag, TagTemplate, TagTemplateField
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -48,6 +47,9 @@ from airflow.providers.google.cloud.operators.datacatalog import (
     CloudDataCatalogUpdateTagTemplateFieldOperator,
     CloudDataCatalogUpdateTagTemplateOperator,
 )
+
+if TYPE_CHECKING:
+    from google.api_core.gapic_v1.method import _MethodDefault
 
 BASE_PATH = "airflow.providers.google.cloud.operators.datacatalog.{}"
 TEST_PROJECT_ID: str = "example_id"

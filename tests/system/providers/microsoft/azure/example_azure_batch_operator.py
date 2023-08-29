@@ -22,8 +22,6 @@ This DAG relies on the following OS environment variables
 
 * POOL_ID - The Pool ID in Batch accounts.
 """
-
-
 from __future__ import annotations
 
 import os
@@ -56,3 +54,8 @@ with DAG(
         target_dedicated_nodes=1,
     )
     # [END howto_azure_batch_operator]
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

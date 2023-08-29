@@ -158,7 +158,7 @@ class TestCli:
             reload(cli_parser)
 
     def test_falsy_default_value(self):
-        arg = cli_parser.Arg(("--test",), default=0, type=int)
+        arg = cli_config.Arg(("--test",), default=0, type=int)
         parser = argparse.ArgumentParser()
         arg.add_to_parser(parser)
 

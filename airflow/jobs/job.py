@@ -19,12 +19,12 @@ from __future__ import annotations
 
 from functools import cached_property
 from time import sleep
-from typing import Callable, NoReturn
+from typing import TYPE_CHECKING, Callable, NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
-from sqlalchemy.orm.session import Session, make_transient
+from sqlalchemy.orm.session import make_transient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -41,6 +41,9 @@ from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import JobState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
 
 
 def _resolve_dagrun_model():
@@ -190,7 +193,7 @@ class Job(Base, LoggingMixin):
             session.merge(self)
             previous_heartbeat = self.latest_heartbeat
 
-            if self.state in (JobState.SHUTDOWN, JobState.RESTARTING):
+            if self.state == JobState.RESTARTING:
                 # TODO: Make sure it is AIP-44 compliant
                 self.kill()
 

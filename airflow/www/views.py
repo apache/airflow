@@ -31,7 +31,7 @@ from bisect import insort_left
 from collections import defaultdict
 from functools import cached_property, wraps
 from json import JSONDecodeError
-from typing import Any, Callable, Collection, Iterator, Mapping, MutableMapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterator, Mapping, MutableMapping, Sequence
 from urllib.parse import unquote, urljoin, urlsplit
 
 import configupdater
@@ -69,7 +69,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import Date, and_, case, desc, func, inspect, select, union_all
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 from wtforms import BooleanField, validators
 
 import airflow
@@ -98,12 +98,10 @@ from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, Trigger, XCom, errors
-from airflow.models.abstractoperator import AbstractOperator
-from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
+from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.operator import Operator
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers_manager import ProvidersManager
@@ -139,6 +137,13 @@ from airflow.www.forms import (
     create_connection_form_class,
 )
 from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidget
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.abstractoperator import AbstractOperator
+    from airflow.models.dag import DAG
+    from airflow.models.operator import Operator
 
 PAGE_SIZE = conf.getint("webserver", "page_size")
 FILTER_TAGS_COOKIE = "tags_filter"
@@ -321,9 +326,15 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
 
     sort_order = conf.get("webserver", "grid_view_sorting_order", fallback="topological")
     if sort_order == "topological":
-        sort_children_fn = lambda task_group: task_group.topological_sort()
+
+        def sort_children_fn(task_group):
+            return task_group.topological_sort()
+
     elif sort_order == "hierarchical_alphabetical":
-        sort_children_fn = lambda task_group: task_group.hierarchical_alphabetical_sort()
+
+        def sort_children_fn(task_group):
+            return task_group.hierarchical_alphabetical_sort()
+
     else:
         raise AirflowConfigException(f"Unsupported grid_view_sorting_order: {sort_order}")
 
@@ -4176,7 +4187,7 @@ class DagFilter(BaseFilter):
 
 class AirflowModelView(ModelView):
     """
-    Airflow Mode View.
+    Airflow Model View.
 
     Overridden `__getattribute__` to wraps REST methods with action_logger
     """
@@ -4256,7 +4267,7 @@ def action_has_dag_edit_access(action_func: Callable) -> Callable:
             dag_ids: set[str] = set()
         elif isinstance(items, list):
             dag_ids = {item.dag_id for item in items if item is not None}
-        elif isinstance(items, TaskInstance) or isinstance(items, DagRun):
+        elif isinstance(items, (TaskInstance, DagRun)):
             dag_ids = {items.dag_id}
         else:
             raise ValueError(

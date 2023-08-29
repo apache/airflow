@@ -24,10 +24,7 @@ from functools import cached_property, lru_cache
 from re import match
 from typing import Any, Dict, List, TypeVar
 
-if sys.version_info >= (3, 9):
-    from typing import Literal
-else:
-    from typing import Literal
+from typing_extensions import Literal
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -68,6 +65,7 @@ from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
+UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 
 
 class FileGroupForCi(Enum):
@@ -685,9 +683,11 @@ class SelectiveChecks:
 
     @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
-        return len(
-            self._matching_files(FileGroupForCi.SETUP_FILES, CI_FILE_GROUP_MATCHES)
-        ) > 0 or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
+        return (
+            len(self._matching_files(FileGroupForCi.SETUP_FILES, CI_FILE_GROUP_MATCHES)) > 0
+            or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
+            or UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels
+        )
 
     @cached_property
     def docs_filter_list_as_string(self) -> str | None:

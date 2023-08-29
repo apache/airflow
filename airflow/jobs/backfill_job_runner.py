@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 import time
 from typing import TYPE_CHECKING, Any, Iterable, Iterator, Mapping, Sequence
 
@@ -25,7 +24,7 @@ import attr
 import pendulum
 from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm.session import Session, make_transient
+from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
 
 from airflow import models
@@ -42,7 +41,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import DAG, DagPickle
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import TaskInstance
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import BACKFILL_QUEUED_DEPS
 from airflow.timetables.base import DagRunInfo
@@ -54,8 +53,13 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
+    import datetime
+
+    from sqlalchemy.orm.session import Session
+
     from airflow.executors.base_executor import BaseExecutor
     from airflow.models.abstractoperator import AbstractOperator
+    from airflow.models.taskinstance import TaskInstanceKey
 
 
 class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
@@ -742,7 +746,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
 
             if all(key.map_index == -1 for key in ti_keys):
                 headers = ["DAG ID", "Task ID", "Run ID", "Try number"]
-                sorted_ti_keys = map(lambda k: k[0:4], sorted_ti_keys)
+                sorted_ti_keys = (k[0:4] for k in sorted_ti_keys)
             else:
                 headers = ["DAG ID", "Task ID", "Run ID", "Map Index", "Try number"]
 

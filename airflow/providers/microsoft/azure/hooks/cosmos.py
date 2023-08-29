@@ -25,14 +25,16 @@ the default database and collection to use (see connection `azure_cosmos_default
 """
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Any
+from urllib.parse import urlparse
 
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
+from azure.identity import DefaultAzureCredential
+from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
-from airflow.exceptions import AirflowBadRequest
+from airflow.exceptions import AirflowBadRequest, AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import get_field
 
@@ -68,6 +70,14 @@ class AzureCosmosDBHook(BaseHook):
             "collection_name": StringField(
                 lazy_gettext("Cosmos Collection Name (optional)"), widget=BS3TextFieldWidget()
             ),
+            "subscription_id": StringField(
+                lazy_gettext("Subscription ID (optional)"),
+                widget=BS3TextFieldWidget(),
+            ),
+            "resource_group_name": StringField(
+                lazy_gettext("Resource Group Name (optional)"),
+                widget=BS3TextFieldWidget(),
+            ),
         }
 
     @staticmethod
@@ -81,9 +91,11 @@ class AzureCosmosDBHook(BaseHook):
             },
             "placeholders": {
                 "login": "endpoint uri",
-                "password": "master key",
+                "password": "master key (not needed for Azure AD authentication)",
                 "database_name": "database name",
                 "collection_name": "collection name",
+                "subscription_id": "Subscription ID (required for Azure AD authentication)",
+                "resource_group_name": "Resource Group Name (required for Azure AD authentication)",
             },
         }
 
@@ -109,7 +121,23 @@ class AzureCosmosDBHook(BaseHook):
             conn = self.get_connection(self.conn_id)
             extras = conn.extra_dejson
             endpoint_uri = conn.login
-            master_key = conn.password
+            resource_group_name = self._get_field(extras, "resource_group_name")
+
+            if conn.password:
+                master_key = conn.password
+            elif resource_group_name:
+                management_client = CosmosDBManagementClient(
+                    credential=DefaultAzureCredential(),
+                    subscription_id=self._get_field(extras, "subscription_id"),
+                )
+
+                database_account = urlparse(conn.login).netloc.split(".")[0]
+                database_account_keys = management_client.database_accounts.list_keys(
+                    resource_group_name, database_account
+                )
+                master_key = database_account_keys.primary_master_key
+            else:
+                raise AirflowException("Either password or resource_group_name is required")
 
             self.default_database_name = self._get_field(extras, "database_name")
             self.default_collection_name = self._get_field(extras, "collection_name")
@@ -145,12 +173,14 @@ class AzureCosmosDBHook(BaseHook):
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
 
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_container = list(
             self.get_conn()
             .get_database_client(self.__get_database_name(database_name))
             .query_containers(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": collection_name})],
+                parameters=[{"name": "@id", "value": collection_name}],  # type: ignore[list-item]
             )
         )
         if not existing_container:
@@ -170,12 +200,14 @@ class AzureCosmosDBHook(BaseHook):
 
         # We need to check to see if this container already exists so we don't try
         # to create it twice
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_container = list(
             self.get_conn()
             .get_database_client(self.__get_database_name(database_name))
             .query_containers(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": collection_name})],
+                parameters=[{"name": "@id", "value": collection_name}],  # type: ignore[list-item]
             )
         )
 
@@ -190,10 +222,12 @@ class AzureCosmosDBHook(BaseHook):
         if database_name is None:
             raise AirflowBadRequest("Database name cannot be None.")
 
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_database = list(
             self.get_conn().query_databases(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": database_name})],
+                parameters=[{"name": "@id", "value": database_name}],  # type: ignore[list-item]
             )
         )
         if not existing_database:
@@ -208,10 +242,12 @@ class AzureCosmosDBHook(BaseHook):
 
         # We need to check to see if this database already exists so we don't try
         # to create it twice
+        # The ignores below is due to typing bug in azure-cosmos 9.2.0
+        # https://github.com/Azure/azure-sdk-for-python/issues/31811
         existing_database = list(
             self.get_conn().query_databases(
                 "SELECT * FROM r WHERE r.id=@id",
-                parameters=[json.dumps({"name": "@id", "value": database_name})],
+                parameters=[{"name": "@id", "value": database_name}],  # type: ignore[list-item]
             )
         )
 

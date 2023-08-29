@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.6.0
   - 8.5.1
   - 8.5.0
   - 8.4.0

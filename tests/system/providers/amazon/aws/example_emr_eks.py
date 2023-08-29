@@ -150,12 +150,11 @@ def update_trust_policy_execution_role(cluster_name, cluster_namespace, role_nam
     role_trust_policy = client.get_role(RoleName=role_name)["Role"]["AssumeRolePolicyDocument"]
     # We assume if the action is sts:AssumeRoleWithWebIdentity, the statement had been added with
     # "update-role-trust-policy". Removing it to not exceed the quota
-    role_trust_policy["Statement"] = list(
-        filter(
-            lambda statement: statement["Action"] != "sts:AssumeRoleWithWebIdentity",
-            role_trust_policy["Statement"],
-        )
-    )
+    role_trust_policy["Statement"] = [
+        statement
+        for statement in role_trust_policy["Statement"]
+        if statement["Action"] != "sts:AssumeRoleWithWebIdentity"
+    ]
 
     client.update_assume_role_policy(
         RoleName=role_name,

@@ -501,7 +501,7 @@ class TestCliTasks:
         assert 'echo "2022-01-08"' in output
 
     @mock.patch("airflow.cli.commands.task_command.select")
-    @mock.patch("airflow.cli.commands.task_command.Session.scalars")
+    @mock.patch("sqlalchemy.orm.session.Session.scalars")
     @mock.patch("airflow.cli.commands.task_command.DagRun")
     def test_task_render_with_custom_timetable(self, mock_dagrun, mock_scalars, mock_select):
         """

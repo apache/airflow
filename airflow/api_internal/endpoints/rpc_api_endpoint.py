@@ -20,12 +20,14 @@ from __future__ import annotations
 import functools
 import json
 import logging
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from flask import Response
 
-from airflow.api_connexion.types import APIResponse
 from airflow.serialization.serialized_objects import BaseSerialization
+
+if TYPE_CHECKING:
+    from airflow.api_connexion.types import APIResponse
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +39,7 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DagModel
     from airflow.models.dagwarning import DagWarning
+    from airflow.secrets.metastore import MetastoreBackend
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
@@ -46,6 +49,8 @@ def _initialize_map() -> dict[str, Callable]:
         DagModel.get_paused_dag_ids,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        MetastoreBackend._fetch_connection,
+        MetastoreBackend._fetch_variable,
         XCom.get_value,
         XCom.get_one,
         XCom.get_many,

@@ -32,8 +32,6 @@ from typing import TYPE_CHECKING, Any, Iterable, Mapping, NoReturn, Sequence, Un
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
-from google.api_core.page_iterator import HTTPIterator
-from google.api_core.retry import Retry
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
     Client,
@@ -70,6 +68,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     import pandas as pd
+    from google.api_core.page_iterator import HTTPIterator
+    from google.api_core.retry import Retry
 
 log = logging.getLogger(__name__)
 
@@ -3033,12 +3033,10 @@ def _api_resource_configs_duplication_check(
 ) -> None:
     if key in config_dict and value != config_dict[key]:
         raise ValueError(
-            "Values of {param_name} param are duplicated. "
-            "{dict_name} contained {param_name} param "
-            "in `query` config and {param_name} was also provided "
-            "with arg to run_query() method. Please remove duplicates.".format(
-                param_name=key, dict_name=config_dict_name
-            )
+            f"Values of {key} param are duplicated. "
+            f"{config_dict_name} contained {key} param "
+            f"in `query` config and {key} was also provided "
+            "with arg to run_query() method. Please remove duplicates."
         )
 
 
@@ -3156,15 +3154,15 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         if "rows" in query_results and query_results["rows"]:
             rows = query_results["rows"]
             fields = query_results["schema"]["fields"]
+            fields_names = [field["name"] for field in fields]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
-                typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
-                if not as_dict:
-                    buffer.append(typed_row)
-                else:
-                    fields_names = [field["name"] for field in fields]
-                    typed_row_dict = {k: v for k, v in zip(fields_names, typed_row)}
+                typed_row = [bq_cast(vs["v"], col_type) for vs, col_type in zip(dict_row["f"], col_types)]
+                if as_dict:
+                    typed_row_dict = dict(zip(fields_names, typed_row))
                     buffer.append(typed_row_dict)
+                else:
+                    buffer.append(typed_row)
         return buffer
 
     def value_check(

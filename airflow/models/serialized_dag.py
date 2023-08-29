@@ -20,16 +20,16 @@ from __future__ import annotations
 
 import logging
 import zlib
-from datetime import datetime, timedelta
-from typing import Collection
+from datetime import timedelta
+from typing import TYPE_CHECKING, Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_, select
-from sqlalchemy.orm import Session, backref, foreign, relationship
+from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
 from airflow.models.base import ID_LEN, Base
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
@@ -38,6 +38,13 @@ from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session
+
+    from airflow.models.dag import DAG
 
 log = logging.getLogger(__name__)
 

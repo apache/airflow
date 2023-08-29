@@ -22,14 +22,17 @@ import collections
 import itertools
 import json
 import os
+from typing import TYPE_CHECKING
 
 from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
-from airflow.auth.managers.fab.models import Action, Permission, Resource, Role
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.www.security import EXISTING_ROLES
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.fab.models import Action, Permission, Resource, Role
 
 
 @suppress_logs_and_warning

@@ -1344,7 +1344,7 @@ def dag_bag_multiple():
             task_id=f"{daily_task.task_id}_{i}",
             external_dag_id=daily_dag.dag_id,
             external_task_id=daily_task.task_id,
-            execution_date="{{ macros.ds_add(ds, -1 * %s) }}" % i,
+            execution_date=f"{{{{ macros.ds_add(ds, -1 * {i}) }}}}",
             dag=agg_dag,
         )
         begin >> task

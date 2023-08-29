@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.dataplex_v1 import DataplexServiceClient, DataScanServiceClient
 from google.cloud.dataplex_v1.types import (
     Asset,
@@ -34,11 +32,15 @@ from google.cloud.dataplex_v1.types import (
     Zone,
 )
 from google.protobuf.field_mask_pb2 import FieldMask
-from googleapiclient.discovery import Resource
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from googleapiclient.discovery import Resource
 
 PATH_DATA_SCAN = "projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
 

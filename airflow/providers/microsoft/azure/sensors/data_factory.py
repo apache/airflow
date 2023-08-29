@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import warnings
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
@@ -72,8 +73,12 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
 
         self.deferrable = deferrable
 
+    @cached_property
+    def hook(self):
+        """Create and return an AzureDataFactoryHook (cached)."""
+        return AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
+
     def poke(self, context: Context) -> bool:
-        self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
         pipeline_run_status = self.hook.get_pipeline_run_status(
             run_id=self.run_id,
             resource_group_name=self.resource_group_name,
