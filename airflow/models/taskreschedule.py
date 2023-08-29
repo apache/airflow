@@ -146,7 +146,6 @@ class TaskReschedule(Base):
         :param try_number: Look for TaskReschedule of the given try_number. Default is None which
             looks for the same try_number of the given task_instance.
         """
-        # breakpoint()
         return session.scalars(
             TaskReschedule.query_for_task_instance(task_instance, session=session, try_number=try_number)
         ).all()
