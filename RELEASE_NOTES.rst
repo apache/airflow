@@ -2482,7 +2482,7 @@ and Airflow cannot be embedded in an iframe.
 New Features
 ^^^^^^^^^^^^
 
-- Add dynamic task mapping (`AIP-42 <https://github.com/apache/airflow/pulls?q=is%3Apr+is%3Amerged+label%3AAIP-42+milestone%3A%22Airflow+2.3.0%22>`_)
+- Add dynamic task mapping (`AIP-42 <https://github.com/apache/airflow/pulls?q=is%3Apr+is%3Amerged+label%3Aarea%3Adynamic-task-mapping+milestone%3A%22Airflow+2.3.0%22>`_)
 - New Grid View replaces Tree View (#18675)
 - Templated ``requirements.txt`` in Python Operators (#17349)
 - Allow reuse of decorated tasks (#22941)
