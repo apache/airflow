@@ -24,10 +24,12 @@ import logging
 import re2
 from flask import session
 
+from airflow.www.security_manager import AirflowSecurityManager
+
 log = logging.getLogger(__name__)
 
 
-class FabAirflowSecurityManagerOverrideOauth:
+class FabAirflowSecurityManagerOverrideOauth(AirflowSecurityManager):
     """
     FabAirflowSecurityManagerOverride is split into multiple classes to avoid having one massive class.
 

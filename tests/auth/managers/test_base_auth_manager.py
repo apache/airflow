@@ -20,7 +20,7 @@ import pytest
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.exceptions import AirflowException
-from airflow.www.security import ApplessAirflowSecurityManager
+from airflow.www.security_appless import ApplessAirflowSecurityManager
 
 
 @pytest.fixture

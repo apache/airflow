@@ -28,11 +28,12 @@ from werkzeug.security import generate_password_hash
 
 from airflow import AirflowException
 from airflow.auth.managers.fab.models import Action, Permission, Resource, Role
+from airflow.www.security_manager import AirflowSecurityManager
 
 log = logging.getLogger(__name__)
 
 
-class FabAirflowSecurityManagerOverrideDb:
+class FabAirflowSecurityManagerOverrideDb(AirflowSecurityManager):
     """
     FabAirflowSecurityManagerOverride is split into multiple classes to avoid having one massive class.
 
@@ -49,10 +50,8 @@ class FabAirflowSecurityManagerOverrideDb:
     action_model = Action
     resource_model = Resource
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        self.appbuilder = kwargs["appbuilder"]
+    def __init__(self, appbuilder):
+        super().__init__(appbuilder=appbuilder)
 
     @property
     def get_session(self):

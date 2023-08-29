@@ -64,29 +64,6 @@ class FabAirflowSecurityManagerOverride(
     the AirflowSecurityManager should be defined here instead of AirflowSecurityManager.
 
     :param appbuilder: The appbuilder.
-    :param actionmodelview: The obj instance for action model view.
-    :param authdbview: The class for auth db view.
-    :param authldapview: The class for auth ldap view.
-    :param authoauthview: The class for auth oauth view.
-    :param authoidview: The class for auth oid view.
-    :param authremoteuserview: The class for auth remote user view.
-    :param permissionmodelview: The class for permission model view.
-    :param registeruser_view: The class for register user view.
-    :param registeruserdbview: The class for register user db view.
-    :param registeruseroauthview: The class for register user oauth view.
-    :param registerusermodelview: The class for register user model view.
-    :param registeruseroidview: The class for register user oid view.
-    :param resetmypasswordview: The class for reset my password view.
-    :param resetpasswordview: The class for reset password view.
-    :param rolemodelview: The class for role model view.
-    :param user_model: The user model.
-    :param userinfoeditview: The class for user info edit view.
-    :param userdbmodelview: The class for user db model view.
-    :param userldapmodelview: The class for user ldap model view.
-    :param useroauthmodelview: The class for user oauth model view.
-    :param useroidmodelview: The class for user oid model view.
-    :param userremoteusermodelview: The class for user remote user model view.
-    :param userstatschartview: The class for user stats chart view.
     """
 
     """ The obj instance for authentication view """
@@ -103,37 +80,16 @@ class FabAirflowSecurityManagerOverride(
     """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
     oauth_allow_list: dict[str, list] = {}
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        self.appbuilder = kwargs["appbuilder"]
-        self.actionmodelview = kwargs["actionmodelview"]
-        self.authdbview = kwargs["authdbview"]
-        self.authldapview = kwargs["authldapview"]
-        self.authoauthview = kwargs["authoauthview"]
-        self.authoidview = kwargs["authoidview"]
-        self.authremoteuserview = kwargs["authremoteuserview"]
-        self.permissionmodelview = kwargs["permissionmodelview"]
-        self.registeruser_view = kwargs["registeruser_view"]
-        self.registeruserdbview = kwargs["registeruserdbview"]
-        self.registeruseroauthview = kwargs["registeruseroauthview"]
-        self.registerusermodelview = kwargs["registerusermodelview"]
-        self.registeruseroidview = kwargs["registeruseroidview"]
-        self.resetmypasswordview = kwargs["resetmypasswordview"]
-        self.resetpasswordview = kwargs["resetpasswordview"]
-        self.rolemodelview = kwargs["rolemodelview"]
-        self.user_model = kwargs["user_model"]
-        self.userinfoeditview = kwargs["userinfoeditview"]
-        self.userdbmodelview = kwargs["userdbmodelview"]
-        self.userldapmodelview = kwargs["userldapmodelview"]
-        self.useroauthmodelview = kwargs["useroauthmodelview"]
-        self.useroidmodelview = kwargs["useroidmodelview"]
-        self.userremoteusermodelview = kwargs["userremoteusermodelview"]
-        self.userstatschartview = kwargs["userstatschartview"]
+    def __init__(self, appbuilder):
+        # done in super, but we need it before we can call super.
+        self.appbuilder = appbuilder
 
         self._init_config()
         self._init_auth()
         self._init_data_model()
+        # can only call super once data model init has been done
+        # because of the view.datamodel hack that's done in the init there.
+        super().__init__(appbuilder=appbuilder)
 
         self._builtin_roles: dict = self.create_builtin_roles()
 

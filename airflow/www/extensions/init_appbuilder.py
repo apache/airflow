@@ -660,13 +660,13 @@ class AirflowAppBuilder:
 
 def init_appbuilder(app) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
-    from airflow.www.security import AirflowSecurityManager
+    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 
-    security_manager_class = app.config.get("SECURITY_MANAGER_CLASS") or AirflowSecurityManager
+    security_manager_class = app.config.get("SECURITY_MANAGER_CLASS") or FabAirflowSecurityManagerOverride
 
-    if not issubclass(security_manager_class, AirflowSecurityManager):
+    if not issubclass(security_manager_class, FabAirflowSecurityManagerOverride):
         raise Exception(
-            """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
+            """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride,
              not FAB's security manager."""
         )
 
