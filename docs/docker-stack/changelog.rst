@@ -60,7 +60,7 @@ Airflow 2.7
 
 * 2.7.2
 
-  * Several fixes to how ``__PIP_ADDITIONAL_REQUIREMENTS`` works:
+  * Several fixes to how ``_PIP_ADDITIONAL_REQUIREMENTS`` works:
 
     * When installing additional requirements, ``airflow_version=<AIRFLOW_VERSION>`` is passed to the pip command. This ensures that the
       airflow version is never accidentally downgraded or upgraded when installing incompatible requirements.
