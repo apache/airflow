@@ -134,12 +134,12 @@ class TriggerRuleDep(BaseTIDep):
         else:
             setup_upstream_tasks = list(ti.task.get_upstreams_only_setups())
 
-        setup_upstream_tasks_ids = [task.task_id for task in setup_upstream_tasks]
-        setup_upstream_task_instances = [
+        setup_upstream_tasks_ids = {task.task_id for task in setup_upstream_tasks}
+        setup_upstream_task_instances = {
             t
             for t in ti.get_dagrun(session).get_task_instances(session=session)
             if t.task_id in setup_upstream_tasks_ids
-        ]
+        }
 
         task = ti.task
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
@@ -198,7 +198,7 @@ class TriggerRuleDep(BaseTIDep):
 
         def _is_relevant_setup_upstream(upstream: TaskInstance) -> bool:
             """Whether a task instance is a "relevant upstream setup" of the current task."""
-            if upstream.task_id in map(lambda t: t.task_id, setup_upstream_tasks):
+            if upstream.task_id in setup_upstream_tasks_ids:
                 relevant = _get_relevant_upstream_map_indexes(upstream.task_id)
                 if relevant is None:
                     return True
