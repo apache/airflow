@@ -140,7 +140,7 @@ class PrevDagrunDep(BaseTIDep):
         # Don't depend on the previous task instance if we are the first task.
         catchup = ti.task.dag and ti.task.dag.catchup
         if catchup:
-            last_dagrun = DagRun.get_previous_scheduled_dagrun(dr, session)
+            last_dagrun = DagRun.get_previous_scheduled_dagrun(dr.run_id, session)
         else:
             last_dagrun = DagRun.get_previous_dagrun(dr, session=session)
 

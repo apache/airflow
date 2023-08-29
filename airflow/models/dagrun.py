@@ -524,6 +524,7 @@ class DagRun(Base, LoggingMixin):
         :param session: Sqlalchemy ORM Session
         """
         return DagRun.fetch_task_instance(
+            dag_id=self.dag_id,
             dag_run_id=self.run_id,
             task_id=task_id,
             session=session,
@@ -534,6 +535,7 @@ class DagRun(Base, LoggingMixin):
     @internal_api_call
     @provide_session
     def fetch_task_instance(
+        dag_id: str,
         dag_run_id: str,
         task_id: str,
         session: Session = NEW_SESSION,
@@ -542,15 +544,13 @@ class DagRun(Base, LoggingMixin):
         """
         Returns the task instance specified by task_id for this dag run.
 
-        :param dag_run_id: the DAG run ID
+        :param dag_id: the DAG id
+        :param dag_run_id: the DAG run id
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
-        dag_run = session.get(DagRun, dag_run_id)
         return session.scalars(
-            select(TI).filter_by(
-                dag_id=dag_run.dag_id, run_id=dag_run.run_id, task_id=task_id, map_index=map_index
-            )
+            select(TI).filter_by(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
         ).one_or_none()
 
     def get_dag(self) -> DAG:
@@ -589,14 +589,16 @@ class DagRun(Base, LoggingMixin):
     @internal_api_call
     @provide_session
     def get_previous_scheduled_dagrun(
-        dag_run: DagRun | DagRunPydantic, session: Session = NEW_SESSION
+        dag_run_id: str,
+        session: Session = NEW_SESSION,
     ) -> DagRun | None:
         """
         Return the previous SCHEDULED DagRun, if there is one.
 
-        :param dag_run: the dag run
+        :param dag_run_id: the DAG run ID
         :param session: SQLAlchemy ORM Session
         """
+        dag_run = session.get(DagRun, dag_run_id)
         return session.scalar(
             select(DagRun)
             .where(
