@@ -423,9 +423,10 @@ Multiple outputs inference
 Tasks can also infer multiple outputs by using dict Python typing.
 
 .. code-block:: python
+   from typing import Dict
 
    @task
-   def identity_dict(x: int, y: int) -> dict[str, int]:
+   def identity_dict(x: int, y: int) -> Dict[str, int]:
        return {"x": x, "y": y}
 
 By using the typing ``Dict`` for the function return type, the ``multiple_outputs`` parameter
