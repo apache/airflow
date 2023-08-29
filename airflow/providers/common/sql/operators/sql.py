@@ -84,7 +84,7 @@ keep those methods to avoid 8.4.0 version from failing.
 """
 
 
-_PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*)\.hooks.*")
+_PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*?)\.hooks.*")
 
 _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "amazon": "4.1.0",

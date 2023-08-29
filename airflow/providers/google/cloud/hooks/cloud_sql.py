@@ -673,8 +673,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         command_to_run.extend(["--version"])
         command_to_run.extend(self._get_credential_parameters())
         result = subprocess.check_output(command_to_run).decode("utf-8")
-        pattern = re.compile("^.*[V|v]ersion ([^;]*);.*$")
-        matched = pattern.match(result)
+        matched = re.search("[Vv]ersion (.*?);", result)
         if matched:
             return matched.group(1)
         else:
