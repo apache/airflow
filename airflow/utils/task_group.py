@@ -565,8 +565,6 @@ class MappedTaskGroup(TaskGroup):
     def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
-        for op, _ in expand_input.iter_references():
-            self.set_upstream(op)
 
     def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this mapped task group."""
@@ -618,6 +616,11 @@ class MappedTaskGroup(TaskGroup):
             operator.mul,
             (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
         )
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        for op, _ in self._expand_input.iter_references():
+            self.set_upstream(op)
+        super().__exit__(exc_type, exc_val, exc_tb)
 
 
 class TaskGroupContext:
