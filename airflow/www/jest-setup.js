@@ -49,7 +49,6 @@ global.stateColors = {
   restarting: "violet",
   running: "lime",
   scheduled: "tan",
-  shutdown: "blue",
   skipped: "hotpink",
   success: "green",
   up_for_reschedule: "turquoise",

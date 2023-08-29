@@ -25,13 +25,14 @@ This module contains AWS Athena hook.
 from __future__ import annotations
 
 import warnings
-from typing import Any
-
-from botocore.paginate import PageIterator
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+
+if TYPE_CHECKING:
+    from botocore.paginate import PageIterator
 
 
 class AthenaHook(AwsBaseHook):

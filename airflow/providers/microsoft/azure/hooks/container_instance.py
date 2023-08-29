@@ -19,11 +19,14 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
+from azure.common.credentials import ServicePrincipalCredentials
+from azure.identity import DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
 if TYPE_CHECKING:
@@ -56,6 +59,59 @@ class AzureContainerInstanceHook(AzureBaseHook):
     def connection(self):
         return self.get_conn()
 
+    def get_conn(self) -> Any:
+        """
+        Authenticates the resource using the connection id passed during init.
+
+        :return: the authenticated client.
+        """
+        conn = self.get_connection(self.conn_id)
+        tenant = conn.extra_dejson.get("tenantId")
+        if not tenant and conn.extra_dejson.get("extra__azure__tenantId"):
+            warnings.warn(
+                "`extra__azure__tenantId` is deprecated in azure connection extra, "
+                "please use `tenantId` instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            tenant = conn.extra_dejson.get("extra__azure__tenantId")
+        subscription_id = conn.extra_dejson.get("subscriptionId")
+        if not subscription_id and conn.extra_dejson.get("extra__azure__subscriptionId"):
+            warnings.warn(
+                "`extra__azure__subscriptionId` is deprecated in azure connection extra, "
+                "please use `subscriptionId` instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            subscription_id = conn.extra_dejson.get("extra__azure__subscriptionId")
+
+        key_path = conn.extra_dejson.get("key_path")
+        if key_path:
+            if not key_path.endswith(".json"):
+                raise AirflowException("Unrecognised extension for key file.")
+            self.log.info("Getting connection using a JSON key file.")
+            return get_client_from_auth_file(client_class=self.sdk_client, auth_path=key_path)
+
+        key_json = conn.extra_dejson.get("key_json")
+        if key_json:
+            self.log.info("Getting connection using a JSON config.")
+            return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
+
+        credential: ServicePrincipalCredentials | DefaultAzureCredential
+        if all([conn.login, conn.password, tenant]):
+            self.log.info("Getting connection using specific credentials and subscription_id.")
+            credential = ServicePrincipalCredentials(
+                client_id=conn.login, secret=conn.password, tenant=tenant
+            )
+        else:
+            self.log.info("Using DefaultAzureCredential as credential")
+            credential = DefaultAzureCredential()
+
+        return ContainerInstanceManagementClient(
+            credential=credential,
+            subscription_id=subscription_id,
+        )
+
     def create_or_update(self, resource_group: str, name: str, container_group: ContainerGroup) -> None:
         """
         Create a new container group.
@@ -64,7 +120,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param name: the name of the container group
         :param container_group: the properties of the container group
         """
-        self.connection.container_groups.create_or_update(resource_group, name, container_group)
+        self.connection.container_groups.begin_create_or_update(resource_group, name, container_group)
 
     def get_state_exitcode_details(self, resource_group: str, name: str) -> tuple:
         """
@@ -109,7 +165,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param name: the name of the container group
         :return: ContainerGroup
         """
-        return self.connection.container_groups.get(resource_group, name, raw=False)
+        return self.connection.container_groups.get(resource_group, name)
 
     def get_logs(self, resource_group: str, name: str, tail: int = 1000) -> list:
         """
@@ -120,7 +176,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param tail: the size of the tail
         :return: A list of log messages
         """
-        logs = self.connection.container.list_logs(resource_group, name, name, tail=tail)
+        logs = self.connection.containers.list_logs(resource_group, name, name, tail=tail)
         return logs.content.splitlines(True)
 
     def delete(self, resource_group: str, name: str) -> None:
@@ -130,7 +186,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param resource_group: the name of the resource group
         :param name: the name of the container group
         """
-        self.connection.container_groups.delete(resource_group, name)
+        self.connection.container_groups.begin_delete(resource_group, name)
 
     def exists(self, resource_group: str, name: str) -> bool:
         """
