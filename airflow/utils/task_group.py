@@ -618,6 +618,11 @@ class MappedTaskGroup(TaskGroup):
             (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
         )
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        for op, _ in self._expand_input.iter_references():
+            self.set_upstream(op)
+        super().__exit__(exc_type, exc_val, exc_tb)
+
 
 class TaskGroupContext:
     """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
