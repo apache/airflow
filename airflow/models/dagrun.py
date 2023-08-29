@@ -307,7 +307,7 @@ class DagRun(Base, LoggingMixin):
         else:
             query = query.where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
         query = query.group_by(cls.dag_id)
-        return dict(session.execute(query))
+        return dict(iter(session.execute(query)))
 
     @classmethod
     def next_dagruns_to_examine(
