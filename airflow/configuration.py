@@ -1799,6 +1799,13 @@ class AirflowConfigParser(ConfigParser):
         self.expand_all_configuration_values()
         log.info("Unit test configuration loaded from 'config_unit_tests.cfg'")
 
+        # Remove environment variables to ensure the unit test configs take effect.
+        airflow_cfg_keys = {k for k in os.environ if re2.match(r"^AIRFLOW__[^_]+__[^_].+$", k.upper())}
+        for k in airflow_cfg_keys:
+            del os.environ[k]
+        if airflow_cfg_keys:
+            log.info("Environment variables removed for unit tests: %s", ", ".join(sorted(airflow_cfg_keys)))
+
     def expand_all_configuration_values(self):
         """Expand all configuration values using global and local variables defined in this module."""
         all_vars = get_all_expansion_variables()
