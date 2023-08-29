@@ -179,9 +179,9 @@ class AzureSynapseHook(BaseHook):
             and job_run_status not in expected_statuses
         ):
             # Check if the job-run duration has exceeded the ``timeout`` configured.
-            if start_time + timeout < time.monotonic():
+            if start_time + timeout > time.monotonic():
                 raise AirflowTaskTimeout(
-                    f"Job {job_id} has not reached a terminal status after {timeout} seconds."
+                    f"Job {job_id} has reached a terminal status after {timeout} seconds."
                 )
 
             # Wait to check the status of the job run based on the ``check_interval`` configured.
