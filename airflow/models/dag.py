@@ -1380,7 +1380,7 @@ class DAG(LoggingMixin):
     @provide_session
     def fetch_callback(
         dag: DAG,
-        dagrun: DagRun | DagRunPydantic,
+        dag_run_id: str,
         success: bool = True,
         reason: str | None = None,
         *,
@@ -1393,13 +1393,14 @@ class DAG(LoggingMixin):
         the list of callbacks.
 
         :param dag: DAG object
-        :param dagrun: DagRun object
+        :param dag_run_id: The DagRun ID
         :param success: Flag to specify if failure or success callback should be called
         :param reason: Completion reason
         :param session: Database session
         """
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if callbacks:
+            dagrun = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=dag_run_id, session=session)
             callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
             tis = dagrun.get_task_instances(session=session)
             ti = tis[-1]  # get first TaskInstance of DagRun
@@ -1427,7 +1428,7 @@ class DAG(LoggingMixin):
         :param session: Database session
         """
         callbacks, context = DAG.fetch_callback(
-            dag=self, dagrun=dagrun, success=success, reason=reason, session=session
+            dag=self, dag_run_id=dagrun.run_id, success=success, reason=reason, session=session
         ) or (None, None)
 
         DAG.execute_callback(callbacks, context, self.dag_id)
