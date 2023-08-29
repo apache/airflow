@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Iterator
 
 from sqlalchemy import and_, func, or_, select
 
-from airflow.models import DagRun
+from airflow.models import MappedOperator
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep, TIDepStatus
@@ -36,6 +36,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import ColumnOperators
 
+    from airflow.models.dagrun import DagRun
+    from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -176,6 +178,18 @@ class TriggerRuleDep(BaseTIDep):
                 .where(TaskInstance.task_id.in_(tasks_ids_list))
             ).scalar_one()
 
+        def _get_setup_upstream_tis_count(
+            current_ti: TaskInstance, setup_upstream_tasks_list: list[Operator]
+        ):
+            mapped_setup_upstream_ids = {
+                task.task_id
+                for task in setup_upstream_tasks_list
+                if isinstance(task, MappedOperator) or task.task_group != current_ti.task.task_group
+            }
+            return _get_tis_count_from_tasks_list(current_ti.dag_run, list(mapped_setup_upstream_ids)) + len(
+                [task for task in setup_upstream_tasks_list if task.task_id not in mapped_setup_upstream_ids]
+            )
+
         def _is_relevant_upstream(upstream: TaskInstance) -> bool:
             """Whether a task instance is a "relevant upstream" of the current task."""
             # Not actually an upstream task.
@@ -269,7 +283,7 @@ class TriggerRuleDep(BaseTIDep):
         # Optimization: Don't need to hit the database if all upstreams are
         # "simple" tasks (no task or task group mapping involved).
         if not ti.task.is_teardown:
-            upstream_setup = _get_tis_count_from_tasks_list(ti.dag_run, list(setup_upstream_tasks_ids))
+            upstream_setup = _get_setup_upstream_tis_count(ti, setup_upstream_tasks)
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
             if ti.task.is_teardown:
