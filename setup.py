@@ -438,7 +438,6 @@ devel_only = [
     "pytest-xdist",
     "python-jose",
     "pywinrm",
-    "qds-sdk>=1.9.6",
     "pytest-httpx",
     "requests_mock",
     "rich-click>=1.5",

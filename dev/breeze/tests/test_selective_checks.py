@@ -1015,7 +1015,6 @@ def test_upgrade_to_newer_dependencies(
                 "--package-filter apache-airflow-providers-oracle "
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-qubole "
                 "--package-filter apache-airflow-providers-slack "
                 "--package-filter apache-airflow-providers-snowflake "
                 "--package-filter apache-airflow-providers-sqlite "
