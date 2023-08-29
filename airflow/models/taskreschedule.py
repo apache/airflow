@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import sqlalchemy
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, event, select, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql.selectable import Select
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -105,7 +105,7 @@ class TaskReschedule(Base):
         descending: bool = False,
         session: Session = NEW_SESSION,
         try_number: int | None = None,
-    ) -> sqlalchemy.Select:
+    ) -> Select:
         """
         Return query for task reschedules for a given the task instance.
 
