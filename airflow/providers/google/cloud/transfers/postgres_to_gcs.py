@@ -69,6 +69,10 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
     """
     Copy data from Postgres to Google Cloud Storage in JSON, CSV or Parquet format.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PostgresToGCSOperator`
+
     :param postgres_conn_id: Reference to a specific Postgres hook.
     :param use_server_side_cursor: If server-side cursor should be used for querying postgres.
         For detailed info, check https://www.psycopg.org/docs/usage.html#server-side-cursors

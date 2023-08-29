@@ -182,7 +182,7 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
                 airflow_version=airflow_version, python_version=python_version
             ),
             "-c",
-            ";".join(command.split("\n")[1:-1]),
+            ";".join(command.splitlines()[1:-1]),
         ]
     )
     target_dir = FILES_DIR / TARGET_DIR_NAME
@@ -190,22 +190,22 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
     provider_with_airflow_file = target_dir / provider_with_airflow_file_name
     get_console().print(f"[info]Airflow requirements in {airflow_file}")
     get_console().print(f"[info]Provider requirements in {provider_with_airflow_file}")
-    base_packages = set([package.split("==")[0] for package in airflow_file.read_text().split("\n")])
+    base_packages = {package.split("==")[0] for package in airflow_file.read_text().splitlines()}
     base_packages.add("apache-airflow-providers-" + provider_id.replace(".", "-"))
     provider_packages = sorted(
         [
             line
-            for line in provider_with_airflow_file.read_text().split("\n")
+            for line in provider_with_airflow_file.read_text().splitlines()
             if line.split("==")[0] not in base_packages
         ]
     )
     get_console().print(
         f"[info]Provider {provider_id} has {len(provider_packages)} transitively "
-        f"dependent packages (excluding airflow and it's dependencies)"
+        f"dependent packages (excluding airflow and its dependencies)"
     )
     get_console().print(provider_packages)
     provider_file = target_dir / provider_file_name
-    provider_file.write_text("\n".join(provider_packages) + "\n")
+    provider_file.write_text("".join(f"{p}\n" for p in provider_packages))
     get_console().print(
         f"[success]Generated {provider_id}:{provider_version} requirements in {provider_file}"
     )

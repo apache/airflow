@@ -26,15 +26,18 @@ import collections.abc
 import os
 import re
 import smtplib
+import ssl
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class SmtpHook(BaseHook):
@@ -87,7 +90,6 @@ class SmtpHook(BaseHook):
                     if attempt < self.smtp_retry_limit:
                         continue
                     raise AirflowException("Unable to connect to smtp server")
-
                 if self.smtp_starttls:
                     self.smtp_client.starttls()
                 if self.smtp_user and self.smtp_password:
@@ -109,6 +111,28 @@ class SmtpHook(BaseHook):
             smtp_kwargs["port"] = self.port
         smtp_kwargs["timeout"] = self.timeout
 
+        if self.use_ssl:
+            from airflow.configuration import conf
+
+            extra_ssl_context = self.conn.extra_dejson.get("ssl_context", None)
+            if extra_ssl_context:
+                ssl_context_string = extra_ssl_context
+            else:
+                ssl_context_string = conf.get("smtp_provider", "SSL_CONTEXT", fallback=None)
+            if ssl_context_string is None:
+                ssl_context_string = conf.get("email", "SSL_CONTEXT", fallback=None)
+            if ssl_context_string is None:
+                ssl_context_string = "default"
+            if ssl_context_string == "default":
+                ssl_context = ssl.create_default_context()
+            elif ssl_context_string == "none":
+                ssl_context = None
+            else:
+                raise RuntimeError(
+                    f"The email.ssl_context configuration variable must "
+                    f"be set to 'default' or 'none' and is '{ssl_context_string}'."
+                )
+            smtp_kwargs["context"] = ssl_context
         return SMTP(**smtp_kwargs)
 
     @classmethod
@@ -311,7 +335,7 @@ class SmtpHook(BaseHook):
         :return: A list of email addresses.
         """
         pattern = r"\s*[,;]\s*"
-        return [address for address in re.split(pattern, addresses)]
+        return re.split(pattern, addresses)
 
     @property
     def conn(self) -> Connection:

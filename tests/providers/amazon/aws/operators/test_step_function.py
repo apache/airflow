@@ -22,6 +22,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from airflow.exceptions import TaskDeferred
+from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.providers.amazon.aws.operators.step_function import (
     StepFunctionGetExecutionOutputOperator,
     StepFunctionStartExecutionOperator,
@@ -132,3 +134,18 @@ class TestStepFunctionStartExecutionOperator:
 
         # Then
         assert hook_response == result
+
+    @mock.patch.object(StepFunctionHook, "start_execution")
+    def test_step_function_start_execution_deferrable(self, mock_start_execution):
+        mock_start_execution.return_value = "test-execution-arn"
+        operator = StepFunctionStartExecutionOperator(
+            task_id=self.TASK_ID,
+            state_machine_arn=STATE_MACHINE_ARN,
+            name=NAME,
+            state_machine_input=INPUT,
+            aws_conn_id=AWS_CONN_ID,
+            region_name=REGION_NAME,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred):
+            operator.execute(None)

@@ -34,16 +34,15 @@ from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Optional, Tuple
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
-from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
+from sqlalchemy import select
 
 import airflow.settings as settings
-from airflow.config_templates.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -53,17 +52,21 @@ from airflow.utils.timeout import timeout
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from celery.result import AsyncResult
+
     from airflow.executors.base_executor import CommandType, EventBufferValueType
+    from airflow.models.taskinstance import TaskInstanceKey
 
     TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
-OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout", fallback=1.0)
+OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
 if conf.has_option("celery", "celery_config_options"):
     celery_configuration = conf.getimport("celery", "celery_config_options")
+
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
@@ -267,7 +270,7 @@ class BulkStateFetcher(LoggingMixin):
         session = app.backend.ResultSession()
         task_cls = getattr(app.backend, "task_cls", TaskDb)
         with session_cleanup(session):
-            return session.query(task_cls).filter(task_cls.task_id.in_(task_ids)).all()
+            return session.scalars(select(task_cls).where(task_cls.task_id.in_(task_ids))).all()
 
     def _get_many_from_db_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
         task_ids = self._tasks_list_to_task_ids(async_tasks)
@@ -297,7 +300,7 @@ class BulkStateFetcher(LoggingMixin):
         num_process = min(len(async_results), self._sync_parallelism)
 
         with ProcessPoolExecutor(max_workers=num_process) as sync_pool:
-            chunksize = max(1, math.floor(math.ceil(1.0 * len(async_results) / self._sync_parallelism)))
+            chunksize = max(1, math.ceil(len(async_results) / self._sync_parallelism))
 
             task_id_to_states_and_info = list(
                 sync_pool.map(fetch_celery_task_state, async_results, chunksize=chunksize)

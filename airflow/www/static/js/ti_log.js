@@ -133,7 +133,8 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         const linkifiedMessage = escapedMessage
           .replace(
             urlRegex,
-            (url) => `<a href="${url}" target="_blank">${url}</a>`
+            (url) =>
+              `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
           )
           .replaceAll(
             dateRegex,

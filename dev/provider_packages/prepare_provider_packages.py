@@ -59,7 +59,7 @@ MIN_AIRFLOW_VERSION = "2.4.0"
 # In case you have some providers that you want to have different min-airflow version for,
 # Add them as exceptions here. Make sure to remove it once the min-airflow version is bumped
 # to the same version that is required by the exceptional provider
-MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.6.0"}
+MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.7.0"}
 
 INITIAL_CHANGELOG_CONTENT = """
  .. Licensed to the Apache Software Foundation (ASF) under one
@@ -353,8 +353,7 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
     install_requires = [
         apply_version_suffix(clause) for clause in ALL_DEPENDENCIES[provider_package_id][DEPS]
     ]
-    prefix = "\n    "
-    return prefix + prefix.join(install_requires)
+    return "".join(f"\n    {ir}" for ir in install_requires)
 
 
 def get_setup_requirements() -> str:
@@ -483,7 +482,7 @@ def convert_git_changes_to_table(
     """
     from tabulate import tabulate
 
-    lines = changes.split("\n")
+    lines = changes.splitlines()
     headers = ["Commit", "Committed", "Subject"]
     table_data = []
     changes_list: list[Change] = []
@@ -1058,7 +1057,7 @@ def get_all_changes_for_package(
     changes_table += changes_table_for_version
     if verbose:
         print_changes_table(changes_table)
-    return True, list_of_list_of_changes if len(list_of_list_of_changes) > 0 else None, changes_table
+    return True, list_of_list_of_changes or None, changes_table
 
 
 def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
@@ -1337,7 +1336,7 @@ def update_release_notes(
         version_suffix=version_suffix,
     )
     jinja_context["DETAILED_CHANGES_RST"] = changes
-    jinja_context["DETAILED_CHANGES_PRESENT"] = len(changes) > 0
+    jinja_context["DETAILED_CHANGES_PRESENT"] = bool(changes)
     update_changelog_rst(
         jinja_context,
         provider_package_id,
@@ -1676,11 +1675,12 @@ def verify_changelog_exists(package: str) -> str:
 def list_providers_packages():
     """List all provider packages."""
     providers = get_all_providers()
-    # For now we should exclude open-lineage from being consider for releasing until it is ready to
-    # be released
-    if "openlineage" in providers:
-        providers.remove("openlineage")
+    # if provider needs to be not considered in release add it here
+    # this is useful for cases where provider is WIP for a long period thus we don't want to release it yet.
+    providers_to_remove_from_release = []
     for provider in providers:
+        if provider in providers_to_remove_from_release:
+            continue
         console.print(provider)
 
 

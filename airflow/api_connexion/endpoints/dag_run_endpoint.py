@@ -17,15 +17,13 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import pendulum
 from connexion import NoContent
 from flask import g
-from flask_login import current_user
 from marshmallow import ValidationError
-from sqlalchemy import delete, func, or_, select
-from sqlalchemy.orm import Session
-from sqlalchemy.sql import Select
+from sqlalchemy import delete, or_, select
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -35,7 +33,12 @@ from airflow.api.common.mark_tasks import (
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import (
+    apply_sorting,
+    check_limit,
+    format_datetime,
+    format_parameters,
+)
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     clear_dagrun_form_schema,
@@ -53,15 +56,22 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     task_instance_reference_collection_schema,
 )
-from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.db import get_query_count
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from airflow.www.decorators import action_logging
+from airflow.www.extensions.init_auth_manager import get_auth_manager
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
+
+    from airflow.api_connexion.types import APIResponse
 
 RESOURCE_EVENT_PREFIX = "dag_run"
 
@@ -166,7 +176,7 @@ def _fetch_dag_runs(
     if updated_at_lte:
         query = query.where(DagRun.updated_at <= updated_at_lte)
 
-    total_entries = session.scalar(select(func.count()).select_from(query))
+    total_entries = get_query_count(query, session=session)
     to_replace = {"dag_run_id": "run_id"}
     allowed_filter_attrs = [
         "id",
@@ -351,7 +361,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
             )
             dag_run_note = post_body.get("note")
             if dag_run_note:
-                current_user_id = getattr(current_user, "id", None)
+                current_user_id = get_auth_manager().get_user_id()
                 dag_run.note = (dag_run_note, current_user_id)
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
@@ -472,7 +482,7 @@ def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SES
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    current_user_id = getattr(current_user, "id", None)
+    current_user_id = get_auth_manager().get_user_id()
     if dag_run.dag_run_note is None:
         dag_run.note = (new_note, current_user_id)
     else:

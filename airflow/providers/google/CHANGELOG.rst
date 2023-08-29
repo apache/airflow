@@ -27,6 +27,77 @@
 Changelog
 ---------
 
+10.6.0
+......
+
+Features
+~~~~~~~~
+
+* ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
+* ``Add GCS Requester Pays bucket support to GCSToS3Operator (#32760)``
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DataFusionAsyncHook' catch 404 (#32855)``
+* ``Fix system test for MetastoreHivePartitionSensor (#32861)``
+* ``Fix catching 409 error (#33173)``
+* ``make 'sql' a cached property in 'BigQueryInsertJobOperator' (#33218)``
+* ``Handle multiple connections using exceptions (#32365)``
+
+Misc
+~~~~
+
+* ``Refactor of links in Dataproc. (#31895)``
+* ``refactor(providers.google): use module level __getattr__ for DATAPROC_JOB_LOG_LINK to DATAPROC_JOB_LINK and add deprecation warning (#33189)``
+* ``Get rid of Python2 numeric relics (#33050)``
+* ``openlineage,gcs: use proper name for openlineage methods (#32956)``
+* ``Alias 'DATAPROC_JOB_LOG_LINK' to 'DATAPROC_JOB_LINK' (#33148)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add system test and docs for CloudDataTransferServiceGCSToGCSOperator (#32960)``
+   * ``Fix DataflowStartSqlJobOperator system test (#32823)``
+   * ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+   * ``Prepare docs for RC2 providers (google, redis) (#33185)``
+
+10.5.0
+......
+
+Features
+~~~~~~~~
+
+* ``openlineage, gcs: add openlineage methods for GcsToGcsOperator (#31350)``
+* ``Add Spot Instances support with Dataproc Operators (#31644)``
+* ``Install sqlalchemy-spanner package into Google provider (#31925)``
+* ``Filtering and ordering results of DataprocListBatchesOperator (#32500)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BigQueryGetDataOperator where project_id is not being respected in deferrable mode (#32488)``
+* ``Refresh GKE OAuth2 tokens (#32673)``
+* ``Fix 'BigQueryInsertJobOperator' not exiting deferred state (#31591)``
+
+Misc
+~~~~
+
+* ``Fixup docstring for deprecated DataprocSubmitSparkJobOperator and refactoring system tests (#32743)``
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+* ``Fixup docstring for deprecated DataprocSubmitHiveJobOperator (#32723)``
+* ``Fixup docstring for deprecated DataprocSubmitPigJobOperator (#32739)``
+* ``Fix Datafusion system tests (#32749)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixup docs and optimize system test for DataprocSubmitJobOperator (Hadoop job) (#32722)``
+   * ``Fixup system test for DataprocSubmitJobOperator (SparkSQL job) (#32745)``
+   * ``Fixup system test for DataprocSubmitJobOperator (PySpark job) (#32740)``
+   * ``Migrate system test for PostgresToGCSOperator to new design AIP-47 (#32641)``
+   * ``misc: update MLEngine system tests (#32881)``
+
 10.4.0
 ......
 

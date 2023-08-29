@@ -17,19 +17,19 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import warnings
 from asyncio import CancelledError
-from datetime import datetime
 from enum import Enum
-from typing import Any, AsyncIterator
-
-import pytz
-from kubernetes_asyncio.client.models import V1Pod
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodPhase
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from kubernetes_asyncio.client.models import V1Pod
 
 
 class ContainerState(str, Enum):
@@ -62,7 +62,7 @@ class KubernetesPodTrigger(BaseTrigger):
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param startup_timeout: timeout in seconds to start up the pod.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
-        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
     :param should_delete_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
@@ -74,7 +74,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self,
         pod_name: str,
         pod_namespace: str,
-        trigger_start_time: datetime,
+        trigger_start_time: datetime.datetime,
         base_container_name: str,
         kubernetes_conn_id: str | None = None,
         poll_interval: float = 2,
@@ -167,7 +167,7 @@ class KubernetesPodTrigger(BaseTrigger):
                     self.log.info("Container is not completed and still working.")
 
                     if pod_status == PodPhase.PENDING and container_state == ContainerState.UNDEFINED:
-                        delta = datetime.now(tz=pytz.UTC) - self.trigger_start_time
+                        delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
                         if delta.total_seconds() >= self.startup_timeout:
                             message = (
                                 f"Pod took longer than {self.startup_timeout} seconds to start. "
@@ -246,7 +246,7 @@ class KubernetesPodTrigger(BaseTrigger):
         if pod_containers is None:
             return ContainerState.UNDEFINED
 
-        container = [c for c in pod_containers if c.name == self.base_container_name][0]
+        container = next(c for c in pod_containers if c.name == self.base_container_name)
 
         for state in (ContainerState.RUNNING, ContainerState.WAITING, ContainerState.TERMINATED):
             state_obj = getattr(container.state, state)

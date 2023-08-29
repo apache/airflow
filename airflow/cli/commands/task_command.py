@@ -25,13 +25,13 @@ import os
 import sys
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import Generator, Union, cast
+from typing import TYPE_CHECKING, Generator, Protocol, Union, cast
 
 import pendulum
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.orm.session import Session
+from typing_extensions import Literal
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
@@ -44,13 +44,12 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagPickle, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.operator import Operator, needs_expansion
+from airflow.models.operator import needs_expansion
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
-from airflow.typing_compat import Literal, Protocol
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_dag,
@@ -65,8 +64,14 @@ from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
+    from airflow.models.operator import Operator
 
 log = logging.getLogger(__name__)
 
@@ -195,7 +200,7 @@ def _get_ti(
 
 def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | TaskReturnCode:
     """
-    Runs the task based on a mode.
+    Run the task based on a mode.
 
     Any of the 3 modes are available:
 
@@ -213,7 +218,7 @@ def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | Tas
 
 def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
     """
-    Sends the task to the executor for execution.
+    Send the task to the executor for execution.
 
     This can result in the task being started by another host if the executor implementation does.
     """
@@ -284,7 +289,7 @@ RAW_TASK_UNSUPPORTED_OPTION = [
 
 
 def _run_raw_task(args, ti: TaskInstance) -> None | TaskReturnCode:
-    """Runs the main task handling code."""
+    """Run the main task handling code."""
     return ti._run_raw_task(
         mark_success=args.mark_success,
         job_id=args.job_id,
@@ -438,6 +443,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def task_failed_deps(args) -> None:
     """
     Get task instance dependencies that were not met.
@@ -468,9 +474,10 @@ def task_failed_deps(args) -> None:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def task_state(args) -> None:
     """
-    Returns the state of a TaskInstance at the command line.
+    Return the state of a TaskInstance at the command line.
 
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
@@ -483,8 +490,9 @@ def task_state(args) -> None:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def task_list(args, dag: DAG | None = None) -> None:
-    """Lists the tasks within a DAG at the command line."""
+    """List the tasks within a DAG at the command line."""
     dag = dag or get_dag(args.subdir, args.dag_id)
     if args.tree:
         dag.tree_view()
@@ -508,7 +516,7 @@ SUPPORTED_DEBUGGER_MODULES = [
 
 def _guess_debugger() -> _SupportedDebugger:
     """
-    Trying to guess the debugger used by the user.
+    Try to guess the debugger used by the user.
 
     When it doesn't find any user-installed debugger, returns ``pdb``.
 
@@ -530,6 +538,7 @@ def _guess_debugger() -> _SupportedDebugger:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 @provide_session
 def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
@@ -543,7 +552,7 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
                 select(DagRun).where(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
             )
         except (ParserError, TypeError) as err:
-            raise AirflowException(f"Error parsing the supplied execution_date. Error: {str(err)}")
+            raise AirflowException(f"Error parsing the supplied execution_date. Error: {err}")
 
     if dag_run is None:
         raise DagRunNotFound(
@@ -571,7 +580,7 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
 
 @cli_utils.action_cli(check_db=False)
 def task_test(args, dag: DAG | None = None) -> None:
-    """Tests task for a given dag_id."""
+    """Test task for a given dag_id."""
     # We want to log output from operators etc to show up here. Normally
     # airflow.task would redirect to a file, but here we want it to propagate
     # up to the normal airflow handler.
@@ -631,8 +640,9 @@ def task_test(args, dag: DAG | None = None) -> None:
 
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def task_render(args, dag: DAG | None = None) -> None:
-    """Renders and displays templated fields for a given task."""
+    """Render and displays templated fields for a given task."""
     if not dag:
         dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
@@ -653,8 +663,9 @@ def task_render(args, dag: DAG | None = None) -> None:
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def task_clear(args) -> None:
-    """Clears all task instances or only those matched by regex for a DAG(s)."""
+    """Clear all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     if args.dag_id and not args.subdir and not args.dag_regex and not args.task_regex:

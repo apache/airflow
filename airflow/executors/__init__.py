@@ -28,6 +28,37 @@ __deprecated_classes = {
         "CeleryKubernetesExecutor": "airflow.providers.celery.executors."
         "celery_kubernetes_executor.CeleryKubernetesExecutor",
     },
+    "dask_executor": {
+        "DaskExecutor": "airflow.providers.daskexecutor.executors.dask_executor.DaskExecutor",
+    },
+    "kubernetes_executor": {
+        "KubernetesExecutor": "airflow.providers.cncf.kubernetes."
+        "executors.kubernetes_executor.KubernetesExecutor",
+    },
+    "kubernetes_executor_types": {
+        "ALL_NAMESPACES": "airflow.providers.cncf.kubernetes."
+        "executors.kubernetes_executor_types.ALL_NAMESPACES",
+        "POD_EXECUTOR_DONE_KEY": "airflow.providers.cncf.kubernetes."
+        "executors.kubernetes_executor_types.POD_EXECUTOR_DONE_KEY",
+    },
+    "kubernetes_executor_utils": {
+        "AirflowKubernetesScheduler": "airflow.providers.cncf.kubernetes."
+        "executors.kubernetes_executor_utils.AirflowKubernetesScheduler",
+        "KubernetesJobWatcher": "airflow.providers.cncf.kubernetes."
+        "executors.kubernetes_executor_utils.KubernetesJobWatcher",
+        "ResourceVersion": "airflow.providers.cncf.kubernetes."
+        "executors.kubernetes_executor_utils.ResourceVersion",
+    },
+    "local_kubernetes_executor": {
+        "LocalKubernetesExecutor": "airflow.providers.cncf.kubernetes.executors.LocalKubernetesExecutor",
+    },
 }
 
-add_deprecated_classes(__deprecated_classes, __name__)
+add_deprecated_classes(
+    __deprecated_classes,
+    __name__,
+    {},
+    "For Celery executors, the `celery` provider should be >= 3.3.0. "
+    "For Kubernetes executors, the `cncf.kubernetes` provider should be >= 7.4.0 for that. "
+    "For Dask executors, any version of `daskexecutor` provider is needed.",
+)

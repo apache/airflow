@@ -28,14 +28,62 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.1.5
+.....
+
+Latest change: 2023-08-24
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`08188f80f4 <https://github.com/apache/airflow/commit/08188f80f4bb6c225eaf4f58e2742c982a230652>`_  2023-08-24   ``Bring back hive support for Python 3.11 (#32607)``
+`32feab4100 <https://github.com/apache/airflow/commit/32feab41006897de182bfa684813be230027aca1>`_  2023-08-22   ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+`bb2689ab45 <https://github.com/apache/airflow/commit/bb2689ab455ca5d82f4f9b8d4b73ec071849c439>`_  2023-08-21   ``Use str.splitlines() to split lines in providers (#33593)``
+`af0a4a0698 <https://github.com/apache/airflow/commit/af0a4a0698040c1b61cdeafc135d99dcb182c9ef>`_  2023-08-21   ``Simplify conditions on len() in providers/apache (#33564)``
+`abef61ff3d <https://github.com/apache/airflow/commit/abef61ff3d6b9ae8dcb7f9dbbea78a9648a0c50b>`_  2023-08-20   ``Replace repr() with proper formatting (#33520)``
+`7700fb12cc <https://github.com/apache/airflow/commit/7700fb12cc6c7a97901662e6ac6aa1e4e932d969>`_  2023-08-20   ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+`63e6eab785 <https://github.com/apache/airflow/commit/63e6eab785f8313be6b5e28056215947bb8ed8a3>`_  2023-08-20   ``Replace OrderedDict with plain dict (#33508)``
+`bcefe6109b <https://github.com/apache/airflow/commit/bcefe6109bcabd9bd6daf8b44f7352adda1ed53d>`_  2023-08-19   ``Simplify code around enumerate (#33476)``
+`ea8519c055 <https://github.com/apache/airflow/commit/ea8519c0554d16b13d330a686f8479fc10cc58f2>`_  2023-08-18   ``Avoid importing pandas and numpy in runtime and module level (#33483)``
+`8e88eb8fa7 <https://github.com/apache/airflow/commit/8e88eb8fa7e1fc12918dcbfcfc8ed28381008d33>`_  2023-08-17   ``Consolidate import and usage of pandas (#33480)``
+`c645d8e40c <https://github.com/apache/airflow/commit/c645d8e40c167ea1f6c332cdc3ea0ca5a9363205>`_  2023-08-12   ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+=================================================================================================  ===========  =========================================================================
+
+6.1.4
+.....
+
+Latest change: 2023-08-05
+
+=================================================================================================  ===========  =====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+`108a07b580 <https://github.com/apache/airflow/commit/108a07b580ca185b5982f2e60deb70f73a1f745a>`_  2023-08-04   ``Bring back mysql-connector-python as required depednency (#32989)``
+=================================================================================================  ===========  =====================================================================
+
+6.1.3
+.....
+
+Latest change: 2023-07-29
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
+`0c0b8a3a0e <https://github.com/apache/airflow/commit/0c0b8a3a0e7d6f23029f76d3fb0d185cdcc671ec>`_  2023-07-24   ``Move Hive configuration to Apache Hive provider (#32777)``
+`00aa6ea72c <https://github.com/apache/airflow/commit/00aa6ea72c4d72df6c62ac1dda9bb145bece2e1c>`_  2023-07-21   ``Fix Pandas2 compatibility for Hive (#32752)``
+`60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
+=================================================================================================  ===========  ==============================================================
+
 6.1.2
 .....
 
-Latest change: 2023-07-05
+Latest change: 2023-07-06
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `1c1dbd872d <https://github.com/apache/airflow/commit/1c1dbd872d5378856b4242961dcdf77c7f0dd712>`_  2023-07-04   ``Add proxy_user template check (#32334)``

@@ -20,12 +20,15 @@
 """Exceptions used by Airflow."""
 from __future__ import annotations
 
-import datetime
 import warnings
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple, Sized
 
+from airflow.utils.trigger_rule import TriggerRule
+
 if TYPE_CHECKING:
+    import datetime
+
     from airflow.models import DAG, DagRun
 
 
@@ -174,10 +177,7 @@ class AirflowClusterPolicySkipDag(AirflowException):
 
 
 class AirflowClusterPolicyError(AirflowException):
-    """
-    Raise when there is an error in Cluster Policy,
-    except AirflowClusterPolicyViolation and AirflowClusterPolicySkipDag.
-    """
+    """Raise for a Cluster Policy other than AirflowClusterPolicyViolation or AirflowClusterPolicySkipDag."""
 
 
 class AirflowTimetableInvalid(AirflowException):
@@ -214,20 +214,23 @@ class DagFileExists(AirflowBadRequest):
         warnings.warn("DagFileExists is deprecated and will be removed.", DeprecationWarning, stacklevel=2)
 
 
-class DagInvalidTriggerRule(AirflowException):
+class FailStopDagInvalidTriggerRule(AirflowException):
     """Raise when a dag has 'fail_stop' enabled yet has a non-default trigger rule."""
 
-    @classmethod
-    def check(cls, dag: DAG | None, trigger_rule: str):
-        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
+    _allowed_rules = (TriggerRule.ALL_SUCCESS, TriggerRule.ALL_DONE_SETUP_SUCCESS)
 
-        if dag is not None and dag.fail_stop and trigger_rule != DEFAULT_TRIGGER_RULE:
+    @classmethod
+    def check(cls, *, dag: DAG | None, trigger_rule: TriggerRule):
+        """
+        Check that fail_stop dag tasks have allowable trigger rules.
+
+        :meta private:
+        """
+        if dag is not None and dag.fail_stop and trigger_rule not in cls._allowed_rules:
             raise cls()
 
     def __str__(self) -> str:
-        from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
-
-        return f"A 'fail-stop' dag can only have {DEFAULT_TRIGGER_RULE} trigger rule"
+        return f"A 'fail-stop' dag can only have {TriggerRule.ALL_SUCCESS} trigger rule"
 
 
 class DuplicateTaskIdFound(AirflowException):
@@ -375,12 +378,28 @@ class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
 
 
-class PodMutationHookException(AirflowException):
-    """Raised when exception happens during Pod Mutation Hook execution."""
+# The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider
+# These two exceptions are used internally by Kubernetes Executor but also by PodGenerator, so we need
+# to leave them here in case older version of cncf.kubernetes provider is used to run KubernetesPodOperator
+# and it raises one of those exceptions. The code should be backwards compatible even if you import
+# and try/except the exception using direct imports from airflow.exceptions.
+# 1) if you have old provider, both provider and pod generator will throw the "airflow.exceptions" exception.
+# 2) if you have new provider, both provider and pod generator will throw the
+#    "airflow.providers.cncf.kubernetes" as it will be imported here from the provider.
+try:
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodMutationHookException
+except ImportError:
+
+    class PodMutationHookException(AirflowException):  # type: ignore[no-redef]
+        """Raised when exception happens during Pod Mutation Hook execution."""
 
 
-class PodReconciliationError(AirflowException):
-    """Raised when an error is encountered while trying to merge pod configs."""
+try:
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
+except ImportError:
+
+    class PodReconciliationError(AirflowException):  # type: ignore[no-redef]
+        """Raised when an error is encountered while trying to merge pod configs."""
 
 
 class RemovedInAirflow3Warning(DeprecationWarning):

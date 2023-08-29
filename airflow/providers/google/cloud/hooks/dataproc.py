@@ -20,15 +20,11 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import ServerError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.operation_async import AsyncOperation
-from google.api_core.operations_v1.operations_client import OperationsClient
-from google.api_core.retry import Retry
 from google.cloud.dataproc_v1 import (
     Batch,
     BatchControllerAsyncClient,
@@ -44,13 +40,19 @@ from google.cloud.dataproc_v1 import (
     WorkflowTemplateServiceAsyncClient,
     WorkflowTemplateServiceClient,
 )
-from google.protobuf.duration_pb2 import Duration
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.version import version as airflow_version
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.operation_async import AsyncOperation
+    from google.api_core.operations_v1.operations_client import OperationsClient
+    from google.api_core.retry import Retry
+    from google.protobuf.duration_pb2 import Duration
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class DataProcJobBuilder:
@@ -950,6 +952,8 @@ class DataprocHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        filter: str | None = None,
+        order_by: str | None = None,
     ):
         """List batch workloads.
 
@@ -966,6 +970,8 @@ class DataprocHook(GoogleBaseHook):
             to complete. If *retry* is specified, the timeout applies to each
             individual attempt.
         :param metadata: Additional metadata that is provided to the method.
+        :param filter: Result filters as specified in ListBatchesRequest
+        :param order_by: How to order results as specified in ListBatchesRequest
         """
         client = self.get_batch_client(region)
         parent = f"projects/{project_id}/regions/{region}"
@@ -975,6 +981,8 @@ class DataprocHook(GoogleBaseHook):
                 "parent": parent,
                 "page_size": page_size,
                 "page_token": page_token,
+                "filter": filter,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -1768,6 +1776,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
+        filter: str | None = None,
+        order_by: str | None = None,
     ):
         """List batch workloads.
 
@@ -1784,6 +1794,8 @@ class DataprocAsyncHook(GoogleBaseHook):
             to complete. If *retry* is specified, the timeout applies to each
             individual attempt.
         :param metadata: Additional metadata that is provided to the method.
+        :param filter: Result filters as specified in ListBatchesRequest
+        :param order_by: How to order results as specified in ListBatchesRequest
         """
         client = self.get_batch_client(region)
         parent = f"projects/{project_id}/regions/{region}"
@@ -1793,6 +1805,8 @@ class DataprocAsyncHook(GoogleBaseHook):
                 "parent": parent,
                 "page_size": page_size,
                 "page_token": page_token,
+                "filter": filter,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,

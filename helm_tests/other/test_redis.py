@@ -328,3 +328,29 @@ class TestRedis:
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
+
+
+class TestRedisServiceAccount:
+    """Tests redis service account."""
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "redis": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/redis/redis-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "redis": {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/redis/redis-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False

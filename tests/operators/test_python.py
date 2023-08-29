@@ -40,6 +40,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
+    BranchExternalPythonOperator,
     BranchPythonOperator,
     ExternalPythonOperator,
     PythonOperator,
@@ -308,7 +309,11 @@ class TestBranchOperator(BasePythonTest):
 
     def test_with_dag_run(self):
         with self.dag:
-            branch_op = BranchPythonOperator(task_id=self.task_id, python_callable=lambda: "branch_1")
+
+            def f():
+                return "branch_1"
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
             branch_op >> [self.branch_1, self.branch_2]
 
         dr = self.create_dag_run()
@@ -319,7 +324,11 @@ class TestBranchOperator(BasePythonTest):
 
     def test_with_skip_in_branch_downstream_dependencies(self):
         with self.dag:
-            branch_op = BranchPythonOperator(task_id=self.task_id, python_callable=lambda: "branch_1")
+
+            def f():
+                return "branch_1"
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
             branch_op >> self.branch_1 >> self.branch_2
             branch_op >> self.branch_2
 
@@ -331,7 +340,11 @@ class TestBranchOperator(BasePythonTest):
 
     def test_with_skip_in_branch_downstream_dependencies2(self):
         with self.dag:
-            branch_op = BranchPythonOperator(task_id=self.task_id, python_callable=lambda: "branch_2")
+
+            def f():
+                return "branch_2"
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
             branch_op >> self.branch_1 >> self.branch_2
             branch_op >> self.branch_2
 
@@ -343,7 +356,11 @@ class TestBranchOperator(BasePythonTest):
 
     def test_xcom_push(self):
         with self.dag:
-            branch_op = BranchPythonOperator(task_id=self.task_id, python_callable=lambda: "branch_1")
+
+            def f():
+                return "branch_1"
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
             branch_op >> [self.branch_1, self.branch_2]
 
         dr = self.create_dag_run()
@@ -361,7 +378,11 @@ class TestBranchOperator(BasePythonTest):
         should not cause it to be executed.
         """
         with self.dag:
-            branch_op = BranchPythonOperator(task_id=self.task_id, python_callable=lambda: "branch_1")
+
+            def f():
+                return "branch_1"
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
             branches = [self.branch_1, self.branch_2]
             branch_op >> branches
 
@@ -392,12 +413,18 @@ class TestBranchOperator(BasePythonTest):
         self.assert_expected_task_states(dr, expected_states)
 
     def test_raise_exception_on_no_accepted_type_return(self):
-        ti = self.create_ti(lambda: 5)
+        def f():
+            return 5
+
+        ti = self.create_ti(f)
         with pytest.raises(AirflowException, match="must be either None, a task ID, or an Iterable of IDs"):
             ti.run()
 
     def test_raise_exception_on_invalid_task_id(self):
-        ti = self.create_ti(lambda: "some_task_id")
+        def f():
+            return "some_task_id"
+
+        ti = self.create_ti(f)
         with pytest.raises(AirflowException, match="Invalid tasks found: {'some_task_id'}"):
             ti.run()
 
@@ -413,7 +440,11 @@ class TestBranchOperator(BasePythonTest):
         Tests that BranchPythonOperator handles empty branches properly.
         """
         with self.dag:
-            branch = BranchPythonOperator(task_id=self.task_id, python_callable=lambda: choice)
+
+            def f():
+                return choice
+
+            branch = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
             task1 = EmptyOperator(task_id="task1")
             join = EmptyOperator(task_id="join", trigger_rule="none_failed_min_one_success")
 
@@ -619,7 +650,7 @@ class TestShortCircuitOperator(BasePythonTest):
 
         tis = dr.get_task_instances()
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="return_value") == "signature"
-        assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is None
+        assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is False
 
     def test_xcom_push_skipped_tasks(self):
         with self.dag:
@@ -816,6 +847,18 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         kwargs["python_version"] = python_version
         return kwargs
 
+    @mock.patch("shutil.which")
+    @mock.patch("airflow.operators.python.importlib")
+    def test_virtuenv_not_installed(self, importlib_mock, which_mock):
+        which_mock.return_value = None
+        importlib_mock.util.find_spec.return_value = None
+        with pytest.raises(AirflowException, match="requires virtualenv"):
+
+            def f():
+                pass
+
+            self.run_as_task(f)
+
     def test_add_dill(self):
         def f():
             """Ensure dill is correctly installed."""
@@ -888,6 +931,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pip_install_options=["--no-deps"],
         )
         mocked_prepare_virtualenv.assert_called_with(
+            index_urls=None,
             venv_directory=mock.ANY,
             python_bin=mock.ANY,
             system_site_packages=False,
@@ -927,6 +971,18 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             return a
 
         self.run_as_task(f, system_site_packages=False, use_dill=False, op_args=[4])
+
+    def test_with_index_urls(self):
+        def f(a):
+            import sys
+            from pathlib import Path
+
+            pip_conf = (Path(sys.executable).parent.parent / "pip.conf").read_text()
+            assert "abc.def.de" in pip_conf
+            assert "xyz.abc.de" in pip_conf
+            return a
+
+        self.run_as_task(f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4])
 
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).
@@ -1065,6 +1121,165 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
             task._read_result(path=mock.Mock())
 
 
+class TestBranchExternalPythonOperator(BaseTestPythonVirtualenvOperator):
+    opcls = BranchExternalPythonOperator
+
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        self.branch_1 = EmptyOperator(task_id="branch_1")
+        self.branch_2 = EmptyOperator(task_id="branch_2")
+
+    @staticmethod
+    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+        kwargs["python"] = sys.executable
+        return kwargs
+
+    def test_with_args(self):
+        def f(a, b, c=False, d=False):
+            if a == 0 and b == 1 and c and not d:
+                return True
+            else:
+                raise Exception
+
+        with pytest.raises(AirflowException, match="but got 'bool'"):
+            self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
+
+    def test_return_false(self):
+        def f():
+            return False
+
+        with pytest.raises(AirflowException, match="but got 'bool'"):
+            self.run_as_task(f)
+
+    def test_context(self):
+        def f(templates_dict):
+            return templates_dict["ds"]
+
+        with pytest.raises(AirflowException, match="Invalid tasks found:"):
+            self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
+
+    def test_with_dag_run(self):
+        with self.dag:
+
+            def f():
+                return "branch_1"
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op >> [self.branch_1, self.branch_2]
+
+        dr = self.create_dag_run()
+        branch_op.run(start_date=self.default_date, end_date=self.default_date)
+        self.assert_expected_task_states(
+            dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.SKIPPED}
+        )
+
+    def test_with_skip_in_branch_downstream_dependencies(self):
+        with self.dag:
+
+            def f():
+                return "branch_1"
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op >> self.branch_1 >> self.branch_2
+            branch_op >> self.branch_2
+
+        dr = self.create_dag_run()
+        branch_op.run(start_date=self.default_date, end_date=self.default_date)
+        self.assert_expected_task_states(
+            dr, {self.task_id: State.SUCCESS, "branch_1": State.NONE, "branch_2": State.NONE}
+        )
+
+    def test_with_skip_in_branch_downstream_dependencies2(self):
+        with self.dag:
+
+            def f():
+                return "branch_2"
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op >> self.branch_1 >> self.branch_2
+            branch_op >> self.branch_2
+
+        dr = self.create_dag_run()
+        branch_op.run(start_date=self.default_date, end_date=self.default_date)
+        self.assert_expected_task_states(
+            dr, {self.task_id: State.SUCCESS, "branch_1": State.SKIPPED, "branch_2": State.NONE}
+        )
+
+    def test_xcom_push(self):
+        with self.dag:
+
+            def f():
+                return "branch_1"
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branch_op >> [self.branch_1, self.branch_2]
+
+        dr = self.create_dag_run()
+        branch_op.run(start_date=self.default_date, end_date=self.default_date)
+        for ti in dr.get_task_instances():
+            if ti.task_id == self.task_id:
+                assert ti.xcom_pull(task_ids=self.task_id) == "branch_1"
+                break
+        else:
+            pytest.fail(f"{self.task_id!r} not found.")
+
+    def test_clear_skipped_downstream_task(self):
+        """
+        After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
+        should not cause it to be executed.
+        """
+        with self.dag:
+
+            def f():
+                return "branch_1"
+
+            branch_op = self.opcls(task_id=self.task_id, python_callable=f, **self.default_kwargs())
+            branches = [self.branch_1, self.branch_2]
+            branch_op >> branches
+
+        dr = self.create_dag_run()
+        branch_op.run(start_date=self.default_date, end_date=self.default_date)
+        for task in branches:
+            task.run(start_date=self.default_date, end_date=self.default_date)
+
+        expected_states = {
+            self.task_id: State.SUCCESS,
+            "branch_1": State.SUCCESS,
+            "branch_2": State.SKIPPED,
+        }
+
+        self.assert_expected_task_states(dr, expected_states)
+
+        # Clear the children tasks.
+        tis = dr.get_task_instances()
+        children_tis = [ti for ti in tis if ti.task_id in branch_op.get_direct_relative_ids()]
+        with create_session() as session:
+            clear_task_instances(children_tis, session=session, dag=branch_op.dag)
+
+        # Run the cleared tasks again.
+        for task in branches:
+            task.run(start_date=self.default_date, end_date=self.default_date)
+
+        # Check if the states are correct after children tasks are cleared.
+        self.assert_expected_task_states(dr, expected_states)
+
+    def test_raise_exception_on_no_accepted_type_return(self):
+        def f():
+            return 5
+
+        ti = self.create_ti(f)
+        with pytest.raises(AirflowException, match="must be either None, a task ID, or an Iterable of IDs"):
+            ti.run()
+
+    def test_raise_exception_on_invalid_task_id(self):
+        def f():
+            return "some_task_id"
+
+        ti = self.create_ti(f)
+        with pytest.raises(AirflowException, match="Invalid tasks found: {'some_task_id'}"):
+            ti.run()
+
+
 class TestCurrentContext:
     def test_current_context_no_context_raise(self):
         with pytest.raises(AirflowException):
@@ -1181,7 +1396,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             expected_tasks = {dag.task_dict[x] for x in expected}
         if should_skip:
@@ -1212,7 +1427,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
@@ -1239,7 +1454,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_kwargs = op1.skip.call_args.kwargs
@@ -1274,7 +1489,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_kwargs = op1.skip.call_args.kwargs

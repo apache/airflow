@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import itertools
-import logging
 import multiprocessing
 import os
 import signal
@@ -27,15 +26,14 @@ import time
 import warnings
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
-from sqlalchemy.engine import Result
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Query, Session, load_only, make_transient, selectinload
+from sqlalchemy.orm import joinedload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -57,7 +55,7 @@ from airflow.models.dataset import (
     TaskOutletDatasetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
@@ -67,7 +65,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
-    CommitProhibitorGuard,
     is_lock_not_available_error,
     prohibit_commit,
     skip_locked,
@@ -78,9 +75,18 @@ from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
+    import logging
+    from datetime import datetime
     from types import FrameType
 
+    from sqlalchemy.engine import Result
+    from sqlalchemy.orm import Query, Session
+
     from airflow.dag_processing.manager import DagFileProcessorAgent
+    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.utils.sqlalchemy import (
+        CommitProhibitorGuard,
+    )
 
 TI = TaskInstance
 DR = DagRun
@@ -240,7 +246,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
-        """Helper method to clean up processor_agent to avoid leaving orphan processes."""
+        """Clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
             return
@@ -405,15 +411,13 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
             # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
 
-            if len(task_instances_to_examine) == 0:
+            if not task_instances_to_examine:
                 self.log.debug("No tasks to consider for execution.")
                 break
 
             # Put one task instance on each line
-            task_instance_str = "\n\t".join(repr(x) for x in task_instances_to_examine)
-            self.log.info(
-                "%s tasks up for execution:\n\t%s", len(task_instances_to_examine), task_instance_str
-            )
+            task_instance_str = "\n".join(f"\t{x!r}" for x in task_instances_to_examine)
+            self.log.info("%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str)
 
             for task_instance in task_instances_to_examine:
                 pool_name = task_instance.pool
@@ -590,9 +594,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         Stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         Stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
-        if len(executable_tis) > 0:
-            task_instance_str = "\n\t".join(repr(x) for x in executable_tis)
-            self.log.info("Setting the following tasks to queued state:\n\t%s", task_instance_str)
+        if executable_tis:
+            task_instance_str = "\n".join(f"\t{x!r}" for x in executable_tis)
+            self.log.info("Setting the following tasks to queued state:\n%s", task_instance_str)
 
             # set TIs to queued state
             filter_for_tis = TI.filter_for_tis(executable_tis)
@@ -901,11 +905,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 if callback_to_run:
                     self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
-            self.log.exception("Failed to update dag run state for paused dags due to %s", str(e))
+            self.log.exception("Failed to update dag run state for paused dags due to %s", e)
 
     def _run_scheduler_loop(self) -> None:
         """
-        The actual scheduler loop.
+        Harvest DAG parsing results, queue tasks, and perform executor heartbeat; the actual scheduler loop.
 
         The main steps in the loop are:
             #. Harvest DAG parsing results through DagFileProcessorAgent
@@ -1021,7 +1025,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     def _do_scheduling(self, session: Session) -> int:
         """
-        This function is where the main scheduling decisions take places.
+        Make the main scheduling decisions.
 
         It:
         - Creates any necessary DAG runs by examining the next_dagrun_create_after column of DagModel
@@ -1378,7 +1382,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         dag_runs: Iterable[DagRun],
         session: Session,
     ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
-        """Makes scheduling decisions for all `dag_runs`."""
+        """Make scheduling decisions for all `dag_runs`."""
         callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
         guard.commit()
         return callback_tuples
@@ -1397,10 +1401,23 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
+        query = (
+            session.query(DagModel)
+            .filter(DagModel.dag_id == dag_run.dag_id)
+            .options(joinedload(DagModel.parent_dag))
+        )
+        dag_model = with_row_locks(
+            query, of=DagModel, session=session, **skip_locked(session=session)
+        ).one_or_none()
 
-        if not dag or not dag_model:
+        if not dag:
             self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
+            return callback
+        if not dag_model:
+            self.log.info(
+                "DAG %s scheduling was skipped, probably because the DAG record was locked", dag_run.dag_id
+            )
             return callback
 
         if (
@@ -1491,7 +1508,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             self.log.debug("callback is empty")
 
     def _send_sla_callbacks_to_processor(self, dag: DAG) -> None:
-        """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True."""
+        """Send SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True."""
         if not settings.CHECK_SLAS:
             return
 
@@ -1558,19 +1575,21 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             Stats.gauge(f"pool.open_slots.{pool_name}", slot_stats["open"])
             Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
             Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
+            Stats.gauge(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
             # Same metrics with tagging
             Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
             Stats.gauge("pool.queued_slots", slot_stats["queued"], tags={"pool_name": pool_name})
             Stats.gauge("pool.running_slots", slot_stats["running"], tags={"pool_name": pool_name})
+            Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
         """
-        Reset any TaskInstance in QUEUED or SCHEDULED state if its SchedulerJob is no longer running.
+        Adopt or reset any TaskInstance in resettable state if its SchedulerJob is no longer running.
 
         :return: the number of TIs reset
         """
-        self.log.info("Resetting orphaned tasks for active dag runs")
+        self.log.info("Adopting or resetting orphaned tasks for active dag runs")
         timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
 
         for attempt in run_with_db_retries(logger=self.log):
@@ -1596,10 +1615,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
                         Stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
 
-                    resettable_states = [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING]
                     query = (
                         select(TI)
-                        .where(TI.state.in_(resettable_states))
+                        .where(TI.state.in_(State.adoptable_states))
                         # outerjoin is because we didn't use to have queued_by_job
                         # set, so we need to pick up anything pre upgrade. This (and the
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
@@ -1615,11 +1633,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too
-                    tis_to_reset_or_adopt = with_row_locks(
+                    tis_to_adopt_or_reset = with_row_locks(
                         query, of=TI, session=session, **skip_locked(session=session)
                     )
-                    tis_to_reset_or_adopt = session.scalars(tis_to_reset_or_adopt).all()
-                    to_reset = self.job.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
+                    tis_to_adopt_or_reset = session.scalars(tis_to_adopt_or_reset).all()
+                    to_reset = self.job.executor.try_adopt_task_instances(tis_to_adopt_or_reset)
 
                     reset_tis_message = []
                     for ti in to_reset:
@@ -1627,11 +1645,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         ti.state = None
                         ti.queued_by_job_id = None
 
-                    for ti in set(tis_to_reset_or_adopt) - set(to_reset):
+                    for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
 
                     Stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
-                    Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_reset_or_adopt) - len(to_reset))
+                    Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
 
                     if to_reset:
                         task_instance_str = "\n\t".join(reset_tis_message)
@@ -1739,7 +1757,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         Find all dags that were not updated by Dag Processor recently and mark them as inactive.
 
         In case one of DagProcessors is stopped (in case there are multiple of them
-        for different dag folders), it's dags are never marked as inactive.
+        for different dag folders), its dags are never marked as inactive.
         Also remove dags from SerializedDag table.
         Executed on schedule only if [scheduler]standalone_dag_processor is True.
         """

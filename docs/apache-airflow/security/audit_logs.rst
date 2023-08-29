@@ -42,7 +42,7 @@ Audit logs exist at the task level and the user level.
 Location of Audit Logs
 ----------------------
 
-Audit logs can be accessed through the Airflow UI. They are located under the "Admin" tab, and can be viewed by selecting "Audit Logs" from the dropdown menu.
+Audit logs can be accessed through the Airflow UI. They are located under the "Browse" tab, and can be viewed by selecting "Audit Logs" from the dropdown menu.
 
 
 Types of Events

@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import unittest
 import uuid
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -34,6 +33,9 @@ from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake_sql_api import (
     SnowflakeSqlApiHook,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 SQL_MULTIPLE_STMTS = (
     "create or replace table user_test (i int); insert into user_test (i) "

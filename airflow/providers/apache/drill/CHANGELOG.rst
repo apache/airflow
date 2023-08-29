@@ -27,6 +27,29 @@ Changelog
 ---------
 
 
+2.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate database URL passed to create_engine of Drill hook's connection (#33074)``
+
+2.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 2.4.1
 .....
 

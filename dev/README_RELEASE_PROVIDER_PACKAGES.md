@@ -36,8 +36,8 @@
   - [Prepare documentation](#prepare-documentation)
   - [Prepare issue in GitHub to keep status of testing](#prepare-issue-in-github-to-keep-status-of-testing)
   - [Prepare voting email for Providers release candidate](#prepare-voting-email-for-providers-release-candidate)
-  - [Verify the release by PMC members](#verify-the-release-by-pmc-members)
-  - [Verify by Contributors](#verify-by-contributors)
+  - [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
+  - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
 - [Publish release](#publish-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
@@ -97,7 +97,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 First thing that release manager has to do is to change version of the provider to a target
 version. Each provider has a `provider.yaml` file that, among others, stores information
 about provider versions. When you attempt to release a provider you should update that
-information based on the changes for the provider, and it's `CHANGELOG.rst`. It might be that
+information based on the changes for the provider, and its `CHANGELOG.rst`. It might be that
 `CHANGELOG.rst` already contains the right target version. This will be especially true if some
 changes in the provider add new features (then minor version is increased) or when the changes
 introduce backwards-incompatible, breaking change in the provider (then major version is
@@ -382,7 +382,9 @@ If you have providers as list of provider ids because you just released them, yo
 
 - Copy the documentation to the ``airflow-site`` repository
 
-All providers (including overriding documentation for doc-only changes):
+All providers (including overriding documentation for doc-only changes) - note that publishing is
+way faster on multi-cpu machines when you are publishing multiple providers:
+
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
@@ -390,13 +392,9 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze release-management publish-docs \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
-    --override-versioned
+    --override-versioned --run-in-parallel
 
-cd "${AIRFLOW_SITE_DIRECTORY}"
-cd post-docs
-python add-back-references.py providers
-cd ..
-
+breeze release-management add-back-references all-providers
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:
@@ -411,6 +409,8 @@ If you have providers as list of provider ids because you just released them you
 cd "${AIRFLOW_REPO_ROOT}"
 
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
+
+breeze release-management add-back-references amazon apache.beam google ....
 ```
 
 
@@ -420,6 +420,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 - Create the commit and push changes.
 
 ```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
 branch="add-documentation-$(date "+%Y-%m-%d%n")"
 git checkout -b "${branch}"
 git add .
@@ -471,7 +472,7 @@ cat <<EOF
 Hey all,
 
 I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
-which will last for 72 hours - which means that it will end on $(date -d '+3 days') and until 3 binding +1 votes have been received.
+which will last for 72 hours - which means that it will end on $(TZ=UTC date -v+3d "+%B %d, %Y %H:%M %p" ) UTC and until 3 binding +1 votes have been received.
 
 
 Consider this my (binding) +1.
@@ -487,12 +488,11 @@ https://dist.apache.org/repos/dist/dev/airflow/providers/
 *apache_airflow_providers_<PROVIDER>-*.whl are the binary
  Python "wheel" release.
 
-The test procedure for PMC members who would like to test the RC candidates are described in
-https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-by-pmc-members
+The test procedure for PMC members is described in
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-candidate-by-pmc-members
 
-and for Contributors:
-
-https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-by-contributors
+The test procedure for and Contributors who would like to test this RC is described in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-the-release-candidate-by-contributors
 
 
 Public keys are available at:
@@ -534,7 +534,7 @@ Please modify the message above accordingly to clearly exclude those packages.
 
 Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
 
-## Verify the release by PMC members
+## Verify the release candidate by PMC members
 
 ### SVN check
 
@@ -684,14 +684,18 @@ Checking apache-airflow-providers-google-1.0.0rc1.tar.gz.sha512
 Checking apache_airflow-providers-google-1.0.0rc1-py3-none-any.whl.sha512
 ```
 
-## Verify by Contributors
+## Verify the release candidate by Contributors
 
 This can be done (and we encourage to) by any of the Contributors. In fact, it's best if the
 actual users of Apache Airflow test it in their own staging/test installations. Each release candidate
 is available on PyPI apart from SVN packages, so everyone should be able to install
 the release candidate version.
 
-You can use any of the installation methods you prefer (you can even install it via the binary wheels
+Breeze allows you to easily install and run pre-release candidates by following simple instructions
+described in
+[Manually testing release candidate packages](https://github.com/apache/airflow/blob/main/TESTING.rst#manually-testing-release-candidate-packages)
+
+But you can use any of the installation methods you prefer (you can even install it via the binary wheels
 downloaded from the SVN).
 
 ### Installing in your local virtualenv

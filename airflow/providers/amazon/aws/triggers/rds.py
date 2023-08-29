@@ -16,19 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+import warnings
+from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
+from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class RdsDbInstanceTrigger(BaseTrigger):
     """
-    Trigger for RdsCreateDbInstanceOperator and RdsDeleteDbInstanceOperator.
-
-    The trigger will asynchronously poll the boto3 API and wait for the
-    DB instance to be in the state specified by the waiter.
+    Deprecated Trigger for RDS operations. Do not use.
 
     :param waiter_name: Name of the waiter to use, for instance 'db_instance_available'
         or 'db_instance_deleted'.
@@ -36,7 +40,7 @@ class RdsDbInstanceTrigger(BaseTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param hook_params: The parameters to pass to the RdsHook.
+    :param region_name: AWS region where the DB is located, if different from the default one.
     :param response: The response from the RdsHook, to be passed back to the operator.
     """
 
@@ -50,6 +54,12 @@ class RdsDbInstanceTrigger(BaseTrigger):
         region_name: str | None,
         response: dict[str, Any],
     ):
+        warnings.warn(
+            "This trigger is deprecated, please use the other RDS triggers "
+            "such as RdsDbDeletedTrigger, RdsDbStoppedTrigger or RdsDbAvailableTrigger",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         self.db_instance_identifier = db_instance_identifier
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -87,3 +97,151 @@ class RdsDbInstanceTrigger(BaseTrigger):
                 status_args=["DBInstances[0].DBInstanceStatus"],
             )
         yield TriggerEvent({"status": "success", "response": self.response})
+
+
+_waiter_arg = {
+    RdsDbType.INSTANCE: "DBInstanceIdentifier",
+    RdsDbType.CLUSTER: "DBClusterIdentifier",
+}
+_status_paths = {
+    RdsDbType.INSTANCE: ["DBInstances[].DBInstanceStatus", "DBInstances[].StatusInfos"],
+    RdsDbType.CLUSTER: ["DBClusters[].Status"],
+}
+
+
+class RdsDbAvailableTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger to wait asynchronously for a DB instance or cluster to be available.
+
+    :param db_identifier: The DB identifier for the DB instance or cluster to be polled.
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: AWS region where the DB is located, if different from the default one.
+    :param response: The response from the RdsHook, to be passed back to the operator.
+    :param db_type: The type of DB: instance or cluster.
+    """
+
+    def __init__(
+        self,
+        db_identifier: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+        aws_conn_id: str,
+        response: dict[str, Any],
+        db_type: RdsDbType,
+        region_name: str | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={
+                "db_identifier": db_identifier,
+                "response": response,
+                "db_type": db_type,
+            },
+            waiter_name=f"db_{db_type.value}_available",
+            waiter_args={_waiter_arg[db_type]: db_identifier},
+            failure_message="Error while waiting for DB to be available",
+            status_message="DB initialization in progress",
+            status_queries=_status_paths[db_type],
+            return_key="response",
+            return_value=response,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
+
+class RdsDbDeletedTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger to wait asynchronously for a DB instance or cluster to be deleted.
+
+    :param db_identifier: The DB identifier for the DB instance or cluster to be polled.
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: AWS region where the DB is located, if different from the default one.
+    :param response: The response from the RdsHook, to be passed back to the operator.
+    :param db_type: The type of DB: instance or cluster.
+    """
+
+    def __init__(
+        self,
+        db_identifier: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+        aws_conn_id: str,
+        response: dict[str, Any],
+        db_type: RdsDbType,
+        region_name: str | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={
+                "db_identifier": db_identifier,
+                "response": response,
+                "db_type": db_type,
+            },
+            waiter_name=f"db_{db_type.value}_deleted",
+            waiter_args={_waiter_arg[db_type]: db_identifier},
+            failure_message="Error while deleting DB",
+            status_message="DB deletion in progress",
+            status_queries=_status_paths[db_type],
+            return_key="response",
+            return_value=response,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
+
+class RdsDbStoppedTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger to wait asynchronously for a DB instance or cluster to be stopped.
+
+    :param db_identifier: The DB identifier for the DB instance or cluster to be polled.
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: AWS region where the DB is located, if different from the default one.
+    :param response: The response from the RdsHook, to be passed back to the operator.
+    :param db_type: The type of DB: instance or cluster.
+    """
+
+    def __init__(
+        self,
+        db_identifier: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+        aws_conn_id: str,
+        response: dict[str, Any],
+        db_type: RdsDbType,
+        region_name: str | None = None,
+    ) -> None:
+        super().__init__(
+            serialized_fields={
+                "db_identifier": db_identifier,
+                "response": response,
+                "db_type": db_type,
+            },
+            waiter_name=f"db_{db_type.value}_stopped",
+            waiter_args={_waiter_arg[db_type]: db_identifier},
+            failure_message="Error while stopping DB",
+            status_message="DB is being stopped",
+            status_queries=_status_paths[db_type],
+            return_key="response",
+            return_value=response,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

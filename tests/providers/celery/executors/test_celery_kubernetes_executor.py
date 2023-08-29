@@ -23,11 +23,11 @@ import pytest
 
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 
-KUBERNETES_QUEUE = CeleryKubernetesExecutor.KUBERNETES_QUEUE
+KUBERNETES_QUEUE = "kubernetes"
 
 
 class TestCeleryKubernetesExecutor:
@@ -48,6 +48,9 @@ class TestCeleryKubernetesExecutor:
 
     def test_is_single_threaded_default_value(self):
         assert not CeleryKubernetesExecutor.is_single_threaded
+
+    def test_cli_commands_vended(self):
+        assert CeleryKubernetesExecutor.get_cli_commands()
 
     def test_queued_tasks(self):
         celery_executor_mock = mock.MagicMock()

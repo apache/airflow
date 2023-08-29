@@ -19,14 +19,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from google.api_core.operation import Operation
-
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
 from airflow.providers.google.cloud.hooks.gcs import parse_json_from_gcs
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+
     from airflow.utils.context import Context
 
 

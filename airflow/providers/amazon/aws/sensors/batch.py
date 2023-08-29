@@ -110,7 +110,7 @@ class BatchSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -176,7 +176,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
             computeEnvironments=[self.compute_environment]
         )
 
-        if len(response["computeEnvironments"]) == 0:
+        if not response["computeEnvironments"]:
             raise AirflowException(f"AWS Batch compute environment {self.compute_environment} not found")
 
         status = response["computeEnvironments"][0]["status"]
@@ -241,7 +241,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
             jobQueues=[self.job_queue]
         )
 
-        if len(response["jobQueues"]) == 0:
+        if not response["jobQueues"]:
             if self.treat_non_existing_as_deleted:
                 return True
             else:

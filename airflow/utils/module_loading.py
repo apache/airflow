@@ -19,14 +19,17 @@ from __future__ import annotations
 
 import pkgutil
 from importlib import import_module
-from types import ModuleType
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 def import_string(dotted_path: str):
     """
-    Import a dotted module path and return the attribute/class designated by the
-    last name in the path. Raise ImportError if the import failed.
+    Import a dotted module path and return the attribute/class designated by the last name in the path.
+
+    Raise ImportError if the import failed.
     """
     try:
         module_path, class_name = dotted_path.rsplit(".", 1)

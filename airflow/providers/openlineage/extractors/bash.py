@@ -17,13 +17,14 @@
 
 from __future__ import annotations
 
+from openlineage.client.facet import SourceCodeJobFacet
+
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.plugins.facets import (
     UnknownOperatorAttributeRunFacet,
     UnknownOperatorInstance,
 )
 from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys, is_source_enabled
-from openlineage.client.facet import SourceCodeJobFacet
 
 """
 :meta private:

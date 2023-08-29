@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import logging
 from functools import wraps
-from typing import Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
-from flask import Blueprint, Response, current_app, g, jsonify, request, url_for
+from flask import Blueprint, current_app, g, jsonify, request, url_for
 
 from airflow import models
 from airflow.api.common.experimental import delete_dag as delete, pool as pool_api, trigger_dag as trigger
@@ -36,6 +36,9 @@ from airflow.utils import timezone
 from airflow.utils.docs import get_docs_url
 from airflow.utils.strings import to_boolean
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from flask import Response
 
 log = logging.getLogger(__name__)
 
@@ -58,8 +61,10 @@ api_experimental = Blueprint("api_experimental", __name__)
 
 def add_deprecation_headers(response: Response):
     """
-    Add `Deprecation HTTP Header Field
-    <https://tools.ietf.org/id/draft-dalal-deprecation-header-03.html>`__.
+    Add Deprecation HTTP Header Field.
+
+    .. seealso:: IETF proposal for the header field
+        `here <https://datatracker.ietf.org/doc/draft-dalal-deprecation-header/>`_.
     """
     response.headers["Deprecation"] = "true"
     doc_url = get_docs_url("upgrading-to-2.html#migration-guide-from-experimental-api-to-stable-api-v1")
@@ -79,10 +84,7 @@ api_experimental.after_request(add_deprecation_headers)  # type: ignore[arg-type
 @api_experimental.route("/dags/<string:dag_id>/dag_runs", methods=["POST"])
 @requires_authentication
 def trigger_dag(dag_id):
-    """
-    Trigger a new dag run for a Dag with an execution date of now unless
-    specified in the data.
-    """
+    """Trigger a new dag run for a Dag with an execution date of now unless specified in the data."""
     data = request.get_json(force=True)
 
     run_id = None
@@ -251,6 +253,7 @@ def dag_is_paused(dag_id):
 def task_instance_info(dag_id, execution_date, task_id):
     """
     Returns a JSON with a task instance's public instance variables.
+
     The format for the exec_date is expected to be
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
     of course need to have been encoded for URL in the request.
@@ -287,6 +290,7 @@ def task_instance_info(dag_id, execution_date, task_id):
 def dag_run_status(dag_id, execution_date):
     """
     Returns a JSON with a dag_run's public instance variables.
+
     The format for the exec_date is expected to be
     "YYYY-mm-DDTHH:MM:SS", for example: "2016-11-16T11:34:15". This will
     of course need to have been encoded for URL in the request.

@@ -18,13 +18,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from attrs import Factory, define
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-from openlineage.client.facet import BaseFacet
-from openlineage.client.run import Dataset
+
+if TYPE_CHECKING:
+    from openlineage.client.facet import BaseFacet
+    from openlineage.client.run import Dataset
 
 
 @define
@@ -83,8 +86,15 @@ class DefaultExtractor(BaseExtractor):
         return []
 
     def extract(self) -> OperatorLineage | None:
+        # OpenLineage methods are optional - if there's no method, return None
         try:
             return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
+        except ImportError:
+            self.log.error(
+                "OpenLineage provider method failed to import OpenLineage integration. "
+                "This should not happen. Please report this bug to developers."
+            )
+            return None
         except AttributeError:
             return None
 
@@ -100,7 +110,15 @@ class DefaultExtractor(BaseExtractor):
 
     def _get_openlineage_facets(self, get_facets_method, *args) -> OperatorLineage | None:
         try:
-            facets = get_facets_method(*args)
+            facets: OperatorLineage = get_facets_method(*args)
+            # "rewrite" OperatorLineage to safeguard against different version of the same class
+            # that was existing in openlineage-airflow package outside of Airflow repo
+            return OperatorLineage(
+                inputs=facets.inputs,
+                outputs=facets.outputs,
+                run_facets=facets.run_facets,
+                job_facets=facets.job_facets,
+            )
         except ImportError:
             self.log.exception(
                 "OpenLineage provider method failed to import OpenLineage integration. "
@@ -108,11 +126,4 @@ class DefaultExtractor(BaseExtractor):
             )
         except Exception:
             self.log.exception("OpenLineage provider method failed to extract data from provider. ")
-        else:
-            return OperatorLineage(
-                inputs=facets.inputs,
-                outputs=facets.outputs,
-                run_facets=facets.run_facets,
-                job_facets=facets.job_facets,
-            )
         return None

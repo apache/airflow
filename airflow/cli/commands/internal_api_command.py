@@ -47,6 +47,7 @@ from airflow.models import import_all_models
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
@@ -58,8 +59,9 @@ app: Flask | None = None
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def internal_api(args):
-    """Starts Airflow Internal API."""
+    """Start Airflow Internal API."""
     print(settings.HEADER)
 
     access_logfile = args.access_logfile or "-"

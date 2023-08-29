@@ -21,7 +21,6 @@ from __future__ import annotations
 import time
 import warnings
 from functools import cached_property
-from logging import Logger
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
@@ -32,6 +31,8 @@ from airflow.providers.databricks.triggers.databricks import DatabricksExecution
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
+    from logging import Logger
+
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -671,6 +672,10 @@ class DatabricksRunNowOperator(BaseOperator):
         else:
             _handle_databricks_operator_execution(self, hook, self.log, context)
 
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event:
+            _handle_deferrable_databricks_operator_completion(event, self.log)
+
     def on_kill(self):
         if self.run_id:
             self._hook.cancel_run(self.run_id)
@@ -693,11 +698,3 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
             stacklevel=2,
         )
         super().__init__(deferrable=True, *args, **kwargs)
-
-    def execute(self, context):
-        hook = self._get_hook(caller="DatabricksRunNowDeferrableOperator")
-        self.run_id = hook.run_now(self.json)
-        _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
-
-    def execute_complete(self, context: dict | None, event: dict):
-        _handle_deferrable_databricks_operator_completion(event, self.log)

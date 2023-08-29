@@ -30,8 +30,8 @@ sys.path.insert(0, str(AIRFLOW_SOURCES_DIR))  # make sure setup is imported from
 
 os.environ["_SKIP_PYTHON_VERSION_CHECK"] = "true"
 
-from common_precommit_utils import insert_documentation  # isort: skip
-from setup import EXTRAS_DEPENDENCIES  # isort:skip
+from common_precommit_utils import insert_documentation  # isort: skip  # noqa: E402
+from setup import EXTRAS_DEPENDENCIES  # isort:skip  # noqa: E402
 
 sys.path.append(str(AIRFLOW_SOURCES_DIR))
 
@@ -45,7 +45,7 @@ CONSTANTS_HEADER = "# START EXTRAS HERE"
 CONSTANTS_FOOTER = "# END EXTRAS HERE"
 
 DEFAULT_EXTRAS = (
-    "amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,"
+    "amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,"
     "google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,"
     "postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 )

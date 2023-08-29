@@ -147,7 +147,7 @@ class TestSkipMixin:
                 branch_b = EmptyOperator(task_id="branch_b")
                 branch_op(k) >> [branch_a, branch_b]
 
-            task_group_op.expand(k=[i for i in range(2)])
+            task_group_op.expand(k=[0, 1])
 
         dag_maker.create_dagrun()
         branch_op_ti_0 = TI(dag.get_task("task_group_op.branch_op"), execution_date=DEFAULT_DATE, map_index=0)

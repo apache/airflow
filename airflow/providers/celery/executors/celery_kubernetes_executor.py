@@ -17,16 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.callbacks.base_callback_sink import BaseCallbackSink
-from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+
+try:
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+except ImportError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
+
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
+    from airflow.callbacks.base_callback_sink import BaseCallbackSink
+    from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
     from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -55,14 +64,17 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     callback_sink: BaseCallbackSink | None = None
 
-    KUBERNETES_QUEUE = conf.get("celery_kubernetes_executor", "kubernetes_queue")
+    @cached_property
+    @providers_configuration_loaded
+    def kubernetes_queue(self) -> str:
+        return conf.get("celery_kubernetes_executor", "kubernetes_queue")
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
         self._job_id: int | None = None
         self.celery_executor = celery_executor
         self.kubernetes_executor = kubernetes_executor
-        self.kubernetes_executor.kubernetes_queue = self.KUBERNETES_QUEUE
+        self.kubernetes_executor.kubernetes_queue = self.kubernetes_queue
 
     @property
     def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
@@ -194,16 +206,16 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
         :return: any TaskInstances that were unable to be adopted
         """
-        celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
-        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        celery_tis = [ti for ti in tis if ti.queue != self.kubernetes_queue]
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.kubernetes_queue]
         return [
             *self.celery_executor.try_adopt_task_instances(celery_tis),
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
 
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
-        celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
-        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        celery_tis = [ti for ti in tis if ti.queue != self.kubernetes_queue]
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.kubernetes_queue]
         return [
             *self.celery_executor.cleanup_stuck_queued_tasks(celery_tis),
             *self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis),
@@ -226,7 +238,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         :param simple_task_instance: SimpleTaskInstance
         :return: celery_executor or kubernetes_executor
         """
-        if simple_task_instance.queue == self.KUBERNETES_QUEUE:
+        if simple_task_instance.queue == self.kubernetes_queue:
             return self.kubernetes_executor
         return self.celery_executor
 
@@ -245,3 +257,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
+
+    @staticmethod
+    def get_cli_commands() -> list:
+        return CeleryExecutor.get_cli_commands() + KubernetesExecutor.get_cli_commands()

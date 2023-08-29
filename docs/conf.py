@@ -43,7 +43,7 @@ import yaml
 from packaging.version import parse as parse_version
 
 import airflow
-from airflow.configuration import AirflowConfigParser, default_config_yaml
+from airflow.configuration import AirflowConfigParser, retrieve_configuration_description
 
 sys.path.append(str(Path(__file__).parent / "exts"))
 
@@ -269,7 +269,7 @@ if PACKAGE_NAME == "apache-airflow":
 
 elif PACKAGE_NAME != "docker-stack":
     exclude_patterns.extend(
-        _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).glob("**/example_dags")
+        _get_rst_filepath_from_path(f) for f in pathlib.Path(PACKAGE_DIR).rglob("example_dags")
     )
 
 # Add any paths that contain templates here, relative to this directory.
@@ -407,8 +407,10 @@ airflow_version = parse_version(
     ).groups(0)[0]
 )
 
-# Jinja context
-if PACKAGE_NAME == "apache-airflow":
+
+def get_configs_and_deprecations(
+    package_name: str,
+) -> tuple[dict[str, dict[str, tuple[str, str, str]]], dict[str, dict[str, tuple[str, str, str]]]]:
     deprecated_options: dict[str, dict[str, tuple[str, str, str]]] = defaultdict(dict)
     for (section, key), (
         (deprecated_section, deprecated_key, since_version)
@@ -419,7 +421,12 @@ if PACKAGE_NAME == "apache-airflow":
         for deprecated_section, deprecated_key, since_version in deprecated:
             deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
-    configs = default_config_yaml()
+    if package_name == "apache-airflow":
+        configs = retrieve_configuration_description(include_providers=False)
+    else:
+        configs = retrieve_configuration_description(
+            include_airflow=False, include_providers=True, selected_provider=package_name
+        )
 
     # We want the default/example we show in the docs to reflect the value _after_
     # the config has been templated, not before
@@ -440,7 +447,12 @@ if PACKAGE_NAME == "apache-airflow":
     configs = {k: v for k, v in sorted(configs.items())}
     for section in deprecated_options:
         deprecated_options[section] = {k: v for k, v in sorted(deprecated_options[section].items())}
+    return configs, deprecated_options
 
+
+# Jinja context
+if PACKAGE_NAME == "apache-airflow":
+    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME)
     jinja_contexts = {
         "config_ctx": {"configs": configs, "deprecated_options": deprecated_options},
         "quick_start_ctx": {
@@ -453,18 +465,13 @@ if PACKAGE_NAME == "apache-airflow":
         },
     }
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
-
-    def _load_config():
-        file_path = PACKAGE_DIR / "config_templates" / "config.yml"
-        if not file_path.exists():
-            return {}
-
-        with file_path.open() as f:
-            return yaml.safe_load(f)
-
-    config = _load_config()
+    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME)
     jinja_contexts = {
-        "config_ctx": {"configs": config},
+        "config_ctx": {
+            "configs": configs,
+            "deprecated_options": deprecated_options,
+            "package_name": PACKAGE_NAME,
+        },
         "official_download_page": {
             "base_url": "https://downloads.apache.org/airflow/providers",
             "closer_lua_url": "https://www.apache.org/dyn/closer.lua/airflow/providers",
@@ -741,7 +748,6 @@ elif PACKAGE_NAME == "docker-stack":
     autoapi_ignore.append("*/airflow/providers/*")
 else:
     autoapi_ignore.append("*/airflow/providers/cncf/kubernetes/backcompat/*")
-    autoapi_ignore.append("*/airflow/providers/google/ads/*")
     autoapi_ignore.append("*/example_dags/*")
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.

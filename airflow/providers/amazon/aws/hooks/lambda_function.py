@@ -104,7 +104,7 @@ class LambdaHook(AwsBaseHook):
         architectures: list[str] | None = None,
     ) -> dict:
         """
-        Creates a Lambda function.
+        Create a Lambda function.
 
         .. seealso::
             - :external+boto3:py:meth:`Lambda.Client.create_function`

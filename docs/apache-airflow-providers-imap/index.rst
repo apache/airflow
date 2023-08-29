@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Connection types <connections/imap>
     Python API <_api/airflow/providers/imap/index>
 
@@ -62,7 +63,7 @@ Package apache-airflow-providers-imap
 `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 
-Release: 3.2.2
+Release: 3.3.1
 
 Provider package
 ----------------

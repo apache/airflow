@@ -30,6 +30,9 @@ from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+if TYPE_CHECKING:
+    import logging
+
 
 def get_default_delete_local_copy():
     """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
@@ -62,10 +65,10 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         **kwargs,
     ) -> None:
         super().__init__(base_log_folder, filename_template)
+        self.handler: logging.FileHandler | None = None
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
         self.log_relative_path = ""
-        self._hook = None
         self.closed = False
         self.upload_on_close = True
         self.delete_local_copy = (

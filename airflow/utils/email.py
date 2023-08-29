@@ -21,6 +21,7 @@ import collections.abc
 import logging
 import os
 import smtplib
+import ssl
 import warnings
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -286,7 +287,7 @@ def send_mime_email(
 
 def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
     """
-    Returns a list of email addresses from the provided input.
+    Return a list of email addresses from the provided input.
 
     :param addresses: A string or iterable of strings containing email addresses.
     :return: A list of email addresses.
@@ -304,7 +305,7 @@ def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
 
 def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> smtplib.SMTP:
     """
-    Returns an SMTP connection to the specified host and port, with optional SSL encryption.
+    Return an SMTP connection to the specified host and port, with optional SSL encryption.
 
     :param host: The hostname or IP address of the SMTP server.
     :param port: The port number to connect to on the SMTP server.
@@ -312,21 +313,31 @@ def _get_smtp_connection(host: str, port: int, timeout: int, with_ssl: bool) -> 
     :param with_ssl: Whether to use SSL encryption for the connection.
     :return: An SMTP connection to the specified host and port.
     """
-    return (
-        smtplib.SMTP_SSL(host=host, port=port, timeout=timeout)
-        if with_ssl
-        else smtplib.SMTP(host=host, port=port, timeout=timeout)
-    )
+    if not with_ssl:
+        return smtplib.SMTP(host=host, port=port, timeout=timeout)
+    else:
+        ssl_context_string = conf.get("email", "SSL_CONTEXT")
+        if ssl_context_string == "default":
+            ssl_context = ssl.create_default_context()
+        elif ssl_context_string == "none":
+            ssl_context = None
+        else:
+            raise RuntimeError(
+                f"The email.ssl_context configuration variable must "
+                f"be set to 'default' or 'none' and is '{ssl_context_string}."
+            )
+        return smtplib.SMTP_SSL(host=host, port=port, timeout=timeout, context=ssl_context)
 
 
 def _get_email_list_from_str(addresses: str) -> list[str]:
     """
-    Extract a list of email addresses from a string. The string
-    can contain multiple email addresses separated by
-    any of the following delimiters: ',' or ';'.
+    Extract a list of email addresses from a string.
+
+    The string can contain multiple email addresses separated
+    by any of the following delimiters: ',' or ';'.
 
     :param addresses: A string containing one or more email addresses.
     :return: A list of email addresses.
     """
     pattern = r"\s*[,;]\s*"
-    return [address for address in re2.split(pattern, addresses)]
+    return re2.split(pattern, addresses)

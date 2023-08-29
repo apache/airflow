@@ -41,9 +41,7 @@ class TestKeda:
         ],
     )
     def test_keda_enabled(self, executor, is_created):
-        """ScaledObject should only be created when set to enabled and
-        executor is Celery or CeleryKubernetes.
-        """
+        """ScaledObject should only be created when enabled and executor is Celery or CeleryKubernetes."""
         docs = render_chart(
             values={
                 "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
@@ -85,7 +83,7 @@ class TestKeda:
 
     @staticmethod
     def build_query(executor, concurrency=16, queue=None):
-        """Builds the query used by KEDA autoscaler to determine how many workers there should be."""
+        """Build the query used by KEDA autoscaler to determine how many workers there should be."""
         query = (
             f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
             "FROM task_instance WHERE (state='running' OR state='queued')"
@@ -128,6 +126,7 @@ class TestKeda:
     def test_keda_query_kubernetes_queue(self, executor, queue, should_filter):
         """
         Verify keda sql query ignores kubernetes queue when CKE is used.
+
         Sometimes a user might want to use a different queue name for k8s executor tasks,
         and we also verify here that we use the configured queue name in that case.
         """
@@ -162,3 +161,111 @@ class TestKeda:
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
         assert jmespath.search("spec.scaleTargetRef.kind", docs[0]) == kind
+
+    def test_default_keda_db_connection(self):
+        """Verify default keda db connection."""
+        import base64
+
+        docs = render_chart(
+            values={
+                "workers": {"keda": {"enabled": True}},
+                "executor": "CeleryExecutor",
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+                "templates/workers/worker-kedaautoscaler.yaml",
+                "templates/secrets/metadata-connection-secret.yaml",
+            ],
+        )
+        worker_deployment = docs[0]
+        keda_autoscaler = docs[1]
+        metadata_connection_secret = docs[2]
+
+        worker_container_env_vars = jmespath.search(
+            "spec.template.spec.containers[?name=='worker'].env[].name", worker_deployment
+        )
+        assert "AIRFLOW_CONN_AIRFLOW_DB" in worker_container_env_vars
+        assert "KEDA_DB_CONN" not in worker_container_env_vars
+
+        secret_data = jmespath.search("data", metadata_connection_secret)
+        assert "connection" in secret_data.keys()
+        assert "@release-name-postgresql" in base64.b64decode(secret_data["connection"]).decode()
+        assert "kedaConnection" not in secret_data.keys()
+
+        autoscaler_connection_env_var = jmespath.search(
+            "spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler
+        )
+        assert autoscaler_connection_env_var == "AIRFLOW_CONN_AIRFLOW_DB"
+
+    def test_default_keda_db_connection_pgbouncer_enabled(self):
+        """Verify keda db connection when pgbouncer is enabled."""
+        import base64
+
+        docs = render_chart(
+            values={
+                "workers": {"keda": {"enabled": True}},
+                "executor": "CeleryExecutor",
+                "pgbouncer": {"enabled": True},
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+                "templates/workers/worker-kedaautoscaler.yaml",
+                "templates/secrets/metadata-connection-secret.yaml",
+            ],
+        )
+        worker_deployment = docs[0]
+        keda_autoscaler = docs[1]
+        metadata_connection_secret = docs[2]
+
+        worker_container_env_vars = jmespath.search(
+            "spec.template.spec.containers[?name=='worker'].env[].name", worker_deployment
+        )
+        assert "AIRFLOW_CONN_AIRFLOW_DB" in worker_container_env_vars
+        assert "KEDA_DB_CONN" not in worker_container_env_vars
+
+        secret_data = jmespath.search("data", metadata_connection_secret)
+        assert "connection" in secret_data.keys()
+        assert "@release-name-pgbouncer" in base64.b64decode(secret_data["connection"]).decode()
+        assert "kedaConnection" not in secret_data.keys()
+
+        autoscaler_connection_env_var = jmespath.search(
+            "spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler
+        )
+        assert autoscaler_connection_env_var == "AIRFLOW_CONN_AIRFLOW_DB"
+
+    def test_default_keda_db_connection_pgbouncer_enabled_usePgbouncer_false(self):
+        """Verify keda db connection when pgbouncer is enabled and usePgbouncer is false."""
+        import base64
+
+        docs = render_chart(
+            values={
+                "workers": {"keda": {"enabled": True, "usePgbouncer": False}},
+                "executor": "CeleryExecutor",
+                "pgbouncer": {"enabled": True},
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+                "templates/workers/worker-kedaautoscaler.yaml",
+                "templates/secrets/metadata-connection-secret.yaml",
+            ],
+        )
+        worker_deployment = docs[0]
+        keda_autoscaler = docs[1]
+        metadata_connection_secret = docs[2]
+
+        worker_container_env_vars = jmespath.search(
+            "spec.template.spec.containers[?name=='worker'].env[].name", worker_deployment
+        )
+        assert "AIRFLOW_CONN_AIRFLOW_DB" in worker_container_env_vars
+        assert "KEDA_DB_CONN" in worker_container_env_vars
+
+        secret_data = jmespath.search("data", metadata_connection_secret)
+        assert "connection" in secret_data.keys()
+        assert "@release-name-pgbouncer" in base64.b64decode(secret_data["connection"]).decode()
+        assert "kedaConnection" in secret_data.keys()
+        assert "@release-name-postgresql" in base64.b64decode(secret_data["kedaConnection"]).decode()
+
+        autoscaler_connection_env_var = jmespath.search(
+            "spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler
+        )
+        assert autoscaler_connection_env_var == "KEDA_DB_CONN"

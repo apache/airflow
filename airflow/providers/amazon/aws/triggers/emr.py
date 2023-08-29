@@ -18,15 +18,17 @@ from __future__ import annotations
 
 import asyncio
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class EmrAddStepsTrigger(BaseTrigger):
@@ -70,10 +72,8 @@ class EmrAddStepsTrigger(BaseTrigger):
         self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
         async with self.hook.async_conn as client:
             for step_id in self.step_ids:
-                attempt = 0
                 waiter = client.get_waiter("step_complete")
-                while attempt < int(self.max_attempts):
-                    attempt += 1
+                for attempt in range(1, 1 + self.max_attempts):
                     try:
                         await waiter.wait(
                             ClusterId=self.job_flow_id,
@@ -283,3 +283,217 @@ class EmrStepSensorTrigger(AwsBaseWaiterTrigger):
 
     def hook(self) -> AwsGenericHook:
         return EmrHook(self.aws_conn_id)
+
+
+class EmrServerlessCreateApplicationTrigger(AwsBaseWaiterTrigger):
+    """
+    Poll an Emr Serverless application and wait for it to be created.
+
+    :param application_id: The ID of the application being polled.
+    :waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made
+    :param aws_conn_id: Reference to AWS connection id
+    """
+
+    def __init__(
+        self,
+        application_id: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str = "aws_default",
+    ) -> None:
+        super().__init__(
+            serialized_fields={"application_id": application_id},
+            waiter_name="serverless_app_created",
+            waiter_args={"applicationId": application_id},
+            failure_message="Application creation failed",
+            status_message="Application status is",
+            status_queries=["application.state", "application.stateDetails"],
+            return_key="application_id",
+            return_value=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return EmrServerlessHook(self.aws_conn_id)
+
+
+class EmrServerlessStartApplicationTrigger(AwsBaseWaiterTrigger):
+    """
+    Poll an Emr Serverless application and wait for it to be started.
+
+    :param application_id: The ID of the application being polled.
+    :waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made
+    :param aws_conn_id: Reference to AWS connection id
+    """
+
+    def __init__(
+        self,
+        application_id: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str = "aws_default",
+    ) -> None:
+        super().__init__(
+            serialized_fields={"application_id": application_id},
+            waiter_name="serverless_app_started",
+            waiter_args={"applicationId": application_id},
+            failure_message="Application failed to start",
+            status_message="Application status is",
+            status_queries=["application.state", "application.stateDetails"],
+            return_key="application_id",
+            return_value=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return EmrServerlessHook(self.aws_conn_id)
+
+
+class EmrServerlessStopApplicationTrigger(AwsBaseWaiterTrigger):
+    """
+    Poll an Emr Serverless application and wait for it to be stopped.
+
+    :param application_id: The ID of the application being polled.
+    :waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made
+    :param aws_conn_id: Reference to AWS connection id.
+    """
+
+    def __init__(
+        self,
+        application_id: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str = "aws_default",
+    ) -> None:
+        super().__init__(
+            serialized_fields={"application_id": application_id},
+            waiter_name="serverless_app_stopped",
+            waiter_args={"applicationId": application_id},
+            failure_message="Application failed to start",
+            status_message="Application status is",
+            status_queries=["application.state", "application.stateDetails"],
+            return_key="application_id",
+            return_value=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return EmrServerlessHook(self.aws_conn_id)
+
+
+class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
+    """
+    Poll an Emr Serverless job run and wait for it to be completed.
+
+    :param application_id: The ID of the application the job in being run on.
+    :param job_id: The ID of the job run.
+    :waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made
+    :param aws_conn_id: Reference to AWS connection id
+    """
+
+    def __init__(
+        self,
+        application_id: str,
+        job_id: str | None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str = "aws_default",
+    ) -> None:
+        super().__init__(
+            serialized_fields={"application_id": application_id, "job_id": job_id},
+            waiter_name="serverless_job_completed",
+            waiter_args={"applicationId": application_id, "jobRunId": job_id},
+            failure_message="Serverless Job failed",
+            status_message="Serverless Job status is",
+            status_queries=["jobRun.state", "jobRun.stateDetails"],
+            return_key="job_id",
+            return_value=job_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return EmrServerlessHook(self.aws_conn_id)
+
+
+class EmrServerlessDeleteApplicationTrigger(AwsBaseWaiterTrigger):
+    """
+    Poll an Emr Serverless application and wait for it to be deleted.
+
+    :param application_id: The ID of the application being polled.
+    :waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made
+    :param aws_conn_id: Reference to AWS connection id
+    """
+
+    def __init__(
+        self,
+        application_id: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str = "aws_default",
+    ) -> None:
+        super().__init__(
+            serialized_fields={"application_id": application_id},
+            waiter_name="serverless_app_terminated",
+            waiter_args={"applicationId": application_id},
+            failure_message="Application failed to start",
+            status_message="Application status is",
+            status_queries=["application.state", "application.stateDetails"],
+            return_key="application_id",
+            return_value=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return EmrServerlessHook(self.aws_conn_id)
+
+
+class EmrServerlessCancelJobsTrigger(AwsBaseWaiterTrigger):
+    """
+    Trigger for canceling a list of jobs in an EMR Serverless application.
+
+    :param application_id: EMR Serverless application ID
+    :param aws_conn_id: Reference to AWS connection id
+    :param waiter_delay: Delay in seconds between each attempt to check the status
+    :param waiter_max_attempts: Maximum number of attempts to check the status
+    """
+
+    def __init__(
+        self,
+        application_id: str,
+        aws_conn_id: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+    ) -> None:
+        self.hook_instance = EmrServerlessHook(aws_conn_id)
+        states = list(self.hook_instance.JOB_INTERMEDIATE_STATES.union({"CANCELLING"}))
+        super().__init__(
+            serialized_fields={"application_id": application_id},
+            waiter_name="no_job_running",
+            waiter_args={"applicationId": application_id, "states": states},
+            failure_message="Error while waiting for jobs to cancel",
+            status_message="Currently running jobs",
+            status_queries=["jobRuns[*].applicationId", "jobRuns[*].state"],
+            return_key="application_id",
+            return_value=application_id,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return self.hook_instance

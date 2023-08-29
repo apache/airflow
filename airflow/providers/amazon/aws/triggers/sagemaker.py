@@ -17,9 +17,15 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections import Counter
+from enum import IntEnum
 from functools import cached_property
-from typing import Any
+from typing import Any, AsyncIterator
 
+from botocore.exceptions import WaiterError
+
+from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -53,7 +59,7 @@ class SageMakerTrigger(BaseTrigger):
         self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes SagemakerTrigger arguments and classpath."""
+        """Serialize SagemakerTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger",
             {
@@ -115,3 +121,78 @@ class SageMakerTrigger(BaseTrigger):
                 status_args=[self._get_response_status_key(self.job_type)],
             )
             yield TriggerEvent({"status": "success", "message": "Job completed."})
+
+
+class SageMakerPipelineTrigger(BaseTrigger):
+    """Trigger to wait for a sagemaker pipeline execution to finish."""
+
+    class Type(IntEnum):
+        """Type of waiter to use."""
+
+        COMPLETE = 1
+        STOPPED = 2
+
+    def __init__(
+        self,
+        waiter_type: Type,
+        pipeline_execution_arn: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+        aws_conn_id: str,
+    ):
+        self.waiter_type = waiter_type
+        self.pipeline_execution_arn = pipeline_execution_arn
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.aws_conn_id = aws_conn_id
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            self.__class__.__module__ + "." + self.__class__.__qualname__,
+            {
+                "waiter_type": self.waiter_type.value,  # saving the int value here
+                "pipeline_execution_arn": self.pipeline_execution_arn,
+                "waiter_delay": self.waiter_delay,
+                "waiter_max_attempts": self.waiter_max_attempts,
+                "aws_conn_id": self.aws_conn_id,
+            },
+        )
+
+    _waiter_name = {
+        Type.COMPLETE: "PipelineExecutionComplete",
+        Type.STOPPED: "PipelineExecutionStopped",
+    }
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
+        async with hook.async_conn as conn:
+            waiter = hook.get_waiter(self._waiter_name[self.waiter_type], deferrable=True, client=conn)
+            for _ in range(self.waiter_max_attempts):
+                try:
+                    await waiter.wait(
+                        PipelineExecutionArn=self.pipeline_execution_arn, WaiterConfig={"MaxAttempts": 1}
+                    )
+                    # we reach this point only if the waiter met a success criteria
+                    yield TriggerEvent({"status": "success", "value": self.pipeline_execution_arn})
+                    return
+                except WaiterError as error:
+                    if "terminal failure" in str(error):
+                        raise
+
+                    self.log.info(
+                        "Status of the pipeline execution: %s", error.last_response["PipelineExecutionStatus"]
+                    )
+
+                    res = await conn.list_pipeline_execution_steps(
+                        PipelineExecutionArn=self.pipeline_execution_arn
+                    )
+                    count_by_state = Counter(s["StepStatus"] for s in res["PipelineExecutionSteps"])
+                    running_steps = [
+                        s["StepName"] for s in res["PipelineExecutionSteps"] if s["StepStatus"] == "Executing"
+                    ]
+                    self.log.info("State of the pipeline steps: %s", count_by_state)
+                    self.log.info("Steps currently in progress: %s", running_steps)
+
+                    await asyncio.sleep(int(self.waiter_delay))
+
+            raise AirflowException("Waiter error: max attempts reached")

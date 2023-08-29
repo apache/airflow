@@ -388,6 +388,24 @@ class TestWorker:
 
         assert jmespath.search("spec.template.spec.runtimeClassName", docs[0]) == "nvidia"
 
+    @pytest.mark.parametrize(
+        "airflow_version, default_cmd",
+        [
+            ("2.7.0", "airflow.providers.celery.executors.celery_executor.app"),
+            ("2.6.3", "airflow.executors.celery_executor.app"),
+        ],
+    )
+    def test_livenessprobe_default_command(self, airflow_version, default_cmd):
+        docs = render_chart(
+            values={"airflowVersion": airflow_version},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        livenessprobe_cmd = jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
+        )
+        assert default_cmd in livenessprobe_cmd[-1]
+
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
             values={
@@ -784,3 +802,25 @@ class TestWorkerServiceAccount:
             assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
         else:
             assert docs == []
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False

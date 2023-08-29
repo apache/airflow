@@ -503,7 +503,7 @@ class TestGCSHook:
 
         self.gcs_hook.delete_bucket(bucket_name=test_bucket)
 
-        mock_service.return_value.bucket.assert_called_once_with(test_bucket)
+        mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
@@ -514,7 +514,7 @@ class TestGCSHook:
         test_bucket = "test bucket"
         with caplog.at_level(logging.INFO):
             self.gcs_hook.delete_bucket(bucket_name=test_bucket)
-        mock_service.return_value.bucket.assert_called_once_with(test_bucket)
+        mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
         assert "Bucket test bucket not exist" in caplog.text
 
@@ -784,7 +784,7 @@ class TestGCSHook:
             fhandle.write()
 
         mock_upload.assert_called_once_with(
-            bucket_name=test_bucket, object_name=test_object, filename=test_file
+            bucket_name=test_bucket, object_name=test_object, filename=test_file, user_project=None
         )
         mock_temp_file.assert_has_calls(
             [

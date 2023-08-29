@@ -22,7 +22,7 @@ from typing import Any, Callable, TypeVar, cast
 
 from flask import Response
 
-from airflow.configuration import auth_manager
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 CLIENT_AUTH: tuple[str, str] | Any | None = None
 
@@ -39,7 +39,7 @@ def requires_authentication(function: T):
 
     @wraps(function)
     def decorated(*args, **kwargs):
-        if not auth_manager.is_logged_in():
+        if not get_auth_manager().is_logged_in():
             return Response("Unauthorized", 401, {})
         return function(*args, **kwargs)
 

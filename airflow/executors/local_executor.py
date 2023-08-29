@@ -29,8 +29,7 @@ import os
 import subprocess
 from abc import abstractmethod
 from multiprocessing import Manager, Process
-from multiprocessing.managers import SyncManager
-from queue import Empty, Queue
+from queue import Empty
 from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from setproctitle import getproctitle, setproctitle
@@ -42,6 +41,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from multiprocessing.managers import SyncManager
+    from queue import Queue
+
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstance import TaskInstanceStateType
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -75,7 +77,7 @@ class LocalWorkerBase(Process, LoggingMixin):
 
     def execute_work(self, key: TaskInstanceKey, command: CommandType) -> None:
         """
-        Executes command received and stores result state in queue.
+        Execute command received and stores result state in queue.
 
         :param key: the key to identify the task instance
         :param command: the command to execute
@@ -99,7 +101,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             subprocess.check_call(command, close_fds=True)
             return TaskInstanceState.SUCCESS
         except subprocess.CalledProcessError as e:
-            self.log.error("Failed to execute task %s.", str(e))
+            self.log.error("Failed to execute task %s.", e)
             return TaskInstanceState.FAILED
 
     def _execute_work_in_fork(self, command: CommandType) -> TaskInstanceState:
@@ -141,7 +143,7 @@ class LocalWorkerBase(Process, LoggingMixin):
 
     @abstractmethod
     def do_work(self):
-        """Called in the subprocess and should then execute tasks."""
+        """Execute tasks; called in the subprocess."""
         raise NotImplementedError()
 
 
@@ -236,7 +238,7 @@ class LocalExecutor(BaseExecutor):
             self.executor: LocalExecutor = executor
 
         def start(self) -> None:
-            """Starts the executor."""
+            """Start the executor."""
             self.executor.workers_used = 0
             self.executor.workers_active = 0
 
@@ -248,7 +250,7 @@ class LocalExecutor(BaseExecutor):
             executor_config: Any | None = None,
         ) -> None:
             """
-            Executes task asynchronously.
+            Execute task asynchronously.
 
             :param key: the key to identify the task instance
             :param command: the command to execute
@@ -291,7 +293,7 @@ class LocalExecutor(BaseExecutor):
             self.queue: Queue[ExecutorWorkType] | None = None
 
         def start(self) -> None:
-            """Starts limited parallelism implementation."""
+            """Start limited parallelism implementation."""
             if TYPE_CHECKING:
                 assert self.executor.manager
                 assert self.executor.result_queue
@@ -315,7 +317,7 @@ class LocalExecutor(BaseExecutor):
             executor_config: Any | None = None,
         ) -> None:
             """
-            Executes task asynchronously.
+            Execute task asynchronously.
 
             :param key: the key to identify the task instance
             :param command: the command to execute
@@ -340,7 +342,11 @@ class LocalExecutor(BaseExecutor):
                     break
 
         def end(self):
-            """Ends the executor. Sends the poison pill to all workers."""
+            """
+            End the executor.
+
+            Sends the poison pill to all workers.
+            """
             for _ in self.executor.workers:
                 self.queue.put((None, None))
 
@@ -349,7 +355,7 @@ class LocalExecutor(BaseExecutor):
             self.executor.sync()
 
     def start(self) -> None:
-        """Starts the executor."""
+        """Start the executor."""
         old_proctitle = getproctitle()
         setproctitle("airflow executor -- LocalExecutor")
         self.manager = Manager()
@@ -389,7 +395,7 @@ class LocalExecutor(BaseExecutor):
         self.impl.sync()
 
     def end(self) -> None:
-        """Ends the executor."""
+        """End the executor."""
         if TYPE_CHECKING:
             assert self.impl
             assert self.manager

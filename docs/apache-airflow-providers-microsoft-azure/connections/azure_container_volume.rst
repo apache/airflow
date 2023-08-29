@@ -34,7 +34,7 @@ There are four ways to connect to Azure Container Volume using Airflow.
    i.e. add specific credentials (client_id, secret) and subscription id to the Airflow connection.
 2. Use a `Connection String
    <https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/storage>`_
-   i.e. add connection string to ``extra__azure_container_volume__connection_string`` in the Airflow connection.
+   i.e. add connection string to ``connection_string`` in the Airflow connection.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -61,7 +61,7 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
-    * ``extra__azure_container_volume__connection_string``: Connection string for use with connection string authentication.
+    * ``connection_string``: Connection string for use with connection string authentication.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

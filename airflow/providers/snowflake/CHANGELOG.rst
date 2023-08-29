@@ -27,6 +27,62 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Removed deprecated ``S3ToSnowflakeOperator`` in favor of ``CopyFromExternalStageToSnowflakeOperator``.
+  The parameter that was passed as ``s3_keys`` needs to be changed to ``files``, and the behavior should stay the same.
+
+  Removed deprecated ``SnowflakeToSlackOperator`` in favor of ``SqlToSlackOperator`` from Slack Provider.
+  Parameters that were passed as ``schema``, ``role``, ``database``, ``warehouse`` need to be included into
+  ``sql_hook_params`` parameter, and the behavior should stay the same.
+
+
+* ``Remove deprecated 'S3ToSnowflake' and 'SnowflakeToSlack' operators (#33558)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set snowflake_conn_id on Snowflake Operators to avoid error (#33681)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Bump apache-airflow-providers-snowflake due to breaking changes (#33615)``
+
+
+4.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+4.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix connection parameters of 'SnowflakeValueCheckOperator' (#32605)``
+
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, snowflake: add OpenLineage support for Snowflake (#31696)``
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
 4.3.1
 .....
 

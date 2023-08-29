@@ -22,7 +22,7 @@ from typing import Any
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes, get_field
+from airflow.providers.microsoft.azure.utils import get_field
 
 
 class AzureContainerVolumeHook(BaseHook):
@@ -65,7 +65,6 @@ class AzureContainerVolumeHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_container_volume")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {

@@ -17,8 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.models.baseoperator import BaseOperator
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class SmoothOperator(BaseOperator):

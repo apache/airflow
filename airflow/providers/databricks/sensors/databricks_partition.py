@@ -184,7 +184,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         if len(partition_columns) < 1:
             raise AirflowException(f"Table {table_name} does not have partitions")
         formatted_opts = ""
-        if opts is not None and len(opts) > 0:
+        if opts:
             output_list = []
             for partition_col, partition_value in opts.items():
                 if escape_key:
@@ -217,7 +217,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         """Checks the table partitions and returns the results."""
         partition_result = self._check_table_partitions()
         self.log.debug("Partition sensor result: %s", partition_result)
-        if len(partition_result) >= 1:
+        if partition_result:
             return True
         else:
             raise AirflowException(f"Specified partition(s): {self.partitions} were not found.")

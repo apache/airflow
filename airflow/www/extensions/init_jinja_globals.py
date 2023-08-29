@@ -21,10 +21,11 @@ import logging
 import pendulum
 
 import airflow
-from airflow.configuration import auth_manager, conf
+from airflow.configuration import conf
 from airflow.settings import IS_K8S_OR_K8SCELERY_EXECUTOR, STATE_COLORS
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import get_airflow_git_version
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 
 def init_jinja_globals(app):
@@ -68,12 +69,12 @@ def init_jinja_globals(app):
             "git_version": git_version,
             "k8s_or_k8scelery_executor": IS_K8S_OR_K8SCELERY_EXECUTOR,
             "rest_api_enabled": False,
-            "auth_manager": auth_manager,
+            "auth_manager": get_auth_manager(),
             "config_test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         }
 
         backends = conf.get("api", "auth_backends")
-        if len(backends) > 0 and backends[0] != "airflow.api.auth.backend.deny_all":
+        if backends and backends[0] != "airflow.api.auth.backend.deny_all":
             extra_globals["rest_api_enabled"] = True
 
         if "analytics_tool" in conf.getsection("webserver"):

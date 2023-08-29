@@ -23,11 +23,11 @@ Builds documentation and runs spell checking
 from __future__ import annotations
 
 import argparse
+import itertools
 import multiprocessing
 import os
 import sys
 from collections import defaultdict
-from itertools import filterfalse, tee
 from typing import Callable, Iterable, NamedTuple, TypeVar
 
 from rich.console import Console
@@ -74,8 +74,8 @@ T = TypeVar("T")
 
 def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries"""
-    iter_1, iter_2 = tee(iterable)
-    return filterfalse(pred, iter_1), filter(pred, iter_2)
+    iter_1, iter_2 = itertools.tee(iterable)
+    return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
 
 
 def _promote_new_flags():

@@ -2139,34 +2139,23 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         result = await hook.get_job_instance(project_id=PROJECT_ID, job_id=JOB_ID, session=mock_session)
         assert isinstance(result, Job)
 
+    @pytest.mark.parametrize(
+        "job_status, expected",
+        [
+            ({"status": {"state": "DONE"}}, "success"),
+            ({"status": {"state": "DONE", "errorResult": "Timeout"}}, "error"),
+            ({"status": {"state": "running"}}, "running"),
+        ],
+    )
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
-    async def test_get_job_status_success(self, mock_job_instance):
+    async def test_get_job_status(self, mock_job_instance, job_status, expected):
         hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
-        response = "success"
-        mock_job_instance.return_value.result.return_value = response
+        mock_job_instance.return_value.get_job.return_value = job_status
         resp = await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
-        assert resp == response
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
-    async def test_get_job_status_oserror(self, mock_job_instance):
-        """Assets that the BigQueryAsyncHook returns a pending response when OSError is raised"""
-        mock_job_instance.return_value.result.side_effect = OSError()
-        hook = BigQueryAsyncHook()
-        job_status = await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
-        assert job_status == "pending"
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
-    async def test_get_job_status_exception(self, mock_job_instance, caplog):
-        """Assets that the logging is done correctly when BigQueryAsyncHook raises Exception"""
-        mock_job_instance.return_value.result.side_effect = Exception()
-        hook = BigQueryAsyncHook()
-        await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
-        assert "Query execution finished with errors..." in caplog.text
+        assert resp == expected
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")

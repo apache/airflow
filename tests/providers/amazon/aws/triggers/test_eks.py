@@ -19,8 +19,10 @@ from __future__ import annotations
 import pytest
 
 from airflow.providers.amazon.aws.triggers.eks import (
+    EksCreateClusterTrigger,
     EksCreateFargateProfileTrigger,
     EksCreateNodegroupTrigger,
+    EksDeleteClusterTrigger,
     EksDeleteFargateProfileTrigger,
     EksDeleteNodegroupTrigger,
 )
@@ -67,6 +69,21 @@ class TestEksTriggers:
                 waiter_delay=TEST_WAITER_DELAY,
                 waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
                 region_name=TEST_REGION,
+            ),
+            EksCreateClusterTrigger(
+                cluster_name=TEST_CLUSTER_IDENTIFIER,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_DELAY,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                region_name=TEST_REGION,
+            ),
+            EksDeleteClusterTrigger(
+                cluster_name=TEST_CLUSTER_IDENTIFIER,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_DELAY,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                region_name=TEST_REGION,
+                force_delete_compute=True,
             ),
         ],
     )

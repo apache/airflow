@@ -63,7 +63,7 @@ status_map: dict[str, bool] = {
     ":x:": False,
 }
 
-reverse_status_map: dict[bool, str] = {status_map[key]: key for key in status_map.keys()}
+reverse_status_map: dict[bool, str] = {val: key for key, val in status_map.items()}
 
 
 def get_url(result: TestResult) -> str:
@@ -160,8 +160,7 @@ def get_history_status(history: TestHistory):
 def get_table(history_map: dict[str, TestHistory]) -> str:
     headers = ["Test", "Last run", f"Last {num_runs} runs", "Status", "Comment"]
     the_table: list[list[str]] = []
-    for ordered_key in sorted(history_map.keys()):
-        history = history_map[ordered_key]
+    for _, history in sorted(history_map.items()):
         the_table.append(
             [
                 history.url,
@@ -185,7 +184,7 @@ if __name__ == "__main__":
     res = y.testsuites.testsuite.findAll("testcase")
     for test in res:
         print("Parsing: " + test["classname"] + "::" + test["name"])
-        if len(test.contents) > 0 and test.contents[0].name == "skipped":
+        if test.contents and test.contents[0].name == "skipped":
             print(f"skipping {test['name']}")
             continue
         test_results.append(
@@ -195,7 +194,7 @@ if __name__ == "__main__":
                 line=test["line"],
                 name=test["name"],
                 classname=test["classname"],
-                result=len(test.contents) == 0,
+                result=not test.contents,
             )
         )
 
@@ -240,5 +239,5 @@ if __name__ == "__main__":
             DATE_UTC_NOW=datetime.utcnow()
         )
     quarantined_issue.edit(
-        title=None, body=header + "\n\n" + str(table), state="open" if len(test_results) > 0 else "closed"
+        title=None, body=f"{header}\n\n{table}", state="open" if test_results else "closed"
     )

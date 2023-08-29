@@ -20,12 +20,14 @@ from __future__ import annotations
 import functools
 import json
 import logging
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from flask import Response
 
-from airflow.api_connexion.types import APIResponse
 from airflow.serialization.serialized_objects import BaseSerialization
+
+if TYPE_CHECKING:
+    from airflow.api_connexion.types import APIResponse
 
 log = logging.getLogger(__name__)
 
@@ -65,7 +67,7 @@ def _initialize_map() -> dict[str, Callable]:
 
 
 def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
-    """Handler for Internal API /internal_api/v1/rpcapi endpoint."""
+    """Handle Internal API /internal_api/v1/rpcapi endpoint."""
     log.debug("Got request")
     json_rpc = body.get("jsonrpc")
     if json_rpc != "2.0":

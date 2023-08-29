@@ -68,6 +68,24 @@ const getDirection = (arrange: string) => {
   }
 };
 
+const formatEdge = (e: WebserverEdge, font: string, node?: DepNode) => ({
+  id: `${e.sourceId}-${e.targetId}`,
+  sources: [e.sourceId],
+  targets: [e.targetId],
+  isSetupTeardown: e.isSetupTeardown,
+  parentNode: node?.id,
+  labels: e.label
+    ? [
+        {
+          id: e.label,
+          text: e.label,
+          height: 16,
+          width: getTextWidth(e.label, font),
+        },
+      ]
+    : [],
+});
+
 const generateGraph = ({
   nodes,
   edges: unformattedEdges,
@@ -76,6 +94,19 @@ const generateGraph = ({
   arrange,
 }: GenerateProps) => {
   const closedGroupIds: string[] = [];
+  let filteredEdges = unformattedEdges;
+
+  const getNestedChildIds = (children: DepNode[]) => {
+    let childIds: string[] = [];
+    children.forEach((c) => {
+      childIds.push(c.id);
+      if (c.children) {
+        const nestedChildIds = getNestedChildIds(c.children);
+        childIds = [...childIds, ...nestedChildIds];
+      }
+    });
+    return childIds;
+  };
 
   const formatChildNode = (
     node: DepNode
@@ -89,6 +120,7 @@ const generateGraph = ({
     const isOpen = openGroupIds?.includes(value.label);
     const childCount =
       children?.filter((c: DepNode) => !c.id.includes("join_id")).length || 0;
+    const childIds = children?.length ? getNestedChildIds(children) : [];
     if (isOpen && children?.length) {
       return {
         ...node,
@@ -103,10 +135,43 @@ const generateGraph = ({
           "elk.padding": "[top=60,left=10,bottom=10,right=10]",
         },
         children: children.map(formatChildNode),
+        edges: filteredEdges
+          .filter((e) => {
+            if (
+              childIds.indexOf(e.sourceId) > -1 &&
+              childIds.indexOf(e.targetId) > -1
+            ) {
+              // Remove edge from array when we add it here
+              filteredEdges = filteredEdges.filter(
+                (fe) =>
+                  !(fe.sourceId === e.sourceId && fe.targetId === e.targetId)
+              );
+              return true;
+            }
+            return false;
+          })
+          .map((e) => formatEdge(e, font, node)),
       };
     }
     const isJoinNode = id.includes("join_id");
-    if (children?.length) closedGroupIds.push(value.label);
+    if (!isOpen && children?.length) {
+      filteredEdges = filteredEdges
+        // Filter out internal group edges
+        .filter(
+          (e) =>
+            !(
+              childIds.indexOf(e.sourceId) > -1 &&
+              childIds.indexOf(e.targetId) > -1
+            )
+        )
+        // For external group edges, point to the group itself instead of a child node
+        .map((e) => ({
+          ...e,
+          sourceId: childIds.indexOf(e.sourceId) > -1 ? node.id : e.sourceId,
+          targetId: childIds.indexOf(e.targetId) > -1 ? node.id : e.targetId,
+        }));
+      closedGroupIds.push(value.label);
+    }
     return {
       id,
       label: value.label,
@@ -116,71 +181,13 @@ const generateGraph = ({
         childCount,
       },
       width: isJoinNode ? 10 : 200,
-      height: isJoinNode ? 10 : 60,
+      height: isJoinNode ? 10 : 70,
     };
   };
+
   const children = nodes.map(formatChildNode);
 
-  const edges = unformattedEdges
-    .map((edge) => {
-      let { sourceId, targetId } = edge;
-      const splitSource = sourceId.split(".");
-      const splitTarget = targetId.split(".");
-
-      if (closedGroupIds.includes(splitSource[splitSource.length - 2])) {
-        splitSource.pop();
-        sourceId = splitSource.join(".");
-      }
-      if (closedGroupIds.includes(splitTarget[splitTarget.length - 2])) {
-        splitTarget.pop();
-        targetId = splitTarget.join(".");
-      }
-      return {
-        ...edge,
-        targetId,
-        sourceId,
-      };
-    })
-    // Deduplicate edges
-    .filter(
-      (value, index, self) =>
-        index ===
-        self.findIndex(
-          (t) => t.sourceId === value.sourceId && t.targetId === value.targetId
-        )
-    )
-    .filter((edge) => {
-      const splitSource = edge.sourceId.split(".");
-      const splitTarget = edge.targetId.split(".");
-      if (
-        splitSource
-          .slice(0, splitSource.length - 1)
-          .some((id) => closedGroupIds.includes(id)) ||
-        splitTarget
-          .slice(0, splitTarget.length - 1)
-          .some((id) => closedGroupIds.includes(id))
-      ) {
-        return false;
-      }
-      if (edge.sourceId === edge.targetId) return false;
-      return true;
-    })
-    .map((e) => ({
-      id: `${e.sourceId}-${e.targetId}`,
-      sources: [e.sourceId],
-      targets: [e.targetId],
-      isSetupTeardown: e.isSetupTeardown,
-      labels: e.label
-        ? [
-            {
-              id: e.label,
-              text: e.label,
-              height: 16,
-              width: getTextWidth(e.label, font),
-            },
-          ]
-        : [],
-    }));
+  const edges = filteredEdges.map((e) => formatEdge(e, font));
 
   return {
     id: "root",
@@ -188,6 +195,7 @@ const generateGraph = ({
       hierarchyHandling: "INCLUDE_CHILDREN",
       "elk.direction": getDirection(arrange),
       "spacing.edgeLabel": "10.0",
+      "elk.core.options.EdgeLabelPlacement": "CENTER",
     },
     children,
     edges,

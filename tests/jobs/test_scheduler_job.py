@@ -59,7 +59,7 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
@@ -601,12 +601,12 @@ class TestSchedulerJob:
             dr2.get_task_instance(task_id_1, session=session),
             dr2.get_task_instance(task_id_2, session=session),
         ]
-        tis = sorted(tis, key=lambda ti: ti.key)
+        tis.sort(key=lambda ti: ti.key)
         for ti in tis:
             ti.state = State.SCHEDULED
             session.merge(ti)
-        pool = Pool(pool="a", slots=1, description="haha")
-        pool2 = Pool(pool="b", slots=100, description="haha")
+        pool = Pool(pool="a", slots=1, description="haha", include_deferred=False)
+        pool2 = Pool(pool="b", slots=100, description="haha", include_deferred=False)
         session.add(pool)
         session.add(pool2)
         session.flush()
@@ -732,8 +732,8 @@ class TestSchedulerJob:
 
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_order_priority_with_pools"
 
-        session.add(Pool(pool="pool1", slots=32))
-        session.add(Pool(pool="pool2", slots=32))
+        session.add(Pool(pool="pool1", slots=32, include_deferred=False))
+        session.add(Pool(pool="pool2", slots=32, include_deferred=False))
 
         with dag_maker(dag_id=dag_id, max_active_tasks=2):
             op1 = EmptyOperator(task_id="dummy1", priority_weight=1, pool="pool1")
@@ -888,7 +888,12 @@ class TestSchedulerJob:
         ti = dr.task_instances[0]
         ti.state = State.SCHEDULED
         session.merge(ti)
-        infinite_pool = Pool(pool="infinite_pool", slots=-1, description="infinite pool")
+        infinite_pool = Pool(
+            pool="infinite_pool",
+            slots=-1,
+            description="infinite pool",
+            include_deferred=False,
+        )
         session.add(infinite_pool)
         session.commit()
 
@@ -913,7 +918,7 @@ class TestSchedulerJob:
         ti = dr.task_instances[1]
         ti.state = State.SCHEDULED
         session.merge(ti)
-        some_pool = Pool(pool="some_pool", slots=2, description="my pool")
+        some_pool = Pool(pool="some_pool", slots=2, description="my pool", include_deferred=False)
         session.add(some_pool)
         session.commit()
         with caplog.at_level(logging.WARNING):
@@ -1336,8 +1341,8 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
 
-        pool1 = Pool(pool="pool1", slots=1)
-        pool2 = Pool(pool="pool2", slots=1)
+        pool1 = Pool(pool="pool1", slots=1, include_deferred=False)
+        pool2 = Pool(pool="pool2", slots=1, include_deferred=False)
 
         session.add(pool1)
         session.add(pool2)
@@ -2578,7 +2583,7 @@ class TestSchedulerJob:
                 )
 
             session = settings.Session()
-            pool = Pool(pool="test_scheduler_verify_pool_full", slots=1)
+            pool = Pool(pool="test_scheduler_verify_pool_full", slots=1, include_deferred=False)
             session.add(pool)
             session.flush()
 
@@ -2619,7 +2624,7 @@ class TestSchedulerJob:
                 bash_command="echo hi",
             )
 
-        pool = Pool(pool="test_scheduler_verify_pool_full_2_slots_per_task", slots=6)
+        pool = Pool(pool="test_scheduler_verify_pool_full_2_slots_per_task", slots=6, include_deferred=False)
         session.add(pool)
         session.flush()
 
@@ -2673,8 +2678,8 @@ class TestSchedulerJob:
         dag_d2 = dag_maker.dag
 
         session = settings.Session()
-        pool_p1 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p1", slots=1)
-        pool_p2 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p2", slots=10)
+        pool_p1 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p1", slots=1, include_deferred=False)
+        pool_p2 = Pool(pool="test_scheduler_keeps_scheduling_pool_full_p2", slots=10, include_deferred=False)
         session.add(pool_p1)
         session.add(pool_p2)
         session.flush()
@@ -2751,7 +2756,7 @@ class TestSchedulerJob:
             )
 
         session = settings.Session()
-        pool = Pool(pool="test_scheduler_verify_priority_and_slots", slots=2)
+        pool = Pool(pool="test_scheduler_verify_priority_and_slots", slots=2, include_deferred=False)
         session.add(pool)
         session.flush()
 
@@ -3118,7 +3123,7 @@ class TestSchedulerJob:
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:
-                if file_name.endswith(".py") or file_name.endswith(".zip"):
+                if file_name.endswith((".py", ".zip")):
                     if file_name not in ignored_files:
                         expected_files.add(f"{root}/{file_name}")
         for file_path in list_py_file_paths(TEST_DAG_FOLDER, include_examples=False):
@@ -3131,7 +3136,7 @@ class TestSchedulerJob:
         example_dag_folder = airflow.example_dags.__path__[0]
         for root, _, files in os.walk(example_dag_folder):
             for file_name in files:
-                if file_name.endswith(".py") or file_name.endswith(".zip"):
+                if file_name.endswith((".py", ".zip")):
                     if file_name not in ["__init__.py"] and file_name not in ignored_files:
                         expected_files.add(os.path.join(root, file_name))
         detected_files.clear()
@@ -3145,6 +3150,30 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
         assert 0 == self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+
+    @pytest.mark.parametrize(
+        "adoptable_state",
+        State.adoptable_states,
+    )
+    def test_adopt_or_reset_resettable_tasks(self, dag_maker, adoptable_state):
+        dag_id = "test_adopt_or_reset_adoptable_tasks_" + adoptable_state.name
+        with dag_maker(dag_id=dag_id, schedule="@daily"):
+            task_id = dag_id + "_task"
+            EmptyOperator(task_id=task_id)
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        session = settings.Session()
+
+        dr1 = dag_maker.create_dagrun(external_trigger=True)
+        ti = dr1.get_task_instances(session=session)[0]
+        ti.state = adoptable_state
+        session.merge(ti)
+        session.merge(dr1)
+        session.commit()
+
+        num_reset_tis = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        assert 1 == num_reset_tis
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
@@ -3228,10 +3257,10 @@ class TestSchedulerJob:
         session.flush()
 
         dr1 = dag_maker.create_dagrun()
+        dr1.state = State.QUEUED
         tis = dr1.get_task_instances(session=session)
         assert 1 == len(tis)
         tis[0].state = State.SCHEDULED
-        tis[0].queued_by_job_id = scheduler_job.id
         session.merge(dr1)
         session.merge(tis[0])
         session.flush()
@@ -4530,7 +4559,7 @@ class TestSchedulerJob:
 
                 local_job = Job(dag_id=ti.dag_id)
                 LocalTaskJobRunner(job=local_job, task_instance=ti)
-                local_job.state = State.SHUTDOWN
+                local_job.state = TaskInstanceState.FAILED
 
                 session.add(local_job)
                 session.flush()
@@ -4593,7 +4622,7 @@ class TestSchedulerJob:
                 ti.queued_by_job_id = 999
 
                 local_job = Job(dag_id=ti.dag_id)
-                local_job.state = State.SHUTDOWN
+                local_job.state = TaskInstanceState.FAILED
 
                 session.add(local_job)
                 session.flush()
@@ -4654,7 +4683,7 @@ class TestSchedulerJob:
 
             local_job = Job(dag_id=ti.dag_id)
             LocalTaskJobRunner(job=local_job, task_instance=ti)
-            local_job.state = State.SHUTDOWN
+            local_job.state = JobState.FAILED
             session.add(local_job)
             session.flush()
 

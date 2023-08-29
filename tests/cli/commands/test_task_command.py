@@ -23,7 +23,7 @@ import logging
 import os
 import re
 import shutil
-import tempfile
+import sys
 import unittest
 from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
@@ -48,6 +48,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
@@ -169,12 +170,12 @@ class TestCliTasks:
             task_command.task_test(args)
         assert capsys.readouterr().out.endswith(f"{not_password}\n")
 
-    def test_cli_test_different_path(self, session):
+    def test_cli_test_different_path(self, session, tmp_path):
         """
         When thedag processor has a different dags folder
         from the worker, ``airflow tasks run --local`` should still work.
         """
-        repo_root = Path(__file__).parent.parent.parent.parent
+        repo_root = Path(__file__).parents[3]
         orig_file_path = repo_root / "tests/dags/test_dags_folder.py"
         orig_dags_folder = orig_file_path.parent
 
@@ -200,51 +201,50 @@ class TestCliTasks:
         # additionally let's update the dags folder to be the new path
         # ideally since dags_folder points correctly to the file, airflow
         # should be able to find the dag.
-        with tempfile.TemporaryDirectory() as td:
-            new_file_path = Path(td) / Path(orig_file_path).name
-            new_dags_folder = new_file_path.parent
-            with move_back(orig_file_path, new_file_path), conf_vars(
-                {("core", "dags_folder"): new_dags_folder.as_posix()}
-            ):
-                ser_dag = (
-                    session.query(SerializedDagModel)
-                    .filter(SerializedDagModel.dag_id == "test_dags_folder")
-                    .one()
-                )
-                # confirm that the serialized dag location has not been updated
-                assert ser_dag.fileloc == orig_file_path.as_posix()
-                assert ser_dag.data["dag"]["_processor_dags_folder"] == orig_dags_folder.as_posix()
-                assert ser_dag.data["dag"]["fileloc"] == orig_file_path.as_posix()
-                assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()
-                from airflow.settings import DAGS_FOLDER
-
-                assert DAGS_FOLDER == new_dags_folder.as_posix() != orig_dags_folder.as_posix()
-                task_command.task_run(
-                    self.parser.parse_args(
-                        [
-                            "tasks",
-                            "run",
-                            "--ignore-all-dependencies",
-                            "--local",
-                            "test_dags_folder",
-                            "task",
-                            "abc123",
-                        ]
-                    )
-                )
-            ti = (
-                session.query(TaskInstance)
-                .filter(
-                    TaskInstance.task_id == "task",
-                    TaskInstance.dag_id == "test_dags_folder",
-                    TaskInstance.run_id == "abc123",
-                    TaskInstance.map_index == -1,
-                )
+        new_file_path = tmp_path / orig_file_path.name
+        new_dags_folder = new_file_path.parent
+        with move_back(orig_file_path, new_file_path), conf_vars(
+            {("core", "dags_folder"): new_dags_folder.as_posix()}
+        ):
+            ser_dag = (
+                session.query(SerializedDagModel)
+                .filter(SerializedDagModel.dag_id == "test_dags_folder")
                 .one()
             )
-            assert ti.state == "success"
-            # verify that the file was in different location when run
-            assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
+            # confirm that the serialized dag location has not been updated
+            assert ser_dag.fileloc == orig_file_path.as_posix()
+            assert ser_dag.data["dag"]["_processor_dags_folder"] == orig_dags_folder.as_posix()
+            assert ser_dag.data["dag"]["fileloc"] == orig_file_path.as_posix()
+            assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()
+            from airflow.settings import DAGS_FOLDER
+
+            assert DAGS_FOLDER == new_dags_folder.as_posix() != orig_dags_folder.as_posix()
+            task_command.task_run(
+                self.parser.parse_args(
+                    [
+                        "tasks",
+                        "run",
+                        "--ignore-all-dependencies",
+                        "--local",
+                        "test_dags_folder",
+                        "task",
+                        "abc123",
+                    ]
+                )
+            )
+        ti = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.task_id == "task",
+                TaskInstance.dag_id == "test_dags_folder",
+                TaskInstance.run_id == "abc123",
+                TaskInstance.map_index == -1,
+            )
+            .one()
+        )
+        assert ti.state == "success"
+        # verify that the file was in different location when run
+        assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
     def test_run_with_existing_dag_run_id(self, mock_local_job_runner):
@@ -501,7 +501,7 @@ class TestCliTasks:
         assert 'echo "2022-01-08"' in output
 
     @mock.patch("airflow.cli.commands.task_command.select")
-    @mock.patch("airflow.cli.commands.task_command.Session.scalars")
+    @mock.patch("sqlalchemy.orm.session.Session.scalars")
     @mock.patch("airflow.cli.commands.task_command.DagRun")
     def test_task_render_with_custom_timetable(self, mock_dagrun, mock_scalars, mock_select):
         """
@@ -747,9 +747,11 @@ class TestLogsfromTaskRunCommand:
         """
         import subprocess
 
-        with mock.patch.dict("os.environ", AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s):
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_IS_K8S_EXECUTOR_POD=is_k8s, PYTHONPATH=os.fspath(AIRFLOW_SOURCES_ROOT)
+        ):
             with subprocess.Popen(
-                args=["airflow", *self.task_args, "-S", self.dag_path],
+                args=[sys.executable, "-m", "airflow", *self.task_args, "-S", self.dag_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             ) as process:
@@ -809,7 +811,7 @@ class TestLogsfromTaskRunCommand:
 
         clear_db_pools()
         with create_session() as session:
-            pool = Pool(pool=pool_name, slots=1)
+            pool = Pool(pool=pool_name, slots=1, include_deferred=False)
             session.add(pool)
             session.commit()
 

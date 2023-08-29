@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Collection, Optional, Sequence
+from typing import TYPE_CHECKING, ClassVar, Collection, Sequence
 
 import attr
 import papermill as pm
@@ -42,8 +42,8 @@ class NoteBook(File):
         *(File.template_fields if hasattr(File, "template_fields") else {"url"}),
     }
 
-    type_hint: Optional[str] = "jupyter_notebook"  # noqa: UP007
-    parameters: Optional[dict] = {}  # noqa: UP007
+    type_hint: str | None = "jupyter_notebook"
+    parameters: dict | None = {}
 
     meta_schema: str = __name__ + ".NoteBook"
 

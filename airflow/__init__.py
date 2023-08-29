@@ -26,7 +26,7 @@ isort:skip_file
 """
 from __future__ import annotations
 
-__version__ = "2.7.0.dev0"
+__version__ = "2.8.0.dev0"
 
 # flake8: noqa: F401
 
@@ -49,8 +49,7 @@ if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
 # very easily cause import cycles in the conf init/validate code (since downstream code from
 # those functions likely import settings).
 # configuration is therefore initted early here, simply by importing it.
-from airflow import configuration
-from airflow import settings
+from airflow import configuration, settings
 
 __all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "XComArg"]
 
@@ -106,11 +105,6 @@ def __getattr__(name: str):
     return val
 
 
-if not settings.LAZY_LOAD_PLUGINS:
-    from airflow import plugins_manager
-
-    plugins_manager.ensure_plugins_loaded()
-
 if not settings.LAZY_LOAD_PROVIDERS:
     from airflow import providers_manager
 
@@ -118,6 +112,10 @@ if not settings.LAZY_LOAD_PROVIDERS:
     manager.initialize_providers_list()
     manager.initialize_providers_hooks()
     manager.initialize_providers_extra_links()
+if not settings.LAZY_LOAD_PLUGINS:
+    from airflow import plugins_manager
+
+    plugins_manager.ensure_plugins_loaded()
 
 
 # This is never executed, but tricks static analyzers (PyDev, PyCharm,)
@@ -126,7 +124,7 @@ if not settings.LAZY_LOAD_PROVIDERS:
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.models.dag import DAG
-    from airflow.models.xcom_arg import XComArg
     from airflow.exceptions import AirflowException
+    from airflow.models.dag import DAG
     from airflow.models.dataset import Dataset
+    from airflow.models.xcom_arg import XComArg

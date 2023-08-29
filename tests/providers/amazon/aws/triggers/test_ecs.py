@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
 from botocore.exceptions import WaiterError
 
+from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.ecs import (
@@ -29,7 +31,9 @@ from airflow.providers.amazon.aws.triggers.ecs import (
     ClusterInactiveTrigger,
     TaskDoneTrigger,
 )
-from airflow.triggers.base import TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.triggers.base import TriggerEvent
 
 
 class TestTaskDoneTrigger:
@@ -55,6 +59,26 @@ class TestTaskDoneTrigger:
             await generator.asend(None)
 
         assert wait_mock.call_count == 3
+
+    @pytest.mark.asyncio
+    @mock.patch.object(EcsHook, "async_conn")
+    # this mock is only necessary to avoid a "No module named 'aiobotocore'" error in the LatestBoto CI step
+    @mock.patch.object(AwsLogsHook, "async_conn")
+    async def test_run_until_timeout(self, _, client_mock):
+        a_mock = mock.MagicMock()
+        client_mock.__aenter__.return_value = a_mock
+        wait_mock = AsyncMock()
+        wait_mock.side_effect = WaiterError("name", "reason", {"tasks": [{"lastStatus": "my_status"}]})
+        a_mock.get_waiter().wait = wait_mock
+
+        trigger = TaskDoneTrigger("cluster", "task_arn", 0, 10, None, None)
+
+        with pytest.raises(AirflowException) as err:
+            generator = trigger.run()
+            await generator.asend(None)
+
+        assert wait_mock.call_count == 10
+        assert "max attempts" in str(err.value)
 
     @pytest.mark.asyncio
     @mock.patch.object(EcsHook, "async_conn")

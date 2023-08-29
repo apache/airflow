@@ -150,7 +150,7 @@ class ProjectStructureTest:
             if not isinstance(current_node, ast.ClassDef):
                 continue
             name = current_node.name
-            if not any(name.endswith(suffix) for suffix in self.CLASS_SUFFIXES):
+            if not name.endswith(tuple(self.CLASS_SUFFIXES)):
                 continue
             results[f"{module}.{name}"] = current_node
         return results
@@ -455,14 +455,12 @@ class TestDockerProviderProjectStructure(ExampleCoverageTest):
 class TestOperatorsHooks:
     def test_no_illegal_suffixes(self):
         illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
-        files = itertools.chain(
-            *(
-                glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
-                for resource_type in ["operators", "hooks", "sensors", "example_dags"]
-                for part in ["airflow", "tests"]
-            )
+        files = itertools.chain.from_iterable(
+            glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
+            for resource_type in ["operators", "hooks", "sensors", "example_dags"]
+            for part in ["airflow", "tests"]
         )
 
-        invalid_files = [f for f in files if any(f.endswith(suffix) for suffix in illegal_suffixes)]
+        invalid_files = [f for f in files if f.endswith(tuple(illegal_suffixes))]
 
         assert [] == invalid_files

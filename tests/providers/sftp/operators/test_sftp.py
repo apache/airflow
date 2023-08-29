@@ -18,13 +18,16 @@
 from __future__ import annotations
 
 import os
+import socket
 from base64 import b64encode
 from unittest import mock
 
+import paramiko
 import pytest
+from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG
+from airflow.models import DAG, Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -35,6 +38,18 @@ from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = datetime(2017, 1, 1)
 TEST_CONN_ID = "conn_id_for_testing"
+
+LOCAL_FILEPATH = "/path/local"
+REMOTE_FILEPATH = "/path/remote"
+LOCAL_DATASET = [
+    Dataset(namespace=f"file://{socket.gethostbyname(socket.gethostname())}:22", name=LOCAL_FILEPATH)
+]
+REMOTE_DATASET = [Dataset(namespace="file://remotehost:22", name=REMOTE_FILEPATH)]
+
+TEST_GET_PUT_PARAMS = [
+    (SFTPOperation.GET, (REMOTE_DATASET, LOCAL_DATASET)),
+    (SFTPOperation.PUT, (LOCAL_DATASET, REMOTE_DATASET)),
+]
 
 
 class TestSFTPOperator:
@@ -478,3 +493,96 @@ class TestSFTPOperator:
         return_value = sftp_op.execute(None)
         assert isinstance(return_value, str)
         assert return_value == local_filepath
+
+    @pytest.mark.parametrize(
+        "operation, expected",
+        TEST_GET_PUT_PARAMS,
+    )
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn", spec=paramiko.SSHClient)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_connection", spec=Connection)
+    def test_extract_ssh_conn_id(self, get_connection, get_conn, operation, expected):
+        get_connection.return_value = Connection(
+            conn_id="sftp_conn_id",
+            conn_type="sftp",
+            host="remotehost",
+            port=22,
+        )
+
+        dag_id = "sftp_dag"
+        task_id = "sftp_task"
+
+        task = SFTPOperator(
+            task_id=task_id,
+            ssh_conn_id="sftp_conn_id",
+            dag=DAG(dag_id),
+            start_date=timezone.utcnow(),
+            local_filepath="/path/local",
+            remote_filepath="/path/remote",
+            operation=operation,
+        )
+        lineage = task.get_openlineage_facets_on_start()
+
+        assert lineage.inputs == expected[0]
+        assert lineage.outputs == expected[1]
+
+    @pytest.mark.parametrize(
+        "operation, expected",
+        TEST_GET_PUT_PARAMS,
+    )
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn", spec=paramiko.SSHClient)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_connection", spec=Connection)
+    def test_extract_sftp_hook(self, get_connection, get_conn, operation, expected):
+        get_connection.return_value = Connection(
+            conn_id="sftp_conn_id",
+            conn_type="sftp",
+            host="remotehost",
+            port=22,
+        )
+
+        dag_id = "sftp_dag"
+        task_id = "sftp_task"
+
+        task = SFTPOperator(
+            task_id=task_id,
+            sftp_hook=SFTPHook(ssh_conn_id="sftp_conn_id"),
+            dag=DAG(dag_id),
+            start_date=timezone.utcnow(),
+            local_filepath="/path/local",
+            remote_filepath="/path/remote",
+            operation=operation,
+        )
+        lineage = task.get_openlineage_facets_on_start()
+
+        assert lineage.inputs == expected[0]
+        assert lineage.outputs == expected[1]
+
+    @pytest.mark.parametrize(
+        "operation, expected",
+        TEST_GET_PUT_PARAMS,
+    )
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn", spec=paramiko.SSHClient)
+    @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_connection", spec=Connection)
+    def test_extract_ssh_hook(self, get_connection, get_conn, operation, expected):
+        get_connection.return_value = Connection(
+            conn_id="sftp_conn_id",
+            conn_type="sftp",
+            host="remotehost",
+            port=22,
+        )
+
+        dag_id = "sftp_dag"
+        task_id = "sftp_task"
+
+        task = SFTPOperator(
+            task_id=task_id,
+            ssh_hook=SSHHook(ssh_conn_id="sftp_conn_id"),
+            dag=DAG(dag_id),
+            start_date=timezone.utcnow(),
+            local_filepath="/path/local",
+            remote_filepath="/path/remote",
+            operation=operation,
+        )
+        lineage = task.get_openlineage_facets_on_start()
+
+        assert lineage.inputs == expected[0]
+        assert lineage.outputs == expected[1]

@@ -238,6 +238,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                     "instances": [
                         {
                             "run_id": "run_1",
+                            "queued_dttm": None,
                             "start_date": None,
                             "end_date": None,
                             "note": None,
@@ -247,6 +248,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                         },
                         {
                             "run_id": "run_2",
+                            "queued_dttm": None,
                             "start_date": None,
                             "end_date": None,
                             "note": None,
@@ -270,6 +272,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                                 {
                                     "run_id": "run_1",
                                     "mapped_states": {"success": 3},
+                                    "queued_dttm": None,
                                     "start_date": None,
                                     "end_date": None,
                                     "state": "success",
@@ -278,6 +281,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                                 {
                                     "run_id": "run_2",
                                     "mapped_states": {"no_status": 3},
+                                    "queued_dttm": None,
                                     "start_date": None,
                                     "end_date": None,
                                     "state": None,
@@ -297,12 +301,14 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                             "end_date": None,
                             "run_id": "run_1",
                             "mapped_states": {"success": 3},
+                            "queued_dttm": None,
                             "start_date": None,
                             "state": "success",
                             "task_id": "mapped_task_group",
                         },
                         {
                             "run_id": "run_2",
+                            "queued_dttm": None,
                             "start_date": None,
                             "end_date": None,
                             "state": None,
@@ -323,6 +329,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                                 {
                                     "run_id": "run_1",
                                     "mapped_states": {"success": 4},
+                                    "queued_dttm": None,
                                     "start_date": None,
                                     "end_date": None,
                                     "state": "success",
@@ -331,6 +338,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                                 {
                                     "run_id": "run_2",
                                     "mapped_states": {"no_status": 2, "running": 1, "success": 1},
+                                    "queued_dttm": None,
                                     "start_date": "2021-07-01T01:00:00+00:00",
                                     "end_date": "2021-07-01T01:02:03+00:00",
                                     "state": "running",
@@ -348,12 +356,14 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                         {
                             "end_date": None,
                             "run_id": "run_1",
+                            "queued_dttm": None,
                             "start_date": None,
                             "state": "success",
                             "task_id": "group",
                         },
                         {
                             "run_id": "run_2",
+                            "queued_dttm": None,
                             "start_date": "2021-07-01T01:00:00+00:00",
                             "end_date": "2021-07-01T01:02:03+00:00",
                             "state": "running",

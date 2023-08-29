@@ -337,6 +337,34 @@ class TestEksCreateClusterOperator:
         ):
             missing_fargate_pod_execution_role_arn.execute({})
 
+    @mock.patch.object(EksHook, "create_cluster")
+    def test_eks_create_cluster_short_circuit_early(self, mock_create_cluster, caplog):
+        mock_create_cluster.return_value = None
+        eks_create_cluster_operator = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute=None,
+            wait_for_completion=False,
+            deferrable=False,
+        )
+        eks_create_cluster_operator.execute({})
+        assert len(caplog.records) == 0
+
+    @mock.patch.object(EksHook, "create_cluster")
+    def test_eks_create_cluster_with_deferrable(self, mock_create_cluster, caplog):
+        mock_create_cluster.return_value = None
+
+        eks_create_cluster_operator = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute=None,
+            wait_for_completion=False,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred):
+            eks_create_cluster_operator.execute({})
+        assert "Waiting for EKS Cluster to provision. This will take some time." in caplog.messages
+
 
 class TestEksCreateFargateProfileOperator:
     def setup_method(self) -> None:
@@ -541,6 +569,11 @@ class TestEksDeleteClusterOperator:
         mock_delete_cluster.assert_called_once_with(name=self.cluster_name)
         mock_waiter.assert_called_with(mock.ANY, name=CLUSTER_NAME)
         assert_expected_waiter_type(mock_waiter, "ClusterDeleted")
+
+    def test_eks_delete_cluster_operator_with_deferrable(self):
+        self.delete_cluster_operator.deferrable = True
+        with pytest.raises(TaskDeferred):
+            self.delete_cluster_operator.execute({})
 
 
 class TestEksDeleteNodegroupOperator:

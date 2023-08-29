@@ -18,7 +18,18 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Protocol, Sequence, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Mapping,
+    Protocol,
+    Sequence,
+    TypeVar,
+    cast,
+    overload,
+)
 from urllib.parse import urlparse
 
 import sqlparse
@@ -32,6 +43,9 @@ from airflow.version import version
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+
+T = TypeVar("T")
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
@@ -184,7 +198,7 @@ class DbApiHook(BaseForDbApiHook):
             engine_kwargs = {}
         return create_engine(self.get_uri(), **engine_kwargs)
 
-    def get_pandas_df(self, sql, parameters=None, **kwargs):
+    def get_pandas_df(self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):
         """
         Executes the sql and returns a pandas dataframe.
 
@@ -204,7 +218,9 @@ class DbApiHook(BaseForDbApiHook):
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
-    def get_pandas_df_by_chunks(self, sql, parameters=None, *, chunksize, **kwargs):
+    def get_pandas_df_by_chunks(
+        self, sql, parameters: Iterable | Mapping[str, Any] | None = None, *, chunksize: int | None, **kwargs
+    ):
         """
         Executes the sql and returns a generator.
 
@@ -228,7 +244,7 @@ class DbApiHook(BaseForDbApiHook):
     def get_records(
         self,
         sql: str | list[str],
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> Any:
         """
         Executes the sql and returns a set of records.
@@ -238,7 +254,7 @@ class DbApiHook(BaseForDbApiHook):
         """
         return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 
@@ -268,15 +284,39 @@ class DbApiHook(BaseForDbApiHook):
             return None
         return self.descriptions[-1]
 
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None:
+        ...
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> T | list[T]:
+        ...
+
     def run(
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
-        handler: Callable | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> Any | list[Any] | None:
+    ) -> T | list[T] | None:
         """Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
@@ -558,13 +598,19 @@ class DbApiHook(BaseForDbApiHook):
         """
 
     @staticmethod
-    def get_openlineage_authority_part(connection) -> str:
+    def get_openlineage_authority_part(connection, default_port: int | None = None) -> str:
         """
         This method serves as common method for several hooks to get authority part from Airflow Connection.
 
         The authority represents the hostname and port of the connection
         and conforms OpenLineage naming convention for a number of databases (e.g. MySQL, Postgres, Trino).
+
+        :param default_port: (optional) used if no port parsed from connection URI
         """
         parsed = urlparse(connection.get_uri())
-        authority = f"{parsed.hostname}:{parsed.port}"
+        port = parsed.port or default_port
+        if port:
+            authority = f"{parsed.hostname}:{port}"
+        else:
+            authority = parsed.hostname
         return authority

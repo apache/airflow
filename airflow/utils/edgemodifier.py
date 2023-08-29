@@ -24,8 +24,9 @@ from airflow.utils.task_group import TaskGroup
 
 class EdgeModifier(DependencyMixin):
     """
-    Class that represents edge information to be added between two
-    tasks/operators. Has shorthand factory functions, like Label("hooray").
+    Class that represents edge information to be added between two tasks/operators.
+
+    Has shorthand factory functions, like Label("hooray").
 
     Current implementation supports
         t1 >> Label("Success route") >> t2
@@ -77,8 +78,9 @@ class EdgeModifier(DependencyMixin):
 
     def _convert_streams_to_task_groups(self):
         """
-        Both self._upstream and self._downstream are required to determine if
-        we should convert a node to a TaskGroup or leave it as a DAGNode.
+        Convert a node to a TaskGroup or leave it as a DAGNode.
+
+        Requires both self._upstream and self._downstream.
 
         To do this, we keep a set of group_ids seen among the streams. If we find that
         the nodes are from the same TaskGroup, we will leave them as DAGNodes and not
@@ -121,8 +123,7 @@ class EdgeModifier(DependencyMixin):
         edge_modifier: EdgeModifier | None = None,
     ):
         """
-        Sets the given task/list onto the upstream attribute, and then checks if
-        we have both sides so we can resolve the relationship.
+        Set the given task/list onto the upstream attribute, then attempt to resolve the relationship.
 
         Providing this also provides << via DependencyMixin.
         """
@@ -139,8 +140,7 @@ class EdgeModifier(DependencyMixin):
         edge_modifier: EdgeModifier | None = None,
     ):
         """
-        Sets the given task/list onto the downstream attribute, and then checks if
-        we have both sides so we can resolve the relationship.
+        Set the given task/list onto the downstream attribute, then attempt to resolve the relationship.
 
         Providing this also provides >> via DependencyMixin.
         """
@@ -154,10 +154,7 @@ class EdgeModifier(DependencyMixin):
     def update_relative(
         self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
     ) -> None:
-        """
-        Called if we're not the "main" side of a relationship; we still run the
-        same logic, though.
-        """
+        """Update relative if we're not the "main" side of a relationship; still run the same logic."""
         if upstream:
             self.set_upstream(other)
         else:
@@ -165,7 +162,7 @@ class EdgeModifier(DependencyMixin):
 
     def add_edge_info(self, dag, upstream_id: str, downstream_id: str):
         """
-        Adds or updates task info on the DAG for this specific pair of tasks.
+        Add or update task info on the DAG for this specific pair of tasks.
 
         Called either from our relationship trigger methods above, or directly
         by set_upstream/set_downstream in operators.
@@ -175,5 +172,5 @@ class EdgeModifier(DependencyMixin):
 
 # Factory functions
 def Label(label: str):
-    """Creates an EdgeModifier that sets a human-readable label on the edge."""
+    """Create an EdgeModifier that sets a human-readable label on the edge."""
     return EdgeModifier(label=label)

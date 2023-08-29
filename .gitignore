@@ -1,6 +1,5 @@
 # Airflow configuration
 airflow.cfg
-unittests.cfg
 airflow_login.py
 dbinit.py
 initdb.py
@@ -8,7 +7,6 @@ secrets.py
 
 # Airflow sqlite databases
 airflow.db
-unittests.db
 
 # Airflow temporary artifacts
 airflow/git_version

@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+3.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move redis subscribe to poke() method in Redis Sensor (#32984)``
+* ``Fix oversubsription of Redis pubsub sensor (#33139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Redis task handler (#31855)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 3.2.1
 .....
 

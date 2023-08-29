@@ -30,21 +30,21 @@ from airflow.providers.google.cloud.operators.dataproc import (
 )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "dataproc_workflow"
+DAG_ID = "dataproc_workflow_def"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 REGION = "europe-west1"
-CLUSTER_NAME = f"cluster-dataproc-workflow-{ENV_ID}"
+CLUSTER_NAME = f"{ENV_ID}-{DAG_ID}".replace("_", "-")
 CLUSTER_CONFIG = {
     "master_config": {
         "num_instances": 1,
         "machine_type_uri": "n1-standard-4",
-        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
     "worker_config": {
         "num_instances": 2,
         "machine_type_uri": "n1-standard-4",
-        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
 }
 PIG_JOB = {"query_list": {"queries": ["define sin HiveUDF('sin');"]}}
@@ -66,7 +66,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "dataproc", "workflow", "deferrable"],
 ) as dag:
     create_workflow_template = DataprocCreateWorkflowTemplateOperator(
         task_id="create_workflow_template",
@@ -94,7 +94,14 @@ with models.DAG(
     )
     # [END how_to_cloud_dataproc_instantiate_inline_workflow_template_async]
 
-    (create_workflow_template >> trigger_workflow_async >> instantiate_inline_workflow_template_async)
+    (
+        # TEST SETUP
+        create_workflow_template
+        # TEST BODY
+        >> trigger_workflow_async
+        # TEST TEARDOWN
+        >> instantiate_inline_workflow_template_async
+    )
 
     from tests.system.utils.watcher import watcher
 

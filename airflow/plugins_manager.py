@@ -28,19 +28,18 @@ import sys
 import types
 from typing import TYPE_CHECKING, Any, Iterable
 
-try:
-    import importlib_metadata
-except ImportError:
-    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
-
-from types import ModuleType
-
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
-from airflow.utils.module_loading import qualname
+from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
+    try:
+        import importlib_metadata
+    except ImportError:
+        from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
+    from types import ModuleType
+
     from airflow.hooks.base import BaseHook
     from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable
@@ -50,6 +49,7 @@ log = logging.getLogger(__name__)
 import_errors: dict[str, str] = {}
 
 plugins: list[AirflowPlugin] | None = None
+loaded_plugins: set[str] = set()
 
 # Plugin components to integrate as modules
 registered_hooks: list[BaseHook] | None = None
@@ -206,9 +206,16 @@ def register_plugin(plugin_instance):
     """
     Start plugin load and register it after success initialization.
 
+    If plugin is already registered, do nothing.
+
     :param plugin_instance: subclass of AirflowPlugin
     """
     global plugins
+
+    if plugin_instance.name in loaded_plugins:
+        return
+
+    loaded_plugins.add(plugin_instance.name)
     plugin_instance.on_load()
     plugins.append(plugin_instance)
 
@@ -267,6 +274,26 @@ def load_plugins_from_plugin_directory():
             import_errors[file_path] = str(e)
 
 
+def load_providers_plugins():
+    from airflow.providers_manager import ProvidersManager
+
+    log.debug("Loading plugins from providers")
+    providers_manager = ProvidersManager()
+    providers_manager.initialize_providers_plugins()
+    for plugin in providers_manager.plugins:
+        log.debug("Importing plugin %s from class %s", plugin.name, plugin.plugin_class)
+
+        try:
+            plugin_instance = import_string(plugin.plugin_class)
+            if not is_valid_plugin(plugin_instance):
+                log.warning("Plugin %s is not a valid plugin", plugin.name)
+                continue
+            register_plugin(plugin_instance)
+        except ImportError:
+            log.exception("Failed to load plugin %s from class name %s", plugin.name, plugin.plugin_class)
+            continue
+
+
 def make_module(name: str, objects: list[Any]):
     """Creates new module."""
     if not objects:
@@ -305,6 +332,9 @@ def ensure_plugins_loaded():
 
         load_plugins_from_plugin_directory()
         load_entrypoint_plugins()
+
+        if not settings.LAZY_LOAD_PROVIDERS:
+            load_providers_plugins()
 
         # We don't do anything with these for now, but we want to keep track of
         # them so we can integrate them in to the UI's Connection screens

@@ -17,7 +17,6 @@
 """Connection sub-commands."""
 from __future__ import annotations
 
-import io
 import json
 import os
 import sys
@@ -30,6 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import is_stdout
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
@@ -39,6 +39,8 @@ from airflow.providers_manager import ProvidersManager
 from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, helpers, yaml
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.db import create_default_connections as db_create_default_connections
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
 
 
@@ -61,6 +63,7 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def connections_get(args):
     """Get a connection."""
     try:
@@ -75,8 +78,9 @@ def connections_get(args):
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def connections_list(args):
-    """Lists all connections at the command line."""
+    """List all connections at the command line."""
     with create_session() as session:
         query = select(Connection)
         if args.conn_id:
@@ -92,21 +96,28 @@ def connections_list(args):
 
 
 def _connection_to_dict(conn: Connection) -> dict:
-    return dict(
-        conn_type=conn.conn_type,
-        description=conn.description,
-        login=conn.login,
-        password=conn.password,
-        host=conn.host,
-        port=conn.port,
-        schema=conn.schema,
-        extra=conn.extra,
-    )
+    return {
+        "conn_type": conn.conn_type,
+        "description": conn.description,
+        "login": conn.login,
+        "password": conn.password,
+        "host": conn.host,
+        "port": conn.port,
+        "schema": conn.schema,
+        "extra": conn.extra,
+    }
+
+
+def create_default_connections(args):
+    db_create_default_connections()
 
 
 def _format_connections(conns: list[Connection], file_format: str, serialization_format: str) -> str:
     if serialization_format == "json":
-        serializer_func = lambda x: json.dumps(_connection_to_dict(x))
+
+        def serializer_func(x):
+            return json.dumps(_connection_to_dict(x))
+
     elif serialization_format == "uri":
         serializer_func = Connection.get_uri
     else:
@@ -130,10 +141,6 @@ def _format_connections(conns: list[Connection], file_format: str, serialization
     return json.dumps(connections_dict)
 
 
-def _is_stdout(fileio: io.TextIOWrapper) -> bool:
-    return fileio.name == "<stdout>"
-
-
 def _valid_uri(uri: str) -> bool:
     """Check if a URI is valid, by checking if scheme (conn_type) provided."""
     return urlsplit(uri).scheme != ""
@@ -141,8 +148,8 @@ def _valid_uri(uri: str) -> bool:
 
 @cache
 def _get_connection_types() -> list[str]:
-    """Returns connection types available."""
-    _connection_types = ["fs", "mesos_framework-id", "email", "generic"]
+    """Return connection types available."""
+    _connection_types = []
     providers_manager = ProvidersManager()
     for connection_type, provider_info in providers_manager.hooks.items():
         if provider_info:
@@ -150,8 +157,9 @@ def _get_connection_types() -> list[str]:
     return _connection_types
 
 
+@providers_configuration_loaded
 def connections_export(args):
-    """Exports all connections to a file."""
+    """Export all connections to a file."""
     file_formats = [".yaml", ".json", ".env"]
     if args.format:
         warnings.warn("Option `--format` is deprecated.  Use `--file-format` instead.", DeprecationWarning)
@@ -162,32 +170,30 @@ def connections_export(args):
     if args.format or args.file_format:
         provided_file_format = f".{(args.format or args.file_format).lower()}"
 
-    file_is_stdout = _is_stdout(args.file)
-    if file_is_stdout:
-        filetype = provided_file_format or default_format
-    elif provided_file_format:
-        filetype = provided_file_format
-    else:
-        filetype = Path(args.file.name).suffix
-        filetype = filetype.lower()
-        if filetype not in file_formats:
-            raise SystemExit(
-                f"Unsupported file format. The file must have the extension {', '.join(file_formats)}."
-            )
-
-    if args.serialization_format and not filetype == ".env":
-        raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
-
-    with create_session() as session:
-        connections = session.scalars(select(Connection).order_by(Connection.conn_id)).all()
-
-    msg = _format_connections(
-        conns=connections,
-        file_format=filetype,
-        serialization_format=args.serialization_format or "uri",
-    )
-
     with args.file as f:
+        if file_is_stdout := is_stdout(f):
+            filetype = provided_file_format or default_format
+        elif provided_file_format:
+            filetype = provided_file_format
+        else:
+            filetype = Path(args.file.name).suffix.lower()
+            if filetype not in file_formats:
+                raise SystemExit(
+                    f"Unsupported file format. The file must have the extension {', '.join(file_formats)}."
+                )
+
+        if args.serialization_format and not filetype == ".env":
+            raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
+
+        with create_session() as session:
+            connections = session.scalars(select(Connection).order_by(Connection.conn_id)).all()
+
+        msg = _format_connections(
+            conns=connections,
+            file_format=filetype,
+            serialization_format=args.serialization_format or "uri",
+        )
+
         f.write(msg)
 
     if file_is_stdout:
@@ -200,8 +206,9 @@ alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def connections_add(args):
-    """Adds new connection."""
+    """Add new connection."""
     has_uri = bool(args.conn_uri)
     has_json = bool(args.conn_json)
     has_type = bool(args.conn_type)
@@ -291,8 +298,9 @@ def connections_add(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def connections_delete(args):
-    """Deletes connection from DB."""
+    """Delete connection from DB."""
     with create_session() as session:
         try:
             to_delete = session.scalars(select(Connection).where(Connection.conn_id == args.conn_id)).one()
@@ -306,8 +314,9 @@ def connections_delete(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def connections_import(args):
-    """Imports connections from a file."""
+    """Import connections from a file."""
     if os.path.exists(args.file):
         _import_helper(args.file, args.overwrite)
     else:
@@ -343,6 +352,7 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def connections_test(args) -> None:
     """Test an Airflow connection."""
     console = AirflowConsole()

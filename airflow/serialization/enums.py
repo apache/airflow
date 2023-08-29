@@ -55,3 +55,4 @@ class DagAttributeTypes(str, Enum):
     TASK_INSTANCE = "task_instance"
     DAG_RUN = "dag_run"
     DATA_SET = "data_set"
+    ARG_NOT_SET = "arg_not_set"

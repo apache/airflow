@@ -336,8 +336,8 @@ class TestDagRun:
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
-    def test_dagrun_no_deadlock_with_shutdown(self, session):
-        dag = DAG("test_dagrun_no_deadlock_with_shutdown", start_date=DEFAULT_DATE)
+    def test_dagrun_no_deadlock_with_restarting(self, session):
+        dag = DAG("test_dagrun_no_deadlock_with_restarting", start_date=DEFAULT_DATE)
         with dag:
             op1 = EmptyOperator(task_id="upstream_task")
             op2 = EmptyOperator(task_id="downstream_task")
@@ -351,7 +351,7 @@ class TestDagRun:
             start_date=DEFAULT_DATE,
         )
         upstream_ti = dr.get_task_instance(task_id="upstream_task")
-        upstream_ti.set_state(TaskInstanceState.SHUTDOWN, session=session)
+        upstream_ti.set_state(TaskInstanceState.RESTARTING, session=session)
 
         dr.update_state()
         assert dr.state == DagRunState.RUNNING
@@ -1706,7 +1706,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
         (1, State.NONE),
         (2, State.NONE),
     ]
-    ti1 = [i for i in tis if i.map_index == 0][0]
+    ti1 = next(i for i in tis if i.map_index == 0)
     # Now "clear" and "reduce" the length to empty list
     dag.clear()
     Variable.set(key="arg1", value=[])

@@ -29,6 +29,18 @@
     "database",
     "flask"
   ],
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
   "devDependencies": {
     "@babel/core": "^7.18.5",
     "@babel/eslint-parser": "^7.18.2",
@@ -117,7 +129,7 @@
     "nvd3": "^1.8.6",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "react-icons": "^4.3.1",
+    "react-icons": "^4.9.0",
     "react-json-view": "^1.21.3",
     "react-markdown": "^8.0.4",
     "react-query": "^3.39.1",
@@ -125,7 +137,7 @@
     "react-syntax-highlighter": "^15.5.0",
     "react-table": "^7.8.0",
     "react-textarea-autosize": "^8.3.4",
-    "reactflow": "^11.4.0",
+    "reactflow": "^11.7.4",
     "redoc": "^2.0.0-rc.72",
     "remark-gfm": "^3.0.1",
     "swagger-ui-dist": "4.1.3",

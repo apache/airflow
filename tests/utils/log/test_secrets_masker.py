@@ -24,6 +24,7 @@ import logging.config
 import os
 import sys
 import textwrap
+from enum import Enum
 from unittest.mock import patch
 
 import pytest
@@ -36,11 +37,16 @@ from airflow.utils.log.secrets_masker import (
     redact,
     should_hide_value_for_key,
 )
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from tests.test_utils.config import conf_vars
 
 settings.MASK_SECRETS_IN_LOGS = True
 
 p = "password"
+
+
+class MyEnum(str, Enum):
+    testname = "testvalue"
 
 
 @pytest.fixture
@@ -298,6 +304,23 @@ class TestSecretsMasker:
         with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=secrets_masker):
             got = redact(val, max_depth=max_depth)
             assert got == expected
+
+    @pytest.mark.parametrize(
+        "state, expected",
+        [
+            (DagRunState.SUCCESS, "success"),
+            (TaskInstanceState.FAILED, "failed"),
+            (JobState.RUNNING, "running"),
+            ([DagRunState.SUCCESS, DagRunState.RUNNING], ["success", "running"]),
+            ([TaskInstanceState.FAILED, TaskInstanceState.SUCCESS], ["failed", "success"]),
+            (State.failed_states, frozenset([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])),
+            (MyEnum.testname, "testvalue"),
+        ],
+    )
+    def test_redact_state_enum(self, logger, caplog, state, expected):
+        logger.info("State: %s", state)
+        assert caplog.text == f"INFO State: {expected}\n"
+        assert "TypeError" not in caplog.text
 
 
 class TestShouldHideValueForKey:

@@ -31,9 +31,9 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+from urllib.parse import urlparse
 
 import yaml
-from future.backports.urllib.parse import urlparse
 
 from airflow import models
 from airflow.models.baseoperator import chain

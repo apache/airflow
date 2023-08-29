@@ -282,6 +282,10 @@ def get_command_hash_export() -> str:
         options = rich_click.rich_click.OPTION_GROUPS
         for command in sorted(commands_dict.keys()):
             current_command_dict = commands_dict[command]
+            current_command_hash_dict = {
+                "command": current_command_dict,
+                "options": rich_click.rich_click.COMMAND_GROUPS.get(f"breeze {command}"),
+            }
             if "commands" in current_command_dict:
                 subcommands = current_command_dict["commands"]
                 for subcommand in sorted(subcommands.keys()):
@@ -293,7 +297,7 @@ def get_command_hash_export() -> str:
                             f"[error]The `breeze {command} {subcommand}` is missing in rich-click options[/]"
                         )
                         get_console().print(
-                            "[info]Please add add it to rich_click.OPTION_GROUPS "
+                            "[info]Please add it to rich_click.OPTION_GROUPS "
                             "via one of the `*_commands_config.py` "
                             "files in `dev/breeze/src/airflow_breeze/commands`[/]"
                         )
@@ -303,10 +307,10 @@ def get_command_hash_export() -> str:
                         "rich_click_options": subcommand_rich_click_dict,
                     }
                     hashes.append(f"{command}:{subcommand}:{dict_hash(final_dict)}")
-                hashes.append(f"{command}:{dict_hash(current_command_dict)}")
+                hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
             else:
-                hashes.append(f"{command}:{dict_hash(current_command_dict)}")
-    return "\n".join(hashes) + "\n"
+                hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
+    return "".join(f"{h}\n" for h in hashes)
 
 
 def write_to_shell(command_to_execute: str, script_path: str, force_setup: bool) -> bool:
@@ -406,7 +410,7 @@ def get_command_hash_dict(hash_file_content: str) -> dict[str, str]:
     results = {}
     for line in hash_file_content.splitlines():
         strip_line = line.strip()
-        if strip_line.strip() == "" or strip_line.startswith("#"):
+        if not strip_line or strip_line.startswith("#"):
             continue
         command = ":".join(strip_line.split(":")[:-1])
         the_hash = strip_line.split(":")[-1]

@@ -52,7 +52,7 @@ repos:
           - --comment-style
           - "/*||*/"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all RST files
@@ -61,7 +61,7 @@ repos:
           - --comment-style
           - "||"
           - --license-filepath
-          - license-templates/LICENSE.rst
+          - scripts/ci/license-templates/LICENSE.rst
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
@@ -72,7 +72,7 @@ repos:
           - --comment-style
           - "/*!| *| */"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all JINJA template files
@@ -82,7 +82,7 @@ repos:
           - --comment-style
           - "{#||#}"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Shell files
@@ -92,7 +92,7 @@ repos:
           - --comment-style
           - "|#|"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Python files
@@ -102,7 +102,7 @@ repos:
           - --comment-style
           - "|#|"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all XML files
@@ -112,7 +112,7 @@ repos:
           - --comment-style
           - "<!--||-->"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Helm template files
@@ -121,7 +121,7 @@ repos:
           - --comment-style
           - "{{/*||*/}}"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
@@ -132,7 +132,7 @@ repos:
           - --comment-style
           - "|#|"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Markdown files
@@ -142,7 +142,7 @@ repos:
           - --comment-style
           - "<!--|| -->"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all other files
@@ -151,7 +151,7 @@ repos:
           - --comment-style
           - "|#|"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
@@ -188,7 +188,7 @@ repos:
         # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
         # host CPU to it's fullest
         entry: ruff --fix --force-exclude
-        additional_dependencies: ['ruff==0.0.272']
+        additional_dependencies: ['ruff==0.0.282']
         files: \.pyi?$
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
   - repo: https://github.com/asottile/blacken-docs
@@ -333,6 +333,22 @@ repos:
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-airflow-k8s-not-used
+        name: Check airflow.kubernetes imports are not used
+        language: python
+        files: ^airflow/.*\.py$
+        require_serial: true
+        exclude: ^airflow/kubernetes/
+        entry: ./scripts/ci/pre_commit/pre_commit_check_airflow_k8s_not_used.py
+        additional_dependencies: ['rich>=12.4.4']
+      - id: check-cncf-k8s-only-for-executors
+        name: Check cncf.kubernetes imports used for executors only
+        language: python
+        files: ^airflow/.*\.py$
+        require_serial: true
+        exclude: ^airflow/kubernetes/|^airflow/providers/
+        entry: ./scripts/ci/pre_commit/pre_commit_check_cncf_k8s_used_for_k8s_executor_only.py
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-extra-packages-references
         name: Checks setup extra packages
         description: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
@@ -346,6 +362,14 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_airflow_compatibility.py
         language: python
         pass_filenames: true
+        files: ^airflow/providers/.*\.py$
+        additional_dependencies: ['rich>=12.4.4']
+      - id: check-google-re2-as-dependency
+        name: Check google-re2 is declared as dependency when needed
+        entry: ./scripts/ci/pre_commit/pre_commit_check_google_re2_imports.py
+        language: python
+        pass_filenames: true
+        require_serial: true
         files: ^airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: update-local-yml-file
@@ -388,7 +412,8 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_version_heads_map.py
         pass_filenames: false
-        additional_dependencies: ['packaging']
+        files: ^airflow/migrations/versions|^airflow/__init__.py$
+        additional_dependencies: ['packaging','google-re2']
       - id: update-version
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
@@ -475,6 +500,7 @@ repos:
         exclude: >
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
+          ^airflow/auth/managers/fab/security_manager/|
           ^airflow/cli/commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
@@ -618,14 +644,6 @@ repos:
         pass_filenames: true
         additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
         require_serial: true
-      - id: check-airflow-config-yaml-consistent
-        name: Check consistency between config.yml and default_config.cfg
-        language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_yaml_to_cfg.py
-        files: config\.yml$|default_airflow\.cfg$|default\.cfg$
-        pass_filenames: false
-        require_serial: true
-        additional_dependencies: ['pyyaml', 'packaging']
       - id: check-boring-cyborg-configuration
         name: Checks for Boring Cyborg configuration consistency
         language: python
@@ -833,7 +851,6 @@ repos:
         language: python
         pass_filenames: true
         files: ^\.github/workflows/.*\.yml$
-        exclude: ^\.github/workflows/sync_authors\.yml$
         additional_dependencies: ['PyYAML', 'rich>=12.4.4']
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types

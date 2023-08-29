@@ -31,68 +31,75 @@ with DAG(
 ) as dag:
 
     @task
-    def task_1():
+    def my_first_task():
         print("Hello 1")
 
     @task
-    def task_2():
+    def my_second_task():
         print("Hello 2")
 
     @task
-    def task_3():
+    def my_third_task():
         print("Hello 3")
 
     # you can set setup / teardown relationships with the `as_teardown` method.
-    t1 = task_1()
-    t2 = task_2()
-    t3 = task_3()
-    t1 >> t2 >> t3.as_teardown(setups=t1)
+    task_1 = my_first_task()
+    task_2 = my_second_task()
+    task_3 = my_third_task()
+    task_1 >> task_2 >> task_3.as_teardown(setups=task_1)
 
-    # the method `as_teadrown` will mark t3 as teardown, t1 as setup, and arrow t1 >> t3
-    # now if you clear t2 (downstream), then t1 will be cleared in addition to t3
+    # The method `as_teardown` will mark task_3 as teardown, task_1 as setup, and
+    # arrow task_1 >> task_3.
+    # Now if you clear task_2, then its setup task, task_1, will be cleared in
+    # addition to its teardown task, task_3
 
     # it's also possible to use a decorator to mark a task as setup or
     # teardown when you define it. see below.
 
     @setup
-    def dag_setup():
-        print("I am dag_setup")
+    def outer_setup():
+        print("I am outer_setup")
+        return "some cluster id"
 
     @teardown
-    def dag_teardown():
-        print("I am dag_teardown")
+    def outer_teardown(cluster_id):
+        print("I am outer_teardown")
+        print(f"Tearing down cluster: {cluster_id}")
 
     @task
-    def dag_normal_task():
+    def outer_work():
         print("I am just a normal task")
-
-    s = dag_setup()
-    t = dag_teardown()
-
-    # by using the decorators, dag_setup and dag_teardown are already marked as setup / teardown
-    # now we just need to make sure they are linked directly
-    # what we need to do is this::
-    #     s >> t
-    #     s >> dag_normal_task() >> t
-    # but we can use a context manager to make it cleaner
-    with s >> t:
-        dag_normal_task()
 
     @task_group
     def section_1():
-        @task
-        def my_setup():
+        @setup
+        def inner_setup():
             print("I set up")
+            return "some_cluster_id"
 
         @task
-        def my_teardown():
-            print("I tear down")
+        def inner_work(cluster_id):
+            print(f"doing some work with {cluster_id=}")
 
-        @task
-        def hello():
-            print("I say hello")
+        @teardown
+        def inner_teardown(cluster_id):
+            print(f"tearing down {cluster_id=}")
 
-        (s := my_setup()) >> hello() >> my_teardown().as_teardown(setups=s)
+        # this passes the return value of `inner_setup` to both `inner_work` and `inner_teardown`
+        inner_setup_task = inner_setup()
+        inner_work(inner_setup_task) >> inner_teardown(inner_setup_task)
 
-    # and let's put section 1 inside the "dag setup" and "dag teardown"
-    s >> section_1() >> t
+    # by using the decorators, outer_setup and outer_teardown are already marked as setup / teardown
+    # now we just need to make sure they are linked directly.  At a low level, what we need
+    # to do so is the following::
+    #     s = outer_setup()
+    #     t = outer_teardown()
+    #     s >> t
+    #     s >> outer_work() >> t
+    # Thus, s and t are linked directly, and outer_work runs in between.  We can take advantage of
+    # the fact that we are in taskflow, along with the context manager on teardowns, as follows:
+    with outer_teardown(outer_setup()):
+        outer_work()
+
+        # and let's put section 1 inside the outer setup and teardown tasks
+        section_1()

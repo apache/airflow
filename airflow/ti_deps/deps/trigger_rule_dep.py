@@ -22,12 +22,10 @@ import collections.abc
 import functools
 from typing import TYPE_CHECKING, Iterator, NamedTuple
 
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, select
 
-from airflow.models import MappedOperator
 from airflow.models.taskinstance import PAST_DEPENDS_MET
-from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep, TIDepStatus
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule as TR
 
@@ -36,6 +34,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.ti_deps.dep_context import DepContext
+    from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
 
 class _UpstreamTIStates(NamedTuple):
@@ -68,8 +68,7 @@ class _UpstreamTIStates(NamedTuple):
         for ti in finished_upstreams:
             curr_state = {ti.state: 1}
             counter.update(curr_state)
-            # setup task cannot be mapped
-            if not isinstance(ti.task, MappedOperator) and ti.task.is_setup:
+            if ti.task.is_setup:
                 setup_counter.update(curr_state)
         return _UpstreamTIStates(
             success=counter.get(TaskInstanceState.SUCCESS, 0),
@@ -227,18 +226,17 @@ class TriggerRuleDep(BaseTIDep):
         # "simple" tasks (no task or task group mapping involved).
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
-            upstream_setup = len(
-                [x for x in upstream_tasks.values() if not isinstance(x, MappedOperator) and x.is_setup]
-            )
+            upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
         else:
-            upstream = (
-                session.query(func.count())
-                .filter(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
-                .filter(or_(*_iter_upstream_conditions()))
-                .scalar()
-            )
-            # todo: add support for mapped setup?
-            upstream_setup = None
+            task_id_counts = session.execute(
+                select(TaskInstance.task_id, func.count(TaskInstance.task_id))
+                .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                .where(or_(*_iter_upstream_conditions()))
+                .group_by(TaskInstance.task_id)
+            ).all()
+            upstream = sum(count for _, count in task_id_counts)
+            upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
+
         upstream_done = done >= upstream
 
         changed = False
@@ -297,7 +295,7 @@ class TriggerRuleDep(BaseTIDep):
                 )
                 if not past_depends_met:
                     yield self._failing_status(
-                        reason=("Task should be skipped but the the past depends are not met")
+                        reason=("Task should be skipped but the past depends are not met")
                     )
                     return
             changed = ti.set_state(new_state, session)

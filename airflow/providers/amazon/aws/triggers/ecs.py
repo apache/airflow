@@ -18,16 +18,19 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from botocore.exceptions import ClientError, WaiterError
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class ClusterActiveTrigger(AwsBaseWaiterTrigger):
@@ -48,7 +51,7 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -87,7 +90,7 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
-        region_name: str | None,
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_arn": cluster_arn},
@@ -164,13 +167,15 @@ class TaskDoneTrigger(BaseTrigger):
             # fmt: on
             waiter = ecs_client.get_waiter("tasks_stopped")
             logs_token = None
-            while self.waiter_max_attempts >= 1:
-                self.waiter_max_attempts = self.waiter_max_attempts - 1
+            while self.waiter_max_attempts:
+                self.waiter_max_attempts -= 1
                 try:
                     await waiter.wait(
                         cluster=self.cluster, tasks=[self.task_arn], WaiterConfig={"MaxAttempts": 1}
                     )
-                    break  # we reach this point only if the waiter met a success criteria
+                    # we reach this point only if the waiter met a success criteria
+                    yield TriggerEvent({"status": "success", "task_arn": self.task_arn})
+                    return
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         raise
@@ -179,12 +184,11 @@ class TaskDoneTrigger(BaseTrigger):
                 finally:
                     if self.log_group and self.log_stream:
                         logs_token = await self._forward_logs(logs_client, logs_token)
-
-        yield TriggerEvent({"status": "success", "task_arn": self.task_arn})
+        raise AirflowException("Waiter error: max attempts reached")
 
     async def _forward_logs(self, logs_client, next_token: str | None = None) -> str | None:
         """
-        Reads logs from the cloudwatch stream and prints them to the task logs.
+        Read logs from the cloudwatch stream and print them to the task logs.
 
         :return: the token to pass to the next iteration to resume where we started.
         """

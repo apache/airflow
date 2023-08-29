@@ -71,23 +71,23 @@ class SageMakerBaseSensor(BaseSensorOperator):
         return True
 
     def non_terminal_states(self) -> set[str]:
-        """Placeholder for returning states with should not terminate."""
+        """Return states with should not terminate."""
         raise NotImplementedError("Please implement non_terminal_states() in subclass")
 
     def failed_states(self) -> set[str]:
-        """Placeholder for returning states with are considered failed."""
+        """Return states with are considered failed."""
         raise NotImplementedError("Please implement failed_states() in subclass")
 
     def get_sagemaker_response(self) -> dict:
-        """Placeholder for checking status of a SageMaker task."""
+        """Check status of a SageMaker task."""
         raise NotImplementedError("Please implement get_sagemaker_response() in subclass")
 
     def get_failed_reason_from_response(self, response: dict) -> str:
-        """Placeholder for extracting the reason for failure from an AWS response."""
+        """Extract the reason for failure from an AWS response."""
         return "Unknown"
 
     def state_from_response(self, response: dict) -> str:
-        """Placeholder for extracting the state from an AWS response."""
+        """Extract the state from an AWS response."""
         raise NotImplementedError("Please implement state_from_response() in subclass")
 
 

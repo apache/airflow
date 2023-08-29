@@ -33,3 +33,7 @@ python_files = [
 testpaths = [
     "tests",
 ]
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+src = ["src"]

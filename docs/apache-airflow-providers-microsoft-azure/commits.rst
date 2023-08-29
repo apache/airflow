@@ -28,6 +28,67 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.3.0
+.....
+
+Latest change: 2023-08-25
+
+=================================================================================================  ===========  ========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================
+`38f2737153 <https://github.com/apache/airflow/commit/38f27371532b9f906bdeff0251d1c35956daf05c>`_  2023-08-25   ``Fix Azure Batch Hook instantation (#33731)``
+`0931abdb25 <https://github.com/apache/airflow/commit/0931abdb2563f1f46240c3b1ce82415e05bd48d4>`_  2023-08-25   ``Add AzureBatchOperator example (#33716)``
+`faa50cbe2f <https://github.com/apache/airflow/commit/faa50cbe2f6dbf816e599bbbb933ac4976a55778>`_  2023-08-24   ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerInstanceHook (#33467)``
+`96efcfb830 <https://github.com/apache/airflow/commit/96efcfb8301ed938ce62d46a12b429b724e7cf0f>`_  2023-08-24   ``Further improvements for provider verification (#33670)``
+`85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
+`9dac4878c7 <https://github.com/apache/airflow/commit/9dac4878c70f4178b89c2f7667b0d8ca0ca7dff7>`_  2023-08-24   ``Add DefaultAzureCredential auth for ADX service (#33627)``
+`4a7cd606cc <https://github.com/apache/airflow/commit/4a7cd606ccd0de041781437813507448240798a5>`_  2023-08-23   ``Bump azure-kusto-data>=4.1.0 (#33598)``
+`a54c2424df <https://github.com/apache/airflow/commit/a54c2424df51bf1acec420f4792a237dabcfa12b>`_  2023-08-23   ``Fix typos (double words and it's/its) (#33623)``
+`b43fcae14b <https://github.com/apache/airflow/commit/b43fcae14bc592017850d172f17a6782082321e8>`_  2023-08-21   ``Simplify conditions on len() in providers/microsoft (#33566)``
+`7700fb12cc <https://github.com/apache/airflow/commit/7700fb12cc6c7a97901662e6ac6aa1e4e932d969>`_  2023-08-20   ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+`bd608a56ab <https://github.com/apache/airflow/commit/bd608a56abd1a6c2a98987daf7f092d2dabea555>`_  2023-08-17   ``Fix updating account url for WasbHook (#33457)``
+`4460356c03 <https://github.com/apache/airflow/commit/4460356c03e5c1dedd72ce87a8ccfb9b19a33d76>`_  2023-08-14   ``Set logging level to WARNING (#33314)``
+=================================================================================================  ===========  ========================================================================================================
+
+6.2.4
+.....
+
+Latest change: 2023-08-11
+
+=================================================================================================  ===========  ================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`8da1ff573b <https://github.com/apache/airflow/commit/8da1ff573bf598225f79899636efa0f9c55c4881>`_  2023-08-07   ``Clean microsoft azure provider by deleting the custom prefix from conn extra fields (#30558)``
+=================================================================================================  ===========  ================================================================================================
+
+6.2.3
+.....
+
+Latest change: 2023-08-05
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+`a069965df8 <https://github.com/apache/airflow/commit/a069965df84273c65e23d1fda9ffa47a58ed6732>`_  2023-08-03   ``Add issue link for TODO wrt Azure integration pinned dependencies (#33064)``
+`fea8c9024f <https://github.com/apache/airflow/commit/fea8c9024f3930aeba6bcf95d346fefd3ca8a016>`_  2023-08-02   ``Delete azure cosmos DB sensor example_dag (#32906)``
+`df74553ec4 <https://github.com/apache/airflow/commit/df74553ec484ad729fcd75ccbc1f5f18e7f34dc8>`_  2023-08-02   ``Refactor account_url use in WasbHook (#32980)``
+=================================================================================================  ===========  ==============================================================================
+
+6.2.2
+.....
+
+Latest change: 2023-07-29
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
+`42b4b43c4c <https://github.com/apache/airflow/commit/42b4b43c4c2ccf0b6e7eaa105c982df495768d01>`_  2023-07-23   ``Add Redis task handler (#31855)``
+`e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
+=================================================================================================  ===========  ================================================================================
+
 6.2.1
 .....
 
@@ -36,6 +97,7 @@ Latest change: 2023-07-12
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`e7f59a913e <https://github.com/apache/airflow/commit/e7f59a913e1fcf9052e69f62af9fe23901f1a358>`_  2023-07-12   ``Prepare docs for July 2023 2nd wave of Providers (#32566)``
 `fcbf15947f <https://github.com/apache/airflow/commit/fcbf15947f2f271d502bc6f4b9e3d0bada072d84>`_  2023-07-12   ``Fix breaking change when Active Directory ID is used as host in WASB (#32560)``
 `a67427af37 <https://github.com/apache/airflow/commit/a67427af3738218786f3745d9737f462c70d4233>`_  2023-07-12   ``Fix get_blobs_list_async method to return BlobProperties (#32545)``
 `c99c03135c <https://github.com/apache/airflow/commit/c99c03135ca7e7c41e1c6d338de9e41422ea84f0>`_  2023-07-08   ``D205 Support - Providers: Stragglers and new additions (#32447)``

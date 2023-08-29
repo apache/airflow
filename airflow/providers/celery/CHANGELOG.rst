@@ -27,13 +27,71 @@
 Changelog
 ---------
 
+3.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix dependencies for celery and opentelemetry for Python 3.8 (#33579)``
+
+Misc
+~~~~~
+
+* ``Make auth managers provide their own airflow CLI commands (#33481)``
+* ``Refactor Sqlalchemy queries to 2.0 style (Part 7) (#32883)``
+
+3.3.2
+.....
+
+Misc
+~~~~
+* ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+* ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+
+3.3.1
+.....
+
+Misc
+~~~~
+
+* ``aDd documentation generation for CLI commands from executors (#33081)``
+* ``Get rid of Python2 numeric relics (#33050)``
+
 3.3.0
 .....
 
 .. note::
   This provider release is the first release that has Celery Executor and
   Celery Kubernetes Executor moved from the core ``apache-airflow`` package to a Celery
-  provider package.
+  provider package. It also expects ``apache-airflow-providers-cncf-kubernetes`` in version 7.4.0+ installed
+  in order to use ``CeleryKubernetesExecutor``. You can install the provider with ``cncf.kubernetes`` extra
+  with ``pip install apache-airflow-providers-celery[cncf.kubernetes]`` to get the right version of the
+  ``cncf.kubernetes`` provider installed.
+
+Features
+~~~~~~~~
+
+* ``Move CeleryExecutor to the celery provider (#32526)``
+* ``Add pre-Airflow-2-7 hardcoded defaults for config for older providers  (#32775)``
+* ``[AIP-51] Executors vending CLI commands (#29055)``
+
+Misc
+~~~~
+
+* ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+* ``Add Executors discovery and documentation (#32532)``
+* ``Move default_celery.py to inside the provider (#32628)``
+* ``Raise original import error in CLI vending of executors (#32931)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Introduce decorator to load providers configuration (#32765)``
+   * ``Allow configuration to be contributed by providers (#32604)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 3.2.1
 .....

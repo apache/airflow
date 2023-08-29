@@ -24,14 +24,11 @@ from datetime import date, timedelta
 from unittest import mock
 
 import pytest
-from sqlalchemy.orm.session import make_transient
 
 from airflow import settings
-from airflow.configuration import TEST_DAGS_FOLDER
 from airflow.models import Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.operators.bash import BashOperator
-from airflow.utils.session import create_session
 from airflow.utils.timezone import datetime
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
@@ -301,51 +298,6 @@ class TestRenderedTaskInstanceFields:
             "test",
             {"bash_command": "echo test_val_updated", "env": None},
         ) == result_updated
-
-    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    @mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True, side_effect=lambda d, _=None: d)
-    def test_get_k8s_pod_yaml(self, redact, dag_maker):
-        """
-        Test that k8s_pod_yaml is rendered correctly, stored in the Database,
-        and are correctly fetched using RTIF.get_k8s_pod_yaml
-        """
-        with dag_maker("test_get_k8s_pod_yaml") as dag:
-            task = BashOperator(task_id="test", bash_command="echo hi")
-        dr = dag_maker.create_dagrun()
-        dag.fileloc = TEST_DAGS_FOLDER + "/test_get_k8s_pod_yaml.py"
-
-        ti = dr.task_instances[0]
-        ti.task = task
-
-        render_k8s_pod_yaml = mock.patch.object(
-            ti, "render_k8s_pod_yaml", return_value={"I'm a": "pod"}
-        ).start()
-
-        rtif = RTIF(ti=ti)
-
-        assert ti.dag_id == rtif.dag_id
-        assert ti.task_id == rtif.task_id
-        assert ti.run_id == rtif.run_id
-
-        expected_pod_yaml = {"I'm a": "pod"}
-
-        assert rtif.k8s_pod_yaml == render_k8s_pod_yaml.return_value
-        # K8s pod spec dict was passed to redact
-        redact.assert_any_call(rtif.k8s_pod_yaml)
-
-        with create_session() as session:
-            session.add(rtif)
-            session.flush()
-
-            assert expected_pod_yaml == RTIF.get_k8s_pod_yaml(ti=ti, session=session)
-            make_transient(ti)
-            # "Delete" it from the DB
-            session.rollback()
-
-            # Test the else part of get_k8s_pod_yaml
-            # i.e. for the TIs that are not stored in RTIF table
-            # Fetching them will return None
-            assert RTIF.get_k8s_pod_yaml(ti=ti, session=session) is None
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
     @mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True)

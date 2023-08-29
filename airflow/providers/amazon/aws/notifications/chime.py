@@ -18,10 +18,13 @@
 from __future__ import annotations
 
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.hooks.chime import ChimeWebhookHook
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 try:
     from airflow.notifications.basenotifier import BaseNotifier
@@ -53,7 +56,7 @@ class ChimeNotifier(BaseNotifier):
         """To reduce overhead cache the hook for the notifier."""
         return ChimeWebhookHook(chime_conn_id=self.chime_conn_id)
 
-    def notify(self, context: Context) -> None:
+    def notify(self, context: Context) -> None:  # type: ignore[override]
         """Send a message to a Chime Chat Room."""
         self.hook.send_message(message=self.message)
 

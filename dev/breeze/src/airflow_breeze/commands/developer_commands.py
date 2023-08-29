@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 import threading
@@ -26,6 +27,7 @@ from typing import Iterable
 
 import click
 
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
@@ -75,7 +77,6 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
-    DOCKER_COMPOSE_COMMAND,
     check_docker_resources,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
@@ -96,12 +97,26 @@ from airflow_breeze.utils.run_utils import (
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Make sure that whatever you add here as an option is also
-# Added in the "main" command in breeze.py. The min command above
-# Is used for a shorthand of shell and except the extra
-# Args it should have the same parameters.
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
+    """
+    Determine which constraints reference to use.
+
+    When use-airflow-version is branch or version, we derive the constraints branch from it, unless
+    someone specified the constraints branch explicitly.
+
+    :param airflow_constraints_reference: the constraint reference specified (or default)
+    :param use_airflow_version: which airflow version we are installing
+    :return: the actual constraints reference to use
+    """
+    if (
+        use_airflow_version
+        and airflow_constraints_reference == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+        and re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z\.]*|main|v[0-9]_.*", use_airflow_version)
+    ):
+        get_console().print(f"[info]Using constraints {use_airflow_version} - matching airflow version used.")
+        return use_airflow_version
+    return airflow_constraints_reference
 
 
 class TimerThread(threading.Thread):
@@ -114,6 +129,14 @@ class TimerThread(threading.Thread):
         sleep(self.max_time)
         get_console().print(f"[error]The command took longer than {self.max_time} s. Failing!")
         os.killpg(os.getpgid(0), SIGTERM)
+
+
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# Make sure that whatever you add here as an option is also
+# Added in the "main" command in breeze.py. The min command above
+# Is used for a shorthand of shell and except the extra
+# Args it should have the same parameters.
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 @main.command()
@@ -181,6 +204,9 @@ def shell(
     if max_time:
         TimerThread(max_time=max_time).start()
         set_forced_answer("yes")
+    airflow_constraints_reference = _determine_constraint_branch_used(
+        airflow_constraints_reference, use_airflow_version
+    )
     result = enter_shell(
         python=python,
         github_repository=github_repository,
@@ -292,6 +318,10 @@ def start_airflow(
         skip_asset_compilation = True
     if use_airflow_version is None and not skip_asset_compilation:
         run_compile_www_assets(dev=dev_mode, run_in_background=True)
+    airflow_constraints_reference = _determine_constraint_branch_used(
+        airflow_constraints_reference, use_airflow_version
+    )
+
     result = enter_shell(
         python=python,
         github_repository=github_repository,
@@ -357,6 +387,9 @@ def build_docs(
     package_filter: tuple[str],
     github_repository: str,
 ):
+    """
+    Build documents.
+    """
     perform_environment_checks()
     cleanup_python_generated_files()
     params = BuildCiParams(
@@ -482,6 +515,9 @@ def static_checks(
         force_build=force_build,
         image_tag=image_tag,
         github_repository=github_repository,
+        # for static checks we do not want to regenerate dependencies before pre-commits are run
+        # we want the pre-commit to do it for us (and detect the case the dependencies are updated)
+        skip_provider_dependencies_check=True,
     )
     if not skip_image_check:
         rebuild_or_pull_ci_image_if_needed(command_params=build_params)
@@ -618,7 +654,7 @@ def compile_www_assets(dev: bool):
 @option_dry_run
 def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
-    command_to_execute = [*DOCKER_COMPOSE_COMMAND, "down", "--remove-orphans"]
+    command_to_execute = ["docker", "compose", "down", "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
@@ -689,18 +725,18 @@ def enter_shell(**kwargs) -> RunCommandResult:
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
     shell_params.print_badge_info()
-    cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "-e", "BREEZE", "--rm", "airflow"]
+    cmd = ["docker", "compose", "run", "--service-ports", "-e", "BREEZE", "--rm", "airflow"]
     cmd_added = shell_params.command_passed
     env_variables = get_env_variables_for_docker_commands(shell_params)
     if cmd_added is not None:
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            if shell_params.mysql_version == "8":
+            if not shell_params.mysql_version.startswith("5"):
                 get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
             else:
                 get_console().print(
-                    f"\n[error]Only MySQL 8.0 is supported on ARM architecture, "
+                    f"\n[error]Only MySQL 8.x is supported on ARM architecture, "
                     f"but got {shell_params.mysql_version}[/]\n"
                 )
                 sys.exit(1)
@@ -729,7 +765,7 @@ def find_airflow_container() -> str | None:
     check_docker_resources(exec_shell_params.airflow_image_name)
     exec_shell_params.print_badge_info()
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
-    cmd = [*DOCKER_COMPOSE_COMMAND, "ps", "--all", "--filter", "status=running", "airflow"]
+    cmd = ["docker", "compose", "ps", "--all", "--filter", "status=running", "airflow"]
     docker_compose_ps_command = run_command(
         cmd, text=True, capture_output=True, env=env_variables, check=False
     )
@@ -743,7 +779,7 @@ def find_airflow_container() -> str | None:
         return None
 
     output = docker_compose_ps_command.stdout
-    container_info = output.strip().split("\n")
+    container_info = output.strip().splitlines()
     if container_info:
         container_running = container_info[-1].split(" ")[0]
         if container_running.startswith("-"):

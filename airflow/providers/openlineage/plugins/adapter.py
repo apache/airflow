@@ -22,12 +22,6 @@ from typing import TYPE_CHECKING
 
 import requests.exceptions
 import yaml
-
-from airflow.configuration import conf
-from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
-from airflow.providers.openlineage.extractors import OperatorLineage
-from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
-from airflow.utils.log.logging_mixin import LoggingMixin
 from openlineage.client import OpenLineageClient, set_producer
 from openlineage.client.facet import (
     BaseFacet,
@@ -42,8 +36,14 @@ from openlineage.client.facet import (
 )
 from openlineage.client.run import Job, Run, RunEvent, RunState
 
+from airflow.configuration import conf
+from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
+from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
+from airflow.utils.log.logging_mixin import LoggingMixin
+
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.log.secrets_masker import SecretsMasker
 
 _DAG_DEFAULT_NAMESPACE = "default"
@@ -127,8 +127,8 @@ class OpenLineageAdapter(LoggingMixin):
         parent_job_name: str | None,
         parent_run_id: str | None,
         code_location: str | None,
-        nominal_start_time: str,
-        nominal_end_time: str,
+        nominal_start_time: str | None,
+        nominal_end_time: str | None,
         owners: list[str],
         task: OperatorLineage | None,
         run_facets: dict[str, BaseFacet] | None = None,  # Custom run facets

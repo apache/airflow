@@ -149,7 +149,7 @@ class BatchOperator(BaseOperator):
         parameters: dict | None = None,
         job_id: str | None = None,
         waiters: Any | None = None,
-        max_retries: int | None = None,
+        max_retries: int = 4200,
         status_retries: int | None = None,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
@@ -223,7 +223,7 @@ class BatchOperator(BaseOperator):
                 timeout=self.execution_timeout,
                 trigger=BatchJobTrigger(
                     job_id=self.job_id,
-                    waiter_max_attempts=self.max_retries or 10,
+                    waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     waiter_delay=self.poll_interval,

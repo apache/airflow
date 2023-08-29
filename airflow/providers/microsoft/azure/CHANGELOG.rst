@@ -27,6 +27,66 @@
 Changelog
 ---------
 
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add AzureBatchOperator example (#33716)``
+* ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerInstanceHook (#33467)``
+* ``Add DefaultAzureCredential auth for ADX service (#33627)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix updating account url for WasbHook (#33457)``
+* ``Fix Azure Batch Hook instantation (#33731)``
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+* ``Bump azure-kusto-data>=4.1.0 (#33598)``
+* ``Simplify conditions on len() in providers/microsoft (#33566)``
+* ``Set logging level to WARNING (#33314)``
+* ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typos (double words and it's/its) (#33623)``
+   * ``Further improvements for provider verification (#33670)``
+
+6.2.4
+.....
+
+Misc
+~~~~~
+
+* ``Clean microsoft azure provider by deleting the custom prefix from conn extra fields (#30558)``
+
+6.2.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor account_url use in WasbHook (#32980)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete azure cosmos DB sensor example_dag (#32906)``
+   * ``Add issue link for TODO wrt Azure integration pinned dependencies (#33064)``
+
+6.2.2
+.....
+
+Misc
+~~~~
+
+* ``Add Redis task handler (#31855)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
 6.2.1
 .....
 
@@ -688,11 +748,11 @@ Breaking changes
 
 This change removes ``azure_container_instance_default`` connection type and replaces it with the
 ``azure_default``. The problem was that AzureContainerInstance was not needed as it was exactly the
-same as the plain "azure" connection, however it's presence caused duplication in the field names
+same as the plain "azure" connection, however its presence caused duplication in the field names
 used in the UI editor for connections and unnecessary warnings generated. This version uses
 plain Azure Hook and connection also for Azure Container Instance. If you already have
 ``azure_container_instance_default`` connection created in your DB, it will continue to work, but
-the first time you edit it with the UI you will have to change it's type to ``azure_default``.
+the first time you edit it with the UI you will have to change its type to ``azure_default``.
 
 Features
 ~~~~~~~~

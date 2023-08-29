@@ -18,13 +18,15 @@
 """This module allows to connect to a Neo4j database."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from neo4j import Driver, GraphDatabase
 
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class Neo4jHook(BaseHook):

@@ -15,7 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module took inspiration from the community maintenance dag
+This module took inspiration from the community maintenance dag.
+
+See:
 (https://github.com/teamclairvoyant/airflow-maintenance-dags/blob/4e5c7682a808082561d60cbc9cafaa477b0d8c65/db-cleanup/airflow-db-cleanup.py).
 """
 from __future__ import annotations
@@ -25,22 +27,27 @@ import logging
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pendulum import DateTime
-from sqlalchemy import and_, column, false, func, inspect, table, text
+from sqlalchemy import and_, column, false, func, inspect, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import Query, Session, aliased
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
 from airflow import AirflowException
 from airflow.cli.simple_table import AirflowConsole
-from airflow.models import Base
+from airflow.configuration import conf
 from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
+    from sqlalchemy.orm import Query, Session
+
+    from airflow.models import Base
 
 logger = logging.getLogger(__file__)
 
@@ -80,13 +87,13 @@ class _TableConfig:
 
     @property
     def readable_config(self):
-        return dict(
-            table=self.orm_model.name,
-            recency_column=str(self.recency_column),
-            keep_last=self.keep_last,
-            keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
-            keep_last_group_by=str(self.keep_last_group_by),
-        )
+        return {
+            "table": self.orm_model.name,
+            "recency_column": str(self.recency_column),
+            "keep_last": self.keep_last,
+            "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
+            "keep_last_group_by": str(self.keep_last_group_by),
+        }
 
 
 config_list: list[_TableConfig] = [
@@ -112,6 +119,9 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
 ]
+
+if conf.get("webserver", "session_backend") == "database":
+    config_list.append(_TableConfig(table_name="session", recency_column_name="expiry"))
 
 config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
 
@@ -177,7 +187,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
         pk_cols = source_table.primary_key.columns
         delete = source_table.delete().where(
             tuple_(*pk_cols).in_(
-                session.query(*[target_table.c[x.name] for x in source_table.primary_key.columns]).subquery()
+                select(*[target_table.c[x.name] for x in source_table.primary_key.columns]).subquery()
             )
         )
     else:
@@ -188,13 +198,14 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     session.execute(delete)
     session.commit()
     if skip_archive:
+        metadata.bind = session.get_bind()
         target_table.drop()
     session.commit()
     print("Finished Performing Delete")
 
 
 def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, max_date_colname, session):
-    subquery = session.query(*group_by_columns, func.max(recency_column).label(max_date_colname))
+    subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
 
     if keep_last_filters is not None:
         for entry in keep_last_filters:
@@ -341,6 +352,7 @@ def _print_config(*, configs: dict[str, _TableConfig]):
 def _suppress_with_logging(table, session):
     """
     Suppresses errors but logs them.
+
     Also stores the exception instance so it can be referred to after exiting context.
     """
     try:

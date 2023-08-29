@@ -46,7 +46,9 @@ const FilterBar = () => {
   } = useFilters();
 
   const { timezone } = useTimezone();
+  // @ts-ignore
   const time = moment(filters.baseDate);
+  // @ts-ignore
   const formattedTime = time.tz(timezone).format(isoFormatWithoutTZ);
 
   const inputStyles = { backgroundColor: "white", size: "lg" };

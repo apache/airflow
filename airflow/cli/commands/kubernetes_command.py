@@ -25,19 +25,21 @@ from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
-from airflow.executors.kubernetes_executor import KubeConfig
-from airflow.kubernetes import pod_generator
-from airflow.kubernetes.kube_client import get_kube_client
-from airflow.kubernetes.kubernetes_helper_functions import create_pod_id
-from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DagRun, TaskInstance
+from airflow.providers.cncf.kubernetes import pod_generator
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubeConfig
+from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_pod_id
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def generate_pod_yaml(args):
-    """Generates yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
+    """Generate yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
     execution_date = args.execution_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
@@ -71,6 +73,7 @@ def generate_pod_yaml(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def cleanup_pods(args):
     """Clean up k8s pods in evicted/failed/succeeded/pending states."""
     namespace = args.namespace
@@ -148,7 +151,11 @@ def cleanup_pods(args):
 
 
 def _delete_pod(name, namespace):
-    """Helper Function for cleanup_pods."""
+    """
+    Delete a namespaced pod.
+
+    Helper Function for cleanup_pods.
+    """
     kube_client = get_kube_client()
     delete_options = client.V1DeleteOptions()
     print(f'Deleting POD "{name}" from "{namespace}" namespace')

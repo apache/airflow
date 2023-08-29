@@ -18,11 +18,14 @@
 from __future__ import annotations
 
 import datetime
+from typing import TYPE_CHECKING
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class TimeSensor(BaseSensorOperator):
@@ -68,13 +71,14 @@ class TimeSensorAsync(BaseSensorOperator):
         )
 
         self.target_datetime = timezone.convert_to_utc(aware_time)
+        self.trigger = DateTimeTrigger(moment=self.target_datetime)
 
     def execute(self, context: Context):
         self.defer(
-            trigger=DateTimeTrigger(moment=self.target_datetime),
+            trigger=self.trigger,
             method_name="execute_complete",
         )
 
     def execute_complete(self, context, event=None):
-        """Callback for when the trigger fires - returns immediately."""
+        """Execute when the trigger fires - returns immediately."""
         return None

@@ -26,8 +26,8 @@ from airflow.utils.sqlalchemy import UtcDateTime
 class SlaMiss(Base):
     """
     Model that stores a history of the SLA that have been missed.
-    It is used to keep track of SLA failures over time and to avoid double
-    triggering alert emails.
+
+    It is used to keep track of SLA failures over time and to avoid double triggering alert emails.
     """
 
     __tablename__ = "sla_miss"

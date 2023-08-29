@@ -209,7 +209,7 @@ def bytes2human(n):
         prefix[s] = 1 << (i + 1) * 10
     for s in reversed(symbols):
         if n >= prefix[s]:
-            value = float(n) / prefix[s]
+            value = n / prefix[s]
             return f"{value:.1f}{s}"
     return f"{n}B"
 
@@ -402,7 +402,7 @@ def check_async_run_results(
             completed_number = current_completed_number
             get_console().print(
                 f"\n[info]Completed {completed_number} out of {total_number_of_results} "
-                f"({int(100*completed_number/total_number_of_results)}%).[/]\n"
+                f"({completed_number / total_number_of_results:.0%}).[/]\n"
             )
             print_async_summary(completed_list)
         time.sleep(poll_time_seconds)
@@ -410,7 +410,7 @@ def check_async_run_results(
     completed_number = len(completed_list)
     get_console().print(
         f"\n[info]Completed {completed_number} out of {total_number_of_results} "
-        f"({int(100*completed_number/total_number_of_results)}%).[/]\n"
+        f"({completed_number / total_number_of_results:.0%}).[/]\n"
     )
     print_async_summary(completed_list)
     errors = False
@@ -449,10 +449,7 @@ def check_async_run_results(
     finally:
         if not skip_cleanup:
             for output in outputs:
-                try:
-                    os.unlink(output.file_name)
-                except FileNotFoundError:
-                    pass
+                Path(output.file_name).unlink(missing_ok=True)
 
 
 @contextmanager

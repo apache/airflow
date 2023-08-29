@@ -18,17 +18,18 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import re
 import signal
 import warnings
 from datetime import datetime
 from functools import reduce
-from itertools import filterfalse, tee
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
+
+from lazy_object_proxy import Proxy
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.utils.context import Context
 from airflow.utils.module_loading import import_string
 from airflow.utils.types import NOTSET
 
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     import jinja2
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.context import Context
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")
 GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
@@ -46,7 +48,7 @@ S = TypeVar("S")
 
 
 def validate_key(k: str, max_length: int = 250):
-    """Validates value used as a key."""
+    """Validate value used as a key."""
     if not isinstance(k, str):
         raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
     if len(k) > max_length:
@@ -59,7 +61,7 @@ def validate_key(k: str, max_length: int = 250):
 
 
 def validate_group_key(k: str, max_length: int = 200):
-    """Validates value used as a group key."""
+    """Validate value used as a group key."""
     if not isinstance(k, str):
         raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
     if len(k) > max_length:
@@ -71,7 +73,7 @@ def validate_group_key(k: str, max_length: int = 200):
 
 
 def alchemy_to_dict(obj: Any) -> dict | None:
-    """Transforms a SQLAlchemy model instance into a dictionary."""
+    """Transform a SQLAlchemy model instance into a dictionary."""
     if not obj:
         return None
     output = {}
@@ -84,7 +86,7 @@ def alchemy_to_dict(obj: Any) -> dict | None:
 
 
 def ask_yesno(question: str, default: bool | None = None) -> bool:
-    """Helper to get a yes or no answer from the user."""
+    """Get a yes or no answer from the user."""
     yes = {"yes", "y"}
     no = {"no", "n"}
 
@@ -116,14 +118,16 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
 
 def is_container(obj: Any) -> bool:
     """Test if an object is a container (iterable) but not a string."""
+    if isinstance(obj, Proxy):
+        # Proxy of any object is considered a container because it implements __iter__
+        # to forward the call to the lazily initialized object
+        # Unwrap Proxy before checking __iter__ to evaluate the proxied object
+        obj = obj.__wrapped__
     return hasattr(obj, "__iter__") and not isinstance(obj, str)
 
 
 def as_tuple(obj: Any) -> tuple:
-    """
-    If obj is a container, returns obj as a tuple.
-    Otherwise, returns a tuple containing obj.
-    """
+    """Return obj as a tuple if obj is a container, otherwise return a tuple containing obj."""
     if is_container(obj):
         return tuple(obj)
     else:
@@ -139,11 +143,8 @@ def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
 
 
 def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0):
-    """
-    Reduce the given list of items by splitting it into chunks
-    of the given size and passing each chunk through the reducer.
-    """
-    if len(iterable) == 0:
+    """Split the list of items into chunks of a given size and pass each chunk through the reducer."""
+    if not iterable:
         return initializer
     if chunk_size == 0:
         chunk_size = len(iterable)
@@ -161,7 +162,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
 
 
 def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Template | None]:
-    """Parses Jinja template string."""
+    """Parse Jinja template string."""
     import jinja2
 
     if "{{" in template_string:  # jinja mode
@@ -172,8 +173,7 @@ def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Temp
 
 def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     """
-    Given task instance, try_number, filename_template, return the rendered log
-    filename.
+    Given task instance, try_number, filename_template, return the rendered log filename.
 
     :param ti: task instance
     :param try_number: try_number of the task
@@ -195,7 +195,7 @@ def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
 
 
 def convert_camel_to_snake(camel_str: str) -> str:
-    """Converts CamelCase to snake_case."""
+    """Convert CamelCase to snake_case."""
     return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r"_\1", camel_str).lower()
 
 
@@ -216,12 +216,12 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
 
 def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries."""
-    iter_1, iter_2 = tee(iterable)
-    return filterfalse(pred, iter_1), filter(pred, iter_2)
+    iter_1, iter_2 = itertools.tee(iterable)
+    return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
 
 
 def chain(*args, **kwargs):
-    """This function is deprecated. Please use `airflow.models.baseoperator.chain`."""
+    """Use `airflow.models.baseoperator.chain`, this function is deprecated."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.chain`.",
         RemovedInAirflow3Warning,
@@ -231,7 +231,7 @@ def chain(*args, **kwargs):
 
 
 def cross_downstream(*args, **kwargs):
-    """This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`."""
+    """Use `airflow.models.baseoperator.cross_downstream`, this function is deprecated."""
     warnings.warn(
         "This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
         RemovedInAirflow3Warning,
@@ -296,7 +296,7 @@ def render_template_as_native(template: jinja2.Template, context: Context) -> An
 
 def exactly_one(*args) -> bool:
     """
-    Returns True if exactly one of *args is "truthy", and False otherwise.
+    Return True if exactly one of *args is "truthy", and False otherwise.
 
     If user supplies an iterable, we raise ValueError and force them to unpack.
     """
@@ -309,7 +309,7 @@ def exactly_one(*args) -> bool:
 
 def at_most_one(*args) -> bool:
     """
-    Returns True if at most one of *args is "truthy", and False otherwise.
+    Return True if at most one of *args is "truthy", and False otherwise.
 
     NOTSET is treated the same as None.
 
@@ -327,8 +327,7 @@ def at_most_one(*args) -> bool:
 
 def prune_dict(val: Any, mode="strict"):
     """
-    Given dict ``val``, returns new dict based on ``val`` with all
-    empty elements removed.
+    Given dict ``val``, returns new dict based on ``val`` with all empty elements removed.
 
     What constitutes "empty" is controlled by the ``mode`` parameter.  If mode is 'strict'
     then only ``None`` elements will be removed.  If mode is ``truthy``, then element ``x``
@@ -349,7 +348,7 @@ def prune_dict(val: Any, mode="strict"):
                 continue
             elif isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
-                if new_val:
+                if not is_empty(new_val):
                     new_dict[k] = new_val
             else:
                 new_dict[k] = v
@@ -361,7 +360,7 @@ def prune_dict(val: Any, mode="strict"):
                 continue
             elif isinstance(v, (list, dict)):
                 new_val = prune_dict(v, mode=mode)
-                if new_val:
+                if not is_empty(new_val):
                     new_list.append(new_val)
             else:
                 new_list.append(v)

@@ -21,7 +21,6 @@ import contextlib
 import io
 import json
 import os
-import tempfile
 from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
@@ -685,7 +684,7 @@ class TestCliDags:
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_trigger(args)
             # get the last line from the logs ignoring all logging lines
-            out = temp_stdout.getvalue().strip().split("\n")[-1]
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
         parsed_out = json.loads(out)
 
         assert 1 == len(parsed_out)
@@ -706,17 +705,17 @@ class TestCliDags:
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
             )
 
-    def test_delete_dag_existing_file(self):
+    def test_delete_dag_existing_file(self, tmp_path):
         # Test to check that the DAG should be deleted even if
         # the file containing it is not deleted
+        path = tmp_path / "testfile"
         DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
-        with tempfile.NamedTemporaryFile() as f:
-            session.add(DM(dag_id=key, fileloc=f.name))
-            session.commit()
-            dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-            assert session.query(DM).filter_by(dag_id=key).count() == 0
+        session.add(DM(dag_id=key, fileloc=os.fspath(path)))
+        session.commit()
+        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
+        assert session.query(DM).filter_by(dag_id=key).count() == 0
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(["dags", "list-jobs"])

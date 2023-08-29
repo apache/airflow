@@ -20,28 +20,33 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from json import JSONDecodeError
 
 from sqlalchemy import select
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import is_stdout
 from airflow.models import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def variables_list(args):
-    """Displays all the variables."""
+    """Display all the variables."""
     with create_session() as session:
         variables = session.scalars(select(Variable)).all()
     AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
 
 
 @suppress_logs_and_warning
+@providers_configuration_loaded
 def variables_get(args):
-    """Displays variable by a given name."""
+    """Display variable by a given name."""
     try:
         if args.default is None:
             var = Variable.get(args.key, deserialize_json=args.json)
@@ -54,59 +59,49 @@ def variables_get(args):
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def variables_set(args):
-    """Creates new variable with a given name and value."""
+    """Create new variable with a given name and value."""
     Variable.set(args.key, args.value, serialize_json=args.json)
     print(f"Variable {args.key} created")
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def variables_delete(args):
-    """Deletes variable by a given name."""
+    """Delete variable by a given name."""
     Variable.delete(args.key)
     print(f"Variable {args.key} deleted")
 
 
 @cli_utils.action_cli
+@providers_configuration_loaded
 def variables_import(args):
-    """Imports variables from a given file."""
-    if os.path.exists(args.file):
-        _import_helper(args.file)
-    else:
+    """Import variables from a given file."""
+    if not os.path.exists(args.file):
         raise SystemExit("Missing variables file.")
+    with open(args.file) as varfile:
+        try:
+            var_json = json.load(varfile)
+        except JSONDecodeError:
+            raise SystemExit("Invalid variables file.")
+    suc_count = fail_count = 0
+    for k, v in var_json.items():
+        try:
+            Variable.set(k, v, serialize_json=not isinstance(v, str))
+        except Exception as e:
+            print(f"Variable import failed: {e!r}")
+            fail_count += 1
+        else:
+            suc_count += 1
+    print(f"{suc_count} of {len(var_json)} variables successfully updated.")
+    if fail_count:
+        print(f"{fail_count} variable(s) failed to be updated.")
 
 
+@providers_configuration_loaded
 def variables_export(args):
-    """Exports all the variables to the file."""
-    _variable_export_helper(args.file)
-
-
-def _import_helper(filepath):
-    """Helps import variables from the file."""
-    with open(filepath) as varfile:
-        data = varfile.read()
-
-    try:
-        var_json = json.loads(data)
-    except JSONDecodeError:
-        raise SystemExit("Invalid variables file.")
-    else:
-        suc_count = fail_count = 0
-        for k, v in var_json.items():
-            try:
-                Variable.set(k, v, serialize_json=not isinstance(v, str))
-            except Exception as e:
-                print(f"Variable import failed: {repr(e)}")
-                fail_count += 1
-            else:
-                suc_count += 1
-        print(f"{suc_count} of {len(var_json)} variables successfully updated.")
-        if fail_count:
-            print(f"{fail_count} variable(s) failed to be updated.")
-
-
-def _variable_export_helper(filepath):
-    """Helps export all the variables to the file."""
+    """Export all the variables to the file."""
     var_dict = {}
     with create_session() as session:
         qry = session.scalars(select(Variable))
@@ -119,6 +114,9 @@ def _variable_export_helper(filepath):
                 val = var.val
             var_dict[var.key] = val
 
-    with open(filepath, "w") as varfile:
-        varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
-    print(f"{len(var_dict)} variables successfully exported to {filepath}")
+    with args.file as varfile:
+        json.dump(var_dict, varfile, sort_keys=True, indent=4)
+        if is_stdout(varfile):
+            print("\nVariables successfully exported.", file=sys.stderr)
+        else:
+            print(f"Variables successfully exported to {varfile.name}.")

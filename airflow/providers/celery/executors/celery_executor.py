@@ -34,11 +34,46 @@ from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
 
 from celery import states as celery_states
 
+try:
+    from airflow.cli.cli_config import (
+        ARG_DAEMON,
+        ARG_LOG_FILE,
+        ARG_PID,
+        ARG_SKIP_SERVE_LOGS,
+        ARG_STDERR,
+        ARG_STDOUT,
+        ARG_VERBOSE,
+        ActionCommand,
+        Arg,
+        GroupCommand,
+        lazy_load_command,
+    )
+except ImportError:
+    try:
+        from airflow import __version__ as airflow_version
+    except ImportError:
+        from airflow.version import version as airflow_version
+
+    import packaging.version
+
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    base_version = packaging.version.parse(airflow_version).base_version
+
+    if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):
+        raise AirflowOptionalProviderFeatureException(
+            "Celery Executor from Celery Provider should only be used with Airflow 2.7.0+.\n"
+            f"This is Airflow {airflow_version} and Celery and CeleryKubernetesExecutor are "
+            f"available in the 'airflow.executors' package. You should not use "
+            f"the provider's executors in this version of Airflow."
+        )
+    raise
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
 from airflow.stats import Stats
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +82,8 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 
 
 if TYPE_CHECKING:
+    import argparse
+
     from celery import Task
 
     from airflow.executors.base_executor import CommandType, TaskTuple
@@ -74,6 +111,120 @@ def __getattr__(name):
 To start the celery worker, run the command:
 airflow celery worker
 """
+
+
+# flower cli args
+ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
+ARG_FLOWER_HOSTNAME = Arg(
+    ("-H", "--hostname"),
+    default=conf.get("celery", "FLOWER_HOST"),
+    help="Set the hostname on which to run the server",
+)
+ARG_FLOWER_PORT = Arg(
+    ("-p", "--port"),
+    default=conf.getint("celery", "FLOWER_PORT"),
+    type=int,
+    help="The port on which to run the server",
+)
+ARG_FLOWER_CONF = Arg(("-c", "--flower-conf"), help="Configuration file for flower")
+ARG_FLOWER_URL_PREFIX = Arg(
+    ("-u", "--url-prefix"),
+    default=conf.get("celery", "FLOWER_URL_PREFIX"),
+    help="URL prefix for Flower",
+)
+ARG_FLOWER_BASIC_AUTH = Arg(
+    ("-A", "--basic-auth"),
+    default=conf.get("celery", "FLOWER_BASIC_AUTH"),
+    help=(
+        "Securing Flower with Basic Authentication. "
+        "Accepts user:password pairs separated by a comma. "
+        "Example: flower_basic_auth = user1:password1,user2:password2"
+    ),
+)
+
+# worker cli args
+ARG_AUTOSCALE = Arg(("-a", "--autoscale"), help="Minimum and Maximum number of worker to autoscale")
+ARG_QUEUES = Arg(
+    ("-q", "--queues"),
+    help="Comma delimited list of queues to serve",
+    default=conf.get("operators", "DEFAULT_QUEUE"),
+)
+ARG_CONCURRENCY = Arg(
+    ("-c", "--concurrency"),
+    type=int,
+    help="The number of worker processes",
+    default=conf.getint("celery", "worker_concurrency"),
+)
+ARG_CELERY_HOSTNAME = Arg(
+    ("-H", "--celery-hostname"),
+    help="Set the hostname of celery worker if you have multiple workers on a single machine",
+)
+ARG_UMASK = Arg(
+    ("-u", "--umask"),
+    help="Set the umask of celery worker in daemon mode",
+)
+
+ARG_WITHOUT_MINGLE = Arg(
+    ("--without-mingle",),
+    default=False,
+    help="Don't synchronize with other workers at start-up",
+    action="store_true",
+)
+ARG_WITHOUT_GOSSIP = Arg(
+    ("--without-gossip",),
+    default=False,
+    help="Don't subscribe to other workers events",
+    action="store_true",
+)
+
+CELERY_COMMANDS = (
+    ActionCommand(
+        name="worker",
+        help="Start a Celery worker node",
+        func=lazy_load_command("airflow.cli.commands.celery_command.worker"),
+        args=(
+            ARG_QUEUES,
+            ARG_CONCURRENCY,
+            ARG_CELERY_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_UMASK,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
+            ARG_AUTOSCALE,
+            ARG_SKIP_SERVE_LOGS,
+            ARG_WITHOUT_MINGLE,
+            ARG_WITHOUT_GOSSIP,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="flower",
+        help="Start a Celery Flower",
+        func=lazy_load_command("airflow.cli.commands.celery_command.flower"),
+        args=(
+            ARG_FLOWER_HOSTNAME,
+            ARG_FLOWER_PORT,
+            ARG_FLOWER_CONF,
+            ARG_FLOWER_URL_PREFIX,
+            ARG_FLOWER_BASIC_AUTH,
+            ARG_BROKER_API,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name="stop",
+        help="Stop the Celery worker gracefully",
+        func=lazy_load_command("airflow.cli.commands.celery_command.stop_worker"),
+        args=(ARG_PID, ARG_VERBOSE),
+    ),
+)
 
 
 class CeleryExecutor(BaseExecutor):
@@ -104,7 +255,7 @@ class CeleryExecutor(BaseExecutor):
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
         self.tasks = {}
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
-        self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries", fallback=3)
+        self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries")
 
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)
@@ -115,7 +266,7 @@ class CeleryExecutor(BaseExecutor):
 
         :return: Number of tasks that should be sent per process
         """
-        return max(1, int(math.ceil(1.0 * to_send_count / self._sync_parallelism)))
+        return max(1, math.ceil(to_send_count / self._sync_parallelism))
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         from airflow.providers.celery.executors.celery_executor_utils import execute_command
@@ -150,7 +301,7 @@ class CeleryExecutor(BaseExecutor):
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error(CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback)
-                self.event_buffer[key] = (State.FAILED, None)
+                self.event_buffer[key] = (TaskInstanceState.FAILED, None)
             elif result is not None:
                 result.backend = cached_celery_backend
                 self.running.add(key)
@@ -159,7 +310,7 @@ class CeleryExecutor(BaseExecutor):
                 # Store the Celery task_id in the event buffer. This will get "overwritten" if the task
                 # has another event, but that is fine, because the only other events are success/failed at
                 # which point we don't need the ID anymore anyway
-                self.event_buffer[key] = (State.QUEUED, result.task_id)
+                self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
 
                 # If the task runs _really quickly_ we may already have a result!
                 self.update_task_state(key, result.state, getattr(result, "info", None))
@@ -206,7 +357,7 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(key, state, info)
 
-    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
+    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
         super().change_state(key, state, info)
         self.tasks.pop(key, None)
 
@@ -317,3 +468,25 @@ class CeleryExecutor(BaseExecutor):
                 except Exception as ex:
                     self.log.error("Error revoking task instance %s from celery: %s", task_instance_key, ex)
         return readable_tis
+
+    @staticmethod
+    def get_cli_commands() -> list[GroupCommand]:
+        return [
+            GroupCommand(
+                name="celery",
+                help="Celery components",
+                description=(
+                    "Start celery components. Works only when using CeleryExecutor. For more information, "
+                    "see https://airflow.apache.org/docs/apache-airflow/stable/executor/celery.html"
+                ),
+                subcommands=CELERY_COMMANDS,
+            ),
+        ]
+
+
+def _get_parser() -> argparse.ArgumentParser:
+    """This method is used by Sphinx to generate documentation.
+
+    :meta private:
+    """
+    return CeleryExecutor._get_parser()

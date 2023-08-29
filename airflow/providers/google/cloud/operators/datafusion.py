@@ -44,7 +44,7 @@ class DataFusionPipelineLinkHelper:
     @staticmethod
     def get_project_id(instance):
         instance = instance["name"]
-        project_id = [x for x in instance.split("/") if x.startswith("airflow")][0]
+        project_id = next(x for x in instance.split("/") if x.startswith("airflow"))
         return project_id
 
 

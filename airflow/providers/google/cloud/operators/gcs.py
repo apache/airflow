@@ -301,7 +301,6 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         self.bucket_name = bucket_name
         self.objects = objects
         self.prefix = prefix
@@ -875,12 +874,15 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param user_project: (Optional) The identifier of the project to bill for this request.
+        Required for Requester Pays buckets.
     """
 
     template_fields: Sequence[str] = (
         "bucket_name",
         "gcp_conn_id",
         "impersonation_chain",
+        "user_project",
     )
 
     def __init__(
@@ -890,6 +892,7 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         force: bool = True,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        user_project: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -898,10 +901,11 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         self.force: bool = force
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.user_project = user_project
 
     def execute(self, context: Context) -> None:
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        hook.delete_bucket(bucket_name=self.bucket_name, force=self.force)
+        hook.delete_bucket(bucket_name=self.bucket_name, force=self.force, user_project=self.user_project)
 
 
 class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):

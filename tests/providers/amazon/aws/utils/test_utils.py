@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-
-import pytz
+import datetime
 
 from airflow.providers.amazon.aws.utils import (
     _StringCompareEnum,
@@ -26,26 +24,14 @@ from airflow.providers.amazon.aws.utils import (
     datetime_to_epoch_ms,
     datetime_to_epoch_us,
     get_airflow_version,
-    trim_none_values,
 )
 
-DT = datetime(2000, 1, 1, tzinfo=pytz.UTC)
+DT = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
 EPOCH = 946_684_800
 
 
 class EnumTest(_StringCompareEnum):
     FOO = "FOO"
-
-
-def test_trim_none_values():
-    input_object = {
-        "test": "test",
-        "empty": None,
-    }
-    expected_output_object = {
-        "test": "test",
-    }
-    assert trim_none_values(input_object) == expected_output_object
 
 
 def test_datetime_to_epoch():

@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pytest
@@ -31,6 +30,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _PASSWORD = "snowflake42"
 
@@ -621,3 +623,33 @@ class TestPytestSnowflakeHook:
             "extra__snowflake__private_key_content",
             "extra__snowflake__insecure_mode",
         ]
+
+    @pytest.mark.parametrize(
+        "returned_schema,expected_schema",
+        [([None], ""), (["DATABASE.SCHEMA"], "SCHEMA")],
+    )
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_first")
+    def test_get_openlineage_default_schema_with_no_schema_set(
+        self, mock_get_first, returned_schema, expected_schema
+    ):
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "schema": None,
+        }
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            mock_get_first.return_value = returned_schema
+            assert hook.get_openlineage_default_schema() == expected_schema
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_first")
+    def test_get_openlineage_default_schema_with_schema_set(self, mock_get_first):
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri()
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            assert hook.get_openlineage_default_schema() == BASE_CONNECTION_KWARGS["schema"]
+            mock_get_first.assert_not_called()
+
+            hook_with_schema_param = SnowflakeHook(snowflake_conn_id="test_conn", schema="my_schema")
+            assert hook_with_schema_param.get_openlineage_default_schema() == "my_schema"
+            mock_get_first.assert_not_called()
