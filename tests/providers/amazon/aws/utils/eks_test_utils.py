@@ -17,12 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 import re
 from copy import deepcopy
-from typing import Pattern, Type, Union
-
-from airflow.providers.amazon.aws.hooks.eks import EksHook
+from typing import TYPE_CHECKING, Pattern, Type, Union
 
 from ..utils.eks_test_constants import (
     STATUS,
@@ -34,6 +31,11 @@ from ..utils.eks_test_constants import (
     NodegroupInputs,
     ResponseAttributes,
 )
+
+if TYPE_CHECKING:
+    import datetime
+
+    from airflow.providers.amazon.aws.hooks.eks import EksHook
 
 InputTypes = Union[Type[ClusterInputs], Type[NodegroupInputs], Type[FargateProfileInputs]]
 

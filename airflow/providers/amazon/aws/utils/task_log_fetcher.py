@@ -19,13 +19,15 @@ from __future__ import annotations
 
 import time
 from datetime import datetime, timedelta
-from logging import Logger
 from threading import Event, Thread
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
 
 from botocore.exceptions import ClientError, ConnectionClosedError
 
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+
+if TYPE_CHECKING:
+    from logging import Logger
 
 
 class AwsTaskLogFetcher(Thread):

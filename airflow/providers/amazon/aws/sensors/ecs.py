@@ -19,8 +19,6 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-import boto3
-
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import (
     EcsClusterStates,
@@ -31,6 +29,8 @@ from airflow.providers.amazon.aws.hooks.ecs import (
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
+    import boto3
+
     from airflow.utils.context import Context
 
 DEFAULT_CONN_ID: str = "aws_default"

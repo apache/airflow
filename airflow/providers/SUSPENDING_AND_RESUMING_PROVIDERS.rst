@@ -20,7 +20,7 @@ Suspending providers
 
 As of April 2023, we have the possibility to suspend individual providers, so that they are not holding
 back dependencies for Airflow and other providers. The process of suspending providers is described
-in `description of the process <https://github.com/apache/airflow/blob/main/README.md#suspending-releases-for-providers>`_
+in `description of the process <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#suspending-releases-for-providers>`_
 
 Technically, suspending a provider is done by setting ``suspended : true``, in the provider.yaml of the
 provider. This should be followed by committing the change and either automatically or manually running
