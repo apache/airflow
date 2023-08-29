@@ -27,11 +27,8 @@ import os
 import signal
 import warnings
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from enum import Enum
-from functools import partial
-from pathlib import PurePath
-from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
 from urllib.parse import quote
 
@@ -63,9 +60,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy.orm.session import Session
-from sqlalchemy.sql.elements import BooleanClauseList
-from sqlalchemy.sql.expression import ColumnOperators, case
+from sqlalchemy.sql.expression import case
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -82,7 +77,6 @@ from airflow.exceptions import (
     AirflowTaskTimeout,
     DagRunNotFound,
     RemovedInAirflow3Warning,
-    TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
@@ -105,8 +99,6 @@ from airflow.stats import Stats
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
-from airflow.timetables.base import DataInterval
-from airflow.typing_compat import Literal, TypeGuard
 from airflow.utils import timezone
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
 from airflow.utils.email import send_email
@@ -137,6 +129,15 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
+    from datetime import datetime
+    from pathlib import PurePath
+    from types import TracebackType
+
+    from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql.elements import BooleanClauseList
+    from sqlalchemy.sql.expression import ColumnOperators
+    from typing_extensions import Literal
+
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
@@ -144,6 +145,8 @@ if TYPE_CHECKING:
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+    from airflow.timetables.base import DataInterval
+    from airflow.typing_compat import TypeGuard
     from airflow.utils.task_group import TaskGroup
 
     # This is a workaround because mypy doesn't work with hybrid_property
@@ -391,19 +394,12 @@ def _execute_task(task_instance, context, task_orig):
     # If the task has been deferred and is being executed due to a trigger,
     # then we need to pick the right method to come back to, otherwise
     # we go for the default execute
+    execute_callable_kwargs = {}
     if task_instance.next_method:
-        # __fail__ is a special signal value for next_method that indicates
-        # this task was scheduled specifically to fail.
-        if task_instance.next_method == "__fail__":
-            next_kwargs = task_instance.next_kwargs or {}
-            traceback = next_kwargs.get("traceback")
-            if traceback is not None:
-                log.error("Trigger failed:\n%s", "\n".join(traceback))
-            raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
-        # Grab the callable off the Operator/Task and add in any kwargs
-        execute_callable = getattr(task_to_execute, task_instance.next_method)
-        if task_instance.next_kwargs:
-            execute_callable = partial(execute_callable, **task_instance.next_kwargs)
+        if task_instance.next_method:
+            execute_callable = task_to_execute.resume_execution
+            execute_callable_kwargs["next_method"] = task_instance.next_method
+            execute_callable_kwargs["next_kwargs"] = task_instance.next_kwargs
     else:
         execute_callable = task_to_execute.execute
     # If a timeout is specified for the task, make it fail
@@ -423,12 +419,12 @@ def _execute_task(task_instance, context, task_orig):
                 raise AirflowTaskTimeout()
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
-                result = execute_callable(context=context)
+                result = execute_callable(context=context, **execute_callable_kwargs)
         except AirflowTaskTimeout:
             task_to_execute.on_kill()
             raise
     else:
-        result = execute_callable(context=context)
+        result = execute_callable(context=context, **execute_callable_kwargs)
     with create_session() as session:
         if task_to_execute.do_xcom_push:
             xcom_value = result
@@ -666,7 +662,7 @@ def _get_template_context(
         execution_date = get_prev_execution_date()
         if execution_date is None:
             return None
-        return execution_date.strftime(r"%Y-%m-%d")
+        return execution_date.strftime("%Y-%m-%d")
 
     def get_prev_ds_nodash() -> str | None:
         prev_ds = get_prev_ds()
@@ -2367,7 +2363,9 @@ class TaskInstance(Base, LoggingMixin):
             # Set the validated/merged params on the task object.
             self.task.params = context["params"]
 
-            task_orig = self.render_templates(context=context)
+            with set_current_context(context):
+                task_orig = self.render_templates(context=context)
+
             if not test_mode:
                 rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
                 RenderedTaskInstanceFields.write(rtif)
@@ -2504,8 +2502,6 @@ class TaskInstance(Base, LoggingMixin):
 
     def dry_run(self) -> None:
         """Only Renders Templates for the TI."""
-        from airflow.models.baseoperator import BaseOperator
-
         self.task = self.task.prepare_for_execution()
         self.render_templates()
         if TYPE_CHECKING:

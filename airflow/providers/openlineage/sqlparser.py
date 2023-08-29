@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, Callable
 import sqlparse
 from attrs import define
 from openlineage.client.facet import BaseFacet, ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
-from openlineage.client.run import Dataset
 from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
 from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -33,6 +32,7 @@ from airflow.providers.openlineage.utils.sql import (
 from airflow.typing_compat import TypedDict
 
 if TYPE_CHECKING:
+    from openlineage.client.run import Dataset
     from sqlalchemy.engine import Engine
 
     from airflow.hooks.base import BaseHook

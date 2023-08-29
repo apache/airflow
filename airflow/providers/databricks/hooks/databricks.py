@@ -75,11 +75,9 @@ class RunState:
         """True if the current state is a terminal state."""
         if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
             raise AirflowException(
-                (
-                    "Unexpected life cycle state: {}: If the state has "
-                    "been introduced recently, please check the Databricks user "
-                    "guide for troubleshooting information"
-                ).format(self.life_cycle_state)
+                f"Unexpected life cycle state: {self.life_cycle_state}: If the state has "
+                "been introduced recently, please check the Databricks user "
+                "guide for troubleshooting information"
             )
         return self.life_cycle_state in ("TERMINATED", "SKIPPED", "INTERNAL_ERROR")
 
@@ -137,7 +135,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def run_now(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.0/jobs/run-now`` endpoint.
+        Utility function to call the ``api/2.1/jobs/run-now`` endpoint.
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :return: the run_id as an int
@@ -147,7 +145,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def submit_run(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.0/jobs/runs/submit`` endpoint.
+        Utility function to call the ``api/2.1/jobs/runs/submit`` endpoint.
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :return: the run_id as an int

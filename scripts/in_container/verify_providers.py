@@ -716,7 +716,7 @@ def verify_provider_classes() -> tuple[list[str], list[str]]:
     if not summarise_total_vs_bad(total, bad):
         sys.exit(1)
 
-    if len(imported_classes) == 0:
+    if not imported_classes:
         console.print("[red]Something is seriously wrong - no classes imported[/]")
         sys.exit(1)
     console.print()

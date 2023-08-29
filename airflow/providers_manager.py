@@ -27,7 +27,6 @@ import os
 import sys
 import traceback
 import warnings
-from collections import OrderedDict
 from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
@@ -38,7 +37,6 @@ from packaging.utils import canonicalize_name
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.hooks.filesystem import FSHook
 from airflow.hooks.package_index import PackageIndexHook
-from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -86,6 +84,8 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 
 
 if TYPE_CHECKING:
+    from typing_extensions import Literal
+
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
 
@@ -484,7 +484,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._discover_all_airflow_builtin_providers_from_local_sources()
         self._discover_all_providers_from_packages()
         self._verify_all_providers_all_compatible()
-        self._provider_dict = OrderedDict(sorted(self._provider_dict.items()))
+        self._provider_dict = dict(sorted(self._provider_dict.items()))
 
     def _verify_all_providers_all_compatible(self):
         from packaging import version as packaging_version
@@ -507,7 +507,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers hooks."""
         self.initialize_providers_list()
         self._discover_hooks()
-        self._hook_provider_dict = OrderedDict(sorted(self._hook_provider_dict.items()))
+        self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
 
     @provider_info_cache("taskflow_decorators")
     def initialize_providers_taskflow_decorator(self):
@@ -829,21 +829,21 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 provider,
                 provider_uses_connection_types,
             )
-        self._hook_provider_dict = OrderedDict(sorted(self._hook_provider_dict.items()))
+        self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
 
     @provider_info_cache("import_all_hooks")
     def _import_info_from_all_hooks(self):
         """Force-import all hooks and initialize the connections/fields."""
         # Retrieve all hooks to make sure that all of them are imported
         _ = list(self._hooks_lazy_dict.values())
-        self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
+        self._field_behaviours = dict(sorted(self._field_behaviours.items()))
 
         # Widgets for connection forms are currently used in two places:
         # 1. In the UI Connections, expected same order that it defined in Hook.
         # 2. cli command - `airflow providers widgets` and expected that it in alphabetical order.
         # It is not possible to recover original ordering after sorting,
         # that the main reason why original sorting moved to cli part:
-        # self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
+        # self._connection_form_widgets = dict(sorted(self._connection_form_widgets.items()))
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():

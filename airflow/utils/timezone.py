@@ -194,16 +194,17 @@ def datetime(*args, **kwargs):
     return dt.datetime(*args, **kwargs)
 
 
-def parse(string: str, timezone=None) -> DateTime:
+def parse(string: str, timezone=None, *, strict=False) -> DateTime:
     """
     Parse a time string and return an aware datetime.
 
     :param string: time string
     :param timezone: the timezone
+    :param strict: if False, it will fall back on the dateutil parser if unable to parse with pendulum
     """
     from airflow.settings import TIMEZONE
 
-    return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)  # type: ignore
+    return pendulum.parse(string, tz=timezone or TIMEZONE, strict=strict)  # type: ignore
 
 
 @overload

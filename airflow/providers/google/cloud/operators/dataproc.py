@@ -29,13 +29,10 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
-from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
-from google.protobuf.duration_pb2 import Duration
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -64,6 +61,10 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
+    from google.api_core import operation
+    from google.protobuf.duration_pb2 import Duration
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 
@@ -1578,8 +1579,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
     @staticmethod
     def _generate_temp_filename(filename):
-        date = time.strftime("%Y%m%d%H%M%S")
-        return f"{date}_{str(uuid.uuid4())[:8]}_{ntpath.basename(filename)}"
+        return f"{time:%Y%m%d%H%M%S}_{str(uuid.uuid4())[:8]}_{ntpath.basename(filename)}"
 
     def _upload_file_temp(self, bucket, local_file):
         """Upload a local file to a Google Cloud Storage bucket."""

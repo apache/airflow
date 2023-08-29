@@ -29,8 +29,7 @@ import os
 import subprocess
 from abc import abstractmethod
 from multiprocessing import Manager, Process
-from multiprocessing.managers import SyncManager
-from queue import Empty, Queue
+from queue import Empty
 from typing import TYPE_CHECKING, Any, Optional, Tuple
 
 from setproctitle import getproctitle, setproctitle
@@ -42,6 +41,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from multiprocessing.managers import SyncManager
+    from queue import Queue
+
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstance import TaskInstanceStateType
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -99,7 +101,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             subprocess.check_call(command, close_fds=True)
             return TaskInstanceState.SUCCESS
         except subprocess.CalledProcessError as e:
-            self.log.error("Failed to execute task %s.", str(e))
+            self.log.error("Failed to execute task %s.", e)
             return TaskInstanceState.FAILED
 
     def _execute_work_in_fork(self, command: CommandType) -> TaskInstanceState:

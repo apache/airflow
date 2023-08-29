@@ -136,7 +136,7 @@ candidates that you got from the `find-backtracking-candidates` command. This **
 the next step is to narrow down the list of candidates to the one that is causing the backtracking.
 
 We narrow-down the list by "bisecting" the list. We remove half of the dependency limits and see if it
-still works or not. It it works - we continue. If it does not work, we restore the removed half and remove
+still works or not. It works - we continue. If it does not work, we restore the removed half and remove
 the other half. Rinse and repeat until there is only one dependency left - hopefully
 (sometimes you will need to leave few of them).
 

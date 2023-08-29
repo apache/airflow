@@ -27,19 +27,16 @@ from flask import request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
-from flask_appbuilder.models.sqla import Model, filters as fab_sqlafilters
+from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from markdown_it import MarkdownIt
 from markupsafe import Markup
-from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from pygments.lexer import Lexer
 from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
-from sqlalchemy.sql import Select
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
@@ -56,7 +53,11 @@ from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
 if TYPE_CHECKING:
+    from flask_appbuilder.models.sqla import Model
+    from pendulum.datetime import DateTime
+    from pygments.lexer import Lexer
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql import Select
     from sqlalchemy.sql.operators import ColumnOperators
 
     from airflow.www.fab_security.sqla.manager import SecurityManager
@@ -107,7 +108,6 @@ priority: list[None | TaskInstanceState] = [
     TaskInstanceState.SCHEDULED,
     TaskInstanceState.DEFERRED,
     TaskInstanceState.RUNNING,
-    TaskInstanceState.SHUTDOWN,
     TaskInstanceState.RESTARTING,
     None,
     TaskInstanceState.SUCCESS,
@@ -197,7 +197,7 @@ def check_import_errors(fileloc, session):
     ).all()
     if import_errors:
         for import_error in import_errors:
-            flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
+            flash(f"Broken DAG: [{import_error.filename}] {import_error.stacktrace}", "dag_import_error")
 
 
 def check_dag_warnings(dag_id, session):

@@ -23,7 +23,6 @@ KubernetesExecutor.
 """
 from __future__ import annotations
 
-import argparse
 import json
 import logging
 import multiprocessing
@@ -34,9 +33,9 @@ from datetime import datetime
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Sequence
 
-from sqlalchemy.orm import Session
+from sqlalchemy import select, update
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 
 try:
     from airflow.cli.cli_config import (
@@ -82,8 +81,11 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    import argparse
+
     from kubernetes import client
     from kubernetes.client import models as k8s
+    from sqlalchemy.orm import Session
 
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstance import TaskInstance
@@ -215,12 +217,12 @@ class KubernetesExecutor(BaseExecutor):
         from airflow.models.taskinstance import TaskInstance
 
         self.log.debug("Clearing tasks that have not been launched")
-        query = session.query(TaskInstance).filter(
+        query = select(TaskInstance).where(
             TaskInstance.state == TaskInstanceState.QUEUED, TaskInstance.queued_by_job_id == self.job_id
         )
         if self.kubernetes_queue:
-            query = query.filter(TaskInstance.queue == self.kubernetes_queue)
-        queued_tis: list[TaskInstance] = query.all()
+            query = query.where(TaskInstance.queue == self.kubernetes_queue)
+        queued_tis: list[TaskInstance] = session.scalars(query).all()
         self.log.info("Found %s queued task instances", len(queued_tis))
 
         # Go through the "last seen" dictionary and clean out old entries
@@ -245,7 +247,7 @@ class KubernetesExecutor(BaseExecutor):
             if ti.map_index >= 0:
                 # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
                 base_label_selector += f",map_index={ti.map_index}"
-            kwargs = dict(label_selector=base_label_selector)
+            kwargs = {"label_selector": base_label_selector}
             if self.kube_config.kube_client_request_args:
                 kwargs.update(**self.kube_config.kube_client_request_args)
 
@@ -262,12 +264,16 @@ class KubernetesExecutor(BaseExecutor):
             if pod_list:
                 continue
             self.log.info("TaskInstance: %s found in queued state but was not launched, rescheduling", ti)
-            session.query(TaskInstance).filter(
-                TaskInstance.dag_id == ti.dag_id,
-                TaskInstance.task_id == ti.task_id,
-                TaskInstance.run_id == ti.run_id,
-                TaskInstance.map_index == ti.map_index,
-            ).update({TaskInstance.state: TaskInstanceState.SCHEDULED})
+            session.execute(
+                update(TaskInstance)
+                .where(
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.run_id == ti.run_id,
+                    TaskInstance.map_index == ti.map_index,
+                )
+                .values(state=TaskInstanceState.SCHEDULED)
+            )
 
     def start(self) -> None:
         """Starts the executor."""
@@ -457,7 +463,7 @@ class KubernetesExecutor(BaseExecutor):
         if state is None:
             from airflow.models.taskinstance import TaskInstance
 
-            state = session.query(TaskInstance.state).filter(TaskInstance.filter_for_tis([key])).scalar()
+            state = session.scalar(select(TaskInstance.state).where(TaskInstance.filter_for_tis([key])))
             state = TaskInstanceState(state)
 
         self.event_buffer[key] = state, None
@@ -511,7 +517,7 @@ class KubernetesExecutor(BaseExecutor):
             if log:
                 messages.append("Found logs through kube API")
         except Exception as e:
-            messages.append(f"Reading from k8s pod logs failed: {str(e)}")
+            messages.append(f"Reading from k8s pod logs failed: {e}")
         return messages, ["\n".join(log)]
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:

@@ -643,8 +643,16 @@ jobs:
       - name: "Publish docs"
         run: >
           breeze release-management publish-docs
-          --override-versioned
+          --override-versioned --run-in-parallel
           ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+      - name: "Generate back references for providers"
+        run: breeze release-management add-back-references all-providers
+      - name: "Generate back references for apache-airflow"
+        run: breeze release-management add-back-references apache-airflow
+      - name: "Generate back references for docker-stack"
+        run: breeze release-management add-back-references docker-stack
+      - name: "Generate back references for helm-chart"
+        run: breeze release-management add-back-references helm-chart
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >
@@ -886,7 +894,7 @@ jobs:
       DB_RESET: "false"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "helm-tests"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      COVERAGE: "false"  # We do not need to run coverage on Helm tests
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule') &&
@@ -1089,6 +1097,7 @@ jobs:
       MYSQL_VERSION: "${{matrix.mysql-version}}"
       BACKEND_VERSION: "${{matrix.mysql-version}}"
       JOB_ID: "mysql-${{matrix.mysql-version}}-${{matrix.python-version}}"
+      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo

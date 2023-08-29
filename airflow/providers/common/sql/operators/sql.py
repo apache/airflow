@@ -783,7 +783,7 @@ class SQLCheckOperator(BaseSQLOperator):
         self.log.info("Record: %s", records)
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
-        elif not all(bool(r) for r in records):
+        elif not all(records):
             self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
         self.log.info("Success.")
@@ -837,14 +837,13 @@ class SQLValueCheckOperator(BaseSQLOperator):
         pass_value_conv = _convert_to_float_if_possible(self.pass_value)
         is_numeric_value_check = isinstance(pass_value_conv, float)
 
-        tolerance_pct_str = str(self.tol * 100) + "%" if self.tol is not None else None
         error_msg = (
             "Test failed.\nPass value:{pass_value_conv}\n"
             "Tolerance:{tolerance_pct_str}\n"
             "Query:\n{sql}\nResults:\n{records!s}"
         ).format(
             pass_value_conv=pass_value_conv,
-            tolerance_pct_str=tolerance_pct_str,
+            tolerance_pct_str=f"{self.tol:.1%}" if self.tol is not None else None,
             sql=self.sql,
             records=records,
         )

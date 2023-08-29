@@ -503,7 +503,7 @@ class S3Hook(AwsBaseHook):
         if wildcard_match:
             keys = await self.get_file_metadata_async(client, bucket_name, key)
             key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if len(key_matches) == 0:
+            if not key_matches:
                 return False
         else:
             obj = await self.get_head_object_async(client, key, bucket_name)

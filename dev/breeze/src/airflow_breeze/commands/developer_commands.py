@@ -77,7 +77,6 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
-    DOCKER_COMPOSE_COMMAND,
     check_docker_resources,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
@@ -516,6 +515,9 @@ def static_checks(
         force_build=force_build,
         image_tag=image_tag,
         github_repository=github_repository,
+        # for static checks we do not want to regenerate dependencies before pre-commits are run
+        # we want the pre-commit to do it for us (and detect the case the dependencies are updated)
+        skip_provider_dependencies_check=True,
     )
     if not skip_image_check:
         rebuild_or_pull_ci_image_if_needed(command_params=build_params)
@@ -652,7 +654,7 @@ def compile_www_assets(dev: bool):
 @option_dry_run
 def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
-    command_to_execute = [*DOCKER_COMPOSE_COMMAND, "down", "--remove-orphans"]
+    command_to_execute = ["docker", "compose", "down", "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
@@ -723,18 +725,18 @@ def enter_shell(**kwargs) -> RunCommandResult:
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
     shell_params.print_badge_info()
-    cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "-e", "BREEZE", "--rm", "airflow"]
+    cmd = ["docker", "compose", "run", "--service-ports", "-e", "BREEZE", "--rm", "airflow"]
     cmd_added = shell_params.command_passed
     env_variables = get_env_variables_for_docker_commands(shell_params)
     if cmd_added is not None:
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            if shell_params.mysql_version == "8":
+            if not shell_params.mysql_version.startswith("5"):
                 get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
             else:
                 get_console().print(
-                    f"\n[error]Only MySQL 8.0 is supported on ARM architecture, "
+                    f"\n[error]Only MySQL 8.x is supported on ARM architecture, "
                     f"but got {shell_params.mysql_version}[/]\n"
                 )
                 sys.exit(1)
@@ -763,7 +765,7 @@ def find_airflow_container() -> str | None:
     check_docker_resources(exec_shell_params.airflow_image_name)
     exec_shell_params.print_badge_info()
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
-    cmd = [*DOCKER_COMPOSE_COMMAND, "ps", "--all", "--filter", "status=running", "airflow"]
+    cmd = ["docker", "compose", "ps", "--all", "--filter", "status=running", "airflow"]
     docker_compose_ps_command = run_command(
         cmd, text=True, capture_output=True, env=env_variables, check=False
     )
@@ -777,7 +779,7 @@ def find_airflow_container() -> str | None:
         return None
 
     output = docker_compose_ps_command.stdout
-    container_info = output.strip().split("\n")
+    container_info = output.strip().splitlines()
     if container_info:
         container_running = container_info[-1].split(" ")[0]
         if container_running.startswith("-"):

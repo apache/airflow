@@ -18,13 +18,16 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import MagicMock
 
 from moto import mock_sts
 from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
 
 mock_crawler_name = "test-crawler"
 mock_role_name = "test-role"

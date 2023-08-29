@@ -31,11 +31,13 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class SmtpHook(BaseHook):
@@ -333,7 +335,7 @@ class SmtpHook(BaseHook):
         :return: A list of email addresses.
         """
         pattern = r"\s*[,;]\s*"
-        return [address for address in re.split(pattern, addresses)]
+        return re.split(pattern, addresses)
 
     @property
     def conn(self) -> Connection:

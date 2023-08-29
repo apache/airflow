@@ -353,8 +353,7 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
     install_requires = [
         apply_version_suffix(clause) for clause in ALL_DEPENDENCIES[provider_package_id][DEPS]
     ]
-    prefix = "\n    "
-    return prefix + prefix.join(install_requires)
+    return "".join(f"\n    {ir}" for ir in install_requires)
 
 
 def get_setup_requirements() -> str:
@@ -483,7 +482,7 @@ def convert_git_changes_to_table(
     """
     from tabulate import tabulate
 
-    lines = changes.split("\n")
+    lines = changes.splitlines()
     headers = ["Commit", "Committed", "Subject"]
     table_data = []
     changes_list: list[Change] = []
@@ -1058,7 +1057,7 @@ def get_all_changes_for_package(
     changes_table += changes_table_for_version
     if verbose:
         print_changes_table(changes_table)
-    return True, list_of_list_of_changes if len(list_of_list_of_changes) > 0 else None, changes_table
+    return True, list_of_list_of_changes or None, changes_table
 
 
 def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
@@ -1337,7 +1336,7 @@ def update_release_notes(
         version_suffix=version_suffix,
     )
     jinja_context["DETAILED_CHANGES_RST"] = changes
-    jinja_context["DETAILED_CHANGES_PRESENT"] = len(changes) > 0
+    jinja_context["DETAILED_CHANGES_PRESENT"] = bool(changes)
     update_changelog_rst(
         jinja_context,
         provider_package_id,

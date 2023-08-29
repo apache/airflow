@@ -28,6 +28,7 @@ from pathlib import Path
 from airflow import models
 from airflow.providers.google.cloud.operators.datapipeline import (
     CreateDataPipelineOperator,
+    RunDataPipelineOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
@@ -38,7 +39,7 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 GCP_LOCATION = os.environ.get("location", "us-central1")
 
-PIPELINE_NAME = "defualt-pipeline-name"
+PIPELINE_NAME = os.environ.get("DATA_PIPELINE_NAME", "defualt-pipeline-name")
 PIPELINE_TYPE = "PIPELINE_TYPE_BATCH"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
@@ -117,6 +118,13 @@ with models.DAG(
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
+    # [START howto_operator_run_data_pipeline]
+    run_data_pipeline = RunDataPipelineOperator(
+        task_id="run_data_pipeline",
+        data_pipeline_name=PIPELINE_NAME,
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_run_data_pipeline]
 
 from tests.system.utils import get_test_run  # noqa: E402
 

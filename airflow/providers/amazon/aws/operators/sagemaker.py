@@ -494,16 +494,32 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         try:
             response = sagemaker_operation(
                 endpoint_info,
-                wait_for_completion=False,
+                wait_for_completion=False,  # waiting for completion is handled here in the operator
             )
-            # waiting for completion is handled here in the operator
-        except ClientError:
-            self.operation = "update"
-            sagemaker_operation = self.hook.update_endpoint
-            response = sagemaker_operation(
-                endpoint_info,
-                wait_for_completion=False,
-            )
+        except ClientError as ce:
+            if self.operation == "create" and ce.response["Error"]["Message"].startswith(
+                "Cannot create already existing endpoint"
+            ):
+                # if we get an error because the endpoint already exists, we try to update it instead
+                self.operation = "update"
+                sagemaker_operation = self.hook.update_endpoint
+                self.log.warning(
+                    "cannot create already existing endpoint %s, "
+                    "updating it with the given config instead",
+                    endpoint_info["EndpointName"],
+                )
+                if "Tags" in endpoint_info:
+                    self.log.warning(
+                        "Provided tags will be ignored in the update operation "
+                        "(tags on the existing endpoint will be unchanged)"
+                    )
+                    endpoint_info.pop("Tags")
+                response = sagemaker_operation(
+                    endpoint_info,
+                    wait_for_completion=False,
+                )
+            else:
+                raise
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker endpoint creation failed: {response}")
@@ -1616,7 +1632,7 @@ class SageMakerCreateNotebookOperator(BaseOperator):
             "DirectInternetAccess": self.direct_internet_access,
             "RootAccess": self.root_access,
         }
-        if len(self.create_instance_kwargs) > 0:
+        if self.create_instance_kwargs:
             create_notebook_instance_kwargs.update(self.create_instance_kwargs)
 
         self.log.info("Creating SageMaker notebook %s.", self.instance_name)

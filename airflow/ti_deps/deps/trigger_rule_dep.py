@@ -25,8 +25,7 @@ from typing import TYPE_CHECKING, Iterator, NamedTuple
 from sqlalchemy import and_, func, or_, select
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET
-from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep, TIDepStatus
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule as TR
 
@@ -35,6 +34,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.models.taskinstance import TaskInstance
+    from airflow.ti_deps.dep_context import DepContext
+    from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
 
 class _UpstreamTIStates(NamedTuple):
@@ -294,7 +295,7 @@ class TriggerRuleDep(BaseTIDep):
                 )
                 if not past_depends_met:
                     yield self._failing_status(
-                        reason=("Task should be skipped but the the past depends are not met")
+                        reason=("Task should be skipped but the past depends are not met")
                     )
                     return
             changed = ti.set_state(new_state, session)

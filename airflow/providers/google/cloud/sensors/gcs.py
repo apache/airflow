@@ -24,7 +24,6 @@ import warnings
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from google.api_core.retry import Retry
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.configuration import conf
@@ -39,6 +38,8 @@ from airflow.providers.google.cloud.triggers.gcs import (
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 

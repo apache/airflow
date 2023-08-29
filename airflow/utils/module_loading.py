@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import pkgutil
 from importlib import import_module
-from types import ModuleType
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 def import_string(dotted_path: str):

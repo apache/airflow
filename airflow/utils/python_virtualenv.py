@@ -53,12 +53,12 @@ def _generate_pip_install_cmd_from_list(
 
 
 def _generate_pip_conf(conf_file: Path, index_urls: list[str]) -> None:
-    if len(index_urls) == 0:
-        pip_conf_options = "no-index = true"
-    else:
+    if index_urls:
         pip_conf_options = f"index-url = {index_urls[0]}"
         if len(index_urls) > 1:
             pip_conf_options += f"\nextra-index-url = {' '.join(x for x in index_urls[1:])}"
+    else:
+        pip_conf_options = "no-index = true"
     conf_file.write_text(f"[global]\n{pip_conf_options}")
 
 

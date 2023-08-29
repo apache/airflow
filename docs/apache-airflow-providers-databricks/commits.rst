@@ -28,14 +28,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.4.0
+.....
+
+Latest change: 2023-08-24
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`dc47c460dc <https://github.com/apache/airflow/commit/dc47c460dc0edfbfe0e692eac1d07b42280e0810>`_  2023-08-24   ``Update docs in databricks.py - we use 2.1 now (#32340)``
+`4154cc04ce <https://github.com/apache/airflow/commit/4154cc04ce9702b09e6f13d423686fdf4cb7b877>`_  2023-08-24   ``Do not create lists we don't need (#33519)``
+`2dbb963324 <https://github.com/apache/airflow/commit/2dbb9633240777d658031d32217255849150684b>`_  2023-08-24   ``Refactor: Improve detection of duplicates and list sorting (#33675)``
+`1cdd82391e <https://github.com/apache/airflow/commit/1cdd82391e0f7a24ab7f0badbe8f44a54f51d757>`_  2023-08-21   ``Simplify conditions on len() in other providers (#33569)``
+`a91ee7ac2f <https://github.com/apache/airflow/commit/a91ee7ac2fe29f460a4e4b0d8c1346f40672be43>`_  2023-08-20   ``Refactor: Simplify code in smaller providers (#33234)``
+`8bf53dd554 <https://github.com/apache/airflow/commit/8bf53dd5545ecda0e5bbffbc4cc803cbbde719a9>`_  2023-08-14   ``Add Service Principal OAuth for Databricks. (#33005)``
+`5f8f25b34c <https://github.com/apache/airflow/commit/5f8f25b34c9e8c0d4845b014fc8f1b00cc2e766f>`_  2023-08-11   ``Ecldude databrick connector 2.9.0 due to a bug (#33311)``
+=================================================================================================  ===========  =======================================================================
+
 4.3.3
 .....
 
-Latest change: 2023-08-07
+Latest change: 2023-08-11
 
 =================================================================================================  ===========  ==========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
 `9736143468 <https://github.com/apache/airflow/commit/9736143468cfe034e65afb3df3031ab3626f0f6d>`_  2023-08-07   ``Add a new parameter to SQL operators to specify conn id field (#30784)``
 =================================================================================================  ===========  ==========================================================================
 

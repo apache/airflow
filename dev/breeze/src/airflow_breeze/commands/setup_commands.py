@@ -297,7 +297,7 @@ def get_command_hash_export() -> str:
                             f"[error]The `breeze {command} {subcommand}` is missing in rich-click options[/]"
                         )
                         get_console().print(
-                            "[info]Please add add it to rich_click.OPTION_GROUPS "
+                            "[info]Please add it to rich_click.OPTION_GROUPS "
                             "via one of the `*_commands_config.py` "
                             "files in `dev/breeze/src/airflow_breeze/commands`[/]"
                         )
@@ -310,7 +310,7 @@ def get_command_hash_export() -> str:
                 hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
             else:
                 hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
-    return "\n".join(hashes) + "\n"
+    return "".join(f"{h}\n" for h in hashes)
 
 
 def write_to_shell(command_to_execute: str, script_path: str, force_setup: bool) -> bool:

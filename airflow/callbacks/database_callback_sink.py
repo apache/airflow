@@ -17,12 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
-from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.callbacks.callback_requests import CallbackRequest
 
 
 class DatabaseCallbackSink(BaseCallbackSink):

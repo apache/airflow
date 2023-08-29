@@ -23,7 +23,6 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from kubernetes import client, watch
-from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
@@ -51,6 +50,8 @@ except ImportError:
     )
 
 if TYPE_CHECKING:
+    from kubernetes.client import Configuration, models as k8s
+
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
         KubernetesJobType,
         KubernetesResultsType,

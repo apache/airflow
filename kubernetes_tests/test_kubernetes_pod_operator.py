@@ -29,12 +29,13 @@ from uuid import uuid4
 
 import pendulum
 import pytest
+from kubernetes import client
 from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 from pytest import param
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -43,6 +44,7 @@ from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
+from kubernetes_tests.test_base import BaseK8STest
 
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
@@ -222,6 +224,22 @@ class TestKubernetesPodOperatorSystem:
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
+
+    def test_skip_on_specified_exit_code(self, mock_get_connection):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["exit 42"],
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=True,
+            skip_on_exit_code=42,
+        )
+        context = create_context(k)
+        with pytest.raises(AirflowSkipException):
+            k.execute(context)
 
     def test_already_checked_on_success(self, mock_get_connection):
         """
@@ -1331,3 +1349,32 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
         task.render_template_fields(context=context)
     assert "password" in caplog.text
     assert "secretpassword" not in caplog.text
+
+
+class TestKubernetesPodOperator(BaseK8STest):
+    @pytest.mark.parametrize("active_deadline_seconds", [10, 20])
+    def test_kubernetes_pod_operator_active_deadline_seconds(self, active_deadline_seconds):
+        k = KubernetesPodOperator(
+            task_id=f"test_task_{active_deadline_seconds}",
+            active_deadline_seconds=active_deadline_seconds,
+            image="busybox",
+            cmds=["sh", "-c", "echo 'hello world' && sleep 60"],
+            namespace="default",
+            on_finish_action="keep_pod",
+        )
+
+        context = create_context(k)
+
+        with pytest.raises(AirflowException):
+            k.execute(context)
+
+        pod = k.find_pod("default", context, exclude_checked=False)
+
+        k8s_client = client.CoreV1Api()
+
+        pod_status = k8s_client.read_namespaced_pod_status(name=pod.metadata.name, namespace="default")
+        phase = pod_status.status.phase
+        reason = pod_status.status.reason
+
+        assert phase == "Failed"
+        assert reason == "DeadlineExceeded"

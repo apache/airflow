@@ -79,4 +79,4 @@ def check_system_test_entry_hidden(provider_index: Path):
 if __name__ == "__main__":
     for file in sys.argv[1:]:
         check_system_test_entry_hidden(Path(file))
-    sys.exit(0 if len(errors) == 0 else 1)
+    sys.exit(1 if errors else 0)

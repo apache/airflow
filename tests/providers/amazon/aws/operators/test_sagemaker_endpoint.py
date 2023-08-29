@@ -122,6 +122,43 @@ class TestSageMakerEndpointOperator:
         }
         self.sagemaker.execute(None)
 
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "create_endpoint_config")
+    @mock.patch.object(SageMakerHook, "create_endpoint")
+    @mock.patch.object(SageMakerHook, "update_endpoint")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_execute_with_duplicate_endpoint_removes_tags(
+        self,
+        serialize,
+        mock_endpoint_update,
+        mock_endpoint_create,
+        mock_endpoint_config,
+        mock_model,
+        mock_client,
+    ):
+        mock_endpoint_create.side_effect = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "ValidationException",
+                    "Message": "Cannot create already existing endpoint.",
+                }
+            },
+            operation_name="CreateEndpoint",
+        )
+
+        def _check_no_tags(config, wait_for_completion):
+            assert "Tags" not in config
+            return {
+                "EndpointArn": "test_arn",
+                "ResponseMetadata": {"HTTPStatusCode": 200},
+            }
+
+        mock_endpoint_update.side_effect = _check_no_tags
+
+        self.sagemaker.config["Endpoint"]["Tags"] = {"Key": "k", "Value": "v"}
+        self.sagemaker.execute(None)
+
     @mock.patch.object(SageMakerHook, "create_model")
     @mock.patch.object(SageMakerHook, "create_endpoint_config")
     @mock.patch.object(SageMakerHook, "create_endpoint")

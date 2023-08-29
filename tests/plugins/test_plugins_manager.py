@@ -21,7 +21,6 @@ import importlib
 import logging
 import os
 import sys
-import tempfile
 from pathlib import Path
 from unittest import mock
 
@@ -216,16 +215,14 @@ class TestPluginsManager:
 
             assert caplog.record_tuples == []
 
-    def test_loads_filesystem_plugins_exception(self, caplog):
+    def test_loads_filesystem_plugins_exception(self, caplog, tmp_path):
         from airflow import plugins_manager
 
         with mock.patch("airflow.plugins_manager.plugins", []):
-            with tempfile.TemporaryDirectory() as tmpdir:
-                with open(os.path.join(tmpdir, "testplugin.py"), "w") as f:
-                    f.write(ON_LOAD_EXCEPTION_PLUGIN)
+            (tmp_path / "testplugin.py").write_text(ON_LOAD_EXCEPTION_PLUGIN)
 
-                with conf_vars({("core", "plugins_folder"): tmpdir}):
-                    plugins_manager.load_plugins_from_plugin_directory()
+            with conf_vars({("core", "plugins_folder"): os.fspath(tmp_path)}):
+                plugins_manager.load_plugins_from_plugin_directory()
 
             assert plugins_manager.plugins == []
 

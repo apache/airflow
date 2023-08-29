@@ -52,7 +52,7 @@ repos:
           - --comment-style
           - "/*||*/"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all RST files
@@ -61,7 +61,7 @@ repos:
           - --comment-style
           - "||"
           - --license-filepath
-          - license-templates/LICENSE.rst
+          - scripts/ci/license-templates/LICENSE.rst
           - --fuzzy-match-generates-todo
         files: \.rst$
       - id: insert-license
@@ -72,7 +72,7 @@ repos:
           - --comment-style
           - "/*!| *| */"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all JINJA template files
@@ -82,7 +82,7 @@ repos:
           - --comment-style
           - "{#||#}"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Shell files
@@ -92,7 +92,7 @@ repos:
           - --comment-style
           - "|#|"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Python files
@@ -102,7 +102,7 @@ repos:
           - --comment-style
           - "|#|"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all XML files
@@ -112,7 +112,7 @@ repos:
           - --comment-style
           - "<!--||-->"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Helm template files
@@ -121,7 +121,7 @@ repos:
           - --comment-style
           - "{{/*||*/}}"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
@@ -132,7 +132,7 @@ repos:
           - --comment-style
           - "|#|"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Markdown files
@@ -142,7 +142,7 @@ repos:
           - --comment-style
           - "<!--|| -->"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all other files
@@ -151,7 +151,7 @@ repos:
           - --comment-style
           - "|#|"
           - --license-filepath
-          - license-templates/LICENSE.txt
+          - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
@@ -412,7 +412,8 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_version_heads_map.py
         pass_filenames: false
-        additional_dependencies: ['packaging']
+        files: ^airflow/migrations/versions|^airflow/__init__.py$
+        additional_dependencies: ['packaging','google-re2']
       - id: update-version
         name: Update version to the latest version in the documentation
         entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py

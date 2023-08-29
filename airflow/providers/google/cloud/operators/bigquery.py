@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 
 import attr
 from google.api_core.exceptions import Conflict
-from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 from google.cloud.bigquery.table import RowIterator
 
@@ -56,6 +55,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
 
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -1797,6 +1797,22 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             default_project_id=bq_hook.project_id or "",
         )
 
+        external_data_configuration = {
+            "source_uris": source_uris,
+            "source_format": self.source_format,
+            "autodetect": self.autodetect,
+            "compression": self.compression,
+            "maxBadRecords": self.max_bad_records,
+        }
+        if self.source_format == "CSV":
+            external_data_configuration["csvOptions"] = {
+                "fieldDelimiter": self.field_delimiter,
+                "skipLeadingRows": self.skip_leading_rows,
+                "quote": self.quote_character,
+                "allowQuotedNewlines": self.allow_quoted_newlines,
+                "allowJaggedRows": self.allow_jagged_rows,
+            }
+
         table_resource = {
             "tableReference": {
                 "projectId": project_id,
@@ -1805,20 +1821,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             },
             "labels": self.labels,
             "schema": {"fields": schema_fields},
-            "externalDataConfiguration": {
-                "source_uris": source_uris,
-                "source_format": self.source_format,
-                "maxBadRecords": self.max_bad_records,
-                "autodetect": self.autodetect,
-                "compression": self.compression,
-                "csvOptions": {
-                    "fieldDelimiter": self.field_delimiter,
-                    "skipLeadingRows": self.skip_leading_rows,
-                    "quote": self.quote_character,
-                    "allowQuotedNewlines": self.allow_quoted_newlines,
-                    "allowJaggedRows": self.allow_jagged_rows,
-                },
-            },
+            "externalDataConfiguration": external_data_configuration,
             "location": self.location,
             "encryptionConfiguration": self.encryption_configuration,
         }

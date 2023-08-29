@@ -56,12 +56,12 @@ class ExasolHook(DbApiHook):
     def get_conn(self) -> ExaConnection:
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.get_connection(conn_id)
-        conn_args = dict(
-            dsn=f"{conn.host}:{conn.port}",
-            user=conn.login,
-            password=conn.password,
-            schema=self.schema or conn.schema,
-        )
+        conn_args = {
+            "dsn": f"{conn.host}:{conn.port}",
+            "user": conn.login,
+            "password": conn.password,
+            "schema": self.schema or conn.schema,
+        }
         # check for parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name in ["compression", "encryption", "json_lib", "client_name"]:
@@ -97,9 +97,8 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.execute(sql, parameters)) as cur:
-                return cur.fetchall()
+        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+            return cur.fetchall()
 
     def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """Execute the SQL and return the first resulting row.
@@ -108,9 +107,8 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.execute(sql, parameters)) as cur:
-                return cur.fetchone()
+        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+            return cur.fetchone()
 
     def export_to_file(
         self,

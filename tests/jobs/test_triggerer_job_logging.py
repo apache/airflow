@@ -171,7 +171,7 @@ def test_configure_trigger_log_handler_not_file_task_handler(cfg, cls, msg):
     """
     No root handler configured.
     When non FileTaskHandler is configured, don't modify.
-    When when an incompatible subclass of FileTaskHandler is configured, don't modify.
+    When an incompatible subclass of FileTaskHandler is configured, don't modify.
     """
     # reset handlers
     root_logger = logging.getLogger()

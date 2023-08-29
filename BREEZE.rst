@@ -411,6 +411,22 @@ as follows:
 
     breeze --python 3.8 --backend mysql --mysql-version 8
 
+.. note:: Note for Windows WSL2 users
+
+   You may find error messages:
+
+.. code-block:: bash
+
+    Current context is now "..."
+    protocol not available
+    Error 1 returned
+
+Try adding ``--builder=default`` to your command. For example:
+
+.. code-block:: bash
+
+    breeze --builder=default --python 3.8 --backend mysql --mysql-version 8
+
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
 them when you run the script. You can delete the ``.build/`` directory in case you want to restore the
@@ -2051,6 +2067,9 @@ while publishing the documentation.
 
 The flag ``--airflow-site-directory`` takes the path of the cloned ``airflow-site``. The command will
 not proceed if this is an invalid path.
+
+When you have multi-processor machine docs publishing can be vastly sped up by using ``--run-in-parallel`` option when
+publishing docs for multiple providers.
 
 These are all available flags of ``release-management publish-docs`` command:
 

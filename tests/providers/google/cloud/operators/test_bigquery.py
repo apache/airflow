@@ -77,8 +77,10 @@ TEST_JOB_PROJECT_ID = "test-job-project"
 TEST_DELETE_CONTENTS = True
 TEST_TABLE_ID = "test-table-id"
 TEST_GCS_BUCKET = "test-bucket"
-TEST_GCS_DATA = ["dir1/*.csv"]
-TEST_SOURCE_FORMAT = "CSV"
+TEST_GCS_CSV_DATA = ["dir1/*.csv"]
+TEST_SOURCE_CSV_FORMAT = "CSV"
+TEST_GCS_PARQUET_DATA = ["dir1/*.parquet"]
+TEST_SOURCE_PARQUET_FORMAT = "PARQUET"
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "test-bigquery-operators"
 TEST_TABLE_RESOURCES = {"tableReference": {"tableId": TEST_TABLE_ID}, "expirationTime": 1234567}
@@ -246,15 +248,15 @@ class TestBigQueryCreateEmptyTableOperator:
 
 class TestBigQueryCreateExternalTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_execute(self, mock_hook):
+    def test_execute_with_csv_format(self, mock_hook):
         operator = BigQueryCreateExternalTableOperator(
             task_id=TASK_ID,
             destination_project_dataset_table=f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
             schema_fields=[],
             bucket=TEST_GCS_BUCKET,
             gcs_schema_bucket=TEST_GCS_BUCKET,
-            source_objects=TEST_GCS_DATA,
-            source_format=TEST_SOURCE_FORMAT,
+            source_objects=TEST_GCS_CSV_DATA,
+            source_format=TEST_SOURCE_CSV_FORMAT,
             autodetect=True,
         )
 
@@ -276,9 +278,9 @@ class TestBigQueryCreateExternalTableOperator:
                 "schema": {"fields": []},
                 "externalDataConfiguration": {
                     "source_uris": [
-                        f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_DATA
+                        f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_CSV_DATA
                     ],
-                    "source_format": TEST_SOURCE_FORMAT,
+                    "source_format": TEST_SOURCE_CSV_FORMAT,
                     "maxBadRecords": 0,
                     "autodetect": True,
                     "compression": "NONE",
@@ -289,6 +291,49 @@ class TestBigQueryCreateExternalTableOperator:
                         "allowQuotedNewlines": False,
                         "allowJaggedRows": False,
                     },
+                },
+                "location": None,
+                "encryptionConfiguration": None,
+            }
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_with_parquet_format(self, mock_hook):
+        operator = BigQueryCreateExternalTableOperator(
+            task_id=TASK_ID,
+            destination_project_dataset_table=f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
+            schema_fields=[],
+            bucket=TEST_GCS_BUCKET,
+            gcs_schema_bucket=TEST_GCS_BUCKET,
+            source_objects=TEST_GCS_PARQUET_DATA,
+            source_format=TEST_SOURCE_PARQUET_FORMAT,
+            autodetect=True,
+        )
+
+        mock_hook.return_value.split_tablename.return_value = (
+            TEST_GCP_PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+
+        operator.execute(context=MagicMock())
+        mock_hook.return_value.create_empty_table.assert_called_once_with(
+            table_resource={
+                "tableReference": {
+                    "projectId": TEST_GCP_PROJECT_ID,
+                    "datasetId": TEST_DATASET,
+                    "tableId": TEST_TABLE_ID,
+                },
+                "labels": None,
+                "schema": {"fields": []},
+                "externalDataConfiguration": {
+                    "source_uris": [
+                        f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_PARQUET_DATA
+                    ],
+                    "source_format": TEST_SOURCE_PARQUET_FORMAT,
+                    "maxBadRecords": 0,
+                    "autodetect": True,
+                    "compression": "NONE",
                 },
                 "location": None,
                 "encryptionConfiguration": None,

@@ -21,7 +21,6 @@ import functools
 import json
 import logging
 import os
-from collections import OrderedDict
 from http import HTTPStatus
 from unittest import mock
 
@@ -292,7 +291,7 @@ class TestHttpHook:
                 mock.ANY,
                 allow_redirects=True,
                 cert=None,
-                proxies=OrderedDict(),
+                proxies={},
                 stream=False,
                 timeout=None,
                 verify=True,
@@ -310,7 +309,7 @@ class TestHttpHook:
                 mock.ANY,
                 allow_redirects=True,
                 cert=None,
-                proxies=OrderedDict(),
+                proxies={},
                 stream=False,
                 timeout=None,
                 verify="/tmp/test.crt",
@@ -328,7 +327,7 @@ class TestHttpHook:
                 mock.ANY,
                 allow_redirects=True,
                 cert=None,
-                proxies=OrderedDict(),
+                proxies={},
                 stream=False,
                 timeout=None,
                 verify="/tmp/test.crt",
@@ -346,7 +345,7 @@ class TestHttpHook:
                 mock.ANY,
                 allow_redirects=True,
                 cert=None,
-                proxies=OrderedDict(),
+                proxies={},
                 stream=False,
                 timeout=None,
                 verify=False,

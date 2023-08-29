@@ -1236,12 +1236,12 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         client = await self.initialize_client(JobsV1Beta3AsyncClient)
 
         request = GetJobRequest(
-            dict(
-                project_id=project_id,
-                job_id=job_id,
-                view=job_view,
-                location=location,
-            )
+            {
+                "project_id": project_id,
+                "job_id": job_id,
+                "view": job_view,
+                "location": location,
+            }
         )
 
         job = await client.get_job(

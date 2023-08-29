@@ -291,7 +291,7 @@ class EmrServerlessHook(AwsBaseHook):
         for r in iterator:
             job_ids = [jr["id"] for jr in r["jobRuns"]]
             count += len(job_ids)
-            if len(job_ids) > 0:
+            if job_ids:
                 self.log.info(
                     "Cancelling %s pending job(s) for the application %s so that it can be stopped",
                     len(job_ids),

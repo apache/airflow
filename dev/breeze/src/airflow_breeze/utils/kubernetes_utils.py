@@ -162,11 +162,7 @@ def _download_tool_if_needed(
             f"[info]Error when running `{tool}`: {e}. "
             f"Removing and downloading {expected_version} version."
         )
-        try:
-            # We can add missing=ok when we go to python 3.8+
-            path.unlink()
-        except FileNotFoundError:
-            pass
+        path.unlink(missing_ok=True)
     get_console().print(f"[info]Downloading from:[/] {url}")
     if get_dry_run():
         return

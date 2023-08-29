@@ -24,18 +24,21 @@ import subprocess
 import threading
 import time
 from collections import deque
+from typing import TYPE_CHECKING
 
 from termcolor import colored
 
 from airflow.configuration import AIRFLOW_HOME, conf, make_group_other_inaccessible
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
-from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import most_recent_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import db
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+if TYPE_CHECKING:
+    from airflow.jobs.base_job_runner import BaseJobRunner
 
 
 class StandaloneCommand:
@@ -139,8 +142,8 @@ class StandaloneCommand:
             "triggerer": "cyan",
             "standalone": "white",
         }.get(name, "white")
-        colorised_name = colored("%10s" % name, color)
-        for line in output.split("\n"):
+        colorised_name = colored(f"{name:10}", color)
+        for line in output.splitlines():
             print(f"{colorised_name} | {line.strip()}")
 
     def print_error(self, name: str, output):
@@ -182,7 +185,7 @@ class StandaloneCommand:
         # server. Thus, we make a random password and store it in AIRFLOW_HOME,
         # with the reasoning that if you can read that directory, you can see
         # the database credentials anyway.
-        from airflow.utils.cli_app_builder import get_application_builder
+        from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
 
         with get_application_builder() as appbuilder:
             user_exists = appbuilder.sm.find_user("admin")
@@ -193,9 +196,8 @@ class StandaloneCommand:
             self.print_output("standalone", "Creating admin user")
             role = appbuilder.sm.find_role("Admin")
             assert role is not None
-            password = "".join(
-                random.choice("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789") for i in range(16)
-            )
+            # password does not contain visually similar characters: ijlIJL1oO0
+            password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
             with open(password_path, "w") as file:
                 file.write(password)
             make_group_other_inaccessible(password_path)

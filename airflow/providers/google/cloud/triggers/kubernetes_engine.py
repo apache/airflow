@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import warnings
-from datetime import datetime
-from typing import Any, AsyncIterator, Sequence
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
 from google.cloud.container_v1.types import Operation
 
@@ -34,6 +33,9 @@ except ImportError:
     from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import KubernetesPodTrigger
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEAsyncHook, GKEPodAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class GKEStartPodTrigger(KubernetesPodTrigger):
@@ -55,7 +57,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         will consult the class variable BASE_CONTAINER_NAME (which defaults to "base") for the base
         container name to use.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
-        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
     :param should_delete_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the

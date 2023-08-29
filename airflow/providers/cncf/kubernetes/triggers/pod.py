@@ -21,14 +21,15 @@ import datetime
 import warnings
 from asyncio import CancelledError
 from enum import Enum
-from typing import Any, AsyncIterator
-
-from kubernetes_asyncio.client.models import V1Pod
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodPhase
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from kubernetes_asyncio.client.models import V1Pod
 
 
 class ContainerState(str, Enum):
@@ -61,7 +62,7 @@ class KubernetesPodTrigger(BaseTrigger):
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param startup_timeout: timeout in seconds to start up the pod.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
-        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
     :param should_delete_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the

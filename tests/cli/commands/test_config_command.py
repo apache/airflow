@@ -78,7 +78,7 @@ class TestCliConfigList:
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert all(not line.startswith("#") or line.endswith("= ") for line in lines if line)
 
     def test_cli_show_config_shows_descriptions(self):
@@ -87,7 +87,7 @@ class TestCliConfigList:
                 self.parser.parse_args(["config", "list", "--color", "off", "--include-descriptions"])
             )
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         # comes from metrics description
         assert all(not line.startswith("# Source: ") for line in lines if line)
         assert any(line.startswith("# StatsD") for line in lines if line)
@@ -100,7 +100,7 @@ class TestCliConfigList:
                 self.parser.parse_args(["config", "list", "--color", "off", "--include-examples"])
             )
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert all(not line.startswith("# Source: ") for line in lines if line)
         assert all(not line.startswith("# StatsD") for line in lines if line)
         assert any(line.startswith("# Example:") for line in lines if line)
@@ -112,7 +112,7 @@ class TestCliConfigList:
                 self.parser.parse_args(["config", "list", "--color", "off", "--include-env-vars"])
             )
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert all(not line.startswith("# Source: ") for line in lines if line)
         assert all(not line.startswith("# StatsD") for line in lines if line)
         assert all(not line.startswith("# Example:") for line in lines if line)
@@ -124,7 +124,7 @@ class TestCliConfigList:
                 self.parser.parse_args(["config", "list", "--color", "off", "--include-sources"])
             )
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert any(line.startswith("# Source: ") for line in lines if line)
         assert all(not line.startswith("# StatsD") for line in lines if line)
         assert all(not line.startswith("# Example:") for line in lines if line)
@@ -136,7 +136,7 @@ class TestCliConfigList:
                 self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
             )
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert all(not line.startswith("# Source: ") for line in lines if line)
         assert any(line.startswith("# StatsD") for line in lines if line)
         assert any(not line.startswith("# Example:") for line in lines if line)
@@ -151,7 +151,7 @@ class TestCliConfigList:
                 self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
             )
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
 
     @mock.patch("os.environ", {"AIRFLOW__CORE__TASK_RUNNER": "test-env-runner"})
@@ -161,7 +161,7 @@ class TestCliConfigList:
                 self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
             )
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
 
     @conf_vars({("core", "task_runner"): "test-runner"})
@@ -169,7 +169,7 @@ class TestCliConfigList:
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert any(line.startswith("task_runner = test-runner") for line in lines if line)
 
     @mock.patch("os.environ", {"AIRFLOW__CORE__TASK_RUNNER": "test-env-runner"})
@@ -177,14 +177,14 @@ class TestCliConfigList:
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert any(line.startswith("task_runner = test-env-runner") for line in lines if line)
 
     def test_cli_has_providers(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert any(line.startswith("celery_config_options") for line in lines if line)
 
     def test_cli_comment_out_everything(self):
@@ -193,7 +193,7 @@ class TestCliConfigList:
                 self.parser.parse_args(["config", "list", "--color", "off", "--comment-out-everything"])
             )
         output = temp_stdout.getvalue()
-        lines = output.split("\n")
+        lines = output.splitlines()
         assert all(not line.strip() or line.startswith(("#", "[")) for line in lines if line)
 
 

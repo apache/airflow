@@ -30,6 +30,7 @@ description: |
 
 suspended: false
 versions:
+  - 10.7.0
   - 10.6.0
   - 10.5.0
   - 10.4.0
@@ -117,6 +118,8 @@ dependencies:
   - google-cloud-videointelligence>=2.11.0
   - google-cloud-vision>=3.4.0
   - google-cloud-workflows>=1.10.0
+  - google-cloud-run>=0.9.0
+  - google-cloud-batch>=0.13.0
   - grpcio-gcp>=0.2.2
   - httpx
   - json-merge-patch>=0.2
@@ -181,6 +184,16 @@ integrations:
     external-doc-url: https://cloud.google.com/composer
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
+    tags: [google]
+  - integration-name: Google Cloud Run
+    external-doc-url: https://cloud.google.com/run
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_run.rst
+    tags: [google]
+  - integration-name: Google Cloud Batch
+    external-doc-url: https://cloud.google.com/batch
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_batch.rst
     tags: [google]
   - integration-name: Google Cloud Dataform
     external-doc-url: https://cloud.google.com/dataform/
@@ -483,6 +496,9 @@ operators:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_run
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_memorystore
@@ -611,6 +627,10 @@ operators:
   - integration-name: Google Cloud Dataform
     python-modules:
       - airflow.providers.google.cloud.operators.dataform
+  - integration-name: Google Cloud Batch
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_batch
+
 
 sensors:
   - integration-name: Google BigQuery
@@ -699,6 +719,9 @@ hooks:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_run
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_memorystore
@@ -850,6 +873,9 @@ hooks:
   - integration-name: Google Cloud Dataform
     python-modules:
       - airflow.providers.google.cloud.hooks.dataform
+  - integration-name: Google Cloud Batch
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_batch
 
 triggers:
   - integration-name: Google BigQuery Data Transfer Service
@@ -864,6 +890,9 @@ triggers:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_run
   - integration-name: Google Cloud Storage Transfer Service
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_storage_transfer_service
@@ -891,6 +920,9 @@ triggers:
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.triggers.pubsub
+  - integration-name: Google Cloud
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_batch
 
 transfers:
   - source-integration-name: Presto
@@ -912,9 +944,6 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gdrive_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.gdrive_to_gcs
-  - source-integration-name: Microsoft SQL Server (MSSQL)
-    target-integration-name: Google Cloud Storage (GCS)
-    python-module: airflow.providers.google.cloud.transfers.mssql_to_gcs
   - source-integration-name: Microsoft Azure FileShare
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/azure_fileshare_to_gcs.rst

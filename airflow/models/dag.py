@@ -54,7 +54,6 @@ import jinja2
 import pendulum
 import re2
 from dateutil.relativedelta import relativedelta
-from pendulum.tz.timezone import Timezone
 from sqlalchemy import (
     Boolean,
     Column,
@@ -73,8 +72,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, joinedload, relationship
-from sqlalchemy.orm.query import Query
-from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import Select, expression
 
 import airflow.templates
@@ -97,7 +94,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
@@ -111,7 +107,6 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
-from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -133,9 +128,15 @@ from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 if TYPE_CHECKING:
     from types import ModuleType
 
+    from pendulum.tz.timezone import Timezone
+    from sqlalchemy.orm.query import Query
+    from sqlalchemy.orm.session import Session
+    from typing_extensions import Literal
+
     from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
+    from airflow.models.operator import Operator
     from airflow.models.slamiss import SlaMiss
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.utils.task_group import TaskGroup
@@ -1640,7 +1641,7 @@ class DAG(LoggingMixin):
             .limit(num)
         ).all()
 
-        if len(execution_dates) == 0:
+        if not execution_dates:
             return self.get_task_instances(start_date=base_date, end_date=base_date, session=session)
 
         min_date: datetime | None = execution_dates[-1]._mapping.get(
@@ -2086,8 +2087,7 @@ class DAG(LoggingMixin):
             raise ValueError("TaskGroup {group_id} could not be found")
         tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
         task_ids = [task.task_id for task in task_group.iter_tasks()]
-
-        dag_runs_query = session.query(DagRun.id).where(DagRun.dag_id == self.dag_id)
+        dag_runs_query = select(DagRun.id).where(DagRun.dag_id == self.dag_id)
         if start_date is None and end_date is None:
             dag_runs_query = dag_runs_query.where(DagRun.execution_date == start_date)
         else:
@@ -3204,7 +3204,7 @@ class DAG(LoggingMixin):
         :param active_dag_ids: list of DAG IDs that are active
         :return: None
         """
-        if len(active_dag_ids) == 0:
+        if not active_dag_ids:
             return
         for dag in session.scalars(select(DagModel).where(~DagModel.dag_id.in_(active_dag_ids))).all():
             dag.is_active = False

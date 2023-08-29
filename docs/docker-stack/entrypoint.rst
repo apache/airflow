@@ -57,7 +57,7 @@ The user can be any UID. In case UID is different than the default
 ``airflow`` (UID=50000), the user will be automatically created when entering the container.
 
 In order to accommodate a number of external libraries and projects, Airflow will automatically create
-such an arbitrary user in (`/etc/passwd`) and make it's home directory point to ``/home/airflow``.
+such an arbitrary user in (`/etc/passwd`) and make its home directory point to ``/home/airflow``.
 Many of 3rd-party libraries and packages require home directory of the user to be present, because they
 need to write some cache information there, so such a dynamic creation of a user is necessary.
 
@@ -98,7 +98,7 @@ The entrypoint is waiting for a connection to the database independent of the da
 the stability of the environment.
 
 Waiting for connection involves executing ``airflow db check`` command, which means that a ``select 1 as is_alive;`` statement
-is executed. Then it loops until the the command will be successful.
+is executed. Then it loops until the command will be successful.
 It tries :envvar:`CONNECTION_CHECK_MAX_COUNT` times and sleeps :envvar:`CONNECTION_CHECK_SLEEP_TIME` between checks
 To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 
@@ -330,7 +330,7 @@ The entrypoint can also create webserver user automatically when you enter it. y
 production, it is only useful if you would like to run a quick test with the production image.
 You need to pass at least password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD`` or
 :envvar:`_AIRFLOW_WWW_USER_PASSWORD_CMD` similarly like for other ``*_CMD`` variables, the content of
-the ``*_CMD`` will be evaluated as shell command and it's output will be set as password.
+the ``*_CMD`` will be evaluated as shell command and its output will be set as password.
 
 User creation will fail if none of the ``PASSWORD`` variables are set - there is no default for
 password for security reasons.

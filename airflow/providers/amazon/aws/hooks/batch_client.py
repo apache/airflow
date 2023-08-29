@@ -26,10 +26,10 @@ A client for AWS Batch services.
 """
 from __future__ import annotations
 
-import itertools as it
+import itertools
 from random import uniform
 from time import sleep
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import botocore.client
 import botocore.exceptions
@@ -37,8 +37,10 @@ import botocore.waiter
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.typing_compat import Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 
 @runtime_checkable
@@ -488,7 +490,7 @@ class BatchClientHook(AwsBaseHook):
 
         # cross stream names with options (i.e. attempts X nodes) to generate all log infos
         result = []
-        for stream, option in it.product(stream_names, log_options):
+        for stream, option in itertools.product(stream_names, log_options):
             result.append(
                 {
                     "awslogs_stream_name": stream,

@@ -245,9 +245,8 @@ If release name contains chart name it will be used as a full name.
     - name: GIT_SYNC_ONE_TIME
       value: "true"
     {{- end }}
-    {{- range $i, $config := .Values.dags.gitSync.env }}
-    - name: {{ $config.name }}
-      value: {{ $config.value | quote }}
+    {{- with .Values.dags.gitSync.env }}
+    {{- toYaml . | nindent 4 }}
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 6 }}
   volumeMounts:
@@ -363,7 +362,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "pgbouncer_stats_secret" -}}
-  {{- printf "%s-pgbouncer-stats" (include "airflow.fullname" .) }}
+  {{- default (printf "%s-pgbouncer-stats" (include "airflow.fullname" .)) .Values.pgbouncer.metricsExporterSidecar.statsSecretName }}
 {{- end }}
 
 {{- define "registry_secret" -}}
@@ -967,5 +966,20 @@ capabilities:
   - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
     value: {{ $config.value | quote }}
     {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- define "kedaNetworkPolicySelector" }}
+  {{- if .Values.workers.keda.enabled }}
+
+  {{- if .Values.workers.keda.namespaceLabels }}
+      - namespaceSelector:
+          matchLabels: {{- toYaml .Values.workers.keda.namespaceLabels | nindent 10 }}
+        podSelector:
+  {{- else }}
+      - podSelector:
+  {{- end }}
+          matchLabels:
+            app: keda-operator
   {{- end }}
 {{- end }}

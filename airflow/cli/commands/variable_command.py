@@ -90,7 +90,7 @@ def variables_import(args):
         try:
             Variable.set(k, v, serialize_json=not isinstance(v, str))
         except Exception as e:
-            print(f"Variable import failed: {repr(e)}")
+            print(f"Variable import failed: {e!r}")
             fail_count += 1
         else:
             suc_count += 1

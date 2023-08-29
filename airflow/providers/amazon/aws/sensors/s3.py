@@ -116,11 +116,11 @@ class S3KeySensor(BaseSensorOperator):
             prefix = re.split(r"[\[\*\?]", key, 1)[0]
             keys = self.hook.get_file_metadata(prefix, bucket_name)
             key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if len(key_matches) == 0:
+            if not key_matches:
                 return False
 
             # Reduce the set of metadata to size only
-            files = list(map(lambda f: {"Size": f["Size"]}, key_matches))
+            files = [{"Size": f["Size"]} for f in key_matches]
         else:
             obj = self.hook.head_object(key, bucket_name)
             if obj is None:

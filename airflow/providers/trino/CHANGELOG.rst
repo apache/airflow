@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for Trino. (#32910)``
+
+Misc
+~~~~
+
+* ``Consolidate import and usage of pandas (#33480)``
+
 5.2.1
 .....
 

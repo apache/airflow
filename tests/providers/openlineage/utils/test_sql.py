@@ -327,17 +327,17 @@ def test_create_create_information_schema_query_cross_db():
             information_schema_table_name="information_schema.columns",
             tables_hierarchy={"db": {"schema1": ["table1"]}, "db2": {"schema1": ["table2"]}},
         )
-        == 'SELECT "db.information_schema".columns.table_schema, "db.information_schema".columns.table_name, '
-        '"db.information_schema".columns.column_name, "db.information_schema".columns.ordinal_position, '
-        '"db.information_schema".columns.data_type \n'
-        'FROM "db.information_schema".columns \n'
-        "WHERE \"db.information_schema\".columns.table_schema = 'schema1' "
-        "AND \"db.information_schema\".columns.table_name IN ('table1') "
+        == "SELECT db.information_schema.columns.table_schema, db.information_schema.columns.table_name, "
+        "db.information_schema.columns.column_name, db.information_schema.columns.ordinal_position, "
+        "db.information_schema.columns.data_type \n"
+        "FROM db.information_schema.columns \n"
+        "WHERE db.information_schema.columns.table_schema = 'schema1' "
+        "AND db.information_schema.columns.table_name IN ('table1') "
         "UNION ALL "
-        'SELECT "db2.information_schema".columns.table_schema, "db2.information_schema".columns.table_name, '
-        '"db2.information_schema".columns.column_name, "db2.information_schema".columns.ordinal_position, '
-        '"db2.information_schema".columns.data_type \n'
-        'FROM "db2.information_schema".columns \n'
-        "WHERE \"db2.information_schema\".columns.table_schema = 'schema1' "
-        "AND \"db2.information_schema\".columns.table_name IN ('table2')"
+        "SELECT db2.information_schema.columns.table_schema, db2.information_schema.columns.table_name, "
+        "db2.information_schema.columns.column_name, db2.information_schema.columns.ordinal_position, "
+        "db2.information_schema.columns.data_type \n"
+        "FROM db2.information_schema.columns \n"
+        "WHERE db2.information_schema.columns.table_schema = 'schema1' "
+        "AND db2.information_schema.columns.table_name IN ('table2')"
     )

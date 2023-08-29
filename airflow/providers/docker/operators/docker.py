@@ -225,7 +225,7 @@ class DockerOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.api_version = api_version
-        if type(auto_remove) == bool:
+        if isinstance(auto_remove, bool):
             warnings.warn(
                 "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
                 AirflowProviderDeprecationWarning,
@@ -408,12 +408,12 @@ class DockerOperator(BaseOperator):
                 )
             elif result["StatusCode"] != 0:
                 joined_log_lines = "\n".join(log_lines)
-                raise AirflowException(f"Docker container failed: {repr(result)} lines {joined_log_lines}")
+                raise AirflowException(f"Docker container failed: {result!r} lines {joined_log_lines}")
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
             elif self.do_xcom_push:
-                if len(log_lines) == 0:
+                if not log_lines:
                     return None
                 try:
                     if self.xcom_all:
@@ -486,7 +486,7 @@ class DockerOperator(BaseOperator):
 
         :return: the command (or commands)
         """
-        if isinstance(command, str) and command.strip().find("[") == 0:
+        if isinstance(command, str) and command.strip().startswith("["):
             command = ast.literal_eval(command)
         return command
 

@@ -2890,6 +2890,33 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    def test_get_current_context_works_in_template(self, dag_maker):
+        def user_defined_macro():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+
+        with dag_maker(
+            "test_context_inside_template",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            user_defined_macros={"user_defined_macro": user_defined_macro},
+        ):
+
+            def foo(arg):
+                print(arg)
+
+            PythonOperator(
+                task_id="context_inside_template",
+                python_callable=foo,
+                op_kwargs={"arg": "{{ user_defined_macro() }}"},
+            ),
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "context_inside_template")
+        ti._run_raw_task()
+        assert ti.state == State.SUCCESS
+
     @patch.object(Stats, "incr")
     def test_task_stats(self, stats_mock, create_task_instance):
         ti = create_task_instance(

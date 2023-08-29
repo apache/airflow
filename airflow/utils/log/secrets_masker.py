@@ -42,10 +42,11 @@ import re2
 
 from airflow import settings
 from airflow.compat.functools import cache
-from airflow.typing_compat import TypeGuard
 
 if TYPE_CHECKING:
     from kubernetes.client import V1EnvVar
+
+    from airflow.typing_compat import TypeGuard
 
 Redactable = TypeVar("Redactable", str, "V1EnvVar", Dict[Any, Any], Tuple[Any, ...], List[Any])
 Redacted = Union[Redactable, str]
@@ -176,7 +177,7 @@ class SecretsMasker(logging.Filter):
             __file__,
             1,
             "",
-            tuple(),
+            (),
             exc_info=None,
             func="funcname",
         )
@@ -277,13 +278,13 @@ class SecretsMasker(logging.Filter):
         # I think this should never happen, but it does not hurt to leave it just in case
         # Well. It happened (see https://github.com/apache/airflow/issues/19816#issuecomment-983311373)
         # but it caused infinite recursion, so we need to cast it to str first.
-        except Exception as e:
+        except Exception as exc:
             log.warning(
-                "Unable to redact %s, please report this via <https://github.com/apache/airflow/issues>. "
+                "Unable to redact %r, please report this via <https://github.com/apache/airflow/issues>. "
                 "Error was: %s: %s",
-                repr(item),
-                type(e).__name__,
-                str(e),
+                item,
+                type(exc).__name__,
+                exc,
             )
             return item
 

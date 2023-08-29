@@ -64,8 +64,7 @@ def insert_documentation(file_path: Path, content: list[str], header: str, foote
 
 
 def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
-    files = [file for file in directory.rglob("*")]
-    files.sort()
+    files = sorted(directory.rglob("*"))
     if skip_path_regexp:
         matcher = re.compile(skip_path_regexp)
         files = [file for file in files if not matcher.match(os.fspath(file.resolve()))]
