@@ -1535,7 +1535,7 @@ class TestSchedulerJob:
         def _create_dagruns():
             dagrun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.RUNNING)
             yield dagrun
-            for _ in range(0, 3):
+            for _ in range(3):
                 dagrun = dag_maker.create_dagrun_after(
                     dagrun,
                     run_type=DagRunType.SCHEDULED,
@@ -1587,7 +1587,7 @@ class TestSchedulerJob:
         def _create_dagruns():
             dagrun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.RUNNING)
             yield dagrun
-            for _ in range(0, 19):
+            for _ in range(19):
                 dagrun = dag_maker.create_dagrun_after(
                     dagrun,
                     run_type=DagRunType.SCHEDULED,

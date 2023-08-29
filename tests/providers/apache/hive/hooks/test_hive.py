@@ -291,7 +291,7 @@ class TestHiveCliHook:
         bools = (True, False)
         for create, recreate in itertools.product(bools, bools):
             mock_load_file.reset_mock()
-            hook.load_df(df=pd.DataFrame({"c": range(0, 10)}), table="t", create=create, recreate=recreate)
+            hook.load_df(df=pd.DataFrame({"c": range(10)}), table="t", create=create, recreate=recreate)
 
             assert mock_load_file.call_count == 1
             kwargs = mock_load_file.call_args.kwargs
