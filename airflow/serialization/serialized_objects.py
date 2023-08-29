@@ -487,6 +487,8 @@ class BaseSerialization:
                 cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
                 type_=DAT.SIMPLE_TASK_INSTANCE,
             )
+        elif isinstance(var, Connection):
+            return cls._encode(var.to_dict(), type_=DAT.CONNECTION)
         elif use_pydantic_models and _ENABLE_AIP_44:
 
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
@@ -571,6 +573,8 @@ class BaseSerialization:
             return Dataset(**var)
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
+        elif type_ == DAT.CONNECTION:
+            return Connection(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
             if type_ == DAT.BASE_JOB:
                 return JobPydantic.parse_obj(var)
