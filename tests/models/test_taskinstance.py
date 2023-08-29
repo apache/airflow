@@ -1986,18 +1986,37 @@ class TestTaskInstance:
         )
         assert tf, "TaskFail was recorded"
 
-    def test_set_duration(self):
+    def test_set_end_date(self, session):
         task = EmptyOperator(task_id="op", email="test@test.test")
         ti = TI(task=task)
         ti.start_date = datetime.datetime(2018, 10, 1, 1)
-        ti.end_date = datetime.datetime(2018, 10, 1, 2)
-        ti.set_duration()
+
+        TaskInstance.set_end_date(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            execution_date=ti.execution_date,
+            end_date=datetime.datetime(2018, 10, 1, 2),
+            session=session,
+        )
+
+        ti.refresh_from_db(session)
+
         assert ti.duration == 3600
 
-    def test_set_duration_empty_dates(self):
+    def test_set_duration_empty_dates(self, session):
         task = EmptyOperator(task_id="op", email="test@test.test")
         ti = TI(task=task)
-        ti.set_duration()
+
+        TaskInstance.set_end_date(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            execution_date=ti.execution_date,
+            end_date=datetime.datetime(2018, 10, 1, 2),
+            session=session,
+        )
+
+        ti.refresh_from_db(session)
+
         assert ti.duration is None
 
     def test_success_callback_no_race_condition(self, create_task_instance):

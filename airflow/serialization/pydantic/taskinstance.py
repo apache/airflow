@@ -163,12 +163,6 @@ class TaskInstancePydantic(BaseModelPydantic):
 
         _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
 
-    def set_duration(self) -> None:
-        """Set task instance duration."""
-        from airflow.models.taskinstance import _set_duration
-
-        _set_duration(task_instance=self)
-
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""

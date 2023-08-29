@@ -495,21 +495,6 @@ def _refresh_from_db(
         task_instance.state = None
 
 
-def _set_duration(*, task_instance: TaskInstance | TaskInstancePydantic) -> None:
-    """
-    Set task instance duration.
-
-    :param task_instance: the task instance
-
-    :meta private:
-    """
-    if task_instance.end_date and task_instance.start_date:
-        task_instance.duration = (task_instance.end_date - task_instance.start_date).total_seconds()
-    else:
-        task_instance.duration = None
-    log.debug("Task Duration set to %s", task_instance.duration)
-
-
 def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[str, str]:
     """
     Returns task instance tags.
@@ -1733,6 +1718,27 @@ class TaskInstance(Base, LoggingMixin):
         session.merge(self)
         return True
 
+    @classmethod
+    @internal_api_call
+    @provide_session
+    def set_end_date(
+        cls,
+        dag_id: str,
+        task_id: str,
+        execution_date: datetime | None,
+        end_date: datetime,
+        session: Session = NEW_SESSION,
+    ):
+        task_instance = session.get(dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+        task_instance.end_date = end_date
+
+        if task_instance.start_date:
+            task_instance.duration = (end_date - task_instance.start_date).total_seconds()
+        else:
+            task_instance.duration = None
+        cls.logger().debug("Task Duration set to %s", task_instance.duration)
+        session.commit()
+
     @property
     def is_premature(self) -> bool:
         """Returns whether a task is in UP_FOR_RETRY state and its retry interval has elapsed."""
@@ -2299,9 +2305,14 @@ class TaskInstance(Base, LoggingMixin):
 
         # Recording SKIPPED or SUCCESS
         self.clear_next_method_args()
-        self.end_date = timezone.utcnow()
         _log_state(task_instance=self)
-        self.set_duration()
+        TaskInstance.set_end_date(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            execution_date=self.execution_date,
+            end_date=timezone.utcnow(),
+            session=session,
+        )
 
         # run on_success_callback before db committing
         # otherwise, the LocalTaskJob sees the state is changed to `success`,
@@ -2520,8 +2531,13 @@ class TaskInstance(Base, LoggingMixin):
 
         self.refresh_from_db(session)
 
-        self.end_date = timezone.utcnow()
-        self.set_duration()
+        TaskInstance.set_end_date(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            execution_date=self.execution_date,
+            end_date=timezone.utcnow(),
+            session=session,
+        )
 
         # Lock DAG run to be sure not to get into a deadlock situation when trying to insert
         # TaskReschedule which apparently also creates lock on corresponding DagRun entity
@@ -2603,8 +2619,13 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             ti.refresh_from_db(session)
 
-        ti.end_date = timezone.utcnow()
-        ti.set_duration()
+        TaskInstance.set_end_date(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            execution_date=ti.execution_date,
+            end_date=timezone.utcnow(),
+            session=session,
+        )
 
         Stats.incr(f"operator_failures_{ti.operator}", tags=ti.stats_tags)
         # Same metric with tagging
@@ -2846,10 +2867,6 @@ class TaskInstance(Base, LoggingMixin):
         :param task: task related to the exception
         """
         _email_alert(task_instance=self, exception=exception, task=task)
-
-    def set_duration(self) -> None:
-        """Set task instance duration."""
-        _set_duration(task_instance=self)
 
     @provide_session
     def xcom_push(
