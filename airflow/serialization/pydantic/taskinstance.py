@@ -73,6 +73,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     run_as_user: Optional[str]
     task: Operator
     test_mode: bool
+    dag_run: DagRun
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""

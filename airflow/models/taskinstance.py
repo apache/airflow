@@ -191,7 +191,7 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
-def _stop_remaining_tasks(*, task_instance, session: Session):
+def _stop_remaining_tasks(*, task_instance: TaskInstance | TaskInstancePydantic, session: Session):
     """
     Stop non-teardown tasks in dag.
 
