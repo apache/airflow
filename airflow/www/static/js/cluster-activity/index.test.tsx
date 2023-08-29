@@ -50,7 +50,6 @@ const mockHistoricalMetricsData = {
     restarting: 0,
     running: 0,
     scheduled: 0,
-    shutdown: 0,
     skipped: 0,
     success: 1634,
     up_for_reschedule: 0,
