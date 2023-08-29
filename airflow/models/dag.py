@@ -1410,7 +1410,7 @@ class DAG(LoggingMixin):
         return None
 
     @provide_session
-    def handle_callback(self, dagrun, success=True, reason=None, session=NEW_SESSION):
+    def handle_callback(self, dagrun: DagRun, success=True, reason=None, session=NEW_SESSION):
         """
         Triggers on_failure_callback or on_success_callback as appropriate.
 
@@ -1433,7 +1433,7 @@ class DAG(LoggingMixin):
         DAG.execute_callback(callbacks, context, self.dag_id)
 
     @classmethod
-    def execute_callback(cls, callbacks: list[Callable] | None, context: Context, dag_id: str):
+    def execute_callback(cls, callbacks: list[Callable] | None, context: Context | None, dag_id: str):
         """
         Triggers the callbacks with the given context.
 
@@ -1441,7 +1441,7 @@ class DAG(LoggingMixin):
         :param context: Context to pass to all callbacks
         :param dag_id: The dag_id of the DAG to find.
         """
-        if callbacks:
+        if callbacks and context:
             for callback in callbacks:
                 cls.logger().info("Executing dag callback function: %s", callback)
                 try:
