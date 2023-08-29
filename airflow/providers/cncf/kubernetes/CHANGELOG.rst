@@ -44,7 +44,7 @@ Bug Fixes
 * ``Fix KubernetesPodOperator duplicating logs when interrupted (#33500)``
 * ``Fix 2.7.0 db migration job errors (#33652)``
 * ``Inspect container state rather than last_state when deciding whether to skip (#33702)``
-* ``Update pod.py (#33779)``
+* ``Fix kill istio proxy logic (#33779)``
 
 Misc
 ~~~~
