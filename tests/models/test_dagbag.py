@@ -474,10 +474,10 @@ class TestDagBag:
         return dagbag, found_dags, os.fspath(path)
 
     def validate_dags(self, expected_parent_dag, actual_found_dags, actual_dagbag, should_be_found=True):
-        expected_dag_ids = list(map(lambda dag: dag.dag_id, expected_parent_dag.subdags))
+        expected_dag_ids = [dag.dag_id for dag in expected_parent_dag.subdags]
         expected_dag_ids.append(expected_parent_dag.dag_id)
 
-        actual_found_dag_ids = list(map(lambda dag: dag.dag_id, actual_found_dags))
+        actual_found_dag_ids = [dag.dag_id for dag in actual_found_dags]
 
         for dag_id in expected_dag_ids:
             actual_dagbag.log.info("validating %s", dag_id)

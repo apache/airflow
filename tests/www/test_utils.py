@@ -104,8 +104,7 @@ class TestUtils:
 
         if sorting_key and sorting_direction:
             if pages[0] == 0:
-                pages = pages[1:]
-                pages = list(map(lambda x: str(x), pages))
+                pages = [str(page) for page in pages[1:]]
 
             assert pages == all_nodes
 

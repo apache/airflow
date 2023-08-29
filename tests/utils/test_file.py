@@ -135,7 +135,7 @@ class TestListPyFilesPath:
 
         assert files
         assert all(os.path.basename(file) not in should_ignore for file in files)
-        assert len(list(filter(lambda file: os.path.basename(file) in should_not_ignore, files))) == len(
+        assert sum(1 for file in files if os.path.basename(file) in should_not_ignore) == len(
             should_not_ignore
         )
 

@@ -1894,7 +1894,7 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
 
         @dag.task
         def make_list():
-            return list(map(lambda a: f'echo "{a!r}"', [1, 2, {"a": "b"}]))
+            return [f'echo "{a!r}"' for a in [1, 2, {"a": "b"}]]
 
         def consumer(*args):
             print(repr(args))
