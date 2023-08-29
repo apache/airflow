@@ -679,7 +679,7 @@ ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm
 mysql, neo4j, odbc, openfaas, openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill,
 password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba,
 segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd,
-tableau, tabular, telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
+tableau, tabular, telegram, teradata, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages

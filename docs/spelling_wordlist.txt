@@ -1522,6 +1522,7 @@ templatized
 tenantId
 tensorflow
 Teradata
+teradata
 Terraform
 testdata
 testdruid
