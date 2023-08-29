@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 from contextlib import suppress
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterator
 
 from airflow.configuration import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
@@ -42,7 +42,11 @@ def try_import_from_string(string):
         return import_string(string)
 
 
-_extractors: list[type[BaseExtractor]] = [t for t in [PythonExtractor, BashExtractor] if t is not None]
+def _iter_extractor_types() -> Iterator[type[BaseExtractor]]:
+    if PythonExtractor is not None:
+        yield PythonExtractor
+    if BashExtractor is not None:
+        yield BashExtractor
 
 
 class ExtractorManager(LoggingMixin):
@@ -55,7 +59,7 @@ class ExtractorManager(LoggingMixin):
 
         # Comma-separated extractors in OPENLINEAGE_EXTRACTORS variable.
         # Extractors should implement BaseExtractor
-        for extractor in _extractors:
+        for extractor in _iter_extractor_types():
             for operator_class in extractor.get_operator_classnames():
                 self.extractors[operator_class] = extractor
 
