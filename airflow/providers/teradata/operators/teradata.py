@@ -58,10 +58,23 @@ class TeradataOperator(SQLExecuteQueryOperator):
     def __init__(
         self,
         conn_id: str = TeradataHook.default_conn_name,
+        host: str | None = None,
+        port: str | None = None,
+        schema: str | None = None,
+        login: str | None = None,
+        password: str | None = None,
         **kwargs,
     ) -> None:
+        if any([host, port, schema, login, password]):
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {
+                "host": host,
+                "port": port,
+                "schema": schema,
+                "login": login,
+                "password": password,
+                **hook_params,
+            }
         super().__init__(**kwargs)
         self.conn_id = conn_id
-        if kwargs.get("xcom_push") is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
