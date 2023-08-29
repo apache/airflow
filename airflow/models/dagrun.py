@@ -524,7 +524,7 @@ class DagRun(Base, LoggingMixin):
         :param session: Sqlalchemy ORM Session
         """
         return DagRun.fetch_task_instance(
-            dag_run=self,
+            dag_run_id=self.run_id,
             task_id=task_id,
             session=session,
             map_index=map_index,
@@ -534,7 +534,7 @@ class DagRun(Base, LoggingMixin):
     @internal_api_call
     @provide_session
     def fetch_task_instance(
-        dag_run: DagRun | DagRunPydantic,
+        dag_run_id: str,
         task_id: str,
         session: Session = NEW_SESSION,
         map_index: int = -1,
@@ -542,10 +542,11 @@ class DagRun(Base, LoggingMixin):
         """
         Returns the task instance specified by task_id for this dag run.
 
-        :param dag_run: the DAG run
+        :param dag_run_id: the DAG run ID
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
+        dag_run = session.get(DagRun, dag_run_id)
         return session.scalars(
             select(TI).filter_by(
                 dag_id=dag_run.dag_id, run_id=dag_run.run_id, task_id=task_id, map_index=map_index

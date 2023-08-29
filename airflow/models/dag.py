@@ -1393,7 +1393,7 @@ class DAG(LoggingMixin):
         the list of callbacks.
 
         :param dag: DAG object
-        :param dag_run_id: The DagRun ID
+        :param dag_run_id: The DAG run ID
         :param success: Flag to specify if failure or success callback should be called
         :param reason: Completion reason
         :param session: Database session

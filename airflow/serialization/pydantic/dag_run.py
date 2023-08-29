@@ -91,7 +91,7 @@ class DagRunPydantic(BaseModelPydantic):
         from airflow.models.dagrun import DagRun
 
         return DagRun.fetch_task_instance(
-            dag_run=self,
+            dag_run_id=self.run_id,
             task_id=task_id,
             session=session,
             map_index=map_index,
