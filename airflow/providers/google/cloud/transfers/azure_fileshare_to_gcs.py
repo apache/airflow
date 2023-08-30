@@ -88,6 +88,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
 
         self.share_name = share_name
         self.directory_path = directory_path
+        self.directory_name = directory_name
         if self.directory_path is None:
             self.directory_path = directory_name
             warnings.warn(

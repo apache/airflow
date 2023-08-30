@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import IO, Any
 
 from azure.identity import DefaultAzureCredential
-from azure.storage.fileshare import ShareFileClient, ShareServiceClient
+from azure.storage.fileshare import FileProperties, ShareDirectoryClient, ShareFileClient, ShareServiceClient
 
 from airflow.hooks.base import BaseHook
 
@@ -30,9 +30,8 @@ class AzureFileShareHook(BaseHook):
     Interacts with Azure FileShare Storage.
 
     :param azure_fileshare_conn_id: Reference to the
-        :ref:`Azure Container Volume connection id<howto/connection:azure_fileshare>`
-        of an Azure account of which container volumes should be used.
-
+        :ref:`Azure FileShare connection id<howto/connection:azure_fileshare>`
+        of an Azure account of which file share should be used.
     """
 
     conn_name_attr = "azure_fileshare_conn_id"
@@ -42,7 +41,7 @@ class AzureFileShareHook(BaseHook):
 
     def __init__(
         self,
-        share_name: str,
+        share_name: str | None = None,
         file_path: str | None = None,
         directory_path: str | None = None,
         azure_fileshare_conn_id: str = "azure_fileshare_default",
@@ -90,10 +89,11 @@ class AzureFileShareHook(BaseHook):
 
     def get_conn(self) -> None:
         conn = self.get_connection(self._conn_id)
-        self._connection_string = conn.connection_string
+        extras = conn.extra_dejson
+        self._connection_string = extras.get("connection_string")
         if conn.login:
             self._account_url = self._parse_account_url(conn.login)
-        self._sas_token = conn.sas_token
+        self._sas_token = extras.get("sas_token")
         self._account_access_key = conn.password
 
     @staticmethod
@@ -121,7 +121,6 @@ class AzureFileShareHook(BaseHook):
 
     @property
     def share_directory_client(self):
-        from azure.storage.fileshare import ShareDirectoryClient
 
         if self._connection_string:
             return ShareDirectoryClient.from_connection_string(
@@ -193,8 +192,6 @@ class AzureFileShareHook(BaseHook):
 
     def list_files(self) -> list[str]:
         """Return the list of files stored on a Azure File Share."""
-        from azure.storage.fileshare import FileProperties
-
         return [obj.name for obj in self.list_directories_and_files() if isinstance(obj, FileProperties)]
 
     def create_share(self, share_name: str, **kwargs) -> bool:
@@ -257,21 +254,13 @@ class AzureFileShareHook(BaseHook):
         with open(file_path, "rb") as source_file:
             self.share_file_client.upload_file(source_file, **kwargs)
 
-    def load_string(self, string_data: str, **kwargs) -> None:
+    def load_data(self, string_data: bytes | str | IO, **kwargs) -> None:
         """
         Upload a string to Azure File Share.
 
-        :param string_data: String to load.
+        :param string_data: String/Stream to load.
         """
         self.share_file_client.upload_file(string_data, **kwargs)
-
-    def load_stream(self, stream: str, **kwargs) -> None:
-        """
-        Upload a stream to Azure File Share.
-
-        :param stream: Opened file/stream to upload as the file content.
-        """
-        self.share_file_client.upload_file(stream, **kwargs)
 
     def test_connection(self):
         """Test Azure FileShare connection."""
