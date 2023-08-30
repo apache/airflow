@@ -585,7 +585,7 @@ class TestBaseSensor:
                 for retry_number in range(1, 10)
             ]
 
-            for i in range(0, len(intervals) - 1):
+            for i in range(len(intervals) - 1):
                 # intervals should be increasing or equals
                 assert intervals[i] <= intervals[i + 1]
             if poke_interval > 0:

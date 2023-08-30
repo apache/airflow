@@ -338,8 +338,8 @@ class TestDag:
         # Default weight should be calculated using downstream descendants
         with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag:
             pipeline = [
-                [EmptyOperator(task_id=f"stage{i}.{j}", priority_weight=weight) for j in range(0, width)]
-                for i in range(0, depth)
+                [EmptyOperator(task_id=f"stage{i}.{j}", priority_weight=weight) for j in range(width)]
+                for i in range(depth)
             ]
             for i, stage in enumerate(pipeline):
                 if i == 0:
@@ -371,9 +371,9 @@ class TestDag:
                         priority_weight=weight,
                         weight_rule=WeightRule.UPSTREAM,
                     )
-                    for j in range(0, width)
+                    for j in range(width)
                 ]
-                for i in range(0, depth)
+                for i in range(depth)
             ]
             for i, stage in enumerate(pipeline):
                 if i == 0:
@@ -404,9 +404,9 @@ class TestDag:
                         priority_weight=weight,
                         weight_rule=WeightRule.ABSOLUTE,
                     )
-                    for j in range(0, width)
+                    for j in range(width)
                 ]
-                for i in range(0, depth)
+                for i in range(depth)
             ]
             for i, stage in enumerate(pipeline):
                 if i == 0:
@@ -859,7 +859,7 @@ class TestDag:
 
     def test_bulk_write_to_db(self):
         clear_db_dags()
-        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)]
+        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(4)]
 
         with assert_queries_count(5):
             DAG.bulk_write_to_db(dags)
