@@ -33,7 +33,7 @@ repos:
       - id: doctoc
         name: Add TOC for Markdown and RST files
         files:
-          ^CONTRIBUTING\.md$|^PYPIREADME\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
+          ^CONTRIBUTING\.md$|^README\.md$|^UPDATING.*\.md$|^chart/UPDATING.*\.md$|^dev/.*\.md$|^dev/.*\.rst$
         exclude: ^.*/.*_vendor/
         args:
           - "--maxlevel"
@@ -760,6 +760,13 @@ repos:
         files: ^tests/system/.*/example_[^/]*\.py$
         exclude: ^tests/system/providers/google/cloud/bigquery/example_bigquery_queries\.py$
         pass_filenames: true
+        additional_dependencies: ['rich>=12.4.4']
+      - id: generate-pypi-readme
+        name: Generate PyPI README
+        entry: ./scripts/ci/pre_commit/pre_commit_generate_pypi_readme.py
+        language: python
+        files: ^README\.md$
+        pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
       - id: lint-markdown
         name: Run markdownlint

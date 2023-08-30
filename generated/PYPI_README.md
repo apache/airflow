@@ -40,34 +40,19 @@ When workflows are defined as code, they become more maintainable, versionable, 
 
 Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
-<!-- START doctoc generated TOC please keep comment here to allow auto update -->
-<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
-**Table of contents**
-
-- [Requirements](#requirements)
-- [Getting started](#getting-started)
-- [Installing from PyPI](#installing-from-pypi)
-- [Official source code](#official-source-code)
-- [Contributing](#contributing)
-- [Who uses Apache Airflow?](#who-uses-apache-airflow)
-- [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
-
-<!-- END doctoc generated TOC please keep comment here to allow auto update -->
-
-
 ## Requirements
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)     | Stable version (2.7.0)    |
-|-------------|------------------------|---------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11      |
-| Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)           |
-| Kubernetes  | 1.24, 1.25, 1.26, 1.27 | 1.24, 1.25, 1.26, 1.27    |
-| PostgreSQL  | 11, 12, 13, 14, 15     | 11, 12, 13, 14, 15        |
-| MySQL       | 5.7, 8.0, 8.1          | 5.7, 8.0                  |
-| SQLite      | 3.15.0+                | 3.15.0+                   |
-| MSSQL       | 2017(\*), 2019(\*)     | 2017(\*), 2019(\*)        |
+|             | Main version (dev)           | Stable version (2.7.0)    |
+|-------------|------------------------------|---------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11      |
+| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)           |
+| Kubernetes  | 1.24, 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27    |
+| PostgreSQL  | 11, 12, 13, 14, 15           | 11, 12, 13, 14, 15        |
+| MySQL       | 5.7, 8.0, 8.1                | 5.7, 8.0                  |
+| SQLite      | 3.15.0+                      | 3.15.0+                   |
+| MSSQL       | 2017(\*), 2019(\*)           | 2017(\*), 2019(\*)        |
 
 \* Experimental
 
@@ -172,10 +157,10 @@ Official Docker (container) images for Apache Airflow are described in [IMAGES.r
 
 ## Who uses Apache Airflow?
 
-Check the organizations who are using Apache Airflow
+More than 400 organizations are using Apache Airflow
 [in the wild](https://github.com/apache/airflow/blob/main/INTHEWILD.md).
 
-## Who Maintains Apache Airflow?
+## Who maintains Apache Airflow?
 
 Airflow is the work of the [community](https://github.com/apache/airflow/graphs/contributors),
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)

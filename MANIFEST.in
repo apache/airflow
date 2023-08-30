@@ -18,7 +18,6 @@
 
 include NOTICE
 include LICENSE
-include PYPIREADME.md
 include RELEASE_NOTES.rst
 include README.md
 graft licenses
