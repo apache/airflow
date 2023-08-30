@@ -407,8 +407,7 @@ class DockerOperator(BaseOperator):
                     f"Docker container returned exit code {self.skip_on_exit_code}. Skipping."
                 )
             elif result["StatusCode"] != 0:
-                joined_log_lines = "\n".join(log_lines)
-                raise AirflowException(f"Docker container failed: {result!r} lines {joined_log_lines}")
+                raise AirflowException(f"Docker container failed: {result!r}")
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
