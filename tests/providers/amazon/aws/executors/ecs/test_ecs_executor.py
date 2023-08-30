@@ -32,8 +32,8 @@ import yaml
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.ecs import (
     CONFIG_GROUP_NAME,
+    AllEcsConfigKeys,
     AwsEcsExecutor,
-    EcsConfigKeys,
     EcsTaskCollection,
 )
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
@@ -43,6 +43,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     EcsExecutorTask,
     _recursive_flatten_dict,
     parse_assign_public_ip,
+    snake_to_camel,
 )
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
@@ -98,15 +99,15 @@ def mock_config():
 @pytest.fixture
 def mock_executor() -> AwsEcsExecutor:
     """Mock ECS to a repeatable starting state.."""
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.REGION}".upper()] = "us-west-1"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.TASK_DEFINITION}".upper()] = "some-task-def"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
-    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.REGION}".upper()] = "us-west-1"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.TASK_DEFINITION}".upper()] = "some-task-def"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
+    os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
 
     executor = AwsEcsExecutor()
 
@@ -551,7 +552,7 @@ class TestAwsEcsExecutor:
     def test_container_not_found(self, mock_executor):
         # Force a container name mismatch
         os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CONTAINER_NAME}".upper()
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()
         ] = "bad-container-name"
 
         with pytest.raises(KeyError) as raised:
@@ -615,7 +616,7 @@ class TestAwsEcsExecutor:
 class TestEcsExecutorConfig:
     @pytest.fixture()
     def assign_subnets(self):
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
 
     @staticmethod
     def teardown_method() -> None:
@@ -624,7 +625,7 @@ class TestEcsExecutorConfig:
                 os.environ.pop(env)
 
     def test_flatten_dict(self):
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
         nested_dict = {"a": "a", "b": "b", "c": {"d": "d"}}
 
         assert _recursive_flatten_dict(nested_dict) == {"a": "a", "b": "b", "d": "d"}
@@ -647,16 +648,20 @@ class TestEcsExecutorConfig:
             assert file_defaults[key] == CONFIG_DEFAULTS[key]
 
     def test_subnets_required(self):
-        assert f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SUBNETS}".upper() not in os.environ
+        assert f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper() not in os.environ
 
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.REGION}".upper()] = "us-west-1"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.TASK_DEFINITION}".upper()] = "some-task-def"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
-        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.REGION}".upper()] = "us-west-1"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()
+        ] = "container-name"
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.TASK_DEFINITION}".upper()
+        ] = "some-task-def"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
         with pytest.raises(ValueError) as raised:
@@ -674,44 +679,49 @@ class TestEcsExecutorConfig:
 
         for (expected_key, expected_value) in CONFIG_DEFAULTS.items():
             # "conn_id" is used in the hook, but is not expected to appear in the task_kwargs.
-            if expected_key is EcsConfigKeys.AWS_CONN_ID:
+            if expected_key is AllEcsConfigKeys.AWS_CONN_ID:
                 assert expected_key not in found_keys.keys()
             else:
                 assert expected_key in found_keys.keys()
                 # Make sure to convert "assign_public_ip" from True/False to ENABLE/DISABLE.
-                if expected_key is EcsConfigKeys.ASSIGN_PUBLIC_IP:
+                if expected_key is AllEcsConfigKeys.ASSIGN_PUBLIC_IP:
                     expected_value = parse_assign_public_ip(expected_value)
                 assert expected_value == task_kwargs[found_keys[expected_key]]
 
     def test_provided_values_override_defaults(self, assign_subnets):
         """
-        Expected precedence is default values are overwritten by values
-        provided in run_task_kwargs and those are overwritten by values
-        provided explicitly.
+        Expected precedence is default values are overwritten by values provided in run_task_kwargs
+        and those are overwritten by values provided explicitly.
         """
-        default_version = CONFIG_DEFAULTS[EcsConfigKeys.PLATFORM_VERSION]
+        default_version = CONFIG_DEFAULTS[AllEcsConfigKeys.PLATFORM_VERSION]
         templated_version = "1"
         explicit_version = "2"
 
-        environ_keys = [
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.RUN_TASK_KWARGS}".upper(),
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.PLATFORM_VERSION}".upper(),
-        ]
+        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        platform_version_env_key = (
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()
+        )
+        # Required param which doesn't have a default
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "foobar"
 
         # Confirm the default value is applied when no value is provided.
-        assert environ_keys[0] not in os.environ
-        assert environ_keys[1] not in os.environ
+        assert run_task_kwargs_env_key not in os.environ
+        assert platform_version_env_key not in os.environ
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
+        reload(ecs_executor_config)
 
         assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["platformVersion"] == default_version
 
         # Provide a value via template and assert that it is applied.
-        os.environ[environ_keys[0]] = json.dumps({EcsConfigKeys.PLATFORM_VERSION: templated_version})
+        os.environ[run_task_kwargs_env_key] = json.dumps(
+            {AllEcsConfigKeys.PLATFORM_VERSION: templated_version}
+        )
         reload(ecs_executor_config)
         assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["platformVersion"] == templated_version
 
         # Provide a new value explicitly and assert that it is applied.
-        os.environ[environ_keys[1]] = explicit_version
+        os.environ[platform_version_env_key] = explicit_version
         reload(ecs_executor_config)
         assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["platformVersion"] == explicit_version
 
@@ -720,21 +730,27 @@ class TestEcsExecutorConfig:
         Since the explicit options are applied after those provided via run_task_kwargs,
         verify that those provided by kwargs and not overridden are still there.
         """
-        default_version = RUN_TASK_KWARG_DEFAULTS[EcsConfigKeys.PLATFORM_VERSION]
+        default_version = RUN_TASK_KWARG_DEFAULTS[AllEcsConfigKeys.PLATFORM_VERSION]
         templated_version = "1"
         templated_cluster = "templated_cluster_name"
         templated_tags = {"Apache": "Airflow"}
+        templated_overrides = {"containerOverrides": [{"memory": 5}]}
         explicit_version = "2"
 
         provided_run_task_kwargs = {
-            EcsConfigKeys.PLATFORM_VERSION: templated_version,
-            EcsConfigKeys.CLUSTER: templated_cluster,
+            AllEcsConfigKeys.PLATFORM_VERSION: templated_version,
+            AllEcsConfigKeys.CLUSTER: templated_cluster,
             "tags": templated_tags,  # The user should be allowed to pass arbitrary run task args
             "count": 2,  # The user should not be allowed to overwrite count, it must be value of 1
+            "overrides": templated_overrides,
         }
 
-        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.RUN_TASK_KWARGS}".upper()
-        platform_version_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.PLATFORM_VERSION}".upper()
+        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        platform_version_env_key = (
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()
+        )
+        # Required param which doesn't have a default
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "foobar"
 
         # Confirm the default value is applied when no value is provided.
         assert run_task_kwargs_env_key not in os.environ
@@ -758,6 +774,11 @@ class TestEcsExecutorConfig:
         assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["tags"] == templated_tags
         # Assert that count is NOT overridden, since it _must_ be 1
         assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["count"] == 1
+        # The container override provided by the user should not be removed or overridden
+        assert (
+            ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["memory"]
+            == 5
+        )
 
         # Provide a new value explicitly for template_version and assert that it is applied while the
         # value for cluster still comes from the run kwargs template
@@ -769,3 +790,37 @@ class TestEcsExecutorConfig:
         # should be overridden, "cluster" should still be what run_task_kwargs set it to, as well as tags.
         assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["cluster"] == templated_cluster
         assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["tags"] == templated_tags
+
+    def test_that_provided_kwargs_are_moved_to_correct_nesting(self, assign_subnets):
+        """
+        kwargs such as subnets, security groups,  public ip, and container name are valid run task kwargs,
+        but they are not placed at the root of the kwargs dict, they should be nested in various sub dicts.
+        Ensure we don't leave any behind in the wrong location.
+        """
+        kwargs_to_test = {
+            AllEcsConfigKeys.CONTAINER_NAME: "foobar",
+            AllEcsConfigKeys.ASSIGN_PUBLIC_IP: "True",
+            AllEcsConfigKeys.SECURITY_GROUPS: "sg1,sg2",
+            AllEcsConfigKeys.SUBNETS: "sub1,sub2",
+        }
+        for key, value in kwargs_to_test.items():
+            os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{key}".upper()] = value
+
+        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+
+        reload(ecs_executor_config)
+
+        run_task_kwargs = ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS
+        run_task_kwargs_network_config = run_task_kwargs["networkConfiguration"]["awsvpcConfiguration"]
+        for key, value in kwargs_to_test.items():
+            # Assert that the values are not at the root of the kwargs
+            assert key not in run_task_kwargs
+            assert snake_to_camel(key) not in run_task_kwargs
+            if key == AllEcsConfigKeys.CONTAINER_NAME:
+                # The actual ECS run_task_kwarg is "name" not "containerName"
+                assert run_task_kwargs["overrides"]["containerOverrides"][0]["name"] == value
+            elif key == AllEcsConfigKeys.ASSIGN_PUBLIC_IP:
+                # The value for this kwarg is casted from bool to enabled/disabled
+                assert run_task_kwargs_network_config[snake_to_camel(key)] == "ENABLED"
+            else:
+                assert run_task_kwargs_network_config[snake_to_camel(key)] == value.split(",")

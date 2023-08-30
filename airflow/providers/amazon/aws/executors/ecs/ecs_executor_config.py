@@ -36,65 +36,53 @@ from airflow.configuration import conf
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_GROUP_NAME,
     RUN_TASK_KWARG_DEFAULTS,
-    EcsConfigKeys,
+    AllEcsConfigKeys,
+    RunTaskKwargsConfigKeys,
     convert_dict_keys_camel_case,
     parse_assign_public_ip,
 )
 from airflow.utils.helpers import prune_dict
 
 
-def has_section(section):
-    """
-    Check if the config section exists.
-
-    Config options which are set via environment variables do not get written to conf, which
-    means ``conf.has_section()`` will return False if all "aws_ecs_executor" options are set
-    that way, as they are in the unit tests.
-
-    ``conf.has_option()`` calls ``conf.get()`` which checks the Airflow config and the
-    environment variables to see if the value is set, meaning it will detect the options
-    set that way.
-    """
-    return any([conf.has_option(section, key) for key in EcsConfigKeys()])
-
-
 def _fetch_templated_kwargs() -> dict[str, str]:
-    run_task_kwargs_value = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.RUN_TASK_KWARGS, fallback=dict())
+    run_task_kwargs_value = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.RUN_TASK_KWARGS, fallback=dict())
     return json.loads(str(run_task_kwargs_value))
 
 
 def _fetch_explicit_kwargs() -> dict[str, str]:
-    return prune_dict({key: conf.get(CONFIG_GROUP_NAME, key, fallback=None) for key in EcsConfigKeys()})
+    return prune_dict(
+        {key: conf.get(CONFIG_GROUP_NAME, key, fallback=None) for key in RunTaskKwargsConfigKeys()}
+    )
 
 
 def _build_task_kwargs() -> dict:
+    # This will put some kwargs at the root of the dictionary that do NOT belong there. However,
+    # the code below expects them to be there and will rearrange them as necessary.
     task_kwargs = deepcopy(RUN_TASK_KWARG_DEFAULTS)
-    if has_section(CONFIG_GROUP_NAME):
-        task_kwargs.update(_fetch_templated_kwargs())
-        task_kwargs.update(_fetch_explicit_kwargs())
-    task_kwargs.update(
-        prune_dict(
-            {
-                "overrides": {
-                    "containerOverrides": [
-                        {
-                            "name": task_kwargs.get(EcsConfigKeys.CONTAINER_NAME),
-                            # The executor will overwrite the 'command' property during execution.
-                            # Must always be the first container!
-                            "command": [],
-                        }
-                    ]
-                },
-                "count": 1,
-            }
-        )
+    task_kwargs.update(_fetch_templated_kwargs())
+    task_kwargs.update(_fetch_explicit_kwargs())
+
+    # There can only be 1 count of these containers
+    task_kwargs["count"] = 1  # type: ignore
+    # There could be a generic approach to the below, but likely more convoluted then just manually ensuring
+    # the one nested config we need to update is present. If we need to override more options in the future we
+    # should revisit this.
+    if "overrides" not in task_kwargs:
+        task_kwargs["overrides"] = {}  # type: ignore
+    if "containerOverrides" not in task_kwargs["overrides"]:
+        task_kwargs["overrides"]["containerOverrides"] = [{}]  # type: ignore
+    task_kwargs["overrides"]["containerOverrides"][0]["name"] = task_kwargs.pop(  # type: ignore
+        AllEcsConfigKeys.CONTAINER_NAME
     )
+    # The executor will overwrite the 'command' property during execution. Must always be the first container!
+    task_kwargs["overrides"]["containerOverrides"][0]["command"] = []  # type: ignore
 
     if any(
         [
-            subnets := task_kwargs.get(EcsConfigKeys.SUBNETS),
-            security_groups := task_kwargs.get(EcsConfigKeys.SECURITY_GROUPS),
-            (assign_public_ip := task_kwargs.get(EcsConfigKeys.ASSIGN_PUBLIC_IP)) is not None,
+            subnets := task_kwargs.pop(AllEcsConfigKeys.SUBNETS, None),
+            security_groups := task_kwargs.pop(AllEcsConfigKeys.SECURITY_GROUPS, None),
+            # Surrounding parens are for the walrus operator to function correctly along with the None check
+            (assign_public_ip := task_kwargs.pop(AllEcsConfigKeys.ASSIGN_PUBLIC_IP, None)) is not None,
         ]
     ):
         network_config = prune_dict(

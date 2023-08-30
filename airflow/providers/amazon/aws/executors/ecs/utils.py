@@ -42,23 +42,32 @@ RUN_TASK_KWARG_DEFAULTS = {
 CONFIG_DEFAULTS = {"conn_id": "aws_default", **RUN_TASK_KWARG_DEFAULTS}
 
 
-class EcsConfigKeys:
-    """Keys loaded into the config which are related to the ECS Executor."""
+class BaseConfigKeys:
+    """Base Implementation of the Config Keys class. Implements iteration for child classes to inherit."""
+
+    def __iter__(self):
+        return iter({value for (key, value) in self.__class__.__dict__.items() if not key.startswith("__")})
+
+
+class RunTaskKwargsConfigKeys(BaseConfigKeys):
+    """Keys loaded into the config which are valid ECS run_task kwargs."""
 
     ASSIGN_PUBLIC_IP = "assign_public_ip"
-    AWS_CONN_ID = "conn_id"
     CLUSTER = "cluster"
-    CONTAINER_NAME = "container_name"
     LAUNCH_TYPE = "launch_type"
     PLATFORM_VERSION = "platform_version"
-    REGION = "region"
-    RUN_TASK_KWARGS = "run_task_kwargs"
     SECURITY_GROUPS = "security_groups"
     SUBNETS = "subnets"
     TASK_DEFINITION = "task_definition"
+    CONTAINER_NAME = "container_name"
 
-    def __iter__(self):
-        return iter({value for (key, value) in EcsConfigKeys.__dict__.items() if not key.startswith("__")})
+
+class AllEcsConfigKeys(RunTaskKwargsConfigKeys):
+    """All keys loaded into the config which are related to the ECS Executor."""
+
+    AWS_CONN_ID = "conn_id"
+    RUN_TASK_KWARGS = "run_task_kwargs"
+    REGION = "region"
 
 
 class EcsExecutorException(Exception):
@@ -212,17 +221,17 @@ def parse_assign_public_ip(assign_public_ip):
     return "ENABLED" if assign_public_ip == "True" else "DISABLED"
 
 
+def snake_to_camel(_key):
+    split_key = _key.split("_")
+    first_word = split_key[0]
+    return first_word[0].lower() + first_word[1:] + "".join(word.title() for word in split_key[1:])
+
+
 def convert_dict_keys_camel_case(nested_dict) -> dict:
     """Accept a potentially nested dictionary and recursively convert all keys into camelCase."""
-
-    def _snake_to_camel(_key):
-        split_key = _key.split("_")
-        first_word = split_key[0]
-        return first_word[0].lower() + first_word[1:] + "".join(word.title() for word in split_key[1:])
-
     result = {}
     for (key, value) in nested_dict.items():
-        new_key = _snake_to_camel(key)
+        new_key = snake_to_camel(key)
         if isinstance(value, dict) and (key.lower() != "tags"):
             # The key name on tags can be whatever the user wants, and we should not mess with them.
             result[new_key] = convert_dict_keys_camel_case(value)

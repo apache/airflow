@@ -33,7 +33,7 @@ from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeT
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
-    EcsConfigKeys,
+    AllEcsConfigKeys,
     EcsExecutorException,
     EcsQueuedTask,
     EcsTaskCollection,
@@ -80,12 +80,14 @@ class AwsEcsExecutor(BaseExecutor):
         self.active_workers: EcsTaskCollection = EcsTaskCollection()
         self.pending_tasks: deque = deque()
 
-        self.cluster = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.CLUSTER)
-        self.container_name = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.CONTAINER_NAME)
+        self.cluster = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CLUSTER)
+        self.container_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME)
         aws_conn_id = conf.get(
-            CONFIG_GROUP_NAME, EcsConfigKeys.AWS_CONN_ID, fallback=CONFIG_DEFAULTS[EcsConfigKeys.AWS_CONN_ID]
+            CONFIG_GROUP_NAME,
+            AllEcsConfigKeys.AWS_CONN_ID,
+            fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
         )
-        region = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.REGION)
+        region = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION)
         from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 
         self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region).conn
