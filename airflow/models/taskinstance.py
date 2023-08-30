@@ -103,6 +103,7 @@ from airflow.sentry import Sentry
 from airflow.stats import Stats
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.timetables.base import DataInterval
 from airflow.typing_compat import Literal, TypeGuard
 from airflow.utils import timezone
@@ -1287,8 +1288,6 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         :return: whether the state was changed to running or not
         """
-        from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
-
         task = self.task
         self.refresh_from_task(task, pool_override=pool)
         self.test_mode = test_mode
