@@ -63,7 +63,6 @@ extend-select = [
     "D403",
     "D412",
     "D419",
-    # type-checking
     "TCH001", # typing-only-first-party-import
     "TCH002", # typing-only-third-party-import
 ]

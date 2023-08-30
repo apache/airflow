@@ -23,6 +23,7 @@ import sys
 from copy import deepcopy
 from random import randint
 from subprocess import DEVNULL, CalledProcessError, CompletedProcess
+from typing import TYPE_CHECKING
 
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
@@ -35,8 +36,6 @@ try:
 except ImportError:
     # We handle the ImportError so that autocomplete works with just click installed
     version = None  # type: ignore[assignment]
-
-from typing import TYPE_CHECKING
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
