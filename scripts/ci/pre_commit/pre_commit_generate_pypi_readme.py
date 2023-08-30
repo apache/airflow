@@ -66,7 +66,7 @@ if __name__ == "__main__":
     pypi_readme_file = AIRFLOW_SOURCES / "generated" / "PYPI_README.md"
 
     if not pypi_readme_file.exists():
-        pypi_readme_content = PYPI_README_HEADER
+        pypi_readme_content = ""
     else:
         pypi_readme_content = pypi_readme_file.read_text()
     with readme_file.open("r") as readme:
