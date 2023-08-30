@@ -98,6 +98,10 @@ class AzureFileShareHook(BaseHook):
             return self._conn
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
+        if conn.protocol:
+            self._warn_deprecation("param", "protocol")
+        if extras:
+            self._warn_deprecation("param", "extras")
         service_options = {}
         for key, value in extras.items():
             if value == "":
@@ -119,6 +123,14 @@ class AzureFileShareHook(BaseHook):
         self._conn = FileService(account_name=conn.login, account_key=conn.password, **service_options)
         return self._conn
 
+    @staticmethod
+    def _warn_deprecation(param: str, dep_type: str):
+        warnings.warn(
+            f"{dep_type} {param} has been deprecated and will be removed in future.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
     def check_for_directory(self, share_name: str, directory_name: str, **kwargs) -> bool:
         """
         Check if a directory exists on Azure File Share.
@@ -129,6 +141,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.exists()` takes.
         :return: True if the file exists, False otherwise.
         """
+        self._warn_deprecation("method", "check_for_directory")
         return self.get_conn().exists(share_name, directory_name, **kwargs)
 
     def check_for_file(self, share_name: str, directory_name: str, file_name: str, **kwargs) -> bool:
@@ -142,6 +155,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.exists()` takes.
         :return: True if the file exists, False otherwise.
         """
+        self._warn_deprecation("method", "check_for_file")
         return self.get_conn().exists(share_name, directory_name, file_name, **kwargs)
 
     def list_directories_and_files(
@@ -156,6 +170,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.list_directories_and_files()` takes.
         :return: A list of files and directories
         """
+        self._warn_deprecation("method", "list_directories_and_files")
         return self.get_conn().list_directories_and_files(share_name, directory_name, **kwargs)
 
     def list_files(self, share_name: str, directory_name: str | None = None, **kwargs) -> list[str]:
@@ -168,6 +183,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.list_directories_and_files()` takes.
         :return: A list of files
         """
+        self._warn_deprecation("method", "list_files")
         return [
             obj.name
             for obj in self.list_directories_and_files(share_name, directory_name, **kwargs)
@@ -183,6 +199,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.create_share()` takes.
         :return: True if share is created, False if share already exists.
         """
+        self._warn_deprecation("method", "create_share")
         return self.get_conn().create_share(share_name, **kwargs)
 
     def delete_share(self, share_name: str, **kwargs) -> bool:
@@ -194,6 +211,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.delete_share()` takes.
         :return: True if share is deleted, False if share does not exist.
         """
+        self._warn_deprecation("method", "delete_share")
         return self.get_conn().delete_share(share_name, **kwargs)
 
     def create_directory(self, share_name: str, directory_name: str, **kwargs) -> list:
@@ -206,6 +224,7 @@ class AzureFileShareHook(BaseHook):
             `FileService.create_directory()` takes.
         :return: A list of files and directories
         """
+        self._warn_deprecation("method", "create_directory")
         return self.get_conn().create_directory(share_name, directory_name, **kwargs)
 
     def get_file(
@@ -221,6 +240,7 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.get_file_to_path()` takes.
         """
+        self._warn_deprecation("method", "get_file")
         self.get_conn().get_file_to_path(share_name, directory_name, file_name, file_path, **kwargs)
 
     def get_file_to_stream(
@@ -236,6 +256,7 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.get_file_to_stream()` takes.
         """
+        self._warn_deprecation("method", "get_file_to_stream")
         self.get_conn().get_file_to_stream(share_name, directory_name, file_name, stream, **kwargs)
 
     def load_file(
@@ -251,6 +272,7 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.create_file_from_path()` takes.
         """
+        self._warn_deprecation("method", "load_file")
         self.get_conn().create_file_from_path(share_name, directory_name, file_name, file_path, **kwargs)
 
     def load_string(
@@ -266,6 +288,7 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.create_file_from_text()` takes.
         """
+        self._warn_deprecation("method", "load_string")
         self.get_conn().create_file_from_text(share_name, directory_name, file_name, string_data, **kwargs)
 
     def load_stream(
@@ -282,6 +305,7 @@ class AzureFileShareHook(BaseHook):
         :param kwargs: Optional keyword arguments that
             `FileService.create_file_from_stream()` takes.
         """
+        self._warn_deprecation("method", "load_stream")
         self.get_conn().create_file_from_stream(
             share_name, directory_name, file_name, stream, count, **kwargs
         )
