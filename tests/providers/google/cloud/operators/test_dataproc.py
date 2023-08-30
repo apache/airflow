@@ -474,7 +474,8 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             "labels": LABELS,
             "virtual_cluster_config": None,
         }
-        expected_calls = self.extra_links_expected_calls_base + [
+        expected_calls = [
+            *self.extra_links_expected_calls_base,
             call.hook().create_cluster(**create_cluster_args),
         ]
 
@@ -523,7 +524,8 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             "labels": LABELS,
             "virtual_cluster_config": VIRTUAL_CLUSTER_CONFIG,
         }
-        expected_calls = self.extra_links_expected_calls_base + [
+        expected_calls = [
+            *self.extra_links_expected_calls_base,
             call.hook().create_cluster(**create_cluster_args),
         ]
 
@@ -811,8 +813,9 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
             "graceful_decommission_timeout": {"seconds": 600},
             "update_mask": UPDATE_MASK,
         }
-        expected_calls = self.extra_links_expected_calls_base + [
-            call.hook().update_cluster(**update_cluster_args)
+        expected_calls = [
+            *self.extra_links_expected_calls_base,
+            call.hook().update_cluster(**update_cluster_args),
         ]
 
         op = DataprocScaleClusterOperator(
@@ -1256,8 +1259,9 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
             "timeout": TIMEOUT,
             "metadata": METADATA,
         }
-        expected_calls = self.extra_links_expected_calls_base + [
-            call.hook().update_cluster(**update_cluster_args)
+        expected_calls = [
+            *self.extra_links_expected_calls_base,
+            call.hook().update_cluster(**update_cluster_args),
         ]
 
         op = DataprocUpdateClusterOperator(
