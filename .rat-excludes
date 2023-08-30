@@ -132,3 +132,6 @@ chart/*.iml
 
 # Sha files
 .*sha256
+
+# Generated PyPI README file
+generated/PYPI_README.md
