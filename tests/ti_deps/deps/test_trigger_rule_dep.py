@@ -101,6 +101,7 @@ def get_mapped_task_dagrun(session, dag_maker):
 
         with dag_maker(dag_id="test_dag"):
             nums = do_something.expand(i=[i + 1 for i in range(5)])
+            nums >> EmptyOperator(task_id="do_something_non_mapped_task", trigger_rule=trigger_rule)
             do_something_else.expand(i=nums)
 
         dr = dag_maker.create_dagrun()
@@ -112,7 +113,7 @@ def get_mapped_task_dagrun(session, dag_maker):
             ti.dag_run = dr
             session.add(ti)
         session.flush()
-        tis = dr.get_task_instances()
+        tis = dr.get_task_instances()[:-1]
         for ti in tis:
             if ti.task_id == "do_something":
                 if ti.map_index > 2:
@@ -1029,6 +1030,39 @@ class TestTriggerRuleDep:
         assert len(dep_statuses) == 0
         assert ti.state == TaskInstanceState.REMOVED
 
+    def test_nonmapped_task_upstream_removed_with_all_success_trigger_rules(
+        self,
+        monkeypatch,
+        session,
+        get_mapped_task_dagrun,
+    ):
+        """
+        Test ALL_SUCCESS trigger rule with non-mapped task upstream removed
+        """
+        upstream_states = _UpstreamTIStates(
+            success=3,
+            skipped=0,
+            failed=0,
+            removed=2,
+            upstream_failed=0,
+            done=5,
+            skipped_setup=0,
+            success_setup=0,
+        )
+        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
+
+        dr, _ = get_mapped_task_dagrun()
+        ti = dr.get_task_instance(task_id="do_something_non_mapped_task", session=session)
+        ti.task = dr.dag.task_dict["do_something_non_mapped_task"]
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                dep_context=DepContext(flag_upstream_failed=True),
+                session=session,
+            )
+        )
+        assert len(dep_statuses) == 0
+
     def test_mapped_task_upstream_removed_with_all_failed_trigger_rules(
         self,
         monkeypatch,
@@ -1065,6 +1099,39 @@ class TestTriggerRuleDep:
             )
         )
 
+        assert len(dep_statuses) == 0
+
+    def test_nonmapped_task_upstream_removed_with_all_failed_trigger_rules(
+        self,
+        monkeypatch,
+        session,
+        get_mapped_task_dagrun,
+    ):
+        """
+        Test ALL_FAILED trigger rule with non-mapped task upstream removed
+        """
+        upstream_states = _UpstreamTIStates(
+            success=0,
+            skipped=0,
+            failed=3,
+            removed=2,
+            upstream_failed=0,
+            done=5,
+            skipped_setup=0,
+            success_setup=0,
+        )
+        monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
+
+        dr, _ = get_mapped_task_dagrun(trigger_rule=TriggerRule.ALL_FAILED, state=TaskInstanceState.FAILED)
+        ti = dr.get_task_instance(task_id="do_something_non_mapped_task", session=session)
+        ti.task = dr.dag.task_dict["do_something_non_mapped_task"]
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                dep_context=DepContext(flag_upstream_failed=False),
+                session=session,
+            )
+        )
         assert len(dep_statuses) == 0
 
     @pytest.mark.parametrize(

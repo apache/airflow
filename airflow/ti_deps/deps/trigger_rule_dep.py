@@ -332,9 +332,7 @@ class TriggerRuleDep(BaseTIDep):
                     )
                 )
         elif trigger_rule == TR.ALL_SUCCESS:
-            num_failures = upstream - success
-            if ti.map_index > -1:
-                num_failures -= removed
+            num_failures = upstream - success - removed
             if num_failures > 0:
                 yield self._failing_status(
                     reason=(
@@ -345,9 +343,7 @@ class TriggerRuleDep(BaseTIDep):
                     )
                 )
         elif trigger_rule == TR.ALL_FAILED:
-            num_success = upstream - failed - upstream_failed
-            if ti.map_index > -1:
-                num_success -= removed
+            num_success = upstream - failed - upstream_failed - removed
             if num_success > 0:
                 yield self._failing_status(
                     reason=(
