@@ -463,7 +463,7 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "logging_level"): _available_logging_levels,
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
-        ("logging", "celery_logging_level"): _available_logging_levels + [""],
+        ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", ""],
     }
 

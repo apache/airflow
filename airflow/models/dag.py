@@ -1699,7 +1699,7 @@ class DAG(LoggingMixin):
         if include_subdags:
             # Crafting the right filter for dag_id and task_ids combo
             conditions = []
-            for dag in self.subdags + [self]:
+            for dag in [*self.subdags, self]:
                 conditions.append(
                     (TaskInstance.dag_id == dag.dag_id) & TaskInstance.task_id.in_(dag.task_ids)
                 )

@@ -41,14 +41,14 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
 def _generate_pip_install_cmd_from_file(
     tmp_dir: str, requirements_file_path: str, pip_install_options: list[str]
 ) -> list[str]:
-    cmd = [f"{tmp_dir}/bin/pip", "install"] + pip_install_options + ["-r"]
-    return cmd + [requirements_file_path]
+    cmd = [f"{tmp_dir}/bin/pip", "install", *pip_install_options, "-r"]
+    return [*cmd, requirements_file_path]
 
 
 def _generate_pip_install_cmd_from_list(
     tmp_dir: str, requirements: list[str], pip_install_options: list[str]
 ) -> list[str]:
-    cmd = [f"{tmp_dir}/bin/pip", "install"] + pip_install_options
+    cmd = [f"{tmp_dir}/bin/pip", "install", *pip_install_options]
     return cmd + requirements
 
 

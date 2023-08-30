@@ -103,7 +103,7 @@ class State:
     finished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.SUCCESS, DagRunState.FAILED])
     unfinished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.QUEUED, DagRunState.RUNNING])
 
-    task_states: tuple[TaskInstanceState | None, ...] = (None,) + tuple(TaskInstanceState)
+    task_states: tuple[TaskInstanceState | None, ...] = (None, *TaskInstanceState)
 
     dag_states: tuple[DagRunState, ...] = (
         DagRunState.QUEUED,
