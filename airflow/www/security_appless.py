@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from flask_session import Session
 
-from airflow.auth.managers.fab.security_manager.modules.db import FabAirflowSecurityManagerOverrideDb
+from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 
 
 class FakeAppBuilder:
@@ -33,7 +33,7 @@ class FakeAppBuilder:
         self.get_session = session
 
 
-class ApplessAirflowSecurityManager(FabAirflowSecurityManagerOverrideDb):
+class ApplessAirflowSecurityManager(FabAirflowSecurityManagerOverride):
     """Security Manager that doesn't need the whole flask app."""
 
     def __init__(self, session: Session | None = None):
