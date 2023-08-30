@@ -163,10 +163,18 @@ class WasbHook(BaseHook):
         account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
         parsed_url = urlparse(account_url)
 
-        if not parsed_url.netloc and "." not in parsed_url.path:
-            # if there's no netloc and no dots in the path, then user only
-            # provided the Active Directory ID, not the full URL or DNS name
-            account_url = f"https://{conn.login}.blob.core.windows.net/"
+        if not parsed_url.netloc:
+            if "." not in parsed_url.path:
+                # if there's no netloc and no dots in the path, then user only
+                # provided the Active Directory ID, not the full URL or DNS name
+                account_url = f"https://{conn.login}.blob.core.windows.net/"
+            else:
+                # if there's no netloc but there are dots in the path, then user
+                # provided the DNS name without the https:// prefix.
+                # Azure storage account name can only be 3 to 24 characters in length
+                # https://learn.microsoft.com/en-us/azure/storage/common/storage-account-overview#storage-account-name
+                acc_name = account_url.split(".")[0][:24]
+                account_url = f"https://{acc_name}." + ".".join(account_url.split(".")[1:])
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
@@ -568,10 +576,18 @@ class WasbAsyncHook(WasbHook):
         account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
         parsed_url = urlparse(account_url)
 
-        if not parsed_url.netloc and "." not in parsed_url.path:
-            # if there's no netloc and no dots in the path, then user only
-            # provided the Active Directory ID, not the full URL or DNS name
-            account_url = f"https://{conn.login}.blob.core.windows.net/"
+        if not parsed_url.netloc:
+            if "." not in parsed_url.path:
+                # if there's no netloc and no dots in the path, then user only
+                # provided the Active Directory ID, not the full URL or DNS name
+                account_url = f"https://{conn.login}.blob.core.windows.net/"
+            else:
+                # if there's no netloc but there are dots in the path, then user
+                # provided the DNS name without the https:// prefix.
+                # Azure storage account name can only be 3 to 24 characters in length
+                # https://learn.microsoft.com/en-us/azure/storage/common/storage-account-overview#storage-account-name
+                acc_name = account_url.split(".")[0][:24]
+                account_url = f"https://{acc_name}." + ".".join(account_url.split(".")[1:])
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:

@@ -121,7 +121,7 @@ PIP package                       Version required
 ``adal``                          ``>=1.2.7``
 ``azure-storage-file-datalake``   ``>=12.9.1``
 ``azure-kusto-data``              ``>=4.1.0``
-``azure-mgmt-containerinstance``  ``>=1.5.0,<2.0``
+``azure-mgmt-containerinstance``  ``>=7.0.0,<9.0.0``
 ``azure-mgmt-datafactory``        ``>=1.0.0,<2.0``
 ================================  ==================
 

@@ -62,6 +62,8 @@ Extra (optional)
     The following parameters are all optional:
 
     * ``connection_string``: Connection string for use with connection string authentication.
+    * ``subscription_id``: The ID of the subscription used for the initial connection. This is needed for Azure Active Directory (Azure AD) authentication.
+    * ``resource_group``: Azure Resource Group Name under which the desired Azure file volume resides. This is needed for Azure Active Directory (Azure AD) authentication.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

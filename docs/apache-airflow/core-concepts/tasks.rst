@@ -76,7 +76,6 @@ The possible states for a Task Instance are:
 * ``queued``: The task has been assigned to an Executor and is awaiting a worker
 * ``running``: The task is running on a worker (or on a local/synchronous executor)
 * ``success``: The task finished running without errors
-* ``shutdown``: The task was externally requested to shut down when it was running
 * ``restarting``: The task was externally requested to restart when it was running
 * ``failed``: The task had an error during execution and failed to run
 * ``skipped``: The task was skipped due to branching, LatestOnly, or similar.

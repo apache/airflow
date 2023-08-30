@@ -346,8 +346,12 @@ class TestWasbHook:
                 "https://testaccountname.blob.core.windows.net",
             ),
             ("testhost", "https://accountlogin.blob.core.windows.net/"),
-            ("testhost.dns", "testhost.dns"),
-            ("testhost.blob.net", "testhost.blob.net"),
+            ("testhost.dns", "https://testhost.dns"),
+            ("testhost.blob.net", "https://testhost.blob.net"),
+            (
+                "testhostakjhdisdfbearioyo.blob.core.windows.net",
+                "https://testhostakjhdisdfbearioy.blob.core.windows.net",
+            ),  # more than 24 characters
         ],
     )
     def test_proper_account_url_update(

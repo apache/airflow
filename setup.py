@@ -438,7 +438,6 @@ devel_only = [
     "pytest-xdist",
     "python-jose",
     "pywinrm",
-    "qds-sdk>=1.9.6",
     "pytest-httpx",
     "requests_mock",
     "rich-click>=1.5",
@@ -682,9 +681,7 @@ EXTRAS_DEPENDENCIES["all_dbs"] = all_dbs
 # to separately add providers dependencies - they have been already added as 'providers' extras above
 _all_dependencies = get_unique_dependency_list(EXTRAS_DEPENDENCIES.values())
 
-_all_dependencies_without_airflow_providers = list(
-    filter(lambda k: "apache-airflow-" not in k, _all_dependencies)
-)
+_all_dependencies_without_airflow_providers = [k for k in _all_dependencies if "apache-airflow-" not in k]
 
 # All user extras here
 # all is purely development extra and it should contain only direct dependencies of Airflow

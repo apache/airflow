@@ -216,6 +216,9 @@ class GoogleBaseHook(BaseHook):
                 widget=BS3TextFieldWidget(),
                 default=5,
             ),
+            "impersonation_chain": StringField(
+                lazy_gettext("Impersonation Chain"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -261,6 +264,9 @@ class GoogleBaseHook(BaseHook):
         key_secret_project_id: str | None = self._get_field("key_secret_project_id", None)
 
         credential_config_file: str | None = self._get_field("credential_config_file", None)
+
+        if not self.impersonation_chain:
+            self.impersonation_chain = self._get_field("impersonation_chain", None)
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 

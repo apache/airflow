@@ -412,7 +412,11 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_version_heads_map.py
         pass_filenames: false
-        files: ^airflow/migrations/versions|^airflow/__init__.py$
+        files: >
+          (?x)
+          ^scripts/ci/pre_commit/pre_commit_version_heads_map\.py$|
+          ^airflow/migrations/versions/.*$|^airflow/migrations/versions|
+          ^airflow/utils/db.py$
         additional_dependencies: ['packaging','google-re2']
       - id: update-version
         name: Update version to the latest version in the documentation

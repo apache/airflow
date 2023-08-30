@@ -55,7 +55,15 @@ LIST_JOBS_ENDPOINT = ("GET", "api/2.1/jobs/list")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
-RUN_LIFE_CYCLE_STATES = ["PENDING", "RUNNING", "TERMINATING", "TERMINATED", "SKIPPED", "INTERNAL_ERROR"]
+RUN_LIFE_CYCLE_STATES = [
+    "PENDING",
+    "RUNNING",
+    "TERMINATING",
+    "TERMINATED",
+    "SKIPPED",
+    "INTERNAL_ERROR",
+    "QUEUED",
+]
 
 SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
 
