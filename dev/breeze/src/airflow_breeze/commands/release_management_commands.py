@@ -1148,7 +1148,7 @@ def generate_issue_content_providers(
                 )
                 continue
             prs = get_prs_for_package(package_id)
-            provider_prs[package_id] = list(filter(lambda pr: pr not in excluded_prs, prs))
+            provider_prs[package_id] = [pr for pr in prs if pr not in excluded_prs]
             all_prs.update(provider_prs[package_id])
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
