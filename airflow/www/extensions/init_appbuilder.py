@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from functools import reduce
 from typing import TYPE_CHECKING
 
@@ -661,13 +662,20 @@ class AirflowAppBuilder:
 def init_appbuilder(app) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
     from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.www.security import AirflowSecurityManager
 
     security_manager_class = app.config.get("SECURITY_MANAGER_CLASS") or FabAirflowSecurityManagerOverride
 
-    if not issubclass(security_manager_class, FabAirflowSecurityManagerOverride):
+    if not issubclass(security_manager_class, AirflowSecurityManager):
         raise Exception(
             """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride,
-             not FAB's security manager."""
+             not FAB's own security manager."""
+        )
+    if not issubclass(security_manager_class, FabAirflowSecurityManagerOverride):
+        warnings.warn(
+            "Please make your custom security manager inherit from "
+            "FabAirflowSecurityManagerOverride instead of AirflowSecurityManager.",
+            DeprecationWarning,
         )
 
     return AirflowAppBuilder(
