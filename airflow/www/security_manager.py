@@ -64,8 +64,11 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-class AirflowSecurityManager(SecurityManager, LoggingMixin):
-    """Custom security manager, which introduces a permission model adapted to Airflow."""
+class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
+    """Custom security manager, which introduces a permission model adapted to Airflow.
+
+    It's named V2 to differentiate it from the obsolete airflow.www.security.AirflowSecurityManager.
+    """
 
     ###########################################################################
     #                               PERMISSIONS
