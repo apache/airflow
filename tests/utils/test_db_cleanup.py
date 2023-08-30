@@ -66,6 +66,12 @@ def clean_database():
 
 class TestDBCleanup:
     @pytest.fixture(autouse=True)
+    def reset_logging_level(self):
+        from airflow.utils.db_cleanup import logger
+
+        logger.setLevel("INFO")
+
+    @pytest.fixture(autouse=True)
     def clear_airflow_tables(self):
         drop_tables_with_prefix("_airflow_")
 
@@ -394,18 +400,17 @@ class TestDBCleanup:
     )
     @patch("airflow.utils.db_cleanup.ask_yesno")
     def test_confirm_drop_archives(self, mock_ask_yesno, tables):
-        expected = (
+        expected = [
             f"You have requested that we drop the following archived tables {tables}.\n"
             "This is irreversible. Consider backing up the tables first"
-        )
+        ]
         if len(tables) > 3:
-            expected = (
+            expected = [
                 f"You have requested that we drop {len(tables)} archived tables prefixed with "
                 f"_airflow_deleted__.\n"
-                "This is irreversible. Consider backing up the tables first \n"
-                "\n"
-                f"{tables}"
-            )
+                "This is irreversible. Consider backing up the tables first \n",
+                str(tables),
+            ]
 
         mock_ask_yesno.return_value = True
         with patch("sys.stdout", new=StringIO()) as fake_out, patch(
@@ -413,8 +418,23 @@ class TestDBCleanup:
         ):
             _confirm_drop_archives(tables=tables)
             output = fake_out.getvalue().strip()
+        for txt in expected:
+            assert txt in output
 
-        assert output == expected
+    @patch("airflow.utils.db_cleanup.ask_yesno")
+    def test_logging_level(self, mock_ask_yesno):
+        from airflow.utils.db_cleanup import logger
+
+        logger.setLevel("ERROR")
+
+        mock_ask_yesno.return_value = True
+        with patch("sys.stdout", new=StringIO()) as fake_out, patch(
+            "builtins.input", side_effect=["drop archived tables"]
+        ):
+            _confirm_drop_archives(tables=["table1", "table2"])
+            output = fake_out.getvalue().strip()
+
+        assert output == ""
 
     def test_user_did_not_confirm(self):
         tables = ["table1", "table2"]

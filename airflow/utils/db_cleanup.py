@@ -336,7 +336,7 @@ def _confirm_drop_archives(*, tables: list[str]):
     if len(tables) > 3:
         show_tables = ask_yesno("Show tables? (y/n): ")
         if show_tables:
-            logger.info(tables, "\n")
+            logger.info(tables)
     answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
     if not answer == "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")
