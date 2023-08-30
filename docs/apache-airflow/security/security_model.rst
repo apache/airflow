@@ -41,12 +41,12 @@ varying access and capabilities:
    model.
 
 2. **DAG Authors**: They can upload, modify, and delete DAG files. The
-   code in DAG files is executed on workers and in DAG File Processor. Note
-   that in the simple deployment configuration parsing DAGs is executed as
-   subprocess of the Scheduler process, but with Standalone DAG File Processor
-   Deployment managers might separate physically parsing from the Scheduler
+   code in DAG files is executed on workers and in the DAG File Processor. Note
+   that in the simple deployment configuration, parsing DAGs is executed as
+   a subprocess of the Scheduler process, but with Standalone DAG File Processor
+   deployment managers might separate parsing DAGs from the Scheduler process.
    Therefore, DAG authors can create and change code executed on workers
-   and DAG File Processor and potentially access the credentials that the DAG
+   and the DAG File Processor and potentially access the credentials that the DAG
    code uses to access external systems. DAG Authors have full access
    to the metadata database and internal audit logs.
 
