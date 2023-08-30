@@ -63,7 +63,7 @@ def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Respon
     """Get a variable by key."""
     var = session.scalar(select(Variable).where(Variable.key == variable_key).limit(1))
     if not var:
-        raise NotFound("Variable not found")
+        raise NotFound("Variable not found", detail="Variable does not exist")
     return variable_schema.dump(var)
 
 
