@@ -87,11 +87,11 @@ class DateTimeSensorAsync(DateTimeSensor):
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.trigger = DateTimeTrigger(moment=timezone.parse(self.target_time))
 
     def execute(self, context: Context):
+        trigger = DateTimeTrigger(moment=timezone.parse(self.target_time))
         self.defer(
-            trigger=self.trigger,
+            trigger=trigger,
             method_name="execute_complete",
         )
 
