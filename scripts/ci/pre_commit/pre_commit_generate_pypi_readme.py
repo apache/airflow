@@ -37,6 +37,12 @@ README_SECTIONS_TO_EXTRACT = [
     "Who maintains Apache Airflow",
 ]
 
+PYPI_README_HEADER = (
+    "<!-- "
+    "PLEASE DO NOT MODIFY THIS FILE. IT HAS BEEN GENERATED AUTOMATICALLY FROM THE `README.md` FILE OF THE\n"
+    "PROJECT BY THE `generate-pypi-readme` PRE-COMMIT. YOUR CHANGES HERE WILL BE AUTOMATICALLY OVERWRITTEN."
+    "-->\n"
+)
 
 # Function to extract sections based on start and end comments
 def extract_section(content, section_name):
@@ -58,15 +64,14 @@ def extract_section(content, section_name):
 if __name__ == "__main__":
     readme_file = AIRFLOW_SOURCES / "README.md"
     pypi_readme_file = AIRFLOW_SOURCES / "generated" / "PYPI_README.md"
-    license_file = AIRFLOW_SOURCES / "scripts" / "ci" / "license-templates" / "LICENSE.md"
 
     if not pypi_readme_file.exists():
-        pypi_readme_content = ""
+        pypi_readme_content = PYPI_README_HEADER
     else:
         pypi_readme_content = pypi_readme_file.read_text()
     with readme_file.open("r") as readme:
         readme_content = readme.read()
-    generated_pypi_readme_content = license_file.read_text()
+    generated_pypi_readme_content = PYPI_README_HEADER
     for section in README_SECTIONS_TO_EXTRACT:
         section_content = extract_section(readme_content, section)
         generated_pypi_readme_content += section_content
