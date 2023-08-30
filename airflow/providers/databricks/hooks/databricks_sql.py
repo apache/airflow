@@ -83,7 +83,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
-        for arg in ["http_path", "session_configuration"] + self.extra_parameters:
+        for arg in ["http_path", "session_configuration", *self.extra_parameters]:
             if arg in extra_params:
                 del extra_params[arg]
 

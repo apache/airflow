@@ -188,9 +188,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
         working_directory: str | None = None,
     ) -> None:
-        cmd = command_prefix + [
-            f"--runner={self.runner}",
-        ]
+        cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
             cmd.extend(beam_options_to_args(variables))
         run_beam_command(
@@ -261,7 +259,7 @@ class BeamHook(BaseHook):
                     requirements=py_requirements,
                 )
 
-            command_prefix = [py_interpreter] + py_options + [py_file]
+            command_prefix = [py_interpreter, *py_options, py_file]
 
             beam_version = (
                 subprocess.check_output(
@@ -506,9 +504,7 @@ class BeamAsyncHook(BeamHook):
         command_prefix: list[str],
         working_directory: str | None = None,
     ) -> int:
-        cmd = command_prefix + [
-            f"--runner={self.runner}",
-        ]
+        cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
             cmd.extend(beam_options_to_args(variables))
         return await self.run_beam_command_async(
