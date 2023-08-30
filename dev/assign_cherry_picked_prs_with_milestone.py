@@ -261,7 +261,7 @@ def assign_prs(
     output_folder: str,
 ):
     changes = get_changes(verbose, previous_release, current_release)
-    changes = list(filter(lambda change: change.pr is not None, changes))
+    changes = [change for change in changes if change.pr is not None]
     prs = [change.pr for change in changes]
 
     g = Github(github_token)
