@@ -81,6 +81,8 @@ dependencies:
   - adal>=1.2.7
   - azure-storage-file-datalake>=12.9.1
   - azure-kusto-data>=4.1.0
+
+  - azure-mgmt-containerregistry>=8.0.0
   # TODO: upgrade to newer versions of all the below libraries.
   #   See issue https://github.com/apache/airflow/issues/30199
   - azure-mgmt-containerinstance>=7.0.0,<9.0.0
