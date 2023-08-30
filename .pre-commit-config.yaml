@@ -767,7 +767,6 @@ repos:
         language: python
         files: ^README\.md$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
       - id: lint-markdown
         name: Run markdownlint
         description: Checks the style of Markdown files.

@@ -18,12 +18,7 @@
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
-
-from rich.console import Console
-
-console = Console(width=400, color_system="standard")
 
 AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 README_SECTIONS_TO_EXTRACT = [
@@ -43,6 +38,7 @@ PYPI_README_HEADER = (
     "PROJECT BY THE `generate-pypi-readme` PRE-COMMIT. YOUR CHANGES HERE WILL BE AUTOMATICALLY OVERWRITTEN."
     "-->\n"
 )
+
 
 # Function to extract sections based on start and end comments
 def extract_section(content, section_name):
@@ -65,20 +61,10 @@ if __name__ == "__main__":
     readme_file = AIRFLOW_SOURCES / "README.md"
     pypi_readme_file = AIRFLOW_SOURCES / "generated" / "PYPI_README.md"
 
-    if not pypi_readme_file.exists():
-        pypi_readme_content = ""
-    else:
-        pypi_readme_content = pypi_readme_file.read_text()
-    with readme_file.open("r") as readme:
-        readme_content = readme.read()
+    readme_content = readme_file.read_text()
     generated_pypi_readme_content = PYPI_README_HEADER
     for section in README_SECTIONS_TO_EXTRACT:
         section_content = extract_section(readme_content, section)
         generated_pypi_readme_content += section_content
-    if pypi_readme_content != generated_pypi_readme_content:
-        with pypi_readme_file.open("w") as generated_readme:
-            generated_readme.write(generated_pypi_readme_content)
-        console.print("\n[yellow]PyPI README.md content regenerated after update..\n")
-        console.print("[red]Aborting the commit")
-        console.print("You should check the changes made. Then simply 'git add --update .' and re-commit")
-        sys.exit(1)
+    with pypi_readme_file.open("w") as generated_readme:
+        generated_readme.write(generated_pypi_readme_content)
