@@ -416,7 +416,7 @@ def delete_ecr_repository(repository_name):
     image_ids = client.list_images(repositoryName=repository_name)["imageIds"]
     client.batch_delete_image(
         repositoryName=repository_name,
-        imageIds=[{"imageDigest": image["imageDigest"] for image in image_ids}],
+        imageIds=[{"imageDigest": image["imageDigest"]} for image in image_ids],
     )
     client.delete_repository(repositoryName=repository_name)
 
