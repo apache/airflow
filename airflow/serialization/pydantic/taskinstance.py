@@ -24,13 +24,13 @@ from pydantic import BaseModel as BaseModelPydantic
 from sqlalchemy.orm import Session
 
 from airflow.models import Operator
+from airflow.models.dagrun import DagRun
 from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
-    from airflow.models import DagRun
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
@@ -73,7 +73,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     run_as_user: Optional[str]
     task: Operator
     test_mode: bool
-    dag_run: DagRun
+    dag_run: Optional[DagRun]
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
@@ -312,3 +312,6 @@ class TaskInstancePydantic(BaseModelPydantic):
         from airflow.models.taskinstance import _get_previous_ti
 
         return _get_previous_ti(task_instance=self, state=state, session=session)
+
+
+TaskInstancePydantic.update_forward_refs()
