@@ -42,8 +42,8 @@ DAG_SCRIPT = (
     "from airflow.models import DAG\n"
     "from airflow.operators.empty import EmptyOperator\n\n"
     "dag = DAG(\n"
-    f'dag_id="{TRIGGERED_DAG_ID}", \n'
-    'default_args={{"start_date": datetime(2019, 1, 1)}}, \n'
+    f"dag_id='{TRIGGERED_DAG_ID}', \n"
+    "default_args={'start_date': datetime(2019, 1, 1)}, \n"
     "schedule=None,\n"
     ")\n"
     'task = EmptyOperator(task_id="test", dag=dag)'

@@ -79,12 +79,12 @@ class TestBashOperator:
             task = BashOperator(
                 task_id="echo_env_vars",
                 dag=dag,
-                bash_command=f"echo $AIRFLOW_HOME>> {tmp_file.name};"
-                f"echo $PYTHONPATH>> {tmp_file.name};"
-                f"echo $AIRFLOW_CTX_DAG_ID >> {tmp_file.name};"
-                f"echo $AIRFLOW_CTX_TASK_ID>> {tmp_file.name};"
-                f"echo $AIRFLOW_CTX_EXECUTION_DATE>> {tmp_file.name};"
-                f"echo $AIRFLOW_CTX_DAG_RUN_ID>> {tmp_file.name};",
+                bash_command="echo $AIRFLOW_HOME>> {0};"
+                "echo $PYTHONPATH>> {0};"
+                "echo $AIRFLOW_CTX_DAG_ID >> {0};"
+                "echo $AIRFLOW_CTX_TASK_ID>> {0};"
+                "echo $AIRFLOW_CTX_EXECUTION_DATE>> {0};"
+                "echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};".format(tmp_file.name),
                 append_env=append_env,
                 env=user_defined_env,
             )
