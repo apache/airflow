@@ -311,10 +311,11 @@ class TestGCSHook:
         test_object = "test_object"
 
         # Given
-        # fmt: off
-        mock_service.return_value.bucket.return_value.get_blob \
-            .return_value.updated = timezone.utcnow() + timedelta(days=2)
-        # fmt: on
+
+        mock_service.return_value.bucket.return_value.get_blob.return_value.updated = (
+            timezone.utcnow() + timedelta(days=2)
+        )
+
         # When
         response = self.gcs_hook.is_older_than(
             bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
