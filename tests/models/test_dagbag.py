@@ -901,7 +901,7 @@ class TestDagBag:
             _sync_to_db()
             mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
 
-    @patch("airflow.www.security.ApplessAirflowSecurityManager")
+    @patch("airflow.www.security_appless.ApplessAirflowSecurityManager")
     def test_sync_perm_for_dag(self, mock_security_manager):
         """
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
