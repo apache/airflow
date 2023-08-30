@@ -26,7 +26,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import CLICommand
-    from airflow.www.security import AirflowSecurityManager
+    from airflow.www.security_manager import AirflowSecurityManagerV2
 
 
 class BaseAuthManager(LoggingMixin):
@@ -37,7 +37,7 @@ class BaseAuthManager(LoggingMixin):
     """
 
     def __init__(self):
-        self._security_manager: AirflowSecurityManager | None = None
+        self._security_manager: AirflowSecurityManagerV2 | None = None
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -88,14 +88,14 @@ class BaseAuthManager(LoggingMixin):
         return object
 
     @property
-    def security_manager(self) -> AirflowSecurityManager:
+    def security_manager(self) -> AirflowSecurityManagerV2:
         """Get the security manager."""
         if not self._security_manager:
             raise AirflowException("Security manager not defined.")
         return self._security_manager
 
     @security_manager.setter
-    def security_manager(self, security_manager: AirflowSecurityManager):
+    def security_manager(self, security_manager: AirflowSecurityManagerV2):
         """
         Set the security manager.
 
