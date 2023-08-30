@@ -5137,7 +5137,8 @@ class VariableModelView(AirflowModelView):
     @expose("/varimport", methods=["POST"])
     @auth.has_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
     @action_logging(event=f"{permissions.RESOURCE_VARIABLE.lower()}.varimport")
-    def varimport(self):
+    @provide_session
+    def varimport(self, session):
         """Import variables."""
         try:
             variable_dict = json.loads(request.files["file"].read())
@@ -5146,8 +5147,13 @@ class VariableModelView(AirflowModelView):
             flash("Missing file or syntax error.", "error")
             return redirect(self.get_redirect())
         else:
+            skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
+                if session.scalar(select(models.Variable).where(models.Variable.key == k)):
+                    logging.warning("Variable: %s already exist, skipping.", k)
+                    skipped.add(k)
+                    continue
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as exc:
@@ -5158,6 +5164,12 @@ class VariableModelView(AirflowModelView):
             flash(f"{suc_count} variable(s) successfully updated.")
             if fail_count:
                 flash(f"{fail_count} variable(s) failed to be updated.", "error")
+            if skipped:
+                flash(
+                    f"The variables with these keys: {list(skipped)} were skipped "
+                    "because they already exists",
+                    "warning",
+                )
             self.update_redirect()
             return redirect(self.get_redirect())
 
