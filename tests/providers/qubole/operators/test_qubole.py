@@ -153,7 +153,7 @@ class TestQuboleOperator:
         simple_task = dag.task_dict[TASK_ID]
         assert getattr(simple_task, "qubole_conn_id") == TEST_CONN
 
-        assert isinstance(next(iter(simple_task.operator_extra_links)), QDSLink)
+        assert isinstance(list(simple_task.operator_extra_links)[0], QDSLink)
 
         ti.xcom_push("qbol_cmd_id", 12345)
         url = simple_task.get_extra_links(ti, "Go to QDS")
