@@ -1198,6 +1198,14 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            gcp_conn_id = bigquery_conn_id
+        
         super().__init__(**kwargs)
         warnings.warn(
             "This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
