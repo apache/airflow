@@ -193,7 +193,7 @@ class Job(Base, LoggingMixin):
             session.merge(self)
             previous_heartbeat = self.latest_heartbeat
 
-            if self.state in (JobState.SHUTDOWN, JobState.RESTARTING):
+            if self.state == JobState.RESTARTING:
                 # TODO: Make sure it is AIP-44 compliant
                 self.kill()
 

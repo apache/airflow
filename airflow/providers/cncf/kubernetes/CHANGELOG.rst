@@ -44,6 +44,7 @@ Bug Fixes
 * ``Fix KubernetesPodOperator duplicating logs when interrupted (#33500)``
 * ``Fix 2.7.0 db migration job errors (#33652)``
 * ``Inspect container state rather than last_state when deciding whether to skip (#33702)``
+* ``Fix kill istio proxy logic (#33779)``
 
 Misc
 ~~~~
@@ -56,12 +57,16 @@ Misc
 * ``Consolidate import and usage of itertools (#33479)``
 * ``Simplify conditions on len() in other providers (#33569)``
 * ``Import utc from datetime and normalize its import (#33450)``
+* ``Always use 'Literal' from 'typing_extensions' (#33794)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``Improve modules import in cncf.kubernetes probvider by move some of them into a type-checking block (#33781)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix typos (double words and it's/its) (#33623)``
    * ``Exclude deprecated "operators.kubernetes_pod" module from provider.yaml (#33641)``
    * ``D205 Support - Providers - Final Pass (#33303)``
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 
 7.4.2
 .....

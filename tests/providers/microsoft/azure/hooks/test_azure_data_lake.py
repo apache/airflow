@@ -26,6 +26,34 @@ from azure.storage.filedatalake._models import FileSystemProperties
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeStorageV2Hook
 
+MODULE = "airflow.providers.microsoft.azure.hooks.data_lake"
+
+
+@pytest.fixture
+def connection_without_tenant(create_mock_connections):
+    create_mock_connections(
+        Connection(
+            conn_id="adl_test_key_without_tenant",
+            conn_type="azure_data_lake",
+            login="client_id",
+            password="client secret",
+            extra={"account_name": "accountname"},
+        )
+    )
+
+
+@pytest.fixture
+def connection(create_mock_connections):
+    create_mock_connections(
+        Connection(
+            conn_id="adl_test_key",
+            conn_type="azure_data_lake",
+            login="client_id",
+            password="client secret",
+            extra={"tenant": "tenant", "account_name": "accountname"},
+        )
+    )
+
 
 class TestAzureDataLakeHook:
     @pytest.fixture(autouse=True)
@@ -52,6 +80,26 @@ class TestAzureDataLakeHook:
         assert isinstance(hook.get_conn(), core.AzureDLFileSystem)
         assert mock_lib.auth.called
 
+    @pytest.mark.usefixtures("connection_without_tenant")
+    @mock.patch(f"{MODULE}.lib")
+    @mock.patch(f"{MODULE}.AzureIdentityCredentialAdapter")
+    def test_fallback_to_azure_identity_credential_adppter_when_tenant_is_not_provided(
+        self,
+        mock_azure_identity_credential_adapter,
+        mock_datalake_store_lib,
+    ):
+        from azure.datalake.store import core
+
+        from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
+
+        hook = AzureDataLakeHook(azure_data_lake_conn_id="adl_test_key_without_tenant")
+        assert hook._conn is None
+        assert hook.conn_id == "adl_test_key_without_tenant"
+        assert isinstance(hook.get_conn(), core.AzureDLFileSystem)
+        assert mock_azure_identity_credential_adapter.called
+        assert not mock_datalake_store_lib.auth.called
+
+    @pytest.mark.usefixtures("connection")
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.core.AzureDLFileSystem", autospec=True)
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
     def test_check_for_blob(self, mock_lib, mock_filesystem):
@@ -62,6 +110,7 @@ class TestAzureDataLakeHook:
         hook.check_for_file("file_path")
         mocked_glob.assert_called()
 
+    @pytest.mark.usefixtures("connection")
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.multithread.ADLUploader", autospec=True)
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
     def test_upload_file(self, mock_lib, mock_uploader):
@@ -86,6 +135,7 @@ class TestAzureDataLakeHook:
             blocksize=4194304,
         )
 
+    @pytest.mark.usefixtures("connection")
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.multithread.ADLDownloader", autospec=True)
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
     def test_download_file(self, mock_lib, mock_downloader):
@@ -110,6 +160,7 @@ class TestAzureDataLakeHook:
             blocksize=4194304,
         )
 
+    @pytest.mark.usefixtures("connection")
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.core.AzureDLFileSystem", autospec=True)
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
     def test_list_glob(self, mock_lib, mock_fs):
@@ -119,6 +170,7 @@ class TestAzureDataLakeHook:
         hook.list("file_path/*")
         mock_fs.return_value.glob.assert_called_once_with("file_path/*")
 
+    @pytest.mark.usefixtures("connection")
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.core.AzureDLFileSystem", autospec=True)
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
     def test_list_walk(self, mock_lib, mock_fs):
@@ -128,6 +180,7 @@ class TestAzureDataLakeHook:
         hook.list("file_path/some_folder/")
         mock_fs.return_value.walk.assert_called_once_with("file_path/some_folder/")
 
+    @pytest.mark.usefixtures("connection")
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.core.AzureDLFileSystem", autospec=True)
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
     def test_remove(self, mock_lib, mock_fs):

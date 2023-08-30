@@ -748,7 +748,6 @@ elif PACKAGE_NAME == "docker-stack":
     autoapi_ignore.append("*/airflow/providers/*")
 else:
     autoapi_ignore.append("*/airflow/providers/cncf/kubernetes/backcompat/*")
-    autoapi_ignore.append("*/airflow/providers/google/ads/*")
     autoapi_ignore.append("*/example_dags/*")
 # Keep the AutoAPI generated files on the filesystem after the run.
 # Useful for debugging.

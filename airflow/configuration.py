@@ -35,21 +35,24 @@ from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
 from json.decoder import JSONDecodeError
-from typing import IO, Any, Dict, Generator, Iterable, Pattern, Set, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Dict, Generator, Iterable, Pattern, Set, Tuple, Union
 from urllib.parse import urlsplit
 
 import re2
 from packaging.version import parse as parse_version
 from typing_extensions import overload
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.exceptions import AirflowConfigException
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.utils import yaml
 from airflow.utils.empty_set import _get_empty_set_for_configuration
 from airflow.utils.module_loading import import_string
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.weight_rule import WeightRule
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import BaseAuthManager
+    from airflow.secrets import BaseSecretsBackend
 
 log = logging.getLogger(__name__)
 

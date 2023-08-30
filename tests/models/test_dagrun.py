@@ -336,8 +336,8 @@ class TestDagRun:
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
-    def test_dagrun_no_deadlock_with_shutdown(self, session):
-        dag = DAG("test_dagrun_no_deadlock_with_shutdown", start_date=DEFAULT_DATE)
+    def test_dagrun_no_deadlock_with_restarting(self, session):
+        dag = DAG("test_dagrun_no_deadlock_with_restarting", start_date=DEFAULT_DATE)
         with dag:
             op1 = EmptyOperator(task_id="upstream_task")
             op2 = EmptyOperator(task_id="downstream_task")
@@ -351,7 +351,7 @@ class TestDagRun:
             start_date=DEFAULT_DATE,
         )
         upstream_ti = dr.get_task_instance(task_id="upstream_task")
-        upstream_ti.set_state(TaskInstanceState.SHUTDOWN, session=session)
+        upstream_ti.set_state(TaskInstanceState.RESTARTING, session=session)
 
         dr.update_state()
         assert dr.state == DagRunState.RUNNING
@@ -1894,7 +1894,7 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
 
         @dag.task
         def make_list():
-            return list(map(lambda a: f'echo "{a!r}"', [1, 2, {"a": "b"}]))
+            return [f'echo "{a!r}"' for a in [1, 2, {"a": "b"}]]
 
         def consumer(*args):
             print(repr(args))

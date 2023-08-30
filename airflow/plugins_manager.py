@@ -28,19 +28,18 @@ import sys
 import types
 from typing import TYPE_CHECKING, Any, Iterable
 
-try:
-    import importlib_metadata
-except ImportError:
-    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
-
-from types import ModuleType
-
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
+    try:
+        import importlib_metadata
+    except ImportError:
+        from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
+    from types import ModuleType
+
     from airflow.hooks.base import BaseHook
     from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable

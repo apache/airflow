@@ -52,7 +52,7 @@ class TestAzureContainerInstanceHook:
             yield
 
     @patch("azure.mgmt.containerinstance.models.ContainerGroup")
-    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.create_or_update")
+    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.begin_create_or_update")
     def test_create_or_update(self, create_or_update_mock, container_group_mock):
         self.hook.create_or_update("resource_group", "aci-test", container_group_mock)
         create_or_update_mock.assert_called_once_with("resource_group", "aci-test", container_group_mock)
@@ -60,9 +60,9 @@ class TestAzureContainerInstanceHook:
     @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.get")
     def test_get_state(self, get_state_mock):
         self.hook.get_state("resource_group", "aci-test")
-        get_state_mock.assert_called_once_with("resource_group", "aci-test", raw=False)
+        get_state_mock.assert_called_once_with("resource_group", "aci-test")
 
-    @patch("azure.mgmt.containerinstance.operations.ContainerOperations.list_logs")
+    @patch("azure.mgmt.containerinstance.operations.ContainersOperations.list_logs")
     def test_get_logs(self, list_logs_mock):
         expected_messages = ["log line 1\n", "log line 2\n", "log line 3\n"]
         logs = Logs(content="".join(expected_messages))
@@ -72,7 +72,7 @@ class TestAzureContainerInstanceHook:
 
         assert logs == expected_messages
 
-    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.delete")
+    @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.begin_delete")
     def test_delete(self, delete_mock):
         self.hook.delete("resource_group", "aci-test")
         delete_mock.assert_called_once_with("resource_group", "aci-test")

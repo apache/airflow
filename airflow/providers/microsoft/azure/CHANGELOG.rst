@@ -36,12 +36,19 @@ Features
 * ``Add AzureBatchOperator example (#33716)``
 * ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerInstanceHook (#33467)``
 * ``Add DefaultAzureCredential auth for ADX service (#33627)``
+* ``feat(providers/microsoft): add DefaultAzureCredential to data_lake (#33433)``
+* ``Allow passing fully_qualified_namespace and credential to initialize Azure Service Bus Client (#33493)``
+* ``Add DefaultAzureCredential support to cosmos (#33436)``
+* ``Add DefaultAzureCredential support to AzureBatchHook (#33469)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix updating account url for WasbHook (#33457)``
 * ``Fix Azure Batch Hook instantation (#33731)``
+* ``Truncate Wasb storage account name if it's more than 24 characters (#33851)``
+* ``Remove duplicated message commit in Azure MessageHook (#33776)``
+* ``fix(providers/azure): remove json.dumps when querying AzureCosmosDBHook (#33653)``
 
 Misc
 ~~~~
@@ -51,11 +58,18 @@ Misc
 * ``Simplify conditions on len() in providers/microsoft (#33566)``
 * ``Set logging level to WARNING (#33314)``
 * ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+* ``Bump azure-mgmt-containerinstance>=7.0.0,<9.0.0 (#33696)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+* ``Optimise Airflow DB backend usage in Azure Provider (#33750)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix typos (double words and it's/its) (#33623)``
    * ``Further improvements for provider verification (#33670)``
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``Move Azure examples into system tests (#33727)``
 
 6.2.4
 .....

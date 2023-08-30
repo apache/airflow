@@ -23,8 +23,6 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-import boto3
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -42,6 +40,8 @@ from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetche
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
+    import boto3
+
     from airflow.models import TaskInstance
     from airflow.utils.context import Context
 

@@ -43,9 +43,7 @@ import botocore.session
 import jinja2
 import requests
 import tenacity
-from botocore.client import ClientMeta
 from botocore.config import Config
-from botocore.credentials import ReadOnlyCredentials
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
@@ -66,6 +64,9 @@ from airflow.utils.log.secrets_masker import mask_secret
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 
 if TYPE_CHECKING:
+    from botocore.client import ClientMeta
+    from botocore.credentials import ReadOnlyCredentials
+
     from airflow.models.connection import Connection  # Avoid circular imports.
 
 

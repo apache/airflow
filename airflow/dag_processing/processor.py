@@ -18,25 +18,21 @@ from __future__ import annotations
 
 import importlib
 import logging
-import multiprocessing
 import os
 import signal
 import threading
 import time
 import zipfile
 from contextlib import redirect_stderr, redirect_stdout, suppress
-from datetime import datetime, timedelta
-from multiprocessing.connection import Connection as MultiprocessingConnection
+from datetime import timedelta
 from typing import TYPE_CHECKING, Iterable, Iterator
 
 from setproctitle import setproctitle
 from sqlalchemy import delete, exc, func, or_, select
-from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import (
-    CallbackRequest,
     DagCallbackRequest,
     SlaCallbackRequest,
     TaskCallbackRequest,
@@ -44,7 +40,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models import SlaMiss, errors
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -59,6 +55,14 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    import multiprocessing
+    from datetime import datetime
+    from multiprocessing.connection import Connection as MultiprocessingConnection
+
+    from sqlalchemy.orm.session import Session
+
+    from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
 
