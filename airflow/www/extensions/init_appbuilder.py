@@ -664,19 +664,21 @@ def init_appbuilder(app) -> AirflowAppBuilder:
     from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     from airflow.www.security import AirflowSecurityManager
 
-    security_manager_class = app.config.get("SECURITY_MANAGER_CLASS") or FabAirflowSecurityManagerOverride
+    sm_from_config = app.config.get("SECURITY_MANAGER_CLASS")
+    if sm_from_config:
+        if not issubclass(sm_from_config, AirflowSecurityManager):
+            raise Exception(
+                """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride,
+                 not FAB's own security manager."""
+            )
+        if not issubclass(sm_from_config, FabAirflowSecurityManagerOverride):
+            warnings.warn(
+                "Please make your custom security manager inherit from "
+                "FabAirflowSecurityManagerOverride instead of AirflowSecurityManager.",
+                DeprecationWarning,
+            )
 
-    if not issubclass(security_manager_class, AirflowSecurityManager):
-        raise Exception(
-            """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride,
-             not FAB's own security manager."""
-        )
-    if not issubclass(security_manager_class, FabAirflowSecurityManagerOverride):
-        warnings.warn(
-            "Please make your custom security manager inherit from "
-            "FabAirflowSecurityManagerOverride instead of AirflowSecurityManager.",
-            DeprecationWarning,
-        )
+    security_manager_class = sm_from_config or FabAirflowSecurityManagerOverride
 
     return AirflowAppBuilder(
         app=app,
