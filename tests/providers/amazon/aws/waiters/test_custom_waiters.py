@@ -71,7 +71,7 @@ class TestBaseWaiter:
         waiter = BaseBotoWaiter(client_name, waiter_model_config)
 
         # WaiterModel objects don't implement an eq() so equivalence checking manually.
-        for attr, _ in expected_model.__dict__.items():
+        for attr in expected_model.__dict__.keys():
             assert waiter.model.__getattribute__(attr) == expected_model.__getattribute__(attr)
         assert waiter.client == client_name
 
@@ -116,7 +116,7 @@ class TestCustomEKSServiceWaiters:
 
         assert_all_match(hook_waiter.name, client_waiter.name, boto_waiter.name)
         assert_all_match(len(hook_waiter.__dict__), len(client_waiter.__dict__), len(boto_waiter.__dict__))
-        for attr, _ in hook_waiter.__dict__.items():
+        for attr in hook_waiter.__dict__.keys():
             # Not all attributes in a Waiter are directly comparable
             # so the best we can do it make sure the same attrs exist.
             assert hasattr(boto_waiter, attr)
