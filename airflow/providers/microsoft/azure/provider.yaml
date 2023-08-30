@@ -14,12 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 ---
 package-name: apache-airflow-providers-microsoft-azure
 name: Microsoft Azure
 description: |
-    `Microsoft Azure <https://azure.microsoft.com/>`__
+  `Microsoft Azure <https://azure.microsoft.com/>`__
 suspended: false
 versions:
   - 6.3.0
@@ -76,6 +75,7 @@ dependencies:
   - azure-storage-blob>=12.14.0
   - azure-storage-common>=2.1.0
   - azure-storage-file>=2.1.0
+  - azure-mgmt-storage>=16.0.0
   - azure-servicebus>=7.6.1
   - azure-synapse-spark
   - adal>=1.2.7
@@ -257,7 +257,6 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/azure_blob_to_gcs.rst
     python-module: airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs
-
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook

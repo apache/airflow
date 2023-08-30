@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.models import Connection
@@ -71,6 +73,48 @@ class TestAzureContainerVolumeHook:
         assert volume.azure_file.storage_account_name == "storage"
         assert volume.azure_file.read_only is True
 
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id="azure_container_volume_test_default_azure-credential",
+                conn_type="wasb",
+                login="",
+                password="",
+                extra={"subscription_id": "subscription_id", "resource_group": "resource_group"},
+            )
+        ],
+        indirect=True,
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.container_volume.StorageManagementClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.container_volume.DefaultAzureCredential")
+    def test_get_file_volume_default_azure_credential(
+        self, mocked_default_azure_credential, mocked_client, mocked_connection
+    ):
+        mocked_client.return_value.storage_accounts.list_keys.return_value.as_dict.return_value = {
+            "keys": [
+                {
+                    "key_name": "key1",
+                    "value": "value",
+                    "permissions": "FULL",
+                    "creation_time": "2023-07-13T16:16:10.474107Z",
+                },
+            ]
+        }
+
+        hook = AzureContainerVolumeHook(azure_container_volume_conn_id=mocked_connection.conn_id)
+        volume = hook.get_file_volume(
+            mount_name="mount", share_name="share", storage_account_name="storage", read_only=True
+        )
+        assert volume is not None
+        assert volume.name == "mount"
+        assert volume.azure_file.share_name == "share"
+        assert volume.azure_file.storage_account_key == "value"
+        assert volume.azure_file.storage_account_name == "storage"
+        assert volume.azure_file.read_only is True
+
+        mocked_default_azure_credential.assert_called_with()
+
     def test_get_ui_field_behaviour_placeholders(self):
         """
         Check that ensure_prefixes decorator working properly
@@ -81,6 +125,8 @@ class TestAzureContainerVolumeHook:
             "login",
             "password",
             "connection_string",
+            "subscription_id",
+            "resource_group",
         ]
         if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
             raise Exception(
