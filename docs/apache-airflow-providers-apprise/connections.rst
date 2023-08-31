@@ -31,7 +31,7 @@ Apprise hooks point to ``apprise_default`` by default.
 Configuring the Connection
 --------------------------
 
-config (required):
+Config (required)
     The service(s) to send notifications can be specified here.
     The format to specify a single service or multiple services is as follows:
 

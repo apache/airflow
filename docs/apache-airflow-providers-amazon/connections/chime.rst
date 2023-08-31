@@ -36,14 +36,13 @@ The default connection ID is ``chime_default``.
 
 Configuring the Connection
 --------------------------
-Chime Webhook Endpoint:
+Chime Webhook Endpoint
     Specify the entire url or the base of the url for the service.
 
-
-Chime Webhook token:
+Chime Webhook token
     The token for authentication including the webhook ID.
 
-Schema:
+Schema
     Whether or not the endpoint should be http or https
 
 
