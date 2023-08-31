@@ -21,7 +21,7 @@ Apprise Connection
 =======================
 
 The `Apprise <https://github.com/caronc/apprise>`__ connection type enables connection to multiple services to send notifications.
-The complete list of services supported can be found  on the `Apprise Wiki <https://github.com/caronc/apprise/wiki#notification-services>`_.
+The complete list of services supported can be found on the `Apprise Wiki <https://github.com/caronc/apprise/wiki#notification-services>`_.
 
 Default Connection IDs
 ----------------------
@@ -33,7 +33,7 @@ Configuring the Connection
 
 config (required):
     The service(s) to send notifications can be specified here.
-    The format to specify single or multiple services is as follows
+    The format to specify a single service or multiple services is as follows:
 
     *Single service*
 

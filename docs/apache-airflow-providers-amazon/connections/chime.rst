@@ -20,7 +20,7 @@
 Amazon Chime Connection
 ==========================
 
-`Amazon Chime <https://aws.amazon.com/chime/>`__ connection works with calling
+`Amazon Chime <https://aws.amazon.com/chime/>`__ connection works with
 `Chime Incoming Webhooks <https://docs.aws.amazon.com/chime/latest/ag/webhooks.html>`__ to send messages to a
 `Chime Chat Room <https://docs.aws.amazon.com/chime/latest/ug/chime-chat-room.html>`__.
 
