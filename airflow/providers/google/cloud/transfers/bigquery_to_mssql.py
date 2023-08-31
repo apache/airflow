@@ -45,7 +45,8 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     :param mssql_conn_id: reference to a specific mssql hook
     """
 
-    template_fields: Sequence[str] = tuple(BigQueryToSqlBaseOperator.template_fields) + (
+    template_fields: Sequence[str] = (
+        *BigQueryToSqlBaseOperator.template_fields,
         "source_project_dataset_table",
     )
     operator_extra_links = (BigQueryTableLink(),)

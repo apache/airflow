@@ -140,7 +140,7 @@ class TestBaseSQLToGCSOperator:
         ]
         mock_file.flush.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
         csv_calls = []
-        for i in range(0, 3):
+        for i in range(3):
             csv_calls.append(
                 mock.call(
                     BUCKET,

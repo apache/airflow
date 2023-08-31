@@ -327,7 +327,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.3",
+    "flask-appbuilder[oauth]==4.3.6",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -384,7 +384,6 @@ mypy_dependencies = [
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
     "mypy==1.2.0",
-    "types-boto",
     "types-certifi",
     "types-croniter",
     "types-Deprecated",
@@ -405,51 +404,86 @@ mypy_dependencies = [
     "types-PyYAML",
 ]
 
-# Dependencies needed for development only
-devel_only = [
+# make sure to update providers/amazon/provider.yaml botocore min version when you update it here
+_MIN_BOTO3_VERSION = "1.28.0"
+
+_devel_only_amazon = [
     "aws_xray_sdk",
-    "beautifulsoup4>=4.7.1",
-    "black",
-    "blinker",
-    "bowler",
-    "click>=8.0",
-    "coverage>=7.2",
-    "filelock",
-    "gitpython",
-    "ipdb",
-    "jira",
-    "jsondiff",
-    "jsonpath_ng>=1.5.3",
-    "mongomock",
     "moto[cloudformation, glue]>=4.0",
-    "paramiko",
+    f"mypy-boto3-rds>={_MIN_BOTO3_VERSION}",
+    f"mypy-boto3-redshift-data>={_MIN_BOTO3_VERSION}",
+    f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
+    f"mypy-boto3-appflow>={_MIN_BOTO3_VERSION}",
+]
+
+_devel_only_azure = [
+    "pywinrm",
+]
+
+_devel_only_breeze = [
+    "filelock",
+]
+
+_devel_only_debuggers = [
+    "ipdb",
+]
+
+_devel_only_devscripts = [
+    "click>=8.0",
+    "gitpython",
     "pipdeptree",
-    "pre-commit",
-    "pypsrp",
     "pygithub",
+    "rich-click>=1.5",
+    "semver",
+    "towncrier",
+    "twine",
+    "wheel",
+]
+
+_devel_only_mongo = [
+    "mongomock",
+]
+
+_devel_only_sentry = [
+    "blinker",
+]
+
+_devel_only_static_checks = [
+    "pre-commit",
+    "black",
+    "ruff>=0.0.219",
+    "yamllint",
+]
+
+_devel_only_tests = [
+    "aioresponses",
+    "beautifulsoup4>=4.7.1",
+    "coverage>=7.2",
     "pytest",
     "pytest-asyncio",
     "pytest-capture-warnings",
     "pytest-cov",
+    "pytest-httpx",
     "pytest-instafail",
     "pytest-mock",
     "pytest-rerunfailures",
     "pytest-timeouts",
     "pytest-xdist",
-    "python-jose",
-    "pywinrm",
-    "qds-sdk>=1.9.6",
-    "pytest-httpx",
     "requests_mock",
-    "rich-click>=1.5",
-    "ruff>=0.0.219",
-    "semver",
     "time-machine",
-    "towncrier",
-    "twine",
-    "wheel",
-    "yamllint",
-    "aioresponses",
+]
+
+# Dependencies needed for development only
+devel_only = [
+    *_devel_only_amazon,
+    *_devel_only_azure,
+    *_devel_only_breeze,
+    *_devel_only_debuggers,
+    *_devel_only_devscripts,
+    *_devel_only_mongo,
+    *_devel_only_sentry,
+    *_devel_only_static_checks,
+    *_devel_only_tests,
 ]
 
 aiobotocore = [
@@ -682,9 +716,7 @@ EXTRAS_DEPENDENCIES["all_dbs"] = all_dbs
 # to separately add providers dependencies - they have been already added as 'providers' extras above
 _all_dependencies = get_unique_dependency_list(EXTRAS_DEPENDENCIES.values())
 
-_all_dependencies_without_airflow_providers = list(
-    filter(lambda k: "apache-airflow-" not in k, _all_dependencies)
-)
+_all_dependencies_without_airflow_providers = [k for k in _all_dependencies if "apache-airflow-" not in k]
 
 # All user extras here
 # all is purely development extra and it should contain only direct dependencies of Airflow
