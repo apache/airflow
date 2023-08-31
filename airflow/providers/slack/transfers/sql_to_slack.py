@@ -24,7 +24,6 @@ from tabulate import tabulate
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.slack.utils import parse_filename
@@ -32,6 +31,7 @@ from airflow.providers.slack.utils import parse_filename
 if TYPE_CHECKING:
     import pandas as pd
 
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.utils.context import Context
 
 
@@ -153,7 +153,7 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         # If this is the first render of the template fields, exclude slack_message from rendering since
         # the SQL results haven't been retrieved yet.
         if self.times_rendered == 0:
-            fields_to_render: Iterable[str] = filter(lambda x: x != "slack_message", self.template_fields)
+            fields_to_render: Iterable[str] = (x for x in self.template_fields if x != "slack_message")
         else:
             fields_to_render = self.template_fields
 

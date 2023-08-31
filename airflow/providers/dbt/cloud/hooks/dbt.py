@@ -234,13 +234,14 @@ class DbtCloudHook(HttpHook):
         endpoint = f"{account_id}/runs/{run_id}/"
         headers, tenant = await self.get_headers_tenants_from_connection()
         url, params = self.get_request_url_params(tenant, endpoint, include_related)
-        async with aiohttp.ClientSession(headers=headers) as session:
-            async with session.get(url, params=params) as response:
-                try:
-                    response.raise_for_status()
-                    return await response.json()
-                except ClientResponseError as e:
-                    raise AirflowException(str(e.status) + ":" + e.message)
+        async with aiohttp.ClientSession(headers=headers) as session, session.get(
+            url, params=params
+        ) as response:
+            try:
+                response.raise_for_status()
+                return await response.json()
+            except ClientResponseError as e:
+                raise AirflowException(f"{e.status}:{e.message}")
 
     async def get_job_status(
         self, run_id: int, account_id: int | None = None, include_related: list[str] | None = None
@@ -253,15 +254,10 @@ class DbtCloudHook(HttpHook):
         :param include_related: Optional. List of related fields to pull with the run.
             Valid values are "trigger", "job", "repository", and "environment".
         """
-        try:
-            self.log.info("Getting the status of job run %s.", run_id)
-            response = await self.get_job_details(
-                run_id, account_id=account_id, include_related=include_related
-            )
-            job_run_status: int = response["data"]["status"]
-            return job_run_status
-        except Exception as e:
-            raise e
+        self.log.info("Getting the status of job run %s.", run_id)
+        response = await self.get_job_details(run_id, account_id=account_id, include_related=include_related)
+        job_run_status: int = response["data"]["status"]
+        return job_run_status
 
     @cached_property
     def connection(self) -> Connection:

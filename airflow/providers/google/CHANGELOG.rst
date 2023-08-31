@@ -30,16 +30,11 @@ Changelog
 10.6.0
 ......
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-
 Features
 ~~~~~~~~
 
 * ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
 * ``Add GCS Requester Pays bucket support to GCSToS3Operator (#32760)``
-* ``Add system test and docs for CloudDataTransferServiceGCSToGCSOperator (#32960)``
 * ``Add a new parameter to SQL operators to specify conn id field (#30784)``
 
 Bug Fixes
@@ -49,20 +44,21 @@ Bug Fixes
 * ``Fix system test for MetastoreHivePartitionSensor (#32861)``
 * ``Fix catching 409 error (#33173)``
 * ``make 'sql' a cached property in 'BigQueryInsertJobOperator' (#33218)``
+* ``Handle multiple connections using exceptions (#32365)``
 
 Misc
 ~~~~
 
+* ``Refactor of links in Dataproc. (#31895)``
 * ``refactor(providers.google): use module level __getattr__ for DATAPROC_JOB_LOG_LINK to DATAPROC_JOB_LINK and add deprecation warning (#33189)``
+* ``Get rid of Python2 numeric relics (#33050)``
+* ``openlineage,gcs: use proper name for openlineage methods (#32956)``
+* ``Alias 'DATAPROC_JOB_LOG_LINK' to 'DATAPROC_JOB_LINK' (#33148)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Get rid of Python2 numeric relics (#33050)``
-   * ``Refactor of links in Dataproc. (#31895)``
-   * ``Handle multiple connections using exceptions (#32365)``
-   * ``openlineage,gcs: use proper name for openlineage methods (#32956)``
+   * ``Add system test and docs for CloudDataTransferServiceGCSToGCSOperator (#32960)``
    * ``Fix DataflowStartSqlJobOperator system test (#32823)``
-   * ``Alias 'DATAPROC_JOB_LOG_LINK' to 'DATAPROC_JOB_LINK' (#33148)``
    * ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
    * ``Prepare docs for RC2 providers (google, redis) (#33185)``
 
@@ -108,7 +104,7 @@ Misc
 Features
 ~~~~~~~~
 
-Implement deferrable mode for S3ToGCSOperator
+* ``Implement deferrable mode for S3ToGCSOperator (#29462)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -130,7 +126,6 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Combine 8 into 1 (#29462)``
    * ``D205 Support - Provider: Google (#32356)``
    * ``Migrating Google AutoML example_dags to sys tests (#32368)``
    * ``build(pre-commit): check deferrable default value (#32370)``

@@ -21,7 +21,6 @@ import itertools
 import os
 import warnings
 from collections import defaultdict
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
 
 import re2
@@ -45,7 +44,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Query, Session, declared_attr, joinedload, relationship, synonym, validates
+from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
@@ -61,18 +60,23 @@ from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
-from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
+from airflow.utils.types import NOTSET, DagRunType
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Query, Session
+    from typing_extensions import Literal
+
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     TaskCreator = Callable[[Operator, Iterable[int]], CreatedTasks]
@@ -232,15 +236,8 @@ class DagRun(Base, LoggingMixin):
 
     def __repr__(self):
         return (
-            "<DagRun {dag_id} @ {execution_date}: {run_id}, state:{state}, "
-            "queued_at: {queued_at}. externally triggered: {external_trigger}>"
-        ).format(
-            dag_id=self.dag_id,
-            execution_date=self.execution_date,
-            run_id=self.run_id,
-            state=self.state,
-            queued_at=self.queued_at,
-            external_trigger=self.external_trigger,
+            f"<DagRun {self.dag_id} @ {self.execution_date}: {self.run_id}, state:{self.state}, "
+            f"queued_at: {self.queued_at}. externally triggered: {self.external_trigger}>"
         )
 
     @validates("run_id")
@@ -530,7 +527,7 @@ class DagRun(Base, LoggingMixin):
         ]
         if state is not None:
             filters.append(DagRun.state == state)
-        return session.scalar(select(DagRun).where(*filters).order_by(DagRun.execution_date.desc()))
+        return session.scalar(select(DagRun).where(*filters).order_by(DagRun.execution_date.desc()).limit(1))
 
     @provide_session
     def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
@@ -543,6 +540,7 @@ class DagRun(Base, LoggingMixin):
                 DagRun.run_type != DagRunType.MANUAL,
             )
             .order_by(DagRun.execution_date.desc())
+            .limit(1)
         )
 
     def _tis_for_dagrun_state(self, *, dag, tis):
@@ -1387,7 +1385,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate:
         if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
-            template = session.scalar(select(LogTemplate).order_by(LogTemplate.id))
+            template = session.scalar(select(LogTemplate).order_by(LogTemplate.id).limit(1))
         else:
             template = session.get(LogTemplate, self.log_template_id)
         if template is None:

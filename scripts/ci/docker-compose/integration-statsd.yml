@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
 services:
   statsd-exporter:
     image: apache/airflow:airflow-statsd-exporter-2020.09.05-v0.17.0

@@ -28,6 +28,20 @@
 Changelog
 ---------
 
+3.5.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+* ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+* ``Simplify conditions on len() in providers/apache (#33564)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
 3.5.2
 .....
 

@@ -194,8 +194,6 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | plexus              | ``pip install 'apache-airflow[plexus]'``            | Plexus service of CoreScientific.com AI platform    |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| qubole              | ``pip install 'apache-airflow[qubole]'``            | Enable QDS (Qubole Data Service) support            |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | salesforce          | ``pip install 'apache-airflow[salesforce]'``        | Salesforce hook                                     |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | sendgrid            | ``pip install 'apache-airflow[sendgrid]'``          | Send email using sendgrid                           |

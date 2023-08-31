@@ -17,16 +17,14 @@
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Collection
+from typing import TYPE_CHECKING, Collection
 
 from connexion import NoContent
 from flask import g, request
 from marshmallow import ValidationError
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import or_
 
-from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
@@ -36,13 +34,18 @@ from airflow.api_connexion.schemas.dag_schema import (
     dag_schema,
     dags_collection_schema,
 )
-from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow import DAG
+    from airflow.api_connexion.types import APIResponse, UpdateMask
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])

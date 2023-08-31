@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Iterable, Mapping, TypeVar
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, TypeVar
 
 import prestodb
 from prestodb.exceptions import DatabaseError
@@ -27,9 +27,11 @@ from prestodb.transaction import IsolationLevel
 
 from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 T = TypeVar("T")
 

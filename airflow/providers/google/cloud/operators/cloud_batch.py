@@ -17,9 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
-from google.api_core import operation  # type: ignore
 from google.cloud.batch_v1 import Job, Task
 
 from airflow.configuration import conf
@@ -27,7 +26,11 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from google.api_core import operation
+
+    from airflow.utils.context import Context
 
 
 class CloudBatchSubmitJobOperator(GoogleCloudBaseOperator):

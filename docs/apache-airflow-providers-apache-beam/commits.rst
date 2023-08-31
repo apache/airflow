@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.2.2
+.....
+
+Latest change: 2023-08-22
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`32feab4100 <https://github.com/apache/airflow/commit/32feab41006897de182bfa684813be230027aca1>`_  2023-08-22   ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+`c645d8e40c <https://github.com/apache/airflow/commit/c645d8e40c167ea1f6c332cdc3ea0ca5a9363205>`_  2023-08-12   ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+`bfa09da138 <https://github.com/apache/airflow/commit/bfa09da1380f0f1e0727dbbc9f1878bd44eb848d>`_  2023-08-11   ``Fix wrong OR condition when evaluating beam version < 2.39.0 (#33308)``
+`7e79997594 <https://github.com/apache/airflow/commit/7e799975948573ca2a1c4b2051d3eadc32bb8ba7>`_  2023-08-11   ``D205 Support - Providers - Final Pass (#33303)``
+=================================================================================================  ===========  =========================================================================
+
 5.2.1
 .....
 
-Latest change: 2023-08-06
+Latest change: 2023-08-11
 
 =================================================================================================  ===========  ============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
 `1839b683e7 <https://github.com/apache/airflow/commit/1839b683e7974f7f553af2689a64ee36cf1ec006>`_  2023-08-06   ``Allow downloading requirements file from GCS in 'BeamRunPythonPipelineOperator' (#31645)``
 =================================================================================================  ===========  ============================================================================================
 

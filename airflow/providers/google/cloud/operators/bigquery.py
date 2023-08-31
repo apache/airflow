@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 
 import attr
 from google.api_core.exceptions import Conflict
-from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 from google.cloud.bigquery.table import RowIterator
 
@@ -56,6 +55,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
 
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -1039,7 +1039,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             self.log.info("Total extracted rows: %s", len(rows))
 
             if self.as_dict:
-                table_data = [{k: v for k, v in row.items()} for row in rows]
+                table_data = [dict(row) for row in rows]
             else:
                 table_data = [row.values() for row in rows]
 

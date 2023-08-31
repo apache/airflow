@@ -783,7 +783,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         if success_states:
             self.success_states = success_states
         else:
-            self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
+            self.success_states = [*SUCCESS_STATES, PipelineStates.RUNNING]
 
     def execute(self, context: Context) -> str:
         hook = DataFusionHook(

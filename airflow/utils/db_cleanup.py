@@ -27,23 +27,27 @@ import logging
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pendulum import DateTime
 from sqlalchemy import and_, column, false, func, inspect, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import Query, Session, aliased
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
 from airflow import AirflowException
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.models import Base
 from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
+    from sqlalchemy.orm import Query, Session
+
+    from airflow.models import Base
 
 logger = logging.getLogger(__file__)
 
@@ -83,13 +87,13 @@ class _TableConfig:
 
     @property
     def readable_config(self):
-        return dict(
-            table=self.orm_model.name,
-            recency_column=str(self.recency_column),
-            keep_last=self.keep_last,
-            keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
-            keep_last_group_by=str(self.keep_last_group_by),
-        )
+        return {
+            "table": self.orm_model.name,
+            "recency_column": str(self.recency_column),
+            "keep_last": self.keep_last,
+            "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
+            "keep_last_group_by": str(self.keep_last_group_by),
+        }
 
 
 config_list: list[_TableConfig] = [

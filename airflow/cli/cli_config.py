@@ -103,7 +103,10 @@ class Arg:
         """Add this argument to an ArgumentParser."""
         if "metavar" in self.kwargs and "type" not in self.kwargs:
             if self.kwargs["metavar"] == "DIRPATH":
-                type = lambda x: self._is_valid_directory(parser, x)
+
+                def type(x):
+                    return self._is_valid_directory(parser, x)
+
                 self.kwargs["type"] = type
         parser.add_argument(*self.flags, **self.kwargs)
 
@@ -2026,7 +2029,7 @@ core_commands: list[CLICommand] = [
         name="standalone",
         help="Run an all-in-one copy of Airflow",
         func=lazy_load_command("airflow.cli.commands.standalone_command.standalone"),
-        args=tuple(),
+        args=(),
     ),
 ]
 

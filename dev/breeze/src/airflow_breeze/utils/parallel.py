@@ -357,7 +357,7 @@ def print_async_summary(completed_list: list[ApplyResult]) -> None:
 
 def get_completed_result_list(results: list[ApplyResult]) -> list[ApplyResult]:
     """Return completed results from the list."""
-    return list(filter(lambda result: result.ready(), results))
+    return [result for result in results if result.ready()]
 
 
 class SummarizeAfter(Enum):
@@ -449,10 +449,7 @@ def check_async_run_results(
     finally:
         if not skip_cleanup:
             for output in outputs:
-                try:
-                    os.unlink(output.file_name)
-                except FileNotFoundError:
-                    pass
+                Path(output.file_name).unlink(missing_ok=True)
 
 
 @contextmanager

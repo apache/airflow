@@ -24,15 +24,17 @@ import subprocess
 import sys
 import textwrap
 from pathlib import Path
-from typing import Any, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import rich_click as click
 from github import Github, UnknownObjectException
-from github.Milestone import Milestone
 from github.PullRequest import PullRequest
-from github.Repository import Repository
 from rich.console import Console
 from rich.prompt import Confirm, Prompt
+
+if TYPE_CHECKING:
+    from github.Milestone import Milestone
+    from github.Repository import Repository
 
 CHANGELOG_SKIP_LABEL = "changelog:skip"
 
@@ -226,7 +228,7 @@ def get_changes(verbose: bool, previous_release: str, current_release: str) -> l
         cwd=SOURCE_DIR_PATH,
         text=True,
     )
-    return [get_change_from_line(line) for line in change_strings.split("\n")]
+    return [get_change_from_line(line) for line in change_strings.splitlines()]
 
 
 def update_milestone(r: Repository, pr: PullRequest, m: Milestone):
@@ -261,7 +263,7 @@ def assign_prs(
     output_folder: str,
 ):
     changes = get_changes(verbose, previous_release, current_release)
-    changes = list(filter(lambda change: change.pr is not None, changes))
+    changes = [change for change in changes if change.pr is not None]
     prs = [change.pr for change in changes]
 
     g = Github(github_token)

@@ -22,8 +22,10 @@ like a real package for building docs
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
-from sphinx.application import Sphinx
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
 
 ROOT_PROJECT_DIR = os.path.abspath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)

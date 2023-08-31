@@ -28,6 +28,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 from pytest import param
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
@@ -212,7 +213,7 @@ class TestDBCleanup:
             )
             stmt = CreateTableAs(target_table_name, query.selectable)
             session.execute(stmt)
-            res = session.execute(f"SELECT COUNT(1) FROM {target_table_name}")
+            res = session.execute(text(f"SELECT COUNT(1) FROM {target_table_name}"))
             for row in res:
                 assert row[0] == expected_to_delete
 
@@ -313,7 +314,7 @@ class TestDBCleanup:
         for mod_name in mods:
             mod = import_module(mod_name)
 
-            for table_name, class_ in mod.__dict__.items():
+            for class_ in mod.__dict__.values():
                 if isinstance(class_, DeclarativeMeta):
                     with suppress(AttributeError):
                         all_models.update({class_.__tablename__: class_})

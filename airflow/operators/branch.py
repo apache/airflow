@@ -18,11 +18,13 @@
 """Branching operators."""
 from __future__ import annotations
 
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BaseBranchOperator(BaseOperator, SkipMixin):

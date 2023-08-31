@@ -225,7 +225,7 @@ class DockerOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.api_version = api_version
-        if type(auto_remove) == bool:
+        if isinstance(auto_remove, bool):
             warnings.warn(
                 "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
                 AirflowProviderDeprecationWarning,
@@ -335,7 +335,7 @@ class DockerOperator(BaseOperator):
             with TemporaryDirectory(prefix="airflowtmp", dir=self.host_tmp_dir) as host_tmp_dir_generated:
                 tmp_mount = Mount(self.tmp_dir, host_tmp_dir_generated, "bind")
                 try:
-                    return self._run_image_with_mounts(self.mounts + [tmp_mount], add_tmp_variable=True)
+                    return self._run_image_with_mounts([*self.mounts, tmp_mount], add_tmp_variable=True)
                 except APIError as e:
                     if host_tmp_dir_generated in str(e):
                         self.log.warning(

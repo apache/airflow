@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import logging
 from functools import reduce
+from typing import TYPE_CHECKING
 
 from flask import Blueprint, current_app, url_for
-from flask_appbuilder import BaseView, __version__
+from flask_appbuilder import __version__
 from flask_appbuilder.babel.manager import BabelManager
 from flask_appbuilder.const import (
     LOGMSG_ERR_FAB_ADD_PERMISSION_MENU,
@@ -35,13 +36,16 @@ from flask_appbuilder.const import (
 )
 from flask_appbuilder.filters import TemplateFilters
 from flask_appbuilder.menu import Menu
-from flask_appbuilder.security.manager import BaseSecurityManager
 from flask_appbuilder.views import IndexView, UtilView
-from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.www.extensions.init_auth_manager import get_auth_manager
+
+if TYPE_CHECKING:
+    from flask_appbuilder import BaseView
+    from flask_appbuilder.security.manager import BaseSecurityManager
+    from sqlalchemy.orm import Session
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).

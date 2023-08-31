@@ -21,7 +21,7 @@ import asyncio
 import json
 import re
 from enum import Enum
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import aiohttp
 import requests
@@ -29,9 +29,11 @@ from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class BatchState(Enum):

@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import importlib
+import os
 from argparse import Namespace
-from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pytest
@@ -72,22 +72,21 @@ class TestCeleryStopCommand:
 
     @mock.patch("airflow.cli.commands.celery_command.setup_locations")
     @mock.patch("airflow.cli.commands.celery_command.psutil.Process")
-    def test_if_right_pid_is_read(self, mock_process, mock_setup_locations):
+    def test_if_right_pid_is_read(self, mock_process, mock_setup_locations, tmp_path):
         args = self.parser.parse_args(["celery", "stop"])
         pid = "123"
+        path = tmp_path / "testfile"
+        # Create pid file
+        path.write_text(pid)
+        # Setup mock
+        mock_setup_locations.return_value = (os.fspath(path), None, None, None)
 
         # Calling stop_worker should delete the temporary pid file
-        with pytest.raises(FileNotFoundError):
-            with NamedTemporaryFile("w+") as f:
-                # Create pid file
-                f.write(pid)
-                f.flush()
-                # Setup mock
-                mock_setup_locations.return_value = (f.name, None, None, None)
-                # Check if works as expected
-                celery_command.stop_worker(args)
-                mock_process.assert_called_once_with(int(pid))
-                mock_process.return_value.terminate.assert_called_once_with()
+        celery_command.stop_worker(args)
+        # Check if works as expected
+        assert not path.exists()
+        mock_process.assert_called_once_with(int(pid))
+        mock_process.return_value.terminate.assert_called_once_with()
 
     @mock.patch("airflow.cli.commands.celery_command.read_pid_from_pidfile")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")

@@ -19,20 +19,22 @@
 """Renderer DAG (tasks and dependencies) to the graphviz object."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import graphviz
 
 from airflow import AirflowException
-from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
 from airflow.models.mappedoperator import MappedOperator
-from airflow.models.taskmixin import DependencyMixin
-from airflow.serialization.serialized_objects import DagDependency
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.taskmixin import DependencyMixin
+    from airflow.serialization.serialized_objects import DagDependency
 
 
 def _refine_color(color: str):
@@ -120,7 +122,7 @@ def _draw_nodes(
     node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
-    if isinstance(node, BaseOperator) or isinstance(node, MappedOperator):
+    if isinstance(node, (BaseOperator, MappedOperator)):
         _draw_task(node, parent_graph, states_by_task_id)
     else:
         if not isinstance(node, TaskGroup):

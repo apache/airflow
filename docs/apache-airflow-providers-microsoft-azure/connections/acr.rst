@@ -50,6 +50,16 @@ Password
 Host
     Specify the Image Registry Server used for the initial connection.
 
+Subscription ID
+    Specify the ID of the subscription used for the initial connection.
+    This is needed for Azure Active Directory (Azure AD) authentication.
+    Use extra param ``subscription_id`` to pass in the Azure subscription ID.
+
+Resource Group Name (optional)
+    Specify the Azure Resource Group Name under which the desired Azure container registry resides.
+    This is needed for Azure Active Directory (Azure AD) authentication.
+    Use extra param ``resource_group`` to pass in the resource group name.
+
 When specifying the connection in environment variable you should specify
 it using URI syntax.
 

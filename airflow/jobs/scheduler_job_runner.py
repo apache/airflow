@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import itertools
-import logging
 import multiprocessing
 import os
 import signal
@@ -27,15 +26,14 @@ import time
 import warnings
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, delete, func, not_, or_, select, text, update
-from sqlalchemy.engine import Result
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Query, Session, joinedload, load_only, make_transient, selectinload
+from sqlalchemy.orm import joinedload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -57,7 +55,7 @@ from airflow.models.dataset import (
     TaskOutletDatasetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
@@ -67,7 +65,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
-    CommitProhibitorGuard,
     is_lock_not_available_error,
     prohibit_commit,
     skip_locked,
@@ -78,9 +75,18 @@ from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
+    import logging
+    from datetime import datetime
     from types import FrameType
 
+    from sqlalchemy.engine import Result
+    from sqlalchemy.orm import Query, Session
+
     from airflow.dag_processing.manager import DagFileProcessorAgent
+    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.utils.sqlalchemy import (
+        CommitProhibitorGuard,
+    )
 
 TI = TaskInstance
 DR = DagRun
@@ -1579,11 +1585,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
         """
-        Reset any TaskInstance in QUEUED or SCHEDULED state if its SchedulerJob is no longer running.
+        Adopt or reset any TaskInstance in resettable state if its SchedulerJob is no longer running.
 
         :return: the number of TIs reset
         """
-        self.log.info("Resetting orphaned tasks for active dag runs")
+        self.log.info("Adopting or resetting orphaned tasks for active dag runs")
         timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
 
         for attempt in run_with_db_retries(logger=self.log):
@@ -1609,10 +1615,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
                         Stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
 
-                    resettable_states = [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING]
                     query = (
                         select(TI)
-                        .where(TI.state.in_(resettable_states))
+                        .where(TI.state.in_(State.adoptable_states))
                         # outerjoin is because we didn't use to have queued_by_job
                         # set, so we need to pick up anything pre upgrade. This (and the
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
@@ -1628,11 +1633,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     )
 
                     # Lock these rows, so that another scheduler can't try and adopt these too
-                    tis_to_reset_or_adopt = with_row_locks(
+                    tis_to_adopt_or_reset = with_row_locks(
                         query, of=TI, session=session, **skip_locked(session=session)
                     )
-                    tis_to_reset_or_adopt = session.scalars(tis_to_reset_or_adopt).all()
-                    to_reset = self.job.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
+                    tis_to_adopt_or_reset = session.scalars(tis_to_adopt_or_reset).all()
+                    to_reset = self.job.executor.try_adopt_task_instances(tis_to_adopt_or_reset)
 
                     reset_tis_message = []
                     for ti in to_reset:
@@ -1640,11 +1645,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         ti.state = None
                         ti.queued_by_job_id = None
 
-                    for ti in set(tis_to_reset_or_adopt) - set(to_reset):
+                    for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
 
                     Stats.incr("scheduler.orphaned_tasks.cleared", len(to_reset))
-                    Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_reset_or_adopt) - len(to_reset))
+                    Stats.incr("scheduler.orphaned_tasks.adopted", len(tis_to_adopt_or_reset) - len(to_reset))
 
                     if to_reset:
                         task_instance_str = "\n\t".join(reset_tis_message)

@@ -30,11 +30,9 @@ __all__ = [
 import sys
 from typing import Protocol, TypedDict, runtime_checkable
 
-# Literal in 3.8 is limited to one single argument, not e.g. "Literal[1, 2]".
-if sys.version_info >= (3, 9):
-    from typing import Literal
-else:
-    from typing import Literal
+# Literal from typing module has various issues in different Python versions, see:
+# https://typing-extensions.readthedocs.io/en/latest/#Literal
+from typing_extensions import Literal
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec, TypeGuard

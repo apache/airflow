@@ -18,14 +18,16 @@ from __future__ import annotations
 
 from contextlib import closing
 from copy import copy
-from typing import Any, Callable, Iterable, Mapping, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
 
 from databricks import sql  # type: ignore[attr-defined]
-from databricks.sql.client import Connection  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
+
+if TYPE_CHECKING:
+    from databricks.sql.client import Connection
 
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
@@ -81,7 +83,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
-        for arg in ["http_path", "session_configuration"] + self.extra_parameters:
+        for arg in ["http_path", "session_configuration", *self.extra_parameters]:
             if arg in extra_params:
                 del extra_params[arg]
 

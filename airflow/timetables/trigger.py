@@ -17,14 +17,18 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
-from pendulum.tz.timezone import Timezone
 
 from airflow.timetables._cron import CronMixin
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+
+if TYPE_CHECKING:
+    from dateutil.relativedelta import relativedelta
+    from pendulum.tz.timezone import Timezone
+
+    from airflow.timetables.base import TimeRestriction
 
 
 class CronTriggerTimetable(CronMixin, Timetable):

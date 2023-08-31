@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import logging
 from functools import wraps
-from typing import Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
-from flask import Blueprint, Response, current_app, g, jsonify, request, url_for
+from flask import Blueprint, current_app, g, jsonify, request, url_for
 
 from airflow import models
 from airflow.api.common.experimental import delete_dag as delete, pool as pool_api, trigger_dag as trigger
@@ -36,6 +36,9 @@ from airflow.utils import timezone
 from airflow.utils.docs import get_docs_url
 from airflow.utils.strings import to_boolean
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from flask import Response
 
 log = logging.getLogger(__name__)
 
