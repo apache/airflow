@@ -186,6 +186,7 @@ def task_group(
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
+    max_active_groups_per_dagrun: int | None = None,
 ) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]:
     ...
 

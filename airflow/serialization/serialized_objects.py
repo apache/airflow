@@ -1442,6 +1442,9 @@ class TaskGroupSerialization(BaseSerialization):
             "downstream_task_ids": cls.serialize(sorted(task_group.downstream_task_ids)),
         }
 
+        if task_group.max_active_groups_per_dagrun is not None:
+            encoded["max_active_groups_per_dagrun"] = task_group.max_active_groups_per_dagrun
+
         if isinstance(task_group, MappedTaskGroup):
             expand_input = task_group._expand_input
             encoded["expand_input"] = {
@@ -1466,6 +1469,7 @@ class TaskGroupSerialization(BaseSerialization):
             key: cls.deserialize(encoded_group[key])
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
+        kwargs["max_active_groups_per_dagrun"] = encoded_group.get("max_active_groups_per_dagrun")
 
         if not encoded_group.get("is_mapped"):
             group = TaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
