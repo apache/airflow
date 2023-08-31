@@ -140,7 +140,6 @@ class TestDatabricksSubmitRunOperator:
 
         assert expected == utils.normalise_json_content(op.json)
 
-
     def test_init_with_spark_submit_task_named_parameters(self):
         """
         Test the initializer with the named parameters.
