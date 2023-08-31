@@ -203,9 +203,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
         time.sleep(self.sleep_time)
         keep_polling_job = True
         build_info = None
-
-        while keep_polling_job:
-            try:
+        try:
+            while keep_polling_job:
                 build_info = jenkins_server.get_build_info(name=self.job_name, number=build_number)
                 if build_info["result"] is not None:
                     keep_polling_job = False
@@ -218,17 +217,16 @@ class JenkinsJobTriggerOperator(BaseOperator):
                 else:
                     self.log.info("Waiting for job to complete : %s , build %s", self.job_name, build_number)
                     time.sleep(self.sleep_time)
-            except jenkins.NotFoundException as err:
-
-                raise AirflowException(f"Jenkins job status check failed. Final error was: {err.resp.status}")
-            except jenkins.JenkinsException as err:
-                raise AirflowException(
-                    f"Jenkins call failed with error : {err}, if you have parameters "
-                    "double check them, jenkins sends back "
-                    "this exception for unknown parameters"
-                    "You can also check logs for more details on this exception "
-                    "(jenkins_url/log/rss)"
-                )
+        except jenkins.NotFoundException as err:
+            raise AirflowException(f"Jenkins job status check failed. Final error was: {err.resp.status}")
+        except jenkins.JenkinsException as err:
+            raise AirflowException(
+                f"Jenkins call failed with error : {err}, if you have parameters "
+                "double check them, jenkins sends back "
+                "this exception for unknown parameters"
+                "You can also check logs for more details on this exception "
+                "(jenkins_url/log/rss)"
+            )
         if build_info:
             # If we can we return the url of the job
             # for later use (like retrieving an artifact)
