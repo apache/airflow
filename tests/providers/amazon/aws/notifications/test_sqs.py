@@ -33,7 +33,7 @@ class TestSqsNotifier:
     @pytest.mark.parametrize("aws_conn_id", ["aws_test_conn_id", None, PARAM_DEFAULT_VALUE])
     @pytest.mark.parametrize("region_name", ["eu-west-2", None, PARAM_DEFAULT_VALUE])
     def test_parameters_propagate_to_hook(self, aws_conn_id, region_name):
-        """Test notifier attributes propagate to SnsHook."""
+        """Test notifier attributes propagate to SqsHook."""
         send_message_kwargs = {
             "queue_url": "https://sqs.eu-west-1.amazonaws.com/123456789098/MyQueue",
             "message_body": "foo-bar",

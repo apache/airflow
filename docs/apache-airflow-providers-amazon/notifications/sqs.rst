@@ -17,13 +17,13 @@
 
 .. _howto/notifier:SqsNotifier:
 
-How-to Guide for SQS notifications
-==================================
+How-to Guide for Amazon Simple Queue Service (Amazon SQS) notifications
+=======================================================================
 
 Introduction
 ------------
 `Amazon SQS <https://aws.amazon.com/sqs/>`__ notifier :class:`~airflow.providers.amazon.aws.notifications.sqs.SqsNotifier`
-allows users to push messages to a SQS Queue using the various ``on_*_callbacks`` at both the DAG level and Task level.
+allows users to push messages to an Amazon SQS Queue using the various ``on_*_callbacks`` at both the DAG level and Task level.
 
 You can also use a notifier with ``sla_miss_callback``.
 
