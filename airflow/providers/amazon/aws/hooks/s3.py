@@ -41,10 +41,8 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
-    try:
+    with suppress(ImportError):
         from aiobotocore.client import AioBaseClient
-    except ImportError:
-        pass
 
 from asgiref.sync import sync_to_async
 from boto3.s3.transfer import TransferConfig
