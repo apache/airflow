@@ -20,7 +20,6 @@ from __future__ import annotations
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from airflow.models.taskinstance import TaskInstance
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -34,7 +33,7 @@ class TaskConcurrencyDep(BaseTIDep):
     IS_TASK_DEP = True
 
     @provide_session
-    def _get_dep_statuses(self, ti: TaskInstance, session: Session, dep_context):
+    def _get_dep_statuses(self, ti, session: Session, dep_context):
         task = ti.task
         task_group = task.task_group
 
