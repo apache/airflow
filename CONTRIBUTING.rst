@@ -179,7 +179,7 @@ There are certain expectations from the members of the security team:
 * They are supposed to be active in assessing, discussing, fixing and releasing the
   security issues in Airflow. While it is perfectly understood that as volunteers, we might have
   periods of lower activity, prolonged lack of activity and participation will result in removal
-  from the team, pending PMC decision (the decision on removal can be taken by LAZY CONSENSUS among
+  from the team, pending PMC decision (the decision on removal can be taken by [LAZY CONSENSUS](https://community.apache.org/committers/lazyConsensus.html) among
   all the PMC members on private@airflow.apache.org mailing list).
 
 * They are not supposed to reveal the information about pending and unfixed security issues to anyone
