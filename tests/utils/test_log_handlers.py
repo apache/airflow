@@ -421,17 +421,7 @@ class TestFileTaskLogHandler:
         assert actual_kwargs["namespace"] == namespace_to_call
         actual_selector = actual_kwargs["label_selector"]
         assert re.match(
-            ",".join(
-                [
-                    "airflow_version=.+?",
-                    "dag_id=dag_for_testing_file_task_handler",
-                    "kubernetes_executor=True",
-                    "run_id=manual__2016-01-01T0000000000-2b88d1d57",
-                    "task_id=task_for_testing_file_log_handler",
-                    "try_number=2",
-                    "airflow-worker",
-                ]
-            ),
+            "airflow_version=.+?,dag_id=dag_for_testing_file_task_handler,kubernetes_executor=True,run_id=manual__2016-01-01T0000000000-2b88d1d57,task_id=task_for_testing_file_log_handler,try_number=2,airflow-worker",
             actual_selector,
         )
 

@@ -524,12 +524,7 @@ class TestGoogleBaseHook:
         self.instance.extras = {
             "project": default_project,
             "scope": (
-                ",".join(
-                    (
-                        "https://www.googleapis.com/auth/bigquery",
-                        "https://www.googleapis.com/auth/devstorage.read_only",
-                    )
-                )
+                "https://www.googleapis.com/auth/bigquery,https://www.googleapis.com/auth/devstorage.read_only"
             ),
         }
 
@@ -591,12 +586,7 @@ class TestGoogleBaseHook:
         self.instance.extras = {
             "project": default_project,
             "scope": (
-                ",".join(
-                    (
-                        "https://www.googleapis.com/auth/bigquery",
-                        "https://www.googleapis.com/auth/devstorage.read_only",
-                    )
-                )
+                "https://www.googleapis.com/auth/bigquery,https://www.googleapis.com/auth/devstorage.read_only"
             ),
         }
 
