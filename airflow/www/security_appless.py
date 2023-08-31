@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from flask_session import Session
+from typing import TYPE_CHECKING
 
 from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+
+if TYPE_CHECKING:
+    from flask_session import Session
 
 
 class FakeAppBuilder:
