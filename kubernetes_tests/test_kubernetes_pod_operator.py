@@ -80,7 +80,7 @@ def kubeconfig_path():
 
 @pytest.fixture
 def test_label(request):
-    label = "".join(filter(str.isalnum, f"{request.node.cls.__name__}.{request.node.name}")).lower()
+    label = "".join(c for c in f"{request.node.cls.__name__}.{request.node.name}" if c.isalnum()).lower()
     return label[-63:]
 
 
@@ -284,7 +284,7 @@ class TestKubernetesPodOperatorSystem:
             k.execute(context)
         actual_pod = k.find_pod("default", context, exclude_checked=False)
         actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
-        status = next(iter(filter(lambda x: x["name"] == "base", actual_pod["status"]["containerStatuses"])))
+        status = next(x for x in actual_pod["status"]["containerStatuses"] if x["name"] == "base")
         assert status["state"]["terminated"]["reason"] == "Error"
         assert actual_pod["metadata"]["labels"]["already_checked"] == "True"
 

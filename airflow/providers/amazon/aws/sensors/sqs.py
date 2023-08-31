@@ -19,19 +19,20 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Collection, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Sequence
 
 from deprecated import deprecated
+from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
 from airflow.providers.amazon.aws.utils.sqs import process_response
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
     from airflow.utils.context import Context
 from datetime import timedelta
 

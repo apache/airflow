@@ -59,7 +59,7 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.listeners import dag_listener
 from tests.listeners.test_listeners import get_listener_manager
@@ -576,7 +576,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         assert 1 == len(res)
-        res_keys = map(lambda x: x.key, res)
+        res_keys = (x.key for x in res)
         assert ti_with_dagrun.key in res_keys
         session.rollback()
 
@@ -601,7 +601,7 @@ class TestSchedulerJob:
             dr2.get_task_instance(task_id_1, session=session),
             dr2.get_task_instance(task_id_2, session=session),
         ]
-        tis = sorted(tis, key=lambda ti: ti.key)
+        tis.sort(key=lambda ti: ti.key)
         for ti in tis:
             ti.state = State.SCHEDULED
             session.merge(ti)
@@ -1017,7 +1017,7 @@ class TestSchedulerJob:
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
         assert 1 == len(res)
-        res_keys = map(lambda x: x.key, res)
+        res_keys = (x.key for x in res)
         assert ti2.key in res_keys
 
         ti2.state = State.RUNNING
@@ -1535,7 +1535,7 @@ class TestSchedulerJob:
         def _create_dagruns():
             dagrun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.RUNNING)
             yield dagrun
-            for _ in range(0, 3):
+            for _ in range(3):
                 dagrun = dag_maker.create_dagrun_after(
                     dagrun,
                     run_type=DagRunType.SCHEDULED,
@@ -1587,7 +1587,7 @@ class TestSchedulerJob:
         def _create_dagruns():
             dagrun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=State.RUNNING)
             yield dagrun
-            for _ in range(0, 19):
+            for _ in range(19):
                 dagrun = dag_maker.create_dagrun_after(
                     dagrun,
                     run_type=DagRunType.SCHEDULED,
@@ -3257,10 +3257,10 @@ class TestSchedulerJob:
         session.flush()
 
         dr1 = dag_maker.create_dagrun()
+        dr1.state = State.QUEUED
         tis = dr1.get_task_instances(session=session)
         assert 1 == len(tis)
         tis[0].state = State.SCHEDULED
-        tis[0].queued_by_job_id = scheduler_job.id
         session.merge(dr1)
         session.merge(tis[0])
         session.flush()
@@ -4559,7 +4559,7 @@ class TestSchedulerJob:
 
                 local_job = Job(dag_id=ti.dag_id)
                 LocalTaskJobRunner(job=local_job, task_instance=ti)
-                local_job.state = State.SHUTDOWN
+                local_job.state = TaskInstanceState.FAILED
 
                 session.add(local_job)
                 session.flush()
@@ -4622,7 +4622,7 @@ class TestSchedulerJob:
                 ti.queued_by_job_id = 999
 
                 local_job = Job(dag_id=ti.dag_id)
-                local_job.state = State.SHUTDOWN
+                local_job.state = TaskInstanceState.FAILED
 
                 session.add(local_job)
                 session.flush()
@@ -4683,7 +4683,7 @@ class TestSchedulerJob:
 
             local_job = Job(dag_id=ti.dag_id)
             LocalTaskJobRunner(job=local_job, task_instance=ti)
-            local_job.state = State.SHUTDOWN
+            local_job.state = JobState.FAILED
             session.add(local_job)
             session.flush()
 

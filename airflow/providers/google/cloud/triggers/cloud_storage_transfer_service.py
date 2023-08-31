@@ -97,7 +97,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                         )
                         return
             except (GoogleAPIError, AirflowException) as ex:
-                yield TriggerEvent(dict(status="error", message=str(ex)))
+                yield TriggerEvent({"status": "error", "message": str(ex)})
                 return
 
             jobs_total = len(self.job_names)

@@ -23,12 +23,13 @@ import logging
 from typing import TYPE_CHECKING, Any, Union
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from airflow.models import Connection
+
     try:
         from mysql.connector.abstracts import MySQLConnectionAbstract
     except ModuleNotFoundError:

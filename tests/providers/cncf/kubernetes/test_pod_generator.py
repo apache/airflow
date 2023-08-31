@@ -562,7 +562,7 @@ class TestPodGenerator:
         )
 
         assert result.metadata.name == "a" * 244 + "-" + self.rand_str
-        for _, v in result.metadata.labels.items():
+        for v in result.metadata.labels.values():
             assert len(v) <= 63
 
         assert "a" * 512 == result.metadata.annotations["dag_id"]

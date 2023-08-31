@@ -25,6 +25,7 @@ from airflow_breeze.global_constants import (
     ALL_HISTORICAL_PYTHON_VERSIONS,
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
+    ALLOWED_BUILD_PROGRESS,
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
@@ -427,7 +428,7 @@ option_python_versions = click.option(
 )
 option_run_in_parallel = click.option(
     "--run-in-parallel",
-    help="Run the operation in parallel on all or selected subset of Python versions.",
+    help="Run the operation in parallel on all or selected subset of parameters.",
     is_flag=True,
     envvar="RUN_IN_PARALLEL",
 )
@@ -510,6 +511,14 @@ option_builder = click.option(
     envvar="BUILDER",
     show_default=True,
     default="autodetect",
+)
+option_build_progress = click.option(
+    "--build-progress",
+    help="Build progress.",
+    type=BetterChoice(ALLOWED_BUILD_PROGRESS),
+    envvar="BUILD_PROGRESS",
+    show_default=True,
+    default=ALLOWED_BUILD_PROGRESS[0],
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
@@ -597,4 +606,12 @@ option_eager_upgrade_additional_requirements = click.option(
     envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
     help="Optional additional requirements to upgrade eagerly to avoid backtracking "
     "(see `breeze ci find-backtracking-candidates`).",
+)
+option_airflow_site_directory = click.option(
+    "-a",
+    "--airflow-site-directory",
+    envvar="AIRFLOW_SITE_DIRECTORY",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    help="Local directory path of cloned airflow-site repo.",
+    required=True,
 )

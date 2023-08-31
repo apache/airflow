@@ -28,6 +28,7 @@ import unittest
 from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import sentinel
 
@@ -35,7 +36,6 @@ import pendulum
 import pytest
 import sqlalchemy.exc
 
-from airflow import DAG
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.cli.commands.task_command import LoggerMutationHelper
@@ -51,6 +51,9 @@ from airflow.utils.types import DagRunType
 from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
+
+if TYPE_CHECKING:
+    from airflow import DAG
 
 DEFAULT_DATE = timezone.datetime(2022, 1, 1)
 ROOT_FOLDER = os.path.realpath(
@@ -501,7 +504,7 @@ class TestCliTasks:
         assert 'echo "2022-01-08"' in output
 
     @mock.patch("airflow.cli.commands.task_command.select")
-    @mock.patch("airflow.cli.commands.task_command.Session.scalars")
+    @mock.patch("sqlalchemy.orm.session.Session.scalars")
     @mock.patch("airflow.cli.commands.task_command.DagRun")
     def test_task_render_with_custom_timetable(self, mock_dagrun, mock_scalars, mock_select):
         """
@@ -816,7 +819,7 @@ class TestLogsfromTaskRunCommand:
             session.commit()
 
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is None
-            task_command.task_run(self.parser.parse_args(self.task_args + ["--pool", pool_name]))
+            task_command.task_run(self.parser.parse_args([*self.task_args, "--pool", pool_name]))
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is not None
 
             session.delete(pool)

@@ -29,7 +29,7 @@ from __future__ import annotations
 import itertools
 from random import uniform
 from time import sleep
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import botocore.client
 import botocore.exceptions
@@ -37,8 +37,10 @@ import botocore.waiter
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.typing_compat import Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 
 @runtime_checkable

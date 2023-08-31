@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, Generator
 
 from asgiref.sync import sync_to_async
 from kubernetes import client, config, watch
-from kubernetes.client.models import V1Pod
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
@@ -35,6 +34,9 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.utils import yaml
+
+if TYPE_CHECKING:
+    from kubernetes.client.models import V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 

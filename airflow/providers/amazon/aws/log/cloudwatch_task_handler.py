@@ -19,15 +19,18 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import watchtower
 
 from airflow.configuration import conf
-from airflow.models import TaskInstance
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 
 class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):

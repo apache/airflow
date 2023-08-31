@@ -346,7 +346,7 @@ class OracleHook(DbApiHook):
         prepared_stm = "insert into {tablename} {columns} values ({values})".format(
             tablename=table,
             columns="({})".format(", ".join(target_fields)) if target_fields else "",
-            values=", ".join(":%s" % i for i in range(1, len(values_base) + 1)),
+            values=", ".join(f":{i}" for i in range(1, len(values_base) + 1)),
         )
         row_count = 0
         # Chunk the rows

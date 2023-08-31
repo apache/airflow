@@ -27,7 +27,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Union
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Union
 from urllib.parse import urlparse
 
 from asgiref.sync import sync_to_async
@@ -38,7 +39,6 @@ from azure.identity.aio import (
     DefaultAzureCredential as AsyncDefaultAzureCredential,
 )
 from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient, StorageStreamDownloader
-from azure.storage.blob._models import BlobProperties
 from azure.storage.blob.aio import (
     BlobClient as AsyncBlobClient,
     BlobServiceClient as AsyncBlobServiceClient,
@@ -47,6 +47,9 @@ from azure.storage.blob.aio import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from azure.storage.blob._models import BlobProperties
 
 AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
 
@@ -123,7 +126,6 @@ class WasbHook(BaseHook):
         super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.blob_service_client: BlobServiceClient = self.get_conn()
 
         logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
         try:
@@ -142,6 +144,11 @@ class WasbHook(BaseHook):
             return extra_dict[field_name] or None
         return extra_dict.get(f"{prefix}{field_name}") or None
 
+    @cached_property
+    def blob_service_client(self) -> BlobServiceClient:
+        """Return the BlobServiceClient object (cached)."""
+        return self.get_conn()
+
     def get_conn(self) -> BlobServiceClient:
         """Return the BlobServiceClient object."""
         conn = self.get_connection(self.conn_id)
@@ -156,10 +163,18 @@ class WasbHook(BaseHook):
         account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
         parsed_url = urlparse(account_url)
 
-        if not parsed_url.netloc and "." not in parsed_url.path:
-            # if there's no netloc and no dots in the path, then user only
-            # provided the Active Directory ID, not the full URL or DNS name
-            account_url = f"https://{conn.login}.blob.core.windows.net/"
+        if not parsed_url.netloc:
+            if "." not in parsed_url.path:
+                # if there's no netloc and no dots in the path, then user only
+                # provided the Active Directory ID, not the full URL or DNS name
+                account_url = f"https://{conn.login}.blob.core.windows.net/"
+            else:
+                # if there's no netloc but there are dots in the path, then user
+                # provided the DNS name without the https:// prefix.
+                # Azure storage account name can only be 3 to 24 characters in length
+                # https://learn.microsoft.com/en-us/azure/storage/common/storage-account-overview#storage-account-name
+                acc_name = account_url.split(".")[0][:24]
+                account_url = f"https://{acc_name}." + ".".join(account_url.split(".")[1:])
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
@@ -561,10 +576,18 @@ class WasbAsyncHook(WasbHook):
         account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
         parsed_url = urlparse(account_url)
 
-        if not parsed_url.netloc and "." not in parsed_url.path:
-            # if there's no netloc and no dots in the path, then user only
-            # provided the Active Directory ID, not the full URL or DNS name
-            account_url = f"https://{conn.login}.blob.core.windows.net/"
+        if not parsed_url.netloc:
+            if "." not in parsed_url.path:
+                # if there's no netloc and no dots in the path, then user only
+                # provided the Active Directory ID, not the full URL or DNS name
+                account_url = f"https://{conn.login}.blob.core.windows.net/"
+            else:
+                # if there's no netloc but there are dots in the path, then user
+                # provided the DNS name without the https:// prefix.
+                # Azure storage account name can only be 3 to 24 characters in length
+                # https://learn.microsoft.com/en-us/azure/storage/common/storage-account-overview#storage-account-name
+                acc_name = account_url.split(".")[0][:24]
+                account_url = f"https://{acc_name}." + ".".join(account_url.split(".")[1:])
 
         tenant = self._get_field(extra, "tenant_id")
         if tenant:

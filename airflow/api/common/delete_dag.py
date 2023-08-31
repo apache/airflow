@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from sqlalchemy import and_, delete, or_, select
-from sqlalchemy.orm import Session
 
 from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
@@ -30,6 +30,9 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.db import get_sqla_model_classes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 

@@ -23,7 +23,6 @@ import contextlib
 import copy
 import functools
 import json
-import logging
 import os
 import select
 import shlex
@@ -31,7 +30,7 @@ import shutil
 import subprocess
 import tempfile
 import textwrap
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from packaging.version import Version
 
@@ -39,6 +38,9 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.go_module_utils import init_module, install_dependencies
 from airflow.utils.python_virtualenv import prepare_virtualenv
+
+if TYPE_CHECKING:
+    import logging
 
 
 class BeamRunnerType:
@@ -186,9 +188,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
         working_directory: str | None = None,
     ) -> None:
-        cmd = command_prefix + [
-            f"--runner={self.runner}",
-        ]
+        cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
             cmd.extend(beam_options_to_args(variables))
         run_beam_command(
@@ -259,7 +259,7 @@ class BeamHook(BaseHook):
                     requirements=py_requirements,
                 )
 
-            command_prefix = [py_interpreter] + py_options + [py_file]
+            command_prefix = [py_interpreter, *py_options, py_file]
 
             beam_version = (
                 subprocess.check_output(
@@ -504,9 +504,7 @@ class BeamAsyncHook(BeamHook):
         command_prefix: list[str],
         working_directory: str | None = None,
     ) -> int:
-        cmd = command_prefix + [
-            f"--runner={self.runner}",
-        ]
+        cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
             cmd.extend(beam_options_to_args(variables))
         return await self.run_beam_command_async(

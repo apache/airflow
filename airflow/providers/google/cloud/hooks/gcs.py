@@ -26,18 +26,15 @@ import shutil
 import time
 import warnings
 from contextlib import contextmanager
-from datetime import datetime
 from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import IO, Any, Callable, Generator, Sequence, TypeVar, cast, overload
+from typing import IO, TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
-from aiohttp import ClientSession
 from gcloud.aio.storage import Storage
 from google.api_core.exceptions import GoogleAPICallError, NotFound
-from google.api_core.retry import Retry
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
@@ -51,6 +48,12 @@ from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.utils import timezone
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from aiohttp import ClientSession
+    from google.api_core.retry import Retry
 
 try:
     # Airflow 2.3 doesn't have this yet
@@ -550,10 +553,9 @@ class GCSHook(GoogleBaseHook):
             if gzip:
                 filename_gz = filename + ".gz"
 
-                with open(filename, "rb") as f_in:
-                    with gz.open(filename_gz, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-                        filename = filename_gz
+                with open(filename, "rb") as f_in, gz.open(filename_gz, "wb") as f_out:
+                    shutil.copyfileobj(f_in, f_out)
+                    filename = filename_gz
 
             _call_with_retry(
                 partial(blob.upload_from_filename, filename=filename, content_type=mime_type, timeout=timeout)

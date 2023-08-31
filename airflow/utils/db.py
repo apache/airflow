@@ -1210,9 +1210,8 @@ def _create_table_as(
         )
     else:
         # Postgres and SQLite both support the same "CREATE TABLE a AS SELECT ..." syntax
-        session.execute(
-            f"CREATE TABLE {target_table_name} AS {source_query.selectable.compile(bind=session.get_bind())}"
-        )
+        select_table = source_query.selectable.compile(bind=session.get_bind())
+        session.execute(text(f"CREATE TABLE {target_table_name} AS {select_table}"))
 
 
 def _move_dangling_data_to_new_table(
@@ -1651,10 +1650,9 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
     connection = settings.engine.connect()
 
-    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        with connection.begin():
-            drop_airflow_models(connection)
-            drop_airflow_moved_tables(connection)
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
+        drop_airflow_models(connection)
+        drop_airflow_moved_tables(connection)
 
     if not skip_init:
         initdb(session=session)

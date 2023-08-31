@@ -99,7 +99,7 @@ existing code to use other variables instead.
 =====================================   ====================================
 Deprecated Variable                     Description
 =====================================   ====================================
-``{{ execution_date }}``                the execution date (logical date), same as ``dag_run.logical_date``
+``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
 ``{{ next_execution_date }}``           the logical date of the next scheduled run (if applicable);
                                         you may be able to use ``data_interval_end`` instead
 ``{{ next_ds }}``                       the next execution date as ``YYYY-MM-DD`` if exists, else ``None``

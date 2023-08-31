@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+1.1.2
+.....
+
+Misc
+~~~~
+
+* ``Simplify conditions on len() in providers/apache (#33564)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 1.1.1
 .....
 

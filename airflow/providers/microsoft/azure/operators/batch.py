@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from azure.batch import models as batch_models
@@ -176,7 +177,11 @@ class AzureBatchOperator(BaseOperator):
         self.timeout = timeout
         self.should_delete_job = should_delete_job
         self.should_delete_pool = should_delete_pool
-        self.hook = self.get_hook()
+
+    @cached_property
+    def hook(self) -> AzureBatchHook:
+        """Create and return an AzureBatchHook (cached)."""
+        return self.get_hook()
 
     def _check_inputs(self) -> Any:
         if not self.os_family and not self.vm_publisher:

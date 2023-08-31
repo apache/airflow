@@ -38,12 +38,12 @@ from openlineage.client.run import Job, Run, RunEvent, RunState
 
 from airflow.configuration import conf
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
-from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.log.secrets_masker import SecretsMasker
 
 _DAG_DEFAULT_NAMESPACE = "default"

@@ -25,7 +25,6 @@ from googleapiclient.errors import HttpError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -33,10 +32,11 @@ from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrig
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.google.common.hooks.base_google import get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
-from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 if TYPE_CHECKING:
+    from airflow.models import Connection
+    from airflow.providers.mysql.hooks.mysql import MySqlHook
+    from airflow.providers.postgres.hooks.postgres import PostgresHook
     from airflow.utils.context import Context
 
 
@@ -44,175 +44,180 @@ SETTINGS = "settings"
 SETTINGS_VERSION = "settingsVersion"
 
 CLOUD_SQL_CREATE_VALIDATION: Sequence[dict] = [
-    dict(name="name", allow_empty=False),
-    dict(
-        name="settings",
-        type="dict",
-        fields=[
-            dict(name="tier", allow_empty=False),
-            dict(
-                name="backupConfiguration",
-                type="dict",
-                fields=[
-                    dict(name="binaryLogEnabled", optional=True),
-                    dict(name="enabled", optional=True),
-                    dict(name="replicationLogArchivingEnabled", optional=True),
-                    dict(name="startTime", allow_empty=False, optional=True),
+    {"name": "name", "allow_empty": False},
+    {
+        "name": "settings",
+        "type": "dict",
+        "fields": [
+            {"name": "tier", "allow_empty": False},
+            {
+                "name": "backupConfiguration",
+                "type": "dict",
+                "fields": [
+                    {"name": "binaryLogEnabled", "optional": True},
+                    {"name": "enabled", "optional": True},
+                    {"name": "replicationLogArchivingEnabled", "optional": True},
+                    {"name": "startTime", "allow_empty": False, "optional": True},
                 ],
-                optional=True,
-            ),
-            dict(name="activationPolicy", allow_empty=False, optional=True),
-            dict(name="authorizedGaeApplications", type="list", optional=True),
-            dict(name="crashSafeReplicationEnabled", optional=True),
-            dict(name="dataDiskSizeGb", optional=True),
-            dict(name="dataDiskType", allow_empty=False, optional=True),
-            dict(name="databaseFlags", type="list", optional=True),
-            dict(
-                name="ipConfiguration",
-                type="dict",
-                fields=[
-                    dict(
-                        name="authorizedNetworks",
-                        type="list",
-                        fields=[
-                            dict(name="expirationTime", optional=True),
-                            dict(name="name", allow_empty=False, optional=True),
-                            dict(name="value", allow_empty=False, optional=True),
+                "optional": True,
+            },
+            {"name": "activationPolicy", "allow_empty": False, "optional": True},
+            {"name": "authorizedGaeApplications", "type": "list", "optional": True},
+            {"name": "crashSafeReplicationEnabled", "optional": True},
+            {"name": "dataDiskSizeGb", "optional": True},
+            {"name": "dataDiskType", "allow_empty": False, "optional": True},
+            {"name": "databaseFlags", "type": "list", "optional": True},
+            {
+                "name": "ipConfiguration",
+                "type": "dict",
+                "fields": [
+                    {
+                        "name": "authorizedNetworks",
+                        "type": "list",
+                        "fields": [
+                            {"name": "expirationTime", "optional": True},
+                            {"name": "name", "allow_empty": False, "optional": True},
+                            {"name": "value", "allow_empty": False, "optional": True},
                         ],
-                        optional=True,
-                    ),
-                    dict(name="ipv4Enabled", optional=True),
-                    dict(name="privateNetwork", allow_empty=False, optional=True),
-                    dict(name="requireSsl", optional=True),
+                        "optional": True,
+                    },
+                    {"name": "ipv4Enabled", "optional": True},
+                    {"name": "privateNetwork", "allow_empty": False, "optional": True},
+                    {"name": "requireSsl", "optional": True},
                 ],
-                optional=True,
-            ),
-            dict(
-                name="locationPreference",
-                type="dict",
-                fields=[
-                    dict(name="followGaeApplication", allow_empty=False, optional=True),
-                    dict(name="zone", allow_empty=False, optional=True),
+                "optional": True,
+            },
+            {
+                "name": "locationPreference",
+                "type": "dict",
+                "fields": [
+                    {"name": "followGaeApplication", "allow_empty": False, "optional": True},
+                    {"name": "zone", "allow_empty": False, "optional": True},
                 ],
-                optional=True,
-            ),
-            dict(
-                name="maintenanceWindow",
-                type="dict",
-                fields=[
-                    dict(name="hour", optional=True),
-                    dict(name="day", optional=True),
-                    dict(name="updateTrack", allow_empty=False, optional=True),
+                "optional": True,
+            },
+            {
+                "name": "maintenanceWindow",
+                "type": "dict",
+                "fields": [
+                    {"name": "hour", "optional": True},
+                    {"name": "day", "optional": True},
+                    {"name": "updateTrack", "allow_empty": False, "optional": True},
                 ],
-                optional=True,
-            ),
-            dict(name="pricingPlan", allow_empty=False, optional=True),
-            dict(name="replicationType", allow_empty=False, optional=True),
-            dict(name="storageAutoResize", optional=True),
-            dict(name="storageAutoResizeLimit", optional=True),
-            dict(name="userLabels", type="dict", optional=True),
+                "optional": True,
+            },
+            {"name": "pricingPlan", "allow_empty": False, "optional": True},
+            {"name": "replicationType", "allow_empty": False, "optional": True},
+            {"name": "storageAutoResize", "optional": True},
+            {"name": "storageAutoResizeLimit", "optional": True},
+            {"name": "userLabels", "type": "dict", "optional": True},
         ],
-    ),
-    dict(name="databaseVersion", allow_empty=False, optional=True),
-    dict(name="failoverReplica", type="dict", fields=[dict(name="name", allow_empty=False)], optional=True),
-    dict(name="masterInstanceName", allow_empty=False, optional=True),
-    dict(name="onPremisesConfiguration", type="dict", optional=True),
-    dict(name="region", allow_empty=False, optional=True),
-    dict(
-        name="replicaConfiguration",
-        type="dict",
-        fields=[
-            dict(name="failoverTarget", optional=True),
-            dict(
-                name="mysqlReplicaConfiguration",
-                type="dict",
-                fields=[
-                    dict(name="caCertificate", allow_empty=False, optional=True),
-                    dict(name="clientCertificate", allow_empty=False, optional=True),
-                    dict(name="clientKey", allow_empty=False, optional=True),
-                    dict(name="connectRetryInterval", optional=True),
-                    dict(name="dumpFilePath", allow_empty=False, optional=True),
-                    dict(name="masterHeartbeatPeriod", optional=True),
-                    dict(name="password", allow_empty=False, optional=True),
-                    dict(name="sslCipher", allow_empty=False, optional=True),
-                    dict(name="username", allow_empty=False, optional=True),
-                    dict(name="verifyServerCertificate", optional=True),
+    },
+    {"name": "databaseVersion", "allow_empty": False, "optional": True},
+    {
+        "name": "failoverReplica",
+        "type": "dict",
+        "fields": [{"name": "name", "allow_empty": False}],
+        "optional": True,
+    },
+    {"name": "masterInstanceName", "allow_empty": False, "optional": True},
+    {"name": "onPremisesConfiguration", "type": "dict", "optional": True},
+    {"name": "region", "allow_empty": False, "optional": True},
+    {
+        "name": "replicaConfiguration",
+        "type": "dict",
+        "fields": [
+            {"name": "failoverTarget", "optional": True},
+            {
+                "name": "mysqlReplicaConfiguration",
+                "type": "dict",
+                "fields": [
+                    {"name": "caCertificate", "allow_empty": False, "optional": True},
+                    {"name": "clientCertificate", "allow_empty": False, "optional": True},
+                    {"name": "clientKey", "allow_empty": False, "optional": True},
+                    {"name": "connectRetryInterval", "optional": True},
+                    {"name": "dumpFilePath", "allow_empty": False, "optional": True},
+                    {"name": "masterHeartbeatPeriod", "optional": True},
+                    {"name": "password", "allow_empty": False, "optional": True},
+                    {"name": "sslCipher", "allow_empty": False, "optional": True},
+                    {"name": "username", "allow_empty": False, "optional": True},
+                    {"name": "verifyServerCertificate", "optional": True},
                 ],
-                optional=True,
-            ),
+                "optional": True,
+            },
         ],
-        optional=True,
-    ),
+        "optional": True,
+    },
 ]
 CLOUD_SQL_EXPORT_VALIDATION = [
-    dict(
-        name="exportContext",
-        type="dict",
-        fields=[
-            dict(name="fileType", allow_empty=False),
-            dict(name="uri", allow_empty=False),
-            dict(name="databases", optional=True, type="list"),
-            dict(
-                name="sqlExportOptions",
-                type="dict",
-                optional=True,
-                fields=[
-                    dict(name="tables", optional=True, type="list"),
-                    dict(name="schemaOnly", optional=True),
-                    dict(
-                        name="mysqlExportOptions",
-                        type="dict",
-                        optional=True,
-                        fields=[dict(name="masterData")],
-                    ),
+    {
+        "name": "exportContext",
+        "type": "dict",
+        "fields": [
+            {"name": "fileType", "allow_empty": False},
+            {"name": "uri", "allow_empty": False},
+            {"name": "databases", "optional": True, "type": "list"},
+            {
+                "name": "sqlExportOptions",
+                "type": "dict",
+                "optional": True,
+                "fields": [
+                    {"name": "tables", "optional": True, "type": "list"},
+                    {"name": "schemaOnly", "optional": True},
+                    {
+                        "name": "mysqlExportOptions",
+                        "type": "dict",
+                        "optional": True,
+                        "fields": [{"name": "masterData"}],
+                    },
                 ],
-            ),
-            dict(
-                name="csvExportOptions",
-                type="dict",
-                optional=True,
-                fields=[
-                    dict(name="selectQuery"),
-                    dict(name="escapeCharacter", optional=True),
-                    dict(name="quoteCharacter", optional=True),
-                    dict(name="fieldsTerminatedBy", optional=True),
-                    dict(name="linesTerminatedBy", optional=True),
+            },
+            {
+                "name": "csvExportOptions",
+                "type": "dict",
+                "optional": True,
+                "fields": [
+                    {"name": "selectQuery"},
+                    {"name": "escapeCharacter", "optional": True},
+                    {"name": "quoteCharacter", "optional": True},
+                    {"name": "fieldsTerminatedBy", "optional": True},
+                    {"name": "linesTerminatedBy", "optional": True},
                 ],
-            ),
-            dict(name="offload", optional=True),
+            },
+            {"name": "offload", "optional": True},
         ],
-    )
+    }
 ]
 CLOUD_SQL_IMPORT_VALIDATION = [
-    dict(
-        name="importContext",
-        type="dict",
-        fields=[
-            dict(name="fileType", allow_empty=False),
-            dict(name="uri", allow_empty=False),
-            dict(name="database", optional=True, allow_empty=False),
-            dict(name="importUser", optional=True),
-            dict(
-                name="csvImportOptions",
-                type="dict",
-                optional=True,
-                fields=[dict(name="table"), dict(name="columns", type="list", optional=True)],
-            ),
+    {
+        "name": "importContext",
+        "type": "dict",
+        "fields": [
+            {"name": "fileType", "allow_empty": False},
+            {"name": "uri", "allow_empty": False},
+            {"name": "database", "optional": True, "allow_empty": False},
+            {"name": "importUser", "optional": True},
+            {
+                "name": "csvImportOptions",
+                "type": "dict",
+                "optional": True,
+                "fields": [{"name": "table"}, {"name": "columns", "type": "list", "optional": True}],
+            },
         ],
-    )
+    }
 ]
 CLOUD_SQL_DATABASE_CREATE_VALIDATION = [
-    dict(name="instance", allow_empty=False),
-    dict(name="name", allow_empty=False),
-    dict(name="project", allow_empty=False),
+    {"name": "instance", "allow_empty": False},
+    {"name": "name", "allow_empty": False},
+    {"name": "project", "allow_empty": False},
 ]
 CLOUD_SQL_DATABASE_PATCH_VALIDATION = [
-    dict(name="instance", optional=True),
-    dict(name="name", optional=True),
-    dict(name="project", optional=True),
-    dict(name="etag", optional=True),
-    dict(name="charset", optional=True),
-    dict(name="collation", optional=True),
+    {"name": "instance", "optional": True},
+    {"name": "name", "optional": True},
+    {"name": "project", "optional": True},
+    {"name": "etag", "optional": True},
+    {"name": "charset", "optional": True},
+    {"name": "collation", "optional": True},
 ]
 
 

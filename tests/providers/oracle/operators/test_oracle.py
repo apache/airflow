@@ -90,7 +90,7 @@ class TestOracleStoredProcedureOperator:
         oracle_conn_id = "oracle_default"
         parameters = {"parameter": "value"}
         task_id = "test_push"
-        ora_exit_code = "%05d" % randrange(10**5)
+        ora_exit_code = f"{randrange(10**5):05}"
         error = f"ORA-{ora_exit_code}: This is a five-digit ORA error code"
         mock_callproc.side_effect = oracledb.DatabaseError(error)
 
