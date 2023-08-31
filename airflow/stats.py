@@ -62,14 +62,10 @@ class _Stats(type):
     @classmethod
     def get_constant_tags(cls) -> list[str]:
         """Get constant DataDog tags to add to all stats."""
-        tags: list[str] = []
         tags_in_string = conf.get("metrics", "statsd_datadog_tags", fallback=None)
-        if tags_in_string is None or tags_in_string == "":
-            return tags
-        else:
-            for key_value in tags_in_string.split(","):
-                tags.append(key_value)
-            return tags
+        if not tags_in_string:
+            return []
+        return tags_in_string.split(",")
 
 
 if TYPE_CHECKING:
