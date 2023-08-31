@@ -479,7 +479,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def terminate(self) -> None:
         """Terminates the watcher."""
         self.log.debug("Terminating kube_watchers...")
-        for namespace, kube_watcher in self.kube_watchers.items():
+        for kube_watcher in self.kube_watchers.values():
             kube_watcher.terminate()
             kube_watcher.join()
             self.log.debug("kube_watcher=%s", kube_watcher)
