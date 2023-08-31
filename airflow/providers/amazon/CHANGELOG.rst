@@ -25,6 +25,7 @@
 
 Changelog
 ---------
+* ``A bug intoduced in provider-amazon version 8.0.0 caused all 'EcsRunTaskOperator' tasks to detach from the ECS task after 10 minutes and fail - even if the ECS task was still running. In this version we are fixing it by returning the default 'waiter_max_attempts' value to 'sys.maxsize'``
 
 8.6.0
 .....

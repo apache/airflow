@@ -450,7 +450,7 @@ class TestKubernetesExecutor:
                 ),
             )
 
-            assert list(executor.event_buffer.values())[0][1] == "Invalid executor_config passed"
+            assert next(iter(executor.event_buffer.values()))[1] == "Invalid executor_config passed"
         finally:
             executor.end()
 

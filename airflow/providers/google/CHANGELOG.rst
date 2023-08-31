@@ -104,7 +104,7 @@ Misc
 Features
 ~~~~~~~~
 
-Implement deferrable mode for S3ToGCSOperator
+* ``Implement deferrable mode for S3ToGCSOperator (#29462)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -126,7 +126,6 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Combine 8 into 1 (#29462)``
    * ``D205 Support - Provider: Google (#32356)``
    * ``Migrating Google AutoML example_dags to sys tests (#32368)``
    * ``build(pre-commit): check deferrable default value (#32370)``

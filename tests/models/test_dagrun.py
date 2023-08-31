@@ -19,13 +19,12 @@ from __future__ import annotations
 
 import datetime
 from functools import reduce
-from typing import Mapping
+from typing import TYPE_CHECKING, Mapping
 from unittest import mock
 from unittest.mock import call
 
 import pendulum
 import pytest
-from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -57,6 +56,9 @@ from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockOperator
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
 
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 
@@ -1894,7 +1896,7 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
 
         @dag.task
         def make_list():
-            return list(map(lambda a: f'echo "{a!r}"', [1, 2, {"a": "b"}]))
+            return [f'echo "{a!r}"' for a in [1, 2, {"a": "b"}]]
 
         def consumer(*args):
             print(repr(args))

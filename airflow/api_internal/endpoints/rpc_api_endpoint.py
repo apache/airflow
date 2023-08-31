@@ -39,6 +39,7 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DagModel
     from airflow.models.dagwarning import DagWarning
+    from airflow.secrets.metastore import MetastoreBackend
 
     functions: list[Callable] = [
         DagFileProcessor.update_import_errors,
@@ -48,6 +49,8 @@ def _initialize_map() -> dict[str, Callable]:
         DagModel.get_paused_dag_ids,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        MetastoreBackend._fetch_connection,
+        MetastoreBackend._fetch_variable,
         XCom.get_value,
         XCom.get_one,
         XCom.get_many,
@@ -87,19 +90,15 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
             params_json = json.loads(str(body.get("params")))
             params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
     except Exception as err:
-        log.error("Error deserializing parameters.")
-        log.error(err)
+        log.error("Error (%s) when deserializing parameters: %s", err, params_json)
         return Response(response="Error deserializing parameters.", status=400)
 
-    log.debug("Calling method %.", {method_name})
+    log.debug("Calling method %s.", method_name)
     try:
         output = handler(**params)
         output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
-        log.debug("Returning response")
-        return Response(
-            response=json.dumps(output_json or "{}"), headers={"Content-Type": "application/json"}
-        )
+        response = json.dumps(output_json) if output_json is not None else None
+        return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception as e:
-        log.error("Error when calling method %s.", method_name)
-        log.error(e)
+        log.error("Error (%s) when calling method %s.", e, method_name)
         return Response(response=f"Error executing method: {method_name}.", status=500)

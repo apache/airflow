@@ -36,10 +36,7 @@ class BigQueryToPostgresOperator(BigQueryToSqlBaseOperator):
     :param postgres_conn_id: Reference to :ref:`postgres connection id <howto/connection:postgres>`.
     """
 
-    template_fields: Sequence[str] = tuple(BigQueryToSqlBaseOperator.template_fields) + (
-        "dataset_id",
-        "table_id",
-    )
+    template_fields: Sequence[str] = (*BigQueryToSqlBaseOperator.template_fields, "dataset_id", "table_id")
 
     def __init__(
         self,

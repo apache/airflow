@@ -28,6 +28,7 @@ import pickle
 from datetime import datetime, timedelta
 from glob import glob
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import attr
@@ -64,13 +65,15 @@ from airflow.serialization.serialized_objects import (
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 repo_root = Path(airflow.__file__).parent.parent
 
@@ -379,7 +382,7 @@ class TestStringifiedDAGs:
         """Serialization and deserialization should work for every DAG and Operator."""
         dags = collect_dags()
         serialized_dags = {}
-        for _, v in dags.items():
+        for v in dags.values():
             dag = SerializedDAG.to_dict(v)
             SerializedDAG.validate_schema(dag)
             serialized_dags[v.dag_id] = dag
@@ -1472,7 +1475,7 @@ class TestStringifiedDAGs:
             pass
 
         class DummyTask(BaseOperator):
-            deps = frozenset(list(BaseOperator.deps) + [DummyTriggerRule()])
+            deps = frozenset([*BaseOperator.deps, DummyTriggerRule()])
 
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test_error_on_unregistered_ti_dep_serialization", start_date=execution_date) as dag:
@@ -1499,7 +1502,7 @@ class TestStringifiedDAGs:
         from test_plugin import CustomTestTriggerRule
 
         class DummyTask(BaseOperator):
-            deps = frozenset(list(BaseOperator.deps) + [CustomTestTriggerRule()])
+            deps = frozenset([*BaseOperator.deps, CustomTestTriggerRule()])
 
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test_serialize_custom_ti_deps", start_date=execution_date) as dag:

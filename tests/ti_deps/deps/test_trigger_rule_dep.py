@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Iterator
+from typing import TYPE_CHECKING, Iterator
 from unittest import mock
 from unittest.mock import Mock
 
@@ -27,13 +27,15 @@ from pytest import param
 
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
 
 SKIPPED = TaskInstanceState.SKIPPED
 UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
