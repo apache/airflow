@@ -254,15 +254,10 @@ class DbtCloudHook(HttpHook):
         :param include_related: Optional. List of related fields to pull with the run.
             Valid values are "trigger", "job", "repository", and "environment".
         """
-        try:
-            self.log.info("Getting the status of job run %s.", run_id)
-            response = await self.get_job_details(
-                run_id, account_id=account_id, include_related=include_related
-            )
-            job_run_status: int = response["data"]["status"]
-            return job_run_status
-        except Exception as e:
-            raise e
+        self.log.info("Getting the status of job run %s.", run_id)
+        response = await self.get_job_details(run_id, account_id=account_id, include_related=include_related)
+        job_run_status: int = response["data"]["status"]
+        return job_run_status
 
     @cached_property
     def connection(self) -> Connection:
