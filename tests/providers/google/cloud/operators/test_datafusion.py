@@ -238,7 +238,7 @@ class TestCloudDataFusionStartPipelineOperator:
         )
 
         mock_hook.return_value.wait_for_pipeline_state.assert_called_once_with(
-            success_states=SUCCESS_STATES + [PipelineStates.RUNNING],
+            success_states=[*SUCCESS_STATES, PipelineStates.RUNNING],
             pipeline_id=PIPELINE_ID,
             pipeline_name=PIPELINE_NAME,
             namespace=NAMESPACE,
