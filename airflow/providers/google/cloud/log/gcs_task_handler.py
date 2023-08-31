@@ -265,8 +265,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         :meta private:
         """
-        if exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]:
-            return True
-        elif getattr(exc, "resp", {}).get("status") == "404":
+        if (exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]) or getattr(
+            exc, "resp", {}
+        ).get("status") == "404":
             return True
         return False
