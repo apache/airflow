@@ -87,8 +87,8 @@ DR = DagRun
 DM = DagModel
 
 # type alias for task concurrency map,
-# (dag_id, run_id, task_group_id) -> concurrency limitation and set of running map indexes
-TaskGroupConcurrencyMap = Dict[Tuple[str, str, str], Tuple[int, Set[int]]]
+# (dag_id, run_id, task_group_id) -> set of running map indexes
+TaskGroupConcurrencyMap = Dict[Tuple[str, str, str], Set[int]]
 
 
 @dataclass
@@ -107,7 +107,7 @@ class ConcurrencyMap:
     task_concurrency_map: dict[tuple[str, str], int]
     # (dag_id, run_id, task_id) -> # of active tasks
     task_dagrun_concurrency_map: dict[tuple[str, str, str], int]
-    # (dag_id, run_id, task_group_id) -> concurrency limitation and set of running map indexes
+    # (dag_id, run_id, task_group_id) -> set of running map indexes
     task_group_concurrency_map: TaskGroupConcurrencyMap
 
     @classmethod
@@ -306,7 +306,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             )
             .order_by(TI.dag_id, TI.run_id, TI.map_index)
         )
-        tg_concurrency: TaskGroupConcurrencyMap = {}
+        tg_concurrency: TaskGroupConcurrencyMap = dict()
         for (task_id, run_id, dag_id, map_index) in unfinished_tis:
             dag = self.dagbag.get_dag(dag_id, session)
             if not dag:
@@ -323,9 +323,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
             key = (dag_id, run_id, task_group.group_id)
             if key not in tg_concurrency:
-                tg_concurrency[key] = (group_concurrency_limit, set())
-            (limitation, allow_idx) = tg_concurrency[key]
-            if len(allow_idx) < limitation:
+                tg_concurrency[key] = set()
+            allow_idx = tg_concurrency[key]
+            if len(allow_idx) < group_concurrency_limit:
                 allow_idx.add(map_index)
             # else:
             #     # reach limitation, should not allow the map index
@@ -614,13 +614,10 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     if task_group_concurrency_limit is not None:
                         tg_key: tuple[str, str, str] = (dag_id, run_id, group_id)
                         if tg_key not in concurrency_map.task_group_concurrency_map:
-                            concurrency_map.task_group_concurrency_map[tg_key] = (
-                                task_group_concurrency_limit,
-                                set(),
-                            )
+                            concurrency_map.task_group_concurrency_map[tg_key] = set()
 
                         acceptable = False
-                        (_, allow_idx) = concurrency_map.task_group_concurrency_map[tg_key]
+                        allow_idx = concurrency_map.task_group_concurrency_map[tg_key]
                         map_index = task_instance.map_index
                         if map_index in allow_idx:
                             acceptable = True
