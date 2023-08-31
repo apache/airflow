@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from copy import deepcopy
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
@@ -348,9 +347,8 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs._wait_for_task_ended()
         client_mock.get_waiter.assert_called_once_with("tasks_stopped")
         client_mock.get_waiter.return_value.wait.assert_called_once_with(
-            cluster="c", tasks=["arn"], WaiterConfig={"Delay": 6, "MaxAttempts": 100}
+            cluster="c", tasks=["arn"], WaiterConfig={"Delay": 6, "MaxAttempts": 1000000 * 365 * 24 * 60 * 10}
         )
-        assert sys.maxsize == client_mock.get_waiter.return_value.config.max_attempts
 
     @mock.patch.object(EcsBaseOperator, "client")
     def test_check_success_tasks_raises_failed_to_start(self, client_mock):

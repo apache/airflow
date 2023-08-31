@@ -22,13 +22,16 @@ import os
 import re
 import textwrap
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import rich_click as click
 from attr import dataclass
 from github import Github
-from github.Issue import Issue
 from rich.console import Console
 from tabulate import tabulate
+
+if TYPE_CHECKING:
+    from github.Issue import Issue
 
 PROVIDER_TESTING_LABEL = "testing status"
 

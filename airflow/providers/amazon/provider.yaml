@@ -74,12 +74,10 @@ dependencies:
   # set it to the version that `aiobotocore` supports (see `aiobotocore` optional dependency at the end
   # of this file). Currently we set aiobotocore as minimum 2.5.3 - as this is was the first version
   # that supported boto3 1.28. NOTE!!! BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
+  # NOTE!!! Make sure to update _MIN_BOTO3_VERSION in setup.py when you update it here
   - boto3>=1.28.0
-  - mypy-boto3-rds>=1.28.0
-  - mypy-boto3-redshift-data>=1.28.0
-  - mypy-boto3-s3>=1.28.0
-  - mypy-boto3-appflow>=1.28.0
-  # NOTE!!! BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
+  # NOTE!!! BOTOCORE version is always shifted by 3 MINOR VERSIONS from boto3
+  # See https://github.com/boto/boto3/issues/2702
   - botocore>=1.31.0
   - asgiref
   # watchtower 3 has been released end Jan and introduced breaking change across the board that might
@@ -689,7 +687,7 @@ connection-types:
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
-
+  - airflow.providers.amazon.aws.notifications.sns.SnsNotifier
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend

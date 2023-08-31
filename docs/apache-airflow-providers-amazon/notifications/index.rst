@@ -20,6 +20,8 @@
 Amazon AWS Notifications
 ========================
 
+.. important:: This feature is only available in Airflow versions >= 2.6.0
+
 
 .. toctree::
     :maxdepth: 1

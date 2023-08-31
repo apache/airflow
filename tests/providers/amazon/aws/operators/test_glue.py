@@ -225,7 +225,7 @@ class TestGlueJobOperator:
         aws_domain = GlueJobRunDetailsLink.get_aws_domain("aws")
         glue_job_run_url = (
             f"https://console.{aws_domain}/gluestudio/home?region="
-            + f"{region}#/job/test_job_name%2Fwith_slash/run/{JOB_RUN_ID}"
+            f"{region}#/job/test_job_name%2Fwith_slash/run/{JOB_RUN_ID}"
         )
 
         with mock.patch.object(glue.log, "info") as mock_log_info:

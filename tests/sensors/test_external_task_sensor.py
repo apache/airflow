@@ -1414,7 +1414,7 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
     dag: DAG = dag_bag_head_tail.get_dag("head_tail")
 
     # "Run" 10 times.
-    for delta in range(0, 10):
+    for delta in range(10):
         execution_date = DEFAULT_DATE + timedelta(days=delta)
         dagrun = DagRun(
             dag_id=dag.dag_id,
@@ -1497,7 +1497,7 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
     dag: DAG = dag_bag_head_tail_mapped_tasks.get_dag("head_tail")
 
     # "Run" 10 times.
-    for delta in range(0, 10):
+    for delta in range(10):
         execution_date = DEFAULT_DATE + timedelta(days=delta)
         dagrun = DagRun(
             dag_id=dag.dag_id,

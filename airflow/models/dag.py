@@ -3333,7 +3333,7 @@ class DAG(LoggingMixin):
         if not self.timetable.can_be_scheduled:
             return
 
-        for k, v in self.params.items():
+        for v in self.params.values():
             # As type can be an array, we would check if `null` is an allowed type or not
             if not v.has_value and ("type" not in v.schema or "null" not in v.schema["type"]):
                 raise AirflowException(

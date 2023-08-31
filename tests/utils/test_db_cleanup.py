@@ -314,7 +314,7 @@ class TestDBCleanup:
         for mod_name in mods:
             mod = import_module(mod_name)
 
-            for table_name, class_ in mod.__dict__.items():
+            for class_ in mod.__dict__.values():
                 if isinstance(class_, DeclarativeMeta):
                     with suppress(AttributeError):
                         all_models.update({class_.__tablename__: class_})
