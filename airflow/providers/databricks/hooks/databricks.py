@@ -259,8 +259,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def find_pipeline_id_by_name(self, pipeline_name: str) -> str | None:
         """
-        Finds pipeline id by its name. If there are multiple pipelines with the same name,
-        raises AirflowException.
+        Finds pipeline id by its name. If multiple pipelines with the same name, raises AirflowException.
 
         :param pipeline_name: The name of the pipeline to look up.
         :return: The pipeline_id as a GUID string or None if no pipeline was found.
