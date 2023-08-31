@@ -557,7 +557,7 @@ def test_trigger_failing(session):
         for _ in range(30):
             if job_runner.trigger_runner.failed_triggers:
                 assert len(job_runner.trigger_runner.failed_triggers) == 1
-                trigger_id, exc = list(job_runner.trigger_runner.failed_triggers)[0]
+                trigger_id, exc = next(iter(job_runner.trigger_runner.failed_triggers))
                 assert trigger_id == 1
                 assert isinstance(exc, ValueError)
                 assert exc.args[0] == "Deliberate trigger failure"
