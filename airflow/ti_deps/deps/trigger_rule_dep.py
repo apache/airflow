@@ -549,7 +549,9 @@ class TriggerRuleDep(BaseTIDep):
             # a teardown cannot have any indirect setups
             relevant_setups = {t.task_id: t for t in ti.task.get_upstreams_only_setups()}
             if relevant_setups:
-                tasks_dict = relevant_setups  # used by _get_relevant_upstream_map_indexes
+                # set tasks_dict to contain relevant setups
+                # _get_relevant_upstream_map_indexes will use this to look up the task_id
+                tasks_dict = relevant_setups
                 for status, changed in _evaluate_setup_constraint(relevant_setups=relevant_setups):
                     yield status
                     if not status.passed and changed:
@@ -559,5 +561,7 @@ class TriggerRuleDep(BaseTIDep):
         task = ti.task
         trigger_rule = task.trigger_rule
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
+        # set tasks_dict to contain direct upstream tasks
+        # _get_relevant_upstream_map_indexes will use this to look up the task_id
         tasks_dict = upstream_tasks
         yield from _evaluate_direct_relatives()
