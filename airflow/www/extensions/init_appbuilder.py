@@ -645,10 +645,7 @@ class AirflowAppBuilder:
         )
 
     def _view_exists(self, view):
-        for baseview in self.baseviews:
-            if baseview.__class__ == view.__class__:
-                return True
-        return False
+        return any(baseview.__class__ == view.__class__ for baseview in self.baseviews)
 
     def _process_inner_views(self):
         for view in self.baseviews:
