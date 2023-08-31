@@ -242,7 +242,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         )
 
     def hook(self) -> AwsGenericHook:
-        return EmrContainerHook(self.aws_conn_id)
+        return EmrContainerHook(aws_conn_id=self.aws_conn_id)
 
 
 class EmrStepSensorTrigger(AwsBaseWaiterTrigger):
