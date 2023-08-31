@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import functools
 import json
 import logging
@@ -90,10 +91,8 @@ class TestHttpHook:
         ):
             expected_url = "http://test.com:1234/some/endpoint"
             for endpoint in ["some/endpoint", "/some/endpoint"]:
-                try:
+                with contextlib.suppress(MissingSchema):
                     self.get_hook.run(endpoint)
-                except MissingSchema:
-                    pass
 
                 mock_request.assert_called_once_with(
                     mock.ANY, expected_url, headers=mock.ANY, params=mock.ANY
@@ -128,10 +127,8 @@ class TestHttpHook:
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
             data = "test params"
-            try:
+            with contextlib.suppress(MissingSchema, InvalidURL):
                 self.get_lowercase_hook.run("v1/test", data=data)
-            except (MissingSchema, InvalidURL):
-                pass
             mock_requests.assert_called_once_with(mock.ANY, mock.ANY, headers=mock.ANY, params=data)
 
     def test_hook_uses_provided_header(self):

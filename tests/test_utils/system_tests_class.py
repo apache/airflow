@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import shutil
@@ -164,9 +165,7 @@ class SystemTest:
     @staticmethod
     def delete_dummy_file(filename, dir_path):
         full_path = os.path.join(dir_path, filename)
-        try:
+        with contextlib.suppress(FileNotFoundError):
             os.remove(full_path)
-        except FileNotFoundError:
-            pass
         if dir_path != "/tmp":
             shutil.rmtree(dir_path, ignore_errors=True)

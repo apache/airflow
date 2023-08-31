@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
 from datetime import datetime
 
@@ -114,15 +115,13 @@ def delete_dataset(aws_account_id: str, dataset_name: str):
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_ingestion(aws_account_id: str, dataset_name: str, ingestion_name: str) -> None:
     client = boto3.client("quicksight")
-    try:
+    with contextlib.suppress(client.exceptions.ResourceNotFoundException):
+        # suppress ResourceNotFoundException: Ingestion has already terminated on its own.
         client.cancel_ingestion(
             AwsAccountId=aws_account_id,
             DataSetId=dataset_name,
             IngestionId=ingestion_name,
         )
-    except client.exceptions.ResourceNotFoundException:
-        # Ingestion has already terminated on its own.
-        pass
 
 
 with DAG(
