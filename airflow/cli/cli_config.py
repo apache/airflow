@@ -557,6 +557,12 @@ ARG_VAR_EXPORT = Arg(
     help="Export all variables to JSON file",
     type=argparse.FileType("w", encoding="UTF-8"),
 )
+ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
+    ("-a", "--action-on-existing-key"),
+    help="Action to take if we encounter a variable key that already exists.",
+    default="overwrite",
+    choices=("overwrite", "fail", "skip"),
+)
 
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
@@ -1454,7 +1460,7 @@ VARIABLES_COMMANDS = (
         name="import",
         help="Import variables",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_import"),
-        args=(ARG_VAR_IMPORT, ARG_VERBOSE),
+        args=(ARG_VAR_IMPORT, ARG_VAR_ACTION_ON_EXISTING_KEY, ARG_VERBOSE),
     ),
     ActionCommand(
         name="export",

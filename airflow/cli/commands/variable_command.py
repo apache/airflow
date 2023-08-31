@@ -31,7 +31,7 @@ from airflow.models import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, provide_session
 
 
 @suppress_logs_and_warning
@@ -76,7 +76,8 @@ def variables_delete(args):
 
 @cli_utils.action_cli
 @providers_configuration_loaded
-def variables_import(args):
+@provide_session
+def variables_import(args, session):
     """Import variables from a given file."""
     if not os.path.exists(args.file):
         raise SystemExit("Missing variables file.")
@@ -86,7 +87,16 @@ def variables_import(args):
         except JSONDecodeError:
             raise SystemExit("Invalid variables file.")
     suc_count = fail_count = 0
+    skipped = set()
+    action_on_existing = args.action_on_existing_key
     for k, v in var_json.items():
+        if action_on_existing != "overwrite":
+            exists_q = session.scalar(select(Variable).where(Variable.key == k))
+            if exists_q and action_on_existing == "fail":
+                raise SystemExit(f"Variable: {k} already exists, failing.")
+            elif exists_q:
+                skipped.add(k)
+                continue
         try:
             Variable.set(k, v, serialize_json=not isinstance(v, str))
         except Exception as e:
@@ -97,6 +107,8 @@ def variables_import(args):
     print(f"{suc_count} of {len(var_json)} variables successfully updated.")
     if fail_count:
         print(f"{fail_count} variable(s) failed to be updated.")
+    if skipped:
+        print(f"The variables with these keys: {list(skipped)} were skipped because they already exists")
 
 
 @providers_configuration_loaded

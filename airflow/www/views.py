@@ -5142,6 +5142,7 @@ class VariableModelView(AirflowModelView):
         """Import variables."""
         try:
             variable_dict = json.loads(request.files["file"].read())
+            action_if_exists = request.form.get("action_if_exists", "overwrite").lower()
         except Exception:
             self.update_redirect()
             flash("Missing file or syntax error.", "error")
@@ -5150,10 +5151,16 @@ class VariableModelView(AirflowModelView):
             skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
-                if session.scalar(select(models.Variable).where(models.Variable.key == k)):
-                    logging.warning("Variable: %s already exists, skipping.", k)
-                    skipped.add(k)
-                    continue
+                if action_if_exists != "overwrite":
+                    var_exists = session.scalar(select(models.Variable).where(models.Variable.key == k))
+                    if var_exists and action_if_exists == "fail":
+                        flash(f"Failed. Variable: {k} already exists", "error")
+                        logging.error("Failed: Variable: %s already exists", k)
+                        return redirect(location=request.referrer)
+                    elif var_exists:
+                        logging.warning("Variable: %s already exists, skipping.", k)
+                        skipped.add(k)
+                        continue
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as exc:
@@ -5165,8 +5172,8 @@ class VariableModelView(AirflowModelView):
             if fail_count:
                 flash(f"{fail_count} variable(s) failed to be updated.", "error")
             if skipped:
+                skipped_repr = ", ".join(repr(k) for k in sorted(skipped))
                 flash(
-                    skipped_repr = ", ".join(repr(k) for k in sorted(skipped))
                     f"The variables with these keys: {skipped_repr} were skipped "
                     "because they already exists",
                     "warning",
