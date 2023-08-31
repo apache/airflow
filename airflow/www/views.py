@@ -5151,7 +5151,7 @@ class VariableModelView(AirflowModelView):
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
                 if session.scalar(select(models.Variable).where(models.Variable.key == k)):
-                    logging.warning("Variable: %s already exist, skipping.", k)
+                    logging.warning("Variable: %s already exists, skipping.", k)
                     skipped.add(k)
                     continue
                 try:
@@ -5166,7 +5166,8 @@ class VariableModelView(AirflowModelView):
                 flash(f"{fail_count} variable(s) failed to be updated.", "error")
             if skipped:
                 flash(
-                    f"The variables with these keys: {list(skipped)} were skipped "
+                    skipped_repr = ", ".join(repr(k) for k in sorted(skipped))
+                    f"The variables with these keys: {skipped_repr} were skipped "
                     "because they already exists",
                     "warning",
                 )
