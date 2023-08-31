@@ -364,7 +364,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.json_format:
             self.formatter = ElasticsearchJSONFormatter(
                 fmt=self.formatter._fmt,
-                json_fields=self.json_fields + [self.offset_field],
+                json_fields=[*self.json_fields, self.offset_field],
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),

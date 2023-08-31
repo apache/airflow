@@ -40,10 +40,7 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     """
 
-    template_fields: Sequence[str] = tuple(BigQueryToSqlBaseOperator.template_fields) + (
-        "dataset_id",
-        "table_id",
-    )
+    template_fields: Sequence[str] = (*BigQueryToSqlBaseOperator.template_fields, "dataset_id", "table_id")
 
     def __init__(
         self,

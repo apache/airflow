@@ -163,7 +163,7 @@ class HiveCliHook(BaseHook):
 
         hive_params_list = self.hive_cli_params.split()
 
-        return [hive_bin] + cmd_extra + hive_params_list
+        return [hive_bin, *cmd_extra, *hive_params_list]
 
     def _validate_beeline_parameters(self, conn):
         if ":" in conn.host or "/" in conn.host or ";" in conn.host:
