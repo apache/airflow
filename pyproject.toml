@@ -63,8 +63,8 @@ extend-select = [
     "D403",
     "D412",
     "D419",
-    "TCH001", # typing-only-first-party-import
-    "TCH002", # typing-only-third-party-import
+    "TCH001",  # typing-only-first-party-import
+    "TCH002",  # typing-only-third-party-import
 ]
 extend-ignore = [
     "D203",
