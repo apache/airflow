@@ -126,12 +126,8 @@ class TestDatabricksSubmitRunOperator:
         """
         Test the initializer with the named parameters.
         """
-        op = DatabricksSubmitRunOperator(
-            task_id=TASK_ID, pipeline_task=PIPELINE_NAME_TASK
-        )
-        expected = utils.normalise_json_content(
-            {"pipeline_task": PIPELINE_NAME_TASK, "run_name": TASK_ID}
-        )
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, pipeline_task=PIPELINE_NAME_TASK)
+        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_NAME_TASK, "run_name": TASK_ID})
 
         assert expected == utils.normalise_json_content(op.json)
 
@@ -139,12 +135,8 @@ class TestDatabricksSubmitRunOperator:
         """
         Test the initializer with the named parameters.
         """
-        op = DatabricksSubmitRunOperator(
-            task_id=TASK_ID, pipeline_task=PIPELINE_ID_TASK
-        )
-        expected = utils.normalise_json_content(
-            {"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID}
-        )
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, pipeline_task=PIPELINE_ID_TASK)
+        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID})
 
         assert expected == utils.normalise_json_content(op.json)
 
