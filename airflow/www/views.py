@@ -561,7 +561,7 @@ def get_key_paths(input_dict):
     for key, value in input_dict.items():
         if isinstance(value, dict):
             for sub_key in get_key_paths(value):
-                yield ".".join((key, sub_key))
+                yield f"{key}.{sub_key}"
         else:
             yield key
 
@@ -1528,16 +1528,16 @@ class Airflow(AirflowBaseView):
                     for key, value in content.items():
                         renderer = task.template_fields_renderers.get(key, key)
                         if renderer in renderers:
-                            html_dict[".".join([template_field, key])] = (
+                            html_dict[f"{template_field}.{key}"] = (
                                 renderers[renderer](value) if not no_dagrun else ""
                             )
                         else:
-                            html_dict[".".join([template_field, key])] = Markup(
+                            html_dict[f"{template_field}.{key}"] = Markup(
                                 "<pre><code>{}</pre></code>"
                             ).format(pformat(value) if not no_dagrun else "")
                 else:
                     for dict_keys in get_key_paths(content):
-                        template_path = ".".join((template_field, dict_keys))
+                        template_path = f"{template_field}.{dict_keys}"
                         renderer = task.template_fields_renderers.get(template_path, template_path)
                         if renderer in renderers:
                             content_value = get_value_from_path(dict_keys, content)
