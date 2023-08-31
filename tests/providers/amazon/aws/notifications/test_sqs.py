@@ -26,7 +26,7 @@ from airflow.utils.types import NOTSET
 PARAM_DEFAULT_VALUE = pytest.param(NOTSET, id="default-value")
 
 
-class TestSnsNotifier:
+class TestSqsNotifier:
     def test_class_and_notifier_are_same(self):
         assert send_sqs_notification is SqsNotifier
 
