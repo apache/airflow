@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 from collections import defaultdict
 from datetime import timedelta
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -36,7 +37,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.python import PythonOperator
-from airflow.utils.context import Context
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -44,6 +44,9 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 def test_task_mapping_with_dag():

@@ -19,13 +19,12 @@ from __future__ import annotations
 
 import itertools
 import re
+from typing import TYPE_CHECKING
 
 import pytest
 
 from airflow import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job
-from airflow.serialization.pydantic.job import JobPydantic
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
     at_most_one,
@@ -39,6 +38,10 @@ from airflow.utils.helpers import (
 from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+if TYPE_CHECKING:
+    from airflow.jobs.job import Job
+    from airflow.serialization.pydantic.job import JobPydantic
 
 
 @pytest.fixture()

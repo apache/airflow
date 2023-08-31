@@ -22,16 +22,19 @@ import logging
 import os
 from os.path import basename, splitext
 from time import sleep
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import boto3
-from botocore.client import BaseClient
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.decorators import task
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
+
+if TYPE_CHECKING:
+    from botocore.client import BaseClient
 
 ENV_ID_ENVIRON_KEY: str = "SYSTEM_TESTS_ENV_ID"
 ENV_ID_KEY: str = "ENV_ID"

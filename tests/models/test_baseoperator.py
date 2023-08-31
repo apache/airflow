@@ -22,7 +22,7 @@ import logging
 import uuid
 from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 from unittest import mock
 
 import jinja2
@@ -39,7 +39,6 @@ from airflow.models.baseoperator import (
     chain_linear,
     cross_downstream,
 )
-from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -48,6 +47,9 @@ from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class ClassWithCustomAttributes:
