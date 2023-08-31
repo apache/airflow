@@ -1107,9 +1107,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if self.__from_mapped:
             pass  # Don't add to DAG -- the mapped task takes the place.
-        elif self.task_id not in dag.task_dict:
-            dag.add_task(self)
-        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
+        elif (
+            self.task_id not in dag.task_dict
+            or self.task_id in dag.task_dict
+            and dag.task_dict[self.task_id] is not self
+        ):
             dag.add_task(self)
 
         self._dag = dag
