@@ -19,21 +19,22 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
-import pendulum
 from pydantic import BaseModel as BaseModelPydantic
-from sqlalchemy.orm import Session
 
-from airflow.models import Operator
-from airflow.models.dagrun import DagRun
-from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
+    import pendulum
+    from sqlalchemy.orm import Session
+
+    from airflow.models import Operator
     from airflow.models.baseoperator import BaseOperator
+    from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
+    from airflow.utils.context import Context
+    from airflow.utils.state import DagRunState
 
 
 class TaskInstancePydantic(BaseModelPydantic):

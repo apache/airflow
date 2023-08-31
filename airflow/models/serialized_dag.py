@@ -30,7 +30,6 @@ from sqlalchemy.sql.expression import func, literal
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import TaskNotFound
-from airflow.models import Operator
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
@@ -47,6 +46,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.models import Operator
     from airflow.models.dag import DAG
 
 log = logging.getLogger(__name__)

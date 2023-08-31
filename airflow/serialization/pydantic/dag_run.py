@@ -20,14 +20,15 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, Optional
 
 from pydantic import BaseModel as BaseModelPydantic
-from sqlalchemy.orm import Session
 
-from airflow import DAG
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow import DAG
     from airflow.jobs.scheduler_job_runner import TI
+    from airflow.utils.state import TaskInstanceState
 
 
 class DagRunPydantic(BaseModelPydantic):
