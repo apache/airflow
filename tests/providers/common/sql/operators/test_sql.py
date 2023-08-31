@@ -1158,9 +1158,7 @@ class TestSqlBranch:
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
-            elif ti.task_id == "branch_1":
-                assert ti.state == State.NONE
-            elif ti.task_id == "branch_2":
+            elif ti.task_id in ("branch_1", "branch_2"):
                 assert ti.state == State.NONE
             elif ti.task_id == "branch_3":
                 assert ti.state == State.SKIPPED
@@ -1231,9 +1229,7 @@ class TestSqlBranch:
             for ti in tis:
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
-                elif ti.task_id == "branch_1":
-                    assert ti.state == State.NONE
-                elif ti.task_id == "branch_2":
+                elif ti.task_id in ("branch_1", "branch_2"):
                     assert ti.state == State.NONE
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
