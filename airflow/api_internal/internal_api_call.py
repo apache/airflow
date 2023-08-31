@@ -80,7 +80,7 @@ class InternalApiConfig:
         InternalApiConfig._internal_api_endpoint = internal_api_endpoint
 
 
-def internal_api_call(func: Callable[PS, RT | None]) -> Callable[PS, RT | None]:
+def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
     """
     Allow methods to be executed in database isolation mode.
 
@@ -108,7 +108,7 @@ def internal_api_call(func: Callable[PS, RT | None]) -> Callable[PS, RT | None]:
         return response.content
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> RT | None:
+    def wrapper(*args, **kwargs):
         use_internal_api = InternalApiConfig.get_use_internal_api()
         if not use_internal_api:
             return func(*args, **kwargs)
