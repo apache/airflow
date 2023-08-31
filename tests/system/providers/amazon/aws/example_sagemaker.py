@@ -255,7 +255,7 @@ def set_up(env_id, role_arn):
         "ProcessingResources": {
             "ClusterConfig": resource_config,
         },
-        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 300},
         "AppSpecification": {
             "ImageUri": ecr_repository_uri,
         },
@@ -294,7 +294,7 @@ def set_up(env_id, role_arn):
         "ExperimentConfig": {"ExperimentName": experiment_name},
         "ResourceConfig": resource_config,
         "RoleArn": role_arn,
-        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 300},
         "TrainingJobName": training_job_name,
     }
     model_trained_weights = (
@@ -357,7 +357,7 @@ def set_up(env_id, role_arn):
             "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}"},
             "ResourceConfig": resource_config,
             "RoleArn": role_arn,
-            "StoppingCondition": {"MaxRuntimeInSeconds": 60},
+            "StoppingCondition": {"MaxRuntimeInSeconds": 300},
         },
     }
     transform_config = {
