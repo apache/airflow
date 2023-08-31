@@ -1142,6 +1142,158 @@ class TestSchedulerJob:
         assert 1 == len(res)
         session.rollback()
 
+    @pytest.mark.parametrize(
+        "concurrency_limit,mapped_tis_state,schedule_count,schedule_tids,queued_count,queued_tids",
+        [
+            [
+                1,
+                dict(),
+                5,
+                {"tg.dummy1"},
+                1,
+                {"tg.dummy1"},
+            ],
+            [
+                1,
+                {0: (State.RUNNING, 30, None)},
+                4,
+                {"tg.dummy1"},
+                0,
+                set(),
+            ],
+            [
+                1,
+                {0: (State.SUCCESS, 30, 15)},
+                5,
+                {"tg.dummy1", "tg.dummy2"},
+                1,
+                {"tg.dummy2"},
+            ],
+            [
+                2,
+                dict(),
+                5,
+                {"tg.dummy1"},
+                2,
+                {"tg.dummy1"},
+            ],
+            [
+                2,
+                {0: (State.RUNNING, 30, None), 1: (State.RUNNING, 30, None)},
+                3,
+                {"tg.dummy1"},
+                0,
+                set(),
+            ],
+            [
+                2,
+                {0: (State.SUCCESS, 30, 15), 1: (State.RUNNING, 30, None)},
+                4,
+                {"tg.dummy1", "tg.dummy2"},
+                1,
+                {"tg.dummy2"},
+            ],
+            [
+                2,
+                {0: (State.RUNNING, 30, None), 1: (State.SUCCESS, 30, 15)},
+                4,
+                {"tg.dummy1", "tg.dummy2"},
+                1,
+                {"tg.dummy2"},
+            ],
+            [
+                2,
+                {0: (State.SUCCESS, 30, 15), 1: (State.SUCCESS, 30, 15)},
+                5,
+                {"tg.dummy1", "tg.dummy2"},
+                2,
+                {"tg.dummy2"},
+            ],
+            [
+                2,
+                {0: (State.SUCCESS, 30, 15), 5: (State.SUCCESS, 30, 15), 1: (State.RUNNING, 30, None)},
+                3,
+                {"tg.dummy1"},
+                1,
+                {"tg.dummy1"},
+            ],
+            [
+                2,
+                {0: (State.SUCCESS, 30, 15), 5: (State.SUCCESS, 30, 15), 1: (State.SUCCESS, 30, 15)},
+                4,
+                {"tg.dummy1", "tg.dummy2"},
+                2,
+                {"tg.dummy1", "tg.dummy2"},
+            ],
+        ],
+    )
+    def test_find_executable_task_instances_with_task_group_concurrency_limit(
+        self,
+        dag_maker,
+        concurrency_limit: int,
+        mapped_tis_state: dict,
+        schedule_count: int,
+        schedule_tids: set,
+        queued_count: int,
+        queued_tids: set,
+    ):
+        """
+        Test if _executable_task_instances_to_queued puts the right task instances into the
+        mock_list.
+        """
+        with dag_maker(dag_id="test_find_executable_task_instances_with_task_group_concurrency_limit"):
+
+            t1 = BashOperator(task_id="dummy", bash_command="sleep 300")
+
+            @task_group(max_active_groups_per_dagrun=concurrency_limit)
+            def tg(what: str):
+                tgt1 = BashOperator(task_id="dummy1", bash_command="sleep 300")
+                tgt2 = BashOperator(task_id="dummy2", bash_command="echo done")
+                tgt1 >> tgt2
+
+            t1 >> tg.expand(what=["ren", "yi", "li", "zhi", "xin"])
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        self.job_runner.processor_agent = mock.MagicMock()
+
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+        )
+        assert dr is not None
+
+        with create_session() as session:
+            tis = dr.get_task_instances(session=session)
+            assert len(tis) == 11
+            (ti1, tg_ti1, tg_ti2, tg_ti3, tg_ti4, tg_ti5, tg_ti6, tg_ti7, tg_ti8, tg_ti9, tg_ti10) = tis
+
+            # fake the task instance running status
+            ti1.state = State.SUCCESS
+            ti1.start_date = timezone.utcnow() - datetime.timedelta(minutes=40)
+            ti1.end_date = timezone.utcnow() - datetime.timedelta(minutes=30)
+            session.merge(ti1)
+            for k, (state, start_date_offset, end_date_offset) in mapped_tis_state.items():
+                tg_ti = tis[k + 1]
+                tg_ti.state = state
+                if start_date_offset:
+                    tg_ti.start_date = timezone.utcnow() - datetime.timedelta(minutes=start_date_offset)
+                if end_date_offset:
+                    tg_ti.end_date = timezone.utcnow() - datetime.timedelta(minutes=end_date_offset)
+                session.merge(tg_ti)
+            session.flush()
+            # TODO: how to trigger mapping?
+
+            self.job_runner._schedule_dag_run(dr, session)
+
+            ti_schedule = session.query(TaskInstance).filter_by(state=State.SCHEDULED).all()
+            assert len(ti_schedule) == schedule_count
+            assert set([ti.task_id for ti in ti_schedule]) == schedule_tids
+
+            ti_queued = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+            assert len(ti_queued) == queued_count
+            assert set([ti.task_id for ti in ti_queued]) == queued_tids
+
     def test_change_state_for_executable_task_instances_no_tis_with_state(self, dag_maker):
         dag_id = "SchedulerJobTest.test_change_state_for__no_tis_with_state"
         task_id_1 = "dummy"
