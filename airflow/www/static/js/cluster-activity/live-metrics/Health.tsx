@@ -113,7 +113,7 @@ const Health = (props: CenterProps) => {
                 latestHeartbeat={
                   data?.dagProcessor?.latestDagProcessorHeartbeat
                 }
-                mb={3}
+                mt={3}
               />
             )}
           </CardBody>
