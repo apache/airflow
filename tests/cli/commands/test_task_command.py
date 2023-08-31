@@ -818,7 +818,7 @@ class TestLogsfromTaskRunCommand:
             session.commit()
 
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is None
-            task_command.task_run(self.parser.parse_args(self.task_args + ["--pool", pool_name]))
+            task_command.task_run(self.parser.parse_args([*self.task_args, "--pool", pool_name]))
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is not None
 
             session.delete(pool)

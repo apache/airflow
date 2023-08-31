@@ -1166,15 +1166,15 @@ class TestEksHooks:
 
         test_inputs = dict(
             deepcopy(
-                # Required Constants
-                [POD_EXECUTION_ROLE_ARN]
-                # Required Variables
-                + [
+                [
+                    # Required Constants
+                    POD_EXECUTION_ROLE_ARN,
+                    # Required Variables
                     (ClusterAttributes.CLUSTER_NAME, cluster_name),
                     (FargateProfileAttributes.FARGATE_PROFILE_NAME, fargate_profile_name),
+                    # Test Case Values
+                    (FargateProfileAttributes.SELECTORS, selectors),
                 ]
-                # Test Case Values
-                + [(FargateProfileAttributes.SELECTORS, selectors)]
             )
         )
 

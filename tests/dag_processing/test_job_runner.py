@@ -499,7 +499,7 @@ class TestDagProcessorJobRunner:
             ["file_3.py", "file_2.py", "file_1.py"]
         )
 
-        manager.processor.set_file_paths(dag_files + ["file_4.py"])
+        manager.processor.set_file_paths([*dag_files, "file_4.py"])
         manager.processor.add_new_file_path_to_queue()
         assert manager.processor._file_path_queue == collections.deque(
             ["file_4.py", "file_3.py", "file_2.py", "file_1.py"]
