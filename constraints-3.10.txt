@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-31T15:37:03Z
+# This constraints file was automatically generated on 2023-08-31T21:59:50Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -72,7 +72,7 @@ aioitertools==0.11.0
 aioresponses==0.7.4
 aiosignal==1.3.1
 alabaster==0.7.13
-alembic==1.11.3
+alembic==1.12.0
 alibabacloud-adb20211201==1.0.0
 alibabacloud-credentials==0.3.2
 alibabacloud-endpoint-util==0.0.3
@@ -185,7 +185,6 @@ async-timeout==4.0.3
 atlasclient==1.0.0
 atlassian-python-api==3.41.1
 attrs==23.1.0
-aws-sam-translator==1.73.0
 aws-xray-sdk==2.12.0
 azure-batch==14.0.0
 azure-common==1.1.28
@@ -231,7 +230,6 @@ celery==5.3.3
 certifi==2023.7.22
 cffi==1.15.1
 cfgv==3.4.0
-cfn-lint==0.77.10
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.2.0
@@ -269,7 +267,6 @@ dnspython==2.4.2
 docker==6.1.3
 docopt==0.6.2
 docutils==0.20.1
-ecdsa==0.18.0
 elastic-transport==8.4.0
 elasticsearch==8.9.0
 email-validator==1.3.1
@@ -348,7 +345,6 @@ google-crc32c==1.5.0
 google-re2==1.1
 google-resumable-media==2.5.0
 googleapis-common-protos==1.60.0
-graphql-core==3.2.3
 graphviz==0.20.1
 greenlet==2.0.2
 grpc-google-iam-v1==0.12.6
@@ -384,17 +380,11 @@ jaraco.classes==3.3.0
 jedi==0.19.0
 jeepney==0.8.0
 jmespath==0.10.0
-jschema-to-python==1.2.3
 json-merge-patch==0.2
-jsondiff==2.0.0
-jsonpatch==1.33
 jsonpath-ng==1.5.3
-jsonpickle==3.0.2
-jsonpointer==2.4
 jsonschema-spec==0.2.4
 jsonschema-specifications==2023.7.1
 jsonschema==4.19.0
-junit-xml==1.9
 jupyter_client==8.3.1
 jupyter_core==5.3.1
 keyring==24.2.0
@@ -423,7 +413,6 @@ mongomock==4.1.2
 monotonic==1.6
 more-itertools==10.1.0
 moto==4.2.0
-mpmath==1.3.0
 msal-extensions==1.0.0
 msal==1.23.0
 msgpack==1.0.5
@@ -442,7 +431,6 @@ mysqlclient==2.2.0
 nbclient==0.8.0
 nbformat==5.9.2
 neo4j==5.12.0
-networkx==3.1
 nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
@@ -503,7 +491,6 @@ psycopg2-binary==2.9.7
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
-py-partiql-parser==0.3.6
 py4j==0.10.9.7
 pyOpenSSL==23.2.0
 pyarrow==11.0.0
@@ -540,13 +527,12 @@ pytest-rerunfailures==12.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.3.1
 pytest==7.4.0
-python-arango==7.6.1
+python-arango==7.6.2
 python-daemon==3.0.1
 python-dateutil==2.8.2
 python-dotenv==1.0.0
 python-http-client==3.3.7
 python-jenkins==1.7.0
-python-jose==3.3.0
 python-ldap==3.4.3
 python-nvd3==0.15.0
 python-slugify==8.0.1
@@ -578,7 +564,6 @@ rpds-py==0.10.0
 rsa==4.9
 ruff==0.0.286
 s3transfer==0.6.2
-sarif-om==1.0.4
 scramp==1.4.4
 scrapbook==0.5.0
 semver==3.0.1
@@ -619,12 +604,10 @@ sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.6.2
 sqlparse==0.4.4
-sshpubkeys==3.3.1
 sshtunnel==0.4.0
 stack-data==0.6.2
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
-sympy==1.12
 tableauserverclient==0.25
 tabulate==0.9.0
 tblib==2.0.0

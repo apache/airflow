@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-31T15:34:37Z
+# This constraints file was automatically generated on 2023-08-31T21:57:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -38,7 +38,7 @@ aiobotocore==2.6.0
 aiohttp==3.8.5
 aioitertools==0.11.0
 aiosignal==1.3.1
-alembic==1.11.3
+alembic==1.12.0
 amqp==5.1.1
 annotated-types==0.5.0
 anyio==4.0.0
@@ -113,7 +113,7 @@ kubernetes-asyncio==24.2.3
 kubernetes==23.6.0
 lazy-object-proxy==1.9.0
 ldap3==2.9.1
-limits==3.5.0
+limits==3.6.0
 linkify-it-py==2.0.2
 locket==1.0.0
 lockfile==0.12.2
