@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-30T20:40:06Z
+# This constraints file was automatically generated on 2023-08-31T03:25:49Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -37,7 +37,7 @@ Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.0.2
 Flask-JWT-Extended==4.5.2
-Flask-Limiter==3.4.1
+Flask-Limiter==3.5.0
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
@@ -89,7 +89,7 @@ analytics-python==1.4.post1
 annotated-types==0.5.0
 ansiwrap==0.8.4
 anyascii==0.3.2
-anyio==3.7.1
+anyio==4.0.0
 apache-airflow-providers-airbyte==3.3.1
 apache-airflow-providers-alibaba==2.5.2
 apache-airflow-providers-amazon==8.6.0
@@ -665,7 +665,7 @@ types-python-slugify==8.0.0.3
 types-pytz==2023.3.0.1
 types-redis==4.6.0.5
 types-requests==2.31.0.2
-types-setuptools==68.1.0.0
+types-setuptools==68.1.0.1
 types-tabulate==0.9.0.3
 types-termcolor==1.1.6.2
 types-toml==0.10.8.7
