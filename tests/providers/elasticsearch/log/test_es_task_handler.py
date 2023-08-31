@@ -115,7 +115,7 @@ class TestElasticsearchTaskHandler:
             )
             return "\n".join(self.es_task_handler._format_msg(lines[i]) for i in range(log_range))
 
-        for _, hosted_log in logs_by_host.items():
+        for hosted_log in logs_by_host.values():
             message = concat_logs(hosted_log)
 
         assert (
