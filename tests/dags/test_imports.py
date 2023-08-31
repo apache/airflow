@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# fmt: off
 
 # this file contains sample code than only needs to pass the lexer
 # it is "badly" formatted on purpose to test edge cases.
@@ -22,23 +23,25 @@
 from __future__ import annotations
 
 # multiline import
-import datetime, enum, time
-
+import  \
+        datetime,   \
+enum,time
 """
 import airflow.in_comment
 """
 # from import
 from airflow.utils import file
-
 # multiline airflow import
-import airflow.decorators, airflow.models, airflow.sensors
+import airflow.decorators, airflow.models\
+, airflow.sensors
 
 if prod:
     import airflow.if_branch
 else:
     import airflow.else_branch
 
-
 def f():
     # local import
     import airflow.local_import
+
+# fmt: on
