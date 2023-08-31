@@ -468,8 +468,8 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         """
         watchdog = asyncio.create_task(self.block_watchdog())
         last_status = time.time()
-        while not self.stop:
-            try:
+        try:
+            while not self.stop:
                 # Run core logic
                 await self.create_triggers()
                 await self.cancel_triggers()
@@ -481,9 +481,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     count = len(self.triggers)
                     self.log.info("%i triggers currently running", count)
                     last_status = time.time()
-            except Exception:
-                self.stop = True
-                raise
+        except Exception:
+            self.stop = True
+            raise
         # Wait for watchdog to complete
         await watchdog
 
