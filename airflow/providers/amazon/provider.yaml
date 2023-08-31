@@ -718,8 +718,9 @@ config:
     options:
       session_factory:
         description: |
-          Full import path to the class which implements a custom session factory for ``boto3.session.Session``.
-          For more details please have a look at :ref:`howto/connection:aws:session-factory`.
+          Full import path to the class which implements a custom session factory for
+          ``boto3.session.Session``. For more details please have a look at
+          :ref:`howto/connection:aws:session-factory`.
         default: ~
         example: my_company.aws.MyCustomSessionFactory
         type: string
