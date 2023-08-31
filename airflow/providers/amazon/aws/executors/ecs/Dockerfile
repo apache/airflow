@@ -10,7 +10,15 @@ RUN    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscl
 RUN    unzip awscliv2.zip && ./aws/install
 
 # Add a script to run the aws s3 sync command when the container is run
-COPY entrypoint.sh /entrypoint.sh
+COPY <<"EOF" /entrypoint.sh
+#!/bin/bash
+
+echo "Downloading DAGs from S3 bucket"
+aws s3 sync "$S3_URL" "$CONTAINER_DAG_PATH"
+
+exec "$@"
+EOF
+
 RUN chmod +x /entrypoint.sh
 
 USER airflow
