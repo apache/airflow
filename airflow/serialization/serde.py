@@ -317,7 +317,7 @@ def _is_pydantic(cls: Any) -> bool:
     Checking is done by attributes as it is significantly faster than
     using isinstance.
     """
-    return hasattr(cls, "__validators__") and hasattr(cls, "__fields__") and hasattr(cls, "dict")
+    return hasattr(cls, "model_config") and hasattr(cls, "model_fields") and hasattr(cls, "model_fields_set")
 
 
 def _register():
