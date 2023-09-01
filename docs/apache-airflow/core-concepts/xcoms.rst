@@ -29,6 +29,8 @@ XComs are explicitly "pushed" and "pulled" to/from their storage using the ``xco
 
 To push a value within a task called **"task-1"** that will be used by another task:
 
+.. code-block:: python
+
     # pushes data in any_serializable_value into xcom with key "identifier as string"
     task_instance.xcom_push(key="identifier as string", value=any_serializable_value)
 
