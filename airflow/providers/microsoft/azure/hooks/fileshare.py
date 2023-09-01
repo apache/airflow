@@ -52,9 +52,9 @@ class AzureFileShareHook(BaseHook):
         self.file_path = file_path
         self.directory_path = directory_path
         self._account_url: str | None = None
-        self._connection_string = None
-        self._account_access_key = None
-        self._sas_token = None
+        self._connection_string: str | None = None
+        self._account_access_key: str | None = None
+        self._sas_token: str | None = None
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -104,16 +104,14 @@ class AzureFileShareHook(BaseHook):
 
     @property
     def share_service_client(self):
-
         self.get_conn()
         if self._connection_string:
             return ShareServiceClient.from_connection_string(
                 conn_str=self._connection_string,
             )
-        elif self._account_url and self._account_access_key:
-            return ShareServiceClient(account_url=self._account_url, credential=self._account_access_key)
-        elif self._account_url and self._sas_token:
-            return ShareServiceClient(account_url=self._account_url, credential=self._sas_token)
+        elif self._account_url and (self._sas_token or self._account_access_key):
+            credential = self._sas_token or self._account_access_key
+            return ShareServiceClient(account_url=self._account_url, credential=credential)
         else:
             return ShareServiceClient(
                 account_url=self._account_url, credential=DefaultAzureCredential(), token_intent="backup"
@@ -121,26 +119,19 @@ class AzureFileShareHook(BaseHook):
 
     @property
     def share_directory_client(self):
-
         if self._connection_string:
             return ShareDirectoryClient.from_connection_string(
                 conn_str=self._connection_string,
                 share_name=self.share_name,
                 directory_path=self.directory_path,
             )
-        elif self._account_url and self._account_access_key:
+        elif self._account_url and (self._sas_token or self._account_access_key):
+            credential = self._sas_token or self._account_access_key
             return ShareDirectoryClient(
                 account_url=self._account_url,
                 share_name=self.share_name,
                 directory_path=self.directory_path,
-                credential=self._account_access_key,
-            )
-        elif self._account_url and self._sas_token:
-            return ShareDirectoryClient(
-                account_url=self._account_url,
-                share_name=self.share_name,
-                directory_path=self.directory_path,
-                credential=self._sas_token,
+                credential=credential,
             )
         else:
             return ShareDirectoryClient(
@@ -159,19 +150,13 @@ class AzureFileShareHook(BaseHook):
                 share_name=self.share_name,
                 file_path=self.file_path,
             )
-        elif self._account_url and self._account_access_key:
+        elif self._account_url and (self._sas_token or self._account_access_key):
+            credential = self._sas_token or self._account_access_key
             return ShareFileClient(
                 account_url=self._account_url,
                 share_name=self.share_name,
                 file_path=self.file_path,
-                credential=self._account_access_key,
-            )
-        elif self._account_url and self._sas_token:
-            return ShareFileClient(
-                account_url=self._account_url,
-                share_name=self.share_name,
-                file_path=self.file_path,
-                credential=self._sas_token,
+                credential=credential,
             )
         else:
             return ShareFileClient(

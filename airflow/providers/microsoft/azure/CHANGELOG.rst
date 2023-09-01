@@ -34,22 +34,20 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 .. warning::
-  In this version of the provider, we have changed AzureFileShareHook to use azure-storage-file-share API instead of azure-storage-file,
-  removed deprecated extra__azure_fileshare__ prefix from connection extras and removed protocol param from connection extras
+  In this version of the provider, we have changed AzureFileShareHook to use azure-storage-file-share library instead
+  of azure-storage-file this change has impact on existing hook method see below for details, removed deprecated
+  extra__azure_fileshare__ prefix from connection extras param and removed protocol param from connection extras
 
 * get_conn from AzureFileShareHook return None instead FileService
 * Remove protocol param from Azure fileshare connection extras
-* Remove deprecated extra__azure_fileshare__ prefix from Azure fileshare connection extras
-* Remove share_name, directory_name param from AzureFileShareHook.check_for_directory in favor of AzureFileShareHook share_name and directory_path param
-* Remove share_name, directory_name param from AzureFileShareHook.check_for_file method in favor of AzureFileShareHook share_name and directory_path param
-* Remove share_name, directory_name param from AzureFileShareHook.list_directories_and_files
-* Remove share_name, directory_name param from AzureFileShareHook.list_files in favor of AzureFileShareHook share_name and directory_path param
-* AzureFileShareHook method create_share accept kwargs from ShareServiceClient.create_share instead of FileService.create_share
-* AzureFileShareHook method delete_share accept kwargs from ShareServiceClient.delete_share instead of FileService.delete_share
-* Remove share_name, directory_name param from AzureFileShareHook.create_directory in favor of AzureFileShareHook share_name and directory_path param
-* Remove share_name, directory_name, file_name param from AzureFileShareHook.get_file in favor of AzureFileShareHook share_name and file_path
-* Remove share_name, directory_name, file_name param from AzureFileShareHook.get_file_to_stream in favor of AzureFileShareHook share_name and file_path
-* Remove share_name, directory_name, file_name param from AzureFileShareHook.load_file in favor of AzureFileShareHook share_name and file_path
+* Remove deprecated extra__azure_fileshare__ prefix from Azure fileshare connection extras, list_files
+* Remove share_name, directory_name param from AzureFileShareHook method check_for_directory,
+  list_directories_and_files, create_directory in favor of AzureFileShareHook share_name and directory_path param
+* AzureFileShareHook method create_share and delete_share accept kwargs from ShareServiceClient.create_share
+  and ShareServiceClient.delete_share
+* Remove share_name, directory_name, file_name param from AzureFileShareHook method get_file, get_file_to_stream
+  and load_file in favor of AzureFileShareHook share_name and file_path
+* Remove AzureFileShareHook.check_for_file method
 * Remove AzureFileShareHook.load_string, AzureFileShareHook.load_stream in favor of AzureFileShareHook.load_data
 
 6.3.0
