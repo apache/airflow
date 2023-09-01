@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-01T15:56:22Z
+# This constraints file was automatically generated on 2023-09-01T19:20:41Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -252,7 +252,7 @@ cron-descriptor==1.4.0
 croniter==1.4.1
 cryptography==41.0.3
 curlify==2.2.1
-dask==2023.8.1
+dask==2023.9.0
 databricks-sql-connector==2.9.3
 datadog==0.46.0
 db-dtypes==1.1.1
@@ -261,7 +261,7 @@ defusedxml==0.7.1
 deprecation==2.1.0
 dill==0.3.1.1
 distlib==0.3.7
-distributed==2023.8.1
+distributed==2023.9.0
 dnspython==2.4.2
 docker==6.1.3
 docopt==0.6.2
@@ -560,7 +560,7 @@ rich-click==1.6.1
 rich==13.5.2
 rpds-py==0.10.0
 rsa==4.9
-ruff==0.0.286
+ruff==0.0.287
 s3transfer==0.6.2
 scramp==1.4.4
 scrapbook==0.5.0
