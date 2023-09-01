@@ -191,7 +191,7 @@ class TriggerRuleDep(BaseTIDep):
                 return
             # Otherwise we need to figure out which map indexes are depended on
             # for each upstream by the current task instance.
-            for upstream_id, upstream_task in relevant_tasks.items():
+            for upstream_id in relevant_tasks.keys():
                 map_indexes = _get_relevant_upstream_map_indexes(upstream_id)
                 if map_indexes is None:  # All tis of this upstream are dependencies.
                     yield (TaskInstance.task_id == upstream_id)
