@@ -1463,7 +1463,6 @@ We don't create new issues on JIRA anymore. The reason we still look at JIRA iss
    * notifications (#announcements channel)
    * random queries (#random channel)
    * regional announcements (#users-* channels)
-   * newbie questions (#newbie-questions channel)
    * occasional discussions (wherever appropriate including group and 1-1 discussions)
 
 Please exercise caution against posting same questions across multiple channels. Doing so not only prevents
