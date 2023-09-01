@@ -24,6 +24,8 @@ from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from flask import Flask
+
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import CLICommand
     from airflow.www.security_manager import AirflowSecurityManagerV2
@@ -36,8 +38,9 @@ class BaseAuthManager(LoggingMixin):
     Auth managers are responsible for any user management related operation such as login, logout, authz, ...
     """
 
-    def __init__(self):
+    def __init__(self, app: Flask):
         self._security_manager: AirflowSecurityManagerV2 | None = None
+        self.app = app
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:

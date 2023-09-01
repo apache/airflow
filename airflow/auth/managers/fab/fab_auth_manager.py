@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING
 
 from airflow import AirflowException
@@ -90,8 +91,24 @@ class FabAuthManager(BaseAuthManager):
     def get_security_manager_override_class(self) -> type:
         """Return the security manager override."""
         from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+        from airflow.www.security import AirflowSecurityManager
 
-        return FabAirflowSecurityManagerOverride
+        sm_from_config = self.app.config.get("SECURITY_MANAGER_CLASS")
+        if sm_from_config:
+            if not issubclass(sm_from_config, AirflowSecurityManager):
+                raise Exception(
+                    """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride,
+                     not FAB's own security manager."""
+                )
+            if not issubclass(sm_from_config, FabAirflowSecurityManagerOverride):
+                warnings.warn(
+                    "Please make your custom security manager inherit from "
+                    "FabAirflowSecurityManagerOverride instead of AirflowSecurityManager.",
+                    DeprecationWarning,
+                )
+            return sm_from_config
+
+        return FabAirflowSecurityManagerOverride  # default choice
 
     def url_for(self, *args, **kwargs):
         """Wrapper to allow mocking without having to import at the top of the file."""

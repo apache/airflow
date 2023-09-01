@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from functools import reduce
 from typing import TYPE_CHECKING
 
@@ -41,12 +40,14 @@ from flask_appbuilder.views import IndexView, UtilView
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.www.extensions.init_auth_manager import get_auth_manager
+from airflow.www.extensions.init_auth_manager import get_auth_manager, init_auth_manager
 
 if TYPE_CHECKING:
+    from flask import Flask
     from flask_appbuilder import BaseView
     from flask_appbuilder.security.manager import BaseSecurityManager
     from sqlalchemy.orm import Session
+
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
@@ -659,31 +660,13 @@ class AirflowAppBuilder:
                         view.get_init_inner_views().append(v)
 
 
-def init_appbuilder(app) -> AirflowAppBuilder:
+def init_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
-    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
-    from airflow.www.security import AirflowSecurityManager
-
-    sm_from_config = app.config.get("SECURITY_MANAGER_CLASS")
-    if sm_from_config:
-        if not issubclass(sm_from_config, AirflowSecurityManager):
-            raise Exception(
-                """Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride,
-                 not FAB's own security manager."""
-            )
-        if not issubclass(sm_from_config, FabAirflowSecurityManagerOverride):
-            warnings.warn(
-                "Please make your custom security manager inherit from "
-                "FabAirflowSecurityManagerOverride instead of AirflowSecurityManager.",
-                DeprecationWarning,
-            )
-
-    security_manager_class = sm_from_config or FabAirflowSecurityManagerOverride
-
+    auth_manager = init_auth_manager(app)
     return AirflowAppBuilder(
         app=app,
         session=settings.Session,
-        security_manager_class=security_manager_class,
+        security_manager_class=auth_manager.get_security_manager_override_class(),
         base_template="airflow/main.html",
         update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
         auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),
