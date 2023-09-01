@@ -5142,29 +5142,29 @@ class VariableModelView(AirflowModelView):
         """Import variables."""
         try:
             variable_dict = json.loads(request.files["file"].read())
-            action_if_exists = request.form.get("action_if_exists", "overwrite").lower()
+            action_on_existing = request.form.get("action_if_exists", "overwrite").lower()
         except Exception:
             self.update_redirect()
             flash("Missing file or syntax error.", "error")
             return redirect(self.get_redirect())
         else:
-            if action_if_exists == "fail":
-                existing_key = set(
+            existing_keys = set()
+            if action_on_existing != "overwrite":
+                existing_keys = set(
                     session.scalars(select(models.Variable.key).where(models.Variable.key.in_(variable_dict)))
                 )
-                if existing_key:
-                    failed_repr = ", ".join(repr(k) for k in sorted(existing_key))
-                    flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
-                    logging.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
-                    return redirect(location=request.referrer)
+            if action_on_existing == "fail" and existing_keys:
+                failed_repr = ", ".join(repr(k) for k in sorted(existing_keys))
+                flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                logging.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                return redirect(location=request.referrer)
             skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
-                if action_if_exists == "skip":
-                    if session.scalar(select(models.Variable).where(models.Variable.key == k)):
-                        logging.warning("Variable: %s already exists, skipping.", k)
-                        skipped.add(k)
-                        continue
+                if action_on_existing == "skip" and k in existing_keys:
+                    logging.warning("Variable: %s already exists, skipping.", k)
+                    skipped.add(k)
+                    continue
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as exc:

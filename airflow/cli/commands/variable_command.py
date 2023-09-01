@@ -89,16 +89,15 @@ def variables_import(args, session):
     suc_count = fail_count = 0
     skipped = set()
     action_on_existing = args.action_on_existing_key
-    if action_on_existing == "fail":
-        existing_key = set(session.scalars(select(Variable.key).where(Variable.key.in_(var_json))))
-        if existing_key:
-            raise SystemExit(f"Failed. These keys: {sorted(existing_key)} already exists.")
-
+    existing_keys = set()
+    if action_on_existing != "overwrite":
+        existing_keys = set(session.scalars(select(Variable.key).where(Variable.key.in_(var_json))))
+    if action_on_existing == "fail" and existing_keys:
+        raise SystemExit(f"Failed. These keys: {sorted(existing_keys)} already exists.")
     for k, v in var_json.items():
-        if action_on_existing == "skip":
-            if session.scalar(select(Variable).where(Variable.key == k)):
-                skipped.add(k)
-                continue
+        if action_on_existing == "skip" and k in existing_keys:
+            skipped.add(k)
+            continue
         try:
             Variable.set(k, v, serialize_json=not isinstance(v, str))
         except Exception as e:
