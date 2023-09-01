@@ -92,7 +92,7 @@ def variables_import(args, session):
     if action_on_existing == "fail":
         existing_key = set(session.scalars(select(Variable.key).where(Variable.key.in_(var_json))))
         if existing_key:
-            raise SystemExit(f"Failed. These keys: {list(sorted(existing_key))}  already exists.")
+            raise SystemExit(f"Failed. These keys: {sorted(existing_key)} already exists.")
 
     for k, v in var_json.items():
         if action_on_existing == "skip":
