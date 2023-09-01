@@ -38,6 +38,20 @@ class DagOwnerAttributesPydantic(BaseModelPydantic):
         arbitrary_types_allowed = True
 
 
+class DagTagPydantic(BaseModelPydantic):
+    """Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API."""
+
+    name: str
+    dag_id: str
+
+    class Config:
+        """Make sure it deals automatically with SQLAlchemy ORM classes."""
+
+        from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
+        arbitrary_types_allowed = True
+
+
 class DagModelPydantic(BaseModelPydantic):
     """Serializable representation of the DagModel ORM SqlAlchemyModel used by internal API."""
 
@@ -59,7 +73,7 @@ class DagModelPydantic(BaseModelPydantic):
     default_view: Optional[str]  # noqa
     schedule_interval: Optional[str]  # noqa
     timetable_description: Optional[str]  # noqa
-    tags: List[str]  # noqa
+    tags: List[DagTagPydantic]  # noqa
     dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa
 
     max_active_tasks: int
