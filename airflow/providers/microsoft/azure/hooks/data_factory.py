@@ -855,8 +855,8 @@ class AzureDataFactoryHook(BaseHook):
             except ServiceRequestError:
                 if executed_after_token_refresh:
                     self.refresh_conn()
-                    continue
-                raise
+                else:
+                    raise
 
         return pipeline_run_status in expected_statuses
 

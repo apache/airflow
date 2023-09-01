@@ -123,7 +123,7 @@ class TestRpcApiEndpoint:
 
         assert result_cmp_func(response_data, method_result)
 
-        mock_test_method.assert_called_once_with(**method_params)
+        mock_test_method.assert_called_once_with(**method_params, session=mock.ANY)
 
     def test_method_with_exception(self):
         mock_test_method.side_effect = ValueError("Error!!!")

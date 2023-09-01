@@ -194,16 +194,15 @@ def main() -> None:
     rows = []
     times = []
 
-    for i in range(4):
+    for test_no in range(4):
         sleep(5)
         queries, exec_time = run_test()
-        if i == 0:
-            continue
-        times.append(exec_time)
-        for qry in queries:
-            info = qry.to_dict()
-            info["test_no"] = i
-            rows.append(info)
+        if test_no:
+            times.append(exec_time)
+            for qry in queries:
+                info = qry.to_dict()
+                info["test_no"] = test_no
+                rows.append(info)
 
     rows_to_csv(rows, name="/files/sql_after_remote.csv")
     print(times)

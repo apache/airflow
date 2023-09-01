@@ -25,7 +25,6 @@ import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Mapping, Sequence, Union
 
 import attr
-from typing_extensions import Literal
 
 from airflow import settings
 from airflow.compat.functools import cache
@@ -52,6 +51,7 @@ from airflow.models.expandinput import (
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
+from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
 from airflow.utils.helpers import is_container, prevent_duplicates
 from airflow.utils.types import NOTSET

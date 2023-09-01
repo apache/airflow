@@ -250,8 +250,7 @@ def get_filesystem_type(filepath: str):
     for part in psutil.disk_partitions(all=True):
         if part.mountpoint == "/":
             root_type = part.fstype
-            continue
-        if filepath.startswith(part.mountpoint):
+        elif filepath.startswith(part.mountpoint):
             return part.fstype
 
     return root_type

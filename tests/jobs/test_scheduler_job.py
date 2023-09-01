@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections
+import contextlib
 import datetime
 import logging
 import os
@@ -3016,10 +3017,8 @@ class TestSchedulerJob:
         ti.task = dag_task1
 
         def run_with_error(ti, ignore_ti_state=False):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run(ignore_ti_state=ignore_ti_state)
-            except AirflowException:
-                pass
 
         assert ti.try_number == 1
         # At this point, scheduler has tried to schedule the task once and

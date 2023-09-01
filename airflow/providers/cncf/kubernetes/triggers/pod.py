@@ -140,8 +140,8 @@ class KubernetesPodTrigger(BaseTrigger):
         """Gets current pod status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
-        while True:
-            try:
+        try:
+            while True:
                 pod = await hook.get_pod(
                     name=self.pod_name,
                     namespace=self.pod_namespace,
@@ -195,40 +195,38 @@ class KubernetesPodTrigger(BaseTrigger):
                         }
                     )
                     return
-            except CancelledError:
-                # That means that task was marked as failed
-                if self.get_logs:
-                    self.log.info("Outputting container logs...")
-                    await self._get_async_hook().read_logs(
-                        name=self.pod_name,
-                        namespace=self.pod_namespace,
-                    )
-                if self.on_finish_action == OnFinishAction.DELETE_POD:
-                    self.log.info("Deleting pod...")
-                    await self._get_async_hook().delete_pod(
-                        name=self.pod_name,
-                        namespace=self.pod_namespace,
-                    )
-                yield TriggerEvent(
-                    {
-                        "name": self.pod_name,
-                        "namespace": self.pod_namespace,
-                        "status": "cancelled",
-                        "message": "Pod execution was cancelled",
-                    }
+        except CancelledError:
+            # That means that task was marked as failed
+            if self.get_logs:
+                self.log.info("Outputting container logs...")
+                await self._get_async_hook().read_logs(
+                    name=self.pod_name,
+                    namespace=self.pod_namespace,
                 )
-                return
-            except Exception as e:
-                self.log.exception("Exception occurred while checking pod phase:")
-                yield TriggerEvent(
-                    {
-                        "name": self.pod_name,
-                        "namespace": self.pod_namespace,
-                        "status": "error",
-                        "message": str(e),
-                    }
+            if self.on_finish_action == OnFinishAction.DELETE_POD:
+                self.log.info("Deleting pod...")
+                await self._get_async_hook().delete_pod(
+                    name=self.pod_name,
+                    namespace=self.pod_namespace,
                 )
-                return
+            yield TriggerEvent(
+                {
+                    "name": self.pod_name,
+                    "namespace": self.pod_namespace,
+                    "status": "cancelled",
+                    "message": "Pod execution was cancelled",
+                }
+            )
+        except Exception as e:
+            self.log.exception("Exception occurred while checking pod phase:")
+            yield TriggerEvent(
+                {
+                    "name": self.pod_name,
+                    "namespace": self.pod_namespace,
+                    "status": "error",
+                    "message": str(e),
+                }
+            )
 
     def _get_async_hook(self) -> AsyncKubernetesHook:
         if self._hook is None:

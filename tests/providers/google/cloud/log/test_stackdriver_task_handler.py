@@ -41,10 +41,9 @@ def clean_stackdriver_handlers():
     yield
     for handler_ref in reversed(logging._handlerList[:]):
         handler = handler_ref()
-        if not isinstance(handler, StackdriverTaskHandler):
-            continue
-        logging._removeHandlerRef(handler_ref)
-        del handler
+        if isinstance(handler, StackdriverTaskHandler):
+            logging._removeHandlerRef(handler_ref)
+            del handler
 
 
 @pytest.mark.usefixtures("clean_stackdriver_handlers")

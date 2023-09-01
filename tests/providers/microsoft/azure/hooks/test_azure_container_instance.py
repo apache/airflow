@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from azure.mgmt.containerinstance.models import (
@@ -30,6 +30,17 @@ from azure.mgmt.containerinstance.models import (
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
+
+
+@pytest.fixture(scope="function")
+def connection_without_login_password_tenant_id(create_mock_connection):
+    return create_mock_connection(
+        Connection(
+            conn_id="azure_container_instance_test",
+            conn_type="azure_container_instances",
+            extra={"subscriptionId": "subscription_id"},
+        )
+    )
 
 
 class TestAzureContainerInstanceHook:
@@ -47,7 +58,9 @@ class TestAzureContainerInstanceHook:
         self.resources = ResourceRequirements(requests=ResourceRequests(memory_in_gb="4", cpu="1"))
         self.hook = AzureContainerInstanceHook(azure_conn_id=mock_connection.conn_id)
         with patch("azure.mgmt.containerinstance.ContainerInstanceManagementClient"), patch(
-            "azure.common.credentials.ServicePrincipalCredentials.__init__", autospec=True, return_value=None
+            "azure.common.credentials.ServicePrincipalCredentials.__init__",
+            autospec=True,
+            return_value=None,
         ):
             yield
 
@@ -110,3 +123,32 @@ class TestAzureContainerInstanceHook:
         status, msg = self.hook.test_connection()
         assert status is False
         assert msg == "Authentication failed."
+
+
+class TestAzureContainerInstanceHookWithoutSetupCredential:
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.ContainerInstanceManagementClient")
+    @patch("azure.common.credentials.ServicePrincipalCredentials")
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.DefaultAzureCredential")
+    def test_get_conn_fallback_to_default_azure_credential(
+        self,
+        mock_default_azure_credential,
+        mock_service_pricipal_credential,
+        mock_client_cls,
+        connection_without_login_password_tenant_id,
+    ):
+        mock_credential = MagicMock()
+        mock_default_azure_credential.return_value = mock_credential
+
+        mock_client_instance = MagicMock()
+        mock_client_cls.return_value = mock_client_instance
+
+        hook = AzureContainerInstanceHook(azure_conn_id=connection_without_login_password_tenant_id.conn_id)
+        conn = hook.get_conn()
+
+        mock_default_azure_credential.assert_called_once()
+        assert not mock_service_pricipal_credential.called
+        assert conn == mock_client_instance
+        mock_client_cls.assert_called_once_with(
+            credential=mock_credential,
+            subscription_id="subscription_id",
+        )
