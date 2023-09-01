@@ -60,9 +60,7 @@ class TaskContextLogger:
     def _should_log(self) -> bool:
         if not TASK_CONTEXT_LOGGER_ENABLED:
             return False
-        if not hasattr(self.task_handler, "supports_task_context_logging") or not getattr(
-            self.task_handler, "supports_task_context_logging", False
-        ):
+        if not getattr(self.task_handler, "supports_task_context_logging", False):
             logger.warning("Task handler does not support task context logging")
             return False
         return True
