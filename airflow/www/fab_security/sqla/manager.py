@@ -537,10 +537,7 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.rollback()
 
     def perms_include_action(self, perms, action_name):
-        for perm in perms:
-            if perm.action and perm.action.name == action_name:
-                return True
-        return False
+        return any(perm.action and perm.action.name == action_name for perm in perms)
 
     def add_permission_to_role(self, role: Role, permission: Permission | None) -> None:
         """
