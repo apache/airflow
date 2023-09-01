@@ -5495,11 +5495,32 @@ class LogModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ["id", "dttm", "dag_id", "task_id", "event", "execution_date", "owner", "extra"]
-    search_columns = ["dttm", "dag_id", "task_id", "event", "execution_date", "owner", "extra"]
+    list_columns = [
+        "id",
+        "dttm",
+        "dag_id",
+        "task_id",
+        "event",
+        "execution_date",
+        "owner",
+        "friendly_owner",
+        "extra",
+    ]
+    search_columns = [
+        "dttm",
+        "dag_id",
+        "task_id",
+        "event",
+        "execution_date",
+        "owner",
+        "friendly_owner",
+        "extra",
+    ]
 
     label_columns = {
         "execution_date": "Logical Date",
+        "owner": "Owner ID",
+        "friendly_owner": "Owner Name",
     }
 
     base_order = ("dttm", "desc")
