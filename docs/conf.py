@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from packaging.version import parse as parse_version
+from packaging.version import Version, parse as parse_version
 
 import airflow
 from airflow.configuration import AirflowConfigParser, retrieve_configuration_description
@@ -410,6 +410,7 @@ airflow_version = parse_version(
 
 def get_configs_and_deprecations(
     package_name: str,
+    package_version: Version,
 ) -> tuple[dict[str, dict[str, tuple[str, str, str]]], dict[str, dict[str, tuple[str, str, str]]]]:
     deprecated_options: dict[str, dict[str, tuple[str, str, str]]] = defaultdict(dict)
     for (section, key), (
@@ -438,7 +439,7 @@ def get_configs_and_deprecations(
                 if option[key] and "{{" in option[key]:
                     option[key] = option[key].replace("{{", "{").replace("}}", "}")
             version_added = option["version_added"]
-            if version_added is not None and parse_version(version_added) > airflow_version:
+            if version_added is not None and parse_version(version_added) > package_version:
                 del conf_section["options"][option_name]
 
     # Sort options, config and deprecated options for JINJA variables to display
@@ -452,7 +453,7 @@ def get_configs_and_deprecations(
 
 # Jinja context
 if PACKAGE_NAME == "apache-airflow":
-    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME)
+    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME, airflow_version)
     jinja_contexts = {
         "config_ctx": {"configs": configs, "deprecated_options": deprecated_options},
         "quick_start_ctx": {
@@ -465,7 +466,7 @@ if PACKAGE_NAME == "apache-airflow":
         },
     }
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
-    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME)
+    configs, deprecated_options = get_configs_and_deprecations(PACKAGE_NAME, parse_version(PACKAGE_VERSION))
     jinja_contexts = {
         "config_ctx": {
             "configs": configs,
