@@ -60,9 +60,10 @@ def extract_section(content, section_name):
 if __name__ == "__main__":
     readme_file = AIRFLOW_SOURCES / "README.md"
     pypi_readme_file = AIRFLOW_SOURCES / "generated" / "PYPI_README.md"
+    license_file = AIRFLOW_SOURCES / "scripts" / "ci" / "license-templates" / "LICENSE.md"
 
     readme_content = readme_file.read_text()
-    generated_pypi_readme_content = PYPI_README_HEADER
+    generated_pypi_readme_content = license_file.read_text() + "\n" + PYPI_README_HEADER
     for section in README_SECTIONS_TO_EXTRACT:
         section_content = extract_section(readme_content, section)
         generated_pypi_readme_content += section_content

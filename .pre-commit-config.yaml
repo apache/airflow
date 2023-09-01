@@ -137,7 +137,7 @@ repos:
       - id: insert-license
         name: Add license for all Markdown files
         files: \.md$
-        exclude: PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/|generated/PYPI_README\.md$
+        exclude: PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/
         args:
           - --comment-style
           - "<!--|| -->"
