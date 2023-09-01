@@ -188,7 +188,7 @@ There are certain expectations from the members of the security team:
   experts that are available through Airflow stakeholders. The intent about involving 3rd parties has
   to be discussed and agreed upon at security@airflow.apache.org.
 
-* They have to have an [ICLA](https://www.apache.org/licenses/contributor-agreements.html) signed with
+* They have to have an `ICLA <https://www.apache.org/licenses/contributor-agreements.html>`_ signed with
   Apache Software Foundation.
 
 * The security team members might inform 3rd parties about fixes, for example in order to assess if the fix
@@ -212,7 +212,7 @@ There are certain expectations from the members of the security team:
   release process. This is facilitated by the security tool provided by the Apache Software Foundation.
 
 * Severity of the issue is determined based on the criteria described in the
-  [Severity Rating blog post](https://security.apache.org/blog/severityrating/)  by the Apache Software
+  `Severity Rating blog post <https://security.apache.org/blog/severityrating/>`_  by the Apache Software
   Foundation Security team
 
 Contribution Workflow
