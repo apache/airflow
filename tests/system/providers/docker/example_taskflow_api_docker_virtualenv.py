@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+
 # [START tutorial]
 # [START import_module]
 import os
@@ -109,12 +111,10 @@ with models.DAG(
     # The try/except here is because Airflow versions less than 2.2.0 doesn't support
     # @task.docker decorator and we use this dag in CI test. Thus, in order not to
     # break the CI test, we added this try/except here.
-    try:
+    with contextlib.suppress(AttributeError):
         # [START dag_invocation]
         tutorial_dag = tutorial_taskflow_api_docker_virtualenv()
         # [END dag_invocation]
-    except AttributeError:
-        pass
 
 from tests.system.utils import get_test_run  # noqa: E402
 
