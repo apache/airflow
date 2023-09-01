@@ -144,7 +144,7 @@ class TriggerRuleDep(BaseTIDep):
             except (NotFullyPopulated, NotMapped):
                 return None
             return ti.get_relevant_upstream_map_indexes(
-                upstream=ti.dag.task_dict[upstream_id],
+                upstream=ti.task.dag.task_dict[upstream_id],
                 ti_count=expanded_ti_count,
                 session=session,
             )
