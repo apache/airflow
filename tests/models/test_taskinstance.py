@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import datetime
 import operator
 import os
@@ -598,10 +599,8 @@ class TestTaskInstance:
             )
 
         def run_with_error(ti):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
@@ -637,10 +636,8 @@ class TestTaskInstance:
             )
 
         def run_with_error(ti):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
@@ -1878,10 +1875,8 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
 
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowException:
-            pass
 
         (email, title, body), _ = mock_send_email.call_args
         assert email == "to"
@@ -1908,10 +1903,8 @@ class TestTaskInstance:
 
         opener = mock_open(read_data="template: {{ti.task_id}}")
         with patch("airflow.models.taskinstance.open", opener, create=True):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         (email, title, body), _ = mock_send_email.call_args
         assert email == "to"
@@ -1933,18 +1926,14 @@ class TestTaskInstance:
         opener = mock_open(read_data="template: {{ti.task_id}}")
         opener.side_effect = FileNotFoundError
         with patch("airflow.models.taskinstance.open", opener, create=True):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         (email_error, title_error, body_error), _ = mock_send_email.call_args
 
         # Rerun task without any error and no template file
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowException:
-            pass
 
         (email_default, title_default, body_default), _ = mock_send_email.call_args
 
@@ -2837,10 +2826,8 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowFailException:
-            pass  # expected
         assert State.FAILED == ti.state
 
     def test_retries_on_other_exceptions(self, dag_maker):
@@ -2855,10 +2842,8 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowException:
-            pass  # expected
         assert State.UP_FOR_RETRY == ti.state
 
     @patch.object(TaskInstance, "logger")

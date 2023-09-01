@@ -43,7 +43,7 @@
 
     Connection Types <connections/index>
     Operators <operators/index>
-    Slack Notifications <notifications/slack_notifier_howto_guide>
+    Slack Notifications <notifications/index>
 
 .. toctree::
     :hidden:

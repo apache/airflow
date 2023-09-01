@@ -226,10 +226,7 @@ class _DataflowJobsController(LoggingMixin):
         if not self._jobs:
             return False
 
-        for job in self._jobs:
-            if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES:
-                return True
-        return False
+        return any(job["currentState"] not in DataflowJobStatus.TERMINAL_STATES for job in self._jobs)
 
     def _get_current_jobs(self) -> list[dict]:
         """

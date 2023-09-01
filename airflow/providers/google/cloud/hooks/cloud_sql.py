@@ -437,15 +437,12 @@ class CloudSQLAsyncHook(GoogleBaseAsyncHook):
 
     async def get_operation(self, project_id: str, operation_name: str):
         async with ClientSession() as session:
-            try:
-                operation = await self.get_operation_name(
-                    project_id=project_id,
-                    operation_name=operation_name,
-                    session=session,
-                )
-                operation = await operation.json(content_type=None)
-            except HttpError as e:
-                raise e
+            operation = await self.get_operation_name(
+                project_id=project_id,
+                operation_name=operation_name,
+                session=session,
+            )
+            operation = await operation.json(content_type=None)
             return operation
 
 

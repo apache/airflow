@@ -688,6 +688,7 @@ connection-types:
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
   - airflow.providers.amazon.aws.notifications.sns.SnsNotifier
+  - airflow.providers.amazon.aws.notifications.sqs.SqsNotifier
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
