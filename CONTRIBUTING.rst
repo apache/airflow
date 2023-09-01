@@ -213,7 +213,7 @@ There are certain expectations from the members of the security team:
 
 * Severity of the issue is determined based on the criteria described in the
   `Severity Rating blog post <https://security.apache.org/blog/severityrating/>`_  by the Apache Software
-  Foundation Security team
+  Foundation Security team.
 
 Contribution Workflow
 =====================
