@@ -1756,11 +1756,7 @@ class TestSchedulerJob:
             # Need to use something that doesn't immediately get marked as success by the scheduler
             BashOperator(task_id="task", bash_command="true")
 
-        dag_run = dag_maker.create_dagrun(
-            state=State.RUNNING,
-            session=session,
-            run_type=DagRunType.SCHEDULED
-        )
+        dag_run = dag_maker.create_dagrun(state=State.RUNNING, session=session, run_type=DagRunType.SCHEDULED)
 
         # Reach max_active_runs
         for _ in range(3):

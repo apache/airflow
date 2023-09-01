@@ -1300,15 +1300,22 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 )
 
     def _should_update_dag_next_dagruns(
-        self, dag: DAG, dag_model: DagModel, last_dag_run: DagRun | None = None,
-        total_active_runs: int | None = None, *, session: Session
+        self,
+        dag: DAG,
+        dag_model: DagModel,
+        last_dag_run: DagRun | None = None,
+        total_active_runs: int | None = None,
+        *,
+        session: Session,
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated.
-        If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run
+        If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
         """
         # If last_dag_run is defined, schedule next only if last_dag_run is finished and was an automated run
-        if last_dag_run and not (last_dag_run.state in State.finished_dr_states and
-           last_dag_run.run_type in [DagRunType.SCHEDULED, DagRunType.BACKFILL_JOB]):
+        if last_dag_run and not (
+            last_dag_run.state in State.finished_dr_states
+            and last_dag_run.run_type in [DagRunType.SCHEDULED, DagRunType.BACKFILL_JOB]
+        ):
             return False
         # If the DAG never schedules skip save runtime
         if not dag.timetable.can_be_scheduled:
