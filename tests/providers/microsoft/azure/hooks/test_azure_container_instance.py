@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from azure.mgmt.containerinstance.models import (
@@ -45,22 +45,27 @@ def connection_without_login_password_tenant_id(create_mock_connection):
 
 class TestAzureContainerInstanceHook:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, create_mock_connection):
-        mock_connection = create_mock_connection(
-            Connection(
-                conn_id="azure_container_instance_test",
-                conn_type="azure_container_instances",
-                login="login",
-                password="key",
-                extra={"tenantId": "tenant_id", "subscriptionId": "subscription_id"},
-            )
-        )
-        self.resources = ResourceRequirements(requests=ResourceRequests(memory_in_gb="4", cpu="1"))
-        self.hook = AzureContainerInstanceHook(azure_conn_id=mock_connection.conn_id)
-        with patch("azure.mgmt.containerinstance.ContainerInstanceManagementClient"), patch(
-            "azure.common.credentials.ServicePrincipalCredentials.__init__", autospec=True, return_value=None
-        ):
+    def setup_test_cases(self, create_mock_connection, request):
+        if "disable_autouse" in request.keywords:
             yield
+        else:
+            mock_connection = create_mock_connection(
+                Connection(
+                    conn_id="azure_container_instance_test",
+                    conn_type="azure_container_instances",
+                    login="login",
+                    password="key",
+                    extra={"tenantId": "tenant_id", "subscriptionId": "subscription_id"},
+                )
+            )
+            self.resources = ResourceRequirements(requests=ResourceRequests(memory_in_gb="4", cpu="1"))
+            self.hook = AzureContainerInstanceHook(azure_conn_id=mock_connection.conn_id)
+            with patch("azure.mgmt.containerinstance.ContainerInstanceManagementClient"), patch(
+                "azure.common.credentials.ServicePrincipalCredentials.__init__",
+                autospec=True,
+                return_value=None,
+            ):
+                yield
 
     @patch("azure.mgmt.containerinstance.models.ContainerGroup")
     @patch("azure.mgmt.containerinstance.operations.ContainerGroupsOperations.begin_create_or_update")
@@ -122,16 +127,30 @@ class TestAzureContainerInstanceHook:
         assert status is False
         assert msg == "Authentication failed."
 
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.ContainerInstanceManagementClient")
     @patch("azure.common.credentials.ServicePrincipalCredentials")
     @patch("airflow.providers.microsoft.azure.hooks.container_instance.DefaultAzureCredential")
+    @pytest.mark.disable_autouse
     def test_get_conn_fallback_to_default_azure_credential(
         self,
         mock_default_azure_credential,
         mock_service_pricipal_credential,
+        mock_client_cls,
         connection_without_login_password_tenant_id,
     ):
+        mock_credential = MagicMock()
+        mock_default_azure_credential.return_value = mock_credential
+
+        mock_client_instance = MagicMock()
+        mock_client_cls.return_value = mock_client_instance
+
         hook = AzureContainerInstanceHook(azure_conn_id=connection_without_login_password_tenant_id.conn_id)
-        hook.get_conn()
+        conn = hook.get_conn()
 
         mock_default_azure_credential.assert_called_once()
         assert not mock_service_pricipal_credential.called
+        assert conn == mock_client_instance
+        mock_client_cls.assert_called_once_with(
+            credential=mock_credential,
+            subscription_id="subscription_id",
+        )

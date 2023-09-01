@@ -109,6 +109,9 @@ python_files = [
 testpaths = [
     "tests",
 ]
+markers = [
+    "disable_autouse"
+]
 
 [tool.ruff.isort]
 required-imports = ["from __future__ import annotations"]
