@@ -1919,11 +1919,11 @@ class TestBigQueryValueCheckOperator:
             exc.value.trigger, BigQueryValueCheckTrigger
         ), "Trigger is not a BigQueryValueCheckTrigger"
 
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator.execute")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator.defer")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator.check_value")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_value_check_operator_async_finish_before_deferred(
-        self, mock_hook, mock_defer, mock_execute, create_task_instance_of_operator
+        self, mock_hook, mock_check_value, mock_defer, create_task_instance_of_operator
     ):
         job_id = "123456"
         hash_ = "hash"
@@ -1944,7 +1944,7 @@ class TestBigQueryValueCheckOperator:
 
         ti.task.execute(MagicMock())
         assert not mock_defer.called
-        assert mock_execute.called
+        assert mock_check_value.called
 
     @pytest.mark.parametrize(
         "kwargs, expected",
