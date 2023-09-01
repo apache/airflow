@@ -80,7 +80,6 @@ class TaskInstancePydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
 
     def xcom_pull(
@@ -315,4 +314,4 @@ class TaskInstancePydantic(BaseModelPydantic):
         return _get_previous_ti(task_instance=self, state=state, session=session)
 
 
-TaskInstancePydantic.update_forward_refs()
+TaskInstancePydantic.model_rebuild()

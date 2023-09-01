@@ -59,7 +59,6 @@ class DagRunPydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
-        orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
 
     @provide_session
@@ -100,4 +99,4 @@ class DagRunPydantic(BaseModelPydantic):
         )
 
 
-DagRunPydantic.update_forward_refs()
+DagRunPydantic.model_rebuild()
