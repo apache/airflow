@@ -29,6 +29,8 @@ requires = ['setuptools==67.2.0']
 build-backend = "setuptools.build_meta"
 
 [project]
+name = "apache-airflow"
+version = "2.8.0.dev0" # sentinel comment for project version
 requires-python = ">=3.8"
 
 [tool.ruff]

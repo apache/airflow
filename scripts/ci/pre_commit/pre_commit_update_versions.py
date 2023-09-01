@@ -46,6 +46,7 @@ REPLACEMENTS = {
     r"(apache\/airflow:)[^-]*(\-)": "docs/docker-stack/entrypoint.rst",
     r"(`apache/airflow:(?:slim-)?)[0-9].*?((?:-pythonX.Y)?`)": "docs/docker-stack/README.md",
     r"(\(Assuming Airflow version `).*(`\))": "docs/docker-stack/README.md",
+    r"""(^version\s?=\s?[\"']).*([\"']\s?#\s?sentinel.*$)""": "pyproject.toml",
 }
 
 

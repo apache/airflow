@@ -349,6 +349,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-migration-references                               | Update migration ref doc                                     | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| update-project-version                                    | Update project version to the latest version                 |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-providers-dependencies                             | Update cross-dependencies for providers packages             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                     | Sort alphabetically and uniquify spelling_wordlist.txt       |         |
@@ -358,6 +360,8 @@ require Breeze Docker image to be built locally.
 | update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-version                                            | Update version to the latest version in the documentation    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| validate-pyproject                                        | Validate pyproject.toml                                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
