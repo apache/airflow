@@ -104,7 +104,7 @@ div.container {
 
 .navbar-brand:hover .brand-logo-pinwheel {
   transform-origin: 17.66px 17.66px;
-  animation: pinSpin 1.5s linear infinite;
+  animation: pinSpin 1.5s linear;
 }
 
 .navbar-user-icon {
