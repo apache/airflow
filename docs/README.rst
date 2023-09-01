@@ -59,6 +59,13 @@ Also, you can only build one documentation via ``--package-filter``.
 
     breeze build-docs --package-filter <PACKAGE-NAME>
 
+If you want to build a subset of packages using short hand names of the providers, pass the flag ``--short-version``
+along with the regular flags. To calculate ``<PACKAGE-NAME-IN-SHORT-FORM>``, follow the instructions in :ref:`generating_short_form_names`.
+
+.. code-block:: bash
+
+    breeze build-docs --short-version --package-filter <PACKAGE-NAME-IN-SHORT-FORM>
+
 You can also see all the available arguments via ``--help``.
 
 .. code-block:: bash
@@ -85,6 +92,17 @@ Troubleshooting
 
 If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache
 license or copy another ``__init__.py`` file that contains the necessary license.
+
+.. _generating_short_form_names:
+
+Generating short form names for Providers
+-----------------------------------------
+
+Skip the ``apache-airflow-providers-`` from the usual provider full names.
+Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
+
+Example:
+If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
 Cross-referencing syntax
 ========================

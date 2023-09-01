@@ -357,6 +357,12 @@ def start_airflow(
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
+@click.option(
+    "--short-version",
+    help="Build docs by providing short hand for provider names. "
+    "Example: Short hand for apache-airflow-providers-cncf-kubernetes will be cncf.kubernetes",
+    is_flag=True,
+)
 @option_builder
 @click.option(
     "--package-filter",
@@ -384,6 +390,7 @@ def build_docs(
     builder: str,
     clean_build: bool,
     one_pass_only: bool,
+    short_version: bool,
     package_filter: tuple[str],
     github_repository: str,
 ):
@@ -409,6 +416,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         skip_environment_initialization=True,
+        short_version=short_version,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
     env = get_env_variables_for_docker_commands(params)
@@ -530,7 +538,7 @@ def static_checks(
         )
         i = 0
         while True:
-            get_console().print(f"[info]Attempt number {i+1} to install pre-commit environments")
+            get_console().print(f"[info]Attempt number {i + 1} to install pre-commit environments")
             initialization_result = run_command(
                 [sys.executable, "-m", "pre_commit", "install", "--install-hooks"],
                 check=False,
@@ -539,7 +547,7 @@ def static_checks(
             )
             if initialization_result.returncode == 0:
                 break
-            get_console().print(f"[warning]Attempt number {i+1} failed - retrying[/]")
+            get_console().print(f"[warning]Attempt number {i + 1} failed - retrying[/]")
             if i == max_initialization_attempts - 1:
                 get_console().print("[error]Could not install pre-commit environments[/]")
                 sys.exit(initialization_result.returncode)

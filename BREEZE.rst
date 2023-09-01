@@ -467,6 +467,13 @@ instance, for using it with Amazon, the command would be:
 
      breeze build-docs --package-filter apache-airflow-providers-amazon
 
+If you want to build a subset of packages using short hand names of the providers, pass the flag ``--short-version``
+along with the regular flags. To calculate ``<PACKAGE-NAME-IN-SHORT-FORM>``, follow the instructions in :ref:`generating_short_form_names`.
+
+.. code-block:: bash
+
+    breeze build-docs --short-version --package-filter <PACKAGE-NAME-IN-SHORT-FORM>
+
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
 During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
 easily identify the location the problems with documentation originated from.
@@ -478,6 +485,16 @@ These are all available flags of ``build-docs`` command:
   :width: 100%
   :alt: Breeze build documentation
 
+.. _generating_short_form_names:
+
+Generating short form names for Providers
+-----------------------------------------
+
+Skip the ``apache-airflow-providers-`` from the usual provider full names.
+Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
+
+Example:
+If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
 Running static checks
 ---------------------
