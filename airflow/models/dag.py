@@ -137,6 +137,7 @@ if TYPE_CHECKING:
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
     from airflow.models.slamiss import SlaMiss
+    from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
@@ -3482,8 +3483,9 @@ class DagModel(Base):
         )
 
     @classmethod
+    @internal_api_call
     @provide_session
-    def get_current(cls, dag_id, session=NEW_SESSION):
+    def get_current(cls, dag_id: str, session=NEW_SESSION) -> DagModel | DagModelPydantic:
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session

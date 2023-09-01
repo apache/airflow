@@ -48,6 +48,7 @@ def _initialize_map() -> dict[str, Callable]:
         DagFileProcessorManager.deactivate_stale_dags,
         DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
+        DagModel.get_current,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
         MetastoreBackend._fetch_connection,
