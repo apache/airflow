@@ -31,8 +31,14 @@ import sys
 from typing import Protocol, TypedDict, runtime_checkable
 
 # Literal from typing module has various issues in different Python versions, see:
-# https://typing-extensions.readthedocs.io/en/latest/#Literal
-from typing_extensions import Literal
+# - https://typing-extensions.readthedocs.io/en/latest/#Literal
+# - bpo-45679: https://github.com/python/cpython/pull/29334
+# - bpo-42345: https://github.com/python/cpython/pull/23294
+# - bpo-42345: https://github.com/python/cpython/pull/23383
+if sys.version_info >= (3, 10, 1) or (3, 9, 8) <= sys.version_info < (3, 10):
+    from typing import Literal
+else:
+    from typing_extensions import Literal  # type: ignore[assignment]
 
 if sys.version_info >= (3, 10):
     from typing import ParamSpec, TypeGuard
