@@ -724,4 +724,4 @@ config:
         default: ~
         example: my_company.aws.MyCustomSessionFactory
         type: string
-        version_added: ~
+        version_added: 3.1.1
