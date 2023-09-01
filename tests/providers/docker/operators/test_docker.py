@@ -565,7 +565,7 @@ class TestDockerOperator:
             assert str(raised_exception.value) == expected_message.format(
                 failed_msg=failed_msg,
             )
-            assert raised_exception.logs == f'{log_line[0].strip()}\n{log_line[1].decode("utf-8")}'
+            assert raised_exception.value.logs == f'{log_line[0].strip()}\n{log_line[1].decode("utf-8")}'
 
     def test_auto_remove_container_fails(self):
         self.client_mock.wait.return_value = {"StatusCode": 1}
