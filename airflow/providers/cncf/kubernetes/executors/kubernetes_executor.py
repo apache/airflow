@@ -354,8 +354,8 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_scheduler.sync()
 
         last_resource_version: dict[str, str] = defaultdict(lambda: "0")
-        with suppress(Empty):
-            while True:
+        while True:
+            try:
                 results = self.result_queue.get_nowait()
                 try:
                     key, state, pod_name, namespace, resource_version = results
@@ -373,6 +373,8 @@ class KubernetesExecutor(BaseExecutor):
                         self.result_queue.put(results)
                 finally:
                     self.result_queue.task_done()
+            except Empty:
+                break
 
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
