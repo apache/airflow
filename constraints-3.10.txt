@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-01T11:21:38Z
+# This constraints file was automatically generated on 2023-09-01T15:56:26Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -114,7 +114,7 @@ apache-airflow-providers-asana==2.2.2
 apache-airflow-providers-atlassian-jira==2.1.1
 apache-airflow-providers-celery==3.3.3
 apache-airflow-providers-cloudant==3.2.1
-apache-airflow-providers-cncf-kubernetes==7.4.2
+apache-airflow-providers-cncf-kubernetes==7.5.0
 apache-airflow-providers-common-sql==1.7.1
 apache-airflow-providers-daskexecutor==1.0.1
 apache-airflow-providers-databricks==4.4.0
@@ -136,7 +136,7 @@ apache-airflow-providers-imap==3.3.1
 apache-airflow-providers-influxdb==2.2.2
 apache-airflow-providers-jdbc==4.0.1
 apache-airflow-providers-jenkins==3.3.1
-apache-airflow-providers-microsoft-azure==6.2.4
+apache-airflow-providers-microsoft-azure==6.3.0
 apache-airflow-providers-microsoft-mssql==3.4.2
 apache-airflow-providers-microsoft-psrp==2.3.1
 apache-airflow-providers-microsoft-winrm==3.2.2
@@ -193,8 +193,8 @@ azure-cosmos==4.5.0
 azure-datalake-store==0.0.53
 azure-identity==1.14.0
 azure-keyvault-secrets==4.7.0
-azure-kusto-data==0.0.45
-azure-mgmt-containerinstance==1.5.0
+azure-kusto-data==4.2.0
+azure-mgmt-containerinstance==8.0.0
 azure-mgmt-containerregistry==10.1.0
 azure-mgmt-core==1.4.0
 azure-mgmt-cosmosdb==9.2.0
@@ -373,7 +373,7 @@ inflection==0.5.1
 influxdb-client==1.37.0
 iniconfig==2.0.0
 ipdb==0.13.13
-ipython==8.14.0
+ipython==8.15.0
 isodate==0.6.1
 itsdangerous==2.1.2
 jaraco.classes==3.3.0
@@ -668,7 +668,7 @@ yamllint==1.32.0
 yandexcloud==0.229.0
 yarl==1.9.2
 zeep==4.2.1
-zenpy==2.0.34
+zenpy==2.0.35
 zict==3.0.0
 zipp==3.16.2
 zope.event==5.0
