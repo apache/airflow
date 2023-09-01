@@ -33,26 +33,26 @@ Changelog
 Features
 ~~~~~~~~
 
-``Add CloudRunHook and operators (#33067)``
-``Add 'CloudBatchHook' and operators (#32606)``
-``Adding Support for Google Cloud's Data Pipelines Run Operator (#32846)``
-``Add parameter sftp_prefetch to SFTPToGCSOperator (#33274)``
-``Add Google Cloud's Data Pipelines Create Operator (#32843)``
-``Add Dataplex Data Quality operators. (#32256)``
+* ``Add CloudRunHook and operators (#33067)``
+* ``Add 'CloudBatchHook' and operators (#32606)``
+* ``Adding Support for Google Cloud's Data Pipelines Run Operator (#32846)``
+* ``Add parameter sftp_prefetch to SFTPToGCSOperator (#33274)``
+* ``Add Google Cloud's Data Pipelines Create Operator (#32843)``
+* ``Add Dataplex Data Quality operators. (#32256)``
 
 Bug Fixes
 ~~~~~~~~~
 
-``Fix BigQueryCreateExternalTableOperator when using a foramt different to CSV (#33540)``
-``Fix DataplexDataQualityJobStatusSensor and add unit tests (#33440)``
-``Avoid importing pandas and numpy in runtime and module level (#33483)``
+* ``Fix BigQueryCreateExternalTableOperator when using a foramt different to CSV (#33540)``
+* ``Fix DataplexDataQualityJobStatusSensor and add unit tests (#33440)``
+* ``Avoid importing pandas and numpy in runtime and module level (#33483)``
 
 Misc
 ~~~~
 
-``Add missing template fields to DataformCreateCompilationResultOperator (#33585)``
-``Consolidate import and usage of pandas (#33480)``
-``Import utc from datetime and normalize its import (#33450)``
+* ``Add missing template fields to DataformCreateCompilationResultOperator (#33585)``
+* ``Consolidate import and usage of pandas (#33480)``
+* ``Import utc from datetime and normalize its import (#33450)``
 
 
 .. Below changes are excluded from the changelog. Move them to

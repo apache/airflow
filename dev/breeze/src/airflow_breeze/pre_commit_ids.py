@@ -86,6 +86,7 @@ PRE_COMMIT_LIST = [
     "end-of-file-fixer",
     "fix-encoding-pragma",
     "flynt",
+    "generate-pypi-readme",
     "identity",
     "insert-license",
     "lint-chart-schema",

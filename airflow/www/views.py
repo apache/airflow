@@ -5137,17 +5137,34 @@ class VariableModelView(AirflowModelView):
     @expose("/varimport", methods=["POST"])
     @auth.has_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
     @action_logging(event=f"{permissions.RESOURCE_VARIABLE.lower()}.varimport")
-    def varimport(self):
+    @provide_session
+    def varimport(self, session):
         """Import variables."""
         try:
             variable_dict = json.loads(request.files["file"].read())
+            action_on_existing = request.form.get("action_if_exists", "overwrite").lower()
         except Exception:
             self.update_redirect()
             flash("Missing file or syntax error.", "error")
             return redirect(self.get_redirect())
         else:
+            existing_keys = set()
+            if action_on_existing != "overwrite":
+                existing_keys = set(
+                    session.scalars(select(models.Variable.key).where(models.Variable.key.in_(variable_dict)))
+                )
+            if action_on_existing == "fail" and existing_keys:
+                failed_repr = ", ".join(repr(k) for k in sorted(existing_keys))
+                flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                logging.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                return redirect(location=request.referrer)
+            skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
+                if action_on_existing == "skip" and k in existing_keys:
+                    logging.warning("Variable: %s already exists, skipping.", k)
+                    skipped.add(k)
+                    continue
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as exc:
@@ -5158,6 +5175,13 @@ class VariableModelView(AirflowModelView):
             flash(f"{suc_count} variable(s) successfully updated.")
             if fail_count:
                 flash(f"{fail_count} variable(s) failed to be updated.", "error")
+            if skipped:
+                skipped_repr = ", ".join(repr(k) for k in sorted(skipped))
+                flash(
+                    f"The variables with these keys: {skipped_repr} were skipped "
+                    "because they already exists",
+                    "warning",
+                )
             self.update_redirect()
             return redirect(self.get_redirect())
 

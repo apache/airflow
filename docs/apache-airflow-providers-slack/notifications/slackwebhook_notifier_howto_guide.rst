@@ -15,13 +15,14 @@
     specific language governing permissions and limitations
     under the License.
 
-How-to Guide for Chime notifications
-====================================
+How-to Guide for Slack Incoming Webhook notifications
+=====================================================
 
 Introduction
 ------------
-Chime notifier (:class:`airflow.providers.amazon.aws.notifications.chime.ChimeNotifier`) allows users to send
-messages to a Chime chat room setup via a webhook using the various ``on_*_callbacks`` at both the DAG level and Task level
+Slack Incoming Webhook notifier (:class:`airflow.providers.slack.notifications.slack_webhook.SlackWebhookNotifier`)
+allows users to send messages to a slack channel thought `Incoming Webhook <https://api.slack.com/messaging/webhooks>`__
+using the various ``on_*_callbacks`` at both the DAG level and Task level
 
 You can also use a notifier with ``sla_miss_callback``.
 
@@ -33,24 +34,26 @@ Example Code:
 
 .. code-block:: python
 
-    from datetime import datetime
+    from datetime import datetime, timezone
     from airflow import DAG
     from airflow.operators.bash import BashOperator
-    from airflow.providers.amazon.aws.notifications.chime import send_chime_notification
+    from airflow.providers.slack.notifications.slack_webhook import send_slack_webhook_notification
+
+    dag_failure_slack_webhook_notification = send_slack_webhook_notification(
+        slack_webhook_conn_id="slackwebhook", text="The dag {{ dag.dag_id }} failed"
+    )
+    task_failure_slack_webhook_notification = send_slack_webhook_notification(
+        slack_webhook_conn_id="slackwebhook",
+        text="The task {{ ti.task_id }} failed",
+    )
 
     with DAG(
         dag_id="mydag",
         schedule="@once",
-        start_date=datetime(2023, 6, 27),
-        on_success_callback=[
-            send_chime_notification(chime_conn_id="my_chime_conn", message="The DAG {{ dag.dag_id }} succeeded")
-        ],
+        start_date=datetime(2023, 1, 1, tzinfo=timezone.utc),
+        on_failure_callback=[dag_failure_slack_webhook_notification],
         catchup=False,
     ):
         BashOperator(
-            task_id="mytask",
-            on_failure_callback=[
-                send_chime_notification(chime_conn_id="my_chime_conn", message="The task {{ ti.task_id }} failed")
-            ],
-            bash_command="fail",
+            task_id="mytask", on_failure_callback=[task_failure_slack_webhook_notification], bash_command="fail"
         )
