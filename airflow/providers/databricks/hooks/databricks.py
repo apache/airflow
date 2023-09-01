@@ -28,6 +28,7 @@ or the ``api/2.1/jobs/runs/submit``
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from requests import exceptions as requests_exceptions
@@ -38,6 +39,7 @@ from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHoo
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
+GET_CLUSTER_ENDPOINT = ('GET', 'api/2.0/clusters/get')
 
 RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
 SUBMIT_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
@@ -103,6 +105,57 @@ class RunState:
             and self.result_state == other.result_state
             and self.state_message == other.state_message
         )
+
+    def __repr__(self) -> str:
+        return str(self.__dict__)
+
+    def to_json(self) -> str:
+        return json.dumps(self.__dict__)
+
+    @classmethod
+    def from_json(cls, data: str) -> RunState:
+        return RunState(**json.loads(data))
+
+
+class ClusterState:
+    """
+    Utility class for the cluster state concept of Databricks cluster.
+    """
+
+    CLUSTER_LIFE_CYCLE_STATES = [
+        "PENDING",
+        "RUNNING",
+        "RESTARTING",
+        "RESIZING",
+        "TERMINATING",
+        "TERMINATED",
+        "ERROR",
+        "UNKNOWN",
+    ]
+
+    def __init__(self, state: str = "", state_message: str = "", *args, **kwargs) -> None:
+        self.state = state
+        self.state_message = state_message
+
+    @property
+    def is_terminal(self) -> bool:
+        """True if the current state is a terminal state."""
+        if self.state not in self.CLUSTER_LIFE_CYCLE_STATES:
+            raise AirflowException(
+                f"Unexpected cluster life cycle state: {self.state}"
+            )
+        return self.state in (
+            "TERMINATING", "TERMINATED", "ERROR", "UNKNOWN"
+        )
+
+    @property
+    def is_running(self) -> bool:
+        """True if the current state is running."""
+        return self.state in ("RUNNING", "RESIZING")
+
+    def __eq__(self, other) -> bool:
+        return self.state == other.state and \
+            self.state_message == other.state_message
 
     def __repr__(self) -> str:
         return str(self.__dict__)
@@ -450,6 +503,32 @@ class DatabricksHook(BaseDatabricksHook):
         """
         self._do_api_call(REPAIR_RUN_ENDPOINT, json)
 
+    def get_cluster_state(self, cluster_id: str) -> ClusterState:
+        """
+        Retrieves run state of the cluster.
+
+        :param cluster_id: id of the cluster
+        :return: state of the cluster
+        """
+        json = {"cluster_id": cluster_id}
+        response = self._do_api_call(GET_CLUSTEr, json)
+        state = response["state"]
+        state_message = response["state_message"]
+        return ClusterState(state, state_message)
+
+    async def a_get_cluster_state(self, cluster_id: str) -> ClusterState:
+        """
+        Async version of `get_cluster_state`.
+
+        :param cluster_id: id of the cluster
+        :return: state of the cluster
+        """
+        json = {"cluster_id": cluster_id}
+        response = await self._a_do_api_call(GET_CLUSTER_ENDPOINT, json)
+        state = response["state"]
+        state_message = response["state_message"]
+        return ClusterState(state, state_message)
+
     def restart_cluster(self, json: dict) -> None:
         """
         Restarts the cluster.
@@ -465,6 +544,35 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: json dictionary containing cluster specification.
         """
         self._do_api_call(START_CLUSTER_ENDPOINT, json)
+
+    def activate_cluster(self, json: dict, polling: int, timeout: int = -1) -> None:
+        """
+        Start the cluster, and wait for it to be ready.
+
+        :param json: json dictionary containing cluster specification.
+        :param polling: polling interval in seconds.
+        :param timeout: timeout in seconds. -1 means no timeout.
+        """
+        api_called = False
+        elapsed_time = 0
+
+        while (timeout == -1) or (elapsed_time <= timeout):
+            run_state = self.get_cluster_state(cluster_id)
+
+            if run_state.is_running:
+                return
+            elif run_state.is_terminal:
+                if not api_called:
+                    self.start_cluster({'cluster_id': cluster_id})
+                    api_called = True
+                else:
+                    raise AirflowException(
+                        f"Cluster {cluster_id} start failed with '{run_state.state}' state: {run_state.error_message}"
+                    )
+
+            # wait for cluster to start
+            time.sleep(polling)
+            elapsed_time += polling
 
     def terminate_cluster(self, json: dict) -> None:
         """
