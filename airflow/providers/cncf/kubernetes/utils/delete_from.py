@@ -81,9 +81,7 @@ def delete_from_yaml(
     **kwargs,
 ):
     for yml_document in yaml_objects:
-        if yml_document is None:
-            continue
-        else:
+        if yml_document is not None:
             delete_from_dict(
                 k8s_client=k8s_client,
                 data=yml_document,
