@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections
+import contextlib
 import logging
 import multiprocessing
 import os
@@ -1343,10 +1344,8 @@ class TestDagFileProcessorAgent:
             async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
             log_file_loc = conf.get("logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION")
 
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(log_file_loc)
-            except OSError:
-                pass
 
             # Starting dag processing with 0 max_runs to avoid redundant operations.
             processor_agent = DagFileProcessorAgent(
@@ -1393,10 +1392,8 @@ class TestDagFileProcessorAgent:
         async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
 
         log_file_loc = conf.get("logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION")
-        try:
+        with contextlib.suppress(OSError):
             os.remove(log_file_loc)
-        except OSError:
-            pass
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
         processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], False, async_mode)

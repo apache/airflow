@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
 import multiprocessing
 import time
@@ -440,16 +441,14 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """
         self.log.debug("Syncing KubernetesExecutor")
         self._health_check_kube_watchers()
-        while True:
-            try:
+        with contextlib.suppress(Empty):
+            while True:
                 task = self.watcher_queue.get_nowait()
                 try:
                     self.log.debug("Processing task %s", task)
                     self.process_watcher_task(task)
                 finally:
                     self.watcher_queue.task_done()
-            except Empty:
-                break
 
     def process_watcher_task(self, task: KubernetesWatchType) -> None:
         """Process the task by watcher."""
@@ -467,14 +466,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def _flush_watcher_queue(self) -> None:
         self.log.debug("Executor shutting down, watcher_queue approx. size=%d", self.watcher_queue.qsize())
-        while True:
-            try:
+        with contextlib.suppress(Empty):
+            while True:
                 task = self.watcher_queue.get_nowait()
                 # Ignoring it since it can only have either FAILED or SUCCEEDED pods
                 self.log.warning("Executor shutting down, IGNORING watcher task=%s", task)
                 self.watcher_queue.task_done()
-            except Empty:
-                break
 
     def terminate(self) -> None:
         """Terminates the watcher."""
