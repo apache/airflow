@@ -1447,9 +1447,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version, "dangling")
         if dangling_table_name in existing_table_names:
             invalid_row_count = bad_rows_query.count()
-            if invalid_row_count <= 0:
-                continue
-            else:
+            if invalid_row_count:
                 yield _format_dangling_error(
                     source_table=source_table.name,
                     target_table=dangling_table_name,

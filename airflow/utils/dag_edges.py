@@ -111,10 +111,9 @@ def dag_edges(dag: DAG):
                 edge = (task.task_id, child.task_id)
                 if task.is_setup and child.is_teardown:
                     setup_teardown_edges.add(edge)
-                if edge in edges:
-                    continue
-                edges.add(edge)
-                tasks_to_trace_next.append(child)
+                if edge not in edges:
+                    edges.add(edge)
+                    tasks_to_trace_next.append(child)
         tasks_to_trace = tasks_to_trace_next
 
     result = []
