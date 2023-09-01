@@ -1759,6 +1759,7 @@ class TestSchedulerJob:
         dag_run = dag_maker.create_dagrun(
             state=State.RUNNING,
             session=session,
+            run_type=DagRunType.SCHEDULED
         )
 
         # Reach max_active_runs
@@ -3458,7 +3459,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         assert excepted is self.job_runner._should_update_dag_next_dagruns(
-            dag, dag_model, number_running, session=session
+            dag, dag_model, None, number_running, session=session
         )
 
     def test_create_dag_runs(self, dag_maker):
