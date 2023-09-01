@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import datetime
 import functools
 import io
@@ -1472,14 +1473,13 @@ class AirflowConfigParser(ConfigParser):
             # if they are not provided through env, cmd and secret
             hidden = "< hidden >"
             for section, key in self.sensitive_config_values:
-                if not config_sources.get(section):
-                    continue
-                if config_sources[section].get(key, None):
-                    if display_source:
-                        source = config_sources[section][key][1]
-                        config_sources[section][key] = (hidden, source)
-                    else:
-                        config_sources[section][key] = hidden
+                if config_sources.get(section):
+                    if config_sources[section].get(key, None):
+                        if display_source:
+                            source = config_sources[section][key][1]
+                            config_sources[section][key] = (hidden, source)
+                        else:
+                            config_sources[section][key] = hidden
 
         return config_sources
 
@@ -1649,16 +1649,13 @@ class AirflowConfigParser(ConfigParser):
         configs: Iterable[tuple[str, ConfigParser]],
     ) -> bool:
         for config_type, config in configs:
-            if config_type == "default":
-                continue
-            try:
-                deprecated_section_array = config.items(section=deprecated_section, raw=True)
-                for key_candidate, _ in deprecated_section_array:
-                    if key_candidate == deprecated_key:
+            if config_type != "default":
+                with contextlib.suppress(NoSectionError):
+                    deprecated_section_array = config.items(section=deprecated_section, raw=True)
+                    if any(key == deprecated_key for key, _ in deprecated_section_array):
                         return True
-            except NoSectionError:
-                pass
-        return False
+        else:
+            return False
 
     @staticmethod
     def _deprecated_variable_is_set(deprecated_section: str, deprecated_key: str) -> bool:
