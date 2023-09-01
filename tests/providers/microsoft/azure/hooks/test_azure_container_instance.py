@@ -32,6 +32,17 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
 
 
+@pytest.fixture(scope="function")
+def connection_without_login_password_tenant_id(create_mock_connection):
+    return create_mock_connection(
+        Connection(
+            conn_id="azure_container_instance_test",
+            conn_type="azure_container_instances",
+            extra={"subscriptionId": "subscription_id"},
+        )
+    )
+
+
 class TestAzureContainerInstanceHook:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, create_mock_connection):
@@ -110,3 +121,17 @@ class TestAzureContainerInstanceHook:
         status, msg = self.hook.test_connection()
         assert status is False
         assert msg == "Authentication failed."
+
+    @patch("azure.common.credentials.ServicePrincipalCredentials")
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.DefaultAzureCredential")
+    def test_get_conn_fallback_to_default_azure_credential(
+        self,
+        mock_default_azure_credential,
+        mock_service_pricipal_credential,
+        connection_without_login_password_tenant_id,
+    ):
+        hook = AzureContainerInstanceHook(azure_conn_id=connection_without_login_password_tenant_id.conn_id)
+        hook.get_conn()
+
+        mock_default_azure_credential.assert_called_once()
+        assert not mock_service_pricipal_credential.called
