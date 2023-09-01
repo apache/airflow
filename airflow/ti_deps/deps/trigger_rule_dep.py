@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import ColumnOperators
 
+    from airflow import DAG
     from airflow.models.taskinstance import TaskInstance
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
@@ -139,6 +140,8 @@ class TriggerRuleDep(BaseTIDep):
             and at most once for each task (instead of once for each expanded
             task instance of the same task).
             """
+            if TYPE_CHECKING:
+                assert isinstance(ti.task.dag, DAG)
             try:
                 expanded_ti_count = _get_expanded_ti_count()
             except (NotFullyPopulated, NotMapped):
