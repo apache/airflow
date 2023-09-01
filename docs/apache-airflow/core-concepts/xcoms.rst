@@ -36,6 +36,8 @@ To push a value within a task called **"task-1"** that will be used by another t
 
 To pull the value that was pushed in the code above in a different task:
 
+.. code-block:: python
+
     # pulls the xcom variable with key "identifier as string" that was pushed from within task-1
     task_instance.xcom_pull(key="identifier as string", task_ids="task-1")
 
