@@ -173,7 +173,7 @@ def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_clien
         data={"file": (bytes_content, "test.json"), "action_if_exists": "fail"},
         follow_redirects=True,
     )
-    assert "Failed: Variable: str_key already exists" in caplog.text
+    assert "Failed. The variables with these keys: 'str_key'  already exists." in caplog.text
 
 
 def test_import_variables_anon(session, app):

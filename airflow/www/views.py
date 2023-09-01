@@ -5148,16 +5148,20 @@ class VariableModelView(AirflowModelView):
             flash("Missing file or syntax error.", "error")
             return redirect(self.get_redirect())
         else:
+            if action_if_exists == "fail":
+                existing_key = set(
+                    session.scalars(select(models.Variable.key).where(models.Variable.key.in_(variable_dict)))
+                )
+                if existing_key:
+                    failed_repr = ", ".join(repr(k) for k in sorted(existing_key))
+                    flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                    logging.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                    return redirect(location=request.referrer)
             skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
-                if action_if_exists != "overwrite":
-                    var_exists = session.scalar(select(models.Variable).where(models.Variable.key == k))
-                    if var_exists and action_if_exists == "fail":
-                        flash(f"Failed. Variable: {k} already exists", "error")
-                        logging.error("Failed: Variable: %s already exists", k)
-                        return redirect(location=request.referrer)
-                    elif var_exists:
+                if action_if_exists == "skip":
+                    if session.scalar(select(models.Variable).where(models.Variable.key == k)):
                         logging.warning("Variable: %s already exists, skipping.", k)
                         skipped.add(k)
                         continue
