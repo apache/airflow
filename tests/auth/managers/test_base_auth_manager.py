@@ -35,7 +35,8 @@ def auth_manager():
         def get_url_login(self, **kwargs) -> str:
             raise NotImplementedError()
 
-    return EmptyAuthManager()
+    # noinspection PyTypeChecker
+    return EmptyAuthManager(None)
 
 
 class TestBaseAuthManager:

@@ -30,7 +30,9 @@ from airflow.www.security_appless import ApplessAirflowSecurityManager
 
 @pytest.fixture
 def auth_manager():
-    auth_manager = FabAuthManager()
+    app_mock = Mock(name="flask_app")
+    app_mock.config.get.return_value = None  # this is called to get the security manager override (if any)
+    auth_manager = FabAuthManager(app_mock)
     auth_manager.security_manager = ApplessAirflowSecurityManager()
     return auth_manager
 
