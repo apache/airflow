@@ -493,7 +493,7 @@ class BaseSerialization:
 
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
                 try:
-                    return model_cls.model_validate(var).model_dump()  # type: ignore[attr-defined]
+                    return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
                 except AttributeError:  # Pydantic 1.x compatibility.
                     return model_cls.from_orm(var).dict()  # type: ignore[attr-defined]
 

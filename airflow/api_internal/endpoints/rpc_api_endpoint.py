@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from flask import Response
 
 from airflow.serialization.serialized_objects import BaseSerialization
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
@@ -89,16 +90,20 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
         if body.get("params"):
             params_json = json.loads(str(body.get("params")))
             params = BaseSerialization.deserialize(params_json, use_pydantic_models=True)
-    except Exception as err:
-        log.error("Error (%s) when deserializing parameters: %s", err, params_json)
+    except Exception as e:
+        log.error("Error when deserializing parameters for method: %s.", method_name)
+        log.exception(e)
         return Response(response="Error deserializing parameters.", status=400)
 
     log.debug("Calling method %s.", method_name)
     try:
-        output = handler(**params)
-        output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
-        response = json.dumps(output_json) if output_json is not None else None
-        return Response(response=response, headers={"Content-Type": "application/json"})
+        # Session must be created there as it may be needed by serializer for lazy-loaded fields.
+        with create_session() as session:
+            output = handler(**params, session=session)
+            output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
+            response = json.dumps(output_json) if output_json is not None else None
+            return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception as e:
-        log.error("Error (%s) when calling method %s.", e, method_name)
+        log.error("Error executing method: %s.", method_name)
+        log.exception(e)
         return Response(response=f"Error executing method: {method_name}.", status=500)
