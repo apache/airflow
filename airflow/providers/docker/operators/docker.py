@@ -33,7 +33,11 @@ from docker.errors import APIError
 from docker.types import LogConfig, Mount
 from dotenv import dotenv_values
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import (
+    AirflowProviderDeprecationWarning,
+    DockerContainerFailedException,
+    DockerContainerFailedSkipException,
+)
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
 
@@ -403,11 +407,11 @@ class DockerOperator(BaseOperator):
 
             result = self.cli.wait(self.container["Id"])
             if result["StatusCode"] in self.skip_on_exit_code:
-                raise AirflowSkipException(
-                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping."
+                raise DockerContainerFailedSkipException(
+                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping.", logs=log_lines
                 )
             elif result["StatusCode"] != 0:
-                raise AirflowException(f"Docker container failed: {result!r}")
+                raise DockerContainerFailedException(f"Docker container failed: {result!r}", logs=log_lines)
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
