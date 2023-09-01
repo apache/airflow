@@ -424,27 +424,3 @@ class DeserializingResultError(ValueError):
             "Error deserializing result. Note that result deserialization "
             "is not supported across major Python versions. Cause: " + str(self.__cause__)
         )
-
-
-class DockerContainerFailedException(AirflowException):
-    """
-    Raised when a Docker container returns an error.
-
-    :param logs: The log output of the failed Docker container
-    """
-
-    def __init__(self, message: str | None = None, logs: list[str | bytes] | None = None):
-        super().__init__(message)
-        self.logs = logs
-
-
-class DockerContainerFailedSkipException(AirflowSkipException):
-    """
-    Raised when a Docker container returns an error and task should be skipped.
-
-    :param logs: The log output of the failed Docker container
-    """
-
-    def __init__(self, message: str | None = None, logs: list[str | bytes] | None = None):
-        super().__init__(message)
-        self.logs = logs

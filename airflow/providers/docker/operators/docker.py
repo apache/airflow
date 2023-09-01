@@ -33,11 +33,7 @@ from docker.errors import APIError
 from docker.types import LogConfig, Mount
 from dotenv import dotenv_values
 
-from airflow.exceptions import (
-    AirflowProviderDeprecationWarning,
-    DockerContainerFailedException,
-    DockerContainerFailedSkipException,
-)
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
 
@@ -46,6 +42,30 @@ if TYPE_CHECKING:
     from docker.types import DeviceRequest
 
     from airflow.utils.context import Context
+
+
+class DockerContainerFailedException(AirflowException):
+    """
+    Raised when a Docker container returns an error.
+
+    :param logs: The log output of the failed Docker container
+    """
+
+    def __init__(self, message: str | None = None, logs: list[str | bytes] | None = None):
+        super().__init__(message)
+        self.logs = logs
+
+
+class DockerContainerFailedSkipException(AirflowSkipException):
+    """
+    Raised when a Docker container returns an error and task should be skipped.
+
+    :param logs: The log output of the failed Docker container
+    """
+
+    def __init__(self, message: str | None = None, logs: list[str | bytes] | None = None):
+        super().__init__(message)
+        self.logs = logs
 
 
 def stringify(line: str | bytes):

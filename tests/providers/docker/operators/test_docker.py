@@ -26,8 +26,8 @@ from docker import APIClient
 from docker.errors import APIError
 from docker.types import DeviceRequest, LogConfig, Mount
 
-from airflow.exceptions import AirflowException, AirflowSkipException, DockerContainerFailedException
-from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.providers.docker.operators.docker import DockerContainerFailedException, DockerOperator
 
 TEST_CONN_ID = "docker_test_connection"
 TEST_DOCKER_URL = "unix://var/run/docker.test.sock"
