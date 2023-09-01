@@ -144,7 +144,7 @@ class TriggerRuleDep(BaseTIDep):
             except (NotFullyPopulated, NotMapped):
                 return None
             return ti.get_relevant_upstream_map_indexes(
-                upstream=tasks_dict[upstream_id],
+                upstream=ti.dag.task_dict.tasks_dict[upstream_id],
                 ti_count=expanded_ti_count,
                 session=session,
             )
@@ -300,6 +300,10 @@ class TriggerRuleDep(BaseTIDep):
             :param dep_context: The current dependency context.
             :param session: Database session.
             """
+            task = ti.task
+            upstream_tasks = {t.task_id: t for t in task.upstream_list}
+            trigger_rule = task.trigger_rule
+
             finished_upstream_tis = (
                 finished_ti
                 for finished_ti in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
@@ -541,27 +545,14 @@ class TriggerRuleDep(BaseTIDep):
             else:
                 yield self._failing_status(reason=f"No strategy to evaluate trigger rule '{trigger_rule}'.")
 
-        # this dictionary enables use of task_id as the key for lru caching
-        # in function _get_relevant_upstream_map_indexes
-        tasks_dict = {}
-
         if not ti.task.is_teardown:
             # a teardown cannot have any indirect setups
             relevant_setups = {t.task_id: t for t in ti.task.get_upstreams_only_setups()}
             if relevant_setups:
-                # set tasks_dict to contain relevant setups
-                # _get_relevant_upstream_map_indexes will use this to look up the task_id
-                tasks_dict = relevant_setups
                 for status, changed in _evaluate_setup_constraint(relevant_setups=relevant_setups):
                     yield status
                     if not status.passed and changed:
                         # no need to evaluate trigger rule; we've already marked as skipped or failed
                         return
 
-        task = ti.task
-        trigger_rule = task.trigger_rule
-        upstream_tasks = {t.task_id: t for t in task.upstream_list}
-        # set tasks_dict to contain direct upstream tasks
-        # _get_relevant_upstream_map_indexes will use this to look up the task_id
-        tasks_dict = upstream_tasks
         yield from _evaluate_direct_relatives()
