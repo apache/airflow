@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-08-31T21:59:57Z
+# This constraints file was automatically generated on 2023-09-01T11:21:47Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -43,7 +43,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.1.1
 Flask==2.2.5
-GitPython==3.1.32
+GitPython==3.1.33
 JPype1==1.4.1
 JayDeBeApi==1.2.3
 Jinja2==3.1.2
@@ -510,7 +510,7 @@ pydruid==0.6.5
 pyenchant==3.2.2
 pyexasol==0.25.2
 pygraphviz==1.11
-pyhcl==0.4.4
+pyhcl==0.4.5
 pykerberos==1.2.4
 pymongo==4.5.0
 pymssql==2.2.8
