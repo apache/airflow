@@ -730,7 +730,7 @@ class TestBigQueryOperator:
         ]
 
         # Check DeSerialized version of operator link
-        assert isinstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleLink)
+        assert isinstance(next(iter(simple_task.operator_extra_links)), BigQueryConsoleLink)
 
         ti.xcom_push("job_id_path", TEST_FULL_JOB_ID)
 
@@ -768,7 +768,7 @@ class TestBigQueryOperator:
         ]
 
         # Check DeSerialized version of operator link
-        assert isinstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleIndexableLink)
+        assert isinstance(next(iter(simple_task.operator_extra_links)), BigQueryConsoleIndexableLink)
 
         ti.xcom_push(key="job_id_path", value=[TEST_FULL_JOB_ID, TEST_FULL_JOB_ID_2])
 

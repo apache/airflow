@@ -486,7 +486,7 @@ Run all checks for all changes in my branch since branched from main:
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core --only-my-changes
+     breeze static-checks --type mypy-core --only-my-changes
 
 More examples can be found in `Breeze documentation <BREEZE.rst#running-static-checks>`_
 

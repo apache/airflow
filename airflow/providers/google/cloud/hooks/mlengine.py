@@ -18,6 +18,7 @@
 """This module contains a Google ML Engine Hook."""
 from __future__ import annotations
 
+import contextlib
 import logging
 import random
 import time
@@ -561,10 +562,9 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
             headers = {
                 "Authorization": f"Bearer {await token.get()}",
             }
-            try:
+            with contextlib.suppress(AirflowException):
+                # suppress AirflowException because we don't want to raise exception
                 job = await session_aio.get(url=url, headers=headers)
-            except AirflowException:
-                pass  # Because the job may not be visible in system yet
 
         return job
 

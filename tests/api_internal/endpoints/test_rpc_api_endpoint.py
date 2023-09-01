@@ -17,11 +17,10 @@
 from __future__ import annotations
 
 import json
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import pytest
-from flask import Flask
 
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance
@@ -33,6 +32,9 @@ from airflow.utils.state import State
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
+
+if TYPE_CHECKING:
+    from flask import Flask
 
 TEST_METHOD_NAME = "test_method"
 TEST_METHOD_WITH_LOG_NAME = "test_method_with_log"
@@ -78,7 +80,7 @@ class TestRpcApiEndpoint:
     @pytest.mark.parametrize(
         "input_params, method_result, result_cmp_func, method_params",
         [
-            ("", None, equals, {}),
+            ("", None, lambda got, _: got == b"", {}),
             ("", "test_me", equals, {}),
             (
                 json.dumps(BaseSerialization.serialize({"dag_id": 15, "task_id": "fake-task"})),
@@ -101,8 +103,7 @@ class TestRpcApiEndpoint:
         ],
     )
     def test_method(self, input_params, method_result, result_cmp_func, method_params):
-        if method_result:
-            mock_test_method.return_value = method_result
+        mock_test_method.return_value = method_result
 
         input_data = {
             "jsonrpc": "2.0",
@@ -117,7 +118,10 @@ class TestRpcApiEndpoint:
         assert response.status_code == 200
         if method_result:
             response_data = BaseSerialization.deserialize(json.loads(response.data), use_pydantic_models=True)
-            assert result_cmp_func(response_data, method_result)
+        else:
+            response_data = response.data
+
+        assert result_cmp_func(response_data, method_result)
 
         mock_test_method.assert_called_once_with(**method_params)
 
