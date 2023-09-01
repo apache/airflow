@@ -275,7 +275,7 @@ class DatabricksHook(BaseDatabricksHook):
         if not pipeline_name:
             return None
         else:
-            return matching_pipelines["pipeline_id"]
+            return matching_pipelines[0]["pipeline_id"]
 
     def get_run_page_url(self, run_id: int) -> str:
         """
