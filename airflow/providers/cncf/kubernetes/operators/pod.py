@@ -771,11 +771,7 @@ class KubernetesPodOperator(BaseOperator):
 
         remote_pod = self.pod_manager.read_pod(pod)
 
-        for container in remote_pod.spec.containers:
-            if container.name == self.ISTIO_CONTAINER_NAME:
-                return True
-
-        return False
+        return any(container.name == self.ISTIO_CONTAINER_NAME for container in remote_pod.spec.containers)
 
     def kill_istio_sidecar(self, pod: V1Pod) -> None:
         command = "/bin/sh -c 'curl -fsI -X POST http://localhost:15020/quitquitquit'"
