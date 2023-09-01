@@ -26,9 +26,10 @@ A client for AWS Batch services.
 """
 from __future__ import annotations
 
+import itertools
 from random import uniform
 from time import sleep
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import botocore.client
 import botocore.exceptions
@@ -36,8 +37,10 @@ import botocore.waiter
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.typing_compat import Protocol, runtime_checkable
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 
 @runtime_checkable
@@ -343,8 +346,17 @@ class BatchClientHook(AwsBaseHook):
 
         :raises: AirflowException
         """
-        retries = 0
-        while True:
+        for retries in range(1 + self.max_retries):
+            if retries:
+                pause = self.exponential_delay(retries)
+                self.log.info(
+                    "AWS Batch job (%s) status check (%d of %d) in the next %.2f seconds",
+                    job_id,
+                    retries,
+                    self.max_retries,
+                    pause,
+                )
+                self.delay(pause)
 
             job = self.get_job_description(job_id)
             job_status = job.get("status")
@@ -354,23 +366,10 @@ class BatchClientHook(AwsBaseHook):
                 job_status,
                 match_status,
             )
-
             if job_status in match_status:
                 return True
-
-            if retries >= self.max_retries:
-                raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
-
-            retries += 1
-            pause = self.exponential_delay(retries)
-            self.log.info(
-                "AWS Batch job (%s) status check (%d of %d) in the next %.2f seconds",
-                job_id,
-                retries,
-                self.max_retries,
-                pause,
-            )
-            self.delay(pause)
+        else:
+            raise AirflowException(f"AWS Batch job ({job_id}) status checks exceed max_retries")
 
     def get_job_description(self, job_id: str) -> dict:
         """
@@ -382,12 +381,21 @@ class BatchClientHook(AwsBaseHook):
 
         :raises: AirflowException
         """
-        retries = 0
-        while True:
+        for retries in range(self.status_retries):
+            if retries:
+                pause = self.exponential_delay(retries)
+                self.log.info(
+                    "AWS Batch job (%s) description retry (%d of %d) in the next %.2f seconds",
+                    job_id,
+                    retries,
+                    self.status_retries,
+                    pause,
+                )
+                self.delay(pause)
+
             try:
                 response = self.get_conn().describe_jobs(jobs=[job_id])
                 return self.parse_job_description(job_id, response)
-
             except botocore.exceptions.ClientError as err:
                 # Allow it to retry in case of exceeded quota limit of requests to AWS API
                 if err.response.get("Error", {}).get("Code") != "TooManyRequestsException":
@@ -398,23 +406,11 @@ class BatchClientHook(AwsBaseHook):
                     "check Amazon Provider AWS Connection documentation for more details.",
                     str(err),
                 )
-
-            retries += 1
-            if retries >= self.status_retries:
-                raise AirflowException(
-                    f"AWS Batch job ({job_id}) description error: exceeded status_retries "
-                    f"({self.status_retries})"
-                )
-
-            pause = self.exponential_delay(retries)
-            self.log.info(
-                "AWS Batch job (%s) description retry (%d of %d) in the next %.2f seconds",
-                job_id,
-                retries,
-                self.status_retries,
-                pause,
+        else:
+            raise AirflowException(
+                f"AWS Batch job ({job_id}) description error: exceeded status_retries "
+                f"({self.status_retries})"
             )
-            self.delay(pause)
 
     @staticmethod
     def parse_job_description(job_id: str, response: dict) -> dict:
@@ -476,7 +472,7 @@ class BatchClientHook(AwsBaseHook):
             )
 
         # If the user selected another logDriver than "awslogs", then CloudWatch logging is disabled.
-        if any([c.get("logDriver", "awslogs") != "awslogs" for c in log_configs]):
+        if any(c.get("logDriver", "awslogs") != "awslogs" for c in log_configs):
             self.log.warning(
                 f"AWS Batch job ({job_id}) uses non-aws log drivers. AWS CloudWatch logging disabled."
             )
@@ -494,18 +490,17 @@ class BatchClientHook(AwsBaseHook):
 
         # cross stream names with options (i.e. attempts X nodes) to generate all log infos
         result = []
-        for stream in stream_names:
-            for option in log_options:
-                result.append(
-                    {
-                        "awslogs_stream_name": stream,
-                        # If the user did not specify anything, the default settings are:
-                        #   awslogs-group = /aws/batch/job
-                        #   awslogs-region = `same as AWS Batch Job region`
-                        "awslogs_group": option.get("awslogs-group", "/aws/batch/job"),
-                        "awslogs_region": option.get("awslogs-region", self.conn_region_name),
-                    }
-                )
+        for stream, option in itertools.product(stream_names, log_options):
+            result.append(
+                {
+                    "awslogs_stream_name": stream,
+                    # If the user did not specify anything, the default settings are:
+                    #   awslogs-group = /aws/batch/job
+                    #   awslogs-region = `same as AWS Batch Job region`
+                    "awslogs_group": option.get("awslogs-group", "/aws/batch/job"),
+                    "awslogs_region": option.get("awslogs-region", self.conn_region_name),
+                }
+            )
         return result
 
     @staticmethod
@@ -559,13 +554,10 @@ class BatchClientHook(AwsBaseHook):
     @staticmethod
     def exponential_delay(tries: int) -> float:
         """
-        An exponential back-off delay, with random jitter.
+        Apply an exponential back-off delay, with random jitter.
 
         There is a maximum interval of 10 minutes (with random jitter between 3 and 10 minutes).
         This is used in the :py:meth:`.poll_for_job_status` method.
-
-        :param tries: Number of tries
-
 
         Examples of behavior:
 
@@ -596,6 +588,8 @@ class BatchClientHook(AwsBaseHook):
 
             - https://docs.aws.amazon.com/general/latest/gr/api-retries.html
             - https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+
+        :param tries: Number of tries
         """
         max_interval = 600.0  # results in 3 to 10 minute delay
         delay = 1 + pow(tries * 0.6, 2)

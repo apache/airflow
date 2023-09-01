@@ -25,7 +25,6 @@ and password (=Storage account key), or login and SAS token in the extra field
 """
 from __future__ import annotations
 
-import json
 import os
 from unittest import mock
 from unittest.mock import patch
@@ -36,52 +35,36 @@ from pytest import param
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
-from airflow.utils import db
-from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 
 class TestAzureFileshareHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, create_mock_connections):
+        create_mock_connections(
             Connection(
                 conn_id="azure_fileshare_test_key",
                 conn_type="azure_file_share",
                 login="login",
                 password="key",
-            )
-        )
-        db.merge_conn(
+            ),
             Connection(
                 conn_id="azure_fileshare_extras",
                 conn_type="azure_fileshare",
                 login="login",
-                extra=json.dumps(
-                    {
-                        "sas_token": "token",
-                        "protocol": "http",
-                    }
-                ),
-            )
-        )
-        db.merge_conn(
+                extra={"sas_token": "token", "protocol": "http"},
+            ),
             # Neither password nor sas_token present
             Connection(
                 conn_id="azure_fileshare_missing_credentials",
                 conn_type="azure_fileshare",
                 login="login",
-            )
-        )
-        db.merge_conn(
+            ),
             Connection(
                 conn_id="azure_fileshare_extras_wrong",
                 conn_type="azure_fileshare",
                 login="login",
-                extra=json.dumps(
-                    {
-                        "wrong_key": "token",
-                    }
-                ),
-            )
+                extra={"wrong_key": "token"},
+            ),
         )
 
     def test_key_and_connection(self):
@@ -230,35 +213,6 @@ class TestAzureFileshareHook:
         status, msg = hook.test_connection()
         assert status is False
         assert msg == "Test Connection Failure"
-
-    def test__ensure_prefixes_removal(self):
-        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-        path = "airflow.providers.microsoft.azure.hooks.fileshare._ensure_prefixes"
-        if not object_exists(path):
-            raise Exception(
-                "You must remove this test. It only exists to "
-                "remind us to remove decorator `_ensure_prefixes`."
-            )
-
-        if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
-            raise Exception(
-                "You must now remove `_ensure_prefixes` from AzureFileShareHook."
-                " The functionality is now taken care of by providers manager."
-            )
-
-    def test___ensure_prefixes(self):
-        """
-        Check that ensure_prefixes decorator working properly
-
-        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
-        """
-        assert list(AzureFileShareHook.get_ui_field_behaviour()["placeholders"].keys()) == [
-            "login",
-            "password",
-            "extra__azure_fileshare__sas_token",
-            "extra__azure_fileshare__connection_string",
-            "extra__azure_fileshare__protocol",
-        ]
 
     @pytest.mark.parametrize(
         "uri",

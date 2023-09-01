@@ -56,7 +56,7 @@ Package apache-airflow-providers-daskexecutor
 `Dask <https://www.dask.org/>`__
 
 
-Release: 1.0.0
+Release: 1.0.1
 
 Provider package
 ----------------

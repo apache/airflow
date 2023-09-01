@@ -134,7 +134,7 @@ class SparkSqlHook(BaseHook):
             connection_cmd += ["--num-executors", str(self._num_executors)]
         if self._sql:
             sql = self._sql.strip()
-            if sql.endswith(".sql") or sql.endswith(".hql"):
+            if sql.endswith((".sql", ".hql")):
                 connection_cmd += ["-f", sql]
             else:
                 connection_cmd += ["-e", sql]

@@ -26,30 +26,6 @@ from tests.charts.log_groomer import LogGroomerTestBase
 class TestDagProcessor:
     """Tests DAG processor."""
 
-    def test_default_automount_service_account_token(self):
-        docs = render_chart(
-            values={
-                "dagProcessor": {
-                    "enabled": True,
-                    "serviceAccount": {"create": True},
-                },
-            },
-            show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
-        )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
-
-    def test_overriden_automount_service_account_token(self):
-        docs = render_chart(
-            values={
-                "dagProcessor": {
-                    "enabled": True,
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
-                },
-            },
-            show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
-        )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
-
     @pytest.mark.parametrize(
         "airflow_version, num_docs",
         [
@@ -648,3 +624,31 @@ class TestDagProcessorLogGroomer(LogGroomerTestBase):
 
     obj_name = "dag-processor"
     folder = "dag-processor"
+
+
+class TestDagProcessorServiceAccount:
+    """Tests DAG processor service account."""
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False

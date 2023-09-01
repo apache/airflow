@@ -30,7 +30,6 @@ DAG_FOLDER = os.path.join(os.path.dirname(__file__), "dags")
 os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = DAG_FOLDER
 os.environ["AIRFLOW__DEBUG__SQLALCHEMY_STATS"] = "True"
 os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
-os.environ["AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS"] = "True"
 
 # Here we setup simpler logger to avoid any code changes in
 # Airflow core code base
@@ -146,7 +145,7 @@ def make_report() -> list[Query]:
     for query in raw_queries:
         time, info, stack, sql = query.replace("@SQLALCHEMY ", "").split("|$")
         func, file, loc = info.split(":")
-        file_name = file.rpartition("/")[-1] if "/" in file else file
+        file_name = file.rpartition("/")[-1]
         queries.append(
             Query(
                 function=func.strip(),
@@ -195,16 +194,15 @@ def main() -> None:
     rows = []
     times = []
 
-    for i in range(4):
+    for test_no in range(4):
         sleep(5)
         queries, exec_time = run_test()
-        if i == 0:
-            continue
-        times.append(exec_time)
-        for qry in queries:
-            info = qry.to_dict()
-            info["test_no"] = i
-            rows.append(info)
+        if test_no:
+            times.append(exec_time)
+            for qry in queries:
+                info = qry.to_dict()
+                info["test_no"] = test_no
+                rows.append(info)
 
     rows_to_csv(rows, name="/files/sql_after_remote.csv")
     print(times)

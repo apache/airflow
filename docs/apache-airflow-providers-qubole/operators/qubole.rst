@@ -25,11 +25,6 @@ Airflow provides operators to execute tasks (commands) on QDS and perform checks
 Also, there are provided sensors that waits for a file, folder or partition to be present in cloud storage and check for its presence via QDS APIs
 
 
-Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
-
-.. include::/operators/_partials/prerequisite_tasks.rst
-
 .. _howto/operator:QuboleOperator:
 
 Execute tasks
@@ -71,7 +66,7 @@ To run jar file in your Hadoop cluster use
 Run Pig command
 """""""""""""""
 
-To run script script in *Pig Latin* in your Hadoop cluster use
+To run script in *Pig Latin* in your Hadoop cluster use
 
 .. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
@@ -82,7 +77,7 @@ To run script script in *Pig Latin* in your Hadoop cluster use
 Run Shell command
 """""""""""""""""
 
-To run Shell-script script use
+To run Shell-script use
 
 .. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python

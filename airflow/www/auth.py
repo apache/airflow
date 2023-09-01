@@ -28,6 +28,10 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 T = TypeVar("T", bound=Callable)
 
 
+def get_access_denied_message():
+    return conf.get("webserver", "access_denied_message")
+
+
 def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
     """Factory for decorator that checks current user's permissions against required permissions."""
 
@@ -54,12 +58,12 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
                         hostname=get_hostname()
                         if conf.getboolean("webserver", "EXPOSE_HOSTNAME")
                         else "redact",
-                        logout_url=appbuilder.get_url_for_logout,
+                        logout_url=get_auth_manager().get_url_logout(),
                     ),
                     403,
                 )
             else:
-                access_denied = "Access is Denied"
+                access_denied = get_access_denied_message()
                 flash(access_denied, "danger")
             return redirect(get_auth_manager().get_url_login(next=request.url))
 

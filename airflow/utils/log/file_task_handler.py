@@ -110,14 +110,13 @@ def _parse_timestamps_in_log_file(lines: Iterable[str]):
     timestamp = None
     next_timestamp = None
     for idx, line in enumerate(lines):
-        if not line:
-            continue
-        with suppress(Exception):
-            # next_timestamp unchanged if line can't be parsed
-            next_timestamp = _parse_timestamp(line)
-        if next_timestamp:
-            timestamp = next_timestamp
-        yield timestamp, idx, line
+        if line:
+            with suppress(Exception):
+                # next_timestamp unchanged if line can't be parsed
+                next_timestamp = _parse_timestamp(line)
+            if next_timestamp:
+                timestamp = next_timestamp
+            yield timestamp, idx, line
 
 
 def _interleave_logs(*logs):
@@ -200,7 +199,7 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def add_triggerer_suffix(full_path, job_id=None):
         """
-        Helper for deriving trigger log filename from task log filename.
+        Derive trigger log filename from task log filename.
 
         E.g. given /path/to/file.log returns /path/to/file.log.trigger.123.log, where 123
         is the triggerer id.  We use the triggerer ID instead of trigger ID to distinguish
@@ -226,7 +225,7 @@ class FileTaskHandler(logging.Handler):
             self.handler.close()
 
     def _render_filename(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
-        """Returns the worker log filename."""
+        """Return the worker log filename."""
         from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
         with create_session() as session:
@@ -319,6 +318,10 @@ class FileTaskHandler(logging.Handler):
         executor_messages: list[str] = []
         executor_logs: list[str] = []
         served_logs: list[str] = []
+        is_running = ti.try_number == try_number and ti.state in (
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        )
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
@@ -333,7 +336,7 @@ class FileTaskHandler(logging.Handler):
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
+        if is_running and not executor_messages:
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
@@ -353,15 +356,11 @@ class FileTaskHandler(logging.Handler):
         )
         log_pos = len(logs)
         messages = "".join([f"*** {x}\n" for x in messages_list])
-        end_of_log = ti.try_number != try_number or ti.state not in (
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.DEFERRED,
-        )
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
         out_message = logs if "log_pos" in (metadata or {}) else messages + logs
-        return out_message, {"end_of_log": end_of_log, "log_pos": log_pos}
+        return out_message, {"end_of_log": not is_running, "log_pos": log_pos}
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -506,12 +505,11 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def _read_from_local(worker_log_path: Path) -> tuple[list[str], list[str]]:
         messages = []
-        logs = []
-        files = list(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        if files:
-            messages.extend(["Found local files:", *[f"  * {x}" for x in sorted(files)]])
-        for file in sorted(files):
-            logs.append(Path(file).read_text())
+        paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
+        if paths:
+            messages.append("Found local files:")
+            messages.extend(f"  * {x}" for x in paths)
+        logs = [file.read_text() for file in paths]
         return messages, logs
 
     def _read_from_logs_server(self, ti, worker_log_rel_path) -> tuple[list[str], list[str]]:
@@ -536,7 +534,7 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            messages.append(f"Could not read served logs: {str(e)}")
+            messages.append(f"Could not read served logs: {e}")
             logger.exception("Could not read served logs")
         return messages, logs
 

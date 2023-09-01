@@ -43,7 +43,9 @@ except ImportError:
     # In case the tests are skipped because of lacking test harness, get_cert should be
     # overridden to avoid get_cert failing during test discovery as get_cert is used
     # in conf_vars decorator
-    get_cert = lambda x: x
+    def get_cert(x):
+        return x
+
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 SUCCESS_COMMAND = ["airflow", "tasks", "run", "--help"]
@@ -104,7 +106,6 @@ class TestDaskExecutor(TestBaseDask):
     # This test is quarantined because it became rather flaky on our CI in July 2023 and reason for this
     # is unknown. An issue for that was created: https://github.com/apache/airflow/issues/32778 and the
     # marker should be removed while (possibly) the reason for flaky behaviour is found and fixed.
-    @pytest.mark.quarantined
     @pytest.mark.execution_timeout(180)
     def test_backfill_integration(self):
         """

@@ -25,6 +25,7 @@ from airflow_breeze.global_constants import (
     ALL_HISTORICAL_PYTHON_VERSIONS,
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
+    ALLOWED_BUILD_PROGRESS,
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
@@ -51,6 +52,7 @@ from airflow_breeze.utils.custom_param_types import (
     CacheableChoice,
     CacheableDefault,
     DryRunOption,
+    MySQLBackendVersionType,
     UseAirflowVersionType,
     VerboseOption,
 )
@@ -151,7 +153,7 @@ option_mysql_version = click.option(
     "-M",
     "--mysql-version",
     help="Version of MySQL used.",
-    type=CacheableChoice(ALLOWED_MYSQL_VERSIONS),
+    type=MySQLBackendVersionType(ALLOWED_MYSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
     show_default=True,
 )
@@ -227,7 +229,6 @@ option_image_tag_for_pulling = click.option(
     envvar="IMAGE_TAG",
 )
 option_image_tag_for_building = click.option(
-    "-t",
     "--image-tag",
     help="Tag the image after building it.",
     show_default=True,
@@ -235,7 +236,6 @@ option_image_tag_for_building = click.option(
     envvar="IMAGE_TAG",
 )
 option_image_tag_for_running = click.option(
-    "-t",
     "--image-tag",
     help="Tag of the image which is used to run the image (implies --mount-sources=skip).",
     show_default=True,
@@ -350,12 +350,6 @@ option_push = click.option(
     is_flag=True,
     envvar="PUSH",
 )
-option_empty_image = click.option(
-    "--empty-image",
-    help="Prepare empty image tagged with the same name as the Airflow image.",
-    is_flag=True,
-    envvar="EMPTY_IMAGE",
-)
 option_wait_for_image = click.option(
     "--wait-for-image",
     help="Wait until image is available.",
@@ -432,7 +426,7 @@ option_python_versions = click.option(
 )
 option_run_in_parallel = click.option(
     "--run-in-parallel",
-    help="Run the operation in parallel on all or selected subset of Python versions.",
+    help="Run the operation in parallel on all or selected subset of parameters.",
     is_flag=True,
     envvar="RUN_IN_PARALLEL",
 )
@@ -449,6 +443,12 @@ argument_packages = click.argument(
     nargs=-1,
     required=False,
     type=BetterChoice(get_available_documentation_packages(short_version=True)),
+)
+argument_packages_plus_all_providers = click.argument(
+    "packages_plus_all_providers",
+    nargs=-1,
+    required=False,
+    type=BetterChoice(["all-providers"] + get_available_documentation_packages(short_version=True)),
 )
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
@@ -471,7 +471,12 @@ option_airflow_constraints_reference_build = click.option(
     help="Constraint reference to use when building the image.",
     envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
 )
-
+option_airflow_constraints_mode_update = click.option(
+    "--airflow-constraints-mode",
+    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
+    required=False,
+    help="Limit constraint update to only selected constraint mode - if selected.",
+)
 option_airflow_constraints_mode_ci = click.option(
     "--airflow-constraints-mode",
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
@@ -504,6 +509,14 @@ option_builder = click.option(
     envvar="BUILDER",
     show_default=True,
     default="autodetect",
+)
+option_build_progress = click.option(
+    "--build-progress",
+    help="Build progress.",
+    type=BetterChoice(ALLOWED_BUILD_PROGRESS),
+    envvar="BUILD_PROGRESS",
+    show_default=True,
+    default=ALLOWED_BUILD_PROGRESS[0],
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
@@ -569,4 +582,34 @@ option_historical_python_version = click.option(
     required=False,
     envvar="PYTHON_VERSION",
     help="Python version to update sbom from. (defaults to all historical python versions)",
+)
+option_commit_sha = click.option(
+    "--commit-sha",
+    default=None,
+    show_default=True,
+    envvar="COMMIT_SHA",
+    help="Commit SHA that is used to build the images.",
+)
+option_build_timeout_minutes = click.option(
+    "--build-timeout-minutes",
+    required=False,
+    type=int,
+    envvar="BUILD_TIMEOUT_MINUTES",
+    help="Optional timeout for the build in minutes. Useful to detect `pip` backtracking problems.",
+)
+option_eager_upgrade_additional_requirements = click.option(
+    "--eager-upgrade-additional-requirements",
+    required=False,
+    type=str,
+    envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
+    help="Optional additional requirements to upgrade eagerly to avoid backtracking "
+    "(see `breeze ci find-backtracking-candidates`).",
+)
+option_airflow_site_directory = click.option(
+    "-a",
+    "--airflow-site-directory",
+    envvar="AIRFLOW_SITE_DIRECTORY",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    help="Local directory path of cloned airflow-site repo.",
+    required=True,
 )

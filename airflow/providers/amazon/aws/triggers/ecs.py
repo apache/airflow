@@ -18,17 +18,19 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from botocore.exceptions import ClientError, WaiterError
 
 from airflow import AirflowException
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class ClusterActiveTrigger(AwsBaseWaiterTrigger):
@@ -165,8 +167,8 @@ class TaskDoneTrigger(BaseTrigger):
             # fmt: on
             waiter = ecs_client.get_waiter("tasks_stopped")
             logs_token = None
-            while self.waiter_max_attempts >= 1:
-                self.waiter_max_attempts = self.waiter_max_attempts - 1
+            while self.waiter_max_attempts:
+                self.waiter_max_attempts -= 1
                 try:
                     await waiter.wait(
                         cluster=self.cluster, tasks=[self.task_arn], WaiterConfig={"MaxAttempts": 1}
@@ -186,7 +188,7 @@ class TaskDoneTrigger(BaseTrigger):
 
     async def _forward_logs(self, logs_client, next_token: str | None = None) -> str | None:
         """
-        Reads logs from the cloudwatch stream and prints them to the task logs.
+        Read logs from the cloudwatch stream and print them to the task logs.
 
         :return: the token to pass to the next iteration to resume where we started.
         """

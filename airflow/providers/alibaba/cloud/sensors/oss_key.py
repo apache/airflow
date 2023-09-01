@@ -69,14 +69,13 @@ class OSSKeySensor(BaseSensorOperator):
         :param context: the context of the object
         :returns: True if the object exists, False otherwise
         """
+        parsed_url = urlsplit(self.bucket_key)
         if self.bucket_name is None:
-            parsed_url = urlsplit(self.bucket_key)
             if parsed_url.netloc == "":
                 raise AirflowException("If key is a relative path from root, please provide a bucket_name")
             self.bucket_name = parsed_url.netloc
             self.bucket_key = parsed_url.path.lstrip("/")
         else:
-            parsed_url = urlsplit(self.bucket_key)
             if parsed_url.scheme != "" or parsed_url.netloc != "":
                 raise AirflowException(
                     "If bucket_name is provided, bucket_key"

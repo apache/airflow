@@ -181,22 +181,26 @@ class TestLocalClient:
             assert session.query(DagModel).filter(DagModel.dag_id == key).count() == 0
 
     def test_get_pool(self):
-        self.client.create_pool(name="foo", slots=1, description="")
+        self.client.create_pool(name="foo", slots=1, description="", include_deferred=False)
         pool = self.client.get_pool(name="foo")
-        assert pool == ("foo", 1, "")
+        assert pool == ("foo", 1, "", False)
 
     def test_get_pool_non_existing_raises(self):
         with pytest.raises(PoolNotFound):
             self.client.get_pool(name="foo")
 
     def test_get_pools(self):
-        self.client.create_pool(name="foo1", slots=1, description="")
-        self.client.create_pool(name="foo2", slots=2, description="")
+        self.client.create_pool(name="foo1", slots=1, description="", include_deferred=False)
+        self.client.create_pool(name="foo2", slots=2, description="", include_deferred=True)
         pools = sorted(self.client.get_pools(), key=lambda p: p[0])
-        assert pools == [("default_pool", 128, "Default pool"), ("foo1", 1, ""), ("foo2", 2, "")]
+        assert pools == [
+            ("default_pool", 128, "Default pool", False),
+            ("foo1", 1, "", False),
+            ("foo2", 2, "", True),
+        ]
 
     def test_create_pool(self):
-        pool = self.client.create_pool(name="foo", slots=1, description="")
+        pool = self.client.create_pool(name="foo", slots=1, description="", include_deferred=False)
         assert pool == ("foo", 1, "")
         with create_session() as session:
             assert session.query(Pool).count() == 2
@@ -207,6 +211,7 @@ class TestLocalClient:
                 name="foo",
                 slots="foo",
                 description="",
+                include_deferred=True,
             )
 
     def test_create_pool_name_too_long(self):
@@ -219,10 +224,11 @@ class TestLocalClient:
                 name=long_name,
                 slots=5,
                 description="",
+                include_deferred=False,
             )
 
     def test_delete_pool(self):
-        self.client.create_pool(name="foo", slots=1, description="")
+        self.client.create_pool(name="foo", slots=1, description="", include_deferred=False)
         with create_session() as session:
             assert session.query(Pool).count() == 2
         self.client.delete_pool(name="foo")

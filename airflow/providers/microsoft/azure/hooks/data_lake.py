@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from functools import cached_property
+from typing import Any, Union
 
 from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
 from azure.datalake.store import core, lib, multithread
@@ -33,7 +34,9 @@ from azure.storage.filedatalake import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes, get_field
+from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
+
+Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter]
 
 
 class AzureDataLakeHook(BaseHook):
@@ -73,7 +76,6 @@ class AzureDataLakeHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_data_lake")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
@@ -110,9 +112,14 @@ class AzureDataLakeHook(BaseHook):
             conn = self.get_connection(self.conn_id)
             extras = conn.extra_dejson
             self.account_name = self._get_field(extras, "account_name")
+
+            credential: Credentials
             tenant = self._get_field(extras, "tenant")
-            adl_creds = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
-            self._conn = core.AzureDLFileSystem(adl_creds, store_name=self.account_name)
+            if tenant:
+                credential = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
+            else:
+                credential = AzureIdentityCredentialAdapter()
+            self._conn = core.AzureDLFileSystem(credential, store_name=self.account_name)
             self._conn.connect()
         return self._conn
 
@@ -242,7 +249,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     accounts that have a hierarchical namespace. Using Adls_v2 connection
     details create DataLakeServiceClient object.
 
-    Due to Wasb is marked as legacy and and retirement of the (ADLS1), it would
+    Due to Wasb is marked as legacy and retirement of the (ADLS1), it would
     be nice to implement ADLS gen2 hook for interacting with the storage account.
 
     .. seealso::
@@ -257,8 +264,8 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     conn_type = "adls"
     hook_name = "Azure Date Lake Storage V2"
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -273,8 +280,8 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             ),
         }
 
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port"],
@@ -297,7 +304,11 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         super().__init__()
         self.conn_id = adls_conn_id
         self.public_read = public_read
-        self.service_client = self.get_conn()
+
+    @cached_property
+    def service_client(self) -> DataLakeServiceClient:
+        """Return the DataLakeServiceClient object (cached)."""
+        return self.get_conn()
 
     def get_conn(self) -> DataLakeServiceClient:  # type: ignore[override]
         """Return the DataLakeServiceClient object."""
@@ -309,20 +320,22 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             # connection_string auth takes priority
             return DataLakeServiceClient.from_connection_string(connection_string, **extra)
 
+        credential: Credentials
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = ClientSecretCredential(tenant, app_id, app_secret)
-            return DataLakeServiceClient(
-                account_url=f"https://{conn.host}.dfs.core.windows.net", credential=token_credential, **extra
-            )
+            credential = ClientSecretCredential(tenant, app_id, app_secret)
+        elif conn.password:
+            credential = conn.password
+        else:
+            credential = AzureIdentityCredentialAdapter()
 
-        # otherwise, use key auth
-        credential = conn.password
         return DataLakeServiceClient(
-            account_url=f"https://{conn.host}.dfs.core.windows.net", credential=credential, **extra
+            account_url=f"https://{conn.host}.dfs.core.windows.net",
+            credential=credential,  # type: ignore[arg-type]
+            **extra,
         )
 
     def _get_field(self, extra_dict, field_name):

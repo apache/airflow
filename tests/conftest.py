@@ -134,7 +134,7 @@ def trace_sql(request):
             # It is very unlikely that the user wants to display only numbers, but probably
             # the user just wants to count the queries.
             exit_stack.enter_context(count_queries(print_fn=pytest_print))
-        elif any(c for c in ["time", "trace", "sql", "parameters"]):
+        elif any(c in columns for c in ["time", "trace", "sql", "parameters"]):
             exit_stack.enter_context(
                 trace_queries(
                     display_num="num" in columns,
@@ -942,3 +942,12 @@ def initialize_providers_manager():
     from airflow.providers_manager import ProvidersManager
 
     ProvidersManager().initialize_providers_configuration()
+
+
+@pytest.fixture(autouse=True, scope="function")
+def close_all_sqlalchemy_sessions():
+    from sqlalchemy.orm import close_all_sessions
+
+    close_all_sessions()
+    yield
+    close_all_sessions()

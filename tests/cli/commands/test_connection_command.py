@@ -27,7 +27,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.cli import cli_parser
+from airflow.cli import cli_config, cli_parser
 from airflow.cli.commands import connection_command
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -974,3 +974,13 @@ class TestCliTestConnections:
             "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "
             "enable it.\n\n"
         ) in stdout.getvalue()
+
+
+class TestCliCreateDefaultConnection:
+    @mock.patch("airflow.cli.commands.connection_command.db_create_default_connections")
+    def test_cli_create_default_connections(self, mock_db_create_default_connections):
+        create_default_connection_fnc = dict(
+            (db_command.name, db_command.func) for db_command in cli_config.CONNECTIONS_COMMANDS
+        )["create-default-connections"]
+        create_default_connection_fnc(())
+        mock_db_create_default_connections.assert_called_once()

@@ -62,11 +62,12 @@ extend-select = [
     "D402",
     "D403",
     "D412",
-    "D419"
+    "D419",
+    "TCH001",  # typing-only-first-party-import
+    "TCH002",  # typing-only-third-party-import
 ]
 extend-ignore = [
     "D203",
-    "D205",
     "D212",
     "D213",
     "D214",
@@ -103,6 +104,7 @@ filterwarnings = [
 ]
 python_files = [
     "test_*.py",
+    "example_*.py",
 ]
 testpaths = [
     "tests",
@@ -143,3 +145,31 @@ combine-as-imports = true
 "airflow/security/utils.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+source = ["airflow"]
+omit = [
+    "airflow/_vendor/**",
+    "airflow/contrib/**",
+    "airflow/example_dags/**",
+    "airflow/migrations/**",
+    "airflow/providers/**/example_dags/**",
+    "airflow/www/node_modules/**",
+    "airflow/providers/google/ads/_vendor/**",
+]
+
+[tool.coverage.report]
+skip_empty = true
+exclude_also = [
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@(abc\\.)?abstractmethod",
+    "@(typing(_extensions)?\\.)?overload",
+    "if TYPE_CHECKING:"
+]
+[tool.ruff.flake8-type-checking]
+exempt-modules = ["typing", "typing_extensions"]

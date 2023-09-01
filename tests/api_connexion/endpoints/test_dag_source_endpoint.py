@@ -18,14 +18,17 @@ from __future__ import annotations
 
 import ast
 import os
+from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow import DAG
 from airflow.models import DagBag
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
+
+if TYPE_CHECKING:
+    from airflow import DAG
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")

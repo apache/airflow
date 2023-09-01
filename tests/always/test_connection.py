@@ -347,7 +347,7 @@ class TestConnection:
         ),
     ]
 
-    @pytest.mark.parametrize("test_config", [x for x in test_from_uri_params])
+    @pytest.mark.parametrize("test_config", test_from_uri_params)
     def test_connection_from_uri(self, test_config: UriTestCaseConfig):
 
         connection = Connection(uri=test_config.test_uri)
@@ -369,7 +369,7 @@ class TestConnection:
 
         self.mask_secret.assert_has_calls(expected_calls)
 
-    @pytest.mark.parametrize("test_config", [x for x in test_from_uri_params])
+    @pytest.mark.parametrize("test_config", test_from_uri_params)
     def test_connection_get_uri_from_uri(self, test_config: UriTestCaseConfig):
         """
         This test verifies that when we create a conn_1 from URI, and we generate a URI from that conn, that
@@ -390,7 +390,7 @@ class TestConnection:
         assert connection.schema == new_conn.schema
         assert connection.extra_dejson == new_conn.extra_dejson
 
-    @pytest.mark.parametrize("test_config", [x for x in test_from_uri_params])
+    @pytest.mark.parametrize("test_config", test_from_uri_params)
     def test_connection_get_uri_from_conn(self, test_config: UriTestCaseConfig):
         """
         This test verifies that if we create conn_1 from attributes (rather than from URI), and we generate a
@@ -753,14 +753,14 @@ class TestConnection:
     @mock.patch.dict(
         "os.environ",
         {
-            "AIRFLOW_CONN_TEST_URI_NO_HOOK": "fs://",
+            "AIRFLOW_CONN_TEST_URI_NO_HOOK": "unknown://",
         },
     )
     def test_connection_test_no_hook(self):
-        conn = Connection(conn_id="test_uri_no_hook", conn_type="fs")
+        conn = Connection(conn_id="test_uri_no_hook", conn_type="unknown")
         res = conn.test_connection()
         assert res[0] is False
-        assert res[1] == 'Unknown hook type "fs"'
+        assert res[1] == 'Unknown hook type "unknown"'
 
     @mock.patch.dict(
         "os.environ",

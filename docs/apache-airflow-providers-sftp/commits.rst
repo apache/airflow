@@ -28,14 +28,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.6.0
+.....
+
+Latest change: 2023-08-24
+
+=================================================================================================  ===========  =============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================
+`85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
+`533afb5128 <https://github.com/apache/airflow/commit/533afb5128383958889bc653226f46947c642351>`_  2023-08-19   ``Add parameter sftp_prefetch to SFTPToGCSOperator (#33274)``
+`7e79997594 <https://github.com/apache/airflow/commit/7e799975948573ca2a1c4b2051d3eadc32bb8ba7>`_  2023-08-11   ``D205 Support - Providers - Final Pass (#33303)``
+=================================================================================================  ===========  =============================================================
+
+4.5.0
+.....
+
+Latest change: 2023-07-29
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
+`6b880844ad <https://github.com/apache/airflow/commit/6b880844ade6036954d5343f6a74a241b3865153>`_  2023-07-25   ``openlineage, sftp: add OpenLineage support for sftp provider (#31360)``
+=================================================================================================  ===========  =========================================================================
+
 4.4.0
 .....
 
-Latest change: 2023-07-10
+Latest change: 2023-07-12
 
 =================================================================================================  ===========  ====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================
+`e7f59a913e <https://github.com/apache/airflow/commit/e7f59a913e1fcf9052e69f62af9fe23901f1a358>`_  2023-07-12   ``Prepare docs for July 2023 2nd wave of Providers (#32566)``
 `76021ef8cd <https://github.com/apache/airflow/commit/76021ef8cd630826d9524e9984d1a2a7d9c57549>`_  2023-07-10   ``Remove redundant Operator suffix from sensor name (#32475)``
 `a3fa12ce3c <https://github.com/apache/airflow/commit/a3fa12ce3c82388e761e1ea248d4ed5a2e68238d>`_  2023-07-10   ``Adds sftp_sensor decorator (#32457)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``

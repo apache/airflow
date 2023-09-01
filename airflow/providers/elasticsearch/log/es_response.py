@@ -38,7 +38,7 @@ class AttributeList:
         return _wrap(val)
 
     def __iter__(self):
-        return map(lambda i: _wrap(i), self._l_)
+        return (_wrap(i) for i in self._l_)
 
     def __bool__(self):
         return bool(self._l_)
@@ -66,6 +66,7 @@ class AttributeDict:
 class Hit(AttributeDict):
     """
     The Hit class is used to manage and access elements in a document.
+
     It inherits from the AttributeDict class and provides
     attribute-like access to its elements, similar to a dictionary.
     """

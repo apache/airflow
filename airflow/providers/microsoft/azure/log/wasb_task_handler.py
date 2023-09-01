@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import os
 import shutil
 from functools import cached_property
@@ -31,6 +30,9 @@ from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    import logging
 
 
 def get_default_delete_local_copy():
@@ -68,7 +70,6 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
         self.log_relative_path = ""
-        self._hook = None
         self.closed = False
         self.upload_on_close = True
         self.delete_local_copy = (

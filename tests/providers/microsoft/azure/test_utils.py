@@ -17,26 +17,13 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
-from airflow.providers.microsoft.azure.utils import get_field
-from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
+from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
 
-
-def test__ensure_prefixes_removal():
-    """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-    path = "airflow.providers.microsoft.azure.utils._ensure_prefixes"
-    if not object_exists(path):
-        raise Exception(
-            "You must remove this test. It only exists to "
-            "remind us to remove decorator `_ensure_prefixes`."
-        )
-
-    if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
-        raise Exception(
-            "You must now remove `_ensure_prefixes` from azure utils."
-            " The functionality is now taken care of by providers manager."
-        )
+MODULE = "airflow.providers.microsoft.azure.utils"
 
 
 def test_get_field_warns_on_dupe():
@@ -73,3 +60,18 @@ def test_get_field_non_prefixed(input, expected):
         field_name="this_param",
     )
     assert value == expected
+
+
+class TestAzureIdentityCredentialAdapter:
+    @mock.patch(f"{MODULE}.PipelineRequest")
+    @mock.patch(f"{MODULE}.BearerTokenCredentialPolicy")
+    @mock.patch(f"{MODULE}.DefaultAzureCredential")
+    def test_signed_session(self, mock_default_azure_credential, mock_policy, mock_request):
+        mock_request.return_value.http_request.headers = {"Authorization": "Bearer token"}
+
+        adapter = AzureIdentityCredentialAdapter()
+        mock_default_azure_credential.assert_called_once()
+        mock_policy.assert_called_once()
+
+        adapter.signed_session()
+        assert adapter.token == {"access_token": "token"}

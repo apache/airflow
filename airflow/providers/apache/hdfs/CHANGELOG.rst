@@ -28,7 +28,7 @@ Changelog
 ---------
 
 4.1.0
------
+.....
 
 .. note::
   This release dropped support for Python 3.7
@@ -45,7 +45,7 @@ Features
    * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 4.0.0
------
+.....
 
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the
@@ -75,7 +75,7 @@ you can use 3.* version of the provider, but the recommendation is to switch to 
    Protobuf 3 required by the snakebite-py3 library has ended its life in June 2023 and Airflow and it's
    providers stopped supporting it. If you would like to continue using HDFS hooks and sensors
    based on snakebite-py3 library when you have protobuf library 4.+ you can install the 3.* version
-   of the provider but due to Protobuf incompatibility, you need to do one of the the two things:
+   of the provider but due to Protobuf incompatibility, you need to do one of the two things:
 
    * set ``PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python`` variable in your environment.
    * downgrade protobuf to latest 3.* version (3.20.3 at this time)

@@ -28,6 +28,7 @@ from uuid import uuid4
 import pendulum
 import pytest
 from pytest import param
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
@@ -41,6 +42,7 @@ from airflow.utils.db_cleanup import (
     _cleanup_table,
     _confirm_drop_archives,
     _dump_table_to_file,
+    _get_archived_table_names,
     config_dict,
     drop_archived_tables,
     export_archived_records,
@@ -211,7 +213,7 @@ class TestDBCleanup:
             )
             stmt = CreateTableAs(target_table_name, query.selectable)
             session.execute(stmt)
-            res = session.execute(f"SELECT COUNT(1) FROM {target_table_name}")
+            res = session.execute(text(f"SELECT COUNT(1) FROM {target_table_name}"))
             for row in res:
                 assert row[0] == expected_to_delete
 
@@ -231,7 +233,7 @@ class TestDBCleanup:
         Verify that _cleanup_table actually deletes the rows it should.
 
         TaskInstance represents the "normal" case.  DagRun is the odd case where we want
-        to keep the last non-externally-triggered DagRun record even if if it should be
+        to keep the last non-externally-triggered DagRun record even if it should be
         deleted according to the provided timestamp.
 
         We also verify that the "on delete cascade" behavior is as expected.  Some tables
@@ -266,6 +268,34 @@ class TestDBCleanup:
             else:
                 raise Exception("unexpected")
 
+    @pytest.mark.parametrize(
+        "skip_archive, expected_archives",
+        [param(True, 0, id="skip_archive"), param(False, 1, id="do_archive")],
+    )
+    def test__skip_archive(self, skip_archive, expected_archives):
+        """
+        Verify that running cleanup_table with drops the archives when requested.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        num_tis = 10
+        create_tis(
+            base_date=base_date,
+            num_tis=num_tis,
+        )
+        with create_session() as session:
+            clean_before_date = base_date.add(days=5)
+            _cleanup_table(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=clean_before_date,
+                dry_run=False,
+                session=session,
+                table_names=["dag_run"],
+                skip_archive=skip_archive,
+            )
+            model = config_dict["dag_run"].orm_model
+            assert len(session.query(model).all()) == 5
+            assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
+
     def test_no_models_missing(self):
         """
         1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,
@@ -284,7 +314,7 @@ class TestDBCleanup:
         for mod_name in mods:
             mod = import_module(mod_name)
 
-            for table_name, class_ in mod.__dict__.items():
+            for class_ in mod.__dict__.values():
                 if isinstance(class_, DeclarativeMeta):
                     with suppress(AttributeError):
                         all_models.update({class_.__tablename__: class_})

@@ -123,6 +123,8 @@ class BaseSQLOperator(BaseOperator):
     :param conn_id: reference to a specific database
     """
 
+    conn_id_field = "conn_id"
+
     def __init__(
         self,
         *,
@@ -141,8 +143,9 @@ class BaseSQLOperator(BaseOperator):
     @cached_property
     def _hook(self):
         """Get DB Hook based on connection type."""
-        self.log.debug("Get connection for %s", self.conn_id)
-        conn = BaseHook.get_connection(self.conn_id)
+        conn_id = getattr(self, self.conn_id_field)
+        self.log.debug("Get connection for %s", conn_id)
+        conn = BaseHook.get_connection(conn_id)
         hook = conn.get_hook(hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
             from airflow.hooks.dbapi_hook import DbApiHook as _DbApiHook
@@ -204,6 +207,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
     :param handler: (optional) the function that will be applied to the cursor (default: fetch_all_handler).
     :param split_statements: (optional) if split single SQL string into statements. By default, defers
         to the default value in the ``run`` method of the configured hook.
+    :param conn_id: the connection ID used to connect to the database
+    :param database: name of database which overwrite the defined one in connection
     :param return_last: (optional) return the result of only last statement (default: True).
     :param show_return_value_in_logs: (optional) if true operator output will be printed to the task log.
         Use with caution. It's not recommended to dump large datasets to the log. (default: False).
@@ -225,12 +230,14 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
         handler: Callable[[Any], Any] = fetch_all_handler,
+        conn_id: str | None = None,
+        database: str | None = None,
         split_statements: bool | None = None,
         return_last: bool = True,
         show_return_value_in_logs: bool = False,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
         self.autocommit = autocommit
         self.parameters = parameters
@@ -407,7 +414,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLColumnCheckOperator`
     """
 
-    template_fields = ("partition_clause", "table", "sql")
+    template_fields: Sequence[str] = ("partition_clause", "table", "sql")
     template_fields_renderers = {"sql": "sql"}
 
     sql_check_template = """
@@ -635,7 +642,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLTableCheckOperator`
     """
 
-    template_fields = ("partition_clause", "table", "sql", "conn_id")
+    template_fields: Sequence[str] = ("partition_clause", "table", "sql", "conn_id")
 
     template_fields_renderers = {"sql": "sql"}
 
@@ -776,7 +783,7 @@ class SQLCheckOperator(BaseSQLOperator):
         self.log.info("Record: %s", records)
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
-        elif not all(bool(r) for r in records):
+        elif not all(records):
             self._raise_exception(f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}")
 
         self.log.info("Success.")
@@ -830,14 +837,13 @@ class SQLValueCheckOperator(BaseSQLOperator):
         pass_value_conv = _convert_to_float_if_possible(self.pass_value)
         is_numeric_value_check = isinstance(pass_value_conv, float)
 
-        tolerance_pct_str = str(self.tol * 100) + "%" if self.tol is not None else None
         error_msg = (
             "Test failed.\nPass value:{pass_value_conv}\n"
             "Tolerance:{tolerance_pct_str}\n"
             "Query:\n{sql}\nResults:\n{records!s}"
         ).format(
             pass_value_conv=pass_value_conv,
-            tolerance_pct_str=tolerance_pct_str,
+            tolerance_pct_str=f"{self.tol:.1%}" if self.tol is not None else None,
             sql=self.sql,
             records=records,
         )
@@ -903,8 +909,8 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
     ui_color = "#fff7e6"
 
     ratio_formulas = {
-        "max_over_min": lambda cur, ref: float(max(cur, ref)) / min(cur, ref),
-        "relative_diff": lambda cur, ref: float(abs(cur - ref)) / ref,
+        "max_over_min": lambda cur, ref: max(cur, ref) / min(cur, ref),
+        "relative_diff": lambda cur, ref: abs(cur - ref) / ref,
     }
 
     def __init__(

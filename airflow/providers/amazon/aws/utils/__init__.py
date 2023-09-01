@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from airflow.utils.helpers import prune_dict
@@ -53,6 +53,11 @@ def datetime_to_epoch(date_time: datetime) -> int:
 def datetime_to_epoch_ms(date_time: datetime) -> int:
     """Convert a datetime object to an epoch integer (milliseconds)."""
     return int(date_time.timestamp() * 1_000)
+
+
+def datetime_to_epoch_utc_ms(date_time: datetime) -> int:
+    """Convert a datetime object to an epoch integer (milliseconds) in UTC timezone."""
+    return int(date_time.replace(tzinfo=timezone.utc).timestamp() * 1_000)
 
 
 def datetime_to_epoch_us(date_time: datetime) -> int:

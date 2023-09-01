@@ -298,7 +298,7 @@ Let's run a few commands to validate this script further.
 .. code-block:: bash
 
     # initialize the database tables
-    airflow db init
+    airflow db migrate
 
     # print the list of active DAGs
     airflow dags list
@@ -400,4 +400,4 @@ Here are a few things you might want to do next:
 
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/taskflow`
-    - Skip to the the :doc:`/core-concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
+    - Skip to the :doc:`/core-concepts/index` section for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more

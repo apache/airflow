@@ -188,7 +188,7 @@ There are certain expectations from the members of the security team:
   experts that are available through Airflow stakeholders. The intent about involving 3rd parties has
   to be discussed and agreed upon at security@airflow.apache.org.
 
-* They have to have an [ICLA](https://www.apache.org/licenses/contributor-agreements.html) signed with
+* They have to have an `ICLA <https://www.apache.org/licenses/contributor-agreements.html>`_ signed with
   Apache Software Foundation.
 
 * The security team members might inform 3rd parties about fixes, for example in order to assess if the fix
@@ -212,8 +212,8 @@ There are certain expectations from the members of the security team:
   release process. This is facilitated by the security tool provided by the Apache Software Foundation.
 
 * Severity of the issue is determined based on the criteria described in the
-  [Severity Rating blog post](https://security.apache.org/blog/severityrating/)  by the Apache Software
-  Foundation Security team
+  `Severity Rating blog post <https://security.apache.org/blog/severityrating/>`_  by the Apache Software
+  Foundation Security team.
 
 Contribution Workflow
 =====================
@@ -677,9 +677,9 @@ druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterp
 google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
 ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
 mysql, neo4j, odbc, openfaas, openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill,
-password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba,
-segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd,
-tableau, tabular, telegram, trino, vertica, virtualenv, webhdfs, winrm, zendesk
+password, pinot, plexus, postgres, presto, rabbitmq, redis, s3, salesforce, samba, segment,
+sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau,
+tabular, telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages

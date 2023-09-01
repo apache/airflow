@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import inspect
+import itertools
 import warnings
 from functools import cached_property
-from itertools import chain
 from textwrap import dedent
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
@@ -39,7 +40,6 @@ from typing import (
 import attr
 import re2
 import typing_extensions
-from sqlalchemy.orm import Session
 
 from airflow import Dataset
 from airflow.exceptions import AirflowException
@@ -51,27 +51,37 @@ from airflow.models.baseoperator import (
     get_merged_defaults,
     parse_retries,
 )
-from airflow.models.dag import DAG, DagContext
+from airflow.models.dag import DagContext
 from airflow.models.expandinput import (
     EXPAND_INPUT_EMPTY,
     DictOfListsExpandInput,
-    ExpandInput,
     ListOfDictsExpandInput,
-    OperatorExpandArgument,
-    OperatorExpandKwargsArgument,
     is_mappable,
 )
-from airflow.models.mappedoperator import MappedOperator, ValidationSource, ensure_xcomarg_return_value
+from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
-from airflow.utils.context import KNOWN_CONTEXT_KEYS, Context
+from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates
-from airflow.utils.task_group import TaskGroup, TaskGroupContext
+from airflow.utils.task_group import TaskGroupContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.dag import DAG
+    from airflow.models.expandinput import (
+        ExpandInput,
+        OperatorExpandArgument,
+        OperatorExpandKwargsArgument,
+    )
+    from airflow.models.mappedoperator import ValidationSource
+    from airflow.utils.context import Context
+    from airflow.utils.task_group import TaskGroup
 
 
 class ExpandableFactory(Protocol):
@@ -196,6 +206,17 @@ class DecoratedOperator(BaseOperator):
         op_args = op_args or []
         op_kwargs = op_kwargs or {}
 
+        # Check the decorated function's signature. We go through the argument
+        # list and "fill in" defaults to arguments that are known context keys,
+        # since values for those will be provided when the task is run. Since
+        # we're not actually running the function, None is good enough here.
+        signature = inspect.signature(python_callable)
+        parameters = [
+            param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
+            for param in signature.parameters.values()
+        ]
+        signature = signature.replace(parameters=parameters)
+
         # Check that arguments can be binded. There's a slight difference when
         # we do validation for task-mapping: Since there's no guarantee we can
         # receive enough arguments at parse time, we use bind_partial to simply
@@ -203,9 +224,9 @@ class DecoratedOperator(BaseOperator):
         # can only be known at execution time, when unmapping happens, and this
         # is called without the _airflow_mapped_validation_only flag.
         if kwargs.get("_airflow_mapped_validation_only"):
-            inspect.signature(python_callable).bind_partial(*op_args, **op_kwargs)
+            signature.bind_partial(*op_args, **op_kwargs)
         else:
-            inspect.signature(python_callable).bind(*op_args, **op_kwargs)
+            signature.bind(*op_args, **op_kwargs)
 
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
@@ -215,7 +236,7 @@ class DecoratedOperator(BaseOperator):
     def execute(self, context: Context):
         # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
         #  as well
-        for arg in chain(self.op_args, self.op_kwargs.values()):
+        for arg in itertools.chain(self.op_args, self.op_kwargs.values()):
             if isinstance(arg, Dataset):
                 self.inlets.append(arg)
         return_value = super().execute(context)
@@ -223,7 +244,7 @@ class DecoratedOperator(BaseOperator):
 
     def _handle_output(self, return_value: Any, context: Context, xcom_push: Callable):
         """
-        Handles logic for whether a decorator needs to push a single return value or multiple return values.
+        Handle logic for whether a decorator needs to push a single return value or multiple return values.
 
         It sets outlets if any datasets are found in the returned value(s)
 

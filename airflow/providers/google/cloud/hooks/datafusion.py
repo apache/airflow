@@ -17,6 +17,7 @@
 """This module contains Google DataFusion hook."""
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from time import monotonic, sleep
@@ -37,6 +38,12 @@ from airflow.providers.google.common.hooks.base_google import (
 )
 
 Operation = Dict[str, Any]
+
+
+class ConflictException(AirflowException):
+    """Exception to catch 409 error."""
+
+    pass
 
 
 class PipelineStates:
@@ -163,6 +170,8 @@ class DataFusionHook(GoogleBaseHook):
     def _check_response_status_and_data(response, message: str) -> None:
         if response.status == 404:
             raise AirflowNotFoundException(message)
+        elif response.status == 409:
+            raise ConflictException("Conflict: Resource is still in use.")
         elif response.status != 200:
             raise AirflowException(message)
         if response.data is None:
@@ -356,21 +365,18 @@ class DataFusionHook(GoogleBaseHook):
         if version_id:
             url = os.path.join(url, "versions", version_id)
 
-        response = self._cdap_request(url=url, method="DELETE", body=None)
-        # Check for 409 error: the previous step for starting/stopping pipeline could still be in progress.
-        # Waiting some time before retry.
-        for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+        for time_to_wait in exponential_sleep_generator(initial=1, maximum=10):
             try:
+                response = self._cdap_request(url=url, method="DELETE", body=None)
                 self._check_response_status_and_data(
                     response, f"Deleting a pipeline failed with code {response.status}: {response.data}"
                 )
-                break
-            except AirflowException as exc:
-                if "409" in str(exc):
-                    sleep(time_to_wait)
-                    response = self._cdap_request(url=url, method="DELETE", body=None)
-                else:
-                    raise
+            except ConflictException as exc:
+                self.log.info(exc)
+                sleep(time_to_wait)
+            else:
+                if response.status == 200:
+                    break
 
     def list_pipelines(
         self,
@@ -511,17 +517,25 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
         return urljoin(f"{instance_url}/", f"v3/namespaces/{quote(namespace)}/apps/")
 
     async def _get_link(self, url: str, session):
-        async with Token(scopes=self.scopes) as token:
-            session_aio = AioSession(session)
-            headers = {
-                "Authorization": f"Bearer {await token.get()}",
-            }
-            try:
-                pipeline = await session_aio.get(url=url, headers=headers)
-            except AirflowException:
-                pass  # Because the pipeline may not be visible in system yet
-
-        return pipeline
+        # Adding sleep generator to catch 404 in case if pipeline was not retrieved during first attempt.
+        for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+            async with Token(scopes=self.scopes) as token:
+                session_aio = AioSession(session)
+                headers = {
+                    "Authorization": f"Bearer {await token.get()}",
+                }
+                try:
+                    pipeline = await session_aio.get(url=url, headers=headers)
+                    break
+                except Exception as exc:
+                    if "404" in str(exc):
+                        await asyncio.sleep(time_to_wait)
+                    else:
+                        raise
+        if pipeline:
+            return pipeline
+        else:
+            raise AirflowException("Could not retrieve pipeline. Aborting.")
 
     async def get_pipeline(
         self,
@@ -567,7 +581,6 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                     pipeline_id=pipeline_id,
                     session=session,
                 )
-                self.log.info("Response pipeline: %s", pipeline)
                 pipeline = await pipeline.json(content_type=None)
                 current_pipeline_state = pipeline["status"]
 

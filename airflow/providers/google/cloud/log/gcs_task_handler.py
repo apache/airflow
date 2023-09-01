@@ -243,11 +243,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             old_log = blob.download_as_bytes().decode()
             log = "\n".join([old_log, log]) if old_log else log
         except Exception as e:
-            if self.no_log_found(e):
-                pass
-            else:
+            if not self.no_log_found(e):
                 log += self._add_message(
-                    f"Error checking for previous log; if exists, may be overwritten: {str(e)}"
+                    f"Error checking for previous log; if exists, may be overwritten: {e}"
                 )
                 self.log.warning("Error checking for previous log: %s", e)
         try:

@@ -35,9 +35,8 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_cluster_def"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-CLUSTER_NAME = f"cluster-dataproc-def-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 REGION = "europe-west1"
-ZONE = "europe-west1-b"
 
 
 # Cluster definition
@@ -45,19 +44,19 @@ CLUSTER_CONFIG = {
     "master_config": {
         "num_instances": 1,
         "machine_type_uri": "n1-standard-4",
-        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
     "worker_config": {
         "num_instances": 2,
         "machine_type_uri": "n1-standard-4",
-        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
     "secondary_worker_config": {
         "num_instances": 1,
         "machine_type_uri": "n1-standard-4",
         "disk_config": {
             "boot_disk_type": "pd-standard",
-            "boot_disk_size_gb": 1024,
+            "boot_disk_size_gb": 32,
         },
         "is_preemptible": True,
         "preemptibility": "PREEMPTIBLE",
@@ -82,7 +81,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataproc"],
+    tags=["example", "dataproc", "deferrable"],
 ) as dag:
     # [START how_to_cloud_dataproc_create_cluster_operator_async]
     create_cluster = DataprocCreateClusterOperator(
@@ -119,7 +118,14 @@ with models.DAG(
     )
     # [END how_to_cloud_dataproc_delete_cluster_operator_async]
 
-    create_cluster >> update_cluster >> delete_cluster
+    (
+        # TEST SETUP
+        create_cluster
+        # TEST BODY
+        >> update_cluster
+        # TEST TEARDOWN
+        >> delete_cluster
+    )
 
     from tests.system.utils.watcher import watcher
 

@@ -20,10 +20,8 @@ from __future__ import annotations
 import json
 import warnings
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
-
-from astroid.decorators import cachedproperty
-from mypy_boto3_rds.type_defs import TagTypeDef
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -39,6 +37,8 @@ from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
+    from mypy_boto3_rds.type_defs import TagTypeDef
+
     from airflow.utils.context import Context
 
 
@@ -74,7 +74,7 @@ class RdsBaseOperator(BaseOperator):
 
         self._await_interval = 60  # seconds
 
-    @cachedproperty
+    @cached_property
     def hook(self) -> RdsHook:
         return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name, **self.hook_params)
 
@@ -328,6 +328,8 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
     :param s3_prefix: The Amazon S3 bucket prefix to use as the file name and path of the exported snapshot.
     :param export_only: The data to be exported from the snapshot.
     :param wait_for_completion:  If True, waits for the DB snapshot export to complete. (default: True)
+    :param waiter_interval: The number of seconds to wait before checking the export status. (default: 30)
+    :param waiter_max_attempts: The number of attempts to make before failing. (default: 40)
     """
 
     template_fields = (
@@ -351,6 +353,8 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         s3_prefix: str = "",
         export_only: list[str] | None = None,
         wait_for_completion: bool = True,
+        waiter_interval: int = 30,
+        waiter_max_attempts: int = 40,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -363,6 +367,8 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         self.s3_prefix = s3_prefix
         self.export_only = export_only or []
         self.wait_for_completion = wait_for_completion
+        self.waiter_interval = waiter_interval
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> str:
         self.log.info("Starting export task %s for snapshot %s", self.export_task_identifier, self.source_arn)
@@ -378,7 +384,12 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
         )
 
         if self.wait_for_completion:
-            self.hook.wait_for_export_task_state(self.export_task_identifier, target_state="complete")
+            self.hook.wait_for_export_task_state(
+                export_task_id=self.export_task_identifier,
+                target_state="complete",
+                check_interval=self.waiter_interval,
+                max_attempts=self.waiter_max_attempts,
+            )
         return json.dumps(start_export, default=str)
 
 
@@ -392,6 +403,8 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
 
     :param export_task_identifier: The identifier of the snapshot export task to cancel
     :param wait_for_completion:  If True, waits for DB snapshot export to cancel. (default: True)
+    :param check_interval: The amount of time in seconds to wait between attempts
+    :param max_attempts: The maximum number of attempts to be made
     """
 
     template_fields = ("export_task_identifier",)
@@ -402,6 +415,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         export_task_identifier: str,
         wait_for_completion: bool = True,
         check_interval: int = 30,
+        max_attempts: int = 40,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -409,6 +423,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
         self.export_task_identifier = export_task_identifier
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
+        self.max_attempts = max_attempts
 
     def execute(self, context: Context) -> str:
         self.log.info("Canceling export task %s", self.export_task_identifier)
@@ -419,7 +434,10 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
 
         if self.wait_for_completion:
             self.hook.wait_for_export_task_state(
-                self.export_task_identifier, target_state="canceled", check_interval=self.check_interval
+                self.export_task_identifier,
+                target_state="canceled",
+                check_interval=self.check_interval,
+                max_attempts=self.max_attempts,
             )
         return json.dumps(cancel_export, default=str)
 

@@ -45,9 +45,9 @@ class TestSCBackwardsCompatibility:
             ],
         )
 
-        for index in range(len(docs)):
-            assert 3000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[index])
-            assert 30 == jmespath.search("spec.template.spec.securityContext.fsGroup", docs[index])
+        for doc in docs:
+            assert 3000 == jmespath.search("spec.template.spec.securityContext.runAsUser", doc)
+            assert 30 == jmespath.search("spec.template.spec.securityContext.fsGroup", doc)
 
     def test_check_statsd_uid(self):
         docs = render_chart(
@@ -89,20 +89,18 @@ class TestSCBackwardsCompatibility:
             ],
         )
 
-        for index in range(len(docs)):
-            assert "git-sync" in [
-                c["name"] for c in jmespath.search("spec.template.spec.containers", docs[index])
-            ]
+        for doc in docs:
+            assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", doc)]
             assert "git-sync-init" in [
-                c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[index])
+                c["name"] for c in jmespath.search("spec.template.spec.initContainers", doc)
             ]
             assert 3000 == jmespath.search(
                 "spec.template.spec.initContainers[?name=='git-sync-init'].securityContext.runAsUser | [0]",
-                docs[index],
+                doc,
             )
             assert 3000 == jmespath.search(
                 "spec.template.spec.containers[?name=='git-sync'].securityContext.runAsUser | [0]",
-                docs[index],
+                doc,
             )
 
 
@@ -131,10 +129,9 @@ class TestSecurityContext:
             ],
         )
 
-        for index in range(len(docs)):
-            print(docs[index])
-            assert 6000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[index])
-            assert 60 == jmespath.search("spec.template.spec.securityContext.fsGroup", docs[index])
+        for doc in docs:
+            assert 6000 == jmespath.search("spec.template.spec.securityContext.runAsUser", doc)
+            assert 60 == jmespath.search("spec.template.spec.securityContext.fsGroup", doc)
 
     # Test priority:
     # <local>.securityContext > securityContext > uid + gid
@@ -170,10 +167,9 @@ class TestSecurityContext:
             ],
         )
 
-        for index in range(len(docs)):
-            print(docs[index])
-            assert 9000 == jmespath.search("spec.template.spec.securityContext.runAsUser", docs[index])
-            assert 90 == jmespath.search("spec.template.spec.securityContext.fsGroup", docs[index])
+        for doc in docs:
+            assert 9000 == jmespath.search("spec.template.spec.securityContext.runAsUser", doc)
+            assert 90 == jmespath.search("spec.template.spec.securityContext.fsGroup", doc)
 
     # Test containerSecurity priority over uid under components using localSecurityContext
     def test_check_local_uid(self):
@@ -206,20 +202,18 @@ class TestSecurityContext:
             ],
         )
 
-        for index in range(len(docs)):
-            assert "git-sync" in [
-                c["name"] for c in jmespath.search("spec.template.spec.containers", docs[index])
-            ]
+        for doc in docs:
+            assert "git-sync" in [c["name"] for c in jmespath.search("spec.template.spec.containers", doc)]
             assert "git-sync-init" in [
-                c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[index])
+                c["name"] for c in jmespath.search("spec.template.spec.initContainers", doc)
             ]
             assert 8000 == jmespath.search(
                 "spec.template.spec.initContainers[?name=='git-sync-init'].securityContext.runAsUser | [0]",
-                docs[index],
+                doc,
             )
             assert 8000 == jmespath.search(
                 "spec.template.spec.containers[?name=='git-sync'].securityContext.runAsUser | [0]",
-                docs[index],
+                doc,
             )
 
     # Test securityContexts for main containers
@@ -300,10 +294,8 @@ class TestSecurityContext:
             ],
         )
 
-        for index in range(len(docs)):
-            assert ctx_value == jmespath.search(
-                "spec.template.spec.containers[0].securityContext", docs[index]
-            )
+        for doc in docs:
+            assert ctx_value == jmespath.search("spec.template.spec.containers[0].securityContext", doc)
 
     # Test securityContexts for log-groomer-sidecar main container
     def test_log_groomer_sidecar_container_setting(self):
@@ -320,10 +312,8 @@ class TestSecurityContext:
             ],
         )
 
-        for index in range(len(docs)):
-            assert ctx_value == jmespath.search(
-                "spec.template.spec.containers[1].securityContext", docs[index]
-            )
+        for doc in docs:
+            assert ctx_value == jmespath.search("spec.template.spec.containers[1].securityContext", doc)
 
     # Test securityContexts for metrics-explorer main container
     def test_metrics_explorer_container_setting(self):
@@ -378,32 +368,26 @@ class TestSecurityContext:
             ],
         )
 
-        for index in range(len(docs)):
-            assert ctx_value == jmespath.search(
-                "spec.template.spec.initContainers[0].securityContext", docs[index]
-            )
+        for doc in docs:
+            assert ctx_value == jmespath.search("spec.template.spec.initContainers[0].securityContext", doc)
 
     # Test securityContexts for volume-permissions init container
     def test_volume_permissions_init_container_setting(self):
+        ctx_value = {"allowPrivilegeEscalation": False}
         docs = render_chart(
             values={
                 "workers": {
                     "persistence": {
                         "enabled": True,
                         "fixPermissions": True,
-                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                        "securityContexts": {"container": ctx_value},
                     }
                 }
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        expected_ctx = {
-            "allowPrivilegeEscalation": False,
-        }
 
-        assert expected_ctx == jmespath.search(
-            "spec.template.spec.initContainers[0].securityContext", docs[0]
-        )
+        assert ctx_value == jmespath.search("spec.template.spec.initContainers[0].securityContext", docs[0])
 
     # Test securityContexts for main pods
     def test_main_pod_setting(self):
@@ -436,8 +420,8 @@ class TestSecurityContext:
             ],
         )
 
-        for index in range(len(docs)):
-            assert ctx_value == jmespath.search("spec.template.spec.securityContext", docs[index])
+        for doc in docs:
+            assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
 
     # Test securityContexts for main pods
     def test_main_pod_setting_legacy_security(self):
@@ -468,5 +452,5 @@ class TestSecurityContext:
             ],
         )
 
-        for index in range(len(docs)):
-            assert ctx_value == jmespath.search("spec.template.spec.securityContext", docs[index])
+        for doc in docs:
+            assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)

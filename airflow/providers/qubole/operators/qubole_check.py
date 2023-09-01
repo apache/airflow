@@ -103,8 +103,10 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
 
     """
 
+    conn_id_field = "qubole_conn_id"
+
     template_fields: Sequence[str] = tuple(
-        set(QuboleOperator.template_fields) | set(SQLCheckOperator.template_fields)
+        set(QuboleOperator.template_fields) | set(SQLCheckOperator.template_fields) | {"qubole_conn_id"}
     )
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = "#000"
@@ -123,6 +125,7 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry
         self.on_retry_callback = QuboleCheckHook.handle_failure_retry
         self._hook_context = None
+        self.qubole_conn_id = qubole_conn_id
 
 
 # TODO(xinbinhuang): refactor to reduce levels of inheritance
@@ -155,9 +158,12 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
             QuboleOperator and SQLValueCheckOperator are template-supported.
     """
 
-    template_fields = tuple(set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields))
+    template_fields = tuple(
+        set(QuboleOperator.template_fields) | set(SQLValueCheckOperator.template_fields) | {"qubole_conn_id"}
+    )
     template_ext = QuboleOperator.template_ext
     ui_fgcolor = "#000"
+    conn_id_field = "qubole_conn_id"
 
     def __init__(
         self,
@@ -177,6 +183,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
         self.on_failure_callback = QuboleCheckHook.handle_failure_retry
         self.on_retry_callback = QuboleCheckHook.handle_failure_retry
         self._hook_context = None
+        self.qubole_conn_id = qubole_conn_id
 
 
 def get_sql_from_qbol_cmd(params) -> str:

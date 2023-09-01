@@ -61,7 +61,7 @@ app: Flask | None = None
 @cli_utils.action_cli
 @providers_configuration_loaded
 def internal_api(args):
-    """Starts Airflow Internal API."""
+    """Start Airflow Internal API."""
     print(settings.HEADER)
 
     access_logfile = args.access_logfile or "-"

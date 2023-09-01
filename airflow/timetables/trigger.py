@@ -17,14 +17,18 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
-from pendulum.tz.timezone import Timezone
 
 from airflow.timetables._cron import CronMixin
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+
+if TYPE_CHECKING:
+    from dateutil.relativedelta import relativedelta
+    from pendulum.tz.timezone import Timezone
+
+    from airflow.timetables.base import TimeRestriction
 
 
 class CronTriggerTimetable(CronMixin, Timetable):
@@ -89,7 +93,7 @@ class CronTriggerTimetable(CronMixin, Timetable):
             else:
                 next_start_time = self._align_to_next(restriction.earliest)
         else:
-            start_time_candidates = [self._align_to_next(DateTime.utcnow())]
+            start_time_candidates = [self._align_to_prev(DateTime.utcnow())]
             if last_automated_data_interval is not None:
                 start_time_candidates.append(self._get_next(last_automated_data_interval.end))
             if restriction.earliest is not None:

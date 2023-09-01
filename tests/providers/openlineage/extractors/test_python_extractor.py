@@ -35,7 +35,7 @@ from tests.test_utils.config import conf_vars
 dag = DAG(
     dag_id="test_dummy_dag",
     description="Test dummy DAG",
-    schedule_interval="*/2 * * * *",
+    schedule="*/2 * * * *",
     start_date=datetime(2020, 1, 8),
     catchup=False,
     max_active_runs=1,
@@ -70,6 +70,17 @@ def test_extract_operator_code_disables_on_no_env():
     operator = PythonOperator(task_id="taskid", python_callable=callable)
     extractor = PythonExtractor(operator)
     assert "sourceCode" not in extractor.extract().job_facets
+
+
+@patch.dict(
+    os.environ,
+    {"AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS": "airflow.operators.python.PythonOperator"},
+)
+def test_python_extraction_disabled_operator():
+    operator = PythonOperator(task_id="taskid", python_callable=callable)
+    extractor = PythonExtractor(operator)
+    metadata = extractor.extract()
+    assert metadata is None
 
 
 @patch.dict(os.environ, {"OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE": "False"})

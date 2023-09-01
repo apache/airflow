@@ -274,11 +274,9 @@ class TestBatchJobWaiters:
         self.mock_describe_jobs.side_effect = [
             # Emulate change job status before one of expected states.
             # SUBMITTED -> PENDING -> RUNNABLE -> STARTING
-            *itertools.chain(
-                *[
-                    itertools.repeat(self.describe_jobs_response(job_id=job_id, status=inter_status), 3)
-                    for inter_status in INTERMEDIATE_STATES
-                ]
+            *itertools.chain.from_iterable(
+                itertools.repeat(self.describe_jobs_response(job_id=job_id, status=inter_status), 3)
+                for inter_status in INTERMEDIATE_STATES
             ),
             # Expected status
             self.describe_jobs_response(job_id=job_id, status=status),

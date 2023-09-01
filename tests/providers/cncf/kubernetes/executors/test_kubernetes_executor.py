@@ -228,6 +228,19 @@ class TestAirflowKubernetesScheduler:
         finally:
             kube_executor.end()
 
+    def test_running_pod_log_lines(self):
+        # default behaviour
+        kube_executor = KubernetesExecutor()
+        assert kube_executor.RUNNING_POD_LOG_LINES == 100
+
+        # monkey-patching for second executor
+        kube_executor_2 = KubernetesExecutor()
+        kube_executor_2.RUNNING_POD_LOG_LINES = 200
+
+        # monkey-patching should not affect the class constant
+        assert kube_executor.RUNNING_POD_LOG_LINES == 100
+        assert kube_executor_2.RUNNING_POD_LOG_LINES == 200
+
 
 class TestKubernetesExecutor:
     """
@@ -437,7 +450,7 @@ class TestKubernetesExecutor:
                 ),
             )
 
-            assert list(executor.event_buffer.values())[0][1] == "Invalid executor_config passed"
+            assert next(iter(executor.event_buffer.values()))[1] == "Invalid executor_config passed"
         finally:
             executor.end()
 
@@ -1191,6 +1204,9 @@ class TestKubernetesExecutor:
 
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
+
+    def test_cli_commands_vended(self):
+        assert KubernetesExecutor.get_cli_commands()
 
     def test_annotations_for_logging_task_metadata(self):
         annotations_test = {

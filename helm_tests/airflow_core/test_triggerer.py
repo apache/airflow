@@ -44,8 +44,9 @@ class TestTriggerer:
 
     def test_can_be_disabled(self):
         """
-        Triggerer should be able to be disabled if the users desires
-        (e.g. Python 3.6 or doesn't want to use async tasks).
+        Triggerer should be able to be disabled if the users desires.
+
+        For example, user may be disabled when using Python 3.6 or doesn't want to use async tasks.
         """
         docs = render_chart(
             values={"triggerer": {"enabled": False}},
@@ -619,3 +620,67 @@ class TestTriggererLogGroomer(LogGroomerTestBase):
 
     obj_name = "triggerer"
     folder = "triggerer"
+
+
+class TestTriggererKedaAutoScaler:
+    """Tests triggerer keda autoscaler."""
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "keda": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
+    @pytest.mark.parametrize(
+        "query, expected_query",
+        [
+            # default query
+            (
+                None,
+                "SELECT ceil(COUNT(*)::decimal / 1000) FROM trigger",
+            ),
+            # test custom static query
+            (
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+            ),
+            # test custom template query
+            (
+                "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.triggerer.default_capacity 2 }})"
+                " FROM trigger",
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+            ),
+        ],
+    )
+    def test_should_use_keda_query(self, query, expected_query):
+
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "enabled": True,
+                    "keda": {"enabled": True, **({"query": query} if query else {})},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+        assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])

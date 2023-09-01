@@ -20,7 +20,7 @@ from __future__ import annotations
 
 def _get_empty_set_for_configuration() -> set[tuple[str, str]]:
     """
-    Retrieves an empty_set_for_configuration.
+    Retrieve an empty_set_for_configuration.
 
     This method is only needed because configuration module has a deprecated method called set, and it
     confuses mypy. This method will be removed when we remove the deprecated method.

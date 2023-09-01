@@ -43,9 +43,7 @@ import botocore.session
 import jinja2
 import requests
 import tenacity
-from botocore.client import ClientMeta
 from botocore.config import Config
-from botocore.credentials import ReadOnlyCredentials
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
@@ -66,6 +64,9 @@ from airflow.utils.log.secrets_masker import mask_secret
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 
 if TYPE_CHECKING:
+    from botocore.client import ClientMeta
+    from botocore.credentials import ReadOnlyCredentials
+
     from airflow.models.connection import Connection  # Avoid circular imports.
 
 
@@ -471,7 +472,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @classmethod
     def _get_provider_version(cls) -> str:
-        """Checks the Providers Manager for the package version."""
+        """Check the Providers Manager for the package version."""
         try:
             manager = ProvidersManager()
             hook = manager.hooks[cls.conn_type]
@@ -494,10 +495,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         responsible with catching and handling those.
         """
         stack = inspect.stack()
-        # Find the index of the most recent frame which called the provided function name.
-        target_frame_index = [frame.function for frame in stack].index(target_function_name)
-        # Pull that frame off the stack.
-        target_frame = stack[target_frame_index][0]
+        # Find the index of the most recent frame which called the provided function name
+        # and pull that frame off the stack.
+        target_frame = next(frame for frame in stack if frame.function == target_function_name)[0]
         # Get the local variables for that frame.
         frame_variables = target_frame.f_locals["self"]
         # Get the class object for that frame.
@@ -681,12 +681,16 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return self.get_client_type(region_name=self.region_name, deferrable=True)
 
     @cached_property
-    def conn_client_meta(self) -> ClientMeta:
-        """Get botocore client metadata from Hook connection (cached)."""
+    def _client(self) -> botocore.client.BaseClient:
         conn = self.conn
         if isinstance(conn, botocore.client.BaseClient):
-            return conn.meta
-        return conn.meta.client.meta
+            return conn
+        return conn.meta.client
+
+    @property
+    def conn_client_meta(self) -> ClientMeta:
+        """Get botocore client metadata from Hook connection (cached)."""
+        return self._client.meta
 
     @property
     def conn_region_name(self) -> str:
@@ -775,7 +779,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom UI field behaviour for AWS Connection."""
+        """Return custom UI field behaviour for AWS Connection."""
         return {
             "hidden_fields": ["host", "schema", "port"],
             "relabeling": {
@@ -863,19 +867,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         if deferrable and not client:
             raise ValueError("client must be provided for a deferrable waiter.")
-        client = client or self.conn
+        # Currently, the custom waiter doesn't work with resource_type, only client_type is supported.
+        client = client or self._client
         if self.waiter_path and (waiter_name in self._list_custom_waiters()):
-            # Currently, the custom waiter doesn't work with resource_type, only client_type is supported.
-            if self.resource_type:
-                credentials = self.get_credentials()
-                client = boto3.client(
-                    self.resource_type,
-                    region_name=self.region_name,
-                    aws_access_key_id=credentials.access_key,
-                    aws_secret_access_key=credentials.secret_key,
-                    aws_session_token=credentials.token,
-                )
-
             # Technically if waiter_name is in custom_waiters then self.waiter_path must
             # exist but MyPy doesn't like the fact that self.waiter_path could be None.
             with open(self.waiter_path) as config_file:
@@ -891,7 +885,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @staticmethod
     def _apply_parameters_value(config: dict, waiter_name: str, parameters: dict[str, str] | None) -> dict:
-        """Replaces potential jinja templates in acceptors definition."""
+        """Replace potential jinja templates in acceptors definition."""
         # only process the waiter we're going to use to not raise errors for missing params for other waiters.
         acceptors = config["waiters"][waiter_name]["acceptors"]
         for a in acceptors:
@@ -906,11 +900,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return config
 
     def list_waiters(self) -> list[str]:
-        """Returns a list containing the names of all waiters for the service, official and custom."""
+        """Return a list containing the names of all waiters for the service, official and custom."""
         return [*self._list_official_waiters(), *self._list_custom_waiters()]
 
     def _list_official_waiters(self) -> list[str]:
-        return self.conn.waiter_names
+        return self._client.waiter_names
 
     def _list_custom_waiters(self) -> list[str]:
         if not self.waiter_path:
@@ -945,7 +939,7 @@ class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
 
 
 def resolve_session_factory() -> type[BaseSessionFactory]:
-    """Resolves custom SessionFactory class."""
+    """Resolve custom SessionFactory class."""
     clazz = conf.getimport("aws", "session_factory", fallback=None)
     if not clazz:
         return BaseSessionFactory

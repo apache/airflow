@@ -81,7 +81,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
     :return: Whether the secondary status message of a training job changed or not.
     """
     current_secondary_status_transitions = current_job_description.get("SecondaryStatusTransitions")
-    if current_secondary_status_transitions is None or len(current_secondary_status_transitions) == 0:
+    if not current_secondary_status_transitions:
         return False
 
     prev_job_secondary_status_transitions = (
@@ -90,8 +90,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
 
     last_message = (
         prev_job_secondary_status_transitions[-1]["StatusMessage"]
-        if prev_job_secondary_status_transitions is not None
-        and len(prev_job_secondary_status_transitions) > 0
+        if prev_job_secondary_status_transitions
         else ""
     )
 
@@ -111,7 +110,7 @@ def secondary_training_status_message(
     :return: Job status string to be printed.
     """
     current_transitions = job_description.get("SecondaryStatusTransitions")
-    if current_transitions is None or len(current_transitions) == 0:
+    if not current_transitions:
         return ""
 
     prev_transitions_num = 0
@@ -128,10 +127,8 @@ def secondary_training_status_message(
     status_strs = []
     for transition in transitions_to_print:
         message = transition["StatusMessage"]
-        time_str = timezone.convert_to_utc(cast(datetime, job_description["LastModifiedTime"])).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
-        status_strs.append(f"{time_str} {transition['Status']} - {message}")
+        time_utc = timezone.convert_to_utc(cast(datetime, job_description["LastModifiedTime"]))
+        status_strs.append(f"{time_utc:%Y-%m-%d %H:%M:%S} {transition['Status']} - {message}")
 
     return "\n".join(status_strs)
 
@@ -255,12 +252,12 @@ class SageMakerHook(AwsBaseHook):
         ]
         events: list[Any | None] = []
         for event_stream in event_iters:
-            if not event_stream:
-                events.append(None)
-                continue
-            try:
-                events.append(next(event_stream))
-            except StopIteration:
+            if event_stream:
+                try:
+                    events.append(next(event_stream))
+                except StopIteration:
+                    events.append(None)
+            else:
                 events.append(None)
 
         while any(events):
@@ -586,7 +583,7 @@ class SageMakerHook(AwsBaseHook):
                 # the container starts logging, so ignore any errors thrown about that
                 pass
 
-        if len(stream_names) > 0:
+        if stream_names:
             for idx, event in self.multi_stream_iter(log_group, stream_names, positions):
                 self.log.info(event["message"])
                 ts, count = positions[stream_names[idx]]
@@ -1143,15 +1140,12 @@ class SageMakerHook(AwsBaseHook):
         if check_interval is None:
             check_interval = 10
 
-        retries = 2  # i.e. 3 calls max, 1 initial + 2 retries
-        while True:
+        for retries in (2, 1, 0):
             try:
                 self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
-                break
             except ClientError as ce:
                 # this can happen if the pipeline was transitioning between steps at that moment
-                if ce.response["Error"]["Code"] == "ConflictException" and retries > 0:
-                    retries = retries - 1
+                if ce.response["Error"]["Code"] == "ConflictException" and retries:
                     self.log.warning(
                         "Got a conflict exception when trying to stop the pipeline, "
                         "retrying %s more times. Error was: %s",
@@ -1159,18 +1153,20 @@ class SageMakerHook(AwsBaseHook):
                         ce,
                     )
                     time.sleep(0.3)  # error is due to a race condition, so it should be very transient
-                    continue
-                # we have to rely on the message to catch the right error here, because its type
-                # (ValidationException) is shared with other kinds of errors (e.g. badly formatted ARN)
-                if (
-                    not fail_if_not_running
-                    and "Only pipelines with 'Executing' status can be stopped"
-                    in ce.response["Error"]["Message"]
-                ):
-                    self.log.warning("Cannot stop pipeline execution, as it was not running: %s", ce)
                 else:
-                    self.log.error(ce)
-                    raise
+                    # we have to rely on the message to catch the right error here, because its type
+                    # (ValidationException) is shared with other kinds of errors (e.g. badly formatted ARN)
+                    if (
+                        not fail_if_not_running
+                        and "Only pipelines with 'Executing' status can be stopped"
+                        in ce.response["Error"]["Message"]
+                    ):
+                        self.log.warning("Cannot stop pipeline execution, as it was not running: %s", ce)
+                        break
+                    else:
+                        self.log.error(ce)
+                        raise
+            else:
                 break
 
         res = self.describe_pipeline_exec(pipeline_exec_arn)

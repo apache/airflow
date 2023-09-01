@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -30,7 +31,9 @@ from airflow.providers.amazon.aws.triggers.ecs import (
     ClusterInactiveTrigger,
     TaskDoneTrigger,
 )
-from airflow.triggers.base import TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.triggers.base import TriggerEvent
 
 
 class TestTaskDoneTrigger:

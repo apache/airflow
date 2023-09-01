@@ -52,6 +52,12 @@ CONSTRUCTED_PIPELINE_URL_GET = (
 )
 
 
+class MockResponse:
+    def __init__(self, status, data=None):
+        self.status = status
+        self.data = data
+
+
 @pytest.fixture
 def hook():
     with mock.patch(
@@ -250,6 +256,22 @@ class TestDataFusionHook:
         with pytest.raises(AirflowException, match=r"Deleting a pipeline failed with code 404"):
             hook.delete_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}",
+            method="DELETE",
+            body=None,
+        )
+
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_delete_pipeline_should_fail_if_status_409(self, mock_request, hook, caplog):
+        mock_request.side_effect = [
+            MockResponse(status=409, data="Conflict: Resource is still in use."),
+            MockResponse(status=200, data="Success"),
+        ]
+        hook.delete_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
+
+        assert mock_request.call_count == 2
+        assert "Conflict: Resource is still in use." in caplog.text
+        mock_request.assert_called_with(
             url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}",
             method="DELETE",
             body=None,

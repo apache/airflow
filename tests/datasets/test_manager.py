@@ -54,7 +54,7 @@ class TestDatasetManager:
 
         mock_session = mock.Mock()
         # Gotta mock up the query results
-        mock_session.query.return_value.filter.return_value.one_or_none.return_value = None
+        mock_session.scalar.return_value = None
 
         dsem.register_dataset_change(task_instance=mock_task_instance, dataset=dataset, session=mock_session)
 

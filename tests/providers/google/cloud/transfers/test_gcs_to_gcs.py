@@ -840,7 +840,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
 
-        lineage = operator.get_openlineage_events_on_complete(None)
+        lineage = operator.get_openlineage_facets_on_complete(None)
         assert len(lineage.inputs) == 1
         assert len(lineage.outputs) == 1
         assert lineage.inputs[0] == Dataset(
@@ -862,7 +862,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
 
-        lineage = operator.get_openlineage_events_on_complete(None)
+        lineage = operator.get_openlineage_facets_on_complete(None)
         assert len(lineage.inputs) == 3
         assert len(lineage.outputs) == 1
         assert lineage.inputs == [
@@ -889,7 +889,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
 
-        lineage = operator.get_openlineage_events_on_complete(None)
+        lineage = operator.get_openlineage_facets_on_complete(None)
         assert len(lineage.inputs) == 2
         assert len(lineage.outputs) == 2
         assert lineage.inputs == [

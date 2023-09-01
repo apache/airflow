@@ -75,7 +75,7 @@ class AppriseHook(BaseHook):
         interpret_escapes: bool | None = None,
         config: AppriseConfig | None = None,
     ):
-        """
+        r"""
         Send message to plugged-in services.
 
         :param body: Specify the message body
@@ -87,9 +87,9 @@ class AppriseHook(BaseHook):
         :param tag: Specify one or more tags to filter which services to notify
         :param attach: Specify one or more file attachment locations
         :param interpret_escapes: Enable interpretation of backslash escapes. For example, this would convert
-            sequences such as \\n and \\r to their respective ascii new-line and carriage return characters
+            sequences such as \n and \r to their respective ascii new-line and carriage return characters
         :param config: Specify one or more configuration
-        """  # noqa: D301
+        """
         title = title or ""
 
         apprise_obj = apprise.Apprise()
@@ -112,7 +112,7 @@ class AppriseHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField

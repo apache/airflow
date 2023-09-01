@@ -94,7 +94,7 @@ def reap_process_group(
                     + [str(p.pid) for p in all_processes_in_the_group]
                 )
             elif err_killpg.errno == errno.ESRCH:
-                # There is a rare condition that the process has not managed yet to change it's process
+                # There is a rare condition that the process has not managed yet to change its process
                 # group. In this case os.killpg fails with ESRCH error
                 # So we additionally send a kill signal to the process itself.
                 logger.info(
@@ -119,7 +119,7 @@ def reap_process_group(
         all_processes_in_the_group = parent.children(recursive=True)
         all_processes_in_the_group.append(parent)
     except psutil.NoSuchProcess:
-        # The process already exited, but maybe it's children haven't.
+        # The process already exited, but maybe its children haven't.
         all_processes_in_the_group = []
         for proc in psutil.process_iter():
             try:
@@ -299,7 +299,7 @@ def patch_environ(new_env_variables: dict[str, str]) -> Generator[None, None, No
 
 def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
     """
-    Checks if a pidfile already exists and process is still running.
+    Check if a pidfile already exists and process is still running.
 
     If process is dead then pidfile is removed.
 

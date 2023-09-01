@@ -41,6 +41,9 @@ from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.operators.test_python import BasePythonTest
 
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 
@@ -462,7 +465,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == "add_num"][0]
+        ti_add_num = next(ti for ti in dr.get_task_instances() if ti.task_id == "add_num")
         assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2
 
     def test_dag_task(self):
@@ -795,7 +798,6 @@ def test_task_decorator_has_wrapped_attr():
 
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
     from airflow.exceptions import AirflowSkipException
-    from airflow.models.dagrun import DagRun
     from airflow.utils.trigger_rule import TriggerRule
 
     result = None
@@ -890,7 +892,6 @@ def test_no_warnings(reset_logging_config, caplog):
 
 def test_task_decorator_dataset(dag_maker, session):
     from airflow import Dataset
-    from airflow.models.dagrun import DagRun
 
     result = None
     uri = "s3://test"

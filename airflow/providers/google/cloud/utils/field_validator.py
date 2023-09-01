@@ -158,20 +158,20 @@ def _int_greater_than_zero(value):
 
 
 EXAMPLE_VALIDATION_SPECIFICATION = [
-    dict(name="name", allow_empty=False),
-    dict(name="description", allow_empty=False, optional=True),
-    dict(name="availableMemoryMb", custom_validation=_int_greater_than_zero, optional=True),
-    dict(name="labels", optional=True, type="dict"),
-    dict(
-        name="an_union",
-        type="union",
-        fields=[
-            dict(name="variant_1", regexp=r"^.+$"),
-            dict(name="variant_2", regexp=r"^.+$", api_version="v1beta2"),
-            dict(name="variant_3", type="dict", fields=[dict(name="url", regexp=r"^.+$")]),
-            dict(name="variant_4"),
+    {"name": "name", "allow_empty": False},
+    {"name": "description", "allow_empty": False, "optional": True},
+    {"name": "availableMemoryMb", "custom_validation": _int_greater_than_zero, "optional": True},
+    {"name": "labels", "optional": True, "type": "dict"},
+    {
+        "name": "an_union",
+        "type": "union",
+        "fields": [
+            {"name": "variant_1", "regexp": r"^.+$"},
+            {"name": "variant_2", "regexp": r"^.+$", "api_version": "v1beta2"},
+            {"name": "variant_3", "type": "dict", "fields": [{"name": "url", "regexp": r"^.+$"}]},
+            {"name": "variant_4"},
         ],
-    ),
+    },
 ]
 
 

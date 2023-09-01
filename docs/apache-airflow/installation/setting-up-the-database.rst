@@ -22,11 +22,15 @@ Apache Airflow™ requires a database. If you're just experimenting and learning
 default SQLite option. If you don't want to use SQLite, then take a look at
 :doc:`/howto/set-up-database` to setup a different database.
 
-Usually, you need to run ``airflow db upgrade`` in order to create the database schema that Airflow can use.
+Usually, you need to run ``airflow db migrate`` in order to create the database schema if it does not exist
+or migrate to the latest version if it does. You should make sure that Airflow components are
+not running while the database migration is being executed.
 
-Similarly, upgrading Airflow usually requires an extra step of upgrading the database. This is done
-with ``airflow db upgrade`` CLI command. You should make sure that Airflow components are
-not running while the upgrade is being executed.
+.. note::
+
+    Prior to Airflow version 2.7.0, ``airflow db upgrade`` was used to apply migrations,
+    however, it has been deprecated in favor of ``airflow db migrate``.
+
 
 In some deployments, such as :doc:`helm-chart:index`, both initializing and running the database migration
 is executed automatically when Airflow is upgraded.

@@ -23,16 +23,20 @@ from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
+from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     AllowListValidator,
     BlockListValidator,
-    ListValidator,
     validate_stat,
 )
 
 if TYPE_CHECKING:
     from statsd import StatsClient
+
+    from airflow.metrics.protocols import DeltaType, TimerProtocol
+    from airflow.metrics.validators import (
+        ListValidator,
+    )
 
 T = TypeVar("T", bound=Callable)
 
@@ -150,7 +154,7 @@ class SafeStatsdLogger:
 
 
 def get_statsd_logger(cls) -> SafeStatsdLogger:
-    """Returns logger for StatsD."""
+    """Return logger for StatsD."""
     # no need to check for the scheduler/statsd_on -> this method is only called when it is set
     # and previously it would crash with None is callable if it was called without it.
     from statsd import StatsClient

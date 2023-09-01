@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -27,11 +28,13 @@ import requests
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 @pytest.fixture(autouse=True)
@@ -138,6 +141,23 @@ class TestInternalApiCall:
             data=expected_data,
             headers={"Content-Type": "application/json"},
         )
+
+    @conf_vars(
+        {
+            ("core", "database_access_isolation"): "true",
+            ("core", "internal_api_url"): "http://localhost:8888",
+        }
+    )
+    @mock.patch("airflow.api_internal.internal_api_call.requests")
+    def test_remote_call_with_none_result(self, mock_requests):
+        response = requests.Response()
+        response.status_code = 200
+        response._content = b""
+
+        mock_requests.post.return_value = response
+
+        result = TestInternalApiCall.fake_method()
+        assert result is None
 
     @conf_vars(
         {

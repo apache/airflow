@@ -102,19 +102,17 @@ def find_matches(_file: Path, provider: str, version: str):
 
 if __name__ == "__main__":
     curdir: Path = Path(os.curdir).resolve()
-    dirs: list[Path] = list(filter(os.path.isdir, curdir.iterdir()))
+    dirs: list[Path] = [p for p in curdir.iterdir() if p.is_dir()]
     with Progress(console=console) as progress:
         task = progress.add_task(f"Updating {len(dirs)}", total=len(dirs))
         for directory in dirs:
             if directory.name.startswith("apache-airflow-providers-"):
                 provider = directory.name[len("apache-airflow-providers-") :]
                 console.print(f"[bright_blue] Processing {directory}")
-                version_dirs = list(filter(os.path.isdir, directory.iterdir()))
-                for version_dir in version_dirs:
-                    version = version_dir.name
-                    console.print(version)
-                    for file in version_dir.rglob("*.html"):
-                        candidate_file = file
-                        if candidate_file.exists():
-                            find_matches(candidate_file, provider, version)
+                for version_dir in directory.iterdir():
+                    if version_dir.is_dir():
+                        console.print(version_dir.name)
+                        for candidate_file in version_dir.rglob("*.html"):
+                            if candidate_file.exists():
+                                find_matches(candidate_file, provider, version_dir.name)
             progress.advance(task)

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import datetime
 import operator
 import os
@@ -96,7 +97,7 @@ from tests.test_utils.mock_operators import MockOperator
 @pytest.fixture
 def test_pool():
     with create_session() as session:
-        test_pool = Pool(pool="test_pool", slots=1)
+        test_pool = Pool(pool="test_pool", slots=1, include_deferred=False)
         session.add(test_pool)
         session.flush()
         yield test_pool
@@ -593,10 +594,8 @@ class TestTaskInstance:
             )
 
         def run_with_error(ti):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
@@ -632,10 +631,8 @@ class TestTaskInstance:
             )
 
         def run_with_error(ti):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
@@ -1873,10 +1870,8 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
 
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowException:
-            pass
 
         (email, title, body), _ = mock_send_email.call_args
         assert email == "to"
@@ -1903,10 +1898,8 @@ class TestTaskInstance:
 
         opener = mock_open(read_data="template: {{ti.task_id}}")
         with patch("airflow.models.taskinstance.open", opener, create=True):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         (email, title, body), _ = mock_send_email.call_args
         assert email == "to"
@@ -1928,18 +1921,14 @@ class TestTaskInstance:
         opener = mock_open(read_data="template: {{ti.task_id}}")
         opener.side_effect = FileNotFoundError
         with patch("airflow.models.taskinstance.open", opener, create=True):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         (email_error, title_error, body_error), _ = mock_send_email.call_args
 
         # Rerun task without any error and no template file
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowException:
-            pass
 
         (email_default, title_default, body_default), _ = mock_send_email.call_args
 
@@ -2819,10 +2808,8 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowFailException:
-            pass  # expected
         assert State.FAILED == ti.state
 
     def test_retries_on_other_exceptions(self, dag_maker):
@@ -2837,10 +2824,8 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowException:
-            pass  # expected
         assert State.UP_FOR_RETRY == ti.state
 
     def test_stacktrace_on_failure_starts_with_task_execute_method(self, dag_maker):
@@ -2888,6 +2873,33 @@ class TestTaskInstance:
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
+    def test_get_current_context_works_in_template(self, dag_maker):
+        def user_defined_macro():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+
+        with dag_maker(
+            "test_context_inside_template",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            user_defined_macros={"user_defined_macro": user_defined_macro},
+        ):
+
+            def foo(arg):
+                print(arg)
+
+            PythonOperator(
+                task_id="context_inside_template",
+                python_callable=foo,
+                op_kwargs={"arg": "{{ user_defined_macro() }}"},
+            ),
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "context_inside_template")
+        ti._run_raw_task()
         assert ti.state == State.SUCCESS
 
     @patch.object(Stats, "incr")
@@ -3026,7 +3038,6 @@ class TestTaskInstance:
             "_try_number": 1,
             "max_tries": 1,
             "hostname": "some_unique_hostname",
-            "is_setup": False,
             "unixname": "some_unique_unixname",
             "job_id": 1234,
             "pool": "some_fake_pool_id",

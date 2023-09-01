@@ -126,11 +126,11 @@ class AzureContainerInstancesOperator(BaseOperator):
         self,
         *,
         ci_conn_id: str,
-        registry_conn_id: str | None,
         resource_group: str,
         name: str,
         image: str,
         region: str,
+        registry_conn_id: str | None = None,
         environment_variables: dict | None = None,
         secured_variables: str | None = None,
         volumes: list | None = None,
@@ -295,7 +295,6 @@ class AzureContainerInstancesOperator(BaseOperator):
             try:
                 cg_state = self._ci_hook.get_state(resource_group, name)
                 instance_view = cg_state.containers[0].instance_view
-
                 # If there is no instance view, we show the provisioning state
                 if instance_view is not None:
                     c_state = instance_view.current_state

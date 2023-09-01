@@ -553,9 +553,10 @@ class GCSToGCSOperator(BaseOperator):
         if self.move_object:
             hook.delete(self.source_bucket, source_object)
 
-    def get_openlineage_events_on_complete(self, task_instance):
+    def get_openlineage_facets_on_complete(self, task_instance):
         """
         Implementing _on_complete because execute method does preprocessing on internals.
+
         This means we won't have to normalize self.source_object and self.source_objects,
         destination bucket and so on.
         """

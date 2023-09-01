@@ -414,7 +414,7 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
     assert len(instances) == 1
 
 
-def test_trigger_from_dead_triggerer(session):
+def test_trigger_from_dead_triggerer(session, create_task_instance):
     """
     Checks that the triggerer will correctly claim a Trigger that is assigned to a
     triggerer that does not exist.
@@ -425,6 +425,13 @@ def test_trigger_from_dead_triggerer(session):
     trigger_orm.id = 1
     trigger_orm.triggerer_id = 999  # Non-existent triggerer
     session.add(trigger_orm)
+    ti_orm = create_task_instance(
+        task_id="ti_orm",
+        execution_date=datetime.datetime.utcnow(),
+        run_id="orm_run_id",
+    )
+    ti_orm.trigger_id = trigger_orm.id
+    session.add(trigger_orm)
     session.commit()
     # Make a TriggererJobRunner and have it retrieve DB tasks
     job = Job()
@@ -434,7 +441,7 @@ def test_trigger_from_dead_triggerer(session):
     assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
 
 
-def test_trigger_from_expired_triggerer(session):
+def test_trigger_from_expired_triggerer(session, create_task_instance):
     """
     Checks that the triggerer will correctly claim a Trigger that is assigned to a
     triggerer that has an expired heartbeat.
@@ -444,6 +451,13 @@ def test_trigger_from_expired_triggerer(session):
     trigger_orm = Trigger.from_object(trigger)
     trigger_orm.id = 1
     trigger_orm.triggerer_id = 42
+    session.add(trigger_orm)
+    ti_orm = create_task_instance(
+        task_id="ti_orm",
+        execution_date=datetime.datetime.utcnow(),
+        run_id="orm_run_id",
+    )
+    ti_orm.trigger_id = trigger_orm.id
     session.add(trigger_orm)
     # Use a TriggererJobRunner with an expired heartbeat
     triggerer_job_orm = Job(TriggererJobRunner.job_type)
@@ -553,7 +567,7 @@ def test_trigger_failing(session):
         for _ in range(30):
             if job_runner.trigger_runner.failed_triggers:
                 assert len(job_runner.trigger_runner.failed_triggers) == 1
-                trigger_id, exc = list(job_runner.trigger_runner.failed_triggers)[0]
+                trigger_id, exc = next(iter(job_runner.trigger_runner.failed_triggers))
                 assert trigger_id == 1
                 assert isinstance(exc, ValueError)
                 assert exc.args[0] == "Deliberate trigger failure"

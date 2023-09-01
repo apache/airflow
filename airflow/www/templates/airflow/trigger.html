@@ -86,7 +86,14 @@
         {% endfor -%}
       </select>
     {% elif form_details.schema and "array" in form_details.schema.type %}
-      {% if "examples" in form_details.schema and form_details.schema.examples %}
+      {% if "items" in form_details.schema and form_details.schema.items %}
+      <textarea class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" valuetype="advancedarray" rows="6"
+        {%- if not "null" in form_details.schema.type %} required=""{% endif -%}>
+        {%- if form_details.value is sequence %}
+          {{- form_details.value | tojson() -}}
+        {% endif -%}
+      </textarea>
+      {% elif "examples" in form_details.schema and form_details.schema.examples %}
       <select multiple name="element_{{ form_key }}" id="element_{{ form_key }}" class="select2-drop-mask" valuetype="multiselect"
         onchange="updateJSONconf();"{% if not "null" in form_details.schema.type %} required=""{% endif %}>
         {% for option in form_details.schema.examples -%}
@@ -118,7 +125,7 @@
     {% elif form_details.schema and ("integer" in form_details.schema.type or "number" in form_details.schema.type) %}
       <input class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}"
              valuetype="number" {% if "integer" in form_details.schema.type %} type="number" {% else %} type="decimal" {% endif %}
-        value="{% if form_details.value %}{{ form_details.value }}{% endif %}"
+        value="{% if form_details.value is not none %}{{ form_details.value }}{% endif %}"
         {%- if form_details.schema.minimum %} min="{{ form_details.schema.minimum }}"{% endif %}
         {%- if form_details.schema.maximum %} max="{{ form_details.schema.maximum }}"{% endif %}
         {%- if form_details.schema.type and not "null" in form_details.schema.type %} required=""{% endif %} />

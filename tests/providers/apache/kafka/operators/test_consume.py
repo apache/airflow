@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 from typing import Any
+from unittest import mock
 
 from airflow.models import Connection
 
@@ -78,4 +79,32 @@ class TestConsumeFromTopic:
         )
 
         # execute the operator (this is essentially a no op as the broker isn't setup)
+        operator.execute(context={})
+
+    @mock.patch("airflow.providers.apache.kafka.hooks.consume.KafkaConsumerHook.get_consumer")
+    def test_operator_consume_max(self, mock_get_consumer):
+        mock_consumer = mock.MagicMock()
+
+        mocked_messages = ["test_messages" for i in range(1001)]
+
+        def mock_consume(num_messages=0, timeout=-1):
+            nonlocal mocked_messages
+            if num_messages < 0:
+                raise Exception("Number of messages needs to be positive")
+            msg_count = min(num_messages, len(mocked_messages))
+            returned_messages = mocked_messages[:msg_count]
+            mocked_messages = mocked_messages[msg_count:]
+            return returned_messages
+
+        mock_consumer.consume = mock_consume
+        mock_get_consumer.return_value = mock_consumer
+
+        operator = ConsumeFromTopicOperator(
+            kafka_config_id="kafka_d",
+            topics=["test"],
+            task_id="test",
+            poll_timeout=0.0001,
+        )
+
+        # execute the operator (this is essentially a no op as we're mocking the consumer)
         operator.execute(context={})
