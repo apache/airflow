@@ -278,7 +278,6 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "need_serialized_dag: mark tests that require dags in serialized form to be present"
     )
-    config.addinivalue_line("markers", "disable_autouse: disable autouse fixture for a test case")
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
 
