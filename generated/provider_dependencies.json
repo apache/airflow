@@ -558,7 +558,7 @@
       "azure-mgmt-containerinstance>=7.0.0,<9.0.0",
       "azure-mgmt-containerregistry>=8.0.0",
       "azure-mgmt-cosmosdb",
-      "azure-mgmt-datafactory>=1.0.0,<2.0",
+      "azure-mgmt-datafactory>=2.0.0",
       "azure-mgmt-datalake-store>=0.5.0",
       "azure-mgmt-resource>=2.2.0",
       "azure-mgmt-storage>=16.0.0",
