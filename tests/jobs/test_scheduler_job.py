@@ -3466,19 +3466,26 @@ class TestSchedulerJob:
             (DagRunType.BACKFILL_JOB, True),
             (DagRunType.DATASET_TRIGGERED, False),
         ],
-        ids=[DagRunType.MANUAL.name, DagRunType.SCHEDULED.name, DagRunType.BACKFILL_JOB.name, DagRunType.DATASET_TRIGGERED.name],
+        ids=[
+            DagRunType.MANUAL.name,
+            DagRunType.SCHEDULED.name,
+            DagRunType.BACKFILL_JOB.name,
+            DagRunType.DATASET_TRIGGERED.name,
+        ],
     )
     def test_should_update_dag_next_dagruns_after_run_type(self, run_type, should_update, session, dag_maker):
         """Test that whether next dagrun is updated depends on run type"""
         with dag_maker(
-            dag_id="test_should_update_dag_next_dagruns_after_run_type", schedule="*/1 * * * *", max_active_runs=10
+            dag_id="test_should_update_dag_next_dagruns_after_run_type",
+            schedule="*/1 * * * *",
+            max_active_runs=10,
         ) as dag:
             EmptyOperator(task_id="dummy")
 
         dag_model = dag_maker.dag_model
 
         run = dag_maker.create_dagrun(
-            run_id=f"run",
+            run_id="run",
             run_type=run_type,
             execution_date=DEFAULT_DATE,
             start_date=timezone.utcnow(),
