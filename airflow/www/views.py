@@ -1062,10 +1062,12 @@ class Airflow(AirflowBaseView):
         """Cluster Activity view."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["no_status"] = state_color_mapping.pop(None)
+        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         return self.render_template(
             "airflow/cluster_activity.html",
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
+            standalone_dag_processor=standalone_dag_processor,
         )
 
     @expose("/next_run_datasets_summary", methods=["POST"])
