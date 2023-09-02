@@ -129,4 +129,4 @@ class VerticaHook(DbApiHook):
     ) -> Any | list[Any] | None:
         if handler == fetch_all_handler:
             handler = vertica_fetch_all_handler
-        return DbApiHook.run(self, sql, autocommit, parameters, split_statements, return_last)
+        return DbApiHook.run(self, sql, autocommit, parameters, handler, split_statements, return_last)
