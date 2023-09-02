@@ -16,7 +16,7 @@
 # under the License.
 [tool.black]
 line-length = 110
-target-version = ['py37', 'py38', 'py39', 'py310']
+target-version = ['py38', 'py39', 'py310', 'py311']
 
 # Editable installs are currently broken using setuptools 64.0.0 and above. The problem is tracked in
 # https://github.com/pypa/setuptools/issues/3548. We're also discussing how we could potentially fix
@@ -29,6 +29,7 @@ requires = ['setuptools==67.2.0']
 build-backend = "setuptools.build_meta"
 
 [tool.ruff]
+target-version = "py38"
 typing-modules = ["airflow.typing_compat"]
 line-length = 110
 extend-exclude = [
