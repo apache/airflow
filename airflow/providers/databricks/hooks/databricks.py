@@ -52,6 +52,7 @@ INSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/install")
 UNINSTALL_LIBS_ENDPOINT = ("POST", "api/2.0/libraries/uninstall")
 
 LIST_JOBS_ENDPOINT = ("GET", "api/2.1/jobs/list")
+LIST_PIPELINES_ENDPOINT = ("GET", "api/2.0/pipelines")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
@@ -161,6 +162,35 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response["run_id"]
 
+    def list_pipelines(
+        self,
+        max_results: int = 25,
+        page_token: str | None = None,
+        order_by: list[str] | None = None,
+        filter: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Lists the pipelines defined in the Delta Live Tables system.
+
+        :param max_results: The maximum number of entries to return in a single page.
+        :param page_token: The token to use to retrieve the next page of results.
+        The default is to return the first page of results. This field is optional.
+        :param order_by: A list of strings specifying the order of results.
+        Supported order_by fields are id and name. The default is id asc. This field is optional.
+        :param filter: Select a subset of results based on the specified criteria. The supported filters are:
+        notebook='<path>' to select pipelines that reference the provided notebook path.
+        name LIKE '[pattern]' to select pipelines with a name that matches pattern.
+        Wildcards are supported, for example: name LIKE '%shopping%'
+        Composite filters are not supported. This field is optional.
+
+        """
+        payload: dict[str, Any] = {"max_results": max_results, "page_token": page_token, "order_by": order_by}
+        if filter:
+            payload["filter"] = filter
+        response = self._do_api_call(LIST_PIPELINES_ENDPOINT, payload)
+
+        return response
+
     def list_jobs(
         self, limit: int = 25, offset: int = 0, expand_tasks: bool = False, job_name: str | None = None
     ) -> list[dict[str, Any]]:
@@ -195,6 +225,25 @@ class DatabricksHook(BaseDatabricksHook):
                 offset += len(jobs)
 
         return all_jobs
+
+    def find_pipeline_id_by_name(self, filter: str) -> int | None:
+        """
+        Finds Databricks Delta Live Tables pipeline id by its name. If there are multiple pipelines with the same name, raises AirflowException.
+
+        :param pipeline_name: The name of the Delta Live Tables pipeline to look up.
+        :return: The pipeline_id or None if no pipeline was found.
+        """
+        matching_pipelines = self.list_pipelines(filter=filter)
+
+        if len(matching_pipelines) > 1:
+            raise AirflowException(
+                f"There is more than one pipeline with name {filter}. Please delete duplicated pipelines first"
+            )
+
+        if not matching_pipelines:
+            return None
+        else:
+            return matching_pipelines["statuses"][0]["pipeline_id"]
 
     def find_job_id_by_name(self, job_name: str) -> int | None:
         """
