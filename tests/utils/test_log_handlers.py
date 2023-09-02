@@ -429,7 +429,7 @@ class TestFileTaskLogHandler:
                 "task_id=task_for_testing_file_log_handler,"
                 "try_number=2,"
                 "airflow-worker"
-            )
+            ),
             actual_selector,
         )
 
