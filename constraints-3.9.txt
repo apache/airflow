@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-01T19:20:57Z
+# This constraints file was automatically generated on 2023-09-02T16:37:55Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -43,7 +43,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.1.1
 Flask==2.2.5
-GitPython==3.1.33
+GitPython==3.1.34
 JPype1==1.4.1
 JayDeBeApi==1.2.3
 Jinja2==3.1.2
@@ -180,7 +180,7 @@ asana==3.2.1
 asgiref==3.7.2
 asn1crypto==1.5.1
 astroid==2.15.6
-asttokens==2.2.1
+asttokens==2.3.0
 async-timeout==4.0.3
 atlasclient==1.0.0
 atlassian-python-api==3.41.1
@@ -209,6 +209,7 @@ azure-servicebus==7.11.1
 azure-storage-blob==12.17.0
 azure-storage-common==2.1.0
 azure-storage-file-datalake==12.12.0
+azure-storage-file-share==12.13.0
 azure-storage-file==2.1.0
 azure-synapse-spark==0.7.0
 backcall==0.2.0
@@ -226,7 +227,7 @@ cachelib==0.9.0
 cachetools==5.3.1
 cassandra-driver==3.28.0
 cattrs==23.1.2
-celery==5.3.3
+celery==5.3.1
 certifi==2023.7.22
 cffi==1.15.1
 cfgv==3.4.0
@@ -291,7 +292,7 @@ gcloud-aio-bigquery==6.3.0
 gcloud-aio-storage==8.3.0
 gcsfs==2023.6.0
 geomet==0.2.1.post1
-gevent==23.7.0
+gevent==23.9.0
 gitdb==4.0.10
 google-ads==21.3.0
 google-api-core==2.11.1
@@ -581,7 +582,7 @@ snowballstemmer==2.2.0
 snowflake-connector-python==3.1.1
 snowflake-sqlalchemy==1.5.0
 sortedcontainers==2.4.0
-soupsieve==2.4.1
+soupsieve==2.5
 sphinx-airflow-theme==0.0.12
 sphinx-argparse==0.4.0
 sphinx-autoapi==2.1.1
