@@ -429,12 +429,6 @@ repos:
         language: python
         files: ^docs
         pass_filenames: false
-      - id: update-project-version
-        name: Update project version to the latest version
-        entry: ./scripts/ci/pre_commit/pre_commit_update_versions.py
-        language: python
-        files: ^pyproject.toml
-        pass_filenames: false
       - id: check-pydevd-left-in-code
         language: pygrep
         name: Check for pydevd debug statements accidentally left

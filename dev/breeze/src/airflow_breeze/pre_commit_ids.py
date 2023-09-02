@@ -120,7 +120,6 @@ PRE_COMMIT_LIST = [
     "update-installed-providers-to-be-sorted",
     "update-local-yml-file",
     "update-migration-references",
-    "update-project-version",
     "update-providers-dependencies",
     "update-spelling-wordlist-to-be-sorted",
     "update-supported-versions",

@@ -349,8 +349,6 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-migration-references                               | Update migration ref doc                                     | *       |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| update-project-version                                    | Update project version to the latest version                 |         |
-+-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-providers-dependencies                             | Update cross-dependencies for providers packages             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-spelling-wordlist-to-be-sorted                     | Sort alphabetically and uniquify spelling_wordlist.txt       |         |
