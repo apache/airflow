@@ -131,7 +131,7 @@ Implicit ALL_SUCCESS constraint
 Any task in the scope of a setup has an implicit "all_success" constraint on its setups.
 This is necessary to ensure that if a task with indirect setups is cleared, it will
 wait for them to complete.  If a setup fails or is skipped, the work tasks which depend
-them will be marked ask failures or skips.  We also require that any task directly
+them will be marked ask failures or skips.  We also require that any non-teardown directly
 downstream of a setup must have trigger rule ALL_SUCCESS.
 
 Controlling dag run state
