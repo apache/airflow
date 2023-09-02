@@ -52,6 +52,7 @@ Breaking changes
 
 .. note::
   ``LocalToAzureDataLakeStorageOperator`` class has been removed in favor of ``LocalFilesystemToADLSOperator``
+  ``AzureDataFactoryPipelineRunStatusAsyncSensor`` class has been removed in favor of ``AzureDataFactoryPipelineRunStatusSensor``
 
 6.3.0
 .....
