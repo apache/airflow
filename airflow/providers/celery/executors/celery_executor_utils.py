@@ -209,12 +209,6 @@ def send_tasks_to_executor_in_group(
     tasks_tuples: list[TaskInstanceInCelery],
 ) -> list[tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]]:
     """Sends tasks to executor in batch using Celery group."""
-
-    @app.task(bind=True)
-    def handle_failure(task_id, task_exception, exc_info, **kwargs):
-        exception_traceback = f"Celery Task ID: {task_id}\n{traceback.format_exception(*exc_info)}"
-        return ExceptionWithTraceback(task_exception, exception_traceback)
-
     keys: list[TaskInstanceKey] = []
     commands: list[CommandType] = []
     queues: list[str | None] = []
@@ -227,16 +221,12 @@ def send_tasks_to_executor_in_group(
         commands.append(command)
         queues.append(queue)
         tasks_to_run.append(task_to_run)
-    tasks = [
-        tasks_to_run[i].s(commands[i]).set(queue=queues[i], link_error=handle_failure.s())
-        for i in range(len(tasks_tuples))
-    ]
+    tasks = [tasks_to_run[i].s(commands[i]).set(queue=queues[i]) for i in range(len(tasks_tuples))]
     tasks_group = group(tasks)
     result = tasks_group.apply_async()
     result.save()
     group_result = GroupResult.restore(result.id, app=app)
-    results = group_result.get()
-    return list(zip(keys, commands, results))
+    return list(zip(keys, commands, group_result.children))
 
 
 def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
