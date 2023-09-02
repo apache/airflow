@@ -238,7 +238,7 @@
   "celery": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "celery>=5.3.0,<6",
+      "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
       "flower>=1.0.0"
     ],
     "cross-providers-deps": [
