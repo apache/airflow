@@ -43,6 +43,7 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
+    argument_packages_plus_all_providers,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
@@ -357,12 +358,7 @@ def start_airflow(
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
-@click.option(
-    "--short-version",
-    help="Build docs by providing short hand for provider names. "
-    "Example: Short hand for apache-airflow-providers-cncf-kubernetes will be cncf.kubernetes",
-    is_flag=True,
-)
+@argument_packages_plus_all_providers
 @option_builder
 @click.option(
     "--package-filter",
@@ -385,12 +381,12 @@ def start_airflow(
 @option_verbose
 @option_dry_run
 def build_docs(
+    packages_plus_all_providers: tuple[str],
     docs_only: bool,
     spellcheck_only: bool,
     builder: str,
     clean_build: bool,
     one_pass_only: bool,
-    short_version: bool,
     package_filter: tuple[str],
     github_repository: str,
 ):
@@ -416,7 +412,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         skip_environment_initialization=True,
-        short_version=short_version,
+        packages_plus_all_providers=packages_plus_all_providers,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
     env = get_env_variables_for_docker_commands(params)

@@ -189,7 +189,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--package-filter",
                 "--github-repository",
                 "--builder",
-                "--short-version",
             ],
         },
     ],

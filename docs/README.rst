@@ -59,12 +59,8 @@ Also, you can only build one documentation via ``--package-filter``.
 
     breeze build-docs --package-filter <PACKAGE-NAME>
 
-If you want to build a subset of packages using short hand names of the providers, pass the flag ``--short-version``
-along with the regular flags. To calculate ``<PACKAGE-NAME-IN-SHORT-FORM>``, follow the instructions in :ref:`generating_short_form_names`.
-
-.. code-block:: bash
-
-    breeze build-docs --short-version --package-filter <PACKAGE-NAME-IN-SHORT-FORM>
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. To find the short hand names, follow the instructions in :ref:`generating_short_form_names`.
 
 You can also see all the available arguments via ``--help``.
 
