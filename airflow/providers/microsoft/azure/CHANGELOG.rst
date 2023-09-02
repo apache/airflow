@@ -50,6 +50,9 @@ Breaking changes
 * Remove AzureFileShareHook.check_for_file method
 * Remove AzureFileShareHook.load_string, AzureFileShareHook.load_stream in favor of AzureFileShareHook.load_data
 
+.. note::
+  ``LocalToAzureDataLakeStorageOperator`` class has been removed in favor of ``LocalFilesystemToADLSOperator``
+
 6.3.0
 .....
 
