@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-02T08:51:35Z
+# This constraints file was automatically generated on 2023-09-02T18:02:09Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-7-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -55,7 +55,7 @@ botocore==1.31.17
 cachelib==0.9.0
 cachetools==5.3.1
 cattrs==23.1.2
-celery==5.3.3
+celery==5.3.1
 certifi==2023.7.22
 cffi==1.15.1
 cgroupspy==0.2.2
@@ -85,8 +85,8 @@ exceptiongroup==1.1.3
 filelock==3.12.3
 flower==2.0.1
 frozenlist==1.4.0
-fsspec==2023.6.0
-gevent==23.9.0
+fsspec==2023.9.0
+gevent==23.9.0.post1
 google-auth==2.22.0
 google-re2==1.1
 googleapis-common-protos==1.60.0
