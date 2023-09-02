@@ -105,7 +105,7 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
                 f"{write_local_input_file_cmd} && "
                 f"{make_xcom_dir_cmd} && "
                 f"{exec_python_cmd}"
-            )
+            ),
         ]
 
     def execute(self, context: Context):
