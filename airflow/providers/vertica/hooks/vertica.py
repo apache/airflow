@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import (
     Any,
+    TypeVar,
     Callable,
     Iterable,
     Mapping,
@@ -28,15 +29,18 @@ from vertica_python import connect
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 
+T = TypeVar("T")
 
 def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
     """Replace the default DbApiHook fetch_all_handler ."""
     to_return = fetch_all_handler(cursor)
     # loop on all statement result sets to get errors
-    while cursor.nextset():
-        row = cursor.fetchone()
-        while row:
-            row = cursor.fetchone()
+    if cursor.description is not None:
+        while cursor.nextset():
+            if cursor.description is not None:
+                row = cursor.fetchone()
+                while row:
+                    row = cursor.fetchone()
     return to_return
 
 
@@ -123,10 +127,10 @@ class VerticaHook(DbApiHook):
         sql: str | Iterable[str],
         autocommit: bool = False,
         parameters: Iterable | Mapping | None = None,
-        handler: Callable | None = None,
+        handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> Any | list[Any] | None:
+    ) -> T | list[T] | None:
         if handler == fetch_all_handler:
             handler = vertica_fetch_all_handler
         return DbApiHook.run(self, sql, autocommit, parameters, handler, split_statements, return_last)
