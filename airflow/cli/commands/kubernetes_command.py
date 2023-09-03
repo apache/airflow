@@ -142,8 +142,8 @@ def cleanup_pods(args):
                     _delete_pod(pod.metadata.name, namespace)
                 except ApiException as e:
                     print(f"Can't remove POD: {e}", file=sys.stderr)
-                continue
-            print(f"No action taken on pod {pod_name}")
+            else:
+                print(f"No action taken on pod {pod_name}")
         continue_token = pod_list.metadata._continue
         if not continue_token:
             break
