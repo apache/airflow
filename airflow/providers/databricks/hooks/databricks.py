@@ -28,7 +28,7 @@ or the ``api/2.1/jobs/runs/submit``
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List
+from typing import Any
 
 from requests import exceptions as requests_exceptions
 
@@ -226,7 +226,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         return all_jobs
 
-    def find_pipeline_id_by_name(self, filter: str) -> List[Dict[str, Any]] | None:
+    def find_pipeline_id_by_name(self, filter: str) -> str | None:
         """
         Finds Databricks Delta Live Tables pipeline id by its name. 
         
