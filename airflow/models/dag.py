@@ -128,11 +128,11 @@ from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
     from types import ModuleType
-    from typing import Literal
 
     from pendulum.tz.timezone import Timezone
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
+    from typing_extensions import Literal
 
     from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
