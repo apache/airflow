@@ -566,8 +566,8 @@ class DagFileProcessor(LoggingMixin):
                     cls.logger().warning(
                         "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.", sla.task_id
                     )
-                    continue
-                tasks_missed_sla.append(task)
+                else:
+                    tasks_missed_sla.append(task)
 
             emails: set[str] = set()
             for task in tasks_missed_sla:
