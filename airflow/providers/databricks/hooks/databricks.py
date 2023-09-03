@@ -28,7 +28,7 @@ or the ``api/2.1/jobs/runs/submit``
 from __future__ import annotations
 
 import json
-from typing import Any, overload
+from typing import Any
 
 from requests import exceptions as requests_exceptions
 
@@ -226,8 +226,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         return all_jobs
 
-    @overload
-    def find_pipeline_id_by_name(self, filter: str) -> int | None:
+    def find_pipeline_id_by_name(self, filter: str) -> str | None:
         """
         Finds Databricks Delta Live Tables pipeline id by its name.
 
@@ -238,7 +237,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         """
         matching_pipelines = self.list_pipelines(filter=filter)
-
+        pipeline_id = matching_pipelines["statuses"][0]["pipeline_id"]
         if len(matching_pipelines) > 1:
             raise AirflowException(
                 f"There is more than one pipeline with the specified filter {filter}. "
@@ -248,7 +247,7 @@ class DatabricksHook(BaseDatabricksHook):
         if not matching_pipelines:
             return None
         else:
-            return matching_pipelines["statuses"][0]["pipeline_id"]
+            return pipeline_id
 
     def find_job_id_by_name(self, job_name: str) -> int | None:
         """
