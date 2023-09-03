@@ -23,6 +23,7 @@ from typing import (
     Iterable,
     Mapping,
     TypeVar,
+    overload
 )
 
 from vertica_python import connect
@@ -123,6 +124,30 @@ class VerticaHook(DbApiHook):
         conn = connect(**conn_config)
         return conn
 
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None:
+        ...
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> T | list[T]:
+        ...
+
     def run(
         self,
         sql: str | Iterable[str],
@@ -133,5 +158,5 @@ class VerticaHook(DbApiHook):
         return_last: bool = True,
     ) -> T | list[T] | None:
         if handler == fetch_all_handler:
-            handler = vertica_fetch_all_handler
+            return DbApiHook.run(self, sql, autocommit, parameters, vertica_fetch_all_handler, split_statements, return_last)
         return DbApiHook.run(self, sql, autocommit, parameters, handler, split_statements, return_last)
