@@ -37,7 +37,6 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import lru_cache
-from os.path import dirname, relpath
 from pathlib import Path
 from random import choice
 from shutil import copyfile
@@ -261,7 +260,7 @@ def get_target_folder() -> str:
 
     :return: the folder path
     """
-    return os.path.abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, "provider_packages"))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "provider_packages"))
 
 
 def get_target_providers_folder() -> str:
@@ -1154,7 +1153,7 @@ def get_provider_jinja_context(
         "PIP_REQUIREMENTS_TABLE": pip_requirements_table,
         "PIP_REQUIREMENTS_TABLE_RST": pip_requirements_table_rst,
         "PROVIDER_INFO": provider_info,
-        "CHANGELOG_RELATIVE_PATH": relpath(
+        "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.source_provider_package_path,
             provider_details.documentation_provider_package_path,
         ),
