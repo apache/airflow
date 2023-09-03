@@ -236,7 +236,6 @@ class DatabricksHook(BaseDatabricksHook):
         :return: The pipeline_id or None if no pipeline was found.
 
         """
-        
         matching_pipelines = self.list_pipelines(filter=filter)
 
         if len(matching_pipelines) > 1:
