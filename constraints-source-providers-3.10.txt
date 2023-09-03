@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-02T20:31:53Z
+# This constraints file was automatically generated on 2023-09-03T15:16:00Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -106,7 +106,6 @@ azure-mgmt-storage==21.1.0
 azure-nspkg==3.0.2
 azure-servicebus==7.11.1
 azure-storage-blob==12.17.0
-azure-storage-common==2.1.0
 azure-storage-file-datalake==12.12.0
 azure-storage-file-share==12.13.0
 azure-synapse-spark==0.7.0
@@ -311,7 +310,7 @@ mdurl==0.1.2
 mongomock==4.1.2
 monotonic==1.6
 more-itertools==10.1.0
-moto==4.2.0
+moto==4.2.2
 msal-extensions==1.0.0
 msal==1.23.0
 msgpack==1.0.5
