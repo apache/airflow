@@ -226,7 +226,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         return all_jobs
 
-    def find_pipeline_id_by_name(self, filter: str) -> str | None:
+    def find_pipeline_id_by_name(self, filter: str) -> int | None:
         """
         Finds Databricks Delta Live Tables pipeline id by its name. 
         
