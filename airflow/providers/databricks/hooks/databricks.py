@@ -168,7 +168,7 @@ class DatabricksHook(BaseDatabricksHook):
         page_token: str | None = None,
         order_by: list[str] | None = None,
         filter: str | None = None,
-    ) -> list[dict[str, Any]]:
+    ) -> dict:
         """
         Lists the pipelines defined in the Delta Live Tables system.
 
@@ -232,12 +232,12 @@ class DatabricksHook(BaseDatabricksHook):
 
         If there are multiple pipelines with the same name, raises AirflowException.
 
-        :param pipeline_name: The name of the Delta Live Tables pipeline to look up.
+        :param filter: Filter containing the search/lookup pipeline name.
         :return: The pipeline_id or None if no pipeline was found.
 
         """
         matching_pipelines = self.list_pipelines(filter=filter)
-        pipeline_id = matching_pipelines["statuses"][0]["pipeline_id"]
+
         if len(matching_pipelines) > 1:
             raise AirflowException(
                 f"There is more than one pipeline with the specified filter {filter}. "
@@ -247,6 +247,7 @@ class DatabricksHook(BaseDatabricksHook):
         if not matching_pipelines:
             return None
         else:
+            pipeline_id = matching_pipelines["statuses"][0]["pipeline_id"]
             return pipeline_id
 
     def find_job_id_by_name(self, job_name: str) -> int | None:
