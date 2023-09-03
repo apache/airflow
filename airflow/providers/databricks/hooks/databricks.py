@@ -237,7 +237,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         if len(matching_pipelines) > 1:
             raise AirflowException(
-                f"There is more than one pipeline with name {filter}. Please delete duplicated pipelines first"
+                f"There is more than one pipeline with the specified filter {filter}. Please delete duplicated pipelines first or use a more specific filter."
             )
 
         if not matching_pipelines:
