@@ -226,7 +226,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         return all_jobs
 
-    def find_pipeline_id_by_name(self, filter: str) -> int | None:
+    def find_pipeline_id_by_name(self, filter: str) -> Dict[str, Any]:
         """
         Finds Databricks Delta Live Tables pipeline id by its name. 
         If there are multiple pipelines with the same name, raises AirflowException.
@@ -234,6 +234,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param pipeline_name: The name of the Delta Live Tables pipeline to look up.
         :return: The pipeline_id or None if no pipeline was found.
         """
+        
         matching_pipelines = self.list_pipelines(filter=filter)
 
         if len(matching_pipelines) > 1:
