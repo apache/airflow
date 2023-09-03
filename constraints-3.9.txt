@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-02T18:04:52Z
+# This constraints file was automatically generated on 2023-09-03T16:55:23Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-7-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -410,7 +410,7 @@ mdurl==0.1.2
 mongomock==4.1.2
 monotonic==1.6
 more-itertools==10.1.0
-moto==4.2.0
+moto==4.2.2
 msal-extensions==1.0.0
 msal==1.23.0
 msgpack==1.0.5
