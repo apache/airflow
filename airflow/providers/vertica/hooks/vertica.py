@@ -17,20 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import (
-    Any,
-    Callable,
-    Iterable,
-    Mapping,
-    TypeVar,
-    overload
-)
+from typing import Any, Callable, Iterable, Mapping, overload
 
 from vertica_python import connect
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
-
-T = TypeVar("T")
 
 
 def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
@@ -142,10 +133,10 @@ class VerticaHook(DbApiHook):
         sql: str | Iterable[str],
         autocommit: bool = ...,
         parameters: Iterable | Mapping[str, Any] | None = ...,
-        handler: Callable[[Any], T] = ...,
+        handler: Callable[[Any], Any] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> T | list[T]:
+    ) -> Any | list[Any]:
         ...
 
     def run(
@@ -153,10 +144,10 @@ class VerticaHook(DbApiHook):
         sql: str | Iterable[str],
         autocommit: bool = False,
         parameters: Iterable | Mapping | None = None,
-        handler: Callable[[Any], T] | None = None,
+        handler: Callable[[Any], Any] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> T | list[T] | None:
+    ) -> Any | list[Any] | None:
         if handler == fetch_all_handler:
-            return DbApiHook.run(self, sql, autocommit, parameters, vertica_fetch_all_handler, split_statements, return_last)
+            handler = vertica_fetch_all_handler
         return DbApiHook.run(self, sql, autocommit, parameters, handler, split_statements, return_last)
