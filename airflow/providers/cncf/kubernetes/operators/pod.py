@@ -1003,14 +1003,10 @@ class _optionally_suppress(AbstractContextManager):
     def __exit__(self, exctype, excinst, exctb):
         error = exctype is not None
         matching_error = error and issubclass(exctype, self._exceptions)
-        if error and not matching_error:
-            return False
-        elif matching_error and self.reraise:
+        if (error and not matching_error) or (matching_error and self.reraise):
             return False
         elif matching_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
             logger.exception(excinst)
-            return True
-        else:
-            return True
+        return True
