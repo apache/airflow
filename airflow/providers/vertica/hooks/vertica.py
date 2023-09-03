@@ -19,10 +19,10 @@ from __future__ import annotations
 
 from typing import (
     Any,
-    TypeVar,
     Callable,
     Iterable,
     Mapping,
+    TypeVar,
 )
 
 from vertica_python import connect
@@ -30,6 +30,7 @@ from vertica_python import connect
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 
 T = TypeVar("T")
+
 
 def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
     """Replace the default DbApiHook fetch_all_handler ."""
