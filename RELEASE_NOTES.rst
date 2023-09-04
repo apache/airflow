@@ -97,6 +97,7 @@ Bug Fixes
 
 Misc/Internal
 """""""""""""
+- Bring back ``Pydantic`` 1 compatibility (#34081, #33998)
 - Use a trimmed version of README.md for PyPI (#33637)
 - Upgrade to ``Pydantic`` 2 (#33956)
 - Reorganize ``devel_only`` extra in Airflow's setup.py (#33907)
