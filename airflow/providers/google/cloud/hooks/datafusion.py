@@ -153,7 +153,7 @@ class DataFusionHook(GoogleBaseHook):
         return os.path.join(instance_url, "v3", "namespaces", quote(namespace), "apps")
 
     def _cdap_request(
-        self, url: str, method: str, body: list | dict | None = None
+        self, url: str, method: str, body: list | dict | None = None, params: dict | None = None
     ) -> google.auth.transport.Response:
         headers: dict[str, str] = {"Content-Type": "application/json"}
         request = google.auth.transport.requests.Request()
@@ -163,7 +163,7 @@ class DataFusionHook(GoogleBaseHook):
 
         payload = json.dumps(body) if body else None
 
-        response = request(method=method, url=url, headers=headers, body=payload)
+        response = request(method=method, url=url, headers=headers, body=payload, params=params)
         return response
 
     @staticmethod
@@ -281,6 +281,23 @@ class DataFusionHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         return instance
+
+    def get_instance_artifacts(
+        self, instance_url: str, namespace: str = "default", scope: str = "SYSTEM"
+    ) -> Any:
+        url = os.path.join(
+            instance_url,
+            "v3",
+            "namespaces",
+            quote(namespace),
+            "artifacts",
+        )
+        response = self._cdap_request(url=url, method="GET", params={"scope": scope})
+        self._check_response_status_and_data(
+            response, f"Retrieving an instance artifacts failed with code {response.status}"
+        )
+        content = json.loads(response.data)
+        return content
 
     @GoogleBaseHook.fallback_to_default_project_id
     def patch_instance(
