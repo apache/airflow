@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from deprecated import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -115,7 +115,12 @@ class BatchSensor(BaseSensorOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] != "success":
-            raise AirflowException(f"Error while running job: {event}")
+            message = f"Error while running job: {event}"
+            # TODO: remove this if-else block when min_airflow_version is set to higher than the version that
+            # changed in https://github.com/apache/airflow/pull/33424 is released
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         job_id = event["job_id"]
         self.log.info("Batch Job %s complete", job_id)
 

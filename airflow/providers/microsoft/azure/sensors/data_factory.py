@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -126,33 +125,3 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
                 raise AirflowException(event["message"])
             self.log.info(event["message"])
         return None
-
-
-class AzureDataFactoryPipelineRunStatusAsyncSensor(AzureDataFactoryPipelineRunStatusSensor):
-    """
-    Checks the status of a pipeline run asynchronously.
-
-    This class is deprecated and will be removed in a future release.
-
-    Please use
-    :class:`airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor`
-    and set *deferrable* attribute to *True* instead.
-
-    :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
-    :param run_id: The pipeline run identifier.
-    :param resource_group_name: The resource group name.
-    :param factory_name: The data factory name.
-    :param poke_interval: polling period in seconds to check for the status
-    :param deferrable: Run sensor in the deferrable mode.
-    """
-
-    def __init__(self, **kwargs: Any) -> None:
-        warnings.warn(
-            "Class `AzureDataFactoryPipelineRunStatusAsyncSensor` is deprecated and "
-            "will be removed in a future release. "
-            "Please use `AzureDataFactoryPipelineRunStatusSensor` and "
-            "set `deferrable` attribute to `True` instead",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(**kwargs, deferrable=True)

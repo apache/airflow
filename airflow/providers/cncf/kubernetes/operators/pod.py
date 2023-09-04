@@ -771,11 +771,7 @@ class KubernetesPodOperator(BaseOperator):
 
         remote_pod = self.pod_manager.read_pod(pod)
 
-        for container in remote_pod.spec.containers:
-            if container.name == self.ISTIO_CONTAINER_NAME:
-                return True
-
-        return False
+        return any(container.name == self.ISTIO_CONTAINER_NAME for container in remote_pod.spec.containers)
 
     def kill_istio_sidecar(self, pod: V1Pod) -> None:
         command = "/bin/sh -c 'curl -fsI -X POST http://localhost:15020/quitquitquit'"
@@ -1007,14 +1003,10 @@ class _optionally_suppress(AbstractContextManager):
     def __exit__(self, exctype, excinst, exctb):
         error = exctype is not None
         matching_error = error and issubclass(exctype, self._exceptions)
-        if error and not matching_error:
-            return False
-        elif matching_error and self.reraise:
+        if (error and not matching_error) or (matching_error and self.reraise):
             return False
         elif matching_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
             logger.exception(excinst)
-            return True
-        else:
-            return True
+        return True

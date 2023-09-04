@@ -371,12 +371,12 @@ class DataFusionHook(GoogleBaseHook):
                 self._check_response_status_and_data(
                     response, f"Deleting a pipeline failed with code {response.status}: {response.data}"
                 )
-                if response.status == 200:
-                    break
             except ConflictException as exc:
                 self.log.info(exc)
                 sleep(time_to_wait)
-                continue
+            else:
+                if response.status == 200:
+                    break
 
     def list_pipelines(
         self,

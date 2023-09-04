@@ -123,6 +123,7 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
@@ -131,13 +132,14 @@ if TYPE_CHECKING:
     from pendulum.tz.timezone import Timezone
     from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
-    from typing_extensions import Literal
 
     from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
     from airflow.models.slamiss import SlaMiss
+    from airflow.serialization.pydantic.dag import DagModelPydantic
+    from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
 log = logging.getLogger(__name__)
@@ -718,6 +720,13 @@ class DAG(LoggingMixin):
         :meta private:
         """
         for task in self.tasks:
+            if task.is_setup:
+                for down_task in task.downstream_list:
+                    if not down_task.is_teardown and down_task.trigger_rule != TriggerRule.ALL_SUCCESS:
+                        # todo: we can relax this to allow out-of-scope tasks to have other trigger rules
+                        # this is required to ensure consistent behavior of dag
+                        # when clearing an indirect setup
+                        raise ValueError("Setup tasks must be followed with trigger rule ALL_SUCCESS.")
             FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
     def __repr__(self):
@@ -3482,8 +3491,9 @@ class DagModel(Base):
         )
 
     @classmethod
+    @internal_api_call
     @provide_session
-    def get_current(cls, dag_id, session=NEW_SESSION):
+    def get_current(cls, dag_id: str, session=NEW_SESSION) -> DagModel | DagModelPydantic:
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session

@@ -106,6 +106,24 @@ class TestCliVariables:
         assert Variable.get("false", deserialize_json=True) is False
         assert Variable.get("null", deserialize_json=True) is None
 
+        # test variable import skip existing
+        # set varliable list to ["airflow"] and have it skip during import
+        variable_command.variables_set(self.parser.parse_args(["variables", "set", "list", '["airflow"]']))
+        variable_command.variables_import(
+            self.parser.parse_args(
+                ["variables", "import", "variables_types.json", "--action-on-existing-key", "skip"]
+            )
+        )
+        assert ["airflow"] == Variable.get("list", deserialize_json=True)  # should not be overwritten
+
+        # test variable import fails on existing when action is set to fail
+        with pytest.raises(SystemExit):
+            variable_command.variables_import(
+                self.parser.parse_args(
+                    ["variables", "import", "variables_types.json", "--action-on-existing-key", "fail"]
+                )
+            )
+
         os.remove("variables_types.json")
 
     def test_variables_list(self):

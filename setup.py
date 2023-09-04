@@ -409,7 +409,11 @@ _MIN_BOTO3_VERSION = "1.28.0"
 
 _devel_only_amazon = [
     "aws_xray_sdk",
-    "moto[cloudformation, glue]>=4.0",
+    "moto[glue]>=4.0",
+    # TODO: Remove the two below after https://github.com/aws/serverless-application-model/pull/3282
+    # gets released and add back "cloudformation" extra to moto above
+    "openapi-spec-validator >=0.2.8",
+    "jsonschema>=3.0",
     f"mypy-boto3-rds>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-redshift-data>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
@@ -644,9 +648,8 @@ def add_extras_for_all_deprecated_aliases() -> None:
     """
     for alias, extra in EXTRAS_DEPRECATED_ALIASES.items():
         dependencies = EXTRAS_DEPENDENCIES.get(extra) if extra != "" else []
-        if dependencies is None:
-            continue
-        EXTRAS_DEPENDENCIES[alias] = dependencies
+        if dependencies is not None:
+            EXTRAS_DEPENDENCIES[alias] = dependencies
 
 
 def add_all_deprecated_provider_packages() -> None:
@@ -657,9 +660,8 @@ def add_all_deprecated_provider_packages() -> None:
     {"kubernetes": ["apache-airflow-provider-cncf-kubernetes"]}
     """
     for alias, provider in EXTRAS_DEPRECATED_ALIASES.items():
-        if alias in EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS:
-            continue
-        replace_extra_dependencies_with_provider_packages(alias, [provider])
+        if alias not in EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS:
+            replace_extra_dependencies_with_provider_packages(alias, [provider])
 
 
 add_extras_for_all_deprecated_aliases()
@@ -699,10 +701,9 @@ ALL_DB_PROVIDERS = [
 def get_all_db_dependencies() -> list[str]:
     _all_db_reqs: set[str] = set()
     for provider in ALL_DB_PROVIDERS:
-        if provider not in PROVIDER_DEPENDENCIES:
-            continue
-        for req in PROVIDER_DEPENDENCIES[provider][DEPS]:
-            _all_db_reqs.add(req)
+        if provider in PROVIDER_DEPENDENCIES:
+            for req in PROVIDER_DEPENDENCIES[provider][DEPS]:
+                _all_db_reqs.add(req)
     return list(_all_db_reqs)
 
 

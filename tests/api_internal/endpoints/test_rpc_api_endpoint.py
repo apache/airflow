@@ -80,7 +80,7 @@ class TestRpcApiEndpoint:
     @pytest.mark.parametrize(
         "input_params, method_result, result_cmp_func, method_params",
         [
-            ("", None, equals, {}),
+            ("", None, lambda got, _: got == b"", {}),
             ("", "test_me", equals, {}),
             (
                 json.dumps(BaseSerialization.serialize({"dag_id": 15, "task_id": "fake-task"})),
@@ -103,8 +103,7 @@ class TestRpcApiEndpoint:
         ],
     )
     def test_method(self, input_params, method_result, result_cmp_func, method_params):
-        if method_result:
-            mock_test_method.return_value = method_result
+        mock_test_method.return_value = method_result
 
         input_data = {
             "jsonrpc": "2.0",
@@ -119,9 +118,12 @@ class TestRpcApiEndpoint:
         assert response.status_code == 200
         if method_result:
             response_data = BaseSerialization.deserialize(json.loads(response.data), use_pydantic_models=True)
-            assert result_cmp_func(response_data, method_result)
+        else:
+            response_data = response.data
 
-        mock_test_method.assert_called_once_with(**method_params)
+        assert result_cmp_func(response_data, method_result)
+
+        mock_test_method.assert_called_once_with(**method_params, session=mock.ANY)
 
     def test_method_with_exception(self):
         mock_test_method.side_effect = ValueError("Error!!!")

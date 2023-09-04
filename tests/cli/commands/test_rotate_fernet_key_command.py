@@ -61,7 +61,7 @@ class TestRotateFernetKeyCommand:
 
         # Rotate fernet key
         with conf_vars(
-            {("core", "fernet_key"): ",".join([fernet_key2.decode(), fernet_key1.decode()])}
+            {("core", "fernet_key"): f"{fernet_key2.decode()},{fernet_key1.decode()}"}
         ), mock.patch("airflow.models.crypto._fernet", None):
             args = self.parser.parse_args(["rotate-fernet-key"])
             rotate_fernet_key_command.rotate_fernet_key(args)
@@ -97,7 +97,7 @@ class TestRotateFernetKeyCommand:
 
         # Rotate fernet key
         with conf_vars(
-            {("core", "fernet_key"): ",".join([fernet_key2.decode(), fernet_key1.decode()])}
+            {("core", "fernet_key"): f"{fernet_key2.decode()},{fernet_key1.decode()}"}
         ), mock.patch("airflow.models.crypto._fernet", None):
             args = self.parser.parse_args(["rotate-fernet-key"])
             rotate_fernet_key_command.rotate_fernet_key(args)

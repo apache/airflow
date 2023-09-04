@@ -113,7 +113,4 @@ class SecurityManager(BaseSecurityManager):
         ).all()
 
     def perms_include_action(self, perms, action_name):
-        for perm in perms:
-            if perm.action and perm.action.name == action_name:
-                return True
-        return False
+        return any(perm.action and perm.action.name == action_name for perm in perms)

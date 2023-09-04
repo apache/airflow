@@ -149,6 +149,23 @@ class TestInternalApiCall:
         }
     )
     @mock.patch("airflow.api_internal.internal_api_call.requests")
+    def test_remote_call_with_none_result(self, mock_requests):
+        response = requests.Response()
+        response.status_code = 200
+        response._content = b""
+
+        mock_requests.post.return_value = response
+
+        result = TestInternalApiCall.fake_method()
+        assert result is None
+
+    @conf_vars(
+        {
+            ("core", "database_access_isolation"): "true",
+            ("core", "internal_api_url"): "http://localhost:8888",
+        }
+    )
+    @mock.patch("airflow.api_internal.internal_api_call.requests")
     def test_remote_call_with_params(self, mock_requests):
         response = requests.Response()
         response.status_code = 200

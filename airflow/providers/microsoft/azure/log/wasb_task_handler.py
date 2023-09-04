@@ -238,7 +238,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         if append and self.wasb_log_exists(remote_log_location):
             old_log = self.wasb_read(remote_log_location)
-            log = "\n".join([old_log, log]) if old_log else log
+            log = f"{old_log}\n{log}" if old_log else log
 
         try:
             self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)

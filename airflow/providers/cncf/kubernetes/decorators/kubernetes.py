@@ -100,13 +100,11 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         return [
             "bash",
             "-cx",
-            " && ".join(
-                [
-                    write_local_script_file_cmd,
-                    write_local_input_file_cmd,
-                    make_xcom_dir_cmd,
-                    exec_python_cmd,
-                ]
+            (
+                f"{write_local_script_file_cmd} && "
+                f"{write_local_input_file_cmd} && "
+                f"{make_xcom_dir_cmd} && "
+                f"{exec_python_cmd}"
             ),
         ]
 

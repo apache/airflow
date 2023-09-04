@@ -523,8 +523,7 @@ def status(kubernetes_version: str, python: str, wait_time_in_seconds: int, all:
                 found_python, found_kubernetes_version = _get_python_kubernetes_version_from_name(name)
                 if not found_python or not found_kubernetes_version:
                     get_console().print(f"[warning]\nCould not get cluster from {name}. Skipping.\n")
-                    continue
-                if not _status(
+                elif not _status(
                     python=found_python,
                     kubernetes_version=found_kubernetes_version,
                     wait_time_in_seconds=wait_time_in_seconds,
