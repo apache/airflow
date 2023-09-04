@@ -184,12 +184,28 @@ class DatabricksHook(BaseDatabricksHook):
         Composite filters are not supported. This field is optional.
 
         """
-        payload: dict[str, Any] = {"max_results": max_results, "page_token": page_token, "order_by": order_by}
-        if filter:
-            payload["filter"] = filter
-        response = self._do_api_call(LIST_PIPELINES_ENDPOINT, payload)
 
-        return response
+        has_more = True
+        all_pipelines = []
+
+        while has_more:
+            payload: dict[str, Any] = {
+                "max_results": max_results,
+                "page_token": page_token,
+                "order_by": order_by,
+            }
+            if filter:
+                payload["filter"] = filter
+            response = self._do_api_call(LIST_PIPELINES_ENDPOINT, payload)
+            pipelines = response.get("statuses", [])
+
+            all_pipelines += pipelines
+
+            if "next_page_token" in response:
+                page_token = response["next_page_token"]
+            else:
+                has_more = False
+        return all_pipelines
 
     def list_jobs(
         self, limit: int = 25, offset: int = 0, expand_tasks: bool = False, job_name: str | None = None
@@ -247,7 +263,7 @@ class DatabricksHook(BaseDatabricksHook):
         if not matching_pipelines:
             return None
         else:
-            pipeline_id = matching_pipelines["statuses"][0]["pipeline_id"]
+            pipeline_id = matching_pipelines[0]["pipeline_id"]
             return pipeline_id
 
     def find_job_id_by_name(self, job_name: str) -> int | None:
