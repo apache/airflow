@@ -4215,24 +4215,6 @@ class AirflowModelView(ModelView):
                 return action_logging(event=f"{self.route_base.strip('/')}.{permission_str}")(attribute)
         return attribute
 
-    @expose("/add", methods=["GET", "POST"])
-    @has_access
-    @action_logging
-    def add(self):
-        return super().add()
-
-    @expose("/edit/<pk>", methods=["GET", "POST"])
-    @has_access
-    @action_logging
-    def edit(self, pk):
-        return super().edit(pk)
-
-    @expose("/delete/<pk>", methods=["GET", "POST"])
-    @has_access
-    @action_logging
-    def delete(self, pk):
-        return super().delete(pk)
-
 
 class AirflowPrivilegeVerifierModelView(AirflowModelView):
     """
@@ -5265,6 +5247,8 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
+        "delete": "delete",
+        "edit": "edit",
         "list": "read",
         "action_clear": "edit",
         "action_muldelete": "delete",
@@ -5643,6 +5627,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     class_permission_name = permissions.RESOURCE_TASK_INSTANCE
     method_permission_name = {
         "list": "read",
+        "delete": "delete",
         "action_clear": "edit",
         "action_muldelete": "delete",
         "action_set_running": "edit",
