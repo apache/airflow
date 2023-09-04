@@ -168,7 +168,7 @@ class DatabricksHook(BaseDatabricksHook):
         page_token: str | None = None,
         order_by: list[str] | None = None,
         filter: str | None = None,
-    ) -> dict:
+    ) -> list:
         """
         Lists the pipelines defined in the Delta Live Tables system.
 
