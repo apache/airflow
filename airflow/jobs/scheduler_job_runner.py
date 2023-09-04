@@ -891,13 +891,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             )
             for dag_run in paused_runs:
                 dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-                if dag is None:
-                    continue
-
-                dag_run.dag = dag
-                _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
-                if callback_to_run:
-                    self._send_dag_callbacks_to_processor(dag, callback_to_run)
+                if dag is not None:
+                    dag_run.dag = dag
+                    _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
+                    if callback_to_run:
+                        self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
             self.log.exception("Failed to update dag run state for paused dags due to %s", e)
 
@@ -1067,13 +1065,12 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         )
         for dag_run, callback_to_run in callback_tuples:
             dag = cached_get_dag(dag_run.dag_id)
-
-            if not dag:
+            if dag:
+                # Sending callbacks there as in standalone_dag_processor they are adding to the database,
+                # so it must be done outside of prohibit_commit.
+                self._send_dag_callbacks_to_processor(dag, callback_to_run)
+            else:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
-                continue
-            # Sending callbacks there as in standalone_dag_processor they are adding to the database,
-            # so it must be done outside of prohibit_commit.
-            self._send_dag_callbacks_to_processor(dag, callback_to_run)
 
         with prohibit_commit(session) as guard:
             # Without this, the session has an invalid view of the DB

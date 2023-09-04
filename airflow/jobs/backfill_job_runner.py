@@ -652,8 +652,6 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
                             _per_task_process(key, ti, session)
                             try:
                                 session.commit()
-                                # break the retry loop
-                                break
                             except OperationalError:
                                 self.log.error(
                                     "Failed to commit task state due to operational error. "
@@ -665,6 +663,9 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
                                 if i == max_attempts - 1:
                                     raise
                                 # retry the loop
+                            else:
+                                # break the retry loop
+                                break
             except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
                 self.log.debug(e)
 
@@ -811,11 +812,10 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
         for dagrun_info in dagrun_infos:
             for dag in self._get_dag_with_subdags():
                 dag_run = self._get_dag_run(dagrun_info, dag, session=session)
-                if dag_run is None:
-                    continue
-                tis_map = self._task_instances_for_dag_run(dag, dag_run, session=session)
-                ti_status.active_runs.append(dag_run)
-                ti_status.to_run.update(tis_map or {})
+                if dag_run is not None:
+                    tis_map = self._task_instances_for_dag_run(dag, dag_run, session=session)
+                    ti_status.active_runs.append(dag_run)
+                    ti_status.to_run.update(tis_map or {})
 
         processed_dag_run_dates = self._process_backfill_task_instances(
             ti_status=ti_status,
