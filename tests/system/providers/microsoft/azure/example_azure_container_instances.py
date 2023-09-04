@@ -24,7 +24,6 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
 from airflow.providers.microsoft.azure.operators.container_instances import AzureContainerInstancesOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -78,10 +77,12 @@ with DAG(
         region="WestUS2",
         environment_variables={},
         volumes=[
-            AzureContainerVolumeHook().get_file_volume(
-                mount_name="mountname",
-                share_name=AZURE_VOLUME_SHARE_NAME,
-                storage_account_name=AZURE_STORAGE_ACOOUNT,
+            (
+                "azure_container_volume_default",
+                AZURE_STORAGE_ACOOUNT,
+                AZURE_VOLUME_SHARE_NAME,
+                "/home",
+                True,
             )
         ],
         memory_in_gb=4.0,
