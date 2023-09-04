@@ -771,10 +771,6 @@ class DagRun(Base, LoggingMixin):
                 new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
                 finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
                 unfinished_tis = new_unfinished_tis
-
-            # TODO: reduce schedulable_tis according to group concurrency limitations....
-            # sort schedulable_tis by task priority, then by mapped index
-            # create concurrency map (group id -> set()) and filter.
         else:
             schedulable_tis = []
             changed_tis = False
@@ -849,7 +845,6 @@ class DagRun(Base, LoggingMixin):
 
             return False # deny
 
-        # TODO generate allow mapping index dict from schedulable_tis???????????????
         allow_index_map = _generate_allow_index_map(unfinished_tis)
 
         # If we expand TIs, we need a new list so that we iterate over them too. (We can't alter
@@ -919,9 +914,6 @@ class DagRun(Base, LoggingMixin):
                     ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
                     revised_map_index_task_ids.add(schedulable.task.task_id)
                 ready_tis.append(schedulable)
-
-        # TODO filter out with group concurrency limitation here ?????????????????
-        # remove from schedulable_tis,
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)
