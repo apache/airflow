@@ -824,7 +824,8 @@ class DagRun(Base, LoggingMixin):
                 allow_index = allow_index_map[task_group.group_id]
                 if ti.map_index < 0:
                     # TI is not expanded yet, allow with concurrency limit
-                    allow_index.union([0, task_group.max_active_groups_per_dagrun])
+                    for idx in (0, task_group.max_active_groups_per_dagrun - 1):
+                        allow_index.add(idx)
                 elif (
                     ti.map_index not in allow_index
                     and len(allow_index) < task_group.max_active_groups_per_dagrun
@@ -833,8 +834,13 @@ class DagRun(Base, LoggingMixin):
             return allow_index_map
 
         def _check_map_index(ti: TI, allow_mapping_index):
+            if ti.map_index < 0:
+                # TI is not expanded, always allow
+                return True
             task_group = ti.task.task_group
-            if task_group is None:
+            # Sometimes, even ti is not inside a group, airflow will set the task_group.
+            # So we have to check task_group.group_id here.
+            if task_group is None or task_group.group_id is None:
                 # TI is not inside a group, always allow
                 return True
             # TODO:
