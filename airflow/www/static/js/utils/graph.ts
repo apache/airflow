@@ -170,7 +170,7 @@ const generateGraph = ({
           sourceId: childIds.indexOf(e.sourceId) > -1 ? node.id : e.sourceId,
           targetId: childIds.indexOf(e.targetId) > -1 ? node.id : e.targetId,
         }));
-      closedGroupIds.push(value.label);
+      closedGroupIds.push(id);
     }
     return {
       id,
