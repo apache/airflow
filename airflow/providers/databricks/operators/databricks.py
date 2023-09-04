@@ -386,13 +386,21 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def execute(self, context: Context):
         hook = self._hook
         if "pipeline_task" in self.json:
-            pipeline_id = hook.find_pipeline_id_by_name(self.json["pipeline_task"]["filter"])
-            if pipeline_id is None:
+            if "filter" in self.json["pipeline_task"] and self.json["pipeline_task"]["filter"] != "":
+                pipeline_id = hook.find_pipeline_id_by_name(self.json["pipeline_task"]["filter"])
+                if pipeline_id is None:
+                    raise AirflowException(
+                        f"Pipeline ID for pipeline name {self.json['pipeline_task']['filter']} can not be found"
+                    )
+                self.json["pipeline_task"]["pipeline_id"] = pipeline_id
+                del self.json["pipeline_task"]["filter"]
+            else:
                 raise AirflowException(
-                    f"Pipeline ID for pipeline name {self.json['pipeline_task']['filter']} can not be found"
+                    "Filter value is required. Stopping the task here because no filter "
+                    "name was specified and allowing it to proceed will execute "
+                    "the first value returned will be used to trigger the DLT pipeline, "
+                    "which may not be intended."
                 )
-            self.json["pipeline_task"]["pipeline_id"] = pipeline_id
-            del self.json["pipeline_task"]["filter"]
         json_normalised = normalise_json_content(self.json)
         self.run_id = hook.submit_run(json_normalised)
         if self.deferrable:
