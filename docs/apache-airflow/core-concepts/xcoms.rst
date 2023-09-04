@@ -32,7 +32,7 @@ To push a value within a task called **"task-1"** that will be used by another t
 .. code-block:: python
 
     # pushes data in any_serializable_value into xcom with key "identifier as string"
-    task_instance.xcom_push(key="identifier as string", value=any_serializable_value)
+    task_instance.xcom_push(key="identifier as a string", value=any_serializable_value)
 
 To pull the value that was pushed in the code above in a different task:
 
