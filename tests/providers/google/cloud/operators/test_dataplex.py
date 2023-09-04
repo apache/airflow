@@ -18,8 +18,10 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
+from airflow.exceptions import TaskDeferred
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCreateAssetOperator,
     DataplexCreateLakeOperator,
@@ -36,6 +38,8 @@ from airflow.providers.google.cloud.operators.dataplex import (
     DataplexListTasksOperator,
     DataplexRunDataQualityScanOperator,
 )
+from airflow.providers.google.cloud.triggers.dataplex import DataplexDataQualityJobTrigger
+from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 HOOK_STR = "airflow.providers.google.cloud.operators.dataplex.DataplexHook"
 TASK_STR = "airflow.providers.google.cloud.operators.dataplex.Task"
@@ -289,13 +293,48 @@ class TestDataplexRunDataQualityScanOperator:
             metadata=(),
         )
 
+    @mock.patch(HOOK_STR)
+    @mock.patch(DATASCANJOB_STR)
+    def test_execute_deferrable(self, mock_data_scan_job, hook_mock):
+        op = DataplexRunDataQualityScanOperator(
+            task_id="execute_data_scan",
+            project_id=PROJECT_ID,
+            region=REGION,
+            data_scan_id=DATA_SCAN_ID,
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(mock.MagicMock())
+
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        hook_mock.return_value.run_data_scan.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            data_scan_id=DATA_SCAN_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        hook_mock.return_value.wait_for_data_scan_job.assert_not_called()
+
+        assert isinstance(exc.value.trigger, DataplexDataQualityJobTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
 
 class TestDataplexGetDataQualityScanResultOperator:
     @mock.patch(HOOK_STR)
     @mock.patch(DATASCANJOB_STR)
     def test_execute(self, mock_data_scan_job, hook_mock):
         op = DataplexGetDataQualityScanResultOperator(
-            task_id="get_data_scan",
+            task_id="get_data_scan_result",
             project_id=PROJECT_ID,
             region=REGION,
             job_id=JOB_ID,
@@ -321,6 +360,36 @@ class TestDataplexGetDataQualityScanResultOperator:
             timeout=None,
             metadata=(),
         )
+
+    @mock.patch(HOOK_STR)
+    @mock.patch(DATASCANJOB_STR)
+    def test_execute_deferrable(self, mock_data_scan_job, hook_mock):
+        op = DataplexGetDataQualityScanResultOperator(
+            task_id="get_data_scan_result",
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_id=JOB_ID,
+            data_scan_id=DATA_SCAN_ID,
+            api_version=API_VERSION,
+            wait_for_results=True,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(mock.MagicMock())
+
+        hook_mock.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            api_version=API_VERSION,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+
+        hook_mock.return_value.wait_for_data_scan_job.assert_not_called()
+
+        assert isinstance(exc.value.trigger, DataplexDataQualityJobTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
 class TestDataplexCreateAssetOperator:

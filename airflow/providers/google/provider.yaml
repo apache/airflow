@@ -905,6 +905,9 @@ triggers:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.triggers.datafusion
+  - integration-name: Google Dataplex
+    python-modules:
+      - airflow.providers.google.cloud.triggers.dataplex
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.triggers.dataproc
