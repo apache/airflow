@@ -4215,6 +4215,24 @@ class AirflowModelView(ModelView):
                 return action_logging(event=f"{self.route_base.strip('/')}.{permission_str}")(attribute)
         return attribute
 
+    @expose("/add", methods=["GET", "POST"])
+    @has_access
+    @action_logging
+    def add(self):
+        return super().add()
+
+    @expose("/edit/<pk>", methods=["GET", "POST"])
+    @has_access
+    @action_logging
+    def edit(self, pk):
+        return super().edit(pk)
+
+    @expose("/delete/<pk>", methods=["GET", "POST"])
+    @has_access
+    @action_logging
+    def delete(self, pk):
+        return super().delete(pk)
+
 
 class AirflowPrivilegeVerifierModelView(AirflowModelView):
     """
