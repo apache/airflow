@@ -143,6 +143,8 @@ def test_trigger_logging_sensitive_info(session, capsys):
     finally:
         # We always have to stop the runner
         triggerer_job_runner.trigger_runner.stop = True
+        triggerer_job_runner.trigger_runner.join(30)
+
     # Since we have now an in-memory process of forwarding the logs to stdout,
     # give it more time for the trigger event to write the log.
     time.sleep(0.5)
@@ -257,6 +259,7 @@ def test_trigger_lifecycle(session):
     finally:
         # We always have to stop the runner
         job_runner.trigger_runner.stop = True
+        job_runner.trigger_runner.join(30)
 
 
 class TestTriggerRunner:
@@ -408,7 +411,7 @@ def test_trigger_create_race_condition_18392(session, tmp_path):
             pytest.fail("did not observe 2 loops in the runner thread")
     finally:
         job_runner.trigger_runner.stop = True
-        job_runner.trigger_runner.join()
+        job_runner.trigger_runner.join(30)
         thread.join()
     instances = path.read_text().splitlines()
     assert len(instances) == 1
@@ -514,7 +517,7 @@ def test_trigger_runner_exception_stops_triggerer(session):
     finally:
         job_runner.trigger_runner.stop = True
         # with suppress(MockTriggerException):
-        job_runner.trigger_runner.join()
+        job_runner.trigger_runner.join(30)
         thread.join()
 
 
@@ -545,6 +548,7 @@ def test_trigger_firing(session):
     finally:
         # We always have to stop the runner
         job_runner.trigger_runner.stop = True
+        job_runner.trigger_runner.join(30)
 
 
 def test_trigger_failing(session):
@@ -578,6 +582,7 @@ def test_trigger_failing(session):
     finally:
         # We always have to stop the runner
         job_runner.trigger_runner.stop = True
+        job_runner.trigger_runner.join(30)
 
 
 def test_trigger_cleanup(session):
