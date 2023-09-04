@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import collections
 import contextlib
+import itertools
 import logging
 import multiprocessing
 import os
@@ -833,14 +834,13 @@ class TestDagProcessorJobRunner:
         # To test this behaviour we need something that continually fills the
         # parent pipe's buffer (and keeps it full).
         def keep_pipe_full(pipe, exit_event):
-            n = 0
-            while True:
+            for n in itertools.count(1):
                 if exit_event.is_set():
                     break
 
                 req = CallbackRequest(str(dag_filepath))
+                logging.info("Sending CallbackRequests %d", n)
                 try:
-                    logging.info("Sending CallbackRequests %d", n + 1)
                     pipe.send(req)
                 except TypeError:
                     # This is actually the error you get when the parent pipe
@@ -848,7 +848,6 @@ class TestDagProcessorJobRunner:
                     break
                 except OSError:
                     break
-                n += 1
                 logging.debug("   Sent %d CallbackRequests", n)
 
         thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
