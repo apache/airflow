@@ -721,11 +721,25 @@ def enter_shell(**kwargs) -> RunCommandResult:
 
     if shell_params.backend == "sqlite":
         get_console().print(
-            f"\n[warn]backend: sqlite is not "
+            f"\n[warning]backend: sqlite is not "
             f"compatible with executor: {shell_params.executor}. "
             f"Changing the executor to SequentialExecutor.\n"
         )
         shell_params.executor = "SequentialExecutor"
+
+    if shell_params.executor == "CeleryExecutor" and shell_params.use_airflow_version:
+        if shell_params.airflow_extras and "celery" not in shell_params.airflow_extras.split():
+            get_console().print(
+                f"\n[warning]CeleryExecutor requires airflow_extras: celery. "
+                f"Adding celery to extras: '{shell_params.airflow_extras}'.\n"
+            )
+            shell_params.airflow_extras += ",celery"
+        elif not shell_params.airflow_extras:
+            get_console().print(
+                "\n[warning]CeleryExecutor requires airflow_extras: celery. "
+                "Setting airflow extras to 'celery'.\n"
+            )
+            shell_params.airflow_extras = "celery"
 
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
