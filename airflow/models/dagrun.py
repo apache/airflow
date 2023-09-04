@@ -59,7 +59,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
+from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES, EXECUTION_STATES
 from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -102,6 +102,9 @@ def _creator_note(val):
         return DagRunNote(**val)
     else:
         return DagRunNote(*val)
+
+
+
 
 
 class DagRun(Base, LoggingMixin):
@@ -755,10 +758,8 @@ class DagRun(Base, LoggingMixin):
         unfinished_tis = [t for t in tis if t.state in State.unfinished]
         finished_tis = [t for t in tis if t.state in State.finished]
         if unfinished_tis:
-            schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
-            self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
             schedulable_tis, changed_tis, expansion_happened = self._get_ready_tis(
-                schedulable_tis,
+                unfinished_tis,
                 finished_tis,
                 session=session,
             )
@@ -770,6 +771,10 @@ class DagRun(Base, LoggingMixin):
                 new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
                 finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
                 unfinished_tis = new_unfinished_tis
+
+            # TODO: reduce schedulable_tis according to group concurrency limitations....
+            # sort schedulable_tis by task priority, then by mapped index
+            # create concurrency map (group id -> set()) and filter.
         else:
             schedulable_tis = []
             changed_tis = False
@@ -795,7 +800,7 @@ class DagRun(Base, LoggingMixin):
 
     def _get_ready_tis(
         self,
-        schedulable_tis: list[TI],
+        unfinished_tis: list[TI],
         finished_tis: list[TI],
         session: Session,
     ) -> tuple[list[TI], bool, bool]:
@@ -803,8 +808,49 @@ class DagRun(Base, LoggingMixin):
         ready_tis: list[TI] = []
         changed_tis = False
 
+        schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
+        self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
+
         if not schedulable_tis:
             return ready_tis, changed_tis, False
+
+        def _generate_allow_index_map(unfinished_tis: list[TI]):
+            # group_id -> set(map_index)
+            allow_index_map = dict[str, set[int]]()
+
+            index_holding_tis = [ti for ti in unfinished_tis if
+                                 ti.state in SCHEDULEABLE_STATES or ti.state in EXECUTION_STATES]
+            index_holding_tis.sort(key=lambda ti: ti.map_index)
+            for ti in index_holding_tis:
+                task_group = ti.task.task_group
+                if task_group is None or task_group.max_active_groups_per_dagrun is None:
+                    continue
+                if task_group.group_id not in allow_index_map:
+                    allow_index_map[task_group.group_id] = set()
+                allow_index = allow_index_map[task_group.group_id]
+                if ti.map_index < 0:
+                    # TI is not expanded yet, allow with concurrency limit
+                    allow_index.union([0, task_group.max_active_groups_per_dagrun])
+                elif ti.map_index not in allow_index and \
+                    len(allow_index) < task_group.max_active_groups_per_dagrun:
+                    allow_index.add(ti.map_index)
+            return allow_index_map
+
+        def _check_map_index(ti: TI, allow_mapping_index):
+            task_group = ti.task.task_group
+            if task_group is None:
+                # TI is not inside a group, always allow
+                return True
+            # TODO:
+            #  Currently we only support one layer group concurrency limitation.
+            #  If nest group expanding is supported in the future, we need to check all parent groups.
+            if ti.map_index in allow_mapping_index[task_group.group_id]:
+                return True # allow
+
+            return False # deny
+
+        # TODO generate allow mapping index dict from schedulable_tis???????????????
+        allow_index_map = _generate_allow_index_map(unfinished_tis)
 
         # If we expand TIs, we need a new list so that we iterate over them too. (We can't alter
         # `schedulable_tis` in place and have the `for` loop pick them up
@@ -850,7 +896,8 @@ class DagRun(Base, LoggingMixin):
         revised_map_index_task_ids = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             old_state = schedulable.state
-            if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
+            if not schedulable.are_dependencies_met(session=session, dep_context=dep_context) or \
+                    _check_map_index(schedulable, allow_index_map) is False:
                 old_states[schedulable.key] = old_state
                 continue
             # If schedulable is not yet expanded, try doing it now. This is
@@ -872,6 +919,9 @@ class DagRun(Base, LoggingMixin):
                     ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
                     revised_map_index_task_ids.add(schedulable.task.task_id)
                 ready_tis.append(schedulable)
+
+        # TODO filter out with group concurrency limitation here ?????????????????
+        # remove from schedulable_tis,
 
         # Check if any ti changed state
         tis_filter = TI.filter_for_tis(old_states)

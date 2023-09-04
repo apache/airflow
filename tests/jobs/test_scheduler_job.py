@@ -41,6 +41,7 @@ from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.datasets import Dataset
+from airflow.decorators import task_group
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
@@ -1144,85 +1145,65 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(
-        "concurrency_limit,mapped_tis_state,schedule_count,schedule_tids,queued_count,queued_tids",
+        "concurrency_limit,mapped_tis_state,schedule_count,schedule_tids",
         [
             [
                 1,
                 dict(),
-                5,
-                {"tg.dummy1"},
                 1,
                 {"tg.dummy1"},
             ],
             [
                 1,
                 {0: (State.RUNNING, 30, None)},
-                4,
-                {"tg.dummy1"},
                 0,
                 set(),
             ],
             [
                 1,
                 {0: (State.SUCCESS, 30, 15)},
-                5,
-                {"tg.dummy1", "tg.dummy2"},
                 1,
                 {"tg.dummy2"},
             ],
             [
                 2,
                 dict(),
-                5,
-                {"tg.dummy1"},
                 2,
                 {"tg.dummy1"},
             ],
             [
                 2,
                 {0: (State.RUNNING, 30, None), 1: (State.RUNNING, 30, None)},
-                3,
-                {"tg.dummy1"},
                 0,
                 set(),
             ],
             [
                 2,
                 {0: (State.SUCCESS, 30, 15), 1: (State.RUNNING, 30, None)},
-                4,
-                {"tg.dummy1", "tg.dummy2"},
                 1,
                 {"tg.dummy2"},
             ],
             [
                 2,
                 {0: (State.RUNNING, 30, None), 1: (State.SUCCESS, 30, 15)},
-                4,
-                {"tg.dummy1", "tg.dummy2"},
                 1,
                 {"tg.dummy2"},
             ],
             [
                 2,
                 {0: (State.SUCCESS, 30, 15), 1: (State.SUCCESS, 30, 15)},
-                5,
-                {"tg.dummy1", "tg.dummy2"},
                 2,
                 {"tg.dummy2"},
             ],
             [
                 2,
                 {0: (State.SUCCESS, 30, 15), 5: (State.SUCCESS, 30, 15), 1: (State.RUNNING, 30, None)},
-                3,
-                {"tg.dummy1"},
                 1,
                 {"tg.dummy1"},
             ],
             [
                 2,
                 {0: (State.SUCCESS, 30, 15), 5: (State.SUCCESS, 30, 15), 1: (State.SUCCESS, 30, 15)},
-                4,
-                {"tg.dummy1", "tg.dummy2"},
                 2,
                 {"tg.dummy1", "tg.dummy2"},
             ],
@@ -1234,9 +1215,7 @@ class TestSchedulerJob:
         concurrency_limit: int,
         mapped_tis_state: dict,
         schedule_count: int,
-        schedule_tids: set,
-        queued_count: int,
-        queued_tids: set,
+        schedule_tids: set
     ):
         """
         Test if _executable_task_instances_to_queued puts the right task instances into the
@@ -1290,10 +1269,6 @@ class TestSchedulerJob:
             ti_schedule = session.query(TaskInstance).filter_by(state=State.SCHEDULED).all()
             assert len(ti_schedule) == schedule_count
             assert set([ti.task_id for ti in ti_schedule]) == schedule_tids
-
-            ti_queued = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-            assert len(ti_queued) == queued_count
-            assert set([ti.task_id for ti in ti_queued]) == queued_tids
 
     def test_change_state_for_executable_task_instances_no_tis_with_state(self, dag_maker):
         dag_id = "SchedulerJobTest.test_change_state_for__no_tis_with_state"
