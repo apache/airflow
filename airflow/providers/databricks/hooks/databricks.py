@@ -39,7 +39,7 @@ from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHoo
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
-GET_CLUSTER_ENDPOINT = ('GET', 'api/2.0/clusters/get')
+GET_CLUSTER_ENDPOINT = ("GET", "api/2.0/clusters/get")
 
 RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
 SUBMIT_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
