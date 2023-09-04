@@ -68,9 +68,7 @@ class Templater(LoggingMixin):
         if self.template_ext:
             for field in self.template_fields:
                 content = getattr(self, field, None)
-                if content is None:
-                    continue
-                elif isinstance(content, str) and content.endswith(tuple(self.template_ext)):
+                if isinstance(content, str) and content.endswith(tuple(self.template_ext)):
                     env = self.get_template_env()
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])  # type: ignore

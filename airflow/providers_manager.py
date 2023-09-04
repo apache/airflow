@@ -587,10 +587,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 # The same path can appear in the __path__ twice, under non-normalized paths (ie.
                 # /path/to/repo/airflow/providers and /path/to/repo/./airflow/providers)
                 path = os.path.realpath(path)
-                if path in seen:
-                    continue
-                seen.add(path)
-                self._add_provider_info_from_local_source_files_on_path(path)
+                if path not in seen:
+                    seen.add(path)
+                    self._add_provider_info_from_local_source_files_on_path(path)
             except Exception as e:
                 log.warning(f"Error when loading 'provider.yaml' files from {path} airflow sources: {e}")
 
@@ -957,15 +956,15 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     hook_class.__name__,
                 )
                 # In case of inherited hooks this might be happening several times
-                continue
-            self._connection_form_widgets[prefixed_field_name] = ConnectionFormWidgetInfo(
-                hook_class.__name__,
-                package_name,
-                field,
-                field_identifier,
-                hasattr(field.field_class.widget, "input_type")
-                and field.field_class.widget.input_type == "password",
-            )
+            else:
+                self._connection_form_widgets[prefixed_field_name] = ConnectionFormWidgetInfo(
+                    hook_class.__name__,
+                    package_name,
+                    field,
+                    field_identifier,
+                    hasattr(field.field_class.widget, "input_type")
+                    and field.field_class.widget.input_type == "password",
+                )
 
     def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: dict):
         try:

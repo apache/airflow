@@ -102,10 +102,11 @@ class ExpandableFactory(Protocol):
         kwargs_left = kwargs.copy()
         for arg_name in self._mappable_function_argument_names:
             value = kwargs_left.pop(arg_name, NOTSET)
-            if func != "expand" or value is NOTSET or is_mappable(value):
-                continue
-            tname = type(value).__name__
-            raise ValueError(f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}")
+            if func == "expand" and value is not NOTSET and not is_mappable(value):
+                tname = type(value).__name__
+                raise ValueError(
+                    f"expand() got an unexpected type {tname!r} for keyword argument {arg_name!r}"
+                )
         if len(kwargs_left) == 1:
             raise TypeError(f"{func}() got an unexpected keyword argument {next(iter(kwargs_left))!r}")
         elif kwargs_left:
@@ -147,9 +148,8 @@ def get_unique_task_id(
         prefix = re2.split(r"__\d+$", tg_task_id)[0]
         for task_id in dag.task_ids:
             match = re2.match(rf"^{prefix}__(\d+)$", task_id)
-            if match is None:
-                continue
-            yield int(match.group(1))
+            if match:
+                yield int(match.group(1))
         yield 0  # Default if there's no matching task ID.
 
     core = re2.split(r"__\d+$", task_id)[0]
