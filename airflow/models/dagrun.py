@@ -104,9 +104,6 @@ def _creator_note(val):
         return DagRunNote(*val)
 
 
-
-
-
 class DagRun(Base, LoggingMixin):
     """Invocation instance of a DAG.
 
