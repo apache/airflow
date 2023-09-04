@@ -44,7 +44,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     default_args={"container_name": AZURE_CONTAINER_NAME, "blob_name": BLOB_NAME, "prefix": PREFIX_NAME},
-) as dag:
+):
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
 
