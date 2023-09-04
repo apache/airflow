@@ -23,7 +23,22 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 If release name contains chart name it will be used as a full name.
 */}}
 {{- define "airflow.fullname" -}}
-  {{- if .Values.fullnameOverride }}
+  {{- if not .Values.useStandardNaming }}
+    {{- .Release.Name }}
+  {{- else if .Values.fullnameOverride }}
+    {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
+  {{- else }}
+    {{- $name := default .Chart.Name .Values.nameOverride }}
+    {{- if contains $name .Release.Name }}
+      {{- .Release.Name | trunc 63 | trimSuffix "-" }}
+    {{- else }}
+      {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- define "airflow.serviceAccountName" -}}
+  {{ if .Values.fullnameOverride }}
     {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
   {{- else }}
     {{- $name := default .Chart.Name .Values.nameOverride }}
@@ -66,6 +81,13 @@ If release name contains chart name it will be used as a full name.
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: connection
+  {{- end }}
+  {{- if and .Values.workers.keda.enabled .Values.pgbouncer.enabled (not .Values.workers.keda.usePgbouncer) }}
+  - name: KEDA_DB_CONN
+    valueFrom:
+      secretKeyRef:
+        name: {{ template "airflow_metadata_secret" . }}
+        key: kedaConnection
   {{- end }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__WEBSERVER__SECRET_KEY }}
   - name: AIRFLOW__WEBSERVER__SECRET_KEY
@@ -223,9 +245,8 @@ If release name contains chart name it will be used as a full name.
     - name: GIT_SYNC_ONE_TIME
       value: "true"
     {{- end }}
-    {{- range $i, $config := .Values.dags.gitSync.env }}
-    - name: {{ $config.name }}
-      value: {{ $config.value | quote }}
+    {{- with .Values.dags.gitSync.env }}
+    {{- toYaml . | nindent 4 }}
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 6 }}
   volumeMounts:
@@ -244,7 +265,7 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
   {{- end }}
   {{- if .Values.dags.gitSync.extraVolumeMounts }}
-    {{- toYaml .Values.dags.gitSync.extraVolumeMounts | nindent 2 }}
+    {{- tpl (toYaml .Values.dags.gitSync.extraVolumeMounts) . | nindent 2 }}
   {{- end }}
 {{- end }}
 
@@ -313,7 +334,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "webserver_secret_key_secret" -}}
-  {{- default (printf "%s-webserver-secret-key" .Release.Name) .Values.webserverSecretKeySecretName }}
+  {{- default (printf "%s-webserver-secret-key" (include "airflow.fullname" .)) .Values.webserverSecretKeySecretName }}
 {{- end }}
 
 {{- define "redis_password_secret" -}}
@@ -321,11 +342,11 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "airflow_metadata_secret" -}}
-  {{- default (printf "%s-airflow-metadata" .Release.Name) .Values.data.metadataSecretName }}
+  {{- default (printf "%s-metadata" (include "airflow.fullname" .)) .Values.data.metadataSecretName }}
 {{- end }}
 
 {{- define "airflow_result_backend_secret" -}}
-  {{- default (printf "%s-airflow-result-backend" .Release.Name) .Values.data.resultBackendSecretName }}
+  {{- default (printf "%s-result-backend" (include "airflow.fullname" .)) .Values.data.resultBackendSecretName }}
 {{- end }}
 
 {{- define "airflow_pod_template_file" -}}
@@ -333,35 +354,43 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "pgbouncer_config_secret" -}}
-  {{- default (printf "%s-pgbouncer-config" .Release.Name) .Values.pgbouncer.configSecretName }}
+  {{- default (printf "%s-pgbouncer-config" (include "airflow.fullname" .)) .Values.pgbouncer.configSecretName }}
 {{- end }}
 
 {{- define "pgbouncer_certificates_secret" -}}
-  {{- printf "%s-pgbouncer-certificates" .Release.Name }}
+  {{- printf "%s-pgbouncer-certificates" (include "airflow.fullname" .) }}
 {{- end }}
 
 {{- define "pgbouncer_stats_secret" -}}
-  {{- printf "%s-pgbouncer-stats" .Release.Name }}
+  {{- default (printf "%s-pgbouncer-stats" (include "airflow.fullname" .)) .Values.pgbouncer.metricsExporterSidecar.statsSecretName }}
 {{- end }}
 
 {{- define "registry_secret" -}}
-  {{- default (printf "%s-registry" .Release.Name) .Values.registry.secretName }}
+  {{- default (printf "%s-registry" (include "airflow.fullname" .)) .Values.registry.secretName }}
 {{- end }}
 
 {{- define "elasticsearch_secret" -}}
-  {{- default (printf "%s-elasticsearch" .Release.Name) .Values.elasticsearch.secretName }}
+  {{- default (printf "%s-elasticsearch" (include "airflow.fullname" .)) .Values.elasticsearch.secretName }}
 {{- end }}
 
 {{- define "flower_secret" -}}
-  {{- default (printf "%s-flower" .Release.Name) .Values.flower.secretName }}
+  {{- default (printf "%s-flower" (include "airflow.fullname" .)) .Values.flower.secretName }}
 {{- end }}
 
 {{- define "kerberos_keytab_secret" -}}
-  {{- printf "%s-kerberos-keytab" .Release.Name }}
+  {{- printf "%s-kerberos-keytab" (include "airflow.fullname" .) }}
 {{- end }}
 
 {{- define "kerberos_ccache_path" -}}
   {{- printf "%s/%s" .Values.kerberos.ccacheMountPath .Values.kerberos.ccacheFileName }}
+{{- end }}
+
+{{- define "celery_executor_namespace" -}}
+  {{- if semverCompare ">=2.7.0" .Values.airflowVersion }}
+    {{- print "airflow.providers.celery.executors.celery_executor.app" -}}
+  {{- else }}
+    {{- print "airflow.executors.celery_executor.app" -}}
+  {{- end }}
 {{- end }}
 
 {{- define "pgbouncer_config" -}}
@@ -474,7 +503,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_config" -}}
-  {{- printf "%s-airflow-config" .Release.Name }}
+  {{- printf "%s-config" (include "airflow.fullname" .) }}
 {{- end }}
 
 {{- define "airflow_config_mount" -}}
@@ -493,7 +522,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the webserver service account to use */}}
 {{- define "webserver.serviceAccountName" -}}
   {{- if .Values.webserver.serviceAccount.create }}
-    {{- default (printf "%s-webserver" (include "airflow.fullname" .)) .Values.webserver.serviceAccount.name }}
+    {{- default (printf "%s-webserver" (include "airflow.serviceAccountName" .)) .Values.webserver.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.webserver.serviceAccount.name }}
   {{- end }}
@@ -502,7 +531,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the redis service account to use */}}
 {{- define "redis.serviceAccountName" -}}
   {{- if .Values.redis.serviceAccount.create }}
-    {{- default (printf "%s-redis" (include "airflow.fullname" .)) .Values.redis.serviceAccount.name }}
+    {{- default (printf "%s-redis" (include "airflow.serviceAccountName" .)) .Values.redis.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.redis.serviceAccount.name }}
   {{- end }}
@@ -511,7 +540,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the flower service account to use */}}
 {{- define "flower.serviceAccountName" -}}
   {{- if .Values.flower.serviceAccount.create }}
-    {{- default (printf "%s-flower" (include "airflow.fullname" .)) .Values.flower.serviceAccount.name }}
+    {{- default (printf "%s-flower" (include "airflow.serviceAccountName" .)) .Values.flower.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.flower.serviceAccount.name }}
   {{- end }}
@@ -520,7 +549,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the scheduler service account to use */}}
 {{- define "scheduler.serviceAccountName" -}}
   {{- if .Values.scheduler.serviceAccount.create }}
-    {{- default (printf "%s-scheduler" (include "airflow.fullname" .)) .Values.scheduler.serviceAccount.name }}
+    {{- default (printf "%s-scheduler" (include "airflow.serviceAccountName" .)) .Values.scheduler.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.scheduler.serviceAccount.name }}
   {{- end }}
@@ -529,7 +558,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the StatsD service account to use */}}
 {{- define "statsd.serviceAccountName" -}}
   {{- if .Values.statsd.serviceAccount.create }}
-    {{- default (printf "%s-statsd" (include "airflow.fullname" .)) .Values.statsd.serviceAccount.name }}
+    {{- default (printf "%s-statsd" (include "airflow.serviceAccountName" .)) .Values.statsd.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.statsd.serviceAccount.name }}
   {{- end }}
@@ -538,7 +567,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the create user job service account to use */}}
 {{- define "createUserJob.serviceAccountName" -}}
   {{- if .Values.createUserJob.serviceAccount.create }}
-    {{- default (printf "%s-create-user-job" (include "airflow.fullname" .)) .Values.createUserJob.serviceAccount.name }}
+    {{- default (printf "%s-create-user-job" (include "airflow.serviceAccountName" .)) .Values.createUserJob.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.createUserJob.serviceAccount.name }}
   {{- end }}
@@ -547,7 +576,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the migrate database job service account to use */}}
 {{- define "migrateDatabaseJob.serviceAccountName" -}}
   {{- if .Values.migrateDatabaseJob.serviceAccount.create }}
-    {{- default (printf "%s-migrate-database-job" (include "airflow.fullname" .)) .Values.migrateDatabaseJob.serviceAccount.name }}
+    {{- default (printf "%s-migrate-database-job" (include "airflow.serviceAccountName" .)) .Values.migrateDatabaseJob.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.migrateDatabaseJob.serviceAccount.name }}
   {{- end }}
@@ -556,7 +585,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the worker service account to use */}}
 {{- define "worker.serviceAccountName" -}}
   {{- if .Values.workers.serviceAccount.create }}
-    {{- default (printf "%s-worker" (include "airflow.fullname" .)) .Values.workers.serviceAccount.name }}
+    {{- default (printf "%s-worker" (include "airflow.serviceAccountName" .)) .Values.workers.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.workers.serviceAccount.name }}
   {{- end }}
@@ -565,7 +594,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the triggerer service account to use */}}
 {{- define "triggerer.serviceAccountName" -}}
   {{- if .Values.triggerer.serviceAccount.create }}
-    {{- default (printf "%s-triggerer" (include "airflow.fullname" .)) .Values.triggerer.serviceAccount.name }}
+    {{- default (printf "%s-triggerer" (include "airflow.serviceAccountName" .)) .Values.triggerer.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.triggerer.serviceAccount.name }}
   {{- end }}
@@ -574,7 +603,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the dag processor service account to use */}}
 {{- define "dagProcessor.serviceAccountName" -}}
   {{- if .Values.dagProcessor.serviceAccount.create }}
-    {{- default (printf "%s-dag-processor" (include "airflow.fullname" .)) .Values.dagProcessor.serviceAccount.name }}
+    {{- default (printf "%s-dag-processor" (include "airflow.serviceAccountName" .)) .Values.dagProcessor.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.dagProcessor.serviceAccount.name }}
   {{- end }}
@@ -583,7 +612,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the pgbouncer service account to use */}}
 {{- define "pgbouncer.serviceAccountName" -}}
   {{- if .Values.pgbouncer.serviceAccount.create }}
-    {{- default (printf "%s-pgbouncer" (include "airflow.fullname" .)) .Values.pgbouncer.serviceAccount.name }}
+    {{- default (printf "%s-pgbouncer" (include "airflow.serviceAccountName" .)) .Values.pgbouncer.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.pgbouncer.serviceAccount.name }}
   {{- end }}
@@ -592,7 +621,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the cleanup service account to use */}}
 {{- define "cleanup.serviceAccountName" -}}
   {{- if .Values.cleanup.serviceAccount.create }}
-    {{- default (printf "%s-cleanup" (include "airflow.fullname" .)) .Values.cleanup.serviceAccount.name }}
+    {{- default (printf "%s-cleanup" (include "airflow.serviceAccountName" .)) .Values.cleanup.serviceAccount.name }}
   {{- else }}
     {{- default "default" .Values.cleanup.serviceAccount.name }}
   {{- end }}
@@ -678,6 +707,39 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
+
+{{- define  "scheduler_startup_check_command" }}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --local
+  {{- else if semverCompare ">=2.1.0" .Values.airflowVersion }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
+    airflow jobs check --job-type SchedulerJob --hostname $(hostname)
+  {{- else }}
+  - sh
+  - -c
+  - |
+    CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -Wignore -c "
+    import os
+    os.environ['AIRFLOW__CORE__LOGGING_LEVEL'] = 'ERROR'
+    os.environ['AIRFLOW__LOGGING__LOGGING_LEVEL'] = 'ERROR'
+    from airflow.jobs.scheduler_job import SchedulerJob
+    from airflow.utils.db import create_session
+    from airflow.utils.net import get_hostname
+    import sys
+    with create_session() as session:
+        job = session.query(SchedulerJob).filter_by(hostname=get_hostname()).order_by(
+            SchedulerJob.latest_heartbeat.desc()).limit(1).first()
+    sys.exit(0 if job.is_alive() else 1)"
+  {{- end }}
+{{- end }}
+
 {{- define "triggerer_liveness_check_command" }}
   {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
   - sh
@@ -690,16 +752,25 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type TriggererJob  --hostname $(hostname)
+    airflow jobs check --job-type TriggererJob --hostname $(hostname)
   {{- end }}
 {{- end }}
 
 {{- define "dag_processor_liveness_check_command" }}
+  {{- $commandArgs := (list) -}}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+    {{- $commandArgs = append $commandArgs "--local" -}}
+    {{- if semverCompare ">=2.5.2" .Values.airflowVersion }}
+      {{- $commandArgs = concat $commandArgs (list "--job-type" "DagProcessorJob") -}}
+    {{- end }}
+  {{- else }}
+    {{- $commandArgs = concat $commandArgs (list "--hostname" "$(hostname)") -}}
+  {{- end }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --hostname $(hostname)
+    airflow jobs check {{ join " " $commandArgs }}
 {{- end }}
 
 {{- define "registry_docker_config" }}
@@ -718,16 +789,6 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- $_ := set $auth $host $data }}
   {{- $_ := set $config "auths" $auth }}
   {{ $config | toJson | print }}
-{{- end }}
-
-{{/* Allow Kubernetes Version to be overridden. Credit to https://github.com/prometheus-community/helm-charts for Regex. */}}
-{{- define "kubeVersion" }}
-  {{- $kubeVersion := default .Capabilities.KubeVersion.Version .Values.kubeVersionOverride -}}
-  {{/* Special use case for Amazon EKS, Google GKE */}}
-  {{- if and (regexMatch "\\d+\\.\\d+\\.\\d+-(?:eks|gke).+" $kubeVersion) (not .Values.kubeVersionOverride) -}}
-    {{- $kubeVersion = regexFind "\\d+\\.\\d+\\.\\d+" $kubeVersion -}}
-  {{- end -}}
-  {{- $kubeVersion -}}
 {{- end }}
 
 {{/*
@@ -852,9 +913,8 @@ If no value is passed for securityContexts.container or <node>.securityContexts.
     | <node>.securityContexts.container |  ->  | securityContexts.containers |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
     +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
 
-
 The template can be called like so:
-   include "containerSecurityContext" (list . .Values.statsd)
+   include "containerSecurityContext" (list . .Values.webserver)
 
 Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
 */}}
@@ -874,6 +934,28 @@ capabilities:
   {{- end -}}
 {{- end -}}
 
+{{/*
+Set the default value for external container securityContext(redis and statsd).
+If no value is passed for <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
+
+    +-----------------------------------+      +-----------------------------------------------------------+
+    | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
+    +-----------------------------------+      +-----------------------------------------------------------+
+
+The template can be called like so:
+  include "externalContainerSecurityContext" .Values.statsd
+*/}}
+{{- define "externalContainerSecurityContext" -}}
+  {{- if .securityContexts.container -}}
+    {{ toYaml .securityContexts.container | print }}
+  {{- else -}}
+allowPrivilegeEscalation: false
+capabilities:
+  drop:
+    - ALL
+  {{- end -}}
+{{- end -}}
+
 {{- define "container_extra_envs" -}}
   {{- $ := index . 0 -}}
   {{- $env := index . 1 -}}
@@ -884,5 +966,20 @@ capabilities:
   - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
     value: {{ $config.value | quote }}
     {{- end }}
+  {{- end }}
+{{- end }}
+
+{{- define "kedaNetworkPolicySelector" }}
+  {{- if .Values.workers.keda.enabled }}
+
+  {{- if .Values.workers.keda.namespaceLabels }}
+      - namespaceSelector:
+          matchLabels: {{- toYaml .Values.workers.keda.namespaceLabels | nindent 10 }}
+        podSelector:
+  {{- else }}
+      - podSelector:
+  {{- end }}
+          matchLabels:
+            app: keda-operator
   {{- end }}
 {{- end }}

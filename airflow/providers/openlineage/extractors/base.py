@@ -18,12 +18,18 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from functools import cached_property
+from typing import TYPE_CHECKING
 
 from attrs import Factory, define
 
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
-from openlineage.client.facet import BaseFacet
-from openlineage.client.run import Dataset
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from openlineage.client.facet import BaseFacet
+    from openlineage.client.run import Dataset
 
 
 @define
@@ -58,12 +64,30 @@ class BaseExtractor(ABC, LoggingMixin):
         """
         raise NotImplementedError()
 
+    @cached_property
+    def disabled_operators(self) -> set[str]:
+        return set(
+            operator.strip() for operator in conf.get("openlineage", "disabled_for_operators").split(";")
+        )
+
     def validate(self):
         assert self.operator.task_type in self.get_operator_classnames()
 
     @abstractmethod
+    def _execute_extraction(self) -> OperatorLineage | None:
+        ...
+
     def extract(self) -> OperatorLineage | None:
-        pass
+        fully_qualified_class_name = (
+            self.operator.__class__.__module__ + "." + self.operator.__class__.__name__
+        )
+        if fully_qualified_class_name in self.disabled_operators:
+            self.log.warning(
+                f"Skipping extraction for operator {self.operator.task_type} "
+                "due to its presence in [openlineage] openlineage_disabled_for_operators."
+            )
+            return None
+        return self._execute_extraction()
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
         return self.extract()
@@ -81,23 +105,49 @@ class DefaultExtractor(BaseExtractor):
         """
         return []
 
-    def extract(self) -> OperatorLineage | None:
+    def _execute_extraction(self) -> OperatorLineage | None:
+        # OpenLineage methods are optional - if there's no method, return None
         try:
             return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
+        except ImportError:
+            self.log.error(
+                "OpenLineage provider method failed to import OpenLineage integration. "
+                "This should not happen. Please report this bug to developers."
+            )
+            return None
         except AttributeError:
+            self.log.warning(
+                f"Operator {self.operator.task_type} does not have the "
+                "get_openlineage_facets_on_start method."
+            )
             return None
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
+        if task_instance.state == TaskInstanceState.FAILED:
+            on_failed = getattr(self.operator, "get_openlineage_facets_on_failure", None)
+            if on_failed and callable(on_failed):
+                return self._get_openlineage_facets(on_failed, task_instance)
         on_complete = getattr(self.operator, "get_openlineage_facets_on_complete", None)
         if on_complete and callable(on_complete):
             return self._get_openlineage_facets(on_complete, task_instance)
         return self.extract()
 
     def _get_openlineage_facets(self, get_facets_method, *args) -> OperatorLineage | None:
-        facets: OperatorLineage = get_facets_method(*args)
-        return OperatorLineage(
-            inputs=facets.inputs,
-            outputs=facets.outputs,
-            run_facets=facets.run_facets,
-            job_facets=facets.job_facets,
-        )
+        try:
+            facets: OperatorLineage = get_facets_method(*args)
+            # "rewrite" OperatorLineage to safeguard against different version of the same class
+            # that was existing in openlineage-airflow package outside of Airflow repo
+            return OperatorLineage(
+                inputs=facets.inputs,
+                outputs=facets.outputs,
+                run_facets=facets.run_facets,
+                job_facets=facets.job_facets,
+            )
+        except ImportError:
+            self.log.exception(
+                "OpenLineage provider method failed to import OpenLineage integration. "
+                "This should not happen."
+            )
+        except Exception:
+            self.log.exception("OpenLineage provider method failed to extract data from provider. ")
+        return None

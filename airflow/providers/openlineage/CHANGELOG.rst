@@ -15,9 +15,48 @@
     specific language governing permissions and limitations
     under the License.
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
+``apache-airflow-providers-openlineage``
+
 
 Changelog
 ---------
+
+1.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``openlineage: don't run task instance listener in executor (#33366)``
+* ``openlineage: do not try to redact Proxy objects from deprecated config (#33393)``
+* ``openlineage: defensively check for provided datetimes in listener (#33343)``
+
+Misc
+~~~~
+
+* ``Add OpenLineage support for Trino. (#32910)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Replace repr() with proper formatting (#33520)``
+
+1.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``openlineage: disable running listener if not configured (#33120)``
+* ``Don't use database as fallback when no schema parsed. (#32959)``
+
+Misc
+~~~~
+
+* ``openlineage, bigquery: add openlineage method support for BigQueryExecuteQueryOperator (#31293)``
+* ``Move openlineage configuration to provider (#33124)``
 
 1.0.0
 .....

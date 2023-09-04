@@ -21,7 +21,7 @@ import asyncio
 import json
 import re
 from enum import Enum
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import aiohttp
 import requests
@@ -29,9 +29,11 @@ from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class BatchState(Enum):
@@ -92,7 +94,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def get_conn(self, headers: dict[str, Any] | None = None) -> Any:
         """
-        Returns http session for use with requests.
+        Return http session for use with requests.
 
         :param headers: additional headers to be passed through as a dictionary
         :return: requests session
@@ -111,7 +113,7 @@ class LivyHook(HttpHook, LoggingMixin):
         retry_args: dict[str, Any] | None = None,
     ) -> Any:
         """
-        Wrapper for HttpHook, allows to change method on the same HttpHook.
+        Wrap HttpHook; allows to change method on the same HttpHook.
 
         :param method: http method
         :param endpoint: endpoint
@@ -173,7 +175,7 @@ class LivyHook(HttpHook, LoggingMixin):
         batch_id = self._parse_post_response(response.json())
         if batch_id is None:
             raise AirflowException("Unable to parse the batch session id")
-        self.log.info("Batch submitted with session id: %d", batch_id)
+        self.log.info("Batch submitted with session id: %s", batch_id)
 
         return batch_id
 
@@ -186,13 +188,13 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         self._validate_session_id(session_id)
 
-        self.log.debug("Fetching info for batch session %d", session_id)
+        self.log.debug("Fetching info for batch session %s", session_id)
         response = self.run_method(endpoint=f"/batches/{session_id}", headers=self.extra_headers)
 
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
             raise AirflowException(
                 f"Unable to fetch batch with id: {session_id}. Message: {err.response.text}"
             )
@@ -210,7 +212,7 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         self._validate_session_id(session_id)
 
-        self.log.debug("Fetching info for batch session %d", session_id)
+        self.log.debug("Fetching info for batch session %s", session_id)
         response = self.run_method(
             endpoint=f"/batches/{session_id}/state", retry_args=retry_args, headers=self.extra_headers
         )
@@ -218,7 +220,7 @@ class LivyHook(HttpHook, LoggingMixin):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
             raise AirflowException(
                 f"Unable to fetch batch with id: {session_id}. Message: {err.response.text}"
             )
@@ -237,7 +239,7 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         self._validate_session_id(session_id)
 
-        self.log.info("Deleting batch session %d", session_id)
+        self.log.info("Deleting batch session %s", session_id)
         response = self.run_method(
             method="DELETE", endpoint=f"/batches/{session_id}", headers=self.extra_headers
         )
@@ -245,7 +247,7 @@ class LivyHook(HttpHook, LoggingMixin):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
             raise AirflowException(
                 f"Could not kill the batch with session id: {session_id}. Message: {err.response.text}"
             )
@@ -254,7 +256,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def get_batch_logs(self, session_id: int | str, log_start_position, log_batch_size) -> dict:
         """
-        Gets the session logs for a specified batch.
+        Get the session logs for a specified batch.
 
         :param session_id: identifier of the batch sessions
         :param log_start_position: Position from where to pull the logs
@@ -270,7 +272,7 @@ class LivyHook(HttpHook, LoggingMixin):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
             raise AirflowException(
                 f"Could not fetch the logs for batch with session id: {session_id}. "
                 f"Message: {err.response.text}"
@@ -279,12 +281,12 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def dump_batch_logs(self, session_id: int | str) -> None:
         """
-        Dumps the session logs for a specified batch.
+        Dump the session logs for a specified batch.
 
         :param session_id: identifier of the batch sessions
         :return: response body
         """
-        self.log.info("Fetching the logs for batch session with id: %d", session_id)
+        self.log.info("Fetching the logs for batch session with id: %s", session_id)
         log_start_line = 0
         log_total_lines = 0
         log_batch_size = 100
@@ -432,7 +434,7 @@ class LivyHook(HttpHook, LoggingMixin):
         if (
             vals is None
             or not isinstance(vals, (tuple, list))
-            or any(1 for val in vals if not isinstance(val, (str, int, float)))
+            or not all(isinstance(val, (str, int, float)) for val in vals)
         ):
             raise ValueError("List of strings expected")
         return True
@@ -448,7 +450,7 @@ class LivyHook(HttpHook, LoggingMixin):
         if conf:
             if not isinstance(conf, dict):
                 raise ValueError("'conf' argument must be a dict")
-            if any(True for k, v in conf.items() if not (v and isinstance(v, str) or isinstance(v, int))):
+            if not all(isinstance(v, (str, int)) and v != "" for v in conf.values()):
                 raise ValueError("'conf' values must be either strings or ints")
         return True
 
@@ -498,7 +500,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         extra_options: dict[str, Any] | None = None,
     ) -> Any:
         """
-        Performs an asynchronous HTTP request call.
+        Perform an asynchronous HTTP request call.
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :param data: payload to be uploaded or request parameters
@@ -542,8 +544,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
             else:
                 return {"Response": f"Unexpected HTTP Method: {self.method}", "status": "error"}
 
-            attempt_num = 1
-            while True:
+            for attempt_num in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
                     json=data if self.method in ("POST", "PATCH") else None,
@@ -568,7 +569,6 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
                         # Don't retry.
                         return {"Response": {e.message}, "Status Code": {e.status}, "status": "error"}
 
-                attempt_num += 1
                 await asyncio.sleep(self.retry_delay)
 
     def _generate_base_url(self, conn: Connection) -> str:
@@ -591,7 +591,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         headers: dict[str, Any] | None = None,
     ) -> Any:
         """
-        Wrapper for HttpAsyncHook, allows to change method on the same HttpAsyncHook.
+        Wrap HttpAsyncHook; allows to change method on the same HttpAsyncHook.
 
         :param method: http method
         :param endpoint: endpoint
@@ -618,7 +618,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         :return: batch state
         """
         self._validate_session_id(session_id)
-        self.log.info("Fetching info for batch session %d", session_id)
+        self.log.info("Fetching info for batch session %s", session_id)
         result = await self.run_method(endpoint=f"/batches/{session_id}/state")
         if result["status"] == "error":
             self.log.info(result)
@@ -645,7 +645,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         self, session_id: int | str, log_start_position: int, log_batch_size: int
     ) -> Any:
         """
-        Gets the session logs for a specified batch asynchronously.
+        Get the session logs for a specified batch asynchronously.
 
         :param session_id: identifier of the batch sessions
         :param log_start_position: Position from where to pull the logs
@@ -662,12 +662,12 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
 
     async def dump_batch_logs(self, session_id: int | str) -> Any:
         """
-        Dumps the session logs for a specified batch asynchronously.
+        Dump the session logs for a specified batch asynchronously.
 
         :param session_id: identifier of the batch sessions
         :return: response body
         """
-        self.log.info("Fetching the logs for batch session with id: %d", session_id)
+        self.log.info("Fetching the logs for batch session with id: %s", session_id)
         log_start_line = 0
         log_total_lines = 0
         log_batch_size = 100
@@ -815,7 +815,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         if (
             vals is None
             or not isinstance(vals, (tuple, list))
-            or any(1 for val in vals if not isinstance(val, (str, int, float)))
+            or not all(isinstance(val, (str, int, float)) for val in vals)
         ):
             raise ValueError("List of strings expected")
         return True
@@ -831,6 +831,6 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         if conf:
             if not isinstance(conf, dict):
                 raise ValueError("'conf' argument must be a dict")
-            if any(True for k, v in conf.items() if not (v and isinstance(v, str) or isinstance(v, int))):
+            if not all(isinstance(v, (str, int)) and v != "" for v in conf.values()):
                 raise ValueError("'conf' values must be either strings or ints")
         return True

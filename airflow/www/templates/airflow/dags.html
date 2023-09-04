@@ -110,18 +110,18 @@
     {% call show_message(category='warning', dismissible=false) %}
       Do not use <b>SQLite</b> as metadata DB in production &#8211; it should only be used for dev/testing.
       We recommend using Postgres or MySQL.
-      <a href={{ get_docs_url("howto/set-up-database.html") }}><b>Click here</b></a> for more information.
+      <a href={{ get_docs_url("howto/set-up-database.html") }} target="_blank" rel="noopener noreferrer"><b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
   {% if production_executor_warning | default(false) %}
     {% call show_message(category='warning', dismissible=false) %}
       Do not use the <b>{{ production_executor_warning }}</b> in production.
-      <a href={{ get_docs_url("executor/index.html") }}><b>Click here</b></a> for more information.
+      <a href={{ get_docs_url("executor/index.html") }}  target="_blank" rel="noopener noreferrer"><b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
   {% if otel_on | default(false) %}
     {% call show_message(category='warning', dismissible=false) %}
-      OpenTelemetry support is experimental. <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#running-breeze-with-an-opentelemetry-metrics-stack">
+      OpenTelemetry support is experimental. <a href="https://github.com/apache/airflow/blob/main/BREEZE.rst#running-breeze-with-an-opentelemetry-metrics-stack" target="_blank" rel="noopener noreferrer">
         <b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
@@ -273,7 +273,7 @@
               {% for owner in dag.owners.split(",") %}
                 <a class="label label-default"
                  {% if owner_links and owner.strip() in owner_links.get(dag.dag_id, {}) %}
-                   href="{{ owner_links[dag.dag_id].get(owner.strip()) }}" target="_blank"
+                   href="{{ owner_links[dag.dag_id].get(owner.strip()) }}" target="_blank" rel="noopener noreferrer"
                  {% else %}
                    href="?search={{ owner | trim }}"
                  {% endif %}
@@ -364,13 +364,34 @@
               <div class="btn-group">
                 {# Use dag_id instead of dag.dag_id, because the DAG might not exist in the webserver's DagBag #}
                 {% if dag %}
-                  <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint), unpause=True) }}"
+                {% if show_trigger_form_if_no_params %}
+                <div class="dropdown">
+                    <a aria-label="Trigger DAG"
+                       class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn"
+                       data-toggle="dropdown">
+                      <span class="material-icons" aria-hidden="true">play_arrow</span>
+                    </a>
+                    <ul class="dropdown-menu trigger-dropdown-menu">
+                      <li>
+                        <form method="POST" action="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+                          <input type="hidden" name="unpause" value="True">
+                          <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
+                        </form>
+                      </li>
+                      <li><a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}">Trigger DAG w/ config</a></li>
+                    </ul>
+                  </div>
+                {% else %}
+                  <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
                     title="Trigger&nbsp;DAG"
                     aria-label="Trigger DAG"
                     class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn">
                     <span class="material-icons" aria-hidden="true">play_arrow</span>
                   </a>
-                  <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
+                {% endif %}
+                <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
                     onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" title="Delete&nbsp;DAG"
                     aria-label="Delete DAG"
                     class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}">

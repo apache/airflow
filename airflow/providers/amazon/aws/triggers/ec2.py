@@ -26,8 +26,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class EC2StateSensorTrigger(BaseTrigger):
     """
-    Trigger for EC2StateSensor. The Trigger polls the EC2 instance, and yields a TriggerEvent once
-    the state of the instance matches the `target_state`.
+    Poll the EC2 instance and yield a TriggerEvent once the state of the instance matches the target_state.
 
     :param instance_id: id of the AWS EC2 instance
     :param target_state: target state of instance

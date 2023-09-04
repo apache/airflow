@@ -26,7 +26,7 @@ Authentication may be performed using `Security Token Service (STS) or a signed 
 Default Connection IDs
 ----------------------
 
-The default connection ID is ``oss_default``.
+The default connection IDs are ``oss_default`` and ``adb_spark_default``.
 
 Configuring the Connection
 --------------------------

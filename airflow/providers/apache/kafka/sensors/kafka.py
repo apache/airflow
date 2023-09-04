@@ -112,10 +112,8 @@ class AwaitMessageSensor(BaseOperator):
 
 
 class AwaitMessageTriggerFunctionSensor(BaseOperator):
-    """An Airflow sensor that defers until a specific message is published to
-    Kafka, then triggers a registered function, and goes back to waiting for
-    a message.
-
+    """
+    Defer until a specific message is published to Kafka, trigger a registered function, then resume waiting.
 
     The behavior of the consumer for this trigger is as follows:
     - poll the Kafka topics for a message

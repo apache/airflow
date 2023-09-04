@@ -25,7 +25,7 @@ reports. For more information about the Campaign Manager report API check
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:GoogleCampaignManagerDeleteReportOperator:
 

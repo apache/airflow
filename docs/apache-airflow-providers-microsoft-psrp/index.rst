@@ -19,22 +19,32 @@
 ``apache-airflow-providers-microsoft-psrp``
 ===========================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
     Operators <operators/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/microsoft/psrp/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -45,6 +55,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -59,7 +70,7 @@ This package provides remote execution capabilities via the
 <https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-psrp/>`__.
 
 
-Release: 2.3.0
+Release: 2.3.1
 
 Provider package
 ----------------
@@ -85,5 +96,3 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.4.0``
 ``pypsrp``          ``>=0.8.0``
 ==================  ==================
-
-.. include:: ../../airflow/providers/microsoft/psrp/CHANGELOG.rst

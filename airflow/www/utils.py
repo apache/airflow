@@ -20,23 +20,22 @@ from __future__ import annotations
 import json
 import textwrap
 import time
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 from urllib.parse import urlencode
 
 from flask import request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
-from flask_appbuilder.models.sqla import Model, filters as fab_sqlafilters
+from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from markdown_it import MarkdownIt
 from markupsafe import Markup
-from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import delete, func, types
+from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -47,16 +46,23 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.json import WebEncoder
+from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.query import Query
+    from flask_appbuilder.models.sqla import Model
+    from pendulum.datetime import DateTime
+    from pygments.lexer import Lexer
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql import Select
     from sqlalchemy.sql.operators import ColumnOperators
 
     from airflow.www.fab_security.sqla.manager import SecurityManager
+
+TI = TaskInstance
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
@@ -66,27 +72,31 @@ def datetime_to_string(value: DateTime | None) -> str | None:
 
 
 def get_mapped_instances(task_instance, session):
-    return (
-        session.query(TaskInstance)
-        .filter(
+    return session.scalars(
+        select(TaskInstance)
+        .where(
             TaskInstance.dag_id == task_instance.dag_id,
             TaskInstance.run_id == task_instance.run_id,
             TaskInstance.task_id == task_instance.task_id,
         )
         .order_by(TaskInstance.map_index)
-        .all()
-    )
+    ).all()
 
 
 def get_instance_with_map(task_instance, session):
     if task_instance.map_index == -1:
-        return alchemy_to_dict(task_instance)
+        data = alchemy_to_dict(task_instance)
+        # Fetch execution_date explicitly since it's not a column and a proxy
+        data["execution_date"] = task_instance.execution_date
+        return data
     mapped_instances = get_mapped_instances(task_instance, session)
     return get_mapped_summary(task_instance, mapped_instances)
 
 
 def get_try_count(try_number: int, state: State):
-    return try_number + 1 if state in [State.DEFERRED, State.UP_FOR_RESCHEDULE] else try_number
+    if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
+        return try_number + 1
+    return try_number
 
 
 priority: list[None | TaskInstanceState] = [
@@ -98,7 +108,6 @@ priority: list[None | TaskInstanceState] = [
     TaskInstanceState.SCHEDULED,
     TaskInstanceState.DEFERRED,
     TaskInstanceState.RUNNING,
-    TaskInstanceState.SHUTDOWN,
     TaskInstanceState.RESTARTING,
     None,
     TaskInstanceState.SUCCESS,
@@ -116,6 +125,10 @@ def get_mapped_summary(parent_instance, task_instances):
             group_state = state
             break
 
+    group_queued_dttm = datetime_to_string(
+        min((ti.queued_dttm for ti in task_instances if ti.queued_dttm), default=None)
+    )
+
     group_start_date = datetime_to_string(
         min((ti.start_date for ti in task_instances if ti.start_date), default=None)
     )
@@ -127,10 +140,12 @@ def get_mapped_summary(parent_instance, task_instances):
         "task_id": parent_instance.task_id,
         "run_id": parent_instance.run_id,
         "state": group_state,
+        "queued_dttm": group_queued_dttm,
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
         "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
+        "execution_date": parent_instance.execution_date,
     }
 
 
@@ -177,14 +192,16 @@ def encode_dag_run(
 
 def check_import_errors(fileloc, session):
     # Check dag import errors
-    import_errors = session.query(errors.ImportError).filter(errors.ImportError.filename == fileloc).all()
+    import_errors = session.scalars(
+        select(errors.ImportError).where(errors.ImportError.filename == fileloc)
+    ).all()
     if import_errors:
         for import_error in import_errors:
-            flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
+            flash(f"Broken DAG: [{import_error.filename}] {import_error.stacktrace}", "dag_import_error")
 
 
 def check_dag_warnings(dag_id, session):
-    dag_warnings = session.query(DagWarning).filter(DagWarning.dag_id == dag_id).all()
+    dag_warnings = session.scalars(select(DagWarning).where(DagWarning.dag_id == dag_id)).all()
     if dag_warnings:
         for dag_warning in dag_warnings:
             flash(dag_warning.message, "warning")
@@ -234,11 +251,12 @@ def generate_pages(
     sorting_direction=None,
 ):
     """
-    Generates the HTML for a paging component using a similar logic to the paging
-    auto-generated by Flask managed views. The paging component defines a number of
-    pages visible in the pager (window) and once the user goes to a page beyond the
-    largest visible, it would scroll to the right the page numbers and keeps the
-    current one in the middle of the pager component. When in the last pages,
+    Generates the HTML for a paging component.
+
+    Uses a similar logic to the paging auto-generated by Flask managed views. The paging
+    component defines a number of pages visible in the pager (window) and once the user
+    goes to a page beyond the largest visible, it would scroll to the right the page numbers
+    and keeps the current one in the middle of the pager component. When in the last pages,
     the pages won't scroll and just keep moving until the last page. Pager also contains
     <first, previous, ..., next, last> pages.
     This component takes into account custom parameters such as search, status, and tags
@@ -480,7 +498,7 @@ def json_f(attr_name):
 
     def json_(attr):
         f = attr.get(attr_name)
-        serialized = json.dumps(f)
+        serialized = json.dumps(f, cls=WebEncoder)
         return Markup("<nobr>{}</nobr>").format(serialized)
 
     return json_
@@ -517,18 +535,21 @@ def _get_run_ordering_expr(name: str) -> ColumnOperators:
     return expr.desc()
 
 
-def sorted_dag_runs(query: Query, *, ordering: Sequence[str], limit: int) -> Sequence[DagRun]:
+def sorted_dag_runs(
+    query: Select, *, ordering: Sequence[str], limit: int, session: Session
+) -> Sequence[DagRun]:
     """Produce DAG runs sorted by specified columns.
 
-    :param query: An ORM query object against *DagRun*.
+    :param query: An ORM select object against *DagRun*.
     :param ordering: Column names to sort the runs. should generally come from a
         timetable's ``run_ordering``.
     :param limit: Number of runs to limit to.
+    :param session: SQLAlchemy ORM session object
     :return: A list of DagRun objects ordered by the specified columns. The list
         contains only the *last* objects, but in *ascending* order.
     """
     ordering_exprs = (_get_run_ordering_expr(name) for name in ordering)
-    runs = query.order_by(*ordering_exprs, DagRun.id.desc()).limit(limit).all()
+    runs = session.scalars(query.order_by(*ordering_exprs, DagRun.id.desc()).limit(limit)).all()
     runs.reverse()
     return runs
 
@@ -546,20 +567,35 @@ def pygment_html_render(s, lexer=lexers.TextLexer):
     return highlight(s, lexer(), HtmlFormatter(linenos=True))
 
 
-def render(obj, lexer):
+def render(obj: Any, lexer: Lexer, handler: Callable[[Any], str] | None = None):
     """Render a given Python object with a given Pygments lexer."""
-    out = ""
     if isinstance(obj, str):
-        out = Markup(pygment_html_render(obj, lexer))
+        return Markup(pygment_html_render(obj, lexer))
+
     elif isinstance(obj, (tuple, list)):
+        out = ""
         for i, text_to_render in enumerate(obj):
+            if lexer is lexers.PythonLexer:
+                text_to_render = repr(text_to_render)
             out += Markup("<div>List item #{}</div>").format(i)
             out += Markup("<div>" + pygment_html_render(text_to_render, lexer) + "</div>")
+        return out
+
     elif isinstance(obj, dict):
+        out = ""
         for k, v in obj.items():
+            if lexer is lexers.PythonLexer:
+                v = repr(v)
             out += Markup('<div>Dict item "{}"</div>').format(k)
             out += Markup("<div>" + pygment_html_render(v, lexer) + "</div>")
-    return out
+        return out
+
+    elif handler is not None and obj is not None:
+        return Markup(pygment_html_render(handler(obj), lexer))
+
+    else:
+        # Return empty string otherwise
+        return ""
 
 
 def json_render(obj, lexer):
@@ -600,8 +636,8 @@ def get_attr_renderer():
         "mysql": lambda x: render(x, lexers.MySqlLexer),
         "postgresql": lambda x: render(x, lexers.PostgresLexer),
         "powershell": lambda x: render(x, lexers.PowerShellLexer),
-        "py": lambda x: render(get_python_source(x), lexers.PythonLexer),
-        "python_callable": lambda x: render(get_python_source(x), lexers.PythonLexer),
+        "py": lambda x: render(x, lexers.PythonLexer, get_python_source),
+        "python_callable": lambda x: render(x, lexers.PythonLexer, get_python_source),
         "rst": lambda x: render(x, lexers.RstLexer),
         "sql": lambda x: render(x, lexers.SqlLexer),
         "tsql": lambda x: render(x, lexers.TransactSqlLexer),
@@ -611,10 +647,11 @@ def get_attr_renderer():
 
 def get_chart_height(dag):
     """
-    We use the number of tasks in the DAG as a heuristic to
-    approximate the size of generated chart (otherwise the charts are tiny and unreadable
-    when DAGs have a large number of tasks). Ideally nvd3 should allow for dynamic-height
-    charts, that is charts that take up space based on the size of the components within.
+    Use the number of tasks in the DAG to approximate the size of generated chart.
+
+    Without this the charts are tiny and unreadable when DAGs have a large number of tasks).
+    Ideally nvd3 should allow for dynamic-height charts, that is charts that take up space
+    based on the size of the components within.
     TODO(aoen): See [AIRFLOW-1263].
     """
     return 600 + len(dag.tasks) * 10
@@ -743,7 +780,7 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     def __init__(self, datamodel):
         super().__init__(datamodel)
 
-        for (method, filters) in self.conversion_table:
+        for method, filters in self.conversion_table:
             if FilterIsNull not in filters:
                 filters.append(FilterIsNull)
             if FilterIsNotNull not in filters:
@@ -752,10 +789,9 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
 
 class CustomSQLAInterface(SQLAInterface):
     """
-    FAB does not know how to handle columns with leading underscores because
-    they are not supported by WTForm. This hack will remove the leading
-    '_' from the key to lookup the column names.
+    FAB does not know how to handle columns with leading underscores because they are not supported by WTForm.
 
+    This hack will remove the leading '_' from the key to lookup the column names.
     """
 
     def __init__(self, obj, session: Session | None = None):
@@ -770,12 +806,11 @@ class CustomSQLAInterface(SQLAInterface):
         clean_column_names()
         # Support for AssociationProxy in search and list columns
         for obj_attr, desc in self.obj.__mapper__.all_orm_descriptors.items():
-            if not isinstance(desc, AssociationProxy):
-                continue
-            proxy_instance = getattr(self.obj, obj_attr)
-            if hasattr(proxy_instance.remote_attr.prop, "columns"):
-                self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
-                self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
+            if isinstance(desc, AssociationProxy):
+                proxy_instance = getattr(self.obj, obj_attr)
+                if hasattr(proxy_instance.remote_attr.prop, "columns"):
+                    self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
+                    self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
@@ -821,12 +856,17 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
     """
 
     def delete(self, item: Model, raise_exception: bool = False) -> bool:
-        self.session.execute(delete(TaskInstance).where(TaskInstance.run_id == item.run_id))
+        self.session.execute(delete(TI).where(TI.dag_id == item.dag_id, TI.run_id == item.run_id))
         return super().delete(item, raise_exception=raise_exception)
 
     def delete_all(self, items: list[Model]) -> bool:
         self.session.execute(
-            delete(TaskInstance).where(TaskInstance.run_id.in_(item.run_id for item in items))
+            delete(TI).where(
+                tuple_in_condition(
+                    (TI.dag_id, TI.run_id),
+                    ((x.dag_id, x.run_id) for x in items),
+                )
+            )
         )
         return super().delete_all(items)
 
@@ -903,6 +943,6 @@ class UIAlert:
                 # Unable to obtain user role - default to not showing
                 return False
 
-            if not user_roles.intersection(set(self.roles)):
+            if user_roles.isdisjoint(self.roles):
                 return False
         return True

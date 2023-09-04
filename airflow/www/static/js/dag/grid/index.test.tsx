@@ -135,6 +135,7 @@ describe("Test ToggleGroups", () => {
     const returnValue = {
       data: mockGridData,
       isSuccess: true,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 
     jest

@@ -16,14 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
-
-import boto3
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
 from airflow.utils.helpers import exactly_one
+
+if TYPE_CHECKING:
+    import boto3
 
 
 class EmrClusterLink(BaseAwsLink):
@@ -51,8 +52,9 @@ def get_log_uri(
     *, cluster: dict[str, Any] | None = None, emr_client: boto3.client = None, job_flow_id: str | None = None
 ) -> str | None:
     """
-    Retrieves the S3 URI to the EMR Job logs.  Requires either the output of a
-    describe_cluster call or both an EMR Client and a job_flow_id to look it up.
+    Retrieve the S3 URI to the EMR Job logs.
+
+    Requires either the output of a describe_cluster call or both an EMR Client and a job_flow_id..
     """
     if not exactly_one(bool(cluster), emr_client and job_flow_id):
         raise AirflowException(

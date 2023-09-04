@@ -30,8 +30,7 @@ if TYPE_CHECKING:
 
 class FTPToS3Operator(BaseOperator):
     """
-    This operator enables the transfer of files from a FTP server to S3. It can be used to
-    transfer one or multiple files.
+    Transfer of one or more files from an FTP server to S3.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -128,7 +127,7 @@ class FTPToS3Operator(BaseOperator):
                     files = list_dir
                 else:
                     ftp_filename: str = self.ftp_filenames
-                    files = list(filter(lambda f: ftp_filename in f, list_dir))
+                    files = [f for f in list_dir if ftp_filename in f]
 
                 for file in files:
                     self.log.info("Moving file %s", file)

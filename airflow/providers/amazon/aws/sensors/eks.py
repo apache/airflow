@@ -61,6 +61,7 @@ UNEXPECTED_TERMINAL_STATE_MSG = (
 class EksBaseSensor(BaseSensorOperator):
     """
     Base class to check various EKS states.
+
     Subclasses need to implement get_state and get_terminal_states methods.
 
     :param cluster_name: The name of the Cluster

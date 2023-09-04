@@ -55,10 +55,23 @@ here so that users affected can find the reason for the changes.
 |              |                     |                                         | on 17 Jan 2022         |                                              |
 +--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 
+Airflow 2.7
+~~~~~~~~~~~
+
+* 2.7.0
+
+  * As of now, Python 3.7 is no longer supported by the Python community. Therefore, to use Airflow 2.7.0, you must ensure your Python version is
+    either 3.8, 3.9, 3.10, or 3.11.
+
 Airflow 2.6
 ~~~~~~~~~~~~~
 
-* 2.6
+* 2.6.3
+
+  * Add ``libgeos-dev`` library to runtime PROD image as it is required by BigQuery library on ARM image
+
+
+* 2.6.0
 
   * Snowflake provider installed by default
 
@@ -102,6 +115,7 @@ Airflow 2.3
     This can be done by setting ``DOCKER_BUILDKIT=1`` as an environment variable
     or by installing `the buildx plugin <https://docs.docker.com/buildx/working-with-buildx/>`_
     and running ``docker buildx build`` command.
+  * MySQL is experimentally supported on ARM through MariaDB client library
   * Add Python 3.10 support
   * Switch to ``Debian Bullseye`` based images. ``Debian Buster`` is deprecated and only available for
     customized image building.

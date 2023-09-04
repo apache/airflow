@@ -16,23 +16,28 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from flask import Response, request
 from itsdangerous.exc import BadSignature
 from itsdangerous.url_safe import URLSafeSerializer
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
-from airflow.api_connexion.types import APIResponse
 from airflow.exceptions import TaskNotFound
-from airflow.models import TaskInstance
+from airflow.models import TaskInstance, Trigger
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.api_connexion.types import APIResponse
 
 
 @security.requires_access(
@@ -77,18 +82,17 @@ def get_log(
     if not task_log_reader.supports_read:
         raise BadRequest("Task log handler does not support read logs.")
     query = (
-        session.query(TaskInstance)
-        .filter(
+        select(TaskInstance)
+        .where(
             TaskInstance.task_id == task_id,
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == dag_run_id,
             TaskInstance.map_index == map_index,
         )
         .join(TaskInstance.dag_run)
-        .options(joinedload("trigger"))
-        .options(joinedload("trigger.triggerer_job"))
+        .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
     )
-    ti = query.one_or_none()
+    ti = session.scalar(query)
     if ti is None:
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")

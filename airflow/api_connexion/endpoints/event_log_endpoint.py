@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING
+
+from sqlalchemy import func, select
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
@@ -27,10 +28,14 @@ from airflow.api_connexion.schemas.event_log_schema import (
     event_log_collection_schema,
     event_log_schema,
 )
-from airflow.api_connexion.types import APIResponse
 from airflow.models import Log
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.api_connexion.types import APIResponse
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
@@ -65,10 +70,10 @@ def get_event_logs(
         "owner",
         "extra",
     ]
-    total_entries = session.query(func.count(Log.id)).scalar()
-    query = session.query(Log)
+    total_entries = session.scalars(func.count(Log.id)).one()
+    query = select(Log)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    event_logs = query.offset(offset).limit(limit).all()
+    event_logs = session.scalars(query.offset(offset).limit(limit)).all()
     return event_log_collection_schema.dump(
         EventLogCollection(event_logs=event_logs, total_entries=total_entries)
     )

@@ -18,23 +18,26 @@ from __future__ import annotations
 
 import re
 from functools import cached_property
+from typing import TYPE_CHECKING
 
-import google
 from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+if TYPE_CHECKING:
+    import google
+
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
 
 class _SecretManagerClient(LoggingMixin):
-    """
-    Retrieves Secrets object from Google Cloud Secrets Manager. This is a common class reused between
-    SecretsManager and Secrets Hook that provides the shared authentication and verification mechanisms.
-    This class should not be used directly, use SecretsManager or SecretsHook instead.
+    """Retrieve Secrets object from Google Cloud Secrets Manager.
 
+    This is a common class reused between SecretsManager and Secrets Hook that
+    provides the shared authentication and verification mechanisms. This class
+    should not be used directly; use SecretsManager or SecretsHook instead.
 
     :param credentials: Credentials used to authenticate to GCP
     """
@@ -48,11 +51,9 @@ class _SecretManagerClient(LoggingMixin):
 
     @staticmethod
     def is_valid_secret_name(secret_name: str) -> bool:
-        """
-        Returns true if the secret name is valid.
+        """Whether the secret name is valid.
 
         :param secret_name: name of the secret
-        :return:
         """
         return bool(re.match(SECRET_ID_PATTERN, secret_name))
 
@@ -63,8 +64,7 @@ class _SecretManagerClient(LoggingMixin):
         return _client
 
     def get_secret(self, secret_id: str, project_id: str, secret_version: str = "latest") -> str | None:
-        """
-        Get secret value from the Secret Manager.
+        """Get secret value from the Secret Manager.
 
         :param secret_id: Secret Key
         :param project_id: Project id to use

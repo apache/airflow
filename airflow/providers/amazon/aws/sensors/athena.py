@@ -30,8 +30,7 @@ from airflow.sensors.base import BaseSensorOperator
 
 class AthenaSensor(BaseSensorOperator):
     """
-    Asks for the state of the Query until it reaches a failure state or success state.
-    If the query fails, the task will fail.
+    Poll the state of the Query until it reaches a terminal state; fails if the query fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -76,7 +75,7 @@ class AthenaSensor(BaseSensorOperator):
         self.max_retries = max_retries
 
     def poke(self, context: Context) -> bool:
-        state = self.hook.poll_query_status(self.query_execution_id, self.max_retries)
+        state = self.hook.poll_query_status(self.query_execution_id, self.max_retries, self.sleep_time)
 
         if state in self.FAILURE_STATES:
             raise AirflowException("Athena sensor failed")
@@ -88,4 +87,4 @@ class AthenaSensor(BaseSensorOperator):
     @cached_property
     def hook(self) -> AthenaHook:
         """Create and return an AthenaHook."""
-        return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
+        return AthenaHook(self.aws_conn_id)

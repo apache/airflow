@@ -19,17 +19,19 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-from google.api_core.retry import Retry
 from google.cloud.compute_v1.services.instance_group_managers import InstanceGroupManagersClient
 from google.cloud.compute_v1.services.instance_templates import InstanceTemplatesClient
 from google.cloud.compute_v1.services.instances import InstancesClient
-from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -107,6 +109,7 @@ class ComputeEngineHook(GoogleBaseHook):
     ) -> None:
         """
         Creates Instance Template using body specified.
+
         Must be called with keyword arguments rather than positional.
 
         :param body: Instance Template representation as an object.
@@ -158,9 +161,10 @@ class ComputeEngineHook(GoogleBaseHook):
     ) -> None:
         """
         Deletes Instance Template.
-        Deleting an Instance Template is permanent and cannot be undone. It
-        is not possible to delete templates that are already in use by a managed instance group.
-        Must be called with keyword arguments rather than positional.
+
+        Deleting an Instance Template is permanent and cannot be undone. It is not
+        possible to delete templates that are already in use by a managed instance
+        group. Must be called with keyword arguments rather than positional.
 
         :param resource_id: Name of the Compute Engine Instance Template resource.
         :param request_id: Unique request_id that you might add to achieve
@@ -210,6 +214,7 @@ class ComputeEngineHook(GoogleBaseHook):
     ) -> InstanceTemplate:
         """
         Retrieves Instance Template by project_id and resource_id.
+
         Must be called with keyword arguments rather than positional.
 
         :param resource_id: Name of the Instance Template.
@@ -259,6 +264,7 @@ class ComputeEngineHook(GoogleBaseHook):
     ) -> None:
         """
         Creates Instance using body specified.
+
         Must be called with keyword arguments rather than positional.
 
         :param body: Instance representation as an object. Should at least include 'name', 'machine_type',
@@ -332,6 +338,7 @@ class ComputeEngineHook(GoogleBaseHook):
     ) -> Instance:
         """
         Retrieves Instance by project_id and resource_id.
+
         Must be called with keyword arguments rather than positional.
 
         :param resource_id: Name of the Instance
@@ -383,8 +390,8 @@ class ComputeEngineHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes Instance.
-        Deleting an Instance is permanent and cannot be undone.
+        Permanently and irrevocably deletes an Instance.
+
         It is not possible to delete Instances that are already in use by a managed instance group.
         Must be called with keyword arguments rather than positional.
 
@@ -433,6 +440,7 @@ class ComputeEngineHook(GoogleBaseHook):
     def start_instance(self, zone: str, resource_id: str, project_id: str) -> None:
         """
         Starts an existing instance defined by project_id, zone and resource_id.
+
         Must be called with keyword arguments rather than positional.
 
         :param zone: Google Cloud zone where the instance exists
@@ -457,7 +465,8 @@ class ComputeEngineHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def stop_instance(self, zone: str, resource_id: str, project_id: str) -> None:
         """
-        Stops an instance defined by project_id, zone and resource_id
+        Stops an instance defined by project_id, zone and resource_id.
+
         Must be called with keyword arguments rather than positional.
 
         :param zone: Google Cloud zone where the instance exists
@@ -483,6 +492,7 @@ class ComputeEngineHook(GoogleBaseHook):
     def set_machine_type(self, zone: str, resource_id: str, body: dict, project_id: str) -> None:
         """
         Sets machine type of an instance defined by project_id, zone and resource_id.
+
         Must be called with keyword arguments rather than positional.
 
         :param zone: Google Cloud zone where the instance exists.
@@ -524,6 +534,7 @@ class ComputeEngineHook(GoogleBaseHook):
     ) -> None:
         """
         Creates an Instance Group Managers using the body specified.
+
         After the group is created, instances in the group are created using the specified Instance Template.
         Must be called with keyword arguments rather than positional.
 
@@ -580,6 +591,7 @@ class ComputeEngineHook(GoogleBaseHook):
     ) -> InstanceGroupManager:
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
+
         Must be called with keyword arguments rather than positional.
 
         :param resource_id: The name of the Managed Instance Group
@@ -631,8 +643,8 @@ class ComputeEngineHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Deletes Instance Group Managers.
-        Deleting an Instance Group Manager is permanent and cannot be undone.
+        Permanently and irrevocably deletes Instance Group Managers.
+
         Must be called with keyword arguments rather than positional.
 
         :param resource_id: Name of the Compute Engine Instance Group Managers resource.
@@ -687,6 +699,7 @@ class ComputeEngineHook(GoogleBaseHook):
     ) -> None:
         """
         Patches Instance Group Manager with the specified body.
+
         Must be called with keyword arguments rather than positional.
 
         :param zone: Google Cloud zone where the Instance Group Manager exists

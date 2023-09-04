@@ -28,6 +28,20 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2023-06-20
+
+=================================================================================================  ===========  =============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`8d78f903ac <https://github.com/apache/airflow/commit/8d78f903ac9d25870c61ffe762da12796475dcaa>`_  2023-06-08   ``Add notifier for pagerduty (#31207)``
+`a59076eaee <https://github.com/apache/airflow/commit/a59076eaeed03dd46e749ad58160193b4ef3660c>`_  2023-06-02   ``Add D400 pydocstyle check - Providers (#31427)``
+`30faf4a87a <https://github.com/apache/airflow/commit/30faf4a87a2e1b32de36f130aea5877d5e1003c6>`_  2023-05-23   ``Add send_event method in PagerdutyEventsHook (#31290)``
+=================================================================================================  ===========  =============================================================
+
 3.2.0
 .....
 
@@ -36,6 +50,7 @@ Latest change: 2023-05-19
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `7bf952b478 <https://github.com/apache/airflow/commit/7bf952b4781925c06d3941530d58b9ba100969ac>`_  2023-05-19   ``Add Change event V2 API support for pagerduty (#31222)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``

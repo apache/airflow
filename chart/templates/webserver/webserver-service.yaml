@@ -20,10 +20,10 @@
 ################################
 ## Airflow Webserver Service
 #################################
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
-  name: {{ .Release.Name }}-webserver
+  name: {{ include "airflow.fullname" . }}-webserver
   labels:
     tier: airflow
     component: webserver

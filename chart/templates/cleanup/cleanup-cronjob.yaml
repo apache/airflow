@@ -26,14 +26,10 @@
 {{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.cleanup.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.cleanup) }}
-{{- if semverCompare ">= 1.21.x" (include "kubeVersion" .) }}
 apiVersion: batch/v1
-{{- else }}
-apiVersion: batch/v1beta1
-{{- end }}
 kind: CronJob
 metadata:
-  name: {{ .Release.Name }}-cleanup
+  name: {{ include "airflow.fullname" . }}-cleanup
   labels:
     tier: airflow
     component: airflow-cleanup-pods
@@ -47,7 +43,7 @@ metadata:
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  schedule: "{{ .Values.cleanup.schedule }}"
+  schedule: "{{ tpl .Values.cleanup.schedule . }}"
   # The cron job does not allow concurrent runs; if it is time for a new job run and the previous job run hasn't finished yet, the cron job skips the new job run
   concurrencyPolicy: Forbid
   {{- if .Values.cleanup.failedJobsHistoryLimit }}

@@ -26,6 +26,7 @@ from airflow.utils.email import build_mime_message
 class SesHook(AwsBaseHook):
     """
     Interact with Amazon Simple Email Service.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("ses") <SES.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and

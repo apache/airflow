@@ -33,7 +33,7 @@ from tests.test_utils.config import conf_vars
 with DAG(
     dag_id="test_dummy_dag",
     description="Test dummy DAG",
-    schedule_interval="*/2 * * * *",
+    schedule="*/2 * * * *",
     start_date=datetime(2020, 1, 8),
     catchup=False,
     max_active_runs=1,

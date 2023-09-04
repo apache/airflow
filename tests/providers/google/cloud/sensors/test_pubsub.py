@@ -23,8 +23,9 @@ from unittest import mock
 import pytest
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
-from airflow.exceptions import AirflowSensorTimeout
+from airflow.exceptions import AirflowException, AirflowSensorTimeout, TaskDeferred
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
+from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 
 TASK_ID = "test-task-id"
 TEST_PROJECT = "test-project"
@@ -155,3 +156,50 @@ class TestPubSubPullSensor:
         messages_callback.assert_called_once()
 
         assert response == messages_callback_return_value
+
+    def test_pubsub_pull_sensor_async(self):
+        """
+        Asserts that a task is deferred and a PubsubPullTrigger will be fired
+        when the PubSubPullSensor is executed.
+        """
+        task = PubSubPullSensor(
+            task_id="test_task_id",
+            ack_messages=True,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            task.execute(context={})
+        assert isinstance(exc.value.trigger, PubsubPullTrigger), "Trigger is not a PubsubPullTrigger"
+
+    def test_pubsub_pull_sensor_async_execute_should_throw_exception(self):
+        """Tests that an AirflowException is raised in case of error event"""
+
+        operator = PubSubPullSensor(
+            task_id="test_task",
+            ack_messages=True,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            deferrable=True,
+        )
+
+        with pytest.raises(AirflowException):
+            operator.execute_complete(
+                context=mock.MagicMock(), event={"status": "error", "message": "test failure message"}
+            )
+
+    def test_pubsub_pull_sensor_async_execute_complete(self):
+        """Asserts that logging occurs as expected"""
+        operator = PubSubPullSensor(
+            task_id="test_task",
+            ack_messages=True,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            deferrable=True,
+        )
+
+        test_message = "test"
+        with mock.patch.object(operator.log, "info") as mock_log_info:
+            operator.execute_complete(context={}, event={"status": "success", "message": test_message})
+        mock_log_info.assert_called_with("Sensor pulls messages: %s", test_message)

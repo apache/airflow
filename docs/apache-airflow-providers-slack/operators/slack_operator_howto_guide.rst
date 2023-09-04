@@ -23,7 +23,7 @@ Introduction
 
 Slack operators can send text messages (:class:`~airflow.providers.slack.operators.slack.SlackAPIFileOperator`)
 or files (:class:`~airflow.providers.slack.operators.slack.SlackAPIPostOperator`) to specified Slack channels.
-Provide either ``slack_conn_id`` or ``token`` for the connection, and specify ``channel`` (name or ID).
+Provide ``slack_conn_id`` for the connection, and specify ``channel`` (name or ID).
 
 Example Code for Sending Files
 ------------------------------

@@ -24,7 +24,7 @@ import { getMetaValue } from "src/utils";
 import type { DatasetListItem } from "src/types";
 import type { unitOfTime } from "moment";
 
-interface DatasetsData {
+export interface DatasetsData {
   datasets: DatasetListItem[];
   totalEntries: number;
 }
@@ -58,6 +58,7 @@ export default function useDatasets({
       const updatedAfterParam =
         updatedAfter && updatedAfter.count && updatedAfter.unit
           ? {
+              // @ts-ignore
               updated_after: moment()
                 .subtract(updatedAfter.count, updatedAfter.unit)
                 .toISOString(),

@@ -22,14 +22,16 @@
 """
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.oslogin_v1 import ImportSshPublicKeyResponse, OsLoginServiceClient
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 class OSLoginHook(GoogleBaseHook):
@@ -76,9 +78,9 @@ class OSLoginHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ImportSshPublicKeyResponse:
         """
-        Adds an SSH public key and returns the profile information. Default POSIX
-        account information is set when no username and UID exist as part of the
-        login profile.
+        Adds an SSH public key and returns the profile information.
+
+        Default POSIX account information is set when no username and UID exist as part of the login profile.
 
         :param user: The unique ID for the user
         :param ssh_public_key: The SSH public key and expiration time.
@@ -92,11 +94,11 @@ class OSLoginHook(GoogleBaseHook):
         """
         conn = self.get_conn()
         return conn.import_ssh_public_key(
-            request=dict(
-                parent=f"users/{user}",
-                ssh_public_key=ssh_public_key,
-                project_id=project_id,
-            ),
+            request={
+                "parent": f"users/{user}",
+                "ssh_public_key": ssh_public_key,
+                "project_id": project_id,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,

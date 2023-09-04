@@ -21,8 +21,118 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-snowflake``
+
+
 Changelog
 ---------
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Removed deprecated ``S3ToSnowflakeOperator`` in favor of ``CopyFromExternalStageToSnowflakeOperator``.
+  The parameter that was passed as ``s3_keys`` needs to be changed to ``files``, and the behavior should stay the same.
+
+  Removed deprecated ``SnowflakeToSlackOperator`` in favor of ``SqlToSlackOperator`` from Slack Provider.
+  Parameters that were passed as ``schema``, ``role``, ``database``, ``warehouse`` need to be included into
+  ``sql_hook_params`` parameter, and the behavior should stay the same.
+
+
+* ``Remove deprecated 'S3ToSnowflake' and 'SnowflakeToSlack' operators (#33558)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set snowflake_conn_id on Snowflake Operators to avoid error (#33681)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Bump apache-airflow-providers-snowflake due to breaking changes (#33615)``
+
+
+4.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+4.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix connection parameters of 'SnowflakeValueCheckOperator' (#32605)``
+
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, snowflake: add OpenLineage support for Snowflake (#31696)``
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
+4.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix an issue that crashes Airflow Webserver when passed invalid private key path to Snowflake (#32016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``build(pre-commit): check deferrable default value (#32370)``
+   * ``D205 Support - Providers: Snowflake to Zendesk (inclusive) (#32359)``
+
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Deferrable switch to SnowflakeSqlApiOperator (#31596)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+4.2.0
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Features
+~~~~~~~~
+
+* ``Add SnowflakeSqlApiOperator operator (#30698)``
+
+Misc
+~~~~
+
+* ``SnowflakeSqlApiOperator - Change the base class (#31751)``
+* ``Moved sql_api_generate_jwt out of hooks folder (#31586)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check (#31742)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 4.1.0
 .....

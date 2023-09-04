@@ -41,17 +41,55 @@ from __future__ import annotations
 """Elastic mock module used for testing"""
 from functools import wraps
 from unittest.mock import patch
-
-from elasticsearch.client.utils import _normalize_hosts
+from urllib.parse import unquote, urlparse
 
 from .fake_elasticsearch import FakeElasticsearch
 
 ELASTIC_INSTANCES: dict[str, FakeElasticsearch] = {}
 
 
+def _normalize_hosts(hosts):
+    """
+    Helper function to transform hosts argument to
+    :class:`~elasticsearch.Elasticsearch` to a list of dicts.
+    """
+    # if hosts are empty, just defer to defaults down the line
+    if hosts is None:
+        return [{}]
+
+    hosts = [hosts]
+
+    out = []
+
+    for host in hosts:
+        if "://" not in host:
+            host = f"//{host}"
+
+        parsed_url = urlparse(host)
+        h = {"host": parsed_url.hostname}
+
+        if parsed_url.port:
+            h["port"] = parsed_url.port
+
+        if parsed_url.scheme == "https":
+            h["port"] = parsed_url.port or 443
+            h["use_ssl"] = True
+
+        if parsed_url.username or parsed_url.password:
+            h["http_auth"] = f"{unquote(parsed_url.username)}:{unquote(parsed_url.password)}"
+
+        if parsed_url.path and parsed_url.path != "/":
+            h["url_prefix"] = parsed_url.path
+
+        out.append(h)
+    else:
+        out.append(host)
+    return out
+
+
 def _get_elasticmock(hosts=None, *args, **kwargs):
     host = _normalize_hosts(hosts)[0]
-    elastic_key = f"{host.get('host', 'localhost')}:{host.get('port', 9200)}"
+    elastic_key = f"http://{host.get('host', 'localhost')}:{host.get('port', 9200)}"
 
     if elastic_key in ELASTIC_INSTANCES:
         connection = ELASTIC_INSTANCES.get(elastic_key)

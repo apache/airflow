@@ -105,6 +105,7 @@ class GoogleDataprepHook(BaseHook):
     def get_job_group(self, job_group_id: int, embed: str, include_deleted: bool) -> dict[str, Any]:
         """
         Get the specified job group.
+
         A job group is a job that is executed from a specific node in a flow.
 
         :param job_group_id: The ID of the job that will be fetched

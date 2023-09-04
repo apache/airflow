@@ -209,8 +209,9 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_connection(self, conn_id: str) -> Connection | None:
         """
-        Get connection from Vault as secret. Prioritize conn_uri if exists,
-        if not fall back to normal Connection creation.
+        Get connection from Vault as secret.
+
+        Prioritize conn_uri if exists, if not fall back to normal Connection creation.
 
         :return: A Connection object constructed from Vault data
         """

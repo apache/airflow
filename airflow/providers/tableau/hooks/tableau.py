@@ -19,13 +19,15 @@ from __future__ import annotations
 import time
 import warnings
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
-from tableauserverclient.server import Auth
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from tableauserverclient.server import Auth
 
 
 def parse_boolean(val: str) -> str | bool:
@@ -162,8 +164,7 @@ class TableauHook(BaseHook):
 
     def wait_for_state(self, job_id: str, target_state: TableauJobFinishCode, check_interval: float) -> bool:
         """
-        Wait until the current state of a defined Tableau Job is equal
-        to target_state or different from PENDING.
+        Wait until the current state of a defined Tableau Job is target_state or different from PENDING.
 
         :param job_id: The id of the job to check.
         :param target_state: Enum that describe the Tableau job's target state

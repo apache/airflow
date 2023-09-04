@@ -31,13 +31,13 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowClusterPolicyError,
+    AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
@@ -52,12 +52,15 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import pathlib
 
+    from sqlalchemy.orm import Session
+
     from airflow.models.dag import DAG
+    from airflow.utils.types import ArgNotSet
 
 
 class FileLoadStat(NamedTuple):
@@ -72,13 +75,13 @@ class FileLoadStat(NamedTuple):
 
 class DagBag(LoggingMixin):
     """
-    A dagbag is a collection of dags, parsed out of a folder tree and has high
-    level configuration settings, like what database to use as a backend and
-    what executor to use to fire off tasks. This makes it easier to run
-    distinct environments for say production and development, tests, or for
-    different teams or security profiles. What would have been system level
-    settings are now dagbag level so that one system can run multiple,
-    independent settings sets.
+    A dagbag is a collection of dags, parsed out of a folder tree and has high level configuration settings.
+
+    Some possible setting are database to use as a backend and what executor
+    to use to fire off tasks. This makes it easier to run distinct environments
+    for say production and development, tests, or for different teams or security
+    profiles. What would have been system level settings are now dagbag level so
+    that one system can run multiple, independent settings sets.
 
     :param dag_folder: the folder to scan to find DAGs
     :param include_examples: whether to include the examples that ship
@@ -101,7 +104,6 @@ class DagBag(LoggingMixin):
         collect_dags: bool = True,
     ):
         # Avoid circular import
-        from airflow.models.dag import DAG
 
         super().__init__()
 
@@ -169,12 +171,12 @@ class DagBag(LoggingMixin):
 
         :return: a list of DAG IDs in this bag
         """
-        return list(self.dags.keys())
+        return list(self.dags)
 
     @provide_session
     def get_dag(self, dag_id, session: Session = None):
         """
-        Gets the DAG out of the dictionary, and refreshes it if expired.
+        Get the DAG out of the dictionary, and refreshes it if expired.
 
         :param dag_id: DAG ID
         """
@@ -277,10 +279,7 @@ class DagBag(LoggingMixin):
         self.dags_hash[dag.dag_id] = row.dag_hash
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-        """
-        Given a path to a python module or zip file, this method imports
-        the module and look for dag objects within it.
-        """
+        """Given a path to a python module or zip file, import the module and look for dag objects within."""
         from airflow.models.dag import DagContext
 
         # if the source file no longer exists in the DB or in the filesystem,
@@ -443,6 +442,8 @@ class DagBag(LoggingMixin):
             try:
                 dag.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
+            except AirflowClusterPolicySkipDag:
+                pass
             except Exception as e:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
                 self.import_errors[dag.fileloc] = f"{type(e).__name__}: {e}"
@@ -454,7 +455,7 @@ class DagBag(LoggingMixin):
 
     def bag_dag(self, dag, root_dag):
         """
-        Adds the DAG into the bag, recurses into sub dags.
+        Add the DAG into the bag, recurses into sub dags.
 
         :raises: AirflowDagCycleException if a cycle is detected in this dag or its subdags.
         :raises: AirflowDagDuplicatedIdException if this dag or its subdags already exists in the bag.
@@ -478,7 +479,7 @@ class DagBag(LoggingMixin):
 
             for task in dag.tasks:
                 settings.task_policy(task)
-        except AirflowClusterPolicyViolation:
+        except (AirflowClusterPolicyViolation, AirflowClusterPolicySkipDag):
             raise
         except Exception as e:
             self.log.exception(e)
@@ -523,8 +524,7 @@ class DagBag(LoggingMixin):
         safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
     ):
         """
-        Given a file path or a folder, this method looks for python modules,
-        imports them and adds them to the dagbag collection.
+        Look for python modules in a given path, import them, and add them to the dagbag collection.
 
         Note that if a ``.airflowignore`` file is found while processing
         the directory, it will behave much like a ``.gitignore``,
@@ -570,7 +570,7 @@ class DagBag(LoggingMixin):
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
 
     def collect_dags_from_db(self):
-        """Collects DAGs from database."""
+        """Collect DAGs from database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
         with Stats.timer("collect_db_dags"):
@@ -590,7 +590,7 @@ class DagBag(LoggingMixin):
             self.dags.update(subdags)
 
     def dagbag_report(self):
-        """Prints a report around DagBag loading stats."""
+        """Print a report around DagBag loading stats."""
         stats = self.dagbag_stats
         dag_folder = self.dag_folder
         duration = sum((o.duration for o in stats), timedelta()).total_seconds()

@@ -17,8 +17,6 @@
 # under the License.
 """
 Example Airflow DAG that displays interactions with Google Cloud Build.
-This DAG relies on the following OS environment variables:
-* PROJECT_ID - Google Cloud Project to use for the Cloud Function.
 """
 from __future__ import annotations
 
@@ -44,6 +42,11 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "example_gcp_cloud_build_trigger"
 
+# Repository with this name is expected created within the project $SYSTEM_TESTS_GCP_PROJECT
+# If you'd like to run this system test locally, please
+#   1. Create Cloud Source Repository
+#   2. Push into a master branch the following file:
+#   tests/system/providers/google/cloud/cloud_build/resources/example_cloud_build.yaml
 GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
 TRIGGER_NAME = f"cloud-build-trigger-{ENV_ID}"

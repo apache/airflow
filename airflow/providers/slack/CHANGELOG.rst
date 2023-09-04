@@ -21,8 +21,89 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-slack``
+
+
 Changelog
 ---------
+
+8.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  ``SlackHook`` and ``SlackWebhookHook`` constructor expected keyword-only arguments.
+
+  Removed deprecated parameter ``token`` from the ``SlackHook`` and dependent operators.
+  Required create ``Slack API Connection`` and provide connection id to ``slack_conn_id`` operators / hook,
+  and the behavior should stay the same.
+
+  Parsing Slack Incoming Webhook Token from the Connection ``hostname`` is removed, ``password`` should be filled.
+
+  Removed deprecated parameter ``webhook_token`` from the ``SlackWebhookHook`` and dependent operators
+  Required create ``Slack Incoming Webhook Connection`` and provide connection id to ``slack_webhook_conn_id``
+  operators / hook, and the behavior should stay the same.
+
+  Removed deprecated method ``execute`` from the ``SlackWebhookHook``. Use ``send``, ``send_text`` or ``send_dict`` instead.
+
+  Removed deprecated parameters ``attachments``, ``blocks``, ``channel``, ``username``, ``username``,
+  ``icon_emoji`` from the ``SlackWebhookHook``. Provide them directly to ``SlackWebhookHook.send`` method,
+  and the behavior should stay the same.
+
+  Removed deprecated parameter ``message`` from the ``SlackWebhookHook``.
+  Provide ``text`` directly to ``SlackWebhookHook.send`` method, and the behavior should stay the same.
+
+  Removed deprecated parameter ``link_names`` from the ``SlackWebhookHook`` and dependent operators.
+  This parameter has no affect in the past, you should not provide it.
+  If you want to mention user see: `Slack Documentation <https://api.slack.com/reference/surfaces/formatting#mentioning-users>`__.
+
+  Removed deprecated parameters ``endpoint``, ``method``, ``data``, ``headers``, ``response_check``,
+  ``response_filter``, ``extra_options``, ``log_response``, ``auth_type``, ``tcp_keep_alive``,
+  ``tcp_keep_alive_idle``, ``tcp_keep_alive_idle``, ``tcp_keep_alive_count``, ``tcp_keep_alive_interval``
+  from the ``SlackWebhookOperator``. Those parameters has no affect in the past, you should not provide it.
+
+* ``Remove deprecated parts from Slack provider (#33557)``
+* ``Replace deprecated slack notification in provider.yaml with new one (#33643)``
+
+Misc
+~~~~
+* ``Avoid importing pandas and numpy in runtime and module level (#33483)``
+* ``Consolidate import and usage of pandas (#33480)``
+
+7.3.2
+.....
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``D205 Support - Providers: Pagerduty to SMTP (inclusive) (#32358)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+7.3.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 7.3.0
 .....

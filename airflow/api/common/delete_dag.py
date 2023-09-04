@@ -19,9 +19,9 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from sqlalchemy import and_, delete, or_, select
-from sqlalchemy.orm import Session
 
 from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
@@ -29,7 +29,10 @@ from airflow.models import DagModel, TaskFail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.db import get_sqla_model_classes
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +53,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     running_tis = session.scalar(
         select(models.TaskInstance.state)
         .where(models.TaskInstance.dag_id == dag_id)
-        .where(models.TaskInstance.state == State.RUNNING)
+        .where(models.TaskInstance.state == TaskInstanceState.RUNNING)
         .limit(1)
     )
     if running_tis:
@@ -79,9 +82,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     count = 0
 
     for model in get_sqla_model_classes():
-        if hasattr(model, "dag_id"):
-            if keep_records_in_log and model.__name__ == "Log":
-                continue
+        if hasattr(model, "dag_id") and (not keep_records_in_log or model.__name__ != "Log"):
             count += session.execute(
                 delete(model)
                 .where(model.dag_id.in_(dags_to_delete))

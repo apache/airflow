@@ -20,14 +20,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterable
 from urllib.parse import urlsplit
 
-from flask import Flask
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
     from _typeshed.wsgi import StartResponse, WSGIEnvironment
+    from flask import Flask
 
 
 def _root_app(env: WSGIEnvironment, resp: StartResponse) -> Iterable[bytes]:
@@ -37,8 +38,11 @@ def _root_app(env: WSGIEnvironment, resp: StartResponse) -> Iterable[bytes]:
 
 def init_wsgi_middleware(flask_app: Flask) -> None:
     """Handle X-Forwarded-* headers and base_url support."""
+    webserver_base_url = conf.get_mandatory_value("webserver", "BASE_URL", fallback="")
+    if webserver_base_url.endswith("/"):
+        raise AirflowConfigException("webserver.base_url conf cannot have a trailing slash.")
     # Apply DispatcherMiddleware
-    base_url = urlsplit(conf.get("webserver", "base_url"))[2]
+    base_url = urlsplit(webserver_base_url)[2]
     if not base_url or base_url == "/":
         base_url = ""
     if base_url:

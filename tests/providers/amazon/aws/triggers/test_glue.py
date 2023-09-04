@@ -23,19 +23,21 @@ import pytest
 
 from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
-from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
+from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
+from airflow.providers.amazon.aws.triggers.glue import GlueCatalogPartitionTrigger, GlueJobCompleteTrigger
+from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 
 
 class TestGlueJobTrigger:
     @pytest.mark.asyncio
     @mock.patch.object(GlueJobHook, "async_get_job_state")
     async def test_wait_job(self, get_state_mock: mock.MagicMock):
-        GlueJobHook.JOB_POLL_INTERVAL = 0.1
         trigger = GlueJobCompleteTrigger(
             job_name="job_name",
             run_id="JobRunId",
             verbose=False,
             aws_conn_id="aws_conn_id",
+            job_poll_interval=0.1,
         )
         get_state_mock.side_effect = [
             "RUNNING",
@@ -52,12 +54,12 @@ class TestGlueJobTrigger:
     @pytest.mark.asyncio
     @mock.patch.object(GlueJobHook, "async_get_job_state")
     async def test_wait_job_failed(self, get_state_mock: mock.MagicMock):
-        GlueJobHook.JOB_POLL_INTERVAL = 0.1
         trigger = GlueJobCompleteTrigger(
             job_name="job_name",
             run_id="JobRunId",
             verbose=False,
             aws_conn_id="aws_conn_id",
+            job_poll_interval=0.1,
         )
         get_state_mock.side_effect = [
             "RUNNING",
@@ -69,3 +71,58 @@ class TestGlueJobTrigger:
             await trigger.run().asend(None)
 
         assert get_state_mock.call_count == 3
+
+
+class TestGlueCrawlerTrigger:
+    def test_serialize_recreate(self):
+        trigger = GlueCrawlerCompleteTrigger(
+            crawler_name="my_crawler", waiter_delay=2, aws_conn_id="my_conn_id"
+        )
+
+        class_path, args = trigger.serialize()
+
+        class_name = class_path.split(".")[-1]
+        clazz = globals()[class_name]
+        instance = clazz(**args)
+
+        class_path2, args2 = instance.serialize()
+
+        assert class_path == class_path2
+        assert args == args2
+
+
+class TestGlueCatalogPartitionSensorTrigger:
+    def test_serialize_recreate(self):
+        trigger = GlueCatalogPartitionTrigger(
+            database_name="my_database",
+            table_name="my_table",
+            expression="my_expression",
+            aws_conn_id="my_conn_id",
+        )
+
+        class_path, args = trigger.serialize()
+
+        class_name = class_path.split(".")[-1]
+        clazz = globals()[class_name]
+        instance = clazz(**args)
+
+        class_path2, args2 = instance.serialize()
+
+        assert class_path == class_path2
+        assert args == args2
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueCatalogHook, "async_get_partitions")
+    async def test_poke(self, mock_async_get_partitions):
+        a_mock = mock.AsyncMock()
+        a_mock.return_value = True
+        mock_async_get_partitions.return_value = a_mock
+        trigger = GlueCatalogPartitionTrigger(
+            database_name="my_database",
+            table_name="my_table",
+            expression="my_expression",
+            aws_conn_id="my_conn_id",
+        )
+        response = await trigger.poke(client=mock.MagicMock())
+
+        assert response is True

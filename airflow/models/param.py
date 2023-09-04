@@ -28,7 +28,6 @@ from pendulum.parsing import parse_iso8601
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -36,14 +35,16 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+    from airflow.utils.context import Context
 
 logger = logging.getLogger(__name__)
 
 
 class Param:
     """
-    Class to hold the default value of a Param and rule set to do the validations. Without the rule set
-    it always validates and returns the default value.
+    Class to hold the default value of a Param and rule set to do the validations.
+
+    Without the rule set it always validates and returns the default value.
 
     :param default: The value this Param object holds
     :param description: Optional help text for the Param
@@ -99,7 +100,8 @@ class Param:
 
     def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
         """
-        Runs the validations and returns the Param's final value.
+        Run the validations and returns the Param's final value.
+
         May raise ValueError on failed validations, or TypeError
         if no value is passed and no value already exists.
         We first check that value is json-serializable; if not, warn.
@@ -136,13 +138,18 @@ class Param:
 
     def dump(self) -> dict:
         """Dump the Param as a dictionary."""
-        out_dict = {self.CLASS_IDENTIFIER: f"{self.__module__}.{self.__class__.__name__}"}
+        out_dict: dict[str, str | None] = {
+            self.CLASS_IDENTIFIER: f"{self.__module__}.{self.__class__.__name__}"
+        }
         out_dict.update(self.__dict__)
+        # Ensure that not set is translated to None
+        if self.value is NOTSET:
+            out_dict["value"] = None
         return out_dict
 
     @property
     def has_value(self) -> bool:
-        return self.value is not NOTSET
+        return self.value is not NOTSET and self.value is not None
 
     def serialize(self) -> dict:
         return {"value": self.value, "description": self.description, "schema": self.schema}
@@ -157,19 +164,21 @@ class Param:
 
 class ParamsDict(MutableMapping[str, Any]):
     """
-    Class to hold all params for dags or tasks. All the keys are strictly string and values
-    are converted into Param's object if they are not already. This class is to replace param's
-    dictionary implicitly and ideally not needed to be used directly.
+    Class to hold all params for dags or tasks.
+
+    All the keys are strictly string and values are converted into Param's object
+    if they are not already. This class is to replace param's dictionary implicitly
+    and ideally not needed to be used directly.
+
+
+    :param dict_obj: A dict or dict like object to init ParamsDict
+    :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
     """
 
     __version__: ClassVar[int] = 1
     __slots__ = ["__dict", "suppress_exception"]
 
     def __init__(self, dict_obj: MutableMapping | None = None, suppress_exception: bool = False):
-        """
-        :param dict_obj: A dict or dict like object to init ParamsDict
-        :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
-        """
         params_dict: dict[str, Param] = {}
         dict_obj = dict_obj or {}
         for k, v in dict_obj.items():
@@ -213,8 +222,7 @@ class ParamsDict(MutableMapping[str, Any]):
 
     def __setitem__(self, key: str, value: Any) -> None:
         """
-        Override for dictionary's ``setitem`` method. This method make sure that all values are of
-        Param's type only.
+        Override for dictionary's ``setitem`` method to ensure all values are of Param's type only.
 
         :param key: A key which needs to be inserted or updated in the dict
         :param value: A value which needs to be set against the key. It could be of any
@@ -236,8 +244,7 @@ class ParamsDict(MutableMapping[str, Any]):
 
     def __getitem__(self, key: str) -> Any:
         """
-        Override for dictionary's ``getitem`` method. After fetching the key, it would call the
-        resolve method as well on the Param object.
+        Override for dictionary's ``getitem`` method to call the resolve method after fetching the key.
 
         :param key: The key to fetch
         """
@@ -260,11 +267,11 @@ class ParamsDict(MutableMapping[str, Any]):
         super().update(*args, **kwargs)
 
     def dump(self) -> dict[str, Any]:
-        """Dumps the ParamsDict object as a dictionary, while suppressing exceptions."""
+        """Dump the ParamsDict object as a dictionary, while suppressing exceptions."""
         return {k: v.resolve(suppress_exception=True) for k, v in self.items()}
 
     def validate(self) -> dict[str, Any]:
-        """Validates & returns all the Params object stored in the dictionary."""
+        """Validate & returns all the Params object stored in the dictionary."""
         resolved_dict = {}
         try:
             for k, v in self.items():

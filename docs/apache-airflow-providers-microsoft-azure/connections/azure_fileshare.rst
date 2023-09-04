@@ -30,13 +30,13 @@ Authenticating to Azure File Share
 There are four ways to connect to Azure File Share using Airflow.
 
 1. Use `token credentials
-   <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
+   <https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/identity/azure-identity>`_
    i.e. add specific credentials (client_id, secret) and subscription id to the Airflow connection.
 2. Use a `SAS Token
-   <https://docs.microsoft.com/en-us/rest/api/storageservices/create-account-sas>`_
+   <https://learn.microsoft.com/en-gb/azure/storage/common/storage-sas-overview>`_
    i.e. add a key config to ``sas_token`` in the Airflow connection.
 3. Use a `Connection String
-   <https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/storage>`_
+   <https://learn.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string>`_
    i.e. add connection string to ``connection_string`` in the Airflow connection.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
@@ -66,7 +66,6 @@ Extra (optional)
 
     * ``connection_string``: Connection string for use with connection string authentication.
     * ``sas_token``: SAS Token for use with SAS Token authentication.
-    * ``protocol``: Specify the protocol to use (default is ``https``).
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

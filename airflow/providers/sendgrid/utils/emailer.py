@@ -94,8 +94,8 @@ def send_email(
     # Add custom_args to personalization if present
     pers_custom_args = kwargs.get("personalization_custom_args")
     if isinstance(pers_custom_args, dict):
-        for key in pers_custom_args.keys():
-            personalization.add_custom_arg(CustomArg(key, pers_custom_args[key]))
+        for key, val in pers_custom_args.items():
+            personalization.add_custom_arg(CustomArg(key, val))
 
     mail.add_personalization(personalization)
     mail.add_content(Content("text/html", html_content))

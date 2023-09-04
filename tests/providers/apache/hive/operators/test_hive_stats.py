@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 import re
-from collections import OrderedDict
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -150,7 +149,6 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         exprs = {("", "count"): "COUNT(*)"}
         for col, col_type in list(field_types.items()):
             exprs.update(hive_stats_collection_operator.get_default_exprs(col, col_type))
-        exprs = OrderedDict(exprs)
         rows = [
             (
                 hive_stats_collection_operator.ds,
@@ -198,7 +196,6 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         exprs = {("", "count"): "COUNT(*)"}
         for col, col_type in list(field_types.items()):
             exprs.update(hive_stats_collection_operator.assignment_func(col, col_type))
-        exprs = OrderedDict(exprs)
         rows = [
             (
                 hive_stats_collection_operator.ds,
@@ -246,7 +243,6 @@ class TestHiveStatsCollectionOperator(TestHiveEnvironment):
         exprs = {("", "count"): "COUNT(*)"}
         for col, col_type in list(field_types.items()):
             exprs.update(hive_stats_collection_operator.get_default_exprs(col, col_type))
-        exprs = OrderedDict(exprs)
         rows = [
             (
                 hive_stats_collection_operator.ds,

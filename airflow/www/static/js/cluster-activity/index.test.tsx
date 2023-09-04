@@ -29,6 +29,8 @@ import * as useHealthModule from "src/api/useHealth";
 import { render } from "@testing-library/react";
 
 import { Wrapper } from "src/utils/testUtils";
+import type { UseQueryResult } from "react-query";
+import type { API, HistoricalMetricsData } from "src/types";
 import ClusterActivity from ".";
 
 const mockHistoricalMetricsData = {
@@ -48,7 +50,6 @@ const mockHistoricalMetricsData = {
     restarting: 0,
     running: 0,
     scheduled: 0,
-    shutdown: 0,
     skipped: 0,
     success: 1634,
     up_for_reschedule: 0,
@@ -57,12 +58,21 @@ const mockHistoricalMetricsData = {
   },
 };
 
+const heartbeat = "2023-05-19T12:00:36.109924+00:00";
 const mockHealthData = {
   metadatabase: {
     status: "healthy",
   },
   scheduler: {
-    latest_scheduler_heartbeat: "2023-05-19T12:00:36.109924+00:00",
+    latestSchedulerHeartbeat: heartbeat,
+    status: "healthy",
+  },
+  triggerer: {
+    latestTriggererHeartbeat: heartbeat,
+    status: "healthy",
+  },
+  dagProcessor: {
+    latestDagProcessorHeartbeat: heartbeat,
     status: "healthy",
   },
 };
@@ -100,7 +110,7 @@ describe("Test ToggleGroups", () => {
         ({
           data: mockHistoricalMetricsData,
           isSuccess: true,
-        } as any)
+        } as never as UseQueryResult<HistoricalMetricsData>)
     );
 
     jest.spyOn(useHealthModule, "default").mockImplementation(
@@ -108,7 +118,7 @@ describe("Test ToggleGroups", () => {
         ({
           data: mockHealthData,
           isSuccess: true,
-        } as any)
+        } as never as UseQueryResult<API.HealthInfo>)
     );
 
     jest.spyOn(useDagsModule, "default").mockImplementation(
@@ -116,7 +126,7 @@ describe("Test ToggleGroups", () => {
         ({
           data: mockDagsData,
           isSuccess: true,
-        } as any)
+        } as never as UseQueryResult<API.DAGCollection>)
     );
 
     jest.spyOn(useDagRunsModule, "default").mockImplementation(
@@ -124,7 +134,7 @@ describe("Test ToggleGroups", () => {
         ({
           data: mockDagRunsData,
           isSuccess: true,
-        } as any)
+        } as never as UseQueryResult<API.DAGRunCollection>)
     );
 
     jest.spyOn(usePoolsModule, "default").mockImplementation(
@@ -132,7 +142,7 @@ describe("Test ToggleGroups", () => {
         ({
           data: mockPoolsData,
           isSuccess: true,
-        } as any)
+        } as never as UseQueryResult<API.PoolCollection>)
     );
   });
 
@@ -146,7 +156,8 @@ describe("Test ToggleGroups", () => {
 
     expect(getAllByTestId("echart-container")).toHaveLength(4);
 
-    expect(getAllByText("healthy")).toHaveLength(2);
+    expect(getAllByText("healthy")).toHaveLength(4);
+    expect(getAllByText("last heartbeat:")).toHaveLength(3);
     expect(getByText("Unpaused DAGs")).toBeInTheDocument();
     expect(getByText("No dag running")).toBeInTheDocument();
   });

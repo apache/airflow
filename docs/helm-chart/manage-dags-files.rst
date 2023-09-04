@@ -98,8 +98,11 @@ If you are deploying an image from a private repository, you need to create a se
       --set images.airflow.pullPolicy=Always \
       --set registry.secretName=gitlab-registry-credentials
 
+Using Git-sync
+--------------
+
 Mounting DAGs using Git-Sync sidecar with Persistence enabled
--------------------------------------------------------------
+.............................................................
 
 This option will use a Persistent Volume Claim with an access mode of ``ReadWriteMany``.
 The scheduler pod will sync DAGs from a git repository onto the PVC every configured number of
@@ -117,8 +120,9 @@ for details.
       # by setting the  dags.persistence.* and dags.gitSync.* values
       # Please refer to values.yaml for details
 
+
 Mounting DAGs using Git-Sync sidecar without Persistence
---------------------------------------------------------
+........................................................
 
 This option will use an always running Git-Sync sidecar on every scheduler, webserver (if ``airflowVersion < 2.0.0``)
 and worker pods.
@@ -136,6 +140,78 @@ seconds. If you are using the ``KubernetesExecutor``, Git-sync will run as an in
 
 When using ``apache-airflow >= 2.0.0``, :ref:`DAG Serialization <apache-airflow:dag-serialization>` is enabled by default,
 hence Webserver does not need access to DAG files, so ``git-sync`` sidecar is not run on Webserver.
+
+Notes for combining git-sync and persistence
+............................................
+
+While using both git-sync and persistence for DAGs is possible, it is generally not recommended unless the
+deployment manager carefully considered the trade-offs it brings. There are cases when git-sync without
+persistence has other trade-offs (for example delays in synchronization of DAGS vs. rate-limiting of Git
+servers) that can often be mitigated (for example by sending signals to git-sync containers via web-hooks
+when new commits are pushed to the repository) but there might be cases where you still might want to choose
+git-sync and Persistence together, but as a Deployment Manager you should be aware of some consequences it has.
+
+git-sync solution is primarily designed to be used for local, POSIX-compliant volumes to checkout Git
+repositories into. Part of the process of synchronization of commits from git-sync involves checking out
+new version of files in a freshly created folder and swapping symbolic links to the new folder, after the
+checkout is complete. This is done to ensure that the whole DAGs folder is consistent at all times. The way
+git-sync works with symbolic-link swaps, makes sure that Parsing the DAGs always work on a consistent
+(single-commit-based) set of files in the whole DAG folder.
+
+This approach, however might have undesirable side effects when the folder that git-sync works on is not
+a local volume, but is a persistent volume (so effectively a networked, distributed volume). Depending on
+the technology behind the persistent volumes might handle git-sync approach differently and with non-obvious
+consequences. There are a lot of persistence solutions available for various K8S installations and each of
+them has different characteristics, so you need to carefully test and monitor your filesystem to make sure
+those undesired side effects do not affect you. Those effects might change over time or depend on parameters
+like how often the files are being scanned by the Dag File Processor, the number and complexity of your
+DAGs, how remote and how distributed your persistent volumes are, how many IOPS you allocate for some of
+the filesystem (usually highly paid feature of such filesystems is how many IOPS you can get) and many other
+factors.
+
+The way git-sync works with symbolic links swapping generally causes a linear growth of the throughput and
+potential delays in synchronization. The networking traffic from checkouts comes in bursts and the bursts
+are linearly proportional to the number and size of files you have in the repository, makes it vulnerable
+to pretty sudden and unexpected demand increase. Most of the persistence solution work "good enough" for
+smaller/shorter burst of traffic, but when they outgrow certain thresholds, you need to upgrade the
+networking to a much more capable and expensive options. This is difficult to control and impossible to
+mitigate, so you might be suddenly faced with situation to pay a lot more for IOPS/persistence option to
+keep your DAGs sufficiently synchronized to avoid inconsistencies and delays in synchronization.
+
+The side-effects that you might observe:
+
+* burst of networking/communication at the moment when new commit is checked out (because of the quick
+  succession of deleting old files, creating new files, symbolic link swapping.
+* temporary lack of consistency between files in DAG folders while DAGS are being synced (because of delays
+  in distributing changes to individual files for various nodes in the cluster)
+* visible drops of performance of the persistence solution when your DAG number grows, drops that might
+  amplify the side effects described above.
+* some of persistence solutions might lack filesystem functionality that git-sync needs to perform the sync
+  (for example changing permissions or creating symbolic links). While those can often be mitigated it is
+  only recommended to use git-sync with fully POSIX-filesystem compliant persistence filesystems.
+
+General recommendation to use git-sync with local volumes only, and if you want to also use persistence, you
+need to make sure that the persistence solution you use is POSIX-compliant and you monitor the side-effects
+it might have.
+
+Synchronizing multiple Git repositories with git-sync
+.....................................................
+
+Airflow git-sync integration in the Helm Chart, does not allow to configure multiple repositories to be
+synchronized at the same time. The DAG folder must come from single git repository. However it is possible
+to use `submodules <https://git-scm.com/book/en/v2/Git-Tools-Submodules>`_ to create an "umbrella" repository
+that you can use to bring a number of git repositories checked out together (with ``--submodules recursive``
+option). There are success stories of Airflow users using such approach with 100s of repositories put
+together as submodules via such "umbrella" repo approach. When you choose this solution, however,
+you need to work out the way how to ling the submodules, when to updated the umbrella repo when "submodule"
+repository change and work out versioning approach and automate it. This might be as simple as always
+using latest versions of all the submodule repositories, or as complex as managing versioning of shared
+libraries, DAGs and code across multiple teams and doing that following your release process.
+
+An example of such complex approach can found in this
+`Manage DAGs at scale <https://s.apache.org/airflow-manage-dags-at-scale>`_ presentation from the Airflow
+Summit.
+
 
 Mounting DAGs from an externally populated PVC
 ----------------------------------------------

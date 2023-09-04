@@ -21,7 +21,7 @@ from typing import NamedTuple
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.www.fab_security.sqla.models import Action, Permission, Resource, Role
+from airflow.auth.managers.fab.models import Action, Permission, Resource, Role
 
 
 class ActionSchema(SQLAlchemySchema):

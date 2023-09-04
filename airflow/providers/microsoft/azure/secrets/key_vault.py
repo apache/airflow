@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import os
 import re
 import warnings
 from functools import cached_property
@@ -95,6 +97,13 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
+
+        logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
+        try:
+            logger.setLevel(os.environ.get("AZURE_HTTP_LOGGING_LEVEL", logging.WARNING))
+        except ValueError:
+            logger.setLevel(logging.WARNING)
+
         self.sep = sep
         self.kwargs = kwargs
 
@@ -162,6 +171,7 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
     def build_path(path_prefix: str, secret_id: str, sep: str = "-") -> str:
         """
         Given a path_prefix and secret_id, build a valid secret name for the Azure Key Vault Backend.
+
         Also replaces underscore in the path with dashes to support easy switching between
         environment variables, so ``connection_default`` becomes ``connection-default``.
 

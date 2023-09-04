@@ -22,7 +22,6 @@ import csv
 import json
 from typing import TYPE_CHECKING, Any, Sequence
 
-from databricks.sql.types import Row
 from databricks.sql.utils import ParamEscaper
 
 from airflow.exceptions import AirflowException
@@ -31,6 +30,8 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 
 if TYPE_CHECKING:
+    from databricks.sql.types import Row
+
     from airflow.utils.context import Context
 
 
@@ -70,16 +71,14 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     :param csv_params: parameters that will be passed to the ``csv.DictWriter`` class used to write CSV data.
     """
 
-    template_fields: Sequence[str] = (
-        "sql",
-        "_output_path",
-        "schema",
-        "catalog",
-        "http_headers",
-        "databricks_conn_id",
+    template_fields: Sequence[str] = tuple(
+        {"_output_path", "schema", "catalog", "http_headers", "databricks_conn_id"}
+        | set(SQLExecuteQueryOperator.template_fields)
     )
+
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
+    conn_id_field = "databricks_conn_id"
 
     def __init__(
         self,
@@ -172,6 +171,7 @@ COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "
 class DatabricksCopyIntoOperator(BaseOperator):
     """
     Executes COPY INTO command in a Databricks SQL endpoint or a Databricks cluster.
+
     COPY INTO command is constructed from individual pieces, that are described in
     `documentation <https://docs.databricks.com/sql/language-manual/delta-copy-into.html>`_.
 
@@ -298,7 +298,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         escape_key: bool = True,
     ) -> str:
         formatted_opts = ""
-        if opts is not None and len(opts) > 0:
+        if opts:
             pairs = [
                 f"{escaper.escape_item(k) if escape_key else k} = {escaper.escape_item(v)}"
                 for k, v in opts.items()

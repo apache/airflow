@@ -34,6 +34,8 @@ TEST_BUCKET = "test-bucket"
 DESTINATION_SFTP = "destination_path"
 
 
+# TODO: After deprecating delimiter and wildcards in source objects,
+#       implement reverted changes from the first commit of PR #31261
 class TestGoogleCloudStorageToSFTPOperator:
     @pytest.mark.parametrize(
         "source_object, target_object, keep_directory_structure",

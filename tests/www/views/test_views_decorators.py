@@ -100,36 +100,36 @@ def some_view_action_which_requires_dag_edit_access(*args) -> bool:
 
 def test_action_logging_get(session, admin_client):
     url = (
-        f"dags/example_bash_operator/graph?"
+        f"dags/example_bash_operator/grid?"
         f"execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}"
     )
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response("runme_1", resp)
+    check_content_in_response("success", resp)
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
     _check_last_log(
         session,
         dag_id="example_bash_operator",
-        event="graph",
+        event="grid",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
 
 
 def test_action_logging_get_legacy_view(session, admin_client):
     url = (
-        f"graph?dag_id=example_bash_operator&"
+        f"tree?dag_id=example_bash_operator&"
         f"execution_date={urllib.parse.quote_plus(str(EXAMPLE_DAG_DEFAULT_DATE))}"
     )
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response("runme_1", resp)
+    check_content_in_response("success", resp)
 
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
     _check_last_log(
         session,
         dag_id="example_bash_operator",
-        event="legacy_graph",
+        event="legacy_tree",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
 

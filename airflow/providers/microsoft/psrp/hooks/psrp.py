@@ -158,8 +158,9 @@ class PsrpHook(BaseHook):
     @contextmanager
     def invoke(self) -> Generator[PowerShell, None, None]:
         """
-        Context manager that yields a PowerShell object to which commands can be
-        added. Upon exit, the commands will be invoked.
+        Yields a PowerShell object to which commands can be added.
+
+        Upon exit, the commands will be invoked.
         """
         logger = copy(self.log)
         logger.setLevel(self._logging_level)
@@ -255,7 +256,7 @@ class PsrpHook(BaseHook):
         if message_type == MessageType.ERROR_RECORD:
             log(INFO, "%s: %s", record.reason, record)
             if record.script_stacktrace:
-                for trace in record.script_stacktrace.split("\r\n"):
+                for trace in record.script_stacktrace.splitlines():
                     log(INFO, trace)
 
         level = INFORMATIONAL_RECORD_LEVEL_MAP.get(message_type)

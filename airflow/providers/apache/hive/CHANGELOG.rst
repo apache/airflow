@@ -21,8 +21,101 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-apache-hive``
+
+
 Changelog
 ---------
+
+6.1.5
+.....
+
+.. note::
+  The provider now uses pure-sasl, a pure-Python implementation of SASL,
+  which is better maintained than previous sasl implementation, even
+  if a bit slower for sasl interface. It also allows hive to be
+  installed for Python 3.11.
+
+Misc
+~~~~
+
+* ``Bring back hive support for Python 3.11 (#32607)``
+* ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+* ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+* ``Replace OrderedDict with plain dict (#33508)``
+* ``Simplify code around enumerate (#33476)``
+* ``Use str.splitlines() to split lines in providers (#33593)``
+* ``Simplify conditions on len() in providers/apache (#33564)``
+* ``Replace repr() with proper formatting (#33520)``
+* ``Avoid importing pandas and numpy in runtime and module level (#33483)``
+* ``Consolidate import and usage of pandas (#33480)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+6.1.4
+.....
+
+Misc
+~~~~
+
+* ``Bring back mysql-connector-python as required depednency (#32989)``
+
+6.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Pandas2 compatibility for Hive (#32752)``
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Move Hive configuration to Apache Hive provider (#32777)``
+
+
+6.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add proxy_user template check (#32334)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+6.1.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Sanitize beeline principal parameter (#31983)``
+
+Misc
+~~~~
+
+* ``Replace unicodecsv with standard csv library (#31693)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+   * ``Apache provider docstring improvements (#31730)``
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+   * ``Add Python 3.11 support (#27264)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 6.1.0
 .....

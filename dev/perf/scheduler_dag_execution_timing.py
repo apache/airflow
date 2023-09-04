@@ -63,7 +63,7 @@ class ShortCircuitExecutorMixin:
         Change the state of scheduler by waiting till the tasks is complete
         and then shut down the scheduler after the task is complete
         """
-        from airflow.utils.state import State
+        from airflow.utils.state import TaskInstanceState
 
         super().change_state(key, state, info=info)
 
@@ -83,7 +83,7 @@ class ShortCircuitExecutorMixin:
             run = list(airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date))[0]
             self.dags_to_watch[dag_id].runs[execution_date] = run
 
-        if run and all(t.state == State.SUCCESS for t in run.get_task_instances()):
+        if run and all(t.state == TaskInstanceState.SUCCESS for t in run.get_task_instances()):
             self.dags_to_watch[dag_id].runs.pop(execution_date)
             self.dags_to_watch[dag_id].waiting_for -= 1
 
@@ -156,7 +156,7 @@ def create_dag_runs(dag, num_runs, session):
     Create  `num_runs` of dag runs for sub-sequent schedules
     """
     from airflow.utils import timezone
-    from airflow.utils.state import State
+    from airflow.utils.state import DagRunState
 
     try:
         from airflow.utils.types import DagRunType
@@ -175,7 +175,7 @@ def create_dag_runs(dag, num_runs, session):
             run_id=f"{id_prefix}{logical_date.isoformat()}",
             execution_date=logical_date,
             start_date=timezone.utcnow(),
-            state=State.RUNNING,
+            state=DagRunState.RUNNING,
             external_trigger=False,
             session=session,
         )
@@ -268,8 +268,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
             if end_date != next_info.logical_date:
                 message = (
                     f"DAG {dag_id} has incorrect end_date ({end_date}) for number of runs! "
-                    f"It should be "
-                    f" {next_info.logical_date}"
+                    f"It should be {next_info.logical_date}"
                 )
                 sys.exit(message)
 
@@ -297,35 +296,29 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
     code_to_test = lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute)
 
     for count in range(repeat):
-        gc.disable()
-        start = time.perf_counter()
-
-        code_to_test()
-        times.append(time.perf_counter() - start)
-        gc.enable()
-        print("Run %d time: %.5f" % (count + 1, times[-1]))
-
-        if count + 1 != repeat:
+        if not count:
             with db.create_session() as session:
                 for dag in dags:
                     reset_dag(dag, session)
-
             executor.reset(dag_ids)
             scheduler_job = Job(executor=executor)
             job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids, do_pickle=False)
             executor.scheduler_job = scheduler_job
 
-    print()
-    print()
-    msg = "Time for %d dag runs of %d dags with %d total tasks: %.4fs"
+        gc.disable()
+        start = time.perf_counter()
+        code_to_test()
+        times.append(time.perf_counter() - start)
+        gc.enable()
+        print(f"Run {count + 1} time: {times[-1]:.5f}")
 
+    print()
+    print()
+    print(f"Time for {num_runs} dag runs of {len(dags)} dags with {total_tasks} total tasks: ", end="")
     if len(times) > 1:
-        print(
-            (msg + " (±%.3fs)")
-            % (num_runs, len(dags), total_tasks, statistics.mean(times), statistics.stdev(times))
-        )
+        print(f"{statistics.mean(times):.4f}s (±{statistics.stdev(times):.3f}s)")
     else:
-        print(msg % (num_runs, len(dags), total_tasks, times[0]))
+        print(f"{times[0]:.4f}s")
 
     print()
     print()

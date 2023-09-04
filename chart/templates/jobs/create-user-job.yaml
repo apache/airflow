@@ -27,10 +27,11 @@
 {{- $topologySpreadConstraints := or .Values.createUserJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.createUserJob) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.createUserJob) }}
+{{- $containerLifecycleHooks := or .Values.createUserJob.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Release.Name }}-create-user
+  name: {{ include "airflow.fullname" . }}-create-user
   labels:
     tier: airflow
     component: create-user-job
@@ -88,6 +89,9 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.createUserJob.command }}
           command: {{ tpl (toYaml .Values.createUserJob.command) . | nindent 12 }}
           {{- end }}
@@ -109,7 +113,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.createUserJob.extraVolumeMounts }}
-              {{- toYaml .Values.createUserJob.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.createUserJob.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if .Values.createUserJob.extraContainers }}
           {{- toYaml .Values.createUserJob.extraContainers | nindent 8 }}
@@ -122,6 +126,6 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.createUserJob.extraVolumes }}
-          {{- toYaml .Values.createUserJob.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.createUserJob.extraVolumes) . | nindent 8 }}
         {{- end }}
 {{- end }}

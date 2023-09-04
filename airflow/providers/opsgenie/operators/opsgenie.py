@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 class OpsgenieCreateAlertOperator(BaseOperator):
     """
     This operator allows you to post alerts to Opsgenie.
+
     Accepts a connection that has an Opsgenie API key as the connection's password.
     This operator sets the domain to conn_id.host, and if not set will default
     to ``https://api.opsgenie.com``.
@@ -101,8 +102,9 @@ class OpsgenieCreateAlertOperator(BaseOperator):
 
     def _build_opsgenie_payload(self) -> dict[str, Any]:
         """
-        Construct the Opsgenie JSON payload. All relevant parameters are combined here
-        to a valid Opsgenie JSON payload.
+        Construct the Opsgenie JSON payload.
+
+        All relevant parameters are combined here to a valid Opsgenie JSON payload.
 
         :return: Opsgenie payload (dict) to send
         """
@@ -137,6 +139,7 @@ class OpsgenieCreateAlertOperator(BaseOperator):
 class OpsgenieCloseAlertOperator(BaseOperator):
     """
     This operator allows you to close alerts to Opsgenie.
+
     Accepts a connection that has an Opsgenie API key as the connection's password.
     This operator sets the domain to conn_id.host, and if not set will default
     to ``https://api.opsgenie.com``.
@@ -183,8 +186,9 @@ class OpsgenieCloseAlertOperator(BaseOperator):
 
     def _build_opsgenie_close_alert_payload(self) -> dict[str, Any]:
         """
-        Construct the Opsgenie JSON payload. All relevant parameters are combined here
-        to a valid Opsgenie JSON payload.
+        Construct the Opsgenie JSON payload.
+
+        All relevant parameters are combined here to a valid Opsgenie JSON payload.
 
         :return: Opsgenie close alert payload (dict) to send
         """
@@ -214,6 +218,7 @@ class OpsgenieCloseAlertOperator(BaseOperator):
 class OpsgenieDeleteAlertOperator(BaseOperator):
     """
     This operator allows you to delete alerts in Opsgenie.
+
     Accepts a connection that has an Opsgenie API key as the connection's password.
     This operator sets the domain to conn_id.host, and if not set will default
     to ``https://api.opsgenie.com``.

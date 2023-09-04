@@ -68,7 +68,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         sql: str,
         spreadsheet_id: str,
         sql_conn_id: str,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         database: str | None = None,
         spreadsheet_range: str = "Sheet1",
         gcp_conn_id: str = "google_cloud_default",

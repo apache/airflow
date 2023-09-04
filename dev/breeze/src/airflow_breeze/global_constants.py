@@ -26,7 +26,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
 
 RUNS_ON_PUBLIC_RUNNER = "ubuntu-22.04"
 RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
@@ -66,7 +66,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.23.17", "v1.24.13", "v1.25.9", "v1.26.4", "v1.27.1"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.24.15", "v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["CeleryExecutor", "LocalExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS = START_AIRFLOW_ALLOWED_EXECUTORS[1]
@@ -84,10 +84,22 @@ MOUNT_REMOVE = "remove"
 
 ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
 ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
-ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
+# Oracle introduced new release model for MySQL
+# - LTS: Long Time Support releases, new release approx every 2 year,
+#  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
+#  the first LTS release should be in summer/fall 2024.
+# - Innovations: Shot living releases with short support cycle - only until next Innovation/LTS release.
+# See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
+MYSQL_LTS_RELEASES: list[str] = []
+MYSQL_OLD_RELEASES = ["5.7", "8.0"]
+MYSQL_INNOVATION_RELEASE = "8.1"
+ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
+if MYSQL_INNOVATION_RELEASE:
+    ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
+
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.1.2"
+PIP_VERSION = "23.2.1"
 
 
 @lru_cache(maxsize=None)
@@ -120,8 +132,8 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "tests" / "charts").iterdir()
-            if candidate.is_dir()
+            for candidate in (AIRFLOW_SOURCES_ROOT / "helm_tests").iterdir()
+            if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )
 
@@ -135,24 +147,31 @@ ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
 ALLOWED_INSTALLATION_PACKAGE_FORMATS = ["wheel", "sdist"]
 ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
+ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
 SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
+
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
 
-def get_available_documentation_packages(short_version=False) -> list[str]:
-    provider_names: list[str] = list(json.loads(DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
+ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
+
+
+def get_available_documentation_packages(short_version=False, only_providers: bool = False) -> list[str]:
+    provider_names: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
     doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
-    available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
-    available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
-    available_packages.sort()
+    available_packages = []
+    if not only_providers:
+        available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
+    all_providers = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
+    all_providers.sort()
+    available_packages.extend(all_providers)
     if short_version:
         prefix_len = len("apache-airflow-providers-")
         available_packages = [
-            package[prefix_len:].replace("-", ".")
+            package[prefix_len:].replace("-", ".") if len(package) > prefix_len else package
             for package in available_packages
-            if len(package) > prefix_len
         ]
     return available_packages
 
@@ -184,7 +203,11 @@ ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 CURRENT_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
-CURRENT_MYSQL_VERSIONS = ["5.7", "8"]
+USE_MYSQL_INNOVATION_RELEASE = True
+if USE_MYSQL_INNOVATION_RELEASE:
+    CURRENT_MYSQL_VERSIONS = ALLOWED_MYSQL_VERSIONS.copy()
+else:
+    CURRENT_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
 CURRENT_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
@@ -199,7 +222,6 @@ INIT_SCRIPT_FILE = ""
 BREEZE_INIT_COMMAND = ""
 DRY_RUN_DOCKER = False
 INSTALL_AIRFLOW_VERSION = ""
-
 
 COMMITTERS = [
     "BasPH",
@@ -221,6 +243,7 @@ COMMITTERS = [
     "ephraimbuddy",
     "feluelle",
     "feng-tao",
+    "ferruzzi",
     "houqp",
     "hussein-awala",
     "jedcunningham",
@@ -235,8 +258,11 @@ COMMITTERS = [
     "mik-laj",
     "milton0825",
     "mistercrunch",
+    "mobuchowski",
     "msumit",
     "o-nikolas",
+    "pankajastro",
+    "phanikumv",
     "pierrejeambrun",
     "pingzh",
     "potiuk",
@@ -248,6 +274,7 @@ COMMITTERS = [
     "turbaszek",
     "uranusjr",
     "vikramkoka",
+    "vincbeck",
     "xinbinhuang",
     "yuqian90",
     "zhongjiajie",
@@ -255,11 +282,16 @@ COMMITTERS = [
 
 
 def get_airflow_version():
-    airflow_setup_file = AIRFLOW_SOURCES_ROOT / "setup.py"
-    with open(airflow_setup_file) as setup_file:
-        for line in setup_file.readlines():
-            if "version =" in line:
-                return line.split()[2][1:-1]
+    airflow_init_py_file = AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py"
+    airflow_version = "unknown"
+    with open(airflow_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                airflow_version = line.split()[2][1:-1]
+                break
+    if airflow_version == "unknown":
+        raise Exception("Unable to determine Airflow version")
+    return airflow_version
 
 
 def get_airflow_extras():
@@ -281,20 +313,24 @@ AVAILABLE_INTEGRATIONS = [
     "statsd",
     "trino",
 ]
-ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
+
+with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
+    PROVIDER_DEPENDENCIES = json.load(f)
+
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     "setup.py",
     "setup.cfg",
     "Dockerfile.ci",
     ".dockerignore",
+    "generated/provider_dependencies.json",
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
     "scripts/docker/install_airflow.sh",
     "scripts/docker/install_airflow_dependencies_from_branch_tip.sh",
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
-    *ALL_PROVIDER_YAML_FILES,
 ]
 
 ENABLED_SYSTEMS = ""
@@ -305,7 +341,7 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.19.0"
+KIND_VERSION = "v0.20.0"
 HELM_VERSION = "v3.9.4"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
@@ -315,8 +351,8 @@ GITHUB_ACTIONS = ""
 ISSUE_ID = ""
 NUM_RUNS = ""
 
-MIN_DOCKER_VERSION = "20.10.0"
-MIN_DOCKER_COMPOSE_VERSION = "1.29.0"
+MIN_DOCKER_VERSION = "23.0.0"
+MIN_DOCKER_COMPOSE_VERSION = "2.14.0"
 
 AIRFLOW_SOURCES_FROM = "."
 AIRFLOW_SOURCES_TO = "/opt/airflow"
@@ -328,7 +364,7 @@ DEFAULT_EXTRAS = [
     "async",
     "celery",
     "cncf.kubernetes",
-    "dask",
+    "daskexecutor",
     "docker",
     "elasticsearch",
     "ftp",
@@ -341,6 +377,7 @@ DEFAULT_EXTRAS = [
     "microsoft.azure",
     "mysql",
     "odbc",
+    "openlineage",
     "pandas",
     "postgres",
     "redis",

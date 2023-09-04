@@ -15,10 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains abstract operator that child classes
-implement "COPY INTO <TABLE> SQL in Snowflake".
-"""
+"""Abstract operator that child classes implement ``COPY INTO <TABLE> SQL in Snowflake``."""
 from __future__ import annotations
 
 from typing import Any, Sequence

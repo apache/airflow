@@ -21,10 +21,10 @@
 ## Airflow Worker Service
 #################################
 {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
-  name: {{ .Release.Name }}-worker
+  name: {{ include "airflow.fullname" . }}-worker
   labels:
     tier: airflow
     component: worker

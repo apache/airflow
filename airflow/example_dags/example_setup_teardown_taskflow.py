@@ -29,42 +29,77 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    # You can use the setup and teardown decorators to add setup and teardown tasks at the DAG level
-    @setup
+
     @task
-    def root_setup():
-        print("Hello from root_setup")
+    def my_first_task():
+        print("Hello 1")
+
+    @task
+    def my_second_task():
+        print("Hello 2")
+
+    @task
+    def my_third_task():
+        print("Hello 3")
+
+    # you can set setup / teardown relationships with the `as_teardown` method.
+    task_1 = my_first_task()
+    task_2 = my_second_task()
+    task_3 = my_third_task()
+    task_1 >> task_2 >> task_3.as_teardown(setups=task_1)
+
+    # The method `as_teardown` will mark task_3 as teardown, task_1 as setup, and
+    # arrow task_1 >> task_3.
+    # Now if you clear task_2, then its setup task, task_1, will be cleared in
+    # addition to its teardown task, task_3
+
+    # it's also possible to use a decorator to mark a task as setup or
+    # teardown when you define it. see below.
+
+    @setup
+    def outer_setup():
+        print("I am outer_setup")
+        return "some cluster id"
 
     @teardown
-    @task
-    def root_teardown():
-        print("Goodbye from root_teardown")
+    def outer_teardown(cluster_id):
+        print("I am outer_teardown")
+        print(f"Tearing down cluster: {cluster_id}")
 
     @task
-    def normal():
+    def outer_work():
         print("I am just a normal task")
 
     @task_group
     def section_1():
-        # You can also have setup and teardown tasks at the task group level
         @setup
-        @task
-        def my_setup():
+        def inner_setup():
             print("I set up")
+            return "some_cluster_id"
+
+        @task
+        def inner_work(cluster_id):
+            print(f"doing some work with {cluster_id=}")
 
         @teardown
-        @task
-        def my_teardown():
-            print("I tear down")
+        def inner_teardown(cluster_id):
+            print(f"tearing down {cluster_id=}")
 
-        @task
-        def hello():
-            print("I say hello")
+        # this passes the return value of `inner_setup` to both `inner_work` and `inner_teardown`
+        inner_setup_task = inner_setup()
+        inner_work(inner_setup_task) >> inner_teardown(inner_setup_task)
 
-        my_setup()
-        hello()
-        my_teardown()
+    # by using the decorators, outer_setup and outer_teardown are already marked as setup / teardown
+    # now we just need to make sure they are linked directly.  At a low level, what we need
+    # to do so is the following::
+    #     s = outer_setup()
+    #     t = outer_teardown()
+    #     s >> t
+    #     s >> outer_work() >> t
+    # Thus, s and t are linked directly, and outer_work runs in between.  We can take advantage of
+    # the fact that we are in taskflow, along with the context manager on teardowns, as follows:
+    with outer_teardown(outer_setup()):
+        outer_work()
 
-    root_setup()
-    normal() >> section_1()
-    root_teardown()
+        # and let's put section 1 inside the outer setup and teardown tasks
+        section_1()

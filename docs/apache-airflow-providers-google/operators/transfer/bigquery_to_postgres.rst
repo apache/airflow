@@ -28,7 +28,7 @@ This operator can be used to copy data from a BigQuery table to PostgreSQL.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:BigQueryToPostgresOperator:
 

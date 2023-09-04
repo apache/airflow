@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from googleapiclient.errors import HttpError
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 from airflow.providers.google.cloud.links.mlengine import (
@@ -277,7 +278,7 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
         )
 
         if finished_prediction_job["state"] != "SUCCEEDED":
-            self.log.error("MLEngine batch prediction job failed: %s", str(finished_prediction_job))
+            self.log.error("MLEngine batch prediction job failed: %s", finished_prediction_job)
             raise RuntimeError(finished_prediction_job["errorMessage"])
 
         return finished_prediction_job["predictionOutput"]
@@ -722,7 +723,6 @@ class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
@@ -804,7 +804,6 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
@@ -883,7 +882,6 @@ class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
@@ -961,7 +959,6 @@ class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self._project_id = project_id
         self._model_name = model_name
@@ -1004,6 +1001,9 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:MLEngineStartTrainingJobOperator`
+
+    For more information about used parameters, check:
+        https://cloud.google.com/sdk/gcloud/reference/ml-engine/jobs/submit/training
 
     :param job_id: A unique templated id for the submitted Google MLEngine
         training job. (templated)
@@ -1098,7 +1098,7 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         labels: dict[str, str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         hyperparameters: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
@@ -1153,7 +1153,7 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
 
     def _handle_job_error(self, finished_training_job) -> None:
         if finished_training_job["state"] != "SUCCEEDED":
-            self.log.error("MLEngine training job failed: %s", str(finished_training_job))
+            self.log.error("MLEngine training job failed: %s", finished_training_job)
             raise RuntimeError(finished_training_job["errorMessage"])
 
     def execute(self, context: Context):
@@ -1299,8 +1299,8 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])
@@ -1370,7 +1370,6 @@ class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
             raise AirflowException("Google Cloud project id is required.")
 
     def execute(self, context: Context):
-
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id,
             impersonation_chain=self._impersonation_chain,

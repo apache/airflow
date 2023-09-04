@@ -20,6 +20,7 @@ import time
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
@@ -148,7 +149,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
         wait_for_completion: bool = False,
         max_attempt: int = 5,
         poll_interval: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -266,8 +267,8 @@ class RedshiftCreateClusterOperator(BaseOperator):
             self.defer(
                 trigger=RedshiftCreateClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    poll_interval=self.poll_interval,
-                    max_attempt=self.max_attempt,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_attempt,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -327,7 +328,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         poll_interval: int = 15,
         max_attempt: int = 20,
         aws_conn_id: str = "aws_default",
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -360,8 +361,8 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
             self.defer(
                 trigger=RedshiftCreateClusterSnapshotTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    poll_interval=self.poll_interval,
-                    max_attempts=self.max_attempt,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_attempt,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -470,7 +471,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
         cluster_identifier: str,
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = False,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
         max_attempts: int = 10,
         **kwargs,
@@ -491,14 +492,14 @@ class RedshiftResumeClusterOperator(BaseOperator):
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Starting resume cluster")
-        while self._remaining_attempts >= 1:
+        while self._remaining_attempts:
             try:
                 redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
                 break
             except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
-                self._remaining_attempts = self._remaining_attempts - 1
+                self._remaining_attempts -= 1
 
-                if self._remaining_attempts > 0:
+                if self._remaining_attempts:
                     self.log.error(
                         "Unable to resume cluster. %d attempts remaining.", self._remaining_attempts
                     )
@@ -509,8 +510,8 @@ class RedshiftResumeClusterOperator(BaseOperator):
             self.defer(
                 trigger=RedshiftResumeClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    poll_interval=self.poll_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -560,7 +561,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
         *,
         cluster_identifier: str,
         aws_conn_id: str = "aws_default",
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
         max_attempts: int = 15,
         **kwargs,
@@ -579,14 +580,14 @@ class RedshiftPauseClusterOperator(BaseOperator):
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
-        while self._remaining_attempts >= 1:
+        while self._remaining_attempts:
             try:
                 redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
                 break
             except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
-                self._remaining_attempts = self._remaining_attempts - 1
+                self._remaining_attempts -= 1
 
-                if self._remaining_attempts > 0:
+                if self._remaining_attempts:
                     self.log.error(
                         "Unable to pause cluster. %d attempts remaining.", self._remaining_attempts
                     )
@@ -597,8 +598,8 @@ class RedshiftPauseClusterOperator(BaseOperator):
             self.defer(
                 trigger=RedshiftPauseClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    poll_interval=self.poll_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
@@ -647,7 +648,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         poll_interval: int = 30,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         max_attempts: int = 30,
         **kwargs,
     ):
@@ -668,8 +669,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self.max_attempts = max_attempts
 
     def execute(self, context: Context):
-
-        while self._attempts >= 1:
+        while self._attempts:
             try:
                 self.redshift_hook.delete_cluster(
                     cluster_identifier=self.cluster_identifier,
@@ -678,9 +678,9 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                 )
                 break
             except self.redshift_hook.get_conn().exceptions.InvalidClusterStateFault:
-                self._attempts = self._attempts - 1
+                self._attempts -= 1
 
-                if self._attempts > 0:
+                if self._attempts:
                     self.log.error("Unable to delete cluster. %d attempts remaining.", self._attempts)
                     time.sleep(self._attempt_interval)
                 else:
@@ -690,8 +690,8 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                 timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
                 trigger=RedshiftDeleteClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    poll_interval=self.poll_interval,
-                    max_attempts=self.max_attempts,
+                    waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",

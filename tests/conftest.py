@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import subprocess
 import sys
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -32,13 +34,19 @@ import time_machine
 from itsdangerous import URLSafeSerializer
 
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
-tests_directory = os.path.dirname(os.path.realpath(__file__))
+AIRFLOW_TESTS_DIR = Path(os.path.dirname(os.path.realpath(__file__))).resolve()
+AIRFLOW_SOURCES_ROOT_DIR = AIRFLOW_TESTS_DIR.parent.parent
 
-os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
+os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.fspath(AIRFLOW_TESTS_DIR / "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
 os.environ["AIRFLOW_ENABLE_AIP_44"] = os.environ.get("AIRFLOW_ENABLE_AIP_44") or "true"
+
+if platform.system() == "Darwin":
+    # mocks from unittest.mock work correctly in subprocesses only if they are created by "fork" method
+    # but macOS uses "spawn" by default
+    os.environ["AIRFLOW__CORE__MP_START_METHOD"] = "fork"
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
@@ -132,7 +140,7 @@ def trace_sql(request):
             # It is very unlikely that the user wants to display only numbers, but probably
             # the user just wants to count the queries.
             exit_stack.enter_context(count_queries(print_fn=pytest_print))
-        elif any(c for c in ["time", "trace", "sql", "parameters"]):
+        elif any(c in columns for c in ["time", "trace", "sql", "parameters"]):
             exit_stack.enter_context(
                 trace_queries(
                     display_num="num" in columns,
@@ -761,6 +769,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         run_id=None,
         run_type=None,
         data_interval=None,
+        map_index=-1,
         **kwargs,
     ) -> TaskInstance:
         if execution_date is None:
@@ -780,6 +789,7 @@ def create_task_instance(dag_maker, create_dummy_dag):
         (ti,) = dagrun.task_instances
         ti.task = task
         ti.state = state
+        ti.map_index = map_index
 
         dag_maker.session.flush()
         return ti
@@ -880,6 +890,15 @@ def _clear_db(request):
     """Clear DB before each test module run."""
     if not request.config.option.db_cleanup:
         return
+    from airflow.configuration import conf
+
+    sql_alchemy_conn = conf.get("database", "sql_alchemy_conn")
+    if sql_alchemy_conn.startswith("sqlite"):
+        sql_alchemy_file = sql_alchemy_conn.replace("sqlite:///", "")
+        if not os.path.exists(sql_alchemy_file):
+            print(f"The sqlite file `{sql_alchemy_file}` does not exist. Attempt to initialize it.")
+            initial_db_init()
+
     dist_option = getattr(request.config.option, "dist", "no")
     if dist_option != "no" or hasattr(request.config, "workerinput"):
         # Skip if pytest-xdist detected (controller or worker)
@@ -903,3 +922,38 @@ def clear_lru_cache():
 
     ExecutorLoader.validate_database_executor_compatibility.cache_clear()
     _get_grouped_entry_points.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def refuse_to_run_test_from_wrongly_named_files(request):
+    dirname: str = request.node.fspath.dirname
+    filename: str = request.node.fspath.basename
+    is_system_test: bool = "tests/system/" in dirname
+    if is_system_test and not request.node.fspath.basename.startswith("example_"):
+        raise Exception(
+            f"All test method files in tests/system must start with 'example_'. Seems that {filename} "
+            f"contains {request.function} that looks like a test case. Please rename the file to "
+            f"follow the example_* pattern if you want to run the tests in it."
+        )
+    if not is_system_test and not request.node.fspath.basename.startswith("test_"):
+        raise Exception(
+            f"All test method files in tests/ must start with 'test_'. Seems that {filename} "
+            f"contains {request.function} that looks like a test case. Please rename the file to "
+            f"follow the test_* pattern if you want to run the tests in it."
+        )
+
+
+@pytest.fixture(autouse=True)
+def initialize_providers_manager():
+    from airflow.providers_manager import ProvidersManager
+
+    ProvidersManager().initialize_providers_configuration()
+
+
+@pytest.fixture(autouse=True, scope="function")
+def close_all_sqlalchemy_sessions():
+    from sqlalchemy.orm import close_all_sessions
+
+    close_all_sessions()
+    yield
+    close_all_sessions()

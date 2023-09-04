@@ -54,6 +54,7 @@ class BaseSecretsBackend(ABC):
     def deserialize_connection(self, conn_id: str, value: str) -> Connection:
         """
         Given a serialized representation of the airflow Connection, return an instance.
+
         Looks at first character to determine how to deserialize.
 
         :param conn_id: connection id

@@ -17,13 +17,16 @@
 from __future__ import annotations
 
 import types
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from airflow import AirflowException, XComArg
+from airflow import AirflowException
 from airflow.decorators import python_task
 from airflow.decorators.task_group import _TaskGroupFactory
 from airflow.models import BaseOperator
 from airflow.utils.setup_teardown import SetupTeardownContext
+
+if TYPE_CHECKING:
+    from airflow import XComArg
 
 
 def setup_task(func: Callable) -> Callable:
@@ -72,7 +75,7 @@ class ContextWrapper(list):
             # means we have XComArgs
             operators = [task.operator for task in self.tasks]
         SetupTeardownContext.push_setup_teardown_task(operators)
-        return self
+        return SetupTeardownContext
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()

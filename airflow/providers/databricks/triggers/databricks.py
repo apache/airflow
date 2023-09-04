@@ -89,6 +89,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
                             "run_state": run_state.to_json(),
                         }
                     )
+                    return
                 else:
                     self.log.info(
                         "run-id %s in run state %s. sleeping for %s seconds",

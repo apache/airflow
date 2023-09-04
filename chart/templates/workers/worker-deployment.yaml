@@ -34,10 +34,15 @@
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.workers.waitForMigrations) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.workers.logGroomerSidecar) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
-kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
+{{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooksPersistence := or .Values.workers.persistence.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooksWaitForMigrations := or .Values.workers.waitForMigrations.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
+kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
-  name: {{ .Release.Name }}-worker
+  name: {{ include "airflow.fullname" . }}-worker
   labels:
     tier: airflow
     component: worker
@@ -52,7 +57,7 @@ metadata:
   {{- end }}
 spec:
   {{- if $persistence }}
-  serviceName: {{ .Release.Name }}-worker
+  serviceName: {{ include "airflow.fullname" . }}-worker
   {{- end }}
   {{- if not $keda }}
   replicas: {{ .Values.workers.replicas }}
@@ -99,6 +104,9 @@ spec:
           {{- toYaml .Values.workers.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.workers.runtimeClassName }}
+      runtimeClassName: {{ .Values.workers.runtimeClassName }}
+      {{- end }}
       {{- if .Values.workers.priorityClassName }}
       priorityClassName: {{ .Values.workers.priorityClassName }}
       {{- end }}
@@ -141,6 +149,9 @@ spec:
             - "{{ include "airflowPodSecurityContextsIds" (list . .Values.workers) }}"
             - {{ template "airflow_logs" . }}
           securityContext: {{ $containerSecurityContextPersistence | nindent 12 }}
+          {{- if $containerLifecycleHooksPersistence  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksPersistence) . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -151,13 +162,16 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
+          {{- if $containerLifecycleHooksWaitForMigrations  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksWaitForMigrations) . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -172,7 +186,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraInitContainers }}
           {{- toYaml .Values.workers.extraInitContainers | nindent 8 }}
@@ -182,6 +196,9 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.workers.command }}
           command: {{ tpl (toYaml .Values.workers.command) . | nindent 12 }}
           {{- end }}
@@ -202,7 +219,7 @@ spec:
                 {{- else }}
                 - sh
                 - -c
-                - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app airflow.executors.celery_executor.app inspect ping -d celery@$(hostname)
+                - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app {{ include "celery_executor_namespace" . }} inspect ping -d celery@$(hostname)
                 {{- end }}
           {{- end }}
           ports:
@@ -213,7 +230,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -259,6 +276,9 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
+          {{- if $containerLifecycleHooksLogGroomerSidecar }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.workers.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.workers.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}
@@ -278,7 +298,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -289,6 +309,9 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextKerberosSidecar | nindent 12 }}
+          {{- if $containerLifecycleHooksKerberosSidecar }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosSidecar) . | nindent 12 }}
+          {{- end }}
           args: ["kerberos"]
           resources: {{- toYaml .Values.workers.kerberosSidecar.resources | nindent 12 }}
           volumeMounts:
@@ -310,7 +333,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -332,7 +355,7 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraVolumes }}
-          {{- toYaml .Values.workers.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 8 }}
         {{- end }}
         - name: config
           configMap:

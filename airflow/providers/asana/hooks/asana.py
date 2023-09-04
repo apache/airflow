@@ -28,10 +28,7 @@ from airflow.hooks.base import BaseHook
 
 
 def _ensure_prefixes(conn_type):
-    """
-    Remove when provider min airflow version >= 2.5.0 since this is handled by
-    provider manager from that version.
-    """
+    """Remove when provider min airflow version >= 2.5.0 since this is now handled by provider manager."""
 
     def dec(func):
         @wraps(func)
@@ -88,7 +85,7 @@ class AsanaHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -101,7 +98,7 @@ class AsanaHook(BaseHook):
     @staticmethod
     @_ensure_prefixes(conn_type="asana")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["port", "host", "login", "schema"],
             "relabeling": {},
@@ -114,7 +111,7 @@ class AsanaHook(BaseHook):
 
     @cached_property
     def client(self) -> Client:
-        """Instantiates python-asana Client."""
+        """Instantiate python-asana Client."""
         if not self.connection.password:
             raise ValueError(
                 "Asana connection password must contain a personal access token: "
@@ -171,7 +168,7 @@ class AsanaHook(BaseHook):
 
     def delete_task(self, task_id: str) -> dict:
         """
-        Deletes an Asana task.
+        Delete an Asana task.
 
         :param task_id: Asana GID of the task to delete
         :return: A dict containing the response from Asana
@@ -185,7 +182,7 @@ class AsanaHook(BaseHook):
 
     def find_task(self, params: dict | None) -> list:
         """
-        Retrieves a list of Asana tasks that match search parameters.
+        Retrieve a list of Asana tasks that match search parameters.
 
         :param params: Attributes that matching tasks should have. For a list of possible parameters,
             see https://developers.asana.com/docs/get-multiple-tasks
@@ -234,7 +231,7 @@ class AsanaHook(BaseHook):
 
     def update_task(self, task_id: str, params: dict) -> dict:
         """
-        Updates an existing Asana task.
+        Update an existing Asana task.
 
         :param task_id: Asana GID of task to update
         :param params: New values of the task's attributes. For a list of possible parameters, see
@@ -246,7 +243,7 @@ class AsanaHook(BaseHook):
 
     def create_project(self, params: dict) -> dict:
         """
-        Creates a new project.
+        Create a new project.
 
         :param params: Attributes that the new project should have. See
             https://developers.asana.com/docs/create-a-project#create-a-project-parameters
@@ -286,7 +283,7 @@ class AsanaHook(BaseHook):
 
     def find_project(self, params: dict) -> list:
         """
-        Retrieves a list of Asana projects that match search parameters.
+        Retrieve a list of Asana projects that match search parameters.
 
         :param params: Attributes which matching projects should have. See
             https://developers.asana.com/docs/get-multiple-projects
@@ -299,7 +296,7 @@ class AsanaHook(BaseHook):
 
     def update_project(self, project_id: str, params: dict) -> dict:
         """
-        Updates an existing project.
+        Update an existing project.
 
         :param project_id: Asana GID of the project to update
         :param params: New attributes that the project should have. See
@@ -312,7 +309,7 @@ class AsanaHook(BaseHook):
 
     def delete_project(self, project_id: str) -> dict:
         """
-        Deletes a project.
+        Delete a project.
 
         :param project_id: Asana GID of the project to delete
         :return: A dict containing the response from Asana

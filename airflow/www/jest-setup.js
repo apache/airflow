@@ -32,8 +32,10 @@ axios.defaults.adapter = require("axios/lib/adapters/http");
 axios.interceptors.response.use((res) => res.data || res);
 
 setLogger({
+  /* eslint-disable no-console */
   log: console.log,
   warn: console.warn,
+  /* eslint-enable no-console */
   // ✅ no more errors on the console
   error: () => {},
 });
@@ -47,7 +49,6 @@ global.stateColors = {
   restarting: "violet",
   running: "lime",
   scheduled: "tan",
-  shutdown: "blue",
   skipped: "hotpink",
   success: "green",
   up_for_reschedule: "turquoise",
@@ -58,3 +59,5 @@ global.stateColors = {
 global.defaultDagRunDisplayNumber = 245;
 
 global.moment = moment;
+
+global.standaloneDagProcessor = true;

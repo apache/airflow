@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
 import attr
 from sqlalchemy import func
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.models.dag import DagModel
@@ -33,11 +34,13 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
+from airflow.triggers.external_task import TaskStateTrigger
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import tuple_in_condition
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
@@ -76,26 +79,28 @@ class ExternalTaskSensor(BaseSensorOperator):
     without also having to clear the sensor).
 
     By default, the ExternalTaskSensor will not skip if the external task skips.
-    To change this, simply set ``skipped_states=[State.SKIPPED]``. Note that if
-    you are monitoring multiple tasks, and one enters error state and the other
-    enters a skipped state, then the external task will react to whichever one
-    it sees first. If both happen together, then the failed state takes priority.
+    To change this, simply set ``skipped_states=[TaskInstanceState.SKIPPED]``.
+    Note that if you are monitoring multiple tasks, and one enters error state
+    and the other enters a skipped state, then the external task will react to
+    whichever one it sees first. If both happen together, then the failed state
+    takes priority.
 
     It is possible to alter the default behavior by setting states which
-    cause the sensor to fail, e.g. by setting ``allowed_states=[State.FAILED]``
-    and ``failed_states=[State.SUCCESS]`` you will flip the behaviour to get a
-    sensor which goes green when the external task *fails* and immediately goes
-    red if the external task *succeeds*!
+    cause the sensor to fail, e.g. by setting ``allowed_states=[DagRunState.FAILED]``
+    and ``failed_states=[DagRunState.SUCCESS]`` you will flip the behaviour to
+    get a sensor which goes green when the external task *fails* and immediately
+    goes red if the external task *succeeds*!
 
     Note that ``soft_fail`` is respected when examining the failed_states. Thus
     if the external task enters a failed state and ``soft_fail == True`` the
     sensor will _skip_ rather than fail. As a result, setting ``soft_fail=True``
-    and ``failed_states=[State.SKIPPED]`` will result in the sensor skipping if
-    the external task skips. However, this is a contrived example - consider
-    using ``skipped_states`` if you would like this behaviour. Using
-    ``skipped_states`` allows the sensor to skip if the target fails, but still
-    enter failed state on timeout. Using ``soft_fail == True`` as above will
-    cause the sensor to skip if the target fails, but also if it times out.
+    and ``failed_states=[DagRunState.SKIPPED]`` will result in the sensor
+    skipping if the external task skips. However, this is a contrived
+    example---consider using ``skipped_states`` if you would like this
+    behaviour. Using ``skipped_states`` allows the sensor to skip if the target
+    fails, but still enter failed state on timeout. Using ``soft_fail == True``
+    as above will cause the sensor to skip if the target fails, but also if it
+    times out.
 
     :param external_dag_id: The dag_id that contains the task you want to
         wait for. (templated)
@@ -124,6 +129,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         external_task_id is not None) or check if the DAG to wait for exists (when
         external_task_id is None), and immediately cease waiting if the external task
         or DAG does not exist (default value: False).
+    :param poll_interval: polling period in seconds to check for the status
+    :param deferrable: Run sensor in deferrable mode
     """
 
     template_fields = ["external_dag_id", "external_task_id", "external_task_ids", "external_task_group_id"]
@@ -143,10 +150,13 @@ class ExternalTaskSensor(BaseSensorOperator):
         execution_delta: datetime.timedelta | None = None,
         execution_date_fn: Callable | None = None,
         check_existence: bool = False,
+        poll_interval: float = 2.0,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.allowed_states = list(allowed_states) if allowed_states else [State.SUCCESS]
+
+        self.allowed_states = list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
         self.skipped_states = list(skipped_states) if skipped_states else []
         self.failed_states = list(failed_states) if failed_states else []
 
@@ -209,6 +219,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.external_task_group_id = external_task_group_id
         self.check_existence = check_existence
         self._has_checked_existence = False
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def _get_dttm_filter(self, context):
         if self.execution_delta:
@@ -316,6 +328,36 @@ class ExternalTaskSensor(BaseSensorOperator):
         count_allowed = self.get_count(dttm_filter, session, self.allowed_states)
         return count_allowed == len(dttm_filter)
 
+    def execute(self, context: Context) -> None:
+        """Runs on the worker and defers using the triggers if deferrable is set to True."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            self.defer(
+                trigger=TaskStateTrigger(
+                    dag_id=self.external_dag_id,
+                    task_id=self.external_task_id,
+                    execution_dates=self._get_dttm_filter(context),
+                    states=self.allowed_states,
+                    trigger_start_time=utcnow(),
+                    poll_interval=self.poll_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context, event=None):
+        """Execute when the trigger fires - return immediately."""
+        if event["status"] == "success":
+            self.log.info("External task %s has executed successfully.", self.external_task_id)
+            return None
+        elif event["status"] == "timeout":
+            raise AirflowException("Dag was not started within 1 minute, assuming fail.")
+        else:
+            raise AirflowException(
+                "Error occurred while trying to retrieve task status. Please, check the "
+                "name of executed task and Dag."
+            )
+
     def _check_for_existence(self, session) -> None:
         dag_to_wait = DagModel.get_current(self.external_dag_id, session)
 
@@ -366,11 +408,14 @@ class ExternalTaskSensor(BaseSensorOperator):
             ) / len(self.external_task_ids)
         elif self.external_task_group_id:
             external_task_group_task_ids = self.get_external_task_group_task_ids(session, dttm_filter)
-            count = (
-                self._count_query(TI, session, states, dttm_filter)
-                .filter(tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids))
-                .scalar()
-            ) / len(external_task_group_task_ids)
+            if not external_task_group_task_ids:
+                count = 0
+            else:
+                count = (
+                    self._count_query(TI, session, states, dttm_filter)
+                    .filter(tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids))
+                    .scalar()
+                ) / len(external_task_group_task_ids)
         else:
             count = self._count_query(DR, session, states, dttm_filter).scalar()
         return count
@@ -474,7 +519,7 @@ class ExternalTaskMarker(EmptyOperator):
 
     @classmethod
     def get_serialized_fields(cls):
-        """Serialized ExternalTaskMarker contain exactly these fields + templated_fields ."""
+        """Serialize ExternalTaskMarker to contain exactly these fields + templated_fields ."""
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"recursion_depth"})
         return cls.__serialized_fields
@@ -484,6 +529,7 @@ class ExternalTaskMarker(EmptyOperator):
 class ExternalTaskSensorLink(ExternalDagLink):
     """
     This external link is deprecated.
+
     Please use :class:`airflow.sensors.external_task.ExternalDagLink`.
     """
 

@@ -17,10 +17,9 @@
 from __future__ import annotations
 
 import time
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.dataform_v1beta1 import DataformClient
 from google.cloud.dataform_v1beta1.types import (
     CompilationResult,
@@ -33,6 +32,9 @@ from google.cloud.dataform_v1beta1.types import (
 
 from airflow import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 class DataformHook(GoogleBaseHook):
@@ -604,9 +606,9 @@ class DataformHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> InstallNpmPackagesResponse:
-        """
-        Installs npm dependencies in the provided workspace. Requires "package.json"
-        to be created in workspace.
+        """Install NPM dependencies in the provided workspace.
+
+        Requires "package.json" to be created in the workspace.
 
         :param project_id: Required. The ID of the Google Cloud project where workspace located.
         :param region: Required. The ID of the Google Cloud region where workspace located.

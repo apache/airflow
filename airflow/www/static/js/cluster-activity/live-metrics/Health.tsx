@@ -81,7 +81,6 @@ const HealthSection = ({
 
 const Health = (props: CenterProps) => {
   const { data, isError } = useHealth();
-
   return (
     <Center {...props}>
       <LoadingWrapper hasData={!!data} isError={isError}>
@@ -106,6 +105,16 @@ const Health = (props: CenterProps) => {
               status={data?.triggerer?.status}
               latestHeartbeat={data?.triggerer?.latestTriggererHeartbeat}
             />
+            {!!standaloneDagProcessor && (
+              <HealthSection
+                title="Dag Processor"
+                status={data?.dagProcessor?.status}
+                latestHeartbeat={
+                  data?.dagProcessor?.latestDagProcessorHeartbeat
+                }
+                mt={3}
+              />
+            )}
           </CardBody>
         </Card>
       </LoadingWrapper>

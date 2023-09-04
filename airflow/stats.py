@@ -22,8 +22,10 @@ import socket
 from typing import TYPE_CHECKING, Callable
 
 from airflow.configuration import conf
-from airflow.metrics import datadog_logger, otel_logger, statsd_logger
-from airflow.metrics.base_stats_logger import NoStatsLogger, StatsLogger
+from airflow.metrics.base_stats_logger import NoStatsLogger
+
+if TYPE_CHECKING:
+    from airflow.metrics.base_stats_logger import StatsLogger
 
 log = logging.getLogger(__name__)
 
@@ -46,10 +48,16 @@ class _Stats(type):
         if not hasattr(cls.__class__, "factory"):
             is_datadog_enabled_defined = conf.has_option("metrics", "statsd_datadog_enabled")
             if is_datadog_enabled_defined and conf.getboolean("metrics", "statsd_datadog_enabled"):
+                from airflow.metrics import datadog_logger
+
                 cls.__class__.factory = datadog_logger.get_dogstatsd_logger
             elif conf.getboolean("metrics", "statsd_on"):
+                from airflow.metrics import statsd_logger
+
                 cls.__class__.factory = statsd_logger.get_statsd_logger
             elif conf.getboolean("metrics", "otel_on"):
+                from airflow.metrics import otel_logger
+
                 cls.__class__.factory = otel_logger.get_otel_logger
             else:
                 cls.__class__.factory = NoStatsLogger
@@ -57,14 +65,10 @@ class _Stats(type):
     @classmethod
     def get_constant_tags(cls) -> list[str]:
         """Get constant DataDog tags to add to all stats."""
-        tags: list[str] = []
         tags_in_string = conf.get("metrics", "statsd_datadog_tags", fallback=None)
-        if tags_in_string is None or tags_in_string == "":
-            return tags
-        else:
-            for key_value in tags_in_string.split(","):
-                tags.append(key_value)
-            return tags
+        if not tags_in_string:
+            return []
+        return tags_in_string.split(",")
 
 
 if TYPE_CHECKING:

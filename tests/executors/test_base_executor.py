@@ -62,6 +62,10 @@ def test_serve_logs_default_value():
     assert not BaseExecutor.serve_logs
 
 
+def test_no_cli_commands_vended():
+    assert not BaseExecutor.get_cli_commands()
+
+
 def test_get_event_buffer():
     executor = BaseExecutor()
 

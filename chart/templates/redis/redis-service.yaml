@@ -21,10 +21,10 @@
 ## Airflow Redis Service
 #################################
 {{- if and .Values.redis.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
-  name: {{ .Release.Name }}-redis
+  name: {{ include "airflow.fullname" . }}-redis
   labels:
     tier: airflow
     component: redis

@@ -17,12 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import base64
+import pickle
 from unittest import mock
 
 import pytest
+from requests import Response
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.http.operators.http import SimpleHttpOperator
+from airflow.providers.http.triggers.http import HttpTrigger
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
@@ -81,3 +85,28 @@ class TestSimpleHttpOp:
         )
         result = operator.execute({})
         assert result == {"value": 5}
+
+    def test_async_defer_successfully(self, requests_mock):
+        operator = SimpleHttpOperator(
+            task_id="test_HTTP_op",
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute({})
+        assert isinstance(exc.value.trigger, HttpTrigger), "Trigger is not a HttpTrigger"
+
+    def test_async_execute_successfully(self, requests_mock):
+        operator = SimpleHttpOperator(
+            task_id="test_HTTP_op",
+            deferrable=True,
+        )
+        response = Response()
+        response._content = b"content"
+        result = operator.execute_complete(
+            context={},
+            event={
+                "status": "success",
+                "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+            },
+        )
+        assert result == "content"

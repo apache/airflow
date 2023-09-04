@@ -62,6 +62,8 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
 
 def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> dict[str, str]:
     """
+    Return values used to externally reconstruct relations between dags, dag_runs, tasks and task_instances.
+
     Given a context, this function provides a dictionary of values that can be used to
     externally reconstruct relations between dags, dag_runs, tasks and task_instances.
     Default to abc.def.ghi format and can be made to ABC_DEF_GHI format if
@@ -185,12 +187,10 @@ def determine_kwargs(
     kwargs: Mapping[str, Any],
 ) -> Mapping[str, Any]:
     """
-    Inspect the signature of a given callable to determine which arguments in kwargs need
-    to be passed to the callable.
+    Inspect the signature of a callable to determine which kwargs need to be passed to the callable.
 
     :param func: The callable that you want to invoke
-    :param args: The positional arguments that needs to be passed to the callable, so we
-        know how many to skip.
+    :param args: The positional arguments that need to be passed to the callable, so we know how many to skip.
     :param kwargs: The keyword arguments that need to be filtered before passing to the callable.
     :return: A dictionary which contains the keyword arguments that are compatible with the callable.
     """
@@ -199,6 +199,8 @@ def determine_kwargs(
 
 def make_kwargs_callable(func: Callable[..., R]) -> Callable[..., R]:
     """
+    Create a new callable that only forwards necessary arguments from any provided input.
+
     Make a new callable that can accept any number of positional or keyword arguments
     but only forwards those required by the given callable func.
     """

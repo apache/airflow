@@ -40,6 +40,7 @@ def _get_message_attribute(o):
 class SnsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Notification Service.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("sns") <SNS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -67,7 +68,6 @@ class SnsHook(AwsBaseHook):
 
         :param target_arn: either a TopicArn or an EndpointArn
         :param message: the default message you want to send
-        :param message: str
         :param subject: subject of message
         :param message_attributes: additional attributes to publish for message filtering. This should be
             a flat dict; the DataType to be sent depends on the type of the value:

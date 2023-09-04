@@ -21,8 +21,108 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-databricks``
+
+
 Changelog
 ---------
+
+4.4.0
+.....
+
+.. note::
+  This release excluded databricks-sql-connector version 2.9.0 due to a bug that it does not properly declare urllib3
+  for more information please see https://github.com/databricks/databricks-sql-python/issues/190
+
+Features
+~~~~~~~~
+
+* ``Add Service Principal OAuth for Databricks. (#33005)``
+
+Misc
+~~~~
+
+* ``Update docs in databricks.py - we use 2.1 now (#32340)``
+* ``Do not create lists we don't need (#33519)``
+* ``Refactor: Improve detection of duplicates and list sorting (#33675)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Ecldude databrick connector 2.9.0 due to a bug (#33311)``
+
+4.3.3
+.....
+
+Misc
+~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+4.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/databricks): remove the execute method from to-be-deprecated DatabricksRunNowDeferrableOperator (#32806)``
+
+Misc
+~~~~
+
+* ``Add missing execute_complete method for 'DatabricksRunNowOperator' (#32689)``
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+
+4.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Modify 'template_fields' of 'DatabricksSqlOperator' to support parent class fields (#32253)``
+
+Misc
+~~~~
+
+* ``Add default_deferrable config (#31712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+
+4.3.0
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Features
+~~~~~~~~
+
+* ``add a return when the event is yielded in a loop to stop the execution (#31985)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix type annotation (#31888)``
+* ``Fix Databricks SQL operator serialization (#31780)``
+* ``Making Databricks run related multi-query string in one session again (#31898) (#31899)``
+
+Misc
+~~~~
+* ``Remove return statement after yield from triggers class (#31703)``
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 4.2.0
 .....

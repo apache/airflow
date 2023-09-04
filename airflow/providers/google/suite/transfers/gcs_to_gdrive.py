@@ -35,8 +35,7 @@ WILDCARD = "*"
 
 class GCSToGoogleDriveOperator(BaseOperator):
     """
-    Copies objects from a Google Cloud Storage service to a Google Drive service, with renaming
-    if requested.
+    Copies objects from a Google Cloud Storage service to a Google Drive service, with renaming if requested.
 
     Using this operator requires the following OAuth 2.0 scope:
 
@@ -63,12 +62,15 @@ class GCSToGoogleDriveOperator(BaseOperator):
         For example, with prefix ``foo/*`` and destination_object ``blah/``, the file ``foo/baz`` will be
         copied to ``blah/baz``; to retain the prefix write the destination_object as e.g. ``blah/foo``, in
         which case the copied file will be named ``blah/foo/baz``.
+    :param destination_folder_id: The folder ID where the destination objects will be placed.  It is
+        an additive prefix for anything specified in destination_object.
+        For example if folder ID ``xXyYzZ`` is called ``foo`` and the destination is ``bar/baz``, the file
+        will end up in `foo/bar/baz`.
+        This can be used to target an existing folder that is already visible to other users.  The credentials
+        provided must have access to this folder.
     :param move_object: When move object is True, the object is moved instead of copied to the new location.
         This is the equivalent of a mv command as opposed to a cp command.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -93,6 +95,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         source_bucket: str,
         source_object: str,
         destination_object: str | None = None,
+        destination_folder_id: str | None = None,
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -103,6 +106,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.source_bucket = source_bucket
         self.source_object = source_object
         self.destination_object = destination_object
+        self.destination_folder_id = destination_folder_id
         self.move_object = move_object
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -132,6 +136,10 @@ class GCSToGoogleDriveOperator(BaseOperator):
 
             prefix, delimiter = self.source_object.split(WILDCARD, 1)
             objects = self.gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
+            # TODO: After deprecating delimiter and wildcards in source objects,
+            #       remove the previous line and uncomment the following:
+            # match_glob = f"**/*{delimiter}" if delimiter else None
+            # objects = self.gcs_hook.list(self.source_bucket, prefix=prefix, match_glob=match_glob)
 
             for source_object in objects:
                 if self.destination_object is None:
@@ -158,7 +166,11 @@ class GCSToGoogleDriveOperator(BaseOperator):
             self.gcs_hook.download(
                 bucket_name=self.source_bucket, object_name=source_object, filename=filename
             )
-            self.gdrive_hook.upload_file(local_location=filename, remote_location=destination_object)
+            self.gdrive_hook.upload_file(
+                local_location=filename,
+                remote_location=destination_object,
+                folder_id=self.destination_folder_id,
+            )
 
         if self.move_object:
             self.gcs_hook.delete(self.source_bucket, source_object)

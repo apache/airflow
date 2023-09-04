@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module provides everything to be able to search in mails for a specific attachment
-and also to download it.
+Search in emails for a specific attachment and also to download it.
+
 It uses the smtplib library that is already integrated in python 3.
 """
 from __future__ import annotations
@@ -26,15 +26,18 @@ import collections.abc
 import os
 import re
 import smtplib
+import ssl
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class SmtpHook(BaseHook):
@@ -84,15 +87,14 @@ class SmtpHook(BaseHook):
                 try:
                     self.smtp_client = self._build_client()
                 except smtplib.SMTPServerDisconnected:
-                    if attempt < self.smtp_retry_limit:
-                        continue
-                    raise AirflowException("Unable to connect to smtp server")
-
-                if self.smtp_starttls:
-                    self.smtp_client.starttls()
-                if self.smtp_user and self.smtp_password:
-                    self.smtp_client.login(self.smtp_user, self.smtp_password)
-                break
+                    if attempt == self.smtp_retry_limit:
+                        raise AirflowException("Unable to connect to smtp server")
+                else:
+                    if self.smtp_starttls:
+                        self.smtp_client.starttls()
+                    if self.smtp_user and self.smtp_password:
+                        self.smtp_client.login(self.smtp_user, self.smtp_password)
+                    break
 
         return self
 
@@ -109,6 +111,28 @@ class SmtpHook(BaseHook):
             smtp_kwargs["port"] = self.port
         smtp_kwargs["timeout"] = self.timeout
 
+        if self.use_ssl:
+            from airflow.configuration import conf
+
+            extra_ssl_context = self.conn.extra_dejson.get("ssl_context", None)
+            if extra_ssl_context:
+                ssl_context_string = extra_ssl_context
+            else:
+                ssl_context_string = conf.get("smtp_provider", "SSL_CONTEXT", fallback=None)
+            if ssl_context_string is None:
+                ssl_context_string = conf.get("email", "SSL_CONTEXT", fallback=None)
+            if ssl_context_string is None:
+                ssl_context_string = "default"
+            if ssl_context_string == "default":
+                ssl_context = ssl.create_default_context()
+            elif ssl_context_string == "none":
+                ssl_context = None
+            else:
+                raise RuntimeError(
+                    f"The email.ssl_context configuration variable must "
+                    f"be set to 'default' or 'none' and is '{ssl_context_string}'."
+                )
+            smtp_kwargs["context"] = ssl_context
         return SMTP(**smtp_kwargs)
 
     @classmethod
@@ -210,10 +234,10 @@ class SmtpHook(BaseHook):
                         from_addr=from_email, to_addrs=recipients, msg=mime_msg.as_string()
                     )
                 except smtplib.SMTPServerDisconnected as e:
-                    if attempt < self.smtp_retry_limit:
-                        continue
-                    raise e
-                break
+                    if attempt == self.smtp_retry_limit:
+                        raise e
+                else:
+                    break
 
     def _build_mime_message(
         self,
@@ -302,15 +326,16 @@ class SmtpHook(BaseHook):
 
     def _get_email_list_from_str(self, addresses: str) -> list[str]:
         """
-        Extract a list of email addresses from a string. The string
-        can contain multiple email addresses separated by
+        Extract a list of email addresses from a string.
+
+        The string can contain multiple email addresses separated by
         any of the following delimiters: ',' or ';'.
 
         :param addresses: A string containing one or more email addresses.
         :return: A list of email addresses.
         """
         pattern = r"\s*[,;]\s*"
-        return [address for address in re.split(pattern, addresses)]
+        return re.split(pattern, addresses)
 
     @property
     def conn(self) -> Connection:

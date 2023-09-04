@@ -61,6 +61,7 @@ class TestS3ToMySqlTransfer:
                 FIELDS TERMINATED BY ','
                 IGNORE 1 LINES
             """,
+            "mysql_local_infile": False,
             "task_id": "task_id",
             "dag": None,
         }

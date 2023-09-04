@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.sts import StsHook
 class GlueCrawlerHook(AwsBaseHook):
     """
     Interacts with AWS Glue Crawler.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -48,7 +49,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def has_crawler(self, crawler_name) -> bool:
         """
-        Checks if the crawler already exists.
+        Check if the crawler already exists.
 
         :param crawler_name: unique crawler name per AWS account
         :return: Returns True if the crawler already exists and False if not.
@@ -63,7 +64,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def get_crawler(self, crawler_name: str) -> dict:
         """
-        Gets crawler configurations.
+        Get crawler configurations.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.get_crawler`
@@ -75,7 +76,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def update_crawler(self, **crawler_kwargs) -> bool:
         """
-        Updates crawler configurations.
+        Update crawler configurations.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.update_crawler`
@@ -86,7 +87,9 @@ class GlueCrawlerHook(AwsBaseHook):
         crawler_name = crawler_kwargs["Name"]
         current_crawler = self.get_crawler(crawler_name)
 
-        tags_updated = self.update_tags(crawler_name, crawler_kwargs.pop("Tags", {}))
+        tags_updated = (
+            self.update_tags(crawler_name, crawler_kwargs.pop("Tags")) if "Tags" in crawler_kwargs else False
+        )
 
         update_config = {
             key: value
@@ -102,7 +105,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def update_tags(self, crawler_name: str, crawler_tags: dict) -> bool:
         """
-        Updates crawler tags.
+        Update crawler tags.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.tag_resource`
@@ -142,7 +145,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def create_crawler(self, **crawler_kwargs) -> str:
         """
-        Creates an AWS Glue Crawler.
+        Create an AWS Glue Crawler.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.create_crawler`
@@ -169,9 +172,7 @@ class GlueCrawlerHook(AwsBaseHook):
 
     def wait_for_crawler_completion(self, crawler_name: str, poll_interval: int = 5) -> str:
         """
-        Waits until Glue crawler completes and
-        returns the status of the latest crawl run.
-        Raises AirflowException if the crawler fails or is cancelled.
+        Wait until Glue crawler completes; returns the status of the latest crawl or raises AirflowException.
 
         :param crawler_name: unique crawler name per AWS account
         :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status

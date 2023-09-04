@@ -119,7 +119,7 @@ with DAG(
         labels={"demo": "hello_world"},
         get_logs=True,
         # Keep the pod alive, so we can describe it in case of trouble. It's deleted with the cluster anyway.
-        is_delete_operator_pod=False,
+        on_finish_action="keep_pod",
         startup_timeout_seconds=200,
     )
 

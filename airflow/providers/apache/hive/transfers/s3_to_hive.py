@@ -37,8 +37,11 @@ if TYPE_CHECKING:
 
 class S3ToHiveOperator(BaseOperator):
     """
-    Moves data from S3 to Hive. The operator downloads a file from S3,
-    stores the file locally before loading it into a Hive table.
+    Moves data from S3 to Hive.
+
+    The operator downloads a file from S3, stores the file locally
+    before loading it into a Hive table.
+
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
     Hive data types are inferred from the cursor's metadata from.
@@ -244,16 +247,16 @@ class S3ToHiveOperator(BaseOperator):
                 "Headers count mismatch File headers:\n %s\nField names: \n %s\n", header_list, field_names
             )
             return False
-        test_field_match = [h1.lower() == h2.lower() for h1, h2 in zip(header_list, field_names)]
-        if not all(test_field_match):
+        test_field_match = all(h1.lower() == h2.lower() for h1, h2 in zip(header_list, field_names))
+        if test_field_match:
+            return True
+        else:
             self.log.warning(
                 "Headers do not match field names File headers:\n %s\nField names: \n %s\n",
                 header_list,
                 field_names,
             )
             return False
-        else:
-            return True
 
     @staticmethod
     def _delete_top_row_and_compress(input_file_name, output_file_ext, dest_dir):

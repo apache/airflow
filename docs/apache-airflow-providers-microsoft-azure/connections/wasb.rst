@@ -54,23 +54,32 @@ Configuring the Connection
 --------------------------
 
 Login (optional)
-    Specify the login used for azure blob storage. For use with Shared Key Credential and SAS Token authentication.
+    Specify the login used for Azure Blob Storage. Strictly needed for Active Directory (token) authentication as Service principle credential. Optional for the rest if host (account url) is specified.
 
 Password (optional)
-    Specify the password used for azure blob storage. For use with
+    Specify the password used for Azure Blob Storage. For use with
     Active Directory (token credential) and shared key authentication.
 
 Host (optional)
-    Specify the account url for anonymous public read, Active Directory, shared access key authentication.
+    Specify the account url for Azure Blob Storage. Strictly needed for Active Directory (token) authentication as Service principle credential. Optional for the rest if login (account name) is specified.
+
+Blob Storage Connection String (optional)
+    Connection string for use with connection string authentication.
+
+Blob Storage Shared Access Key (optional)
+    Specify the shared access key. Needed only for shared access key authentication.
+
+SAS Token (optional)
+    SAS Token for use with SAS Token authentication.
+
+Tenant Id (Active Directory Auth) (optional)
+    Specify the tenant to use. Required only for Active Directory (token) authentication.
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
-    * ``tenant_id``: Specify the tenant to use. Needed for Active Directory (token) authentication.
-    * ``shared_access_key``: Specify the shared access key. Needed for shared access key authentication.
-    * ``connection_string``: Connection string for use with connection string authentication.
-    * ``sas_token``: SAS Token for use with SAS Token authentication.
+    * ``client_secret_auth_config``: Extra config to pass while authenticating as a service principal using `ClientSecretCredential <https://learn.microsoft.com/en-in/python/api/azure-identity/azure.identity.clientsecretcredential?view=azure-python>`_
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.

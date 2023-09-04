@@ -91,10 +91,7 @@ class BaseGithubRepositorySensor(GithubSensor):
         )
 
     def poke(self, context: Context) -> bool:
-        """
-        Function that the sensors defined while deriving this class should
-        override.
-        """
+        """Function that the sensors defined while deriving this class should override."""
         raise AirflowException("Override me.")
 
 
@@ -139,9 +136,9 @@ class GithubTagSensor(BaseGithubRepositorySensor):
                 result = self.tag_name in all_tags
 
         except GithubException as github_error:  # type: ignore[misc]
-            raise AirflowException(f"Failed to execute GithubSensor, error: {str(github_error)}")
+            raise AirflowException(f"Failed to execute GithubSensor, error: {github_error}")
         except Exception as e:
-            raise AirflowException(f"GitHub operator error: {str(e)}")
+            raise AirflowException(f"GitHub operator error: {e}")
 
         if result is True:
             self.log.info("Tag %s exists in %s repository, Success.", self.tag_name, self.repository_name)

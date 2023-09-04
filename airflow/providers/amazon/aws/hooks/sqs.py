@@ -24,6 +24,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class SqsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Queue Service.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("sqs") <SQS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and

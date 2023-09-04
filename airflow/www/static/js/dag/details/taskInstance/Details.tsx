@@ -133,6 +133,16 @@ const Details = ({ instance, group, dagId }: Props) => {
               </Flex>
             </Td>
           </Tr>
+          {!!group.setupTeardownType && (
+            <Tr>
+              <Td>Type</Td>
+              <Td>
+                <Text textTransform="capitalize">
+                  {group.setupTeardownType}
+                </Text>
+              </Td>
+            </Tr>
+          )}
           {mappedStates && totalTasks > 0 && (
             <Tr>
               <Td colSpan={2}>

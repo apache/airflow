@@ -57,29 +57,25 @@ T = TypeVar("T", bound=Callable)
 def process_line_and_extract_dataflow_job_id_callback(
     on_new_job_id_callback: Callable[[str], None] | None
 ) -> Callable[[str], None]:
-    """
-    Returns callback which triggers function passed as `on_new_job_id_callback` when Dataflow job_id is found.
-    To be used for `process_line_callback` in
+    """Build callback that triggers the specified function.
+
+    The returned callback is intended to be used as ``process_line_callback`` in
     :py:class:`~airflow.providers.apache.beam.hooks.beam.BeamCommandRunner`.
 
     :param on_new_job_id_callback: Callback called when the job ID is known
     """
 
-    def _process_line_and_extract_job_id(
-        line: str,
-        # on_new_job_id_callback: Callable[[str], None] | None
-    ) -> None:
+    def _process_line_and_extract_job_id(line: str) -> None:
         # Job id info: https://goo.gl/SE29y9.
+        if on_new_job_id_callback is None:
+            return
         matched_job = JOB_ID_PATTERN.search(line)
-        if matched_job:
-            job_id = matched_job.group("job_id_java") or matched_job.group("job_id_python")
-            if on_new_job_id_callback:
-                on_new_job_id_callback(job_id)
+        if matched_job is None:
+            return
+        job_id = matched_job.group("job_id_java") or matched_job.group("job_id_python")
+        on_new_job_id_callback(job_id)
 
-    def wrap(line: str):
-        return _process_line_and_extract_job_id(line)
-
-    return wrap
+    return _process_line_and_extract_job_id
 
 
 def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) -> Callable[[T], T]:
@@ -230,10 +226,7 @@ class _DataflowJobsController(LoggingMixin):
         if not self._jobs:
             return False
 
-        for job in self._jobs:
-            if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES:
-                return True
-        return False
+        return any(job["currentState"] not in DataflowJobStatus.TERMINAL_STATES for job in self._jobs)
 
     def _get_current_jobs(self) -> list[dict]:
         """
@@ -393,8 +386,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _check_dataflow_job_state(self, job) -> bool:
         """
-        Helper method to check the state of one job in dataflow for this task
-        if job failed raise exception.
+        Helper method to check the state of one job in dataflow for this task if job failed raise exception.
 
         :return: True if job is done.
         :raise: Exception
@@ -1019,8 +1011,12 @@ class DataflowHook(GoogleBaseHook):
         self.log.info("Output: %s", proc.stdout.decode())
         self.log.warning("Stderr: %s", proc.stderr.decode())
         self.log.info("Exit code %d", proc.returncode)
+        stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
         if proc.returncode != 0:
-            raise AirflowException(f"Process exit with non-zero exit code. Exit code: {proc.returncode}")
+            raise AirflowException(
+                f"Process exit with non-zero exit code. Exit code: {proc.returncode} Error Details : "
+                f"{stderr_last_20_lines}"
+            )
         job_id = proc.stdout.decode().strip()
 
         self.log.info("Created job ID: %s", job_id)
@@ -1237,12 +1233,12 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         client = await self.initialize_client(JobsV1Beta3AsyncClient)
 
         request = GetJobRequest(
-            dict(
-                project_id=project_id,
-                job_id=job_id,
-                view=job_view,
-                location=location,
-            )
+            {
+                "project_id": project_id,
+                "job_id": job_id,
+                "view": job_view,
+                "location": location,
+            }
         )
 
         job = await client.get_job(

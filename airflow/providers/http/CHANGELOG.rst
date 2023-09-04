@@ -21,8 +21,56 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-http``
+
+
 Changelog
 ---------
+
+4.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to SimpleHttpOperator (#32448)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix headers passed into HttpAsyncHook (#32409)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+4.4.2
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Add note about dropping Python 3.7 for providers (#32015)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
 
 4.4.1
 .....

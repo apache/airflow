@@ -17,7 +17,33 @@
           "argument": "jobs[].status",
           "expected": "FAILED",
           "matcher": "pathAll",
-          "state": "failed"
+          "state": "failure"
+        }
+      ]
+    },
+
+    "compute_env_ready": {
+      "delay": 30,
+      "operation": "DescribeComputeEnvironments",
+      "maxAttempts": 100,
+      "acceptors": [
+        {
+          "argument": "computeEnvironments[].status",
+          "expected": "VALID",
+          "matcher": "pathAll",
+          "state": "success"
+        },
+        {
+          "argument": "computeEnvironments[].status",
+          "expected": "INVALID",
+          "matcher": "pathAny",
+          "state": "failure"
+        },
+        {
+          "argument": "computeEnvironments[].status",
+          "expected": "DELETED",
+          "matcher": "pathAny",
+          "state": "failure"
         }
       ]
     }

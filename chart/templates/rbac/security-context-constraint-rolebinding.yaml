@@ -22,17 +22,17 @@
 #################################
 {{- if and .Values.rbac.create .Values.rbac.createSCCRoleBinding }}
 {{- $hasWorkers := has .Values.executor (list "CeleryExecutor" "LocalKubernetesExecutor" "KubernetesExecutor" "CeleryKubernetesExecutor") }}
+apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
 {{- else }}
 kind: RoleBinding
 {{- end }}
-apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"
   {{- end }}
-  name: {{ .Release.Name }}-scc-rolebinding
+  name: {{ include "airflow.fullname" . }}-scc-rolebinding
   labels:
     tier: airflow
     release: {{ .Release.Name }}

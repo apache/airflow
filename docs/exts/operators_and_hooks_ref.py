@@ -16,14 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import os
 from functools import lru_cache
-from typing import Iterable
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Iterable, Iterator
 
 import jinja2
 import rich_click as click
+import yaml
 from docutils import nodes
-from docutils.nodes import Element
 
 # No stub exists for docutils.parsers.rst.directives. See https://github.com/python/typeshed/issues/5755.
 from docutils.parsers.rst import Directive, directives  # type: ignore[attr-defined]
@@ -31,6 +33,9 @@ from docutils.statemachine import StringList
 from provider_yaml_utils import get_provider_yaml_paths, load_package_data
 from sphinx.util import nested_parse_with_titles
 from sphinx.util.docutils import switch_source_input
+
+if TYPE_CHECKING:
+    from docutils.nodes import Element
 
 CMD_OPERATORS_AND_HOOKS = "operators-and-hooks"
 
@@ -45,14 +50,15 @@ To test the template rendering process, you can also run this script as a standa
 """
 DEFAULT_HEADER_SEPARATOR = "="
 
-CURRENT_DIR = os.path.dirname(__file__)
+CURRENT_DIR = Path(os.path.dirname(__file__))
+TEMPLATE_DIR = CURRENT_DIR / "templates"
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, "docs")
 
 
 @lru_cache(maxsize=None)
 def _get_jinja_env():
-    loader = jinja2.FileSystemLoader(CURRENT_DIR, followlinks=True)
+    loader = jinja2.FileSystemLoader(TEMPLATE_DIR, followlinks=True)
     env = jinja2.Environment(loader=loader, undefined=jinja2.StrictUndefined)
     return env
 
@@ -100,7 +106,7 @@ def _prepare_operators_data(tags: set[str] | None):
 
     all_operators_by_integration = _prepare_resource_index(package_data, "operators")
     all_hooks_by_integration = _prepare_resource_index(package_data, "hooks")
-    all_sensors_by_integration = _prepare_resource_index(package_data, "hooks")
+    all_sensors_by_integration = _prepare_resource_index(package_data, "sensors")
     results = []
 
     for integration in to_display_integration:
@@ -116,7 +122,7 @@ def _prepare_operators_data(tags: set[str] | None):
         if operators:
             item["operators"] = operators
         if sensors:
-            item["hooks"] = sensors
+            item["sensors"] = sensors
         if hooks:
             item["hooks"] = hooks
         if operators or sensors or hooks:
@@ -127,7 +133,6 @@ def _prepare_operators_data(tags: set[str] | None):
 
 def _render_operator_content(*, tags: set[str] | None, header_separator: str):
     tabular_data = _prepare_operators_data(tags)
-
     return _render_template(
         "operators_and_hooks_ref.rst.jinja2", items=tabular_data, header_separator=header_separator
     )
@@ -160,134 +165,54 @@ def _prepare_transfer_data(tags: set[str] | None):
         ]
 
     for transfer in to_display_transfers:
-        if "how-to-guide" not in transfer:
-            continue
-        transfer["how-to-guide"] = _docs_path(transfer["how-to-guide"])
+        if "how-to-guide" in transfer:
+            transfer["how-to-guide"] = _docs_path(transfer["how-to-guide"])
     return to_display_transfers
 
 
 def _render_transfer_content(*, tags: set[str] | None, header_separator: str):
     tabular_data = _prepare_transfer_data(tags)
-
     return _render_template(
         "operators_and_hooks_ref-transfers.rst.jinja2", items=tabular_data, header_separator=header_separator
     )
 
 
-def _prepare_logging_data():
-    package_data = load_package_data()
-    all_logging = {}
-    for provider in package_data:
-        logging_handlers = provider.get("logging")
-        if logging_handlers:
-            package_name = provider["package-name"]
-            all_logging[package_name] = {"name": provider["name"], "handlers": logging_handlers}
-    return all_logging
-
-
-def _render_logging_content(*, header_separator: str):
-    tabular_data = _prepare_logging_data()
-
-    return _render_template("logging.rst.jinja2", items=tabular_data, header_separator=header_separator)
-
-
-def _prepare_auth_backend_data():
-    package_data = load_package_data()
-    all_auth_backends = {}
-    for provider in package_data:
-        auth_backends_list = provider.get("auth-backends")
-        if auth_backends_list:
-            package_name = provider["package-name"]
-            all_auth_backends[package_name] = {"name": provider["name"], "auth_backends": auth_backends_list}
-    return all_auth_backends
-
-
-def _render_auth_backend_content(*, header_separator: str):
-    tabular_data = _prepare_auth_backend_data()
-
-    return _render_template("auth_backend.rst.jinja2", items=tabular_data, header_separator=header_separator)
-
-
-def _prepare_secrets_backend_data():
-    package_data = load_package_data()
-    all_secret_backends = {}
-    for provider in package_data:
-        secret_backends_list = provider.get("secrets-backends")
-        if secret_backends_list:
-            package_name = provider["package-name"]
-            all_secret_backends[package_name] = {
-                "name": provider["name"],
-                "secrets_backends": secret_backends_list,
-            }
-    return all_secret_backends
-
-
-def _render_secrets_backend_content(*, header_separator: str):
-    tabular_data = _prepare_secrets_backend_data()
-
-    return _render_template(
-        "secret_backend.rst.jinja2", items=tabular_data, header_separator=header_separator
+def iter_deferrable_operators(module_filename: str) -> Iterator[tuple[str, str]]:
+    ast_obj = ast.parse(open(module_filename).read())
+    cls_nodes = (node for node in ast.iter_child_nodes(ast_obj) if isinstance(node, ast.ClassDef))
+    init_method_nodes = (
+        (cls_node, node)
+        for cls_node in cls_nodes
+        for node in ast.iter_child_nodes(cls_node)
+        if isinstance(node, ast.FunctionDef) and node.name == "__init__"
     )
+    for cls_node, node in init_method_nodes:
+        args = node.args
+        for argument in [*args.args, *args.kwonlyargs]:
+            if argument.arg == "deferrable":
+                module_name = module_filename.replace("/", ".")[:-3]
+                op_name = cls_node.name
+                yield (module_name, op_name)
 
 
-def _prepare_connections_data():
-    package_data = load_package_data()
-    all_connections = {}
-    for provider in package_data:
-        connections_list = provider.get("connection-types")
-        if connections_list:
-            package_name = provider["package-name"]
-            all_connections[package_name] = {
-                "name": provider["name"],
-                "connection_types": connections_list,
-            }
-    return all_connections
+def _render_deferrable_operator_content(*, header_separator: str):
+    providers = []
+    for provider_yaml_path in get_provider_yaml_paths():
+        provider_parent_path = Path(provider_yaml_path).parent
+        provider_info: dict[str, Any] = {"name": "", "operators": []}
+        for root, _, file_names in os.walk(provider_parent_path):
+            if "operators" in root or "sensors" in root:
+                for file_name in file_names:
+                    if file_name.endswith(".py") and file_name != "__init__.py":
+                        provider_info["operators"].extend(
+                            iter_deferrable_operators(f"{os.path.relpath(root)}/{file_name}")
+                        )
 
-
-def _render_connections_content(*, header_separator: str):
-    tabular_data = _prepare_connections_data()
-
-    return _render_template("connections.rst.jinja2", items=tabular_data, header_separator=header_separator)
-
-
-def _prepare_extra_links_data():
-    package_data = load_package_data()
-    all_extra_links = {}
-    for provider in package_data:
-        extra_link_list = provider.get("extra-links")
-        if extra_link_list:
-            package_name = provider["package-name"]
-            all_extra_links[package_name] = {
-                "name": provider["name"],
-                "extra_links": extra_link_list,
-            }
-    return all_extra_links
-
-
-def _render_extra_links_content(*, header_separator: str):
-    tabular_data = _prepare_extra_links_data()
-
-    return _render_template("extra_links.rst.jinja2", items=tabular_data, header_separator=header_separator)
-
-
-def _prepare_notifications_data():
-    package_data = load_package_data()
-    all_notifiers = {}
-    for provider in package_data:
-        notifications = provider.get("notifications")
-        if notifications:
-            package_name = provider["package-name"]
-            all_notifiers[package_name] = {
-                "name": provider["name"],
-                "notifications": notifications,
-            }
-    return all_notifiers
-
-
-def _render_notification_content(*, header_separator: str):
-    tabular_data = _prepare_notifications_data()
-
-    return _render_template("notifications.rst.jinja2", items=tabular_data, header_separator=header_separator)
+        if provider_info["operators"]:
+            provider_yaml_content = yaml.safe_load(Path(provider_yaml_path).read_text())
+            provider_info["name"] = provider_yaml_content["package-name"]
+            providers.append(provider_info)
+    return _render_template("deferrable_operators_list.rst.jinja2", providers=providers)
 
 
 class BaseJinjaReferenceDirective(Directive):
@@ -322,10 +247,24 @@ class BaseJinjaReferenceDirective(Directive):
         raise NotImplementedError("Tou need to override render_content method.")
 
 
+def _common_render_list_content(*, header_separator: str, resource_type: str, template: str):
+    tabular_data = {
+        provider["package-name"]: {
+            "name": provider["name"],
+            resource_type: provider.get(resource_type, []),
+        }
+        for provider in load_package_data()
+        if provider.get(resource_type) is not None
+    }
+    return _render_template(template, items=tabular_data, header_separator=header_separator)
+
+
 class OperatorsHooksReferenceDirective(BaseJinjaReferenceDirective):
     """Generates a list of operators, sensors, hooks"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
         return _render_operator_content(
             tags=tags,
             header_separator=header_separator,
@@ -335,7 +274,9 @@ class OperatorsHooksReferenceDirective(BaseJinjaReferenceDirective):
 class TransfersReferenceDirective(BaseJinjaReferenceDirective):
     """Generate a list of transfer operators"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
         return _render_transfer_content(
             tags=tags,
             header_separator=header_separator,
@@ -345,53 +286,107 @@ class TransfersReferenceDirective(BaseJinjaReferenceDirective):
 class LoggingDirective(BaseJinjaReferenceDirective):
     """Generate list of logging handlers"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
-        return _render_logging_content(
-            header_separator=header_separator,
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator, resource_type="logging", template="logging.rst.jinja2"
         )
 
 
 class AuthBackendDirective(BaseJinjaReferenceDirective):
     """Generate list of auth backend handlers"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
-        return _render_auth_backend_content(
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
             header_separator=header_separator,
+            resource_type="auth-backends",
+            template="auth_backend.rst.jinja2",
+        )
+
+
+class AuthConfigurations(BaseJinjaReferenceDirective):
+    """Generate list of configurations"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        tabular_data = [
+            provider["package-name"] for provider in load_package_data() if provider.get("config") is not None
+        ]
+        return _render_template(
+            "configuration.rst.jinja2", items=tabular_data, header_separator=header_separator
         )
 
 
 class SecretsBackendDirective(BaseJinjaReferenceDirective):
     """Generate list of secret backend handlers"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
-        return _render_secrets_backend_content(
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
             header_separator=header_separator,
+            resource_type="secrets-backends",
+            template="secret_backend.rst.jinja2",
         )
 
 
 class ConnectionsDirective(BaseJinjaReferenceDirective):
     """Generate list of connections"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
-        return _render_connections_content(
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
             header_separator=header_separator,
+            resource_type="connection-types",
+            template="connections.rst.jinja2",
         )
 
 
 class ExtraLinksDirective(BaseJinjaReferenceDirective):
     """Generate list of extra links"""
 
-    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
-        return _render_extra_links_content(
-            header_separator=header_separator,
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator, resource_type="extra-links", template="extra_links.rst.jinja2"
         )
 
 
 class NotificationsDirective(BaseJinjaReferenceDirective):
     """Generate list of notifiers"""
 
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="notifications",
+            template="notifications.rst.jinja2",
+        )
+
+
+class ExecutorsDirective(BaseJinjaReferenceDirective):
+    """Generate list of executors"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        return _common_render_list_content(
+            header_separator=header_separator, resource_type="executors", template="executors.rst.jinja2"
+        )
+
+
+class DeferrableOperatorDirective(BaseJinjaReferenceDirective):
+    """Generate list of deferrable operators"""
+
     def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
-        return _render_notification_content(
+        return _render_deferrable_operator_content(
             header_separator=header_separator,
         )
 
@@ -402,10 +397,13 @@ def setup(app):
     app.add_directive("transfers-ref", TransfersReferenceDirective)
     app.add_directive("airflow-logging", LoggingDirective)
     app.add_directive("airflow-auth-backends", AuthBackendDirective)
+    app.add_directive("airflow-configurations", AuthConfigurations)
     app.add_directive("airflow-secrets-backends", SecretsBackendDirective)
     app.add_directive("airflow-connections", ConnectionsDirective)
     app.add_directive("airflow-extra-links", ExtraLinksDirective)
     app.add_directive("airflow-notifications", NotificationsDirective)
+    app.add_directive("airflow-executors", ExecutorsDirective)
+    app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 
@@ -446,35 +444,69 @@ def transfers(tag: Iterable[str], header_separator: str):
 @option_header_separator
 def logging(header_separator: str):
     """Renders Logger content"""
-    print(_render_logging_content(header_separator=header_separator))
+    print(
+        _common_render_list_content(
+            header_separator=header_separator, resource_type="logging", template="logging.rst.jinja2"
+        )
+    )
 
 
 @cli.command()
 @option_header_separator
 def auth_backends(header_separator: str):
     """Renders Logger content"""
-    print(_render_auth_backend_content(header_separator=header_separator))
+    print(
+        _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="auth-backends",
+            template="auth_backend.rst.jinja2",
+        )
+    )
 
 
 @cli.command()
 @option_header_separator
 def secret_backends(header_separator: str):
     """Renders Secret Backends content"""
-    print(_render_secrets_backend_content(header_separator=header_separator))
+    print(
+        _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="secrets-backends",
+            template="secret_backend.rst.jinja2",
+        )
+    )
 
 
 @cli.command()
 @option_header_separator
 def connections(header_separator: str):
     """Renders Connections content"""
-    print(_render_connections_content(header_separator=header_separator))
+    print(
+        _common_render_list_content(
+            header_separator=header_separator,
+            resource_type="connection-types",
+            template="connections.rst.jinja2",
+        )
+    )
 
 
 @cli.command()
 @option_header_separator
 def extra_links(header_separator: str):
     """Renders Extra  links content"""
-    print(_render_extra_links_content(header_separator=header_separator))
+    print(
+        _common_render_list_content(
+            header_separator=header_separator, resource_type="extra-links", template="extra_links.rst.jinja2"
+        )
+    )
+
+
+@cli.command()
+@option_tag
+@option_header_separator
+def deferrable_operators(tag: Iterable[str], header_separator: str):
+    """Renders Deferrable Operators content"""
+    print(_render_deferrable_operator_content(header_separator=header_separator))
 
 
 if __name__ == "__main__":

@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import logging
-from concurrent.futures import Executor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from airflow.listeners import hookimpl
@@ -38,14 +39,11 @@ if TYPE_CHECKING:
 
 
 class OpenLineageListener:
-    """
-    OpenLineage listener
-    Sends events on task instance and dag run starts, completes and failures.
-    """
+    """OpenLineage listener sends events on task instance and dag run starts, completes and failures."""
 
     def __init__(self):
+        self._executor = None
         self.log = logging.getLogger(__name__)
-        self.executor: Executor = None  # type: ignore
         self.extractor_manager = ExtractorManager()
         self.adapter = OpenLineageAdapter()
 
@@ -79,16 +77,22 @@ class OpenLineageListener:
 
             task_metadata = self.extractor_manager.extract_metadata(dagrun, task)
 
+            start_date = task_instance.start_date if task_instance.start_date else datetime.now()
+            data_interval_start = (
+                dagrun.data_interval_start.isoformat() if dagrun.data_interval_start else None
+            )
+            data_interval_end = dagrun.data_interval_end.isoformat() if dagrun.data_interval_end else None
+
             self.adapter.start_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
                 job_description=dag.description,
-                event_time=task_instance.start_date.isoformat(),
+                event_time=start_date.isoformat(),
                 parent_job_name=dag.dag_id,
                 parent_run_id=parent_run_id,
                 code_location=None,
-                nominal_start_time=dagrun.data_interval_start.isoformat(),
-                nominal_end_time=dagrun.data_interval_end.isoformat(),
+                nominal_start_time=data_interval_start,
+                nominal_end_time=data_interval_end,
                 owners=dag.owner.split(", "),
                 task=task_metadata,
                 run_facets={
@@ -98,7 +102,7 @@ class OpenLineageListener:
                 },
             )
 
-        self.executor.submit(on_running)
+        on_running()
 
     @hookimpl
     def on_task_instance_success(self, previous_state, task_instance: TaskInstance, session):
@@ -116,14 +120,17 @@ class OpenLineageListener:
             task_metadata = self.extractor_manager.extract_metadata(
                 dagrun, task, complete=True, task_instance=task_instance
             )
+
+            end_date = task_instance.end_date if task_instance.end_date else datetime.now()
+
             self.adapter.complete_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
-                end_time=task_instance.end_date.isoformat(),
+                end_time=end_date.isoformat(),
                 task=task_metadata,
             )
 
-        self.executor.submit(on_success)
+        on_success()
 
     @hookimpl
     def on_task_instance_failed(self, previous_state, task_instance: TaskInstance, session):
@@ -142,19 +149,26 @@ class OpenLineageListener:
                 dagrun, task, complete=True, task_instance=task_instance
             )
 
+            end_date = task_instance.end_date if task_instance.end_date else datetime.now()
+
             self.adapter.fail_task(
                 run_id=task_uuid,
                 job_name=get_job_name(task),
-                end_time=task_instance.end_date.isoformat(),
+                end_time=end_date.isoformat(),
                 task=task_metadata,
             )
 
-        self.executor.submit(on_failure)
+        on_failure()
+
+    @property
+    def executor(self):
+        if not self._executor:
+            self._executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="openlineage_")
+        return self._executor
 
     @hookimpl
     def on_starting(self, component):
         self.log.debug("on_starting: %s", component.__class__.__name__)
-        self.executor = ThreadPoolExecutor(max_workers=8, thread_name_prefix="openlineage_")
 
     @hookimpl
     def before_stopping(self, component):
@@ -165,15 +179,14 @@ class OpenLineageListener:
 
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str):
-        if not self.executor:
-            self.log.error("Executor have not started before `on_dag_run_running`")
-            return
+        data_interval_start = dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else None
+        data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else None
         self.executor.submit(
             self.adapter.dag_started,
             dag_run=dag_run,
             msg=msg,
-            nominal_start_time=dag_run.data_interval_start.isoformat(),
-            nominal_end_time=dag_run.data_interval_end.isoformat(),
+            nominal_start_time=data_interval_start,
+            nominal_end_time=data_interval_end,
         )
 
     @hookimpl

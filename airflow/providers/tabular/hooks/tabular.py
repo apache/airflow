@@ -30,8 +30,10 @@ TOKENS_ENDPOINT = "oauth/tokens"
 
 class TabularHook(BaseHook):
     """
-    This hook acts as a base hook for tabular services. It offers the ability to generate temporary,
-    short-lived session tokens to use within Airflow submitted jobs.
+    This hook acts as a base hook for tabular services.
+
+    It offers the ability to generate temporary, short-lived
+    session tokens to use within Airflow submitted jobs.
 
     :param tabular_conn_id: The :ref:`Tabular connection id<howto/connection:tabular>`
         which refers to the information to connect to the Tabular OAuth service.

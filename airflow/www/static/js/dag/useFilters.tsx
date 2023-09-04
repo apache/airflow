@@ -100,6 +100,7 @@ const useFilters = (): FilterHookReturn => {
 
   const onBaseDateChange = makeOnChangeFn(
     BASE_DATE_PARAM,
+    // @ts-ignore
     (localDate: string) => moment(localDate).utc().format()
   );
   const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);

@@ -28,6 +28,10 @@ class MySqlOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific MySQL database.
 
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:MySqlOperator`

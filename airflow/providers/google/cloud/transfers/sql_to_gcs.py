@@ -23,7 +23,7 @@ import csv
 import json
 import os
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -82,6 +82,10 @@ class BaseSQLToGCSOperator(BaseOperator):
     :param write_on_empty: Optional parameter to specify whether to write a file if the
         export does not return any rows. Default is False so we will not write a file
         if the export returns no rows.
+    :param parquet_row_group_size: The approximate number of rows in each row group
+        when using parquet format. Using a large row group size can reduce the file size
+        and improve the performance of reading the data, but it needs more memory to
+        execute the operator. (default: 1)
     """
 
     template_fields: Sequence[str] = (
@@ -119,6 +123,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         exclude_columns: set | None = None,
         partition_columns: list | None = None,
         write_on_empty: bool = False,
+        parquet_row_group_size: int = 1,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -143,6 +148,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.exclude_columns = exclude_columns
         self.partition_columns = partition_columns
         self.write_on_empty = write_on_empty
+        self.parquet_row_group_size = parquet_row_group_size
 
     def execute(self, context: Context):
         if self.partition_columns:
@@ -212,6 +218,15 @@ class BaseSQLToGCSOperator(BaseOperator):
             for name, value in zip(schema, row)
         ]
 
+    @staticmethod
+    def _write_rows_to_parquet(parquet_writer: pq.ParquetWriter, rows):
+        rows_pydic: dict[str, list[Any]] = {col: [] for col in parquet_writer.schema.names}
+        for row in rows:
+            for ind, col in enumerate(parquet_writer.schema.names):
+                rows_pydic[col].append(row[ind])
+        tbl = pa.Table.from_pydict(rows_pydic, parquet_writer.schema)
+        parquet_writer.write_table(tbl)
+
     def _write_local_data_files(self, cursor):
         """
         Takes a cursor, and writes results to a local file.
@@ -220,7 +235,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        org_schema = [schema_tuple[0] for schema_tuple in cursor.description]
         schema = [column for column in org_schema if column not in self.exclude_columns]
 
         col_type_dict = self._get_col_type_dict()
@@ -233,6 +248,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         if self.export_format == "parquet":
             parquet_schema = self._convert_parquet_schema(cursor)
             parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
+            rows_buffer = []
 
         prev_partition_values = None
         curr_partition_values = None
@@ -253,6 +269,10 @@ class BaseSQLToGCSOperator(BaseOperator):
                     file_no += 1
 
                     if self.export_format == "parquet":
+                        # Write out the remaining rows in the buffer
+                        if rows_buffer:
+                            self._write_rows_to_parquet(parquet_writer, rows_buffer)
+                            rows_buffer = []
                         parquet_writer.close()
 
                     file_to_upload["partition_values"] = prev_partition_values
@@ -279,9 +299,10 @@ class BaseSQLToGCSOperator(BaseOperator):
                 row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
-                row_pydic = {col: [value] for col, value in zip(schema, row)}
-                tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
-                parquet_writer.write_table(tbl)
+                rows_buffer.append(row)
+                if len(rows_buffer) >= self.parquet_row_group_size:
+                    self._write_rows_to_parquet(parquet_writer, rows_buffer)
+                    rows_buffer = []
             else:
                 row = self.convert_types(schema, col_type_dict, row)
                 row_dict = dict(zip(schema, row))
@@ -301,6 +322,10 @@ class BaseSQLToGCSOperator(BaseOperator):
                 file_no += 1
 
                 if self.export_format == "parquet":
+                    # Write out the remaining rows in the buffer
+                    if rows_buffer:
+                        self._write_rows_to_parquet(parquet_writer, rows_buffer)
+                        rows_buffer = []
                     parquet_writer.close()
 
                 file_to_upload["partition_values"] = curr_partition_values
@@ -312,6 +337,10 @@ class BaseSQLToGCSOperator(BaseOperator):
                     parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
 
         if self.export_format == "parquet":
+            # Write out the remaining rows in the buffer
+            if rows_buffer:
+                self._write_rows_to_parquet(parquet_writer, rows_buffer)
+                rows_buffer = []
             parquet_writer.close()
         # Last file may have 0 rows, don't yield if empty
         # However, if it is the first file and self.write_on_empty is True, then yield to write an empty file
@@ -342,14 +371,12 @@ class BaseSQLToGCSOperator(BaseOperator):
         return file_mime_type
 
     def _configure_csv_file(self, file_handle, schema):
-        """Configure a csv writer with the file_handle and write schema
-        as headers for the new file.
-        """
+        """Configure a csv writer with the file_handle and write schema as headers for the new file."""
         csv_writer = csv.writer(file_handle, delimiter=self.field_delimiter)
         csv_writer.writerow(schema)
         return csv_writer
 
-    def _configure_parquet_file(self, file_handle, parquet_schema):
+    def _configure_parquet_file(self, file_handle, parquet_schema) -> pq.ParquetWriter:
         parquet_writer = pq.ParquetWriter(file_handle.name, parquet_schema)
         return parquet_writer
 
@@ -409,9 +436,9 @@ class BaseSQLToGCSOperator(BaseOperator):
 
     def _write_local_schema_file(self, cursor):
         """
-        Takes a cursor, and writes the BigQuery schema for the results to a
-        local file system. Schema for database will be read from cursor if
-        not specified.
+        Takes a cursor, and writes the BigQuery schema for the results to a local file system.
+
+        Schema for database will be read from cursor if not specified.
 
         :return: A dictionary where key is a filename to be used as an object
             name in GCS, and values are file handles to local files that

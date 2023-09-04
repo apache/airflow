@@ -19,9 +19,12 @@
 from __future__ import annotations
 
 import os
+import socket
 import warnings
 from pathlib import Path
 from typing import Any, Sequence
+
+import paramiko
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -39,8 +42,8 @@ class SFTPOperation:
 class SFTPOperator(BaseOperator):
     """
     SFTPOperator for transferring files from remote host to local or vice a versa.
-    This operator uses sftp_hook to open sftp transport channel that serve as basis
-    for file transfer.
+
+    This operator uses sftp_hook to open sftp transport channel that serve as basis for file transfer.
 
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>`
         from airflow Connections. `ssh_conn_id` will be ignored if `ssh_hook`
@@ -185,6 +188,87 @@ class SFTPOperator(BaseOperator):
                     self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
+            raise AirflowException(f"Error while transferring {file_msg}, error: {e}")
 
         return self.local_filepath
+
+    def get_openlineage_facets_on_start(self):
+        """
+        Returns OpenLineage datasets.
+
+        Dataset will have the following structure:
+            input: file://<local_host>/path
+            output: file://<remote_host>:<remote_port>/path.
+        """
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        scheme = "file"
+        local_host = socket.gethostname()
+        try:
+            local_host = socket.gethostbyname(local_host)
+        except Exception as e:
+            self.log.warning(
+                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",  # noqa: E501
+                exc_info=True,
+            )
+
+        hook = self.sftp_hook or self.ssh_hook or SFTPHook(ssh_conn_id=self.ssh_conn_id)
+
+        if self.remote_host is not None:
+            remote_host = self.remote_host
+        else:
+            remote_host = hook.get_connection(hook.ssh_conn_id).host
+
+        try:
+            remote_host = socket.gethostbyname(remote_host)
+        except OSError as e:
+            self.log.warning(
+                f"Failed to resolve remote hostname. Using the provided hostname without resolution. {e}",  # noqa: E501
+                exc_info=True,
+            )
+
+        if hasattr(hook, "port"):
+            remote_port = hook.port
+        elif hasattr(hook, "ssh_hook"):
+            remote_port = hook.ssh_hook.port
+
+        # Since v4.1.0, SFTPOperator accepts both a string (single file) and a list of
+        # strings (multiple files) as local_filepath and remote_filepath, and internally
+        # keeps them as list in both cases. But before 4.1.0, only single string is
+        # allowed. So we consider both cases here for backward compatibility.
+        if isinstance(self.local_filepath, str):
+            local_filepath = [self.local_filepath]
+        else:
+            local_filepath = self.local_filepath
+        if isinstance(self.remote_filepath, str):
+            remote_filepath = [self.remote_filepath]
+        else:
+            remote_filepath = self.remote_filepath
+
+        local_datasets = [
+            Dataset(namespace=self._get_namespace(scheme, local_host, None, path), name=path)
+            for path in local_filepath
+        ]
+        remote_datasets = [
+            Dataset(namespace=self._get_namespace(scheme, remote_host, remote_port, path), name=path)
+            for path in remote_filepath
+        ]
+
+        if self.operation.lower() == SFTPOperation.GET:
+            inputs = remote_datasets
+            outputs = local_datasets
+        else:
+            inputs = local_datasets
+            outputs = remote_datasets
+
+        return OperatorLineage(
+            inputs=inputs,
+            outputs=outputs,
+        )
+
+    def _get_namespace(self, scheme, host, port, path) -> str:
+        port = port or paramiko.config.SSH_PORT
+        authority = f"{host}:{port}"
+        return f"{scheme}://{authority}"

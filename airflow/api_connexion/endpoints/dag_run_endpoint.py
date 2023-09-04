@@ -17,14 +17,13 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 import pendulum
 from connexion import NoContent
 from flask import g
-from flask_login import current_user
 from marshmallow import ValidationError
-from sqlalchemy import delete, or_
-from sqlalchemy.orm import Query, Session
+from sqlalchemy import delete, or_, select
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -34,7 +33,12 @@ from airflow.api.common.mark_tasks import (
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
+from airflow.api_connexion.parameters import (
+    apply_sorting,
+    check_limit,
+    format_datetime,
+    format_parameters,
+)
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     clear_dagrun_form_schema,
@@ -52,15 +56,22 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
     task_instance_reference_collection_schema,
 )
-from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.db import get_query_count
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from airflow.www.decorators import action_logging
+from airflow.www.extensions.init_auth_manager import get_auth_manager
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
+
+    from airflow.api_connexion.types import APIResponse
 
 RESOURCE_EVENT_PREFIX = "dag_run"
 
@@ -91,7 +102,7 @@ def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSI
 @provide_session
 def get_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a DAG Run."""
-    dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     if dag_run is None:
         raise NotFound(
             "DAGRun not found",
@@ -112,13 +123,11 @@ def get_upstream_dataset_events(
     *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
     """If dag run is dataset-triggered, return the dataset events that triggered it."""
-    dag_run: DagRun | None = (
-        session.query(DagRun)
-        .filter(
+    dag_run: DagRun | None = session.scalar(
+        select(DagRun).where(
             DagRun.dag_id == dag_id,
             DagRun.run_id == dag_run_id,
         )
-        .one_or_none()
     )
     if dag_run is None:
         raise NotFound(
@@ -132,7 +141,7 @@ def get_upstream_dataset_events(
 
 
 def _fetch_dag_runs(
-    query: Query,
+    query: Select,
     *,
     end_date_gte: str | None,
     end_date_lte: str | None,
@@ -145,28 +154,29 @@ def _fetch_dag_runs(
     limit: int | None,
     offset: int | None,
     order_by: str,
+    session: Session,
 ) -> tuple[list[DagRun], int]:
     if start_date_gte:
-        query = query.filter(DagRun.start_date >= start_date_gte)
+        query = query.where(DagRun.start_date >= start_date_gte)
     if start_date_lte:
-        query = query.filter(DagRun.start_date <= start_date_lte)
+        query = query.where(DagRun.start_date <= start_date_lte)
     # filter execution date
     if execution_date_gte:
-        query = query.filter(DagRun.execution_date >= execution_date_gte)
+        query = query.where(DagRun.execution_date >= execution_date_gte)
     if execution_date_lte:
-        query = query.filter(DagRun.execution_date <= execution_date_lte)
+        query = query.where(DagRun.execution_date <= execution_date_lte)
     # filter end date
     if end_date_gte:
-        query = query.filter(DagRun.end_date >= end_date_gte)
+        query = query.where(DagRun.end_date >= end_date_gte)
     if end_date_lte:
-        query = query.filter(DagRun.end_date <= end_date_lte)
+        query = query.where(DagRun.end_date <= end_date_lte)
     # filter updated at
     if updated_at_gte:
-        query = query.filter(DagRun.updated_at >= updated_at_gte)
+        query = query.where(DagRun.updated_at >= updated_at_gte)
     if updated_at_lte:
-        query = query.filter(DagRun.updated_at <= updated_at_lte)
+        query = query.where(DagRun.updated_at <= updated_at_lte)
 
-    total_entries = query.count()
+    total_entries = get_query_count(query, session=session)
     to_replace = {"dag_run_id": "run_id"}
     allowed_filter_attrs = [
         "id",
@@ -181,7 +191,7 @@ def _fetch_dag_runs(
         "conf",
     ]
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    return query.offset(offset).limit(limit).all(), total_entries
+    return session.scalars(query.offset(offset).limit(limit)).all(), total_entries
 
 
 @security.requires_access(
@@ -222,17 +232,17 @@ def get_dag_runs(
     session: Session = NEW_SESSION,
 ):
     """Get all DAG Runs."""
-    query = session.query(DagRun)
+    query = select(DagRun)
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
     if dag_id == "~":
         appbuilder = get_airflow_app().appbuilder
-        query = query.filter(DagRun.dag_id.in_(appbuilder.sm.get_readable_dag_ids(g.user)))
+        query = query.where(DagRun.dag_id.in_(appbuilder.sm.get_readable_dag_ids(g.user)))
     else:
-        query = query.filter(DagRun.dag_id == dag_id)
+        query = query.where(DagRun.dag_id == dag_id)
 
     if state:
-        query = query.filter(DagRun.state.in_(state))
+        query = query.where(DagRun.state.in_(state))
 
     dag_run, total_entries = _fetch_dag_runs(
         query,
@@ -247,6 +257,7 @@ def get_dag_runs(
         limit=limit,
         offset=offset,
         order_by=order_by,
+        session=session,
     )
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_run, total_entries=total_entries))
 
@@ -268,16 +279,16 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
 
     appbuilder = get_airflow_app().appbuilder
     readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
-    query = session.query(DagRun)
+    query = select(DagRun)
     if data.get("dag_ids"):
         dag_ids = set(data["dag_ids"]) & set(readable_dag_ids)
-        query = query.filter(DagRun.dag_id.in_(dag_ids))
+        query = query.where(DagRun.dag_id.in_(dag_ids))
     else:
-        query = query.filter(DagRun.dag_id.in_(readable_dag_ids))
+        query = query.where(DagRun.dag_id.in_(readable_dag_ids))
 
     states = data.get("states")
     if states:
-        query = query.filter(DagRun.state.in_(states))
+        query = query.where(DagRun.state.in_(states))
 
     dag_runs, total_entries = _fetch_dag_runs(
         query,
@@ -290,6 +301,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
         limit=data["page_limit"],
         offset=data["page_offset"],
         order_by=data.get("order_by", "id"),
+        session=session,
     )
 
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
@@ -310,7 +322,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
 )
 def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Trigger a DAG."""
-    dm = session.query(DagModel).filter(DagModel.is_active, DagModel.dag_id == dag_id).first()
+    dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
     if not dm:
         raise NotFound(title="DAG not found", detail=f"DAG with dag_id: '{dag_id}' not found")
     if dm.has_import_errors:
@@ -325,13 +337,13 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 
     logical_date = pendulum.instance(post_body["execution_date"])
     run_id = post_body["run_id"]
-    dagrun_instance = (
-        session.query(DagRun)
-        .filter(
+    dagrun_instance = session.scalar(
+        select(DagRun)
+        .where(
             DagRun.dag_id == dag_id,
             or_(DagRun.run_id == run_id, DagRun.execution_date == logical_date),
         )
-        .first()
+        .limit(1)
     )
     if not dagrun_instance:
         try:
@@ -349,7 +361,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
             )
             dag_run_note = post_body.get("note")
             if dag_run_note:
-                current_user_id = getattr(current_user, "id", None)
+                current_user_id = get_auth_manager().get_user_id()
                 dag_run.note = (dag_run_note, current_user_id)
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
@@ -375,8 +387,8 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 @provide_session
 def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of a dag run."""
-    dag_run: DagRun | None = (
-        session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    dag_run: DagRun | None = session.scalar(
+        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
     )
     if dag_run is None:
         error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
@@ -407,8 +419,8 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
 @provide_session
 def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear a dag run."""
-    dag_run: DagRun | None = (
-        session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    dag_run: DagRun | None = session.scalar(
+        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
     )
     if dag_run is None:
         error_message = f"Dag Run id {dag_run_id} not found in dag   {dag_id}"
@@ -445,7 +457,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
             include_parentdag=True,
             only_failed=False,
         )
-        dag_run = session.query(DagRun).filter(DagRun.id == dag_run.id).one()
+        dag_run = session.execute(select(DagRun).where(DagRun.id == dag_run.id)).scalar_one()
         return dagrun_schema.dump(dag_run)
 
 
@@ -458,8 +470,8 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
 @provide_session
 def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set the note for a dag run."""
-    dag_run: DagRun | None = (
-        session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    dag_run: DagRun | None = session.scalar(
+        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
     )
     if dag_run is None:
         error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
@@ -470,7 +482,7 @@ def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SES
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    current_user_id = getattr(current_user, "id", None)
+    current_user_id = get_auth_manager().get_user_id()
     if dag_run.dag_run_note is None:
         dag_run.note = (new_note, current_user_id)
     else:

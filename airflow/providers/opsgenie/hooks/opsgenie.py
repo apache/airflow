@@ -33,6 +33,7 @@ from airflow.hooks.base import BaseHook
 class OpsgenieAlertHook(BaseHook):
     """
     This hook allows you to post alerts to Opsgenie.
+
     Accepts a connection that has an Opsgenie API key as the connection's password.
     This hook sets the domain to conn_id.host, and if not set will default
     to ``https://api.opsgenie.com``.

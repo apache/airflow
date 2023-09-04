@@ -23,17 +23,20 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.models.dagrun import DagRun
 from airflow.models.param import Param
-from airflow.models.taskinstance import TaskInstance
 from airflow.utils.trigger_rule import TriggerRule
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
 
 with DAG(
     dag_id=Path(__file__).stem,
-    description=__doc__[0 : __doc__.find(".")],
+    description=__doc__.partition(".")[0],
     doc_md=__doc__,
     schedule=None,
     start_date=datetime.datetime(2022, 3, 4),

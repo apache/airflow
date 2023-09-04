@@ -23,6 +23,13 @@ description: |
 
 suspended: false
 versions:
+  - 7.5.0
+  - 7.4.2
+  - 7.4.1
+  - 7.4.0
+  - 7.3.0
+  - 7.2.0
+  - 7.1.0
   - 7.0.0
   - 6.1.0
   - 6.0.0
@@ -77,6 +84,7 @@ dependencies:
   # (started from current 24.2.2 version) to prevent introducing some problems that could be due to some
   #  major changes in the package.
   - kubernetes_asyncio>=18.20.1,<25
+  - google-re2>=1.0
 
 integrations:
   - integration-name: Kubernetes
@@ -93,7 +101,6 @@ integrations:
 operators:
   - integration-name: Kubernetes
     python-modules:
-      - airflow.providers.cncf.kubernetes.operators.kubernetes_pod
       - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
       - airflow.providers.cncf.kubernetes.operators.resource
@@ -121,3 +128,212 @@ connection-types:
 task-decorators:
   - class-name: airflow.providers.cncf.kubernetes.decorators.kubernetes.kubernetes_task
     name: kubernetes
+
+config:
+  local_kubernetes_executor:
+    description: |
+      This section only applies if you are using the ``LocalKubernetesExecutor`` in
+      ``[core]`` section above
+    options:
+      kubernetes_queue:
+        description: |
+          Define when to send a task to ``KubernetesExecutor`` when using ``LocalKubernetesExecutor``.
+          When the queue of a task is the value of ``kubernetes_queue`` (default ``kubernetes``),
+          the task is executed via ``KubernetesExecutor``,
+          otherwise via ``LocalExecutor``
+        version_added: ~
+        type: string
+        example: ~
+        default: "kubernetes"
+  kubernetes_executor:
+    description: ~
+    options:
+      api_client_retry_configuration:
+        description: |
+          Kwargs to override the default urllib3 Retry used in the kubernetes API client
+        version_added: ~
+        type: string
+        example: '{ "total": 3, "backoff_factor": 0.5 }'
+        default: ""
+      logs_task_metadata:
+        description: |
+          Flag to control the information added to kubernetes executor logs for better traceability
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "False"
+      pod_template_file:
+        description: |
+          Path to the YAML pod file that forms the basis for KubernetesExecutor workers.
+        version_added: ~
+        type: string
+        example: ~
+        default: ""
+        see_also: ":ref:`concepts:pod_template_file`"
+      worker_container_repository:
+        description: |
+          The repository of the Kubernetes Image for the Worker to Run
+        version_added: ~
+        type: string
+        example: ~
+        default: ""
+      worker_container_tag:
+        description: |
+          The tag of the Kubernetes Image for the Worker to Run
+        version_added: ~
+        type: string
+        example: ~
+        default: ""
+      namespace:
+        description: |
+          The Kubernetes namespace where airflow workers should be created. Defaults to ``default``
+        version_added: ~
+        type: string
+        example: ~
+        default: "default"
+      delete_worker_pods:
+        description: |
+          If True, all worker pods will be deleted upon termination
+        version_added: ~
+        type: string
+        example: ~
+        default: "True"
+      delete_worker_pods_on_failure:
+        description: |
+          If False (and delete_worker_pods is True),
+          failed worker pods will not be deleted so users can investigate them.
+          This only prevents removal of worker pods where the worker itself failed,
+          not when the task it ran failed.
+        version_added: ~
+        type: string
+        example: ~
+        default: "False"
+      worker_pods_creation_batch_size:
+        description: |
+          Number of Kubernetes Worker Pod creation calls per scheduler loop.
+          Note that the current default of "1" will only launch a single pod
+          per-heartbeat. It is HIGHLY recommended that users increase this
+          number to match the tolerance of their kubernetes cluster for
+          better performance.
+        version_added: ~
+        type: string
+        example: ~
+        default: "1"
+      multi_namespace_mode:
+        description: |
+          Allows users to launch pods in multiple namespaces.
+          Will require creating a cluster-role for the scheduler,
+          or use multi_namespace_mode_namespace_list configuration.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "False"
+      multi_namespace_mode_namespace_list:
+        description: |
+          If multi_namespace_mode is True while scheduler does not have a cluster-role,
+          give the list of namespaces where the scheduler will schedule jobs
+          Scheduler needs to have the necessary permissions in these namespaces.
+        version_added: ~
+        type: string
+        example: ~
+        default: ""
+      in_cluster:
+        description: |
+          Use the service account kubernetes gives to pods to connect to kubernetes cluster.
+          It's intended for clients that expect to be running inside a pod running on kubernetes.
+          It will raise an exception if called from a process not running in a kubernetes environment.
+        version_added: ~
+        type: string
+        example: ~
+        default: "True"
+      cluster_context:
+        description: |
+          When running with in_cluster=False change the default cluster_context or config_file
+          options to Kubernetes client. Leave blank these to use default behaviour like ``kubectl`` has.
+        version_added: ~
+        type: string
+        example: ~
+        default: ~
+      config_file:
+        description: |
+          Path to the kubernetes configfile to be used when ``in_cluster`` is set to False
+        version_added: ~
+        type: string
+        example: ~
+        default: ~
+      kube_client_request_args:
+        description: |
+          Keyword parameters to pass while calling a kubernetes client core_v1_api methods
+          from Kubernetes Executor provided as a single line formatted JSON dictionary string.
+          List of supported params are similar for all core_v1_apis, hence a single config
+          variable for all apis. See:
+          https://raw.githubusercontent.com/kubernetes-client/python/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/api/core_v1_api.py
+        version_added: ~
+        type: string
+        example: ~
+        default: ""
+      delete_option_kwargs:
+        description: |
+          Optional keyword arguments to pass to the ``delete_namespaced_pod`` kubernetes client
+          ``core_v1_api`` method when using the Kubernetes Executor.
+          This should be an object and can contain any of the options listed in the ``v1DeleteOptions``
+          class defined here:
+          https://github.com/kubernetes-client/python/blob/41f11a09995efcd0142e25946adc7591431bfb2f/kubernetes/client/models/v1_delete_options.py#L19
+        version_added: ~
+        type: string
+        example: '{"grace_period_seconds": 10}'
+        default: ""
+      enable_tcp_keepalive:
+        description: |
+          Enables TCP keepalive mechanism. This prevents Kubernetes API requests to hang indefinitely
+          when idle connection is time-outed on services like cloud load balancers or firewalls.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "True"
+      tcp_keep_idle:
+        description: |
+          When the `enable_tcp_keepalive` option is enabled, TCP probes a connection that has
+          been idle for `tcp_keep_idle` seconds.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "120"
+      tcp_keep_intvl:
+        description: |
+          When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
+          to a keepalive probe, TCP retransmits the probe after `tcp_keep_intvl` seconds.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "30"
+      tcp_keep_cnt:
+        description: |
+          When the `enable_tcp_keepalive` option is enabled, if Kubernetes API does not respond
+          to a keepalive probe, TCP retransmits the probe `tcp_keep_cnt number` of times before
+          a connection is considered to be broken.
+        version_added: ~
+        type: integer
+        example: ~
+        default: "6"
+      verify_ssl:
+        description: |
+          Set this to false to skip verifying SSL certificate of Kubernetes python client.
+        version_added: ~
+        type: boolean
+        example: ~
+        default: "True"
+      worker_pods_queued_check_interval:
+        description: |
+          How often in seconds to check for task instances stuck in "queued" status without a pod
+        version_added: ~
+        type: integer
+        example: ~
+        default: "60"
+      ssl_ca_cert:
+        description: |
+          Path to a CA certificate to be used by the Kubernetes client to verify the server's SSL certificate.
+        version_added: ~
+        type: string
+        example: ~
+        default: ""

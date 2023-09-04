@@ -54,7 +54,7 @@ CLUSTER = {
 }
 BATCH = {"batch": "test-batch"}
 BATCH_ID = "batch-id"
-BATCH_NAME = "projects/{}/regions/{}/batches/{}"
+BATCH_NAME = "projects/{}/locations/{}/batches/{}"
 PARENT = "projects/{}/regions/{}"
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
@@ -491,6 +491,8 @@ class TestDataprocHook:
                 parent=PARENT.format(GCP_PROJECT, GCP_LOCATION),
                 page_size=None,
                 page_token=None,
+                filter=None,
+                order_by=None,
             ),
             metadata=(),
             retry=DEFAULT,
@@ -939,6 +941,8 @@ class TestDataprocAsyncHook:
                 parent=PARENT.format(GCP_PROJECT, GCP_LOCATION),
                 page_size=None,
                 page_token=None,
+                filter=None,
+                order_by=None,
             ),
             metadata=(),
             retry=DEFAULT,

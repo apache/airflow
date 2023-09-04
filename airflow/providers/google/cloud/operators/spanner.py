@@ -31,8 +31,7 @@ if TYPE_CHECKING:
 
 class SpannerDeployInstanceOperator(GoogleCloudBaseOperator):
     """
-    Creates a new Cloud Spanner instance, or if an instance with the same instance_id
-    exists in the specified project, updates the Cloud Spanner instance.
+    Create or update a Cloud Spanner instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -128,8 +127,7 @@ class SpannerDeployInstanceOperator(GoogleCloudBaseOperator):
 
 class SpannerDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
-    Deletes a Cloud Spanner instance. If an instance does not exist,
-    no action is taken and the operator succeeds.
+    Delete a Cloud Spanner instance; if an instance does not exist, no action is taken and the task succeeds.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -304,13 +302,12 @@ class SpannerQueryDatabaseInstanceOperator(GoogleCloudBaseOperator):
         :param queries: queries
         """
         if queries and queries[-1] == "":
-            del queries[-1]
+            queries.pop()
 
 
 class SpannerDeployDatabaseInstanceOperator(GoogleCloudBaseOperator):
     """
-    Creates a new Cloud Spanner database, or if database exists,
-    the operator does nothing.
+    Creates a new Cloud Spanner database; if database exists, the operator does nothing.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

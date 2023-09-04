@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
-from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
-from airflow.typing_compat import TypeGuard
+
+if TYPE_CHECKING:
+    from airflow.models.abstractoperator import AbstractOperator
+    from airflow.typing_compat import TypeGuard
 
 Operator = Union[BaseOperator, MappedOperator]
 

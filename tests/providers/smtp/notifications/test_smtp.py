@@ -40,7 +40,7 @@ class TestPagerdutyNotifier:
             subject="subject",
             html_content="body",
         )
-        notifier(context={"dag": dag})
+        notifier({"dag": dag})
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email="test_sender@test.com",
             to="test_reciver@test.com",
@@ -65,7 +65,7 @@ class TestPagerdutyNotifier:
             subject="subject",
             html_content="body",
         )
-        notifier(context={"dag": dag})
+        notifier({"dag": dag})
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             from_email="test_sender@test.com",
             to="test_reciver@test.com",

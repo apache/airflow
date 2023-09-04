@@ -21,7 +21,6 @@ import contextlib
 import io
 import json
 import os
-import tempfile
 from datetime import datetime, timedelta
 from unittest import mock
 from unittest.mock import MagicMock
@@ -384,6 +383,31 @@ class TestCliDags:
             disable_retry=False,
         )
 
+    @mock.patch("workday.AfterWorkdayTimetable")
+    @mock.patch("airflow.models.taskinstance.TaskInstance.dry_run")
+    @mock.patch("airflow.cli.commands.dag_command.DagRun")
+    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run, mock_AfterWorkdayTimetable):
+        """
+        when calling `dags backfill` on dag with custom timetable, the DagRun object should be created with
+         data_intervals.
+        """
+        start_date = DEFAULT_DATE + timedelta(days=1)
+        end_date = start_date + timedelta(days=1)
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "backfill",
+                "example_workday_timetable",
+                "--start-date",
+                start_date.isoformat(),
+                "--end-date",
+                end_date.isoformat(),
+                "--dry-run",
+            ]
+        )
+        dag_command.dag_backfill(cli_args)
+        assert "data_interval" in mock_dagrun.call_args.kwargs
+
     def test_next_execution(self, tmp_path):
         dag_test_list = [
             ("future_schedule_daily", "timedelta(days=5)", "'0 0 * * *'", "True"),
@@ -655,7 +679,7 @@ class TestCliDags:
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             dag_command.dag_trigger(args)
             # get the last line from the logs ignoring all logging lines
-            out = temp_stdout.getvalue().strip().split("\n")[-1]
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
         parsed_out = json.loads(out)
 
         assert 1 == len(parsed_out)
@@ -676,17 +700,17 @@ class TestCliDags:
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
             )
 
-    def test_delete_dag_existing_file(self):
+    def test_delete_dag_existing_file(self, tmp_path):
         # Test to check that the DAG should be deleted even if
         # the file containing it is not deleted
+        path = tmp_path / "testfile"
         DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
-        with tempfile.NamedTemporaryFile() as f:
-            session.add(DM(dag_id=key, fileloc=f.name))
-            session.commit()
-            dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-            assert session.query(DM).filter_by(dag_id=key).count() == 0
+        session.add(DM(dag_id=key, fileloc=os.fspath(path)))
+        session.commit()
+        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
+        assert session.query(DM).filter_by(dag_id=key).count() == 0
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(["dags", "list-jobs"])
@@ -778,3 +802,16 @@ class TestCliDags:
         )
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
+
+    @mock.patch("workday.AfterWorkdayTimetable")
+    @mock.patch("airflow.models.dag._get_or_create_dagrun")
+    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun, _):
+        """
+        when calling `dags test` on dag with custom timetable, the DagRun object should be created with
+         data_intervals.
+        """
+        cli_args = self.parser.parse_args(
+            ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
+        )
+        dag_command.dag_test(cli_args)
+        assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs

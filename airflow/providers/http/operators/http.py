@@ -17,15 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+import base64
+import pickle
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from requests.auth import AuthBase
-
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.http.hooks.http import HttpHook
+from airflow.providers.http.triggers.http import HttpTrigger
 
 if TYPE_CHECKING:
+    from requests import Response
+    from requests.auth import AuthBase
+
     from airflow.utils.context import Context
 
 
@@ -61,6 +66,7 @@ class SimpleHttpOperator(BaseOperator):
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
+    :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = (
@@ -89,6 +95,7 @@ class SimpleHttpOperator(BaseOperator):
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -106,23 +113,42 @@ class SimpleHttpOperator(BaseOperator):
         self.tcp_keep_alive_idle = tcp_keep_alive_idle
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
+        self.deferrable = deferrable
 
     def execute(self, context: Context) -> Any:
+        if self.deferrable:
+            self.defer(
+                trigger=HttpTrigger(
+                    http_conn_id=self.http_conn_id,
+                    auth_type=self.auth_type,
+                    method=self.method,
+                    endpoint=self.endpoint,
+                    headers=self.headers,
+                    data=self.data,
+                    extra_options=self.extra_options,
+                ),
+                method_name="execute_complete",
+            )
+        else:
+            http = HttpHook(
+                self.method,
+                http_conn_id=self.http_conn_id,
+                auth_type=self.auth_type,
+                tcp_keep_alive=self.tcp_keep_alive,
+                tcp_keep_alive_idle=self.tcp_keep_alive_idle,
+                tcp_keep_alive_count=self.tcp_keep_alive_count,
+                tcp_keep_alive_interval=self.tcp_keep_alive_interval,
+            )
+
+            self.log.info("Calling HTTP method")
+
+            response = http.run(self.endpoint, self.data, self.headers, self.extra_options)
+            return self.process_response(context=context, response=response)
+
+    def process_response(self, context: Context, response: Response) -> str:
+        """Process the response."""
         from airflow.utils.operator_helpers import determine_kwargs
 
-        http = HttpHook(
-            self.method,
-            http_conn_id=self.http_conn_id,
-            auth_type=self.auth_type,
-            tcp_keep_alive=self.tcp_keep_alive,
-            tcp_keep_alive_idle=self.tcp_keep_alive_idle,
-            tcp_keep_alive_count=self.tcp_keep_alive_count,
-            tcp_keep_alive_interval=self.tcp_keep_alive_interval,
-        )
-
-        self.log.info("Calling HTTP method")
-
-        response = http.run(self.endpoint, self.data, self.headers, self.extra_options)
         if self.log_response:
             self.log.info(response.text)
         if self.response_check:
@@ -133,3 +159,15 @@ class SimpleHttpOperator(BaseOperator):
             kwargs = determine_kwargs(self.response_filter, [response], context)
             return self.response_filter(response, **kwargs)
         return response.text
+
+    def execute_complete(self, context: Context, event: dict):
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event["status"] == "success":
+            response = pickle.loads(base64.standard_b64decode(event["response"]))
+            return self.process_response(context=context, response=response)
+        else:
+            raise AirflowException(f"Unexpected error in the operation: {event['message']}")

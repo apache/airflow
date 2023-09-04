@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
     """
     Interact with Amazon Redshift Data API.
+
     Provide thin wrapper around
     :external+boto3:py:class:`boto3.client("redshift-data") <RedshiftDataAPIService.Client>`.
 
@@ -59,6 +60,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         with_event: bool = False,
         wait_for_completion: bool = True,
         poll_interval: int = 10,
+        workgroup_name: str | None = None,
     ) -> str:
         """
         Execute a statement against Amazon Redshift.
@@ -73,6 +75,9 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         :param with_event: indicates whether to send an event to EventBridge
         :param wait_for_completion: indicates whether to wait for a result, if True wait, if False don't wait
         :param poll_interval: how often in seconds to check the query status
+        :param workgroup_name: name of the Redshift Serverless workgroup. Mutually exclusive with
+            `cluster_identifier`. Specify this parameter to query Redshift Serverless. More info
+            https://docs.aws.amazon.com/redshift/latest/mgmt/working-with-serverless.html
 
         :returns statement_id: str, the UUID of the statement
         """
@@ -84,6 +89,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             "WithEvent": with_event,
             "SecretArn": secret_arn,
             "StatementName": statement_name,
+            "WorkgroupName": workgroup_name,
         }
         if isinstance(sql, list):
             kwargs["Sqls"] = sql
@@ -93,6 +99,9 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             resp = self.conn.execute_statement(**trim_none_values(kwargs))
 
         statement_id = resp["Id"]
+
+        if bool(cluster_identifier) is bool(workgroup_name):
+            raise ValueError("Either 'cluster_identifier' or 'workgroup_name' must be specified.")
 
         if wait_for_completion:
             self.wait_for_results(statement_id, poll_interval=poll_interval)
@@ -126,6 +135,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         database: str,
         schema: str | None = "public",
         cluster_identifier: str | None = None,
+        workgroup_name: str | None = None,
         db_user: str | None = None,
         secret_arn: str | None = None,
         statement_name: str | None = None,
@@ -134,7 +144,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         poll_interval: int = 10,
     ) -> list[str] | None:
         """
-        Helper method that returns the table primary key.
+        Return the table primary key.
 
         Copied from ``RedshiftSQLHook.get_table_primary_key()``
 
@@ -167,6 +177,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             sql=sql,
             database=database,
             cluster_identifier=cluster_identifier,
+            workgroup_name=workgroup_name,
             db_user=db_user,
             secret_arn=secret_arn,
             statement_name=statement_name,
@@ -177,16 +188,16 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         pk_columns = []
         token = ""
         while True:
-            kwargs = dict(Id=stmt_id)
+            kwargs = {"Id": stmt_id}
             if token:
                 kwargs["NextToken"] = token
             response = self.conn.get_statement_result(**kwargs)
             # we only select a single column (that is a string),
             # so safe to assume that there is only a single col in the record
             pk_columns += [y["stringValue"] for x in response["Records"] for y in x]
-            if "NextToken" not in response.keys():
-                break
-            else:
+            if "NextToken" in response:
                 token = response["NextToken"]
+            else:
+                break
 
         return pk_columns or None

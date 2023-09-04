@@ -31,6 +31,7 @@ import pendulum
 import pytest
 
 from airflow.configuration import conf
+from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler, getattr_nested
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -38,6 +39,7 @@ from airflow.utils.timezone import datetime
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 from .elasticmock import elasticmock
+from .elasticmock.utilities import SearchFailedException
 
 
 def get_ti(dag_id, task_id, execution_date, create_task_instance):
@@ -92,7 +94,7 @@ class TestElasticsearchTaskHandler:
             offset_field=self.offset_field,
         )
 
-        self.es = elasticsearch.Elasticsearch(hosts=[{"host": "localhost", "port": 9200}])
+        self.es = elasticsearch.Elasticsearch("http://localhost:9200")
         self.index_name = "test_index"
         self.doc_type = "log"
         self.test_message = "some random stuff"
@@ -102,6 +104,90 @@ class TestElasticsearchTaskHandler:
     def teardown_method(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
 
+    def test_es_response(self):
+        sample_response = self.es.sample_log_response()
+        es_response = ElasticSearchResponse(self.es_task_handler, sample_response)
+        logs_by_host = self.es_task_handler._group_logs_by_host(es_response)
+
+        def concat_logs(lines):
+            log_range = (
+                (len(lines) - 1) if lines[-1].message == self.es_task_handler.end_of_log_mark else len(lines)
+            )
+            return "\n".join(self.es_task_handler._format_msg(lines[i]) for i in range(log_range))
+
+        for hosted_log in logs_by_host.values():
+            message = concat_logs(hosted_log)
+
+        assert (
+            message == "Dependencies all met for dep_context=non-requeueable"
+            " deps ti=<TaskInstance: example_bash_operator.run_after_loop owen_run_run [queued]>\n"
+            "Starting attempt 1 of 1\nExecuting <Task(BashOperator): run_after_loop> "
+            "on 2023-07-09 07:47:32+00:00"
+        )
+
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            ("http://localhost:9200", "http://localhost:9200"),
+            ("https://localhost:9200", "https://localhost:9200"),
+            ("localhost:9200", "http://localhost:9200"),
+            ("someurl", "http://someurl"),
+            ("https://", "ValueError"),
+        ],
+    )
+    def test_format_url(self, host, expected):
+        """
+        Test the format_url method of the ElasticsearchTaskHandler class.
+        """
+        if expected == "ValueError":
+            with pytest.raises(ValueError):
+                assert ElasticsearchTaskHandler.format_url(host) == expected
+        else:
+            assert ElasticsearchTaskHandler.format_url(host) == expected
+
+    def test_elasticsearch_constructor_retry_timeout_handling(self):
+        """
+        Test if the ElasticsearchTaskHandler constructor properly handles the retry_timeout argument.
+        """
+        # Mock the Elasticsearch client
+        with mock.patch(
+            "airflow.providers.elasticsearch.log.es_task_handler.elasticsearch.Elasticsearch"
+        ) as mock_es:
+            # Test when 'retry_timeout' is present in es_kwargs
+            es_kwargs = {"retry_timeout": 10}
+            ElasticsearchTaskHandler(
+                base_log_folder="dummy_folder",
+                end_of_log_mark="end_of_log_mark",
+                write_stdout=False,
+                json_format=False,
+                json_fields="fields",
+                host_field="host",
+                offset_field="offset",
+                es_kwargs=es_kwargs,
+            )
+
+            # Check the arguments with which the Elasticsearch client is instantiated
+            mock_es.assert_called_once_with("http://localhost:9200", retry_on_timeout=10)
+
+            # Reset the mock for the next test
+            mock_es.reset_mock()
+
+            # Test when 'retry_timeout' is not present in es_kwargs
+            es_kwargs = {}
+            ElasticsearchTaskHandler(
+                base_log_folder="dummy_folder",
+                end_of_log_mark="end_of_log_mark",
+                write_stdout=False,
+                json_format=False,
+                json_fields="fields",
+                host_field="host",
+                offset_field="offset",
+                es_kwargs=es_kwargs,
+            )
+
+            # Check that the Elasticsearch client is instantiated without the 'retry_on_timeout' argument
+            mock_es.assert_called_once_with("http://localhost:9200")
+
     def test_client(self):
         assert isinstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
         assert self.es_task_handler.index_patterns == "_all"
@@ -109,7 +195,7 @@ class TestElasticsearchTaskHandler:
     def test_client_with_config(self):
         es_conf = dict(conf.getsection("elasticsearch_configs"))
         expected_dict = {
-            "use_ssl": False,
+            "http_compress": False,
             "verify_certs": True,
         }
         assert es_conf == expected_dict
@@ -187,7 +273,7 @@ class TestElasticsearchTaskHandler:
     def test_read_with_missing_index(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.es_task_handler, "index_patterns", new="nonexistent,test_*"):
-            with pytest.raises(elasticsearch.exceptions.NotFoundError, match=r".*nonexistent.*"):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError, match=r"IndexMissingException.*"):
                 self.es_task_handler.read(
                     ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
                 )
@@ -341,13 +427,12 @@ class TestElasticsearchTaskHandler:
 
     def test_read_raises(self, ti):
         with mock.patch.object(self.es_task_handler.log, "exception") as mock_exception:
-            with mock.patch("elasticsearch_dsl.Search.execute") as mock_execute:
-                mock_execute.side_effect = Exception("Failed to read")
+            with mock.patch.object(self.es_task_handler.client, "search") as mock_execute:
+                mock_execute.side_effect = SearchFailedException("Failed to read")
                 logs, metadatas = self.es_task_handler.read(ti, 1)
             assert mock_exception.call_count == 1
             args, kwargs = mock_exception.call_args
             assert "Could not read log with log_id:" in args[0]
-
         assert 1 == len(logs)
         assert len(logs) == len(metadatas)
         assert [[]] == logs
@@ -585,7 +670,7 @@ class TestElasticsearchTaskHandler:
         ti.log.info("Test3")
 
         # assert
-        first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().split("\n"))
+        first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().splitlines())
         assert first_log["offset"] < second_log["offset"] < third_log["offset"]
         assert first_log["asctime"] == t1.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert second_log["asctime"] == t2.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")

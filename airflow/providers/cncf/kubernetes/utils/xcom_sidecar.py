@@ -14,11 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module handles all xcom functionality for the KubernetesPodOperator
-by attaching a sidecar container that blocks the pod from completing until
-Airflow has pulled result data into the worker for xcom serialization.
-"""
+"""Attach a sidecar container that blocks the pod from completing until Airflow pulls result data."""
 from __future__ import annotations
 
 import copy

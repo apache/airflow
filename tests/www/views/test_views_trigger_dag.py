@@ -30,6 +30,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_test_client
+from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response
 
 
@@ -287,3 +288,32 @@ def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, ses
         f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
         resp,
     )
+
+
+@pytest.mark.parametrize(
+    "pattern, run_id, result",
+    [
+        ["^[A-Z]", "ABC", True],
+        ["^[A-Z]", "abc", False],
+        ["^[0-9]", "123", True],
+        # The below params tests that user configuration does not affect internally generated
+        # run_ids. We use manual__ as a prefix for manually triggered DAGs due to a restriction
+        # in manually triggered DAGs that the run_id must not start with scheduled__.
+        ["", "manual__2023-01-01T00:00:00+00:00", True],
+        ["", "scheduled_2023-01-01T00", False],
+        ["", "manual_2023-01-01T00", False],
+        ["", "dataset_triggered_2023-01-01T00", False],
+        ["^[0-9]", "manual__2023-01-01T00:00:00+00:00", True],
+        ["^[a-z]", "manual__2023-01-01T00:00:00+00:00", True],
+    ],
+)
+def test_dag_run_id_pattern(session, admin_client, pattern, run_id, result):
+    with conf_vars({("scheduler", "allowed_run_id_pattern"): pattern}):
+        test_dag_id = "example_bash_operator"
+        admin_client.post(f"dags/{test_dag_id}/trigger?&run_id={run_id}")
+        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+        if result:
+            assert run is not None
+            assert run.run_type == DagRunType.MANUAL
+        else:
+            assert run is None

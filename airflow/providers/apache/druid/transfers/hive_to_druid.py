@@ -154,7 +154,7 @@ class HiveToDruidOperator(BaseOperator):
 
     def construct_ingest_query(self, static_path: str, columns: list[str]) -> dict[str, Any]:
         """
-        Builds an ingest query for an HDFS TSV load.
+        Build an ingest query for an HDFS TSV load.
 
         :param static_path: The path on hdfs where the data is
         :param columns: List of all the columns that are available

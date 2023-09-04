@@ -16,8 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from datetime import datetime
+from unittest.mock import MagicMock, patch
 
+import pytest
+from dateutil import tz
+
+from airflow import AirflowException
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 
 
@@ -43,13 +48,22 @@ def test_spark_kubernetes_operator(mock_kubernetes_hook):
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.Watch.stream")
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes._load_body_to_dict")
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
-def test_execute(mock_kubernetes_hook, mock_load_body_to_dict, mock_stream):
+def test_execute_with_watch(mock_kubernetes_hook, mock_load_body_to_dict, mock_stream):
     mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
-    mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
-    mock_stream.side_effect = [[{"type": "ADDED"}], []]
 
-    op = SparkKubernetesOperator(task_id="task_id", application_file="application_file")
-    op.execute({})
+    mock_kubernetes_hook.return_value.create_custom_object.return_value = {
+        "metadata": {"name": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}
+    }
+    mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
+
+    object_mock = MagicMock()
+    object_mock.reason = "SparkDriverRunning"
+    object_mock.last_timestamp = datetime(2022, 1, 1, 23, 59, 59, tzinfo=tz.tzutc())
+    mock_stream.side_effect = [[{"object": object_mock}], []]
+
+    op = SparkKubernetesOperator(task_id="task_id", application_file="application_file", watch=True)
+    operator_output = op.execute({})
+
     mock_kubernetes_hook.return_value.create_custom_object.assert_called_once_with(
         group="sparkoperator.k8s.io",
         version="v1beta2",
@@ -60,21 +74,69 @@ def test_execute(mock_kubernetes_hook, mock_load_body_to_dict, mock_stream):
 
     assert mock_stream.call_count == 2
     mock_stream.assert_any_call(
-        mock_kubernetes_hook.return_value.core_v1_client.list_namespaced_pod,
+        mock_kubernetes_hook.return_value.core_v1_client.list_namespaced_event,
         namespace="default",
-        _preload_content=False,
         watch=True,
-        label_selector="sparkoperator.k8s.io/app-name=spark-app,spark-role=driver",
-        field_selector="status.phase=Running",
+        field_selector="involvedObject.kind=SparkApplication,involvedObject.name=spark-app",
     )
-
     mock_stream.assert_any_call(
         mock_kubernetes_hook.return_value.core_v1_client.read_namespaced_pod_log,
         name="spark-app-driver",
         namespace="default",
-        _preload_content=False,
         timestamps=True,
     )
+
+    assert operator_output == {"metadata": {"name": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}}
+
+
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.on_kill")
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.Watch.stream")
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes._load_body_to_dict")
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+def test_raise_exception_when_job_fails(
+    mock_kubernetes_hook, mock_load_body_to_dict, mock_stream, mock_on_kill
+):
+    mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
+
+    mock_kubernetes_hook.return_value.create_custom_object.return_value = {
+        "metadata": {"name": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}
+    }
+    mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
+
+    object_mock = MagicMock()
+    object_mock.reason = "SparkApplicationFailed"
+    object_mock.message = "spark-app submission failed"
+    object_mock.last_timestamp = datetime(2022, 1, 1, 23, 59, 59, tzinfo=tz.tzutc())
+
+    mock_stream.side_effect = [[{"object": object_mock}], []]
+    op = SparkKubernetesOperator(task_id="task_id", application_file="application_file", watch=True)
+    with pytest.raises(AirflowException, match="spark-app submission failed"):
+        op.execute({})
+
+    assert mock_on_kill.has_called_once()
+
+
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes._load_body_to_dict")
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+def test_execute_without_watch(mock_kubernetes_hook, mock_load_body_to_dict):
+    mock_load_body_to_dict.return_value = {"metadata": {"name": "spark-app"}}
+
+    mock_kubernetes_hook.return_value.create_custom_object.return_value = {
+        "metadata": {"name": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}
+    }
+    mock_kubernetes_hook.return_value.get_namespace.return_value = "default"
+
+    op = SparkKubernetesOperator(task_id="task_id", application_file="application_file")
+    operator_output = op.execute({})
+
+    mock_kubernetes_hook.return_value.create_custom_object.assert_called_once_with(
+        group="sparkoperator.k8s.io",
+        version="v1beta2",
+        plural="sparkapplications",
+        body={"metadata": {"name": "spark-app"}},
+        namespace="default",
+    )
+    assert operator_output == {"metadata": {"name": "spark-app", "creationTimestamp": "2022-01-01T00:00:00Z"}}
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes._load_body_to_dict")

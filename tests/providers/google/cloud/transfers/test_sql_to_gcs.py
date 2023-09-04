@@ -140,7 +140,7 @@ class TestBaseSQLToGCSOperator:
         ]
         mock_file.flush.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
         csv_calls = []
-        for i in range(0, 3):
+        for i in range(3):
             csv_calls.append(
                 mock.call(
                     BUCKET,
@@ -449,6 +449,42 @@ class TestBaseSQLToGCSOperator:
         df = pd.read_parquet(file.name)
         assert df.equals(OUTPUT_DF)
 
+    def test__write_local_data_files_parquet_with_row_size(self):
+        import math
+
+        import pyarrow.parquet as pq
+
+        op = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            schema_filename=SCHEMA_FILE,
+            export_format="parquet",
+            gzip=False,
+            schema=SCHEMA,
+            gcp_conn_id="google_cloud_default",
+            parquet_row_group_size=8,
+        )
+        input_data = INPUT_DATA * 10
+        output_df = pd.DataFrame([["convert_type_return_value"] * 3] * 30, columns=COLUMNS)
+
+        cursor = MagicMock()
+        cursor.__iter__.return_value = input_data
+        cursor.description = CURSOR_DESCRIPTION
+
+        files = op._write_local_data_files(cursor)
+        file = next(files)["file_handle"]
+        file.flush()
+        df = pd.read_parquet(file.name)
+        assert df.equals(output_df)
+        parquet_file = pq.ParquetFile(file.name)
+        assert parquet_file.num_row_groups == math.ceil((len(INPUT_DATA) * 10) / op.parquet_row_group_size)
+        tolerance = 1
+        for i in range(parquet_file.num_row_groups):
+            row_group_size = parquet_file.metadata.row_group(i).num_rows
+            assert row_group_size == op.parquet_row_group_size or (tolerance := tolerance - 1) >= 0
+
     def test__write_local_data_files_json_with_exclude_columns(self):
         op = DummySQLToGCSOperator(
             sql=SQL,
@@ -519,9 +555,7 @@ class TestBaseSQLToGCSOperator:
         files = op._write_local_data_files(cursor)
         # Raises StopIteration when next is called because generator returns no files
         with pytest.raises(StopIteration):
-            next(files)["file_handle"]
-
-        assert len([f for f in files]) == 0
+            next(files)
 
     def test__write_local_data_files_csv_writes_empty_file_with_write_on_empty(self):
         op = DummySQLToGCSOperator(

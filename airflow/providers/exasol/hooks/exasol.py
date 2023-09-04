@@ -18,13 +18,17 @@
 from __future__ import annotations
 
 from contextlib import closing
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Sequence, TypeVar, overload
 
-import pandas as pd
 import pyexasol
 from pyexasol import ExaConnection, ExaStatement
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+
+if TYPE_CHECKING:
+    import pandas as pd
+
+T = TypeVar("T")
 
 
 class ExasolHook(DbApiHook):
@@ -52,12 +56,12 @@ class ExasolHook(DbApiHook):
     def get_conn(self) -> ExaConnection:
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.get_connection(conn_id)
-        conn_args = dict(
-            dsn=f"{conn.host}:{conn.port}",
-            user=conn.login,
-            password=conn.password,
-            schema=self.schema or conn.schema,
-        )
+        conn_args = {
+            "dsn": f"{conn.host}:{conn.port}",
+            "user": conn.login,
+            "password": conn.password,
+            "schema": self.schema or conn.schema,
+        }
         # check for parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name in ["compression", "encryption", "json_lib", "client_name"]:
@@ -66,7 +70,9 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(self, sql: str, parameters: dict | None = None, **kwargs) -> pd.DataFrame:
+    def get_pandas_df(
+        self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
+    ) -> pd.DataFrame:
         """Execute the SQL and return a Pandas dataframe.
 
         :param sql: The sql statement to be executed (str) or a list of
@@ -83,7 +89,7 @@ class ExasolHook(DbApiHook):
     def get_records(
         self,
         sql: str | list[str],
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> list[dict | tuple[Any, ...]]:
         """Execute the SQL and return a set of records.
 
@@ -91,20 +97,18 @@ class ExasolHook(DbApiHook):
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.execute(sql, parameters)) as cur:
-                return cur.fetchall()
+        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+            return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """Execute the SQL and return the first resulting row.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.execute(sql, parameters)) as cur:
-                return cur.fetchone()
+        with closing(self.get_conn()) as conn, closing(conn.execute(sql, parameters)) as cur:
+            return cur.fetchone()
 
     def export_to_file(
         self,
@@ -157,15 +161,39 @@ class ExasolHook(DbApiHook):
             )
         return cols
 
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None:
+        ...
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> T | list[T]:
+        ...
+
     def run(
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
-        handler: Callable | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> Any | list[Any] | None:
+    ) -> T | list[T] | None:
         """Run a command or a list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to

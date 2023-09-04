@@ -18,16 +18,21 @@ from __future__ import annotations
 
 from contextlib import closing
 from copy import copy
-from typing import Any, Callable, Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
 
 from databricks import sql  # type: ignore[attr-defined]
-from databricks.sql.client import Connection  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
+if TYPE_CHECKING:
+    from databricks.sql.client import Connection
+
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
+
+
+T = TypeVar("T")
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
@@ -78,7 +83,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
     def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
-        for arg in ["http_path", "session_configuration"] + self.extra_parameters:
+        for arg in ["http_path", "session_configuration", *self.extra_parameters]:
             if arg in extra_params:
                 del extra_params[arg]
 
@@ -88,10 +93,12 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         result = self._do_api_call(LIST_SQL_ENDPOINTS_ENDPOINT)
         if "endpoints" not in result:
             raise AirflowException("Can't list Databricks SQL endpoints")
-        lst = [endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name]
-        if len(lst) == 0:
-            raise AirflowException(f"Can't f Databricks SQL endpoint with name '{endpoint_name}'")
-        return lst[0]
+        try:
+            endpoint = next(endpoint for endpoint in result["endpoints"] if endpoint["name"] == endpoint_name)
+        except StopIteration:
+            raise AirflowException(f"Can't find Databricks SQL endpoint with name '{endpoint_name}'")
+        else:
+            return endpoint
 
     def get_conn(self) -> Connection:
         """Returns a Databricks SQL connection object."""
@@ -138,15 +145,39 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             )
         return self._sql_conn
 
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None:
+        ...
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> T | list[T]:
+        ...
+
     def run(
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
-        handler: Callable | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: Callable[[Any], T] | None = None,
         split_statements: bool = True,
         return_last: bool = True,
-    ) -> Any | list[Any] | None:
+    ) -> T | list[T] | None:
         """Runs a command or a list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
@@ -179,10 +210,12 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         else:
             raise ValueError("List of SQL statements is empty")
 
+        conn = None
         results = []
         for sql_statement in sql_list:
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
-            with closing(self.get_conn()) as conn:
+            conn = self.get_conn()
+            with closing(conn.cursor()) as cur:
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
@@ -195,7 +228,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                         else:
                             results.append(result)
                             self.descriptions.append(cur.description)
-
+        if conn:
+            conn.close()
             self._sql_conn = None
 
         if handler is None:

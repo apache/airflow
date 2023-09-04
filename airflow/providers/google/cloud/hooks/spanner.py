@@ -18,27 +18,44 @@
 """This module contains a Google Cloud Spanner Hook."""
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from typing import TYPE_CHECKING, Callable, NamedTuple, Sequence
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.spanner_v1.client import Client
-from google.cloud.spanner_v1.database import Database
-from google.cloud.spanner_v1.instance import Instance
-from google.cloud.spanner_v1.transaction import Transaction
-from google.longrunning.operations_grpc_pb2 import Operation
+from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
+
+if TYPE_CHECKING:
+    from google.cloud.spanner_v1.database import Database
+    from google.cloud.spanner_v1.instance import Instance
+    from google.cloud.spanner_v1.transaction import Transaction
+    from google.longrunning.operations_grpc_pb2 import Operation
 
 
-class SpannerHook(GoogleBaseHook):
+class SpannerConnectionParams(NamedTuple):
+    """Information about Google Spanner connection parameters."""
+
+    project_id: str | None
+    instance_id: str | None
+    database_id: str | None
+
+
+class SpannerHook(GoogleBaseHook, DbApiHook):
     """
     Hook for Google Cloud Spanner APIs.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
     """
+
+    conn_name_attr = "gcp_conn_id"
+    default_conn_name = "google_cloud_spanner_default"
+    conn_type = "gcpspanner"
+    hook_name = "Google Cloud Spanner"
 
     def __init__(
         self,
@@ -69,6 +86,34 @@ class SpannerHook(GoogleBaseHook):
                 project=project_id, credentials=self.get_credentials(), client_info=CLIENT_INFO
             )
         return self._client
+
+    def _get_conn_params(self) -> SpannerConnectionParams:
+        """Extract spanner database connection parameters."""
+        extras = self.get_connection(self.gcp_conn_id).extra_dejson
+        project_id = get_field(extras, "project_id") or self.project_id
+        instance_id = get_field(extras, "instance_id")
+        database_id = get_field(extras, "database_id")
+        return SpannerConnectionParams(project_id, instance_id, database_id)
+
+    def get_uri(self) -> str:
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
+        project_id, instance_id, database_id = self._get_conn_params()
+        if not all([instance_id, database_id]):
+            raise AirflowException("The instance_id or database_id were not specified")
+        return f"spanner+spanner:///projects/{project_id}/instances/{instance_id}/databases/{database_id}"
+
+    def get_sqlalchemy_engine(self, engine_kwargs=None):
+        """
+        Get an sqlalchemy_engine object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        :return: the created engine.
+        """
+        if engine_kwargs is None:
+            engine_kwargs = {}
+        project_id, _, _ = self._get_conn_params()
+        spanner_client = self._get_client(project_id=project_id)
+        return create_engine(self.get_uri(), connect_args={"client": spanner_client}, **engine_kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(
@@ -215,8 +260,7 @@ class SpannerHook(GoogleBaseHook):
         project_id: str,
     ) -> Database | None:
         """
-        Retrieves a database in Cloud Spanner. If the database does not exist
-        in the specified instance, it returns None.
+        Retrieves a database in Cloud Spanner; return None if the database does not exist in the instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
         :param database_id: The ID of the database in Cloud Spanner.

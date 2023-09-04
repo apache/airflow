@@ -27,7 +27,7 @@ and then integrate those models into your applications and web sites.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:CloudAutoMLDocuments:
 .. _howto/operator:AutoMLCreateDatasetOperator:

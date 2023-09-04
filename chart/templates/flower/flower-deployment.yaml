@@ -29,10 +29,11 @@
 {{- $revisionHistoryLimit := or .Values.flower.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.flower) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.flower) }}
-kind: Deployment
+{{- $containerLifecycleHooks := or .Values.flower.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-flower
+  name: {{ include "airflow.fullname" . }}-flower
   labels:
     tier: airflow
     component: flower
@@ -90,6 +91,9 @@ spec:
           image: {{ template "flower_image" . }}
           imagePullPolicy: {{ .Values.images.flower.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.flower.command }}
           command: {{ tpl (toYaml .Values.flower.command) . | nindent 12 }}
           {{- end }}
@@ -103,7 +107,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.flower.extraVolumeMounts }}
-              {{- toYaml .Values.flower.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.flower.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
           ports:
             - name: flower-ui
@@ -156,7 +160,7 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.flower.extraVolumes }}
-          {{- toYaml .Values.flower.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.flower.extraVolumes) . | nindent 8 }}
         {{- end }}
 {{- end }}
 {{- end }}

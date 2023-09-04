@@ -17,16 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-from pydantic import parse_raw_as
-
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
+from airflow.models.dag import DagModel
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
     DatasetEvent,
     DatasetModel,
     TaskOutletDatasetReference,
 )
+from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.job import JobPydantic
@@ -44,12 +44,12 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
     ti.next_kwargs = {"foo": "bar"}
     session.commit()
 
-    pydantic_task_instance = TaskInstancePydantic.from_orm(ti)
+    pydantic_task_instance = TaskInstancePydantic.model_validate(ti)
 
-    json_string = pydantic_task_instance.json()
+    json_string = pydantic_task_instance.model_dump_json()
     print(json_string)
 
-    deserialized_model = parse_raw_as(TaskInstancePydantic, json_string)
+    deserialized_model = TaskInstancePydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == dag_id
     assert deserialized_model.state == State.RUNNING
     assert deserialized_model.try_number == ti.try_number
@@ -63,14 +63,35 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
     ti.dag_run.state = State.RUNNING
     session.commit()
 
-    pydantic_dag_run = DagRunPydantic.from_orm(ti.dag_run)
+    pydantic_dag_run = DagRunPydantic.model_validate(ti.dag_run)
 
-    json_string = pydantic_dag_run.json()
+    json_string = pydantic_dag_run.model_dump_json()
     print(json_string)
 
-    deserialized_model = parse_raw_as(DagRunPydantic, json_string)
+    deserialized_model = DagRunPydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == dag_id
     assert deserialized_model.state == State.RUNNING
+
+
+def test_serializing_pydantic_dagmodel():
+    dag_model = DagModel(
+        dag_id="test-dag",
+        fileloc="/tmp/dag_1.py",
+        schedule_interval="2 2 * * *",
+        is_active=True,
+        is_paused=False,
+    )
+
+    pydantic_dag_model = DagModelPydantic.model_validate(dag_model)
+    json_string = pydantic_dag_model.model_dump_json()
+    print(json_string)
+
+    deserialized_model = DagModelPydantic.model_validate_json(json_string)
+    assert deserialized_model.dag_id == "test-dag"
+    assert deserialized_model.fileloc == "/tmp/dag_1.py"
+    assert deserialized_model.schedule_interval == "2 2 * * *"
+    assert deserialized_model.is_active is True
+    assert deserialized_model.is_paused is False
 
 
 def test_serializing_pydantic_local_task_job(session, create_task_instance):
@@ -80,12 +101,12 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
     LocalTaskJobRunner(job=ltj, task_instance=ti)
     ltj.state = State.RUNNING
     session.commit()
-    pydantic_job = JobPydantic.from_orm(ltj)
+    pydantic_job = JobPydantic.model_validate(ltj)
 
-    json_string = pydantic_job.json()
+    json_string = pydantic_job.model_dump_json()
     print(json_string)
 
-    deserialized_model = parse_raw_as(JobPydantic, json_string)
+    deserialized_model = JobPydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == dag_id
     assert deserialized_model.job_type == "LocalTaskJob"
     assert deserialized_model.state == State.RUNNING
@@ -127,29 +148,29 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     session.commit()
 
     print(ds2_event_2.dataset.consuming_dags)
-    pydantic_dse1 = DatasetEventPydantic.from_orm(ds1_event)
-    json_string1 = pydantic_dse1.json()
+    pydantic_dse1 = DatasetEventPydantic.model_validate(ds1_event)
+    json_string1 = pydantic_dse1.model_dump_json()
     print(json_string1)
 
-    pydantic_dse2 = DatasetEventPydantic.from_orm(ds2_event_1)
-    json_string2 = pydantic_dse2.json()
+    pydantic_dse2 = DatasetEventPydantic.model_validate(ds2_event_1)
+    json_string2 = pydantic_dse2.model_dump_json()
     print(json_string2)
 
-    pydantic_dag_run = DagRunPydantic.from_orm(dr)
-    json_string_dr = pydantic_dag_run.json()
+    pydantic_dag_run = DagRunPydantic.model_validate(dr)
+    json_string_dr = pydantic_dag_run.model_dump_json()
     print(json_string_dr)
 
-    deserialized_model1 = parse_raw_as(DatasetEventPydantic, json_string1)
+    deserialized_model1 = DatasetEventPydantic.model_validate_json(json_string1)
     assert deserialized_model1.dataset.id == 1
     assert deserialized_model1.dataset.uri == "one"
     assert len(deserialized_model1.dataset.consuming_dags) == 1
     assert len(deserialized_model1.dataset.producing_tasks) == 1
 
-    deserialized_model2 = parse_raw_as(DatasetEventPydantic, json_string2)
+    deserialized_model2 = DatasetEventPydantic.model_validate_json(json_string2)
     assert deserialized_model2.dataset.id == 2
     assert deserialized_model2.dataset.uri == "two"
     assert len(deserialized_model2.dataset.consuming_dags) == 0
     assert len(deserialized_model2.dataset.producing_tasks) == 0
 
-    deserialized_dr = parse_raw_as(DagRunPydantic, json_string_dr)
+    deserialized_dr = DagRunPydantic.model_validate_json(json_string_dr)
     assert len(deserialized_dr.consumed_dataset_events) == 3

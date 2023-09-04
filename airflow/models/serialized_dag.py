@@ -20,15 +20,16 @@ from __future__ import annotations
 
 import logging
 import zlib
-from datetime import datetime, timedelta
+from datetime import timedelta
+from typing import TYPE_CHECKING, Collection
 
 import sqlalchemy_jsonfield
-from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_
-from sqlalchemy.orm import Session, backref, foreign, relationship
+from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_, select
+from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
 from airflow.models.base import ID_LEN, Base
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
@@ -37,6 +38,13 @@ from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session
+
+    from airflow.models.dag import DAG
 
 log = logging.getLogger(__name__)
 
@@ -127,7 +135,9 @@ class SerializedDagModel(Base):
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ) -> bool:
-        """Serializes a DAG and writes it into database.
+        """
+        Serialize a DAG and writes it into database.
+
         If the record already exists, it checks if the Serialized DAG changed or not. If it is
         changed, it updates the record, ignores otherwise.
 
@@ -141,23 +151,19 @@ class SerializedDagModel(Base):
         # If Yes, does nothing
         # If No or the DAG does not exists, updates / writes Serialized DAG to DB
         if min_update_interval is not None:
-            if (
-                session.query(literal(True))
-                .filter(
-                    and_(
-                        cls.dag_id == dag.dag_id,
-                        (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
-                    )
+            if session.scalar(
+                select(literal(True)).where(
+                    cls.dag_id == dag.dag_id,
+                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
                 )
-                .scalar()
             ):
                 return False
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag, processor_subdir)
-        serialized_dag_db = (
-            session.query(cls.dag_hash, cls.processor_subdir).filter(cls.dag_id == dag.dag_id).first()
-        )
+        serialized_dag_db = session.execute(
+            select(cls.dag_hash, cls.processor_subdir).where(cls.dag_id == dag.dag_id)
+        ).first()
 
         if (
             serialized_dag_db is not None
@@ -175,12 +181,12 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
-        """Reads all DAGs in serialized_dag table.
+        """Read all DAGs in serialized_dag table.
 
         :param session: ORM Session
         :returns: a dict of DAGs read from database
         """
-        serialized_dags = session.query(cls)
+        serialized_dags = session.scalars(select(cls))
 
         dags = {}
         for row in serialized_dags:
@@ -224,7 +230,9 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def remove_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> None:
-        """Deletes a DAG with given dag_id.
+        """
+        Delete a DAG with given dag_id.
+
         :param dag_id: dag_id to be deleted
         :param session: ORM Session.
         """
@@ -234,13 +242,14 @@ class SerializedDagModel(Base):
     @provide_session
     def remove_deleted_dags(
         cls,
-        alive_dag_filelocs: list[str],
+        alive_dag_filelocs: Collection[str],
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Deletes DAGs not included in alive_dag_filelocs.
+        """Delete DAGs not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
+        :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
         alive_fileloc_hashes = [DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
@@ -265,12 +274,12 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
-        """Checks a DAG exist in serialized_dag table.
+        """Check a DAG exist in serialized_dag table.
 
         :param dag_id: the DAG to check
         :param session: ORM Session
         """
-        return session.query(literal(True)).filter(cls.dag_id == dag_id).first() is not None
+        return session.scalar(select(literal(True)).where(cls.dag_id == dag_id).limit(1)) is not None
 
     @classmethod
     @provide_session
@@ -285,21 +294,21 @@ class SerializedDagModel(Base):
     def get(cls, dag_id: str, session: Session = NEW_SESSION) -> SerializedDagModel | None:
         """
         Get the SerializedDAG for the given dag ID.
-        It will cope with being passed the ID of a subdag by looking up the
-        root dag_id from the DAG table.
+
+        It will cope with being passed the ID of a subdag by looking up the root dag_id from the DAG table.
 
         :param dag_id: the DAG to fetch
         :param session: ORM Session
         """
-        row = session.query(cls).filter(cls.dag_id == dag_id).one_or_none()
+        row = session.scalar(select(cls).where(cls.dag_id == dag_id))
         if row:
             return row
 
         # If we didn't find a matching DAG id then ask the DAG table to find
         # out the root dag
-        root_dag_id = session.query(DagModel.root_dag_id).filter(DagModel.dag_id == dag_id).scalar()
+        root_dag_id = session.scalar(select(DagModel.root_dag_id).where(DagModel.dag_id == dag_id))
 
-        return session.query(cls).filter(cls.dag_id == root_dag_id).one_or_none()
+        return session.scalar(select(cls).where(cls.dag_id == root_dag_id))
 
     @staticmethod
     @provide_session
@@ -309,8 +318,9 @@ class SerializedDagModel(Base):
         session: Session = NEW_SESSION,
     ) -> None:
         """
-        Saves DAGs as Serialized DAG objects in the database. Each
-        DAG is saved in a separate database query.
+        Save DAGs as Serialized DAG objects in the database.
+
+        Each DAG is saved in a separate database query.
 
         :param dags: the DAG objects to save to the DB
         :param session: ORM Session
@@ -329,13 +339,12 @@ class SerializedDagModel(Base):
     @provide_session
     def get_last_updated_datetime(cls, dag_id: str, session: Session = NEW_SESSION) -> datetime | None:
         """
-        Get the date when the Serialized DAG associated to DAG was last updated
-        in serialized_dag table.
+        Get the date when the Serialized DAG associated to DAG was last updated in serialized_dag table.
 
         :param dag_id: DAG ID
         :param session: ORM Session
         """
-        return session.query(cls.last_updated).filter(cls.dag_id == dag_id).scalar()
+        return session.scalar(select(cls.last_updated).where(cls.dag_id == dag_id))
 
     @classmethod
     @provide_session
@@ -345,7 +354,7 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
-        return session.query(func.max(cls.last_updated)).scalar()
+        return session.scalar(select(func.max(cls.last_updated)))
 
     @classmethod
     @provide_session
@@ -357,7 +366,7 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         :return: DAG Hash, or None if the DAG is not found
         """
-        return session.query(cls.dag_hash).filter(cls.dag_id == dag_id).scalar()
+        return session.scalar(select(cls.dag_hash).where(cls.dag_id == dag_id))
 
     @classmethod
     def get_latest_version_hash_and_updated_datetime(
@@ -367,15 +376,16 @@ class SerializedDagModel(Base):
         session: Session,
     ) -> tuple[str, datetime] | None:
         """
-        Get the latest DAG version for a given DAG ID, as well as the date when the Serialized DAG associated
-        to DAG was last updated in serialized_dag table.
+        Get the latest version for a DAG ID and the date it was last updated in serialized_dag table.
 
         :meta private:
         :param dag_id: DAG ID
         :param session: ORM Session
         :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
         """
-        return session.query(cls.dag_hash, cls.last_updated).filter(cls.dag_id == dag_id).one_or_none()
+        return session.execute(
+            select(cls.dag_hash, cls.last_updated).where(cls.dag_id == dag_id)
+        ).one_or_none()
 
     @classmethod
     @provide_session
@@ -386,11 +396,15 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         """
         if session.bind.dialect.name in ["sqlite", "mysql"]:
-            query = session.query(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
+            query = session.execute(
+                select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies"))
+            )
             iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         elif session.bind.dialect.name == "mssql":
-            query = session.query(cls.dag_id, func.json_query(cls._data, "$.dag.dag_dependencies"))
+            query = session.execute(select(cls.dag_id, func.json_query(cls._data, "$.dag.dag_dependencies")))
             iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
         else:
-            iterator = session.query(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
+            iterator = session.execute(
+                select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
+            )
         return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}

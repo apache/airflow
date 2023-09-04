@@ -24,10 +24,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from dateutil.tz import tzlocal
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink
 from airflow.providers.amazon.aws.sensors.emr import EmrStepSensor
+from airflow.providers.amazon.aws.triggers.emr import EmrStepSensorTrigger
 
 DESCRIBE_JOB_STEP_RUNNING_RETURN = {
     "ResponseMetadata": {"HTTPStatusCode": 200, "RequestId": "8dee8db2-3719-11e6-9e20-35b2f861a2a6"},
@@ -230,3 +231,20 @@ class TestEmrStepSensor:
             mock_isinstance.return_value = True
             with pytest.raises(AirflowException):
                 self.sensor.execute(None)
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrStepSensor.poke")
+    def test_sensor_defer(self, mock_poke):
+        """Test the execute method raise TaskDeferred if running sensor in deferrable mode"""
+        sensor = EmrStepSensor(
+            task_id="test_task",
+            poke_interval=0,
+            job_flow_id="j-8989898989",
+            step_id="s-VK57YR1Z9Z5N",
+            aws_conn_id="aws_default",
+            deferrable=True,
+        )
+
+        mock_poke.return_value = False
+        with pytest.raises(TaskDeferred) as exc:
+            sensor.execute(context=None)
+        assert isinstance(exc.value.trigger, EmrStepSensorTrigger), "Trigger is not a EmrStepSensorTrigger"

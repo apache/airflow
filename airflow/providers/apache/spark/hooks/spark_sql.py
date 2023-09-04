@@ -29,8 +29,7 @@ if TYPE_CHECKING:
 
 class SparkSqlHook(BaseHook):
     """
-    This hook is a wrapper around the spark-sql binary. It requires that the
-    "spark-sql" binary is in the PATH.
+    This hook is a wrapper around the spark-sql binary; requires the "spark-sql" binary to be in the PATH.
 
     :param sql: The SQL query to execute
     :param conf: arbitrary Spark configuration property
@@ -112,8 +111,7 @@ class SparkSqlHook(BaseHook):
 
     def _prepare_command(self, cmd: str | list[str]) -> list[str]:
         """
-        Construct the spark-sql command to execute. Verbose output is enabled
-        as default.
+        Construct the spark-sql command to execute. Verbose output is enabled as default.
 
         :param cmd: command to append to the spark-sql command
         :return: full command to be executed
@@ -136,7 +134,7 @@ class SparkSqlHook(BaseHook):
             connection_cmd += ["--num-executors", str(self._num_executors)]
         if self._sql:
             sql = self._sql.strip()
-            if sql.endswith(".sql") or sql.endswith(".hql"):
+            if sql.endswith((".sql", ".hql")):
                 connection_cmd += ["-f", sql]
             else:
                 connection_cmd += ["-e", sql]

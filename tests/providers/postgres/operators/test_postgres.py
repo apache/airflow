@@ -20,6 +20,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.models.dag import DAG
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.utils import timezone
 
@@ -38,7 +39,6 @@ class TestPostgres:
 
     def teardown_method(self):
         tables_to_drop = ["test_postgres_to_postgres", "test_airflow"]
-        from airflow.providers.postgres.hooks.postgres import PostgresHook
 
         with PostgresHook().get_conn() as conn:
             with conn.cursor() as cur:
@@ -112,3 +112,81 @@ class TestPostgres:
             runtime_parameters={"statement_timeout": "3000ms"},
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        assert op.get_db_hook().get_first("SHOW statement_timeout;")[0] == "3s"
+
+
+@pytest.mark.backend("postgres")
+class TestPostgresOpenLineage:
+    custom_schemas = ["another_schema"]
+
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag = dag
+
+        with PostgresHook().get_conn() as conn:
+            with conn.cursor() as cur:
+                for schema in self.custom_schemas:
+                    cur.execute(f"CREATE SCHEMA {schema}")
+
+    def teardown_method(self):
+        tables_to_drop = ["test_postgres_to_postgres", "test_airflow"]
+
+        with PostgresHook().get_conn() as conn:
+            with conn.cursor() as cur:
+                for table in tables_to_drop:
+                    cur.execute(f"DROP TABLE IF EXISTS {table}")
+                for schema in self.custom_schemas:
+                    cur.execute(f"DROP SCHEMA {schema} CASCADE")
+
+    def test_postgres_operator_openlineage_implicit_schema(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS test_airflow (
+            dummy VARCHAR(50)
+        );
+        """
+        op = PostgresOperator(
+            task_id="basic_postgres",
+            sql=sql,
+            dag=self.dag,
+            hook_params={"options": "-c search_path=another_schema"},
+        )
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 0
+        assert len(lineage.outputs) == 0
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # OpenLineage provider runs same method on complete by default
+        lineage_on_complete = op.get_openlineage_facets_on_start()
+        assert len(lineage_on_complete.inputs) == 0
+        assert len(lineage_on_complete.outputs) == 1
+        assert lineage_on_complete.outputs[0].namespace == "postgres://postgres:5432"
+        assert lineage_on_complete.outputs[0].name == "airflow.another_schema.test_airflow"
+        assert "schema" in lineage_on_complete.outputs[0].facets
+
+    def test_postgres_operator_openlineage_explicit_schema(self):
+        sql = """
+        CREATE TABLE IF NOT EXISTS public.test_airflow (
+            dummy VARCHAR(50)
+        );
+        """
+        op = PostgresOperator(
+            task_id="basic_postgres",
+            sql=sql,
+            dag=self.dag,
+            hook_params={"options": "-c search_path=another_schema"},
+        )
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 0
+        assert len(lineage.outputs) == 0
+        op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # OpenLineage provider runs same method on complete by default
+        lineage_on_complete = op.get_openlineage_facets_on_start()
+        assert len(lineage_on_complete.inputs) == 0
+        assert len(lineage_on_complete.outputs) == 1
+        assert lineage_on_complete.outputs[0].namespace == "postgres://postgres:5432"
+        assert lineage_on_complete.outputs[0].name == "airflow.public.test_airflow"
+        assert "schema" in lineage_on_complete.outputs[0].facets

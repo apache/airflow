@@ -20,9 +20,7 @@ import platform
 import shutil
 import subprocess
 import sys
-from typing import Any
-
-from click import Context
+from typing import TYPE_CHECKING, Any
 
 from airflow_breeze.commands.ci_image_commands import ci_image
 from airflow_breeze.commands.production_image_commands import prod_image
@@ -32,6 +30,7 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
+    option_builder,
     option_db_reset,
     option_dry_run,
     option_forward_credentials,
@@ -50,6 +49,9 @@ from airflow_breeze.utils.docker_command_utils import remove_docker_networks
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
+
+if TYPE_CHECKING:
+    from click import Context
 
 
 def print_deprecated(deprecated_command: str, command_to_use: str):
@@ -100,6 +102,7 @@ class MainGroupWithAliases(BreezeGroup):
 )
 @option_python
 @option_backend
+@option_builder
 @option_postgres_version
 @option_mysql_version
 @option_mssql_version

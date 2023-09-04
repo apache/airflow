@@ -139,6 +139,30 @@ class TestSchedulerCommand:
         with pytest.raises(AssertionError):
             mock_process.assert_has_calls([mock.call(target=serve_health_check)])
 
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    @mock.patch("airflow.cli.commands.scheduler_command.run_job", side_effect=Exception("run_job failed"))
+    @mock.patch("airflow.cli.commands.scheduler_command.log")
+    def test_run_job_exception_handling(
+        self,
+        mock_log,
+        mock_run_job,
+        mock_process,
+        mock_scheduler_job,
+    ):
+        args = self.parser.parse_args(["scheduler"])
+        scheduler_command.scheduler(args)
+
+        # Make sure that run_job is called, that the exception has been logged, and that the serve_logs
+        # sub-process has been terminated
+        mock_run_job.assert_called_once_with(
+            job=mock_scheduler_job().job,
+            execute_callable=mock_scheduler_job()._execute,
+        )
+        mock_log.exception.assert_called_once_with("Exception when running scheduler job")
+        mock_process.assert_called_once_with(target=serve_logs)
+        mock_process().terminate.assert_called_once_with()
+
 
 # Creating MockServer subclass of the HealthServer handler so that we can test the do_GET logic
 class MockServer(HealthServer):

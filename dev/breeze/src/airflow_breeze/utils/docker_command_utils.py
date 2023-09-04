@@ -23,11 +23,9 @@ import sys
 from copy import deepcopy
 from random import randint
 from subprocess import DEVNULL, CalledProcessError, CompletedProcess
+from typing import TYPE_CHECKING
 
-from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.params.common_build_params import CommonBuildParams
-from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -65,6 +63,11 @@ from airflow_breeze.utils.run_utils import (
     run_command,
 )
 
+if TYPE_CHECKING:
+    from airflow_breeze.params.build_ci_params import BuildCiParams
+    from airflow_breeze.params.common_build_params import CommonBuildParams
+    from airflow_breeze.params.shell_params import ShellParams
+
 # Those are volumes that are mounted when MOUNT_SELECTED is chosen (which is the default when
 # entering Breeze. MOUNT_SELECTED prevents to mount the files that you can have accidentally added
 # in your sources (or they were added automatically by setup.py etc.) to be mounted to container.
@@ -76,7 +79,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     (".bash_aliases", "/root/.bash_aliases"),
     (".bash_history", "/root/.bash_history"),
     (".build", "/opt/airflow/.build"),
-    (".coveragerc", "/opt/airflow/.coveragerc"),
     (".dockerignore", "/opt/airflow/.dockerignore"),
     (".github", "/opt/airflow/.github"),
     (".inputrc", "/root/.inputrc"),
@@ -102,6 +104,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("setup.cfg", "/opt/airflow/setup.cfg"),
     ("setup.py", "/opt/airflow/setup.py"),
     ("tests", "/opt/airflow/tests"),
+    ("helm_tests", "/opt/airflow/helm_tests"),
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
     ("docker_tests", "/opt/airflow/docker_tests"),
     ("chart", "/opt/airflow/chart"),
@@ -249,6 +252,7 @@ def check_docker_version():
 [warning]install docker at least: {MIN_DOCKER_VERSION} version.[/]
 """
             )
+            sys.exit(1)
         else:
             good_version = compare_version(docker_version, MIN_DOCKER_VERSION)
             if good_version:
@@ -256,10 +260,12 @@ def check_docker_version():
             else:
                 get_console().print(
                     f"""
-[warning]Your version of docker is too old:{docker_version}.
-Please upgrade to at least {MIN_DOCKER_VERSION}[/]
+[error]Your version of docker is too old: {docker_version}.\n[/]
+[warning]Please upgrade to at least {MIN_DOCKER_VERSION}.\n[/]
+You can find installation instructions here: https://docs.docker.com/engine/install/
 """
                 )
+                sys.exit(1)
 
 
 def check_remote_ghcr_io_commands():
@@ -282,6 +288,9 @@ def check_remote_ghcr_io_commands():
                 "[error]\nYou seem to be offline. This command requires access to network.[/]\n"
             )
             sys.exit(2)
+        get_console().print("[error]Response:[/]\n")
+        get_console().print(response.stdout.decode("utf-8"))
+        get_console().print(response.stderr.decode("utf-8"))
         if os.environ.get("CI"):
             get_console().print(
                 "\n[error]We are extremely sorry but you've hit the rare case that the "
@@ -300,9 +309,6 @@ def check_remote_ghcr_io_commands():
                 "   docker logout ghcr.io\n\n"
             )
             sys.exit(1)
-
-
-DOCKER_COMPOSE_COMMAND = ["docker", "compose"]
 
 
 def check_docker_compose_version():
@@ -324,73 +330,38 @@ def check_docker_compose_version():
             dry_run_override=False,
         )
     except Exception:
-        docker_compose_version_command = ["docker-compose", "--version"]
-        docker_compose_version_result = run_command(
-            docker_compose_version_command,
-            no_output_dump_on_exception=True,
-            capture_output=True,
-            text=True,
-            dry_run_override=False,
+        get_console().print(
+            "[error]You either do not have docker-composer or have docker-compose v1 installed.[/]\n"
+            "[warning]Breeze does not support docker-compose v1 any more as it has been replaced by v2.[/]\n"
+            "Follow https://docs.docker.com/compose/migrate/ to migrate to v2"
         )
-        DOCKER_COMPOSE_COMMAND.clear()
-        DOCKER_COMPOSE_COMMAND.append("docker-compose")
+        sys.exit(1)
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
         if version_extracted is not None:
-            docker_version = ".".join(version_extracted.groups())
-            good_version = compare_version(docker_version, MIN_DOCKER_COMPOSE_VERSION)
+            docker_compose_version = ".".join(version_extracted.groups())
+            good_version = compare_version(docker_compose_version, MIN_DOCKER_COMPOSE_VERSION)
             if good_version:
-                get_console().print(f"[success]Good version of docker-compose: {docker_version}[/]")
+                get_console().print(f"[success]Good version of docker-compose: {docker_compose_version}[/]")
             else:
                 get_console().print(
                     f"""
-[warning]You have too old version of docker-compose: {docker_version}! At least 1.29 needed! Please upgrade!
+[error]You have too old version of docker-compose: {docker_compose_version}!\n[/]
+[warning]At least {MIN_DOCKER_COMPOSE_VERSION} needed! Please upgrade!\n[/]
+See https://docs.docker.com/compose/install/ for installation instructions.\n
+Make sure docker-compose you install is first on the PATH variable of yours.\n
 """
                 )
-                get_console().print(
-                    """
-See https://docs.docker.com/compose/install/ for instructions.
-Make sure docker-compose you install is first on the PATH variable of yours.
-"""
-                )
+                sys.exit(1)
     else:
         get_console().print(
-            """
-[warning]Unknown docker-compose version. At least 1.29 is needed![/]
-[warning]If Breeze fails upgrade to latest available docker-compose version.[/]
+            f"""
+[error]Unknown docker-compose version.[/]
+[warning]At least {MIN_DOCKER_COMPOSE_VERSION} needed! Please upgrade!\n[/]
+See https://docs.docker.com/compose/install/ for installation instructions.\n
+Make sure docker-compose you install is first on the PATH variable of yours.\n
 """
-        )
-
-
-def check_docker_context():
-    """Checks whether Docker is using the expected context."""
-    expected_docker_context = "default"
-    response = run_command(
-        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
-        no_output_dump_on_exception=False,
-        text=True,
-        capture_output=True,
-        dry_run_override=False,
-    )
-    if response.returncode != 0:
-        get_console().print(
-            "[warning]Could not check for Docker context.[/]\n"
-            '[warning]Please make sure that Docker is using the right context by running "docker info" and '
-            "checking the active Context.[/]"
-        )
-        return
-
-    used_docker_context = response.stdout.strip().replace('"', "")
-
-    if used_docker_context == expected_docker_context:
-        get_console().print(f"[success]Good Docker context used: {used_docker_context}.[/]")
-    else:
-        get_console().print(
-            f"[error]Docker is not using the default context, used context is: {used_docker_context}[/]\n"
-            f"[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n"
-            f'[warning]You can try switching contexts by running: "docker context use '
-            f'{expected_docker_context}"[/]'
         )
         sys.exit(1)
 
@@ -427,7 +398,7 @@ def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) 
         )
     for optional_arg in image_params.optional_image_args:
         param_value = get_env_variable_value(optional_arg, params=image_params)
-        if len(param_value) > 0:
+        if param_value:
             args_command.append("--build-arg")
             args_command.append(optional_arg.upper() + "=" + param_value)
     args_command.extend(image_params.docker_cache_directive)
@@ -448,7 +419,9 @@ def prepare_docker_build_cache_command(
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=auto"])
+    final_command.extend(
+        ["buildx", "build", "--builder", get_and_use_docker_context(image_params.builder), "--progress=auto"]
+    )
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
     final_command.extend(arguments)
@@ -484,7 +457,7 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
                 "buildx",
                 "build",
                 "--builder",
-                image_params.builder,
+                get_and_use_docker_context(image_params.builder),
                 "--progress=auto",
                 "--push" if image_params.push else "--load",
             ]
@@ -533,17 +506,6 @@ def construct_docker_push_command(
     return ["docker", "push", image_params.airflow_image_name_with_tag]
 
 
-def prepare_docker_build_from_input(
-    image_params: CommonBuildParams,
-) -> list[str]:
-    """
-    Constructs docker build empty image command based on the parameters passed.
-    :param image_params: parameters of the image
-    :return: Command to run as list of string
-    """
-    return ["docker", "build", "-t", image_params.airflow_image_name_with_tag, "-"]
-
-
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
     build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:
@@ -565,7 +527,7 @@ def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCo
 
 
 def make_sure_builder_configured(params: CommonBuildParams):
-    if params.builder != "default":
+    if params.builder != "autodetect":
         cmd = ["docker", "buildx", "inspect", params.builder]
         buildx_command_result = run_command(cmd, text=True, check=False, dry_run_override=False)
         if buildx_command_result and buildx_command_result.returncode != 0:
@@ -623,6 +585,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "ONLY_MIN_VERSION_UPDATE", "false")
     set_value_to_default_if_not_set(env, "PACKAGE_FORMAT", ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, "PYTHONDONTWRITEBYTECODE", "true")
+    set_value_to_default_if_not_set(env, "REGENERATE_MISSING_DOCS", "false")
     set_value_to_default_if_not_set(env, "REMOVE_ARM_PACKAGES", "false")
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
@@ -670,6 +633,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
     "ONLY_MIN_VERSION_UPDATE": "only_min_version_update",
+    "REGENERATE_MISSING_DOCS": "regenerate_missing_docs",
     "PACKAGE_FORMAT": "package_format",
     "POSTGRES_VERSION": "postgres_version",
     "PYTHON_MAJOR_MINOR_VERSION": "python",
@@ -741,7 +705,6 @@ def perform_environment_checks():
     check_docker_is_running()
     check_docker_version()
     check_docker_compose_version()
-    check_docker_context()
 
 
 def get_docker_syntax_version() -> str:
@@ -753,10 +716,11 @@ def get_docker_syntax_version() -> str:
 def warm_up_docker_builder(image_params: CommonBuildParams):
     from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
-    if image_params.builder == "default":
+    docker_context = get_and_use_docker_context(image_params.builder)
+    if docker_context == "default":
         return
     docker_syntax = get_docker_syntax_version()
-    get_console().print(f"[info]Warming up the {image_params.builder} builder for syntax: {docker_syntax}")
+    get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
     warm_up_image_param = deepcopy(image_params)
     warm_up_image_param.image_tag = "warmup"
     warm_up_image_param.push = False
@@ -823,3 +787,52 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
                 check=False,
                 stderr=DEVNULL,
             )
+
+
+# When you are using Docker Desktop (specifically on MacOS). the preferred context is "desktop-linux"
+# because the docker socket to use is created in the .docker/ directory in the user's home directory
+# and it does not require the user to belong to the "docker" group.
+# The "default" context is the traditional one that requires "/var/run/docker.sock" to be writeable by the
+# user running the docker command.
+PREFERRED_CONTEXTS = ["desktop-linux", "default"]
+
+
+def autodetect_docker_context():
+    """
+    Auto-detects which docker context to use.
+
+    :return: name of the docker context to use
+    """
+    output = run_command(["docker", "context", "ls", "-q"], capture_output=True, check=False, text=True)
+    if output.returncode != 0:
+        get_console().print("[warning]Could not detect docker builder. Using default.[/]")
+        return "default"
+    context_list = output.stdout.splitlines()
+    if not context_list:
+        get_console().print("[warning]Could not detect docker builder. Using default.[/]")
+        return "default"
+    elif len(context_list) == 1:
+        get_console().print(f"[info]Using {context_list[0]} as context.[/]")
+        return context_list[0]
+    else:
+        for preferred_context in PREFERRED_CONTEXTS:
+            if preferred_context in context_list:
+                get_console().print(f"[info]Using {preferred_context} as context.[/]")
+                return preferred_context
+    fallback_context = context_list[0]
+    get_console().print(
+        f"[warning]Could not use any of the preferred docker contexts {PREFERRED_CONTEXTS}.\n"
+        f"Using {fallback_context} as context.[/]"
+    )
+    return fallback_context
+
+
+def get_and_use_docker_context(context: str):
+    if context == "autodetect":
+        context = autodetect_docker_context()
+    output = run_command(["docker", "context", "use", context], check=False)
+    if output.returncode != 0:
+        get_console().print(
+            f"[warning] Could no use the context {context}. Continuing with current context[/]"
+        )
+    return context

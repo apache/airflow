@@ -385,8 +385,9 @@ class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
 
 class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
     """
-    GA has a very particular naming convention for Data Import. Ability to
-    prefix "ga:" to all column headers and also a dict to rename columns to
+    GA has a very particular naming convention for Data Import.
+
+    Ability to prefix "ga:" to all column headers and also a dict to rename columns to
     match the custom dimension ID in GA i.e clientId : dimensionX.
 
     :param storage_bucket: The Google cloud storage bucket where the file is stored.

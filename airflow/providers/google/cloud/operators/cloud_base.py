@@ -24,14 +24,12 @@ from airflow.models import BaseOperator
 
 
 class GoogleCloudBaseOperator(BaseOperator):
-    """
-    Abstract base class that takes care of common specifics of the operators built
-    on top of Google API client libraries.
-    """
+    """Abstract base class for operators using Google API client libraries."""
 
     def __deepcopy__(self, memo):
         """
         Updating the memo to fix the non-copyable global constant.
+
         This constant can be specified in operator parameters as a retry configuration to indicate a default.
         See https://github.com/apache/airflow/issues/28751 for details.
         """

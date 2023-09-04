@@ -55,7 +55,24 @@ TEST_PARENT_SERVICES: str = "projects/{}/locations/{}/services/{}"
 TEST_PARENT_BACKUPS: str = "projects/{}/locations/{}/services/{}/backups"
 TEST_NAME_BACKUPS: str = "projects/{}/locations/{}/services/{}/backups/{}"
 TEST_DESTINATION_GCS_FOLDER: str = "gs://bucket_name/path_inside_bucket"
-
+TEST_TABLE_ID: str = "test_table"
+TEST_PARTITION_NAME = "column=value"
+TEST_SUBPARTITION_NAME = "column1=value1/column2=value2"
+TEST_PARTITIONS_QUERY_ALL = """
+                SELECT *
+                FROM PARTITIONS
+                INNER JOIN TBLS
+                ON PARTITIONS.TBL_ID = TBLS.TBL_ID
+                WHERE
+                    TBLS.TBL_NAME = '{}';"""
+TEST_PARTITIONS_QUERY = """
+                SELECT *
+                FROM PARTITIONS
+                INNER JOIN TBLS
+                ON PARTITIONS.TBL_ID = TBLS.TBL_ID
+                WHERE
+                    TBLS.TBL_NAME = '{}'
+                    AND PARTITIONS.PART_NAME IN ({});"""
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAPROC_METASTORE_STRING = "airflow.providers.google.cloud.hooks.dataproc_metastore.{}"
 
@@ -297,6 +314,57 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
             metadata=(),
         )
 
+    @pytest.mark.parametrize(
+        "partitions_input, partitions",
+        [
+            ([TEST_PARTITION_NAME], f"'{TEST_PARTITION_NAME}'"),
+            ([TEST_SUBPARTITION_NAME], f"'{TEST_SUBPARTITION_NAME}'"),
+            (
+                [TEST_PARTITION_NAME, TEST_SUBPARTITION_NAME],
+                f"'{TEST_PARTITION_NAME}', '{TEST_SUBPARTITION_NAME}'",
+            ),
+            ([TEST_PARTITION_NAME, TEST_PARTITION_NAME], f"'{TEST_PARTITION_NAME}'"),
+        ],
+    )
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client_v1beta")
+    )
+    def test_list_hive_partitions(self, mock_client, partitions_input, partitions) -> None:
+        self.hook.list_hive_partitions(
+            project_id=TEST_PROJECT_ID,
+            service_id=TEST_SERVICE_ID,
+            region=TEST_REGION,
+            table=TEST_TABLE_ID,
+            partition_names=partitions_input,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.query_metadata.assert_called_once_with(
+            request=dict(
+                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                query=TEST_PARTITIONS_QUERY.format(TEST_TABLE_ID, partitions),
+            ),
+        )
+
+    @pytest.mark.parametrize("partitions", [[], None])
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client_v1beta")
+    )
+    def test_list_hive_partitions_empty_list(self, mock_client, partitions) -> None:
+        self.hook.list_hive_partitions(
+            project_id=TEST_PROJECT_ID,
+            service_id=TEST_SERVICE_ID,
+            region=TEST_REGION,
+            table=TEST_TABLE_ID,
+            partition_names=partitions,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.query_metadata.assert_called_once_with(
+            request=dict(
+                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                query=TEST_PARTITIONS_QUERY_ALL.format(TEST_TABLE_ID),
+            ),
+        )
+
 
 class TestDataprocMetastoreWithoutDefaultProjectIdHook:
     def setup_method(self):
@@ -511,4 +579,55 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
             retry=DEFAULT,
             timeout=None,
             metadata=(),
+        )
+
+    @pytest.mark.parametrize(
+        "partitions_input, partitions",
+        [
+            ([TEST_PARTITION_NAME], f"'{TEST_PARTITION_NAME}'"),
+            ([TEST_SUBPARTITION_NAME], f"'{TEST_SUBPARTITION_NAME}'"),
+            (
+                [TEST_PARTITION_NAME, TEST_SUBPARTITION_NAME],
+                f"'{TEST_PARTITION_NAME}', '{TEST_SUBPARTITION_NAME}'",
+            ),
+            ([TEST_PARTITION_NAME, TEST_PARTITION_NAME], f"'{TEST_PARTITION_NAME}'"),
+        ],
+    )
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client_v1beta")
+    )
+    def test_list_hive_partitions(self, mock_client, partitions_input, partitions) -> None:
+        self.hook.list_hive_partitions(
+            project_id=TEST_PROJECT_ID,
+            service_id=TEST_SERVICE_ID,
+            region=TEST_REGION,
+            table=TEST_TABLE_ID,
+            partition_names=partitions_input,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.query_metadata.assert_called_once_with(
+            request=dict(
+                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                query=TEST_PARTITIONS_QUERY.format(TEST_TABLE_ID, partitions),
+            ),
+        )
+
+    @pytest.mark.parametrize("partitions", [[], None])
+    @mock.patch(
+        DATAPROC_METASTORE_STRING.format("DataprocMetastoreHook.get_dataproc_metastore_client_v1beta")
+    )
+    def test_list_hive_partitions_empty_list(self, mock_client, partitions) -> None:
+        self.hook.list_hive_partitions(
+            project_id=TEST_PROJECT_ID,
+            service_id=TEST_SERVICE_ID,
+            region=TEST_REGION,
+            table=TEST_TABLE_ID,
+            partition_names=partitions,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.query_metadata.assert_called_once_with(
+            request=dict(
+                service=TEST_PARENT_SERVICES.format(TEST_PROJECT_ID, TEST_REGION, TEST_SERVICE_ID),
+                query=TEST_PARTITIONS_QUERY_ALL.format(TEST_TABLE_ID),
+            ),
         )

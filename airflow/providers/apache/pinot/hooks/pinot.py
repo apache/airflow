@@ -19,19 +19,22 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Any, Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Iterable, Mapping
 
 from pinotdb import connect
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class PinotAdminHook(BaseHook):
     """
     This hook is a wrapper around the pinot-admin.sh script.
+
     For now, only small subset of its subcommands are implemented,
     which are required to ingest offline data into Apache Pinot
     (i.e., AddSchema, AddTable, CreateSegment, and UploadSegment).
@@ -54,6 +57,11 @@ class PinotAdminHook(BaseHook):
                                     Otherwise, the result is evaluated as a failure if "Error" or
                                     "Exception" is in the output message.
     """
+
+    conn_name_attr = "conn_id"
+    default_conn_name = "pinot_admin_default"
+    conn_type = "pinot_admin"
+    hook_name = "Pinot Admin"
 
     def __init__(
         self,
@@ -257,6 +265,8 @@ class PinotDbApiHook(DbApiHook):
 
     conn_name_attr = "pinot_broker_conn_id"
     default_conn_name = "pinot_broker_default"
+    conn_type = "pinot"
+    hook_name = "Pinot Broker"
     supports_autocommit = False
 
     def get_conn(self) -> Any:
@@ -287,10 +297,10 @@ class PinotDbApiHook(DbApiHook):
         return f"{conn_type}://{host}/{endpoint}"
 
     def get_records(
-        self, sql: str | list[str], parameters: Iterable | Mapping | None = None, **kwargs
+        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
     ) -> Any:
         """
-        Executes the sql and returns a set of records.
+        Execute the sql and returns a set of records.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -300,9 +310,9 @@ class PinotDbApiHook(DbApiHook):
             cur.execute(sql)
             return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
-        Executes the sql and returns the first resulting row.
+        Execute the sql and returns the first resulting row.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute

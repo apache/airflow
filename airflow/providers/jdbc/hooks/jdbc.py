@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
 
-from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class JdbcHook(DbApiHook):
@@ -31,6 +33,25 @@ class JdbcHook(DbApiHook):
     JDBC URL, username and password will be taken from the predefined connection.
     Note that the whole JDBC URL must be specified in the "host" field in the DB.
     Raises an airflow error if the given connection id doesn't exist.
+
+    To configure driver parameters, you can use the following methods:
+        1. Supply them as constructor arguments when instantiating the hook.
+        2. Set the "driver_path" and/or "driver_class" parameters in the "hook_params" dictionary when
+           creating the hook using SQL operators.
+        3. Set the "driver_path" and/or "driver_class" extra in the connection and correspondingly enable
+           the "allow_driver_path_in_extra" and/or "allow_driver_class_in_extra" options in the
+           "providers.jdbc" section of the Airflow configuration. If you're enabling these options in Airflow
+           configuration, you should make sure that you trust the users who can edit connections in the UI
+           to not use it maliciously.
+        4. Patch the ``JdbcHook.default_driver_path`` and/or ``JdbcHook.default_driver_class`` values in the
+           "local_settings.py" file.
+
+    See :doc:`/connections/jdbc` for full documentation.
+
+    :param args: passed to DbApiHook
+    :param driver_path: path to the JDBC driver jar file. See above for more info
+    :param driver_class: name of the JDBC driver class. See above for more info
+    :param kwargs: passed to DbApiHook
     """
 
     conn_name_attr = "jdbc_conn_id"
@@ -39,57 +60,89 @@ class JdbcHook(DbApiHook):
     hook_name = "JDBC Connection"
     supports_autocommit = True
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Get connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
-        from flask_babel import lazy_gettext
-        from wtforms import StringField
+    default_driver_path: str | None = None
+    default_driver_class: str | None = None
 
-        return {
-            "drv_path": StringField(lazy_gettext("Driver Path"), widget=BS3TextFieldWidget()),
-            "drv_clsname": StringField(lazy_gettext("Driver Class"), widget=BS3TextFieldWidget()),
-        }
+    def __init__(
+        self,
+        *args,
+        driver_path: str | None = None,
+        driver_class: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        self._driver_path = driver_path
+        self._driver_class = driver_class
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Get custom field behaviour."""
         return {
-            "hidden_fields": ["port", "schema", "extra"],
+            "hidden_fields": ["port", "schema"],
             "relabeling": {"host": "Connection URL"},
         }
 
-    def _get_field(self, extras: dict, field_name: str):
-        """Get field from extra.
-
-        This first checks the short name, then check for prefixed name for
-        backward compatibility.
+    @property
+    def connection_extra_lower(self) -> dict:
         """
-        backcompat_prefix = "extra__jdbc__"
-        if field_name.startswith("extra__"):
-            raise ValueError(
-                f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
-                "when using this method."
-            )
-        if field_name in extras:
-            return extras[field_name] or None
-        prefixed_name = f"{backcompat_prefix}{field_name}"
-        return extras.get(prefixed_name) or None
+        ``connection.extra_dejson`` but where keys are converted to lower case.
+
+        This is used internally for case-insensitive access of jdbc params.
+        """
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        return {k.lower(): v for k, v in conn.extra_dejson.items()}
+
+    @property
+    def driver_path(self) -> str | None:
+        from airflow.configuration import conf
+
+        extra_driver_path = self.connection_extra_lower.get("driver_path")
+        if extra_driver_path:
+            if conf.getboolean("providers.jdbc", "allow_driver_path_in_extra", fallback=False):
+                self._driver_path = extra_driver_path
+            else:
+                self.log.warning(
+                    "You have supplied 'driver_path' via connection extra but it will not be used. In order "
+                    "to use 'driver_path' from extra you must set airflow config setting "
+                    "`allow_driver_path_in_extra = True` in section `providers.jdbc`. Alternatively you may "
+                    "specify it via 'driver_path' parameter of the hook constructor or via 'hook_params' "
+                    "dictionary with key 'driver_path' if using SQL operators."
+                )
+        if not self._driver_path:
+            self._driver_path = self.default_driver_path
+        return self._driver_path
+
+    @property
+    def driver_class(self) -> str | None:
+        from airflow.configuration import conf
+
+        extra_driver_class = self.connection_extra_lower.get("driver_class")
+        if extra_driver_class:
+            if conf.getboolean("providers.jdbc", "allow_driver_class_in_extra", fallback=False):
+                self._driver_class = extra_driver_class
+            else:
+                self.log.warning(
+                    "You have supplied 'driver_class' via connection extra but it will not be used. In order "
+                    "to use 'driver_class' from extra you must set airflow config setting "
+                    "`allow_driver_class_in_extra = True` in section `providers.jdbc`. Alternatively you may "
+                    "specify it via 'driver_class' parameter of the hook constructor or via 'hook_params' "
+                    "dictionary with key 'driver_class' if using SQL operators."
+                )
+        if not self._driver_class:
+            self._driver_class = self.default_driver_class
+        return self._driver_class
 
     def get_conn(self) -> jaydebeapi.Connection:
         conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
-        extras = conn.extra_dejson
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password
-        jdbc_driver_loc: str | None = self._get_field(extras, "drv_path")
-        jdbc_driver_name: str | None = self._get_field(extras, "drv_clsname")
 
         conn = jaydebeapi.connect(
-            jclassname=jdbc_driver_name,
+            jclassname=self.driver_class,
             url=str(host),
             driver_args=[str(login), str(psw)],
-            jars=jdbc_driver_loc.split(",") if jdbc_driver_loc else None,
+            jars=self.driver_path.split(",") if self.driver_path else None,
         )
         return conn
 

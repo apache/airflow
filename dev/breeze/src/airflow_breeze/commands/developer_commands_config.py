@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
-    "name": "Basic developer commands",
+    "name": "Developer commands",
     "commands": [
         "start-airflow",
         "static-checks",
@@ -44,6 +44,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--db-reset",
                 "--max-time",
                 "--github-repository",
+                "--builder",
             ],
         },
     ],
@@ -59,24 +60,43 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--integration",
                 "--forward-credentials",
                 "--db-reset",
-                "--github-repository",
+                "--max-time",
             ],
         },
         {
-            "name": "Advanced flag for running",
+            "name": "Choosing executor",
+            "options": [
+                "--executor",
+                "--celery-broker",
+                "--celery-flower",
+            ],
+        },
+        {
+            "name": "Building image before entering shell",
+            "options": [
+                "--force-build",
+                "--platform",
+                "--image-tag",
+                "--github-repository",
+                "--builder",
+            ],
+        },
+        {
+            "name": "Mounting the sources and volumes",
+            "options": [
+                "--mount-sources",
+                "--include-mypy-volume",
+            ],
+        },
+        {
+            "name": "Installing packages after entering shell",
             "options": [
                 "--install-selected-providers",
                 "--use-airflow-version",
                 "--airflow-constraints-reference",
-                "--platform",
                 "--airflow-extras",
                 "--use-packages-from-dist",
                 "--package-format",
-                "--force-build",
-                "--image-tag",
-                "--mount-sources",
-                "--include-mypy-volume",
-                "--max-time",
             ],
         },
     ],
@@ -103,7 +123,14 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--integration",
                 "--forward-credentials",
                 "--db-reset",
-                "--github-repository",
+            ],
+        },
+        {
+            "name": "Choosing executor",
+            "options": [
+                "--executor",
+                "--celery-broker",
+                "--celery-flower",
             ],
         },
         {
@@ -114,19 +141,28 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Advanced flag for running",
+            "name": "Building image before entering shell",
+            "options": [
+                "--force-build",
+                "--image-tag",
+                "--github-repository",
+                "--builder",
+            ],
+        },
+        {
+            "name": "Mounting the sources and volumes",
+            "options": [
+                "--mount-sources",
+            ],
+        },
+        {
+            "name": "Installing packages after entering shell",
             "options": [
                 "--use-airflow-version",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--use-packages-from-dist",
                 "--package-format",
-                "--force-build",
-                "--image-tag",
-                "--mount-sources",
-                "--executor",
-                "--celery-broker",
-                "--celery-flower",
             ],
         },
     ],
@@ -149,10 +185,10 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--docs-only",
                 "--spellcheck-only",
                 "--clean-build",
-                "--for-production",
                 "--one-pass-only",
                 "--package-filter",
                 "--github-repository",
+                "--builder",
             ],
         },
     ],
@@ -164,7 +200,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--show-diff-on-failure",
                 "--initialize-environment",
                 "--max-initialization-attempts",
-                "--github-repository",
             ],
         },
         {
@@ -175,6 +210,16 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--commit-ref",
                 "--last-commit",
                 "--only-my-changes",
+            ],
+        },
+        {
+            "name": "Building image before running checks",
+            "options": [
+                "--skip-image-check",
+                "--force-build",
+                "--image-tag",
+                "--github-repository",
+                "--builder",
             ],
         },
     ],

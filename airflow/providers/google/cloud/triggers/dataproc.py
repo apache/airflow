@@ -263,8 +263,8 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Wait until cluster is deleted completely."""
-        while self.end_time > time.time():
-            try:
+        try:
+            while self.end_time > time.time():
                 cluster = await self.get_async_hook().get_cluster(
                     region=self.region,  # type: ignore[arg-type]
                     cluster_name=self.cluster_name,
@@ -277,16 +277,18 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
                     self.polling_interval_seconds,
                 )
                 await asyncio.sleep(self.polling_interval_seconds)
-            except NotFound:
-                yield TriggerEvent({"status": "success", "message": ""})
-            except Exception as e:
-                yield TriggerEvent({"status": "error", "message": str(e)})
-        yield TriggerEvent({"status": "error", "message": "Timeout"})
+        except NotFound:
+            yield TriggerEvent({"status": "success", "message": ""})
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})
+        else:
+            yield TriggerEvent({"status": "error", "message": "Timeout"})
 
 
 class DataprocWorkflowTrigger(DataprocBaseTrigger):
     """
     Trigger that periodically polls information from Dataproc API to verify status.
+
     Implementation leverages asynchronous transport.
     """
 
@@ -309,8 +311,8 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.get_async_hook()
-        while True:
-            try:
+        try:
+            while True:
                 operation = await hook.get_operation(region=self.region, operation_name=self.name)
                 if operation.done:
                     if operation.error.message:
@@ -322,6 +324,7 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                                 "message": operation.error.message,
                             }
                         )
+                        return
                     yield TriggerEvent(
                         {
                             "operation_name": operation.name,
@@ -330,14 +333,15 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                             "message": "Operation is successfully ended.",
                         }
                     )
+                    return
                 else:
                     self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
                     await asyncio.sleep(self.polling_interval_seconds)
-            except Exception as e:
-                self.log.exception("Exception occurred while checking operation status.")
-                yield TriggerEvent(
-                    {
-                        "status": "failed",
-                        "message": str(e),
-                    }
-                )
+        except Exception as e:
+            self.log.exception("Exception occurred while checking operation status.")
+            yield TriggerEvent(
+                {
+                    "status": "failed",
+                    "message": str(e),
+                }
+            )

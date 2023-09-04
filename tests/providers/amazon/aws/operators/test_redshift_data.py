@@ -32,6 +32,7 @@ class TestRedshiftDataOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
     def test_execute(self, mock_exec_query):
         cluster_identifier = "cluster_identifier"
+        workgroup_name = None
         db_user = "db_user"
         secret_arn = "secret_arn"
         statement_name = "statement_name"
@@ -57,6 +58,46 @@ class TestRedshiftDataOperator:
             sql=SQL,
             database=DATABASE,
             cluster_identifier=cluster_identifier,
+            workgroup_name=workgroup_name,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+            parameters=parameters,
+            with_event=False,
+            wait_for_completion=wait_for_completion,
+            poll_interval=poll_interval,
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
+    def test_execute_with_workgroup_name(self, mock_exec_query):
+        cluster_identifier = None
+        workgroup_name = "workgroup_name"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        parameters = [{"name": "id", "value": "1"}]
+        poll_interval = 5
+        wait_for_completion = True
+
+        operator = RedshiftDataOperator(
+            aws_conn_id=CONN_ID,
+            task_id=TASK_ID,
+            sql=SQL,
+            database=DATABASE,
+            workgroup_name=workgroup_name,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+            parameters=parameters,
+            wait_for_completion=True,
+            poll_interval=poll_interval,
+        )
+        operator.execute(None)
+        mock_exec_query.assert_called_once_with(
+            sql=SQL,
+            database=DATABASE,
+            cluster_identifier=cluster_identifier,
+            workgroup_name=workgroup_name,
             db_user=db_user,
             secret_arn=secret_arn,
             statement_name=statement_name,
@@ -85,6 +126,7 @@ class TestRedshiftDataOperator:
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
             task_id=TASK_ID,
+            cluster_identifier="cluster_identifier",
             sql=SQL,
             database=DATABASE,
             wait_for_completion=False,

@@ -21,10 +21,10 @@
 ## Airflow Scheduler Service
 #################################
 {{- if or (eq .Values.executor "LocalExecutor") (eq .Values.executor "LocalKubernetesExecutor") }}
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
-  name: {{ .Release.Name }}-scheduler
+  name: {{ include "airflow.fullname" . }}-scheduler
   labels:
     tier: airflow
     component: scheduler

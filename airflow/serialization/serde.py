@@ -21,18 +21,20 @@ import dataclasses
 import enum
 import functools
 import logging
-import re
 import sys
 from importlib import import_module
-from types import ModuleType
-from typing import Any, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Pattern, TypeVar, Union, cast
 
 import attr
+import re2
 
 import airflow.serialization.serializers
 from airflow.configuration import conf
 from airflow.stats import Stats
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 log = logging.getLogger(__name__)
 
@@ -47,6 +49,7 @@ CACHE = "__cache__"
 OLD_TYPE = "__type"
 OLD_SOURCE = "__source"
 OLD_DATA = "__var"
+OLD_DICT = "dict"
 
 DEFAULT_VERSION = 0
 
@@ -64,7 +67,7 @@ _builtin_collections = (frozenset, list, set, tuple)  # dict is treated speciall
 
 
 def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
-    """Encodes o so it can be understood by the deserializer."""
+    """Encode an object so it can be understood by the deserializer."""
     return {CLASSNAME: cls, VERSION: version, DATA: data}
 
 
@@ -179,8 +182,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
 def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     """
-    Deserializes an object of primitive type T into an object. Uses an allow
-    list to determine if a class can be loaded.
+    Deserialize an object of primitive type and uses an allow list to determine if a class can be loaded.
 
     :param o: primitive to deserialize into an arbitrary object.
     :param full: if False it will return a stringified representation
@@ -274,9 +276,13 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
 
 def _convert(old: dict) -> dict:
-    """Converts an old style serialization to new style."""
+    """Convert an old style serialization to new style."""
     if OLD_TYPE in old and OLD_DATA in old:
-        return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA][OLD_DATA]}
+        # Return old style dicts directly as they do not need wrapping
+        if old[OLD_TYPE] == OLD_DICT:
+            return old[OLD_DATA]
+        else:
+            return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
 
     return old
 
@@ -296,14 +302,13 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
 
     s = f"{classname}@version={version}("
     if isinstance(value, _primitives):
-        s += f"{value})"
+        s += f"{value}"
     elif isinstance(value, _builtin_collections):
         # deserialized values can be != str
         s += ",".join(str(deserialize(value, full=False)))
     elif isinstance(value, dict):
-        for k, v in value.items():
-            s += f"{k}={deserialize(v, full=False)},"
-        s = s[:-1] + ")"
+        s += ",".join(f"{k}={deserialize(v, full=False)}" for k, v in value.items())
+    s += ")"
 
     return s
 
@@ -314,7 +319,14 @@ def _is_pydantic(cls: Any) -> bool:
     Checking is done by attributes as it is significantly faster than
     using isinstance.
     """
-    return hasattr(cls, "__validators__") and hasattr(cls, "__fields__") and hasattr(cls, "dict")
+    return (
+        hasattr(cls, "__validators__")
+        and hasattr(cls, "__fields__")
+        and hasattr(cls, "dict")  # Pydantic v1
+        or hasattr(cls, "model_config")
+        and hasattr(cls, "model_fields")
+        and hasattr(cls, "model_fields_set")  # Pydantic v2
+    )
 
 
 def _register():
@@ -353,9 +365,9 @@ def _register():
 
 
 @functools.lru_cache(maxsize=None)
-def _get_patterns() -> list[re.Pattern]:
+def _get_patterns() -> list[Pattern]:
     patterns = conf.get("core", "allowed_deserialization_classes").split()
-    return [re.compile(re.sub(r"(\w)\.", r"\1\..", p)) for p in patterns]
+    return [re2.compile(re2.sub(r"(\w)\.", r"\1\..", p)) for p in patterns]
 
 
 _register()

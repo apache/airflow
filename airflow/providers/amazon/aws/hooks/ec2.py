@@ -50,6 +50,7 @@ def only_client_type(func):
 class EC2Hook(AwsBaseHook):
     """
     Interact with Amazon Elastic Compute Cloud (EC2).
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("ec2") <EC2.Client>`
     or :external+boto3:py:class:`boto3.resource("ec2") <EC2.ServiceResource>`.
 

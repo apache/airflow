@@ -24,7 +24,7 @@ import logging
 import time
 import traceback
 from datetime import timedelta
-from typing import Any, Callable, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 from airflow import settings
 from airflow.configuration import conf
@@ -35,6 +35,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
+    TaskDeferralError,
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.baseoperator import BaseOperator
@@ -42,12 +43,14 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.context import Context
 
 # We need to keep the import here because GCSToLocalFilesystemOperator released in
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults  # noqa: F401
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
 _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
@@ -87,9 +90,18 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     a criteria is met and fail if and when they time out.
 
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
-    :param poke_interval: Time in seconds that the job should wait in
-        between each try
-    :param timeout: Time, in seconds before the task times out and fails.
+    :param poke_interval: Time that the job should wait in between each try.
+        Can be ``timedelta`` or ``float`` seconds.
+    :param timeout: Time elapsed before the task times out and fails.
+        Can be ``timedelta`` or ``float`` seconds.
+        This should not be confused with ``execution_timeout`` of the
+        ``BaseOperator`` class. ``timeout`` measures the time elapsed between the
+        first poke and the current time (taking into account any
+        reschedule delay between each poke), while ``execution_timeout``
+        checks the **running** time of the task (leaving out any reschedule
+        delay). In case that the ``mode`` is ``poke`` (see below), both of
+        them are equivalent (as the sensor is never rescheduled), which is not
+        the case in ``reschedule`` mode.
     :param mode: How the sensor operates.
         Options are: ``{ poke | reschedule }``, default is ``poke``.
         When set to ``poke`` the sensor is taking up a worker slot for its
@@ -122,8 +134,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     def __init__(
         self,
         *,
-        poke_interval: float = 60,
-        timeout: float = conf.getfloat("sensors", "default_timeout"),
+        poke_interval: timedelta | float = 60,
+        timeout: timedelta | float = conf.getfloat("sensors", "default_timeout"),
         soft_fail: bool = False,
         mode: str = "poke",
         exponential_backoff: bool = False,
@@ -132,14 +144,32 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.poke_interval = poke_interval
+        self.poke_interval = self._coerce_poke_interval(poke_interval).total_seconds()
         self.soft_fail = soft_fail
-        self.timeout = timeout
+        self.timeout = self._coerce_timeout(timeout).total_seconds()
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self.max_wait = self._coerce_max_wait(max_wait)
         self.silent_fail = silent_fail
         self._validate_input_values()
+
+    @staticmethod
+    def _coerce_poke_interval(poke_interval: float | timedelta) -> timedelta:
+        if isinstance(poke_interval, timedelta):
+            return poke_interval
+        if isinstance(poke_interval, (int, float)) and poke_interval >= 0:
+            return timedelta(seconds=poke_interval)
+        raise AirflowException(
+            "Operator arg `poke_interval` must be timedelta object or a non-negative number"
+        )
+
+    @staticmethod
+    def _coerce_timeout(timeout: float | timedelta) -> timedelta:
+        if isinstance(timeout, timedelta):
+            return timeout
+        if isinstance(timeout, (int, float)) and timeout >= 0:
+            return timedelta(seconds=timeout)
+        raise AirflowException("Operator arg `timeout` must be timedelta object or a non-negative number")
 
     @staticmethod
     def _coerce_max_wait(max_wait: float | timedelta | None) -> timedelta | None:
@@ -172,14 +202,13 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 )
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
-        """Function defined by the sensors while deriving this class should override."""
+        """Override when deriving this class."""
         raise AirflowException("Override me.")
 
     def execute(self, context: Context) -> Any:
         started_at: datetime.datetime | float
 
         if self.reschedule:
-
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
             first_try_number = context["ti"].max_tries - self.retries + 1
@@ -213,14 +242,19 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             except (
                 AirflowSensorTimeout,
                 AirflowTaskTimeout,
-                AirflowSkipException,
                 AirflowFailException,
             ) as e:
+                if self.soft_fail:
+                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+                raise e
+            except AirflowSkipException as e:
                 raise e
             except Exception as e:
                 if self.silent_fail:
                     logging.error("Sensor poke failed: \n %s", traceback.format_exc())
                     poke_return = False
+                elif self.soft_fail:
+                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
                 else:
                     raise e
 
@@ -255,13 +289,21 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
 
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        try:
+            return super().resume_execution(next_method, next_kwargs, context)
+        except (AirflowException, TaskDeferralError) as e:
+            if self.soft_fail:
+                raise AirflowSkipException(str(e)) from e
+            raise
+
     def _get_next_poke_interval(
         self,
         started_at: datetime.datetime | float,
         run_duration: Callable[[], float],
         try_number: int,
     ) -> float:
-        """Using the similar logic which is used for exponential backoff retry delay for operators."""
+        """Use similar logic which is used for exponential backoff retry delay for operators."""
         if not self.exponential_backoff:
             return self.poke_interval
 

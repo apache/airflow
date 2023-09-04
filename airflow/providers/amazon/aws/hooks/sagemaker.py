@@ -23,6 +23,7 @@ import re
 import tarfile
 import tempfile
 import time
+import warnings
 from collections import Counter
 from datetime import datetime
 from functools import partial
@@ -30,7 +31,7 @@ from typing import Any, Callable, Generator, cast
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -80,7 +81,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
     :return: Whether the secondary status message of a training job changed or not.
     """
     current_secondary_status_transitions = current_job_description.get("SecondaryStatusTransitions")
-    if current_secondary_status_transitions is None or len(current_secondary_status_transitions) == 0:
+    if not current_secondary_status_transitions:
         return False
 
     prev_job_secondary_status_transitions = (
@@ -89,8 +90,7 @@ def secondary_training_status_changed(current_job_description: dict, prev_job_de
 
     last_message = (
         prev_job_secondary_status_transitions[-1]["StatusMessage"]
-        if prev_job_secondary_status_transitions is not None
-        and len(prev_job_secondary_status_transitions) > 0
+        if prev_job_secondary_status_transitions
         else ""
     )
 
@@ -110,7 +110,7 @@ def secondary_training_status_message(
     :return: Job status string to be printed.
     """
     current_transitions = job_description.get("SecondaryStatusTransitions")
-    if current_transitions is None or len(current_transitions) == 0:
+    if not current_transitions:
         return ""
 
     prev_transitions_num = 0
@@ -127,10 +127,8 @@ def secondary_training_status_message(
     status_strs = []
     for transition in transitions_to_print:
         message = transition["StatusMessage"]
-        time_str = timezone.convert_to_utc(cast(datetime, job_description["LastModifiedTime"])).strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )
-        status_strs.append(f"{time_str} {transition['Status']} - {message}")
+        time_utc = timezone.convert_to_utc(cast(datetime, job_description["LastModifiedTime"]))
+        status_strs.append(f"{time_utc:%Y-%m-%d %H:%M:%S} {transition['Status']} - {message}")
 
     return "\n".join(status_strs)
 
@@ -254,12 +252,12 @@ class SageMakerHook(AwsBaseHook):
         ]
         events: list[Any | None] = []
         for event_stream in event_iters:
-            if not event_stream:
-                events.append(None)
-                continue
-            try:
-                events.append(next(event_stream))
-            except StopIteration:
+            if event_stream:
+                try:
+                    events.append(next(event_stream))
+                except StopIteration:
+                    events.append(None)
+            else:
                 events.append(None)
 
         while any(events):
@@ -585,7 +583,7 @@ class SageMakerHook(AwsBaseHook):
                 # the container starts logging, so ignore any errors thrown about that
                 pass
 
-        if len(stream_names) > 0:
+        if stream_names:
             for idx, event in self.multi_stream_iter(log_group, stream_names, positions):
                 self.log.info(event["message"])
                 ts, count = positions[stream_names[idx]]
@@ -1061,7 +1059,7 @@ class SageMakerHook(AwsBaseHook):
         display_name: str = "airflow-triggered-execution",
         pipeline_params: dict | None = None,
         wait_for_completion: bool = False,
-        check_interval: int = 30,
+        check_interval: int | None = None,
         verbose: bool = True,
     ) -> str:
         """Start a new execution for a SageMaker pipeline.
@@ -1073,14 +1071,19 @@ class SageMakerHook(AwsBaseHook):
         :param display_name: The name this pipeline execution will have in the UI. Doesn't need to be unique.
         :param pipeline_params: Optional parameters for the pipeline.
             All parameters supplied need to already be present in the pipeline definition.
-        :param wait_for_completion: Will only return once the pipeline is complete if true.
-        :param check_interval: How long to wait between checks for pipeline status when waiting for
-            completion.
-        :param verbose: Whether to print steps details when waiting for completion.
-            Defaults to true, consider turning off for pipelines that have thousands of steps.
 
         :return: the ARN of the pipeline execution launched.
         """
+        if wait_for_completion or check_interval is not None:
+            warnings.warn(
+                "parameter `wait_for_completion` and `check_interval` are deprecated, "
+                "remove them and call check_status yourself if you want to wait for completion",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        if check_interval is None:
+            check_interval = 30
+
         formatted_params = format_tags(pipeline_params, key_label="Name")
 
         try:
@@ -1108,7 +1111,7 @@ class SageMakerHook(AwsBaseHook):
         self,
         pipeline_exec_arn: str,
         wait_for_completion: bool = False,
-        check_interval: int = 10,
+        check_interval: int | None = None,
         verbose: bool = True,
         fail_if_not_running: bool = False,
     ) -> str:
@@ -1119,12 +1122,6 @@ class SageMakerHook(AwsBaseHook):
 
         :param pipeline_exec_arn: Amazon Resource Name (ARN) of the pipeline execution.
             It's the ARN of the pipeline itself followed by "/execution/" and an id.
-        :param wait_for_completion: Whether to wait for the pipeline to reach a final state.
-            (i.e. either 'Stopped' or 'Failed')
-        :param check_interval: How long to wait between checks for pipeline status when waiting for
-            completion.
-        :param verbose: Whether to print steps details when waiting for completion.
-            Defaults to true, consider turning off for pipelines that have thousands of steps.
         :param fail_if_not_running: This method will raise an exception if the pipeline we're trying to stop
             is not in an "Executing" state when the call is sent (which would mean that the pipeline is
             already either stopping or stopped).
@@ -1133,15 +1130,22 @@ class SageMakerHook(AwsBaseHook):
         :return: Status of the pipeline execution after the operation.
             One of 'Executing'|'Stopping'|'Stopped'|'Failed'|'Succeeded'.
         """
-        retries = 2  # i.e. 3 calls max, 1 initial + 2 retries
-        while True:
+        if wait_for_completion or check_interval is not None:
+            warnings.warn(
+                "parameter `wait_for_completion` and `check_interval` are deprecated, "
+                "remove them and call check_status yourself if you want to wait for completion",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        if check_interval is None:
+            check_interval = 10
+
+        for retries in (2, 1, 0):
             try:
                 self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
-                break
             except ClientError as ce:
                 # this can happen if the pipeline was transitioning between steps at that moment
-                if ce.response["Error"]["Code"] == "ConflictException" and retries > 0:
-                    retries = retries - 1
+                if ce.response["Error"]["Code"] == "ConflictException" and retries:
                     self.log.warning(
                         "Got a conflict exception when trying to stop the pipeline, "
                         "retrying %s more times. Error was: %s",
@@ -1149,18 +1153,20 @@ class SageMakerHook(AwsBaseHook):
                         ce,
                     )
                     time.sleep(0.3)  # error is due to a race condition, so it should be very transient
-                    continue
-                # we have to rely on the message to catch the right error here, because its type
-                # (ValidationException) is shared with other kinds of errors (e.g. badly formatted ARN)
-                if (
-                    not fail_if_not_running
-                    and "Only pipelines with 'Executing' status can be stopped"
-                    in ce.response["Error"]["Message"]
-                ):
-                    self.log.warning("Cannot stop pipeline execution, as it was not running: %s", ce)
                 else:
-                    self.log.error(ce)
-                    raise
+                    # we have to rely on the message to catch the right error here, because its type
+                    # (ValidationException) is shared with other kinds of errors (e.g. badly formatted ARN)
+                    if (
+                        not fail_if_not_running
+                        and "Only pipelines with 'Executing' status can be stopped"
+                        in ce.response["Error"]["Message"]
+                    ):
+                        self.log.warning("Cannot stop pipeline execution, as it was not running: %s", ce)
+                        break
+                    else:
+                        self.log.error(ce)
+                        raise
+            else:
                 break
 
         res = self.describe_pipeline_exec(pipeline_exec_arn)

@@ -57,7 +57,6 @@ Examples:
 * An auditing tool, helping understand who accesses what
 * A config-driven SLA monitoring tool, allowing you to set monitored tables and at what time
   they should land, alert people, and expose visualizations of outages
-* ...
 
 Why build on top of Airflow?
 ----------------------------
@@ -83,9 +82,9 @@ start of each Airflow process, set ``[core] lazy_load_plugins = False`` in ``air
 This means that if you make any changes to plugins and you want the webserver or scheduler to use that new
 code you will need to restart those processes. However, it will not be reflected in new running tasks after the scheduler boots.
 
-By default, task execution will use forking to avoid the slow down of having to create a whole new python
-interpreter and re-parse all of the Airflow code and start up routines -- this is a big benefit for shorter
-running tasks. This does mean that if you use plugins in your tasks, and want them to update you will either
+By default, task execution uses forking. This avoids the slowdown associated with creating a new Python interpreter
+and re-parsing all of Airflow's code and startup routines. This approach offers significant benefits, especially for shorter tasks.
+This does mean that if you use plugins in your tasks, and want them to update you will either
 need to restart the worker (if using CeleryExecutor) or scheduler (Local or Sequential executors). The other
 option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
 config setting to True, resulting in launching a whole new python interpreter for tasks.

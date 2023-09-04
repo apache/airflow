@@ -22,7 +22,6 @@ import ast
 from typing import TYPE_CHECKING, Sequence, Tuple
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.automl_v1beta1 import (
     BatchPredictResult,
     ColumnSpec,
@@ -43,6 +42,8 @@ from airflow.providers.google.cloud.links.automl import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 MetaData = Sequence[Tuple[str, str]]
@@ -895,8 +896,9 @@ class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
 
 class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
     """
-    Deploys a model. If a model is already deployed, deploying it with the same parameters
-    has no effect. Deploying with different parameters (as e.g. changing node_number) will
+    Deploys a model; if a model is already deployed, deploying it with the same parameters has no effect.
+
+    Deploying with different parameters (as e.g. changing node_number) will
     reset the deployment state without pausing the model_id's availability.
 
     Only applicable for Text Classification, Image Object Detection and Tables; all other

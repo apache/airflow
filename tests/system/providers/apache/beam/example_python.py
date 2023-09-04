@@ -47,7 +47,7 @@ with models.DAG(
         task_id="start_python_pipeline_local_direct_runner",
         py_file="apache_beam.examples.wordcount",
         py_options=["-m"],
-        py_requirements=["apache-beam[gcp]==2.26.0"],
+        py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
     )
@@ -59,7 +59,7 @@ with models.DAG(
         py_file=GCS_PYTHON,
         py_options=[],
         pipeline_options={"output": GCS_OUTPUT},
-        py_requirements=["apache-beam[gcp]==2.26.0"],
+        py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
     )
@@ -76,7 +76,7 @@ with models.DAG(
             "output": GCS_OUTPUT,
         },
         py_options=[],
-        py_requirements=["apache-beam[gcp]==2.26.0"],
+        py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config=DataflowConfiguration(
@@ -90,7 +90,7 @@ with models.DAG(
         py_file="apache_beam.examples.wordcount",
         runner="SparkRunner",
         py_options=["-m"],
-        py_requirements=["apache-beam[gcp]==2.26.0"],
+        py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
     )
@@ -103,7 +103,7 @@ with models.DAG(
         pipeline_options={
             "output": "/tmp/start_python_pipeline_local_flink_runner",
         },
-        py_requirements=["apache-beam[gcp]==2.26.0"],
+        py_requirements=["apache-beam[gcp]==2.46.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
     )
@@ -113,6 +113,7 @@ with models.DAG(
             start_python_pipeline_local_direct_runner,
             start_python_pipeline_direct_runner,
         ]
+        >> start_python_pipeline_dataflow_runner
         >> start_python_pipeline_local_flink_runner
         >> start_python_pipeline_local_spark_runner
     )

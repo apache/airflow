@@ -142,7 +142,7 @@ class TestGetExtraLinks:
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200(self):
         XCom.set(
-            key="job_id",
+            key="job_id_path",
             value="TEST_JOB_ID",
             task_id="TEST_SINGLE_QUERY",
             dag_id=self.dag.dag_id,
@@ -171,7 +171,7 @@ class TestGetExtraLinks:
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links(self):
         XCom.set(
-            key="job_id",
+            key="job_id_path",
             value=["TEST_JOB_ID_1", "TEST_JOB_ID_2"],
             task_id="TEST_MULTIPLE_QUERY",
             dag_id=self.dag.dag_id,

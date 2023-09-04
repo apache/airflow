@@ -517,7 +517,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             op.execute_complete(context=None, event=event)
 
     def test_execute_complete_incorrect_event_validation_failure(self):
-        event = {}
+        event = {"event_id": "no such column"}
         op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID)
         with pytest.raises(AirflowException):
             op.execute_complete(context=None, event=event)
@@ -905,7 +905,7 @@ class TestDatabricksRunNowDeferrableOperator:
             retry_limit=op.databricks_retry_limit,
             retry_delay=op.databricks_retry_delay,
             retry_args=None,
-            caller="DatabricksRunNowDeferrableOperator",
+            caller="DatabricksRunNowOperator",
         )
 
         db_mock.run_now.assert_called_once_with(expected)
@@ -951,7 +951,7 @@ class TestDatabricksRunNowDeferrableOperator:
             op.execute_complete(context=None, event=event)
 
     def test_execute_complete_incorrect_event_validation_failure(self):
-        event = {}
+        event = {"event_id": "no such column"}
         op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID)
         with pytest.raises(AirflowException):
             op.execute_complete(context=None, event=event)

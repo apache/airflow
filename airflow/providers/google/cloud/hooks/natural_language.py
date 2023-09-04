@@ -18,10 +18,9 @@
 """This module contains a Google Cloud Natural Language Hook."""
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.language_v1 import EncodingType, LanguageServiceClient
 from google.cloud.language_v1.types import (
     AnalyzeEntitiesResponse,
@@ -36,6 +35,9 @@ from google.cloud.language_v1.types import (
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 class CloudNaturalLanguageHook(GoogleBaseHook):
@@ -90,8 +92,9 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AnalyzeEntitiesResponse:
         """
-        Finds named entities in the text along with entity types,
-        salience, mentions for each entity, and other properties.
+        Finds named entities in the text along with various properties.
+
+        Examples properties: entity types, salience, mentions for each entity, and others.
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
@@ -120,8 +123,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AnalyzeEntitySentimentResponse:
         """
-        Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
-        entity and its mentions.
+        Similar to AnalyzeEntities, also analyzes sentiment associated with each entity and its mentions.
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
@@ -179,7 +181,9 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AnalyzeSyntaxResponse:
         """
-        Analyzes the syntax of the text and provides sentence boundaries and tokenization along with part
+        Analyzes the syntax of the text.
+
+        Provides sentence boundaries and tokenization along with part
         of speech tags, dependency trees, and other properties.
 
         :param document: Input document.
@@ -210,8 +214,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AnnotateTextResponse:
         """
-        A convenience method that provides all the features that analyzeSentiment,
-        analyzeEntities, and analyzeSyntax provide in one call.
+        Provide all features that analyzeSentiment, analyzeEntities, and analyzeSyntax provide in one call.
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document

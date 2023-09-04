@@ -24,7 +24,7 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-scheduler-policy
+  name: {{ include "airflow.fullname" . }}-scheduler-policy
   labels:
     tier: airflow
     component: airflow-scheduler-policy

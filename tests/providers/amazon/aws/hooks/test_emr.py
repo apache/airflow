@@ -22,6 +22,7 @@ from unittest import mock
 
 import boto3
 import pytest
+from botocore.exceptions import WaiterError
 from moto import mock_emr
 
 from airflow.exceptions import AirflowException
@@ -32,9 +33,15 @@ class TestEmrHook:
     def test_service_waiters(self):
         hook = EmrHook(aws_conn_id=None)
         official_waiters = hook.conn.waiter_names
-        custom_waiters = ["job_flow_waiting", "notebook_running", "notebook_stopped"]
+        custom_waiters = [
+            "job_flow_waiting",
+            "job_flow_terminated",
+            "notebook_running",
+            "notebook_stopped",
+            "step_wait_for_terminal",
+        ]
 
-        assert hook.list_waiters() == [*official_waiters, *custom_waiters]
+        assert sorted(hook.list_waiters()) == sorted([*official_waiters, *custom_waiters])
 
     @mock_emr
     def test_get_conn_returns_a_boto3_connection(self):
@@ -106,6 +113,43 @@ class TestEmrHook:
         hook.add_job_flow_steps(job_flow_id="job_flow_id", steps=steps, wait_for_completion=True)
 
         mock_conn.get_waiter.assert_called_once_with("step_complete")
+
+    @mock.patch("time.sleep", return_value=True)
+    @mock.patch.object(EmrHook, "conn")
+    def test_add_job_flow_steps_raises_exception_on_failure(self, mock_conn, mock_sleep, caplog):
+        hook = EmrHook(aws_conn_id="aws_default", emr_conn_id="emr_default", region_name="us-east-1")
+        mock_conn.describe_step.return_value = {
+            "Step": {
+                "Status": {
+                    "State": "FAILED",
+                    "FailureDetails": "test failure details",
+                }
+            }
+        }
+        mock_conn.add_job_flow_steps.return_value = {
+            "StepIds": [
+                "step_id",
+            ],
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        steps = [
+            {
+                "ActionOnFailure": "test_step",
+                "HadoopJarStep": {
+                    "Args": ["test args"],
+                    "Jar": "test.jar",
+                },
+                "Name": "step_1",
+            }
+        ]
+        waiter_error = WaiterError(name="test_error", reason="test_reason", last_response={})
+        waiter_error_failure = WaiterError(name="test_error", reason="terminal failure", last_response={})
+        mock_conn.get_waiter().wait.side_effect = [waiter_error, waiter_error_failure]
+
+        with pytest.raises(AirflowException):
+            hook.add_job_flow_steps(job_flow_id="job_flow_id", steps=steps, wait_for_completion=True)
+        assert "test failure details" in caplog.messages[-1]
+        mock_conn.get_waiter.assert_called_with("step_complete")
 
     @mock_emr
     def test_create_job_flow_extra_args(self):

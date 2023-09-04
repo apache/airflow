@@ -33,7 +33,13 @@ import { useSearchParams } from "react-router-dom";
 import useSelection from "src/dag/useSelection";
 import { getTask, getMetaValue } from "src/utils";
 import { useGridData, useTaskInstance } from "src/api";
-import { MdDetails, MdAccountTree, MdReorder, MdCode } from "react-icons/md";
+import {
+  MdDetails,
+  MdAccountTree,
+  MdReorder,
+  MdCode,
+  MdOutlineViewTimeline,
+} from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 
@@ -42,6 +48,7 @@ import TaskInstanceContent from "./taskInstance";
 import DagRunContent from "./dagRun";
 import DagContent from "./Dag";
 import Graph from "./graph";
+import Gantt from "./gantt";
 import DagCode from "./dagCode";
 import MappedInstances from "./taskInstance/MappedInstances";
 import Logs from "./taskInstance/Logs";
@@ -58,17 +65,21 @@ interface Props {
   openGroupIds: string[];
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  gridScrollRef: React.RefObject<HTMLDivElement>;
+  ganttScrollRef: React.RefObject<HTMLDivElement>;
 }
 
 const tabToIndex = (tab?: string) => {
   switch (tab) {
     case "graph":
       return 1;
-    case "code":
+    case "gantt":
       return 2;
+    case "code":
+      return 3;
     case "logs":
     case "mapped_tasks":
-      return 3;
+      return 4;
     case "details":
     default:
       return 0;
@@ -77,6 +88,7 @@ const tabToIndex = (tab?: string) => {
 
 const indexToTab = (
   index: number,
+  taskId: string | null,
   showLogs: boolean,
   showMappedTasks: boolean
 ) => {
@@ -84,8 +96,10 @@ const indexToTab = (
     case 1:
       return "graph";
     case 2:
-      return "code";
+      return "gantt";
     case 3:
+      return "code";
+    case 4:
       if (showMappedTasks) return "mapped_tasks";
       if (showLogs) return "logs";
       return undefined;
@@ -97,7 +111,13 @@ const indexToTab = (
 
 const TAB_PARAM = "tab";
 
-const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
+const Details = ({
+  openGroupIds,
+  onToggleGroups,
+  hoveredTaskState,
+  gridScrollRef,
+  ganttScrollRef,
+}: Props) => {
   const {
     selected: { runId, taskId, mapIndex },
     onSelect,
@@ -117,7 +137,6 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
   const showLogs = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
-  const showDagCode = !(isTaskInstance && !isGroupOrMappedTaskSummary);
   const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -127,16 +146,18 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const onChangeTab = useCallback(
     (index: number) => {
       const params = new URLSearchParamsWrapper(searchParams);
-      const newTab = indexToTab(index, showLogs, showMappedTasks);
+      const newTab = indexToTab(index, taskId, showLogs, showMappedTasks);
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, showLogs, showMappedTasks]
+    [setSearchParams, searchParams, showLogs, showMappedTasks, taskId]
   );
 
   useEffect(() => {
-    if ((!taskId || isGroup) && tabIndex > 2) {
+    // Default to graph tab when navigating from a task instance to a group/dag/dagrun
+    const tabCount = runId && taskId && !isGroup ? 5 : 4;
+    if (tabCount === 4 && tabIndex > 3) {
       onChangeTab(1);
     }
   }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
@@ -219,14 +240,18 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               Graph
             </Text>
           </Tab>
-          {showDagCode && (
-            <Tab>
-              <MdCode size={16} />
-              <Text as="strong" ml={1}>
-                Code
-              </Text>
-            </Tab>
-          )}
+          <Tab>
+            <MdOutlineViewTimeline size={16} />
+            <Text as="strong" ml={1}>
+              Gantt
+            </Text>
+          </Tab>
+          <Tab>
+            <MdCode size={16} />
+            <Text as="strong" ml={1}>
+              Code
+            </Text>
+          </Tab>
           {showLogs && (
             <Tab>
               <MdReorder size={16} />
@@ -269,11 +294,16 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
               hoveredTaskState={hoveredTaskState}
             />
           </TabPanel>
-          {showDagCode && (
-            <TabPanel height="100%">
-              <DagCode />
-            </TabPanel>
-          )}
+          <TabPanel p={0} height="100%">
+            <Gantt
+              openGroupIds={openGroupIds}
+              gridScrollRef={gridScrollRef}
+              ganttScrollRef={ganttScrollRef}
+            />
+          </TabPanel>
+          <TabPanel height="100%">
+            <DagCode />
+          </TabPanel>
           {showLogs && run && (
             <TabPanel
               pt={mapIndex !== undefined ? "0px" : undefined}

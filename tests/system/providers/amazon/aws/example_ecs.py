@@ -23,7 +23,7 @@ import boto3
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsTaskStates
+from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates
 from airflow.providers.amazon.aws.operators.ecs import (
     EcsCreateClusterOperator,
     EcsDeleteClusterOperator,
@@ -34,7 +34,6 @@ from airflow.providers.amazon.aws.operators.ecs import (
 from airflow.providers.amazon.aws.sensors.ecs import (
     EcsClusterStateSensor,
     EcsTaskDefinitionStateSensor,
-    EcsTaskStateSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
@@ -67,6 +66,12 @@ def get_region():
     return boto3.session.Session().region_name
 
 
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def clean_logs(group_name: str):
+    client = boto3.client("logs")
+    client.delete_log_group(logGroupName=group_name)
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
@@ -85,6 +90,7 @@ with DAG(
     asg_name = f"{env_id}-asg"
 
     aws_region = get_region()
+    log_group_name = f"/ecs_test/{env_id}"
 
     # [START howto_operator_ecs_create_cluster]
     create_cluster = EcsCreateClusterOperator(
@@ -114,7 +120,16 @@ with DAG(
                 "workingDirectory": "/usr/bin",
                 "entryPoint": ["sh", "-c"],
                 "command": ["ls"],
-            }
+                "logConfiguration": {
+                    "logDriver": "awslogs",
+                    "options": {
+                        "awslogs-group": log_group_name,
+                        "awslogs-region": aws_region,
+                        "awslogs-create-group": "true",
+                        "awslogs-stream-prefix": "ecs",
+                    },
+                },
+            },
         ],
         register_task_kwargs={
             "cpu": "256",
@@ -140,37 +155,18 @@ with DAG(
             "containerOverrides": [
                 {
                     "name": container_name,
-                    "command": ["echo", "hello", "world"],
+                    "command": ["echo hello world"],
                 },
             ],
         },
         network_configuration={"awsvpcConfiguration": {"subnets": existing_cluster_subnets}},
         # [START howto_awslogs_ecs]
-        awslogs_group="/ecs/hello-world",
+        awslogs_group=log_group_name,
         awslogs_region=aws_region,
-        awslogs_stream_prefix="ecs/hello-world-container",
+        awslogs_stream_prefix=f"ecs/{container_name}",
         # [END howto_awslogs_ecs]
-        # You must set `reattach=True` in order to get ecs_task_arn if you plan to use a Sensor.
-        reattach=True,
     )
     # [END howto_operator_ecs_run_task]
-
-    # EcsRunTaskOperator waits by default, setting as False to test the Sensor below.
-    run_task.wait_for_completion = False
-
-    # [START howto_sensor_ecs_task_state]
-    # By default, EcsTaskStateSensor waits until the task has started, but the
-    # demo task runs so fast that the sensor misses it.  This sensor instead
-    # demonstrates how to wait until the ECS Task has completed by providing
-    # the target_state and failure_states parameters.
-    await_task_finish = EcsTaskStateSensor(
-        task_id="await_task_finish",
-        cluster=existing_cluster_name,
-        task=run_task.output["ecs_task_arn"],
-        target_state=EcsTaskStates.STOPPED,
-        failure_states={EcsTaskStates.NONE},
-    )
-    # [END howto_sensor_ecs_task_state]
 
     # [START howto_operator_ecs_deregister_task_definition]
     deregister_task = EcsDeregisterTaskDefinitionOperator(
@@ -209,10 +205,10 @@ with DAG(
         register_task,
         await_task_definition,
         run_task,
-        await_task_finish,
         deregister_task,
         delete_cluster,
         await_delete_cluster,
+        clean_logs(log_group_name),
     )
 
     from tests.system.utils.watcher import watcher

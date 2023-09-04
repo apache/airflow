@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.hooks.sts import StsHook
 class QuickSightHook(AwsBaseHook):
     """
     Interact with Amazon QuickSight.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("quicksight") <QuickSight.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -58,7 +59,7 @@ class QuickSightHook(AwsBaseHook):
         check_interval: int = 30,
     ) -> dict:
         """
-        Creates and starts a new SPICE ingestion for a dataset. Refreshes the SPICE datasets.
+        Create and start a new SPICE ingestion for a dataset; refresh the SPICE datasets.
 
         .. seealso::
             - :external+boto3:py:meth:`QuickSight.Client.create_ingestion`
@@ -120,7 +121,7 @@ class QuickSightHook(AwsBaseHook):
 
     def get_error_info(self, aws_account_id: str, data_set_id: str, ingestion_id: str) -> dict | None:
         """
-        Gets info about the error if any.
+        Get info about the error if any.
 
         :param aws_account_id: An AWS Account ID
         :param data_set_id: QuickSight Data Set ID
@@ -151,7 +152,7 @@ class QuickSightHook(AwsBaseHook):
         :param target_state: Describes the QuickSight Job's Target State
         :param check_interval: the time interval in seconds which the operator
             will check the status of QuickSight Ingestion
-        :return: response of describe_ingestion call after Ingestion is is done
+        :return: response of describe_ingestion call after Ingestion is done
         """
         while True:
             status = self.get_status(aws_account_id, data_set_id, ingestion_id)

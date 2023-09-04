@@ -136,13 +136,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         )
 
     def _check_table_partitions(self) -> list:
-        """
-        The method performs the following:
-        * Generates the fully qualified table name.
-        * Calls the generate partition query.
-        * Based on the result returned by the partition generation method,
-        the _sql_sensor method is called.
-        """
+        """Generate the fully qualified table name, generate partition, and call the _sql_sensor method."""
         if self.table_name.split(".")[0] == "delta":
             _fully_qualified_table_name = self.table_name
         else:
@@ -173,6 +167,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
     ) -> str:
         """
         Queries the table for available partitions.
+
         Generates the SQL query based on the partition data types.
             * For a list, it prepares the SQL in the format:
                 column_name in (value1, value2,...)
@@ -189,7 +184,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         if len(partition_columns) < 1:
             raise AirflowException(f"Table {table_name} does not have partitions")
         formatted_opts = ""
-        if opts is not None and len(opts) > 0:
+        if opts:
             output_list = []
             for partition_col, partition_value in opts.items():
                 if escape_key:
@@ -222,7 +217,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         """Checks the table partitions and returns the results."""
         partition_result = self._check_table_partitions()
         self.log.debug("Partition sensor result: %s", partition_result)
-        if len(partition_result) >= 1:
+        if partition_result:
             return True
         else:
             raise AirflowException(f"Specified partition(s): {self.partitions} were not found.")

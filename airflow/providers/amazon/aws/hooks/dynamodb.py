@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class DynamoDBHook(AwsBaseHook):
     """
     Interact with Amazon DynamoDB.
+
     Provide thick wrapper around
     :external+boto3:py:class:`boto3.resource("dynamodb") <DynamoDB.ServiceResource>`.
 
@@ -67,4 +68,4 @@ class DynamoDBHook(AwsBaseHook):
                     batch.put_item(Item=item)
             return True
         except Exception as general_error:
-            raise AirflowException(f"Failed to insert items in dynamodb, error: {str(general_error)}")
+            raise AirflowException(f"Failed to insert items in dynamodb, error: {general_error}")

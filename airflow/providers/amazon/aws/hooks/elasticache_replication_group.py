@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class ElastiCacheReplicationGroupHook(AwsBaseHook):
     """
     Interact with Amazon ElastiCache.
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("elasticache") <ElastiCache.Client>`.
 
     :param max_retries: Max retries for checking availability of and deleting replication group
@@ -61,7 +62,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def create_replication_group(self, config: dict) -> dict:
         """
-        Creates a Redis (cluster mode disabled) or a Redis (cluster mode enabled) replication group.
+        Create a Redis (cluster mode disabled) or a Redis (cluster mode enabled) replication group.
 
         .. seealso::
             - :external+boto3:py:meth:`ElastiCache.Client.create_replication_group`
@@ -73,7 +74,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def delete_replication_group(self, replication_group_id: str) -> dict:
         """
-        Deletes an existing replication group.
+        Delete an existing replication group.
 
         .. seealso::
             - :external+boto3:py:meth:`ElastiCache.Client.delete_replication_group`
@@ -109,7 +110,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def is_replication_group_available(self, replication_group_id: str) -> bool:
         """
-        Helper for checking if replication group is available or not.
+        Check if replication group is available or not.
 
         :param replication_group_id: ID of replication group to check for availability
         :return: True if available else False
@@ -178,7 +179,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         max_retries: int | None = None,
     ):
         """
-        Helper for deleting a replication group ensuring it is either deleted or can't be deleted.
+        Delete a replication group ensuring it is either deleted or can't be deleted.
 
         :param replication_group_id: ID of replication to delete
         :param initial_sleep_time: Initial sleep time in second

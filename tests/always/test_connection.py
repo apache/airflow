@@ -103,7 +103,7 @@ class TestConnection:
             assert Fernet(key1).decrypt(test_connection._extra.encode()) == b"testextra"
 
         # Test decrypt of old value with new key
-        with conf_vars({("core", "fernet_key"): ",".join([key2.decode(), key1.decode()])}):
+        with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
             crypto._fernet = None
             assert test_connection.extra == "testextra"
 
@@ -347,7 +347,7 @@ class TestConnection:
         ),
     ]
 
-    @pytest.mark.parametrize("test_config", [x for x in test_from_uri_params])
+    @pytest.mark.parametrize("test_config", test_from_uri_params)
     def test_connection_from_uri(self, test_config: UriTestCaseConfig):
 
         connection = Connection(uri=test_config.test_uri)
@@ -369,7 +369,7 @@ class TestConnection:
 
         self.mask_secret.assert_has_calls(expected_calls)
 
-    @pytest.mark.parametrize("test_config", [x for x in test_from_uri_params])
+    @pytest.mark.parametrize("test_config", test_from_uri_params)
     def test_connection_get_uri_from_uri(self, test_config: UriTestCaseConfig):
         """
         This test verifies that when we create a conn_1 from URI, and we generate a URI from that conn, that
@@ -390,7 +390,7 @@ class TestConnection:
         assert connection.schema == new_conn.schema
         assert connection.extra_dejson == new_conn.extra_dejson
 
-    @pytest.mark.parametrize("test_config", [x for x in test_from_uri_params])
+    @pytest.mark.parametrize("test_config", test_from_uri_params)
     def test_connection_get_uri_from_conn(self, test_config: UriTestCaseConfig):
         """
         This test verifies that if we create conn_1 from attributes (rather than from URI), and we generate a
@@ -480,6 +480,50 @@ class TestConnection:
                     login=None,
                     password=None,
                     host="/tmp/z6rqdzqh/example:europe-west1:testdb",
+                    port=None,
+                    schema="",
+                ),
+            ),
+            (
+                "spark://k8s%3a%2F%2F100.68.0.1:443?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login=None,
+                    password=None,
+                    host="k8s://100.68.0.1",
+                    port=443,
+                    schema="",
+                ),
+            ),
+            (
+                "spark://user:password@k8s%3a%2F%2F100.68.0.1:443?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login="user",
+                    password="password",
+                    host="k8s://100.68.0.1",
+                    port=443,
+                    schema="",
+                ),
+            ),
+            (
+                "spark://user@k8s%3a%2F%2F100.68.0.1:443?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login="user",
+                    password=None,
+                    host="k8s://100.68.0.1",
+                    port=443,
+                    schema="",
+                ),
+            ),
+            (
+                "spark://k8s%3a%2F%2Fno.port.com?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login=None,
+                    password=None,
+                    host="k8s://no.port.com",
                     port=None,
                     schema="",
                 ),
@@ -709,14 +753,14 @@ class TestConnection:
     @mock.patch.dict(
         "os.environ",
         {
-            "AIRFLOW_CONN_TEST_URI_NO_HOOK": "fs://",
+            "AIRFLOW_CONN_TEST_URI_NO_HOOK": "unknown://",
         },
     )
     def test_connection_test_no_hook(self):
-        conn = Connection(conn_id="test_uri_no_hook", conn_type="fs")
+        conn = Connection(conn_id="test_uri_no_hook", conn_type="unknown")
         res = conn.test_connection()
         assert res[0] is False
-        assert res[1] == 'Unknown hook type "fs"'
+        assert res[1] == 'Unknown hook type "unknown"'
 
     @mock.patch.dict(
         "os.environ",

@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 1.1.2
+  - 1.1.1
   - 1.1.0
   - 1.0.0
 
@@ -43,3 +45,8 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.apache.impala.hooks.impala.ImpalaHook
     connection-type: impala
+
+additional-extras:
+  - name: kerberos
+    dependencies:
+      - kerberos>=1.3.0

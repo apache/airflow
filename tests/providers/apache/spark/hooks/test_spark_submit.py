@@ -773,7 +773,7 @@ class TestSparkSubmitHook:
         assert kill_cmd[3] == "--kill"
         assert kill_cmd[4] == "driver-20171128111415-0001"
 
-    @patch("airflow.kubernetes.kube_client.get_kube_client")
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_k8s_process_on_kill(self, mock_popen, mock_client_method):
         # Given
