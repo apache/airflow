@@ -1215,7 +1215,7 @@ class TestSchedulerJob:
         concurrency_limit: int,
         mapped_tis_state: dict,
         schedule_count: int,
-        schedule_tids: set
+        schedule_tids: set,
     ):
         """
         Test if _executable_task_instances_to_queued puts the right task instances into the
@@ -1235,6 +1235,7 @@ class TestSchedulerJob:
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        assert self.job_runner is not None
 
         self.job_runner.processor_agent = mock.MagicMock()
 

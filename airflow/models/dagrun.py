@@ -59,7 +59,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
-from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES, EXECUTION_STATES
+from airflow.ti_deps.dependencies_states import EXECUTION_STATES, SCHEDULEABLE_STATES
 from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -812,10 +812,11 @@ class DagRun(Base, LoggingMixin):
 
         def _generate_allow_index_map(unfinished_tis: list[TI]):
             # group_id -> set(map_index)
-            allow_index_map = dict[str, set[int]]()
+            allow_index_map = dict()
 
-            index_holding_tis = [ti for ti in unfinished_tis if
-                                 ti.state in SCHEDULEABLE_STATES or ti.state in EXECUTION_STATES]
+            index_holding_tis = [
+                ti for ti in unfinished_tis if ti.state in SCHEDULEABLE_STATES or ti.state in EXECUTION_STATES
+            ]
             index_holding_tis.sort(key=lambda ti: ti.map_index)
             for ti in index_holding_tis:
                 task_group = ti.task.task_group
@@ -827,8 +828,10 @@ class DagRun(Base, LoggingMixin):
                 if ti.map_index < 0:
                     # TI is not expanded yet, allow with concurrency limit
                     allow_index.union([0, task_group.max_active_groups_per_dagrun])
-                elif ti.map_index not in allow_index and \
-                    len(allow_index) < task_group.max_active_groups_per_dagrun:
+                elif (
+                    ti.map_index not in allow_index
+                    and len(allow_index) < task_group.max_active_groups_per_dagrun
+                ):
                     allow_index.add(ti.map_index)
             return allow_index_map
 
@@ -841,9 +844,9 @@ class DagRun(Base, LoggingMixin):
             #  Currently we only support one layer group concurrency limitation.
             #  If nest group expanding is supported in the future, we need to check all parent groups.
             if ti.map_index in allow_mapping_index[task_group.group_id]:
-                return True # allow
+                return True  # allow
 
-            return False # deny
+            return False  # deny
 
         allow_index_map = _generate_allow_index_map(unfinished_tis)
 
@@ -891,8 +894,10 @@ class DagRun(Base, LoggingMixin):
         revised_map_index_task_ids = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             old_state = schedulable.state
-            if not schedulable.are_dependencies_met(session=session, dep_context=dep_context) or \
-                    _check_map_index(schedulable, allow_index_map) is False:
+            if (
+                not schedulable.are_dependencies_met(session=session, dep_context=dep_context)
+                or _check_map_index(schedulable, allow_index_map) is False
+            ):
                 old_states[schedulable.key] = old_state
                 continue
             # If schedulable is not yet expanded, try doing it now. This is
