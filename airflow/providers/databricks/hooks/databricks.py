@@ -184,7 +184,6 @@ class DatabricksHook(BaseDatabricksHook):
         Composite filters are not supported. This field is optional.
 
         """
-
         has_more = True
         all_pipelines = []
 
@@ -254,7 +253,7 @@ class DatabricksHook(BaseDatabricksHook):
         """
         matching_pipelines = self.list_pipelines(filter=filter)
 
-        if len(matching_pipelines) > 1:
+        if len(matching_pipelines) > 1 and filter != "":
             raise AirflowException(
                 f"There is more than one pipeline with the specified filter {filter}. "
                 "Please delete duplicate pipelines or use a more specific filter."
