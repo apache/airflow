@@ -567,7 +567,7 @@ class DatabricksHook(BaseDatabricksHook):
                     api_called = True
                 else:
                     raise AirflowException(
-                        f"Cluster {cluster_id} start failed with '{run_state.state}' state: {run_state.error_message}"
+                        f"Cluster {cluster_id} start failed with '{run_state.state}' state: {run_state.state_message}"
                     )
 
             # wait for cluster to start
