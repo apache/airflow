@@ -20,5 +20,6 @@ services:
     environment:
       - BACKEND=sqlite
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${SQLITE_URL}
+      - AIRFLOW__DATABASE__ASYNC_SQL_ALCHEMY_CONN=${ASYNC_SQLITE_URL}
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source

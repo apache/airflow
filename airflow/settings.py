@@ -24,12 +24,17 @@ import logging
 import os
 import sys
 import warnings
+from asyncio import current_task
 from typing import TYPE_CHECKING, Any, Callable
 
 import pendulum
 import pluggy
 import sqlalchemy
 from sqlalchemy import create_engine, exc, text
+
+# from sqlalchemy.ext.asyncio.session import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession as SAAsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio.scoping import async_scoped_session
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -43,6 +48,7 @@ from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
+    from sqlalchemy.ext.asyncio import AsyncEngine
     from sqlalchemy.orm import Session as SASession
 
     from airflow.www.utils import UIAlert
@@ -80,6 +86,7 @@ LOG_FORMAT = conf.get("logging", "log_format")
 SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
 
 SQL_ALCHEMY_CONN: str | None = None
+ASYNC_SQL_ALCHEMY_CONN: str | None = None
 PLUGINS_FOLDER: str | None = None
 LOGGING_CLASS_PATH: str | None = None
 DONOT_MODIFY_HANDLERS: bool | None = None
@@ -87,6 +94,9 @@ DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("core", "DAGS_FOL
 
 engine: Engine
 Session: Callable[..., SASession]
+
+async_engine: AsyncEngine
+AsyncSession: Callable[..., SAAsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -189,10 +199,12 @@ def load_policy_plugins(pm: pluggy.PluginManager):
 def configure_vars():
     """Configure Global Variables from airflow.cfg."""
     global SQL_ALCHEMY_CONN
+    global ASYNC_SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
+    ASYNC_SQL_ALCHEMY_CONN = conf.get("database", "ASYNC_SQL_ALCHEMY_CONN")
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
     PLUGINS_FOLDER = conf.get("core", "plugins_folder", fallback=os.path.join(AIRFLOW_HOME, "plugins"))
@@ -226,6 +238,9 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
+    global Session
+    global async_engine
+    global AsyncSession
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
@@ -240,6 +255,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         connect_args = {}
 
     engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
+    async_engine = create_async_engine(ASYNC_SQL_ALCHEMY_CONN, connect_args=connect_args, future=True)
 
     mask_secret(engine.url.password)
 
@@ -252,6 +268,17 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             bind=engine,
             expire_on_commit=False,
         )
+    )
+    # async_sessionmaker is available only from SQLAlchemy 2.0+, so we need to use the sync version
+    AsyncSession = async_scoped_session(
+        sessionmaker(
+            class_=SAAsyncSession,
+            autocommit=False,
+            autoflush=False,
+            bind=async_engine,
+            expire_on_commit=False,
+        ),
+        scopefunc=current_task,
     )
     if engine.dialect.name == "mssql":
         session = Session()
@@ -380,9 +407,23 @@ def dispose_orm():
         engine = None
 
 
+async def dispose_async_orm():
+    global async_engine
+    global AsyncSession
+    if AsyncSession is not None:  # type: ignore[truthy-function]
+        await AsyncSession.remove()
+        AsyncSession = None
+    if async_engine:
+        await async_engine.dispose()
+        async_engine = None
+
+
 def reconfigure_orm(disable_connection_pool=False, pool_class=None):
     """Properly close database connections and re-configure ORM."""
+    import asyncio
+
     dispose_orm()
+    asyncio.run(dispose_async_orm())
     configure_orm(disable_connection_pool=disable_connection_pool, pool_class=pool_class)
 
 

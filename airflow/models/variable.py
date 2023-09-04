@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from typing import TYPE_CHECKING, Any
@@ -123,19 +124,13 @@ class Variable(Base, LoggingMixin):
             return obj
 
     @classmethod
-    def get(
+    def _process_variable_value(
         cls,
         key: str,
-        default_var: Any = __NO_DEFAULT_SENTINEL,
-        deserialize_json: bool = False,
-    ) -> Any:
-        """Get a value for an Airflow Variable Key.
-
-        :param key: Variable Key
-        :param default_var: Default value of the Variable if the Variable doesn't exist
-        :param deserialize_json: Deserialize the value to a Python dict
-        """
-        var_val = Variable.get_variable_from_secrets(key=key)
+        default_var: Any,
+        deserialize_json: bool,
+        var_val: str | None,
+    ):
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
                 return default_var
@@ -149,6 +144,40 @@ class Variable(Base, LoggingMixin):
             else:
                 mask_secret(var_val, key)
                 return var_val
+
+    @classmethod
+    def get(
+        cls,
+        key: str,
+        default_var: Any = __NO_DEFAULT_SENTINEL,
+        deserialize_json: bool = False,
+    ) -> Any:
+        """Get a value for an Airflow Variable Key.
+
+        :param key: Variable Key
+        :param default_var: Default value of the Variable if the Variable doesn't exist
+        :param deserialize_json: Deserialize the value to a Python dict
+        """
+        var_val = Variable.get_variable_from_secrets(key=key)
+        return cls._process_variable_value(key, default_var, deserialize_json, var_val)
+
+    @classmethod
+    async def async_get(
+        cls,
+        key: str,
+        default_var: Any = __NO_DEFAULT_SENTINEL,
+        deserialize_json: bool = False,
+    ) -> Any:
+        """Get a value for an Airflow Variable Key asynchronously.
+
+        :param key: Variable Key
+        :param default_var: Default value of the Variable if the Variable doesn't exist
+        :param deserialize_json: Deserialize the value to a Python dict
+        """
+        var_val = await Variable.async_get_variable_from_secrets(key=key)
+        return cls._process_variable_value(key, default_var, deserialize_json, var_val)
+
+    # TODO: implement async version for the other methods
 
     @staticmethod
     @provide_session
@@ -258,6 +287,20 @@ class Variable(Base, LoggingMixin):
             return None
 
     @staticmethod
+    def get_variable_from_cache(key: str) -> str | None:
+        """
+        Get variable by key from cache.
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        with contextlib.suppress(SecretCache.NotPresentException):
+            return SecretCache.get_variable(key)
+        return None
+
+    @staticmethod
     def get_variable_from_secrets(key: str) -> str | None:
         """
         Get Airflow Variable by iterating over all Secret Backends.
@@ -265,18 +308,44 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :return: Variable Value
         """
-        # check cache first
-        # enabled only if SecretCache.init() has been called first
-        try:
-            return SecretCache.get_variable(key)
-        except SecretCache.NotPresentException:
-            pass  # continue business
+        var_val = Variable.get_variable_from_cache(key)
+        if var_val is not None:
+            return var_val
 
-        var_val = None
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
                 var_val = secrets_backend.get_variable(key=key)
+                if var_val is not None:
+                    break
+            except Exception:
+                log.exception(
+                    "Unable to retrieve variable from secrets backend (%s). "
+                    "Checking subsequent secrets backend.",
+                    type(secrets_backend).__name__,
+                )
+
+        SecretCache.save_variable(key, var_val)  # we save None as well
+        return var_val
+
+    @staticmethod
+    async def async_get_variable_from_secrets(key: str) -> str | None:
+        """
+        Get Airflow Variable by iterating over all Secret Backends asynchronously.
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        var_val = Variable.get_variable_from_cache(key)
+        if var_val is not None:
+            return var_val
+
+        # iterate over backends if not in cache (or expired)
+        for secrets_backend in ensure_secrets_loaded():
+            try:
+                var_val = await secrets_backend.async_get_variable(key=key)
                 if var_val is not None:
                     break
             except Exception:

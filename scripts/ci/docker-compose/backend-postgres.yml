@@ -20,6 +20,7 @@ services:
     environment:
       - BACKEND=postgres
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
+      - AIRFLOW__DATABASE__ASYNC_SQL_ALCHEMY_CONN=postgresql+asyncpg://postgres:airflow@postgres/airflow
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://postgres:airflow@postgres/airflow
     depends_on:
       postgres:

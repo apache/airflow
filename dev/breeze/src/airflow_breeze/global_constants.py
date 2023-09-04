@@ -219,6 +219,7 @@ REDIS_HOST_PORT = "26379"
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
+ASYNC_SQLITE_URL = "sqlite+aiosqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
 
 PRODUCTION_IMAGE = False

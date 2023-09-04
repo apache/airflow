@@ -27,7 +27,7 @@ from airflow.models.variable import Variable
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.secrets.environment_variables import EnvironmentVariablesBackend
 from airflow.secrets.metastore import MetastoreBackend
-from airflow.utils.session import create_session
+from airflow.utils.session import create_async_session, create_session
 from tests.test_utils.db import clear_db_connections, clear_db_variables
 
 pytestmark = pytest.mark.db_test
@@ -80,6 +80,17 @@ class TestBaseSecretsBackend:
         conn = metastore_backend.get_connection("sample_2")
         assert sample_conn_2.host.lower() == conn.host
 
+    @pytest.mark.async_db_test
+    @pytest.mark.asyncio
+    async def test_async_connection_metastore_secrets_backend(self):
+        sample_conn_2 = SampleConn("sample_2", "A")
+        async with create_async_session() as session:
+            session.add(sample_conn_2.conn)
+            await session.commit()
+        metastore_backend = MetastoreBackend()
+        conn = await metastore_backend.async_get_connection("sample_2")
+        assert sample_conn_2.host.lower() == conn.host
+
     @mock.patch.dict(
         "os.environ",
         {
@@ -102,3 +113,14 @@ class TestBaseSecretsBackend:
         assert "World" == variable_value
         assert metastore_backend.get_variable(key="non_existent_key") is None
         assert "" == metastore_backend.get_variable(key="empty_str")
+
+    @pytest.mark.async_db_test
+    @pytest.mark.asyncio
+    async def test_async_variable_metastore_secrets_backend(self):
+        Variable.set(key="hello", value="World")
+        Variable.set(key="empty_str", value="")
+        metastore_backend = MetastoreBackend()
+        variable_value = await metastore_backend.async_get_variable(key="hello")
+        assert "World" == variable_value
+        assert await metastore_backend.async_get_variable(key="non_existent_key") is None
+        assert "" == await metastore_backend.async_get_variable(key="empty_str")

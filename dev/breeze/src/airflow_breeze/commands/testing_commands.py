@@ -20,6 +20,7 @@ import os
 import sys
 from datetime import datetime
 from time import sleep
+from typing import Literal
 
 import click
 from click import IntRange
@@ -28,6 +29,7 @@ from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_i
 from airflow_breeze.commands.common_options import (
     option_backend,
     option_db_reset,
+    option_db_tests_mode,
     option_debug_resources,
     option_downgrade_sqlalchemy,
     option_dry_run,
@@ -460,6 +462,7 @@ option_remove_arm_packages = click.option(
 @option_test_type
 @option_test_timeout
 @option_run_db_tests_only
+@option_db_tests_mode
 @option_skip_db_tests
 @option_db_reset
 @option_run_in_parallel
@@ -521,6 +524,7 @@ def command_for_tests(**kwargs):
 @option_verbose
 @option_dry_run
 @option_github_repository
+@option_db_tests_mode
 def command_for_db_tests(**kwargs):
     _run_test_command(
         integration=(),
@@ -603,6 +607,7 @@ def _run_test_command(
     python: str,
     remove_arm_packages: bool,
     run_db_tests_only: bool,
+    db_tests_mode: Literal["sync", "async", "all"] = "sync",
     run_in_parallel: bool,
     skip_cleanup: bool,
     skip_db_tests: bool,
@@ -647,6 +652,7 @@ def _run_test_command(
         python=python,
         remove_arm_packages=remove_arm_packages,
         run_db_tests_only=run_db_tests_only,
+        db_tests_mode=db_tests_mode,
         skip_db_tests=skip_db_tests,
         skip_provider_tests=skip_provider_tests,
         test_type=test_type,

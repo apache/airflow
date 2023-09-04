@@ -26,9 +26,15 @@ from sqlalchemy import select
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.secrets import BaseSecretsBackend
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import (
+    NEW_ASYNC_SESSION,
+    NEW_SESSION,
+    provide_async_session,
+    provide_session,
+)
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
     from airflow.models.connection import Connection
@@ -40,6 +46,12 @@ class MetastoreBackend(BaseSecretsBackend):
     @provide_session
     def get_connection(self, conn_id: str, session: Session = NEW_SESSION) -> Connection | None:
         return MetastoreBackend._fetch_connection(conn_id, session=session)
+
+    @provide_async_session
+    async def async_get_connection(
+        self, conn_id: str, session: AsyncSession = NEW_ASYNC_SESSION
+    ) -> Connection | None:
+        return await MetastoreBackend._async_fetch_connection(conn_id, session=session)
 
     @provide_session
     def get_connections(self, conn_id: str, session: Session = NEW_SESSION) -> list[Connection]:
@@ -64,6 +76,16 @@ class MetastoreBackend(BaseSecretsBackend):
         """
         return MetastoreBackend._fetch_variable(key=key, session=session)
 
+    @provide_async_session
+    async def async_get_variable(self, key: str, session: AsyncSession = NEW_ASYNC_SESSION) -> str | None:
+        """
+        Get Airflow Variable from Metadata DB asynchronously.
+
+        :param key: Variable Key
+        :return: Variable Value
+        """
+        return await MetastoreBackend._async_fetch_variable(key=key, session=session)
+
     @staticmethod
     @internal_api_call
     @provide_session
@@ -76,11 +98,35 @@ class MetastoreBackend(BaseSecretsBackend):
 
     @staticmethod
     @internal_api_call
+    @provide_async_session
+    async def _async_fetch_connection(
+        conn_id: str, session: AsyncSession = NEW_ASYNC_SESSION
+    ) -> Connection | None:
+        from airflow.models.connection import Connection
+
+        conn = await session.scalar(select(Connection).where(Connection.conn_id == conn_id).limit(1))
+        session.expunge_all()
+        return conn
+
+    @staticmethod
+    @internal_api_call
     @provide_session
     def _fetch_variable(key: str, session: Session = NEW_SESSION) -> str | None:
         from airflow.models.variable import Variable
 
         var_value = session.scalar(select(Variable).where(Variable.key == key).limit(1))
+        session.expunge_all()
+        if var_value:
+            return var_value.val
+        return None
+
+    @staticmethod
+    @internal_api_call
+    @provide_async_session
+    async def _async_fetch_variable(key: str, session: AsyncSession = NEW_ASYNC_SESSION) -> str | None:
+        from airflow.models.variable import Variable
+
+        var_value = await session.scalar(select(Variable).where(Variable.key == key).limit(1))
         session.expunge_all()
         if var_value:
             return var_value.val

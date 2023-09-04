@@ -298,6 +298,12 @@ class TestVariable:
 
         assert c != b
 
+    @pytest.mark.async_db_test
+    @pytest.mark.asyncio
+    async def test_variable_async_get(self):
+        Variable.set("key", "value")
+        assert "value" == await Variable.async_get("key")
+
 
 @pytest.mark.parametrize(
     "variable_value, deserialize_json, expected_masked_values",

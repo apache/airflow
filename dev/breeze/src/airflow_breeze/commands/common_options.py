@@ -307,6 +307,13 @@ option_run_db_tests_only = click.option(
     is_flag=True,
     envvar="run_db_tests_only",
 )
+option_db_tests_mode = click.option(
+    "--db-tests-mode",
+    help="Mode of running tests that require a database",
+    type=click.Choice(["sync", "async", "all"]),
+    default="sync",
+    show_default=True,
+)
 option_run_in_parallel = click.option(
     "--run-in-parallel",
     help="Run the operation in parallel on all or selected subset of parameters.",

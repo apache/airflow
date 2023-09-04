@@ -986,6 +986,7 @@ jobs:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
         postgres-version: "${{fromJson(needs.build-info.outputs.postgres-versions)}}"
         exclude: "${{fromJson(needs.build-info.outputs.postgres-exclude)}}"
+        db-tests-mode: [sync, async]
       fail-fast: false
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1018,6 +1019,7 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: >
           breeze testing db-tests
+          --db-tests-mode="${{matrix.db-tests-mode}}"
           --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
         run: breeze testing db-tests --collect-only --remove-arm-packages
@@ -1193,6 +1195,7 @@ jobs:
         python-version: "${{fromJson(needs.build-info.outputs.python-versions)}}"
         mysql-version: "${{fromJson(needs.build-info.outputs.mysql-versions)}}"
         exclude: "${{fromJson(needs.build-info.outputs.mysql-exclude)}}"
+        db-tests-mode: [sync, async]
       fail-fast: false
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1225,6 +1228,7 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: >
           breeze testing db-tests
+          --db-tests-mode="${{matrix.db-tests-mode}}"
           --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: MySQL"
@@ -1309,6 +1313,7 @@ jobs:
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.python-versions) }}
         exclude: ${{ fromJson(needs.build-info.outputs.sqlite-exclude) }}
+        db-tests-mode: [sync, async]
       fail-fast: false
     if: needs.build-info.outputs.run-tests == 'true'
     env:
@@ -1340,6 +1345,7 @@ jobs:
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
         run: >
           breeze testing db-tests
+          --db-tests-mode="${{matrix.db-tests-mode}}"
           --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: Sqlite"
