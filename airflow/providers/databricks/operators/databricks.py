@@ -386,7 +386,11 @@ class DatabricksSubmitRunOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        if "pipeline_task" in self.json and self.json["pipeline_task"].get("pipeline_id") is None:
+        if (
+            "pipeline_task" in self.json 
+            and self.json["pipeline_task"].get("pipeline_id") is None
+            and self.json["pipeline_task"].get("pipeline_name")
+        ):
             # If pipeline_id is not provided, we need to fetch it from the pipeline_name
             pipeline_name = self.json["pipeline_task"]["pipeline_name"]
             self.json["pipeline_task"]["pipeline_id"] = self._hook.get_pipeline_id(pipeline_name)
