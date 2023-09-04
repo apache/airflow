@@ -390,7 +390,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
                 pipeline_id = hook.find_pipeline_id_by_name(self.json["pipeline_task"]["filter"])
                 if pipeline_id is None:
                     raise AirflowException(
-                        f"Pipeline ID for pipeline name {self.json['pipeline_task']['filter']} can not be found"
+                        f"Pipeline ID for pipeline name {self.json['pipeline_task']['filter']} "
+                        "can not be found"
                     )
                 self.json["pipeline_task"]["pipeline_id"] = pipeline_id
                 del self.json["pipeline_task"]["filter"]
