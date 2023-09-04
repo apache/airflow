@@ -26,7 +26,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 
 def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
     """Replace the default DbApiHook fetch_all_handler ."""
-    to_return = fetch_all_handler(cursor)
+    result = fetch_all_handler(cursor)
     # loop on all statement result sets to get errors
     if cursor.description is not None:
         while cursor.nextset():
@@ -34,7 +34,7 @@ def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
                 row = cursor.fetchone()
                 while row:
                     row = cursor.fetchone()
-    return to_return
+    return result
 
 
 class VerticaHook(DbApiHook):
