@@ -28,7 +28,7 @@ const getGroupIds = (groups: Task[]) => {
   const checkTasks = (tasks: Task[]) =>
     tasks.forEach((task) => {
       if (task.children) {
-        groupIds.push(task.label!);
+        groupIds.push(task.id!);
         checkTasks(task.children);
       }
     });

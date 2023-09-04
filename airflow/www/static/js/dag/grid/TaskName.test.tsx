@@ -29,7 +29,7 @@ import TaskName from "./TaskName";
 describe("Test TaskName", () => {
   test("Displays a normal task name", () => {
     const { getByText } = render(
-      <TaskName label="test" onToggle={() => {}} />,
+      <TaskName label="test" id="test" onToggle={() => {}} />,
       { wrapper: ChakraWrapper }
     );
 
@@ -38,7 +38,13 @@ describe("Test TaskName", () => {
 
   test("Displays a mapped task name", () => {
     const { getByText } = render(
-      <TaskName level={0} label="test" isMapped onToggle={() => {}} />,
+      <TaskName
+        level={0}
+        label="test"
+        id="test"
+        isMapped
+        onToggle={() => {}}
+      />,
       { wrapper: ChakraWrapper }
     );
 
@@ -47,7 +53,7 @@ describe("Test TaskName", () => {
 
   test("Displays a group task name", () => {
     const { getByText, getByTestId } = render(
-      <TaskName level={0} label="test" isGroup onToggle={() => {}} />,
+      <TaskName level={0} label="test" id="test" isGroup onToggle={() => {}} />,
       { wrapper: ChakraWrapper }
     );
 

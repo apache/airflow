@@ -79,9 +79,9 @@ export const flattenNodes = ({
         onToggleCollapse: () => {
           let newGroupIds = [];
           if (!node.value.isOpen) {
-            newGroupIds = [...openGroupIds, node.value.label];
+            newGroupIds = [...openGroupIds, node.id];
           } else {
-            newGroupIds = openGroupIds.filter((g) => g !== node.value.label);
+            newGroupIds = openGroupIds.filter((g) => g !== node.id);
           }
           onToggleGroups(newGroupIds);
         },
