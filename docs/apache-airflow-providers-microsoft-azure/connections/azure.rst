@@ -27,7 +27,7 @@ The Microsoft Azure connection type enables the Azure Integrations.
 Authenticating to Azure
 -----------------------
 
-There are three ways to connect to Azure using Airflow.
+There are four ways to connect to Azure using Airflow.
 
 1. Use `token credentials
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials>`_
@@ -38,6 +38,9 @@ There are three ways to connect to Azure using Airflow.
 3. Use a `JSON dictionary
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-a-json-dictionary>`_
    i.e. add a key config directly into the Airflow connection.
+2. Fallback on `DefaultAzureCredential
+   <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
+   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -53,10 +56,12 @@ Configuring the Connection
 Login (optional)
     Specify the ``client_id`` used for the initial connection.
     This is only needed for *token credentials* authentication mechanism.
+    It can be left out to fall back on ``DefaultAzureCredential``.
 
 Password (optional)
     Specify the ``secret`` used for the initial connection.
     This is only needed for *token credentials* authentication mechanism.
+    It can be left out to fall back on ``DefaultAzureCredential``.
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
@@ -65,11 +70,13 @@ Extra (optional)
     * ``tenantId``: Specify the tenant to use.
       This is only needed for *token credentials* authentication mechanism.
     * ``subscriptionId``: Specify the subscription id to use.
-      This is only needed for *token credentials* authentication mechanism.
+      This is only needed for *token credentials* and DefaultAzureCredential_ authentication mechanism.
     * ``key_path``: If set, it uses the *JSON file* authentication mechanism.
       It specifies the path to the json file that contains the authentication information.
     * ``key_json``: If set, it uses the *JSON dictionary* authentication mechanism.
       It specifies the json that contains the authentication information.
+
+    The entire extra column can be left out to fall back on ``DefaultAzureCredential``.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
