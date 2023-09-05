@@ -19,20 +19,23 @@ from __future__ import annotations
 
 import logging
 from functools import cached_property
-from typing import Any
-
-from redis import Redis
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.models import TaskInstance
 from airflow.providers.redis.hooks.redis import RedisHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from redis import Redis
+
+    from airflow.models import TaskInstance
 
 
 class RedisTaskHandler(FileTaskHandler, LoggingMixin):
     """
     RedisTaskHandler is a Python log handler that handles and reads task instance logs.
+
     It extends airflow FileTaskHandler and uploads to and reads from Redis.
 
     :param base_log_folder:

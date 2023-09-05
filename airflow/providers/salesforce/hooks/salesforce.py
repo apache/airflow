@@ -26,13 +26,15 @@ from __future__ import annotations
 import logging
 import time
 from functools import cached_property
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
-import pandas as pd
-from requests import Session
 from simple_salesforce import Salesforce, api
 
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    import pandas as pd
+    from requests import Session
 
 log = logging.getLogger(__name__)
 
@@ -240,6 +242,8 @@ class SalesforceHook(BaseHook):
         # between 0 and 10 are turned into timestamps
         # if the column cannot be converted,
         # just return the original column untouched
+        import pandas as pd
+
         try:
             column = pd.to_datetime(column)
         except ValueError:
@@ -355,6 +359,8 @@ class SalesforceHook(BaseHook):
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
         :return: the dataframe.
         """
+        import pandas as pd
+
         # this line right here will convert all integers to floats
         # if there are any None/np.nan values in the column
         # that's because None/np.nan cannot exist in an integer column

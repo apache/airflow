@@ -91,6 +91,6 @@ class GrpcOperator(BaseOperator):
 
     def _handle_response(self, response: Any, context: Context) -> None:
         if self.log_response:
-            self.log.info(repr(response))
+            self.log.info("%r", response)
         if self.response_callback:
             self.response_callback(response, context)

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import enum
+import itertools
 import json
 import logging
 import math
@@ -26,30 +27,30 @@ import warnings
 from collections.abc import Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Generator, cast
+from datetime import timedelta
+from typing import TYPE_CHECKING, Generator, Protocol, cast
 
 import pendulum
 import tenacity
 from kubernetes import client, watch
-from kubernetes.client.models.v1_container_status import V1ContainerStatus
-from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
 from tenacity import before_log
+from typing_extensions import Literal
 from urllib3.exceptions import HTTPError as BaseHTTPError
-from urllib3.response import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
-from airflow.typing_compat import Literal, Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
+    from kubernetes.client.models.v1_container_status import V1ContainerStatus
+    from kubernetes.client.models.v1_pod import V1Pod
+    from urllib3.response import HTTPResponse
 
 
 class PodLaunchFailedException(AirflowException):
@@ -142,6 +143,21 @@ def container_is_completed(pod: V1Pod, container_name: str) -> bool:
     if not container_status:
         return False
     return container_status.state.terminated is not None
+
+
+def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examines V1Pod ``pod`` to determine whether ``container_name`` is completed and succeeded.
+
+    If that container is present and completed and succeeded, returns True.  Returns False otherwise.
+    """
+    if not container_is_completed(pod, container_name):
+        return False
+
+    container_status = get_container_status(pod, container_name)
+    if not container_status:
+        return False
+    return container_status.state.terminated.exit_code == 0
 
 
 def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
@@ -324,14 +340,13 @@ class PodManager(LoggingMixin):
             (if pod is pending for too long, fails task)
         :return:
         """
-        curr_time = datetime.now()
+        curr_time = time.time()
         while True:
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase != PodPhase.PENDING:
                 break
             self.log.warning("Pod not yet started: %s", pod.metadata.name)
-            delta = datetime.now() - curr_time
-            if delta.total_seconds() >= startup_timeout:
+            if time.time() - curr_time >= startup_timeout:
                 msg = (
                     f"Pod took longer than {startup_timeout} seconds to start. "
                     "Check the pod events in kubernetes to determine why."
@@ -383,7 +398,7 @@ class PodManager(LoggingMixin):
 
             Returns the last timestamp observed in logs.
             """
-            timestamp = None
+            last_captured_timestamp = None
             try:
                 logs = self.read_pod_logs(
                     pod=pod,
@@ -397,7 +412,9 @@ class PodManager(LoggingMixin):
                 )
                 for raw_line in logs:
                     line = raw_line.decode("utf-8", errors="backslashreplace")
-                    timestamp, message = self.parse_log_line(line)
+                    line_timestamp, message = self.parse_log_line(line)
+                    if line_timestamp is not None:
+                        last_captured_timestamp = line_timestamp
                     self.log.info("[%s] %s", container_name, message)
             except BaseHTTPError as e:
                 self.log.warning(
@@ -411,7 +428,7 @@ class PodManager(LoggingMixin):
                     pod.metadata.name,
                     exc_info=True,
                 )
-            return timestamp or since_time
+            return last_captured_timestamp or since_time
 
         # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
         # loop as we do here. But in a long-running process we might temporarily lose connectivity.
@@ -443,9 +460,7 @@ class PodManager(LoggingMixin):
         """
         pod_logging_statuses = []
         all_containers = self.get_container_names(pod)
-        if len(all_containers) == 0:
-            self.log.error("Could not retrieve containers for the pod: %s", pod.metadata.name)
-        else:
+        if all_containers:
             if isinstance(container_logs, str):
                 # fetch logs only for requested container if only one container is provided
                 if container_logs in all_containers:
@@ -490,6 +505,8 @@ class PodManager(LoggingMixin):
                     self.log.error(
                         "Invalid type %s specified for container names input parameter", type(container_logs)
                     )
+        else:
+            self.log.error("Could not retrieve containers for the pod: %s", pod.metadata.name)
 
         return pod_logging_statuses
 
@@ -508,16 +525,22 @@ class PodManager(LoggingMixin):
             self.log.info("Waiting for container '%s' state to be completed", container_name)
             time.sleep(1)
 
-    def await_pod_completion(self, pod: V1Pod) -> V1Pod:
+    def await_pod_completion(
+        self, pod: V1Pod, istio_enabled: bool = False, container_name: str = "base"
+    ) -> V1Pod:
         """
         Monitors a pod and returns the final state.
 
+        :param istio_enabled: whether istio is enabled in the namespace
         :param pod: pod spec that will be monitored
+        :param container_name: name of the container within the pod
         :return: tuple[State, str | None]
         """
         while True:
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
+                break
+            if istio_enabled and container_is_completed(remote_pod, container_name):
                 break
             self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
@@ -530,16 +553,14 @@ class PodManager(LoggingMixin):
         :param line: k8s log line
         :return: timestamp and log message
         """
-        split_at = line.find(" ")
-        if split_at == -1:
+        timestamp, sep, message = line.strip().partition(" ")
+        if not sep:
             self.log.error(
                 "Error parsing timestamp (no timestamp in message %r). "
                 "Will continue execution but won't update timestamp",
                 line,
             )
             return None, line
-        timestamp = line[:split_at]
-        message = line[split_at + 1 :].rstrip()
         try:
             last_log_time = cast(DateTime, pendulum.parse(timestamp))
         except ParserError:
@@ -628,14 +649,12 @@ class PodManager(LoggingMixin):
 
     def await_xcom_sidecar_container_start(self, pod: V1Pod) -> None:
         self.log.info("Checking if xcom sidecar container is started.")
-        warned = False
-        while True:
+        for attempt in itertools.count():
             if self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
                 self.log.info("The xcom sidecar container is started.")
                 break
-            if not warned:
+            if not attempt:
                 self.log.warning("The xcom sidecar container is not yet started.")
-                warned = True
             time.sleep(1)
 
     def extract_xcom(self, pod: V1Pod) -> str:
@@ -723,7 +742,7 @@ class PodManager(LoggingMixin):
         return res
 
 
-class OnFinishAction(enum.Enum):
+class OnFinishAction(str, enum.Enum):
     """Action to take when the pod finishes."""
 
     KEEP_POD = "keep_pod"

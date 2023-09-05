@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.3.1
 .....
 
-Latest change: 2023-08-01
+Latest change: 2023-08-05
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`29a59de237 <https://github.com/apache/airflow/commit/29a59de237ccd42a3a5c20b10fc4c92b82ff4475>`_  2023-08-05   ``Fix oversubsription of Redis pubsub sensor (#33139)``
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `17a3dd4135 <https://github.com/apache/airflow/commit/17a3dd41355c29ed55fcf449b3b7002d4085e9bb>`_  2023-08-01   ``Move redis subscribe to poke() method in Redis Sensor (#32984)``
 =================================================================================================  ===========  ==================================================================
 

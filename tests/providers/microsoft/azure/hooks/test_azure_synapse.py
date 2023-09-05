@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -26,7 +25,6 @@ from pytest import fixture
 
 from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, AzureSynapseSparkBatchRunStatus
-from airflow.utils import db
 
 DEFAULT_SPARK_POOL = "defaultSparkPool"
 
@@ -42,59 +40,44 @@ ID = "testId"
 JOB_ID = 1
 
 
-def setup_module():
-    connection_client_secret = Connection(
-        conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
-        conn_type="azure_synapse",
-        host="https://testsynapse.dev.azuresynapse.net",
-        login="clientId",
-        password="clientSecret",
-        extra=json.dumps(
-            {
-                "extra__azure_synapse__tenantId": "tenantId",
-                "extra__azure_synapse__subscriptionId": "subscriptionId",
-            }
+@pytest.fixture(autouse=True)
+def setup_connections(create_mock_connections):
+    create_mock_connections(
+        # connection_client_secret
+        Connection(
+            conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+            conn_type="azure_synapse",
+            host="https://testsynapse.dev.azuresynapse.net",
+            login="clientId",
+            password="clientSecret",
+            extra={"tenantId": "tenantId", "subscriptionId": "subscriptionId"},
+        ),
+        # connection_default_credential
+        Connection(
+            conn_id=DEFAULT_CONNECTION_DEFAULT_CREDENTIAL,
+            conn_type="azure_synapse",
+            host="https://testsynapse.dev.azuresynapse.net",
+            extra={"subscriptionId": "subscriptionId"},
+        ),
+        Connection(
+            # connection_missing_subscription_id
+            conn_id="azure_synapse_missing_subscription_id",
+            conn_type="azure_synapse",
+            host="https://testsynapse.dev.azuresynapse.net",
+            login="clientId",
+            password="clientSecret",
+            extra={"tenantId": "tenantId"},
+        ),
+        # connection_missing_tenant_id
+        Connection(
+            conn_id="azure_synapse_missing_tenant_id",
+            conn_type="azure_synapse",
+            host="https://testsynapse.dev.azuresynapse.net",
+            login="clientId",
+            password="clientSecret",
+            extra={"subscriptionId": "subscriptionId"},
         ),
     )
-    connection_default_credential = Connection(
-        conn_id=DEFAULT_CONNECTION_DEFAULT_CREDENTIAL,
-        conn_type="azure_synapse",
-        host="https://testsynapse.dev.azuresynapse.net",
-        extra=json.dumps(
-            {
-                "extra__azure_synapse__subscriptionId": "subscriptionId",
-            }
-        ),
-    )
-    connection_missing_subscription_id = Connection(
-        conn_id="azure_synapse_missing_subscription_id",
-        conn_type="azure_synapse",
-        host="https://testsynapse.dev.azuresynapse.net",
-        login="clientId",
-        password="clientSecret",
-        extra=json.dumps(
-            {
-                "extra__azure_synapse__tenantId": "tenantId",
-            }
-        ),
-    )
-    connection_missing_tenant_id = Connection(
-        conn_id="azure_synapse_missing_tenant_id",
-        conn_type="azure_synapse",
-        host="https://testsynapse.dev.azuresynapse.net",
-        login="clientId",
-        password="clientSecret",
-        extra=json.dumps(
-            {
-                "extra__azure_synapse__subscriptionId": "subscriptionId",
-            }
-        ),
-    )
-
-    db.merge_conn(connection_client_secret)
-    db.merge_conn(connection_default_credential)
-    db.merge_conn(connection_missing_subscription_id)
-    db.merge_conn(connection_missing_tenant_id)
 
 
 @fixture

@@ -16,14 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class AthenaTrigger(AwsBaseWaiterTrigger):
     """
-    Trigger for RedshiftCreateClusterOperator.
+    Trigger for AthenaOperator.
 
     The trigger will asynchronously poll the boto3 API and wait for the
     Redshift cluster to be in the `available` state.

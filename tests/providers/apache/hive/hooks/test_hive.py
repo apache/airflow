@@ -29,7 +29,7 @@ if PY311:
 
 import datetime
 import itertools
-from collections import OrderedDict, namedtuple
+from collections import namedtuple
 from unittest import mock
 
 import pandas as pd
@@ -242,18 +242,18 @@ class TestHiveCliHook:
     def test_load_file_create_table(self, mock_run_cli):
         filepath = "/path/to/input/file"
         table = "output_table"
-        field_dict = OrderedDict([("name", "string"), ("gender", "string")])
+        field_dict = {"name": "string", "gender": "string"}
         fields = ",\n    ".join(f"`{k.strip('`')}` {v}" for k, v in field_dict.items())
 
         hook = MockHiveCliHook()
         hook.load_file(filepath=filepath, table=table, field_dict=field_dict, create=True, recreate=True)
 
         create_table = (
-            "DROP TABLE IF EXISTS {table};\n"
-            "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
+            f"DROP TABLE IF EXISTS {table};\n"
+            f"CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
             "ROW FORMAT DELIMITED\n"
             "FIELDS TERMINATED BY ','\n"
-            "STORED AS textfile\n;".format(table=table, fields=fields)
+            "STORED AS textfile\n;"
         )
 
         load_data = f"LOAD DATA LOCAL INPATH '{filepath}' OVERWRITE INTO TABLE {table} ;\n"
@@ -281,7 +281,7 @@ class TestHiveCliHook:
         kwargs = mock_load_file.call_args.kwargs
         assert kwargs["delimiter"] == delimiter
         assert kwargs["field_dict"] == {"c": "STRING"}
-        assert isinstance(kwargs["field_dict"], OrderedDict)
+        assert isinstance(kwargs["field_dict"], dict)
         assert kwargs["table"] == table
 
     @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.load_file")
@@ -291,7 +291,7 @@ class TestHiveCliHook:
         bools = (True, False)
         for create, recreate in itertools.product(bools, bools):
             mock_load_file.reset_mock()
-            hook.load_df(df=pd.DataFrame({"c": range(0, 10)}), table="t", create=create, recreate=recreate)
+            hook.load_df(df=pd.DataFrame({"c": range(10)}), table="t", create=create, recreate=recreate)
 
             assert mock_load_file.call_count == 1
             kwargs = mock_load_file.call_args.kwargs
@@ -300,17 +300,18 @@ class TestHiveCliHook:
 
     @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli")
     def test_load_df_with_data_types(self, mock_run_cli):
-        ord_dict = OrderedDict()
-        ord_dict["b"] = [True]
-        ord_dict["i"] = [-1]
-        ord_dict["t"] = [1]
-        ord_dict["f"] = [0.0]
-        ord_dict["c"] = ["c"]
-        ord_dict["M"] = [datetime.datetime(2018, 1, 1)]
-        ord_dict["O"] = [object()]
-        ord_dict["S"] = [b"STRING"]
-        ord_dict["U"] = ["STRING"]
-        ord_dict["V"] = [None]
+        ord_dict = {
+            "b": [True],
+            "i": [-1],
+            "t": [1],
+            "f": [0.0],
+            "c": ["c"],
+            "M": [datetime.datetime(2018, 1, 1)],
+            "O": [object()],
+            "S": [b"STRING"],
+            "U": ["STRING"],
+            "V": [None],
+        }
         df = pd.DataFrame(ord_dict)
 
         hook = MockHiveCliHook()

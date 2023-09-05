@@ -26,14 +26,8 @@ import logging
 import os
 import sys
 import types
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
-
-try:
-    import importlib_metadata
-except ImportError:
-    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
-
-from types import ModuleType
 
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
@@ -41,6 +35,12 @@ from airflow.utils.file import find_path_from_directory
 from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
+    try:
+        import importlib_metadata
+    except ImportError:
+        from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
+    from types import ModuleType
+
     from airflow.hooks.base import BaseHook
     from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable
@@ -206,6 +206,7 @@ def is_valid_plugin(plugin_obj):
 def register_plugin(plugin_instance):
     """
     Start plugin load and register it after success initialization.
+
     If plugin is already registered, do nothing.
 
     :param plugin_instance: subclass of AirflowPlugin
@@ -251,11 +252,10 @@ def load_plugins_from_plugin_directory():
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
     for file_path in find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore"):
-        if not os.path.isfile(file_path):
+        path = Path(file_path)
+        if not path.is_file() or path.suffix != ".py":
             continue
-        mod_name, file_ext = os.path.splitext(os.path.split(file_path)[-1])
-        if file_ext != ".py":
-            continue
+        mod_name = path.stem
 
         try:
             loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
@@ -285,13 +285,12 @@ def load_providers_plugins():
 
         try:
             plugin_instance = import_string(plugin.plugin_class)
-            if not is_valid_plugin(plugin_instance):
+            if is_valid_plugin(plugin_instance):
+                register_plugin(plugin_instance)
+            else:
                 log.warning("Plugin %s is not a valid plugin", plugin.name)
-                continue
-            register_plugin(plugin_instance)
         except ImportError:
             log.exception("Failed to load plugin %s from class name %s", plugin.name, plugin.plugin_class)
-            continue
 
 
 def make_module(name: str, objects: list[Any]):

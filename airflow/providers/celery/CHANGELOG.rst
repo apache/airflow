@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+3.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix dependencies for celery and opentelemetry for Python 3.8 (#33579)``
+
+Misc
+~~~~~
+
+* ``Make auth managers provide their own airflow CLI commands (#33481)``
+* ``Refactor Sqlalchemy queries to 2.0 style (Part 7) (#32883)``
+
+3.3.2
+.....
+
+Misc
+~~~~
+* ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+* ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+
 3.3.1
 .....
 

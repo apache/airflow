@@ -17,15 +17,18 @@
 from __future__ import annotations
 
 from operator import attrgetter
+from typing import TYPE_CHECKING
 
-from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
-from airflow.api_connexion.types import APIResponse
 from airflow.exceptions import TaskNotFound
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+
+if TYPE_CHECKING:
+    from airflow import DAG
+    from airflow.api_connexion.types import APIResponse
 
 
 @security.requires_access(

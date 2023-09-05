@@ -87,7 +87,7 @@ def get_package_setup_metadata_hash() -> str:
     try:
         from importlib.metadata import distribution  # type: ignore[attr-defined]
     except ImportError:
-        from importlib_metadata import distribution  # type: ignore[no-redef]
+        from importlib_metadata import distribution  # type: ignore[no-redef, assignment]
 
     prefix = "Package config hash: "
 

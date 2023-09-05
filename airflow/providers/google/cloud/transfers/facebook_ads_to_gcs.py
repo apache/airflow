@@ -23,14 +23,14 @@ import tempfile
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
-from facebook_business.adobjects.adsinsights import AdsInsights
-
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 if TYPE_CHECKING:
+    from facebook_business.adobjects.adsinsights import AdsInsights
+
     from airflow.utils.context import Context
 
 
@@ -141,11 +141,11 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                         account_id=account_id,
                     )
                 else:
-                    self.log.warning("account_id: %s returned empty report", str(account_id))
+                    self.log.warning("account_id: %s returned empty report", account_id)
         else:
             message = (
                 "Facebook Ads Hook returned different type than expected. Expected return types should be "
-                "List or Dict. Actual return type of the Hook: " + str(type(bulk_report))
+                f"List or Dict. Actual return type of the Hook: {type(bulk_report)}"
             )
             raise AirflowException(message)
         total_row_count = self._decide_and_flush(converted_rows_with_action=converted_rows_with_action)

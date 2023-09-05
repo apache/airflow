@@ -147,7 +147,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         self.hook.get_pandas_df("select 1")
 
         mock_read_gbq.assert_called_once_with(
-            "select 1", credentials=CREDENTIALS, dialect="legacy", project_id=PROJECT_ID, verbose=False
+            "select 1", credentials=CREDENTIALS, dialect="legacy", project_id=PROJECT_ID
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")

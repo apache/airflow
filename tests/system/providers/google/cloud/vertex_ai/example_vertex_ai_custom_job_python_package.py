@@ -65,14 +65,17 @@ FILES_TO_UPLOAD = [
     TAR_FILE_LOCAL_PATH,
 ]
 
-TABULAR_DATASET = lambda bucket_name: {
-    "display_name": f"tabular-dataset-{ENV_ID}",
-    "metadata_schema_uri": schema.dataset.metadata.tabular,
-    "metadata": ParseDict(
-        {"input_config": {"gcs_source": {"uri": [f"gs://{bucket_name}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}}},
-        Value(),
-    ),
-}
+
+def TABULAR_DATASET(bucket_name):
+    return {
+        "display_name": f"tabular-dataset-{ENV_ID}",
+        "metadata_schema_uri": schema.dataset.metadata.tabular,
+        "metadata": ParseDict(
+            {"input_config": {"gcs_source": {"uri": [f"gs://{bucket_name}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}}},
+            Value(),
+        ),
+    }
+
 
 CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
 MODEL_SERVING_CONTAINER_URI = "gcr.io/cloud-aiplatform/prediction/tf2-cpu.2-2:latest"

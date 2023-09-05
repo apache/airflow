@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from airflow.decorators.base import TaskDecorator, task_decorator_factory
+from airflow.decorators.base import task_decorator_factory
 from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.operators.python import ShortCircuitOperator
+
+if TYPE_CHECKING:
+    from airflow.decorators.base import TaskDecorator
 
 
 class _ShortCircuitDecoratedOperator(_PythonDecoratedOperator, ShortCircuitOperator):
@@ -34,7 +37,8 @@ def short_circuit_task(
     multiple_outputs: bool | None = None,
     **kwargs,
 ) -> TaskDecorator:
-    """Wraps a function into an ShortCircuitOperator.
+    """
+    Wrap a function into an ShortCircuitOperator.
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 

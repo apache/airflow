@@ -28,14 +28,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.1
+.....
+
+Latest change: 2023-08-23
+
+=================================================================================================  ===========  =============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================
+`94f70d8184 <https://github.com/apache/airflow/commit/94f70d818482de7defa03c0aff3c213ca6b83e9e>`_  2023-08-23   ``Replace strftime with f-strings where nicer (#33455)``
+`7e79997594 <https://github.com/apache/airflow/commit/7e799975948573ca2a1c4b2051d3eadc32bb8ba7>`_  2023-08-11   ``D205 Support - Providers - Final Pass (#33303)``
+`dd73a0bffa <https://github.com/apache/airflow/commit/dd73a0bffa6c4de93a2dd8dc4460b64aedc51255>`_  2023-08-10   ``Fix urlparse schemaless-behaviour on Python 3.9+ (#33289)``
+`3c61ca40d7 <https://github.com/apache/airflow/commit/3c61ca40d7dfea4bb51d17704f9da88d7edd08c4>`_  2023-08-10   ``Add backward compatibility for elasticsearch<8 (#33281)``
+`ad9d8d46b6 <https://github.com/apache/airflow/commit/ad9d8d46b6ee3a7d8e6665d2a6f5c6660063f281>`_  2023-08-08   ``Upgrade Elasticsearch to 8 (#33135)``
+=================================================================================================  ===========  =============================================================
+
 5.0.0
 .....
 
-Latest change: 2023-07-15
+Latest change: 2023-07-17
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`4a44343731 <https://github.com/apache/airflow/commit/4a44343731144a7a7dc7fff7e3ed01663d4dd2e1>`_  2023-07-17   ``Prepare RC3 for elasticsearch provider release (#32636)``
 `acd51647a4 <https://github.com/apache/airflow/commit/acd51647a4f5a37c47af05d27e9783f95bcf3db3>`_  2023-07-15   ``Fix unsound type hint in ElasticsearchTaskHandler.es_read (#32509)``
 `41e611929e <https://github.com/apache/airflow/commit/41e611929eadcbbc746d956647967c82f40fae4a>`_  2023-07-15   ``Fix Failing ES Remote Logging (#32438)``
 `e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``

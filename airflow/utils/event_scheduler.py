@@ -31,7 +31,7 @@ class EventScheduler(scheduler):
         arguments=(),
         kwargs={},
     ):
-        """Helper to call a function at (roughly) a given interval."""
+        """Call a function at (roughly) a given interval."""
 
         def repeat(*args, **kwargs):
             action(*args, **kwargs)

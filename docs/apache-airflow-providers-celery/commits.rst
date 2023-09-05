@@ -28,14 +28,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-3.3.1
+3.3.3
 .....
 
-Latest change: 2023-08-04
+Latest change: 2023-08-23
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`b1a3b42880 <https://github.com/apache/airflow/commit/b1a3b4288022c67db22cbc7d24b0c4b2b122453b>`_  2023-08-23   ``Make auth managers provide their own airflow CLI commands (#33481)``
+`ae25a52ae3 <https://github.com/apache/airflow/commit/ae25a52ae342c9e0bc3afdb21d613447c3687f6c>`_  2023-08-21   ``Fix dependencies for celery and opentelemetry for Python 3.8 (#33579)``
+`4c4981d1ad <https://github.com/apache/airflow/commit/4c4981d1adf2bd8b28ffa7e6ed57162abb8feb8f>`_  2023-08-21   ``Refactor Sqlalchemy queries to 2.0 style (Part 7) (#32883)``
+=================================================================================================  ===========  =========================================================================
+
+3.3.2
+.....
+
+Latest change: 2023-08-11
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`0b528e2b2e <https://github.com/apache/airflow/commit/0b528e2b2e0a9942b38a78cf79e0995d9eb8a8d8>`_  2023-08-09   ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+`9556d6d5f6 <https://github.com/apache/airflow/commit/9556d6d5f611428ac8a3a5891647b720d4498ace>`_  2023-08-08   ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+=================================================================================================  ===========  ===============================================================================
+
+3.3.1
+.....
+
+Latest change: 2023-08-05
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `879fd34e97 <https://github.com/apache/airflow/commit/879fd34e97a5343e6d2bbf3d5373831b9641b5ad>`_  2023-08-04   ``aDd documentation generation for CLI commands from executors (#33081)``
 `e3d82c6be0 <https://github.com/apache/airflow/commit/e3d82c6be0e0e1468ade053c37690aa1e0e4882d>`_  2023-08-04   ``Get rid of Python2 numeric relics (#33050)``
 =================================================================================================  ===========  =========================================================================

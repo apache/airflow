@@ -114,9 +114,8 @@ def run_assertions_base(appflow_conn, tasks):
 def test_run(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunOperator(**DUMP_COMMON_ARGS)
     operator.execute(ctx)  # type: ignore
-    appflow_conn.describe_flow.assert_called_once_with(flowName=FLOW_NAME)
-    appflow_conn.describe_flow_execution_records.assert_called_once()
     appflow_conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
+    appflow_conn.describe_flow_execution_records.assert_called_once()
 
 
 def test_run_full(appflow_conn, ctx, waiter_mock):

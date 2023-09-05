@@ -188,13 +188,15 @@ class SFTPOperator(BaseOperator):
                     self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
+            raise AirflowException(f"Error while transferring {file_msg}, error: {e}")
 
         return self.local_filepath
 
     def get_openlineage_facets_on_start(self):
         """
-        This returns OpenLineage datasets in format:
+        Returns OpenLineage datasets.
+
+        Dataset will have the following structure:
             input: file://<local_host>/path
             output: file://<remote_host>:<remote_port>/path.
         """

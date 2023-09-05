@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+3.7.4
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Improve detection of duplicates and list sorting (#33675)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Replace repr() with proper formatting (#33520)``
+
+3.7.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in providers/docker (#33232)``
+
 3.7.2
 .....
 

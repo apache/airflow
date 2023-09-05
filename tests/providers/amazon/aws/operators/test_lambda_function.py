@@ -22,6 +22,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.operators.lambda_function import (
     LambdaCreateFunctionOperator,
@@ -68,6 +69,20 @@ class TestLambdaCreateFunctionOperator:
 
         mock_hook_create_lambda.assert_called_once()
         mock_hook_conn.get_waiter.assert_called_once_with("function_active_v2")
+
+    @mock.patch.object(LambdaHook, "create_lambda")
+    def test_create_lambda_deferrable(self, _):
+        operator = LambdaCreateFunctionOperator(
+            task_id="task_test",
+            function_name=FUNCTION_NAME,
+            role=ROLE_ARN,
+            code={
+                "ImageUri": IMAGE_URI,
+            },
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred):
+            operator.execute(None)
 
 
 class TestLambdaInvokeFunctionOperator:

@@ -341,7 +341,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
     start_op = BashOperator(
         task_id="start_task",
         bash_command="echo 5",
-        xcom_push=True,
+        do_xcom_push=True,
         dag=dag,
     )
 

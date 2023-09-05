@@ -1239,7 +1239,7 @@ export interface components {
       name?: string;
       /** @description The maximum number of slots that can be assigned to tasks. One job may occupy one or more slots. */
       slots?: number;
-      /** @description The number of slots used by running/queued tasks at the moment. */
+      /** @description The number of slots used by running/queued tasks at the moment. May include deferred tasks if 'include_deferred' is set to true. */
       occupied_slots?: number;
       /** @description The number of slots used by running tasks at the moment. */
       running_slots?: number;
@@ -1250,11 +1250,23 @@ export interface components {
       /** @description The number of slots used by scheduled tasks at the moment. */
       scheduled_slots?: number;
       /**
+       * @description The number of slots used by deferred tasks at the moment. Relevant if 'include_deferred' is set to true.
+       *
+       * *New in version 2.7.0*
+       */
+      deferred_slots?: number;
+      /**
        * @description The description of the pool.
        *
        * *New in version 2.3.0*
        */
       description?: string | null;
+      /**
+       * @description If set to true, deferred tasks are considered when calculating open pool slots.
+       *
+       * *New in version 2.7.0*
+       */
+      include_deferred?: boolean;
     };
     /**
      * @description Collection of pools.
@@ -1885,11 +1897,7 @@ export interface components {
       include_future?: boolean;
       /** @description If set to True, also tasks from past DAG Runs are affected. */
       include_past?: boolean;
-      /**
-       * @description Expected new state.
-       * @enum {string}
-       */
-      new_state?: "success" | "failed" | "skipped";
+      new_state?: components["schemas"]["UpdateTaskState"];
     };
     UpdateTaskInstance: {
       /**
@@ -1899,11 +1907,7 @@ export interface components {
        * @default false
        */
       dry_run?: boolean;
-      /**
-       * @description Expected new state.
-       * @enum {string}
-       */
-      new_state?: "success" | "failed" | "skipped";
+      new_state?: components["schemas"]["UpdateTaskState"];
     };
     SetTaskInstanceNote: {
       /** @description The custom note to set for this Task Instance. */
@@ -1983,6 +1987,18 @@ export interface components {
        * The value can be repeated to retrieve multiple matching values (OR condition).
        */
       dag_ids?: string[];
+      /**
+       * @description Return objects with specific DAG Run IDs.
+       * The value can be repeated to retrieve multiple matching values (OR condition).
+       * *New in version 2.7.1*
+       */
+      dag_run_ids?: string[];
+      /**
+       * @description Return objects with specific task IDs.
+       * The value can be repeated to retrieve multiple matching values (OR condition).
+       * *New in version 2.7.1*
+       */
+      task_ids?: string[];
       /**
        * Format: date-time
        * @description Returns objects greater or equal to the specified date.
@@ -2157,6 +2173,14 @@ export interface components {
           | "restarting"
         )
       | null;
+    /**
+     * @description Expected new state. Only a subset of TaskState are available.
+     *
+     * Other states are managed directly by the scheduler or the workers and cannot be updated manually through the REST API.
+     *
+     * @enum {string}
+     */
+    UpdateTaskState: "success" | "failed" | "skipped";
     /**
      * @description DAG State.
      *
@@ -4857,6 +4881,9 @@ export type CollectionInfo = CamelCasedPropertiesDeep<
 >;
 export type TaskState = CamelCasedPropertiesDeep<
   components["schemas"]["TaskState"]
+>;
+export type UpdateTaskState = CamelCasedPropertiesDeep<
+  components["schemas"]["UpdateTaskState"]
 >;
 export type DagState = CamelCasedPropertiesDeep<
   components["schemas"]["DagState"]

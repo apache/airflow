@@ -125,25 +125,25 @@ class CassandraHook(BaseHook, LoggingMixin):
         self.session = None
 
     def get_conn(self) -> Session:
-        """Returns a cassandra Session object."""
+        """Return a cassandra Session object."""
         if self.session and not self.session.is_shutdown:
             return self.session
         self.session = self.cluster.connect(self.keyspace)
         return self.session
 
     def get_cluster(self) -> Cluster:
-        """Returns Cassandra cluster."""
+        """Return Cassandra cluster."""
         return self.cluster
 
     def shutdown_cluster(self) -> None:
-        """Closes all sessions and connections associated with this Cluster."""
+        """Close all sessions and connections associated with this Cluster."""
         if not self.cluster.is_shutdown:
             self.cluster.shutdown()
 
     @staticmethod
     def get_lb_policy(policy_name: str, policy_args: dict[str, Any]) -> Policy:
         """
-        Creates load balancing policy.
+        Create load balancing policy.
 
         :param policy_name: Name of the policy to use.
         :param policy_args: Parameters for the policy.
@@ -177,7 +177,7 @@ class CassandraHook(BaseHook, LoggingMixin):
 
     def table_exists(self, table: str) -> bool:
         """
-        Checks if a table exists in Cassandra.
+        Check if a table exists in Cassandra.
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
@@ -190,7 +190,7 @@ class CassandraHook(BaseHook, LoggingMixin):
 
     def record_exists(self, table: str, keys: dict[str, str]) -> bool:
         """
-        Checks if a record exists in Cassandra.
+        Check if a record exists in Cassandra.
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.

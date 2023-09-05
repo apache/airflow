@@ -17,6 +17,7 @@
 """This module contains Google DataFusion hook."""
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from time import monotonic, sleep
@@ -37,6 +38,12 @@ from airflow.providers.google.common.hooks.base_google import (
 )
 
 Operation = Dict[str, Any]
+
+
+class ConflictException(AirflowException):
+    """Exception to catch 409 error."""
+
+    pass
 
 
 class PipelineStates:
@@ -146,7 +153,7 @@ class DataFusionHook(GoogleBaseHook):
         return os.path.join(instance_url, "v3", "namespaces", quote(namespace), "apps")
 
     def _cdap_request(
-        self, url: str, method: str, body: list | dict | None = None
+        self, url: str, method: str, body: list | dict | None = None, params: dict | None = None
     ) -> google.auth.transport.Response:
         headers: dict[str, str] = {"Content-Type": "application/json"}
         request = google.auth.transport.requests.Request()
@@ -156,13 +163,15 @@ class DataFusionHook(GoogleBaseHook):
 
         payload = json.dumps(body) if body else None
 
-        response = request(method=method, url=url, headers=headers, body=payload)
+        response = request(method=method, url=url, headers=headers, body=payload, params=params)
         return response
 
     @staticmethod
     def _check_response_status_and_data(response, message: str) -> None:
         if response.status == 404:
             raise AirflowNotFoundException(message)
+        elif response.status == 409:
+            raise ConflictException("Conflict: Resource is still in use.")
         elif response.status != 200:
             raise AirflowException(message)
         if response.data is None:
@@ -273,6 +282,23 @@ class DataFusionHook(GoogleBaseHook):
         )
         return instance
 
+    def get_instance_artifacts(
+        self, instance_url: str, namespace: str = "default", scope: str = "SYSTEM"
+    ) -> Any:
+        url = os.path.join(
+            instance_url,
+            "v3",
+            "namespaces",
+            quote(namespace),
+            "artifacts",
+        )
+        response = self._cdap_request(url=url, method="GET", params={"scope": scope})
+        self._check_response_status_and_data(
+            response, f"Retrieving an instance artifacts failed with code {response.status}"
+        )
+        content = json.loads(response.data)
+        return content
+
     @GoogleBaseHook.fallback_to_default_project_id
     def patch_instance(
         self,
@@ -356,21 +382,18 @@ class DataFusionHook(GoogleBaseHook):
         if version_id:
             url = os.path.join(url, "versions", version_id)
 
-        response = self._cdap_request(url=url, method="DELETE", body=None)
-        # Check for 409 error: the previous step for starting/stopping pipeline could still be in progress.
-        # Waiting some time before retry.
-        for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
+        for time_to_wait in exponential_sleep_generator(initial=1, maximum=10):
             try:
+                response = self._cdap_request(url=url, method="DELETE", body=None)
                 self._check_response_status_and_data(
                     response, f"Deleting a pipeline failed with code {response.status}: {response.data}"
                 )
-                break
-            except AirflowException as exc:
-                if "409" in str(exc):
-                    sleep(time_to_wait)
-                    response = self._cdap_request(url=url, method="DELETE", body=None)
-                else:
-                    raise
+            except ConflictException as exc:
+                self.log.info(exc)
+                sleep(time_to_wait)
+            else:
+                if response.status == 200:
+                    break
 
     def list_pipelines(
         self,
@@ -523,7 +546,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                     break
                 except Exception as exc:
                     if "404" in str(exc):
-                        sleep(time_to_wait)
+                        await asyncio.sleep(time_to_wait)
                     else:
                         raise
         if pipeline:

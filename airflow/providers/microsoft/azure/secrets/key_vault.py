@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import os
 import re
 import warnings
 from functools import cached_property
@@ -31,8 +33,8 @@ from airflow.version import version as airflow_version
 
 
 def _parse_version(val):
-    val = re.sub(r"(\d+\.\d+\.\d+).*", lambda x: x.group(1), val)
-    return tuple(int(x) for x in val.split("."))
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", val)
+    return tuple(int(x) for x in match.groups())
 
 
 class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
@@ -95,6 +97,13 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
+
+        logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
+        try:
+            logger.setLevel(os.environ.get("AZURE_HTTP_LOGGING_LEVEL", logging.WARNING))
+        except ValueError:
+            logger.setLevel(logging.WARNING)
+
         self.sep = sep
         self.kwargs = kwargs
 

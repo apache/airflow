@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
@@ -32,6 +32,9 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStopApplicationOperator,
 )
 from airflow.utils.types import NOTSET
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
 
 task_id = "test_emr_serverless_task_id"
 application_id = "test_application_id"

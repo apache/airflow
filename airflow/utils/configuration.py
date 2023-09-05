@@ -27,7 +27,7 @@ from airflow.utils.platform import IS_WINDOWS
 
 def tmp_configuration_copy(chmod=0o600, include_env=True, include_cmds=True):
     """
-    Returns a path for a temporary file including a full copy of the configuration settings.
+    Return a path for a temporary file including a full copy of the configuration settings.
 
     :param include_env: Should the value of configuration from ``AIRFLOW__``
         environment variables be included or not

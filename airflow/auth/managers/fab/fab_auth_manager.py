@@ -17,13 +17,24 @@
 # under the License.
 from __future__ import annotations
 
-from flask import url_for
-from flask_login import current_user
+from typing import TYPE_CHECKING
 
 from airflow import AirflowException
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.fab.models import User
-from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.auth.managers.fab.cli_commands.definition import (
+    ROLES_COMMANDS,
+    SYNC_PERM_COMMAND,
+    USERS_COMMANDS,
+)
+from airflow.cli.cli_config import (
+    GroupCommand,
+)
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.fab.models import User
+    from airflow.cli.cli_config import (
+        CLICommand,
+    )
 
 
 class FabAuthManager(BaseAuthManager):
@@ -32,6 +43,23 @@ class FabAuthManager(BaseAuthManager):
 
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
+
+    @staticmethod
+    def get_cli_commands() -> list[CLICommand]:
+        """Vends CLI commands to be included in Airflow CLI."""
+        return [
+            GroupCommand(
+                name="users",
+                help="Manage users",
+                subcommands=USERS_COMMANDS,
+            ),
+            GroupCommand(
+                name="roles",
+                help="Manage roles",
+                subcommands=ROLES_COMMANDS,
+            ),
+            SYNC_PERM_COMMAND,  # not in a command group
+        ]
 
     def get_user_name(self) -> str:
         """
@@ -47,6 +75,8 @@ class FabAuthManager(BaseAuthManager):
 
     def get_user(self) -> User:
         """Return the user associated to the user in session."""
+        from flask_login import current_user
+
         return current_user
 
     def get_user_id(self) -> str:
@@ -59,25 +89,33 @@ class FabAuthManager(BaseAuthManager):
 
     def get_security_manager_override_class(self) -> type:
         """Return the security manager override."""
+        from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+
         return FabAirflowSecurityManagerOverride
+
+    def url_for(self, *args, **kwargs):
+        """Wrapper to allow mocking without having to import at the top of the file."""
+        from flask import url_for
+
+        return url_for(*args, **kwargs)
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         if "next_url" in kwargs and kwargs["next_url"]:
-            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
+            return self.url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
         else:
-            return url_for(f"{self.security_manager.auth_view.endpoint}.login")
+            return self.url_for(f"{self.security_manager.auth_view.endpoint}.login")
 
     def get_url_logout(self):
         """Return the logout page url."""
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
-        return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
+        return self.url_for(f"{self.security_manager.auth_view.endpoint}.logout")
 
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
         if not self.security_manager.user_view:
             return None
-        return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
+        return self.url_for(f"{self.security_manager.user_view.endpoint}.userinfo")

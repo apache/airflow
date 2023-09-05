@@ -27,6 +27,58 @@
 Changelog
 ---------
 
+7.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add istio test, use curl /quitquitquit to exit sidecar, and some othe… (#33306)``
+* ``Add 'active_deadline_seconds' parameter to 'KubernetesPodOperator' (#33379)``
+* ``Make cluster_context templated (#33604)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator duplicating logs when interrupted (#33500)``
+* ``Fix 2.7.0 db migration job errors (#33652)``
+* ``Inspect container state rather than last_state when deciding whether to skip (#33702)``
+* ``Fix kill istio proxy logic (#33779)``
+
+Misc
+~~~~
+
+* ``Introducing class constant to make worker pod log lines configurable (#33378)``
+* ``Adding typing for KPO SCC objects (#33381)``
+* ``Refactor: Remove useless str() calls (#33629)``
+* ``Refactor: Improve detection of duplicates and list sorting (#33675)``
+* ``Refactor Sqlalchemy queries to 2.0 style (Part 7) (#32883)``
+* ``Consolidate import and usage of itertools (#33479)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Import utc from datetime and normalize its import (#33450)``
+* ``Always use 'Literal' from 'typing_extensions' (#33794)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``Improve modules import in cncf.kubernetes probvider by move some of them into a type-checking block (#33781)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typos (double words and it's/its) (#33623)``
+   * ``Exclude deprecated "operators.kubernetes_pod" module from provider.yaml (#33641)``
+   * ``D205 Support - Providers - Final Pass (#33303)``
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+
+7.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+* ``Make the 'OnFinishAction' enum inherit from str to support passing it to 'KubernetesPodOperatpor' (#33228)``
+* ``Refactor: Simplify code in providers/cncf (#33230)``
+* ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+
 7.4.1
 .....
 

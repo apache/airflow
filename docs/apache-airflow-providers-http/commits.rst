@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.5.1
+.....
+
+Latest change: 2023-08-20
+
+=================================================================================================  ===========  =========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================
+`a91ee7ac2f <https://github.com/apache/airflow/commit/a91ee7ac2fe29f460a4e4b0d8c1346f40672be43>`_  2023-08-20   ``Refactor: Simplify code in smaller providers (#33234)``
+=================================================================================================  ===========  =========================================================
+
 4.5.0
 .....
 
-Latest change: 2023-07-09
+Latest change: 2023-07-12
 
 =================================================================================================  ===========  =================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================
+`e7f59a913e <https://github.com/apache/airflow/commit/e7f59a913e1fcf9052e69f62af9fe23901f1a358>`_  2023-07-12   ``Prepare docs for July 2023 2nd wave of Providers (#32566)``
 `17e9434dee <https://github.com/apache/airflow/commit/17e9434dee7de5848058a64f30b832fc8f3c0400>`_  2023-07-09   ``Add deferrable mode to SimpleHttpOperator (#32448)``
 `358e6e8fa1 <https://github.com/apache/airflow/commit/358e6e8fa18166084fc17b23e75c6c29a37f245f>`_  2023-07-06   ``Fix headers passed into HttpAsyncHook (#32409)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``

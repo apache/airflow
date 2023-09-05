@@ -28,14 +28,67 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.6.0
+.....
+
+Latest change: 2023-08-25
+
+=================================================================================================  ===========  =============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================================
+`633217c842 <https://github.com/apache/airflow/commit/633217c84217f925c4c0a92e0b24ba314b64281b>`_  2023-08-25   ``Simplify conditions on len() in providers/amazon (#33565)``
+`83efcaa835 <https://github.com/apache/airflow/commit/83efcaa835c4316efe2f45fd9cfb619295b25a4f>`_  2023-08-24   ``always push ECS task ARN to xcom in 'EcsRunTaskOperator' (#33703)``
+`2d8625253f <https://github.com/apache/airflow/commit/2d8625253f7101a9da7161a7856f4a4084457548>`_  2023-08-24   ``Remove non-public interface usage in EcsRunTaskOperator (#29447)``
+`85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
+`53a8973952 <https://github.com/apache/airflow/commit/53a89739528cda26b8b53670fc51769850eb263e>`_  2023-08-24   ``Fix bug in task logs when using AWS CloudWatch. Do not set 'start_time' (#33673)``
+`94f70d8184 <https://github.com/apache/airflow/commit/94f70d818482de7defa03c0aff3c213ca6b83e9e>`_  2023-08-23   ``Replace strftime with f-strings where nicer (#33455)``
+`5f504e9a17 <https://github.com/apache/airflow/commit/5f504e9a17353259e70bd3ed54f8edd2e465882c>`_  2023-08-23   ``Upgrade botocore/aiobotocore minimum requirements (#33649)``
+`85aea74b64 <https://github.com/apache/airflow/commit/85aea74b647f978cd1e3c42e3a5f3bb068b56539>`_  2023-08-23   ``Fix AWS Batch waiter failure state (#33656)``
+`a54c2424df <https://github.com/apache/airflow/commit/a54c2424df51bf1acec420f4792a237dabcfa12b>`_  2023-08-23   ``Fix typos (double words and it's/its) (#33623)``
+`8ed38c1619 <https://github.com/apache/airflow/commit/8ed38c1619209aaae3cf900ed34d9a3b48a8bf8d>`_  2023-08-22   ``Add Appflow system test + improvements (#33614)``
+`41d9be072a <https://github.com/apache/airflow/commit/41d9be072abacc47393f700aa8fb98bc2b9a3713>`_  2023-08-22   ``Fix AWS appflow waiter (#33613)``
+`8402e9adf4 <https://github.com/apache/airflow/commit/8402e9adf4c7d0ddf234ccfb22fce5c34384920a>`_  2023-08-21   ``Use 'boto3.client' linked to resource meta instead of create new one for waiters (#33552)``
+`95a930bc0a <https://github.com/apache/airflow/commit/95a930bc0a720c5548e4fa2e1f74e25f12e9ae1d>`_  2023-08-21   ``Consolidate import and usage of itertools (#33479)``
+`1407e277ae <https://github.com/apache/airflow/commit/1407e277aeb059cbfd1bb96fb3f43c4bf4f15cea>`_  2023-08-19   ``Add 'sql_hook_params' parameter to 'S3ToSqlOperator' (#33427)``
+`b555ed6f35 <https://github.com/apache/airflow/commit/b555ed6f358f738e2484db77b0782755440c8c8d>`_  2023-08-18   ``Fix striping tags when falling back to update in 'SageMakerEndpointOperator' (#33487)``
+`8e88eb8fa7 <https://github.com/apache/airflow/commit/8e88eb8fa7e1fc12918dcbfcfc8ed28381008d33>`_  2023-08-17   ``Consolidate import and usage of pandas (#33480)``
+`223b41d68f <https://github.com/apache/airflow/commit/223b41d68f53e7aa76588ffb8ba1e37e780d9e3b>`_  2023-08-16   ``Added Amazon SageMaker Notebook hook and operators (#33219)``
+`45d5f64127 <https://github.com/apache/airflow/commit/45d5f6412731f81002be7e9c86c11060394875cf>`_  2023-08-16   ``Add 'sql_hook_params' parameter to 'SqlToS3Operator' (#33425)``
+`60df70526a <https://github.com/apache/airflow/commit/60df70526a00fb9a3e245bb3ffb2a9faa23582e7>`_  2023-08-15   ``Add parameter to pass role ARN to 'GlueJobOperator ' (#33408)``
+`4d99705f69 <https://github.com/apache/airflow/commit/4d99705f69114d37bb3e85d7723602e71bd023c1>`_  2023-08-14   ``Add 'deferrable' option to 'LambdaCreateFunctionOperator' (#33327)``
+`bd11ea81e5 <https://github.com/apache/airflow/commit/bd11ea81e50f602d1c9f64c44c61b4e7294aafa9>`_  2023-08-13   ``Add Deferrable mode to GlueCatalogPartitionSensor (#33239)``
+`c645d8e40c <https://github.com/apache/airflow/commit/c645d8e40c167ea1f6c332cdc3ea0ca5a9363205>`_  2023-08-12   ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+`0df0d7457e <https://github.com/apache/airflow/commit/0df0d7457e78f83e2c0f6ab65c2d01bb8938167d>`_  2023-08-11   ``Add new RdsStartExportTaskOperator parameters (#33251)``
+=================================================================================================  ===========  =============================================================================================
+
+8.5.1
+.....
+
+Latest change: 2023-08-11
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`681ee46b21 <https://github.com/apache/airflow/commit/681ee46b21308e8cb38afda9722d3b1a8f91efa0>`_  2023-08-10   ``Fix get_log_events() in AWS logs hook (#33290)``
+`c14cb85f16 <https://github.com/apache/airflow/commit/c14cb85f16b6c9befd35866327fecb4ab9bc0fc4>`_  2023-08-10   ``Improve fetching logs from AWS (#33231)``
+`83bd60fd97 <https://github.com/apache/airflow/commit/83bd60fd97d4ca622adcbd7898d88880fee43054>`_  2023-08-09   ``Refactor: Simplify code in providers/amazon (#33222)``
+`741fb27f50 <https://github.com/apache/airflow/commit/741fb27f50a9fee7fca776abf24c32e22783aa03>`_  2023-08-08   ``Implement EventBridge enable and disable rule operators (#33226)``
+`8bbea9217a <https://github.com/apache/airflow/commit/8bbea9217ae0a3f1049cd10bac838b041b07b7af>`_  2023-08-08   ``Get failure information on EMR job failure (#32151)``
+`46862cfa94 <https://github.com/apache/airflow/commit/46862cfa948cbea885d691ad662109bfcaf2fc8a>`_  2023-08-06   ``Update mypy-boto3-appflow dependency (#32930)``
+`76ca94d2f2 <https://github.com/apache/airflow/commit/76ca94d2f23de298bb46668998c227a86b4ecbd0>`_  2023-08-05   ``use 'cached_property' from functools in 'RdsBaseOperator' (#33133)``
+`03fcbcc96e <https://github.com/apache/airflow/commit/03fcbcc96efb3f34c2d4e219dbaccb7771197670>`_  2023-08-05   ``Use set for 'template_fields' of 'EcsDeregisterTaskDefinitionOperator' (#33129)``
+=================================================================================================  ===========  ===================================================================================
+
 8.5.0
 .....
 
-Latest change: 2023-08-04
+Latest change: 2023-08-05
 
 =================================================================================================  ===========  =========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `519d99baee <https://github.com/apache/airflow/commit/519d99baee058dfa56f293f94222309c493ba3c4>`_  2023-08-04   ``Check google provider version in GCSToS3Operator before provide match_glob param (#32925)``
 `bbc0968905 <https://github.com/apache/airflow/commit/bbc096890512ba2212f318558ca1e954ab399657>`_  2023-08-04   ``openlineage, sagemaker: add missing OpenLineage type signature (#33114)``
 `087d14ada2 <https://github.com/apache/airflow/commit/087d14ada24e87fdf9db58a13acf0f2753191256>`_  2023-08-03   ``Deferrable mode for Sqs Sensor (#32809)``

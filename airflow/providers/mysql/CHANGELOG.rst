@@ -26,6 +26,15 @@
 Changelog
 ---------
 
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add init_command parameter to MySqlHook (#33359)``
+* ``Add 'local_infile' parameter to 'S3ToMySqlOperator' (#33459)``
+
 5.2.1
 .....
 

@@ -31,7 +31,6 @@ TEST_MAX_ATTEMPTS = 10
 TEST_AWS_CONN_ID = "test-aws-id"
 VIRTUAL_CLUSTER_ID = "vzwemreks"
 JOB_ID = "job-1234"
-AWS_CONN_ID = "aws_emr_conn"
 POLL_INTERVAL = 60
 TARGET_STATE = ["TERMINATED"]
 STEP_ID = "s-1234"
@@ -56,13 +55,13 @@ class TestEmrTriggers:
             EmrContainerTrigger(
                 virtual_cluster_id=VIRTUAL_CLUSTER_ID,
                 job_id=JOB_ID,
-                aws_conn_id=AWS_CONN_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
                 poll_interval=POLL_INTERVAL,
             ),
             EmrStepSensorTrigger(
                 job_flow_id=TEST_JOB_FLOW_ID,
                 step_id=STEP_ID,
-                aws_conn_id=AWS_CONN_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
                 waiter_delay=POLL_INTERVAL,
             ),
         ],
@@ -78,3 +77,4 @@ class TestEmrTriggers:
 
         assert class_path == class_path2
         assert args == args2
+        assert instance.hook().aws_conn_id == TEST_AWS_CONN_ID

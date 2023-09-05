@@ -34,6 +34,12 @@ development and testing.
     :local:
     :depth: 2
 
+Providers that implement executors might contribute additional commands to the CLI. Here are the commands
+contributed by the community providers:
+
+* Celery Executor and related CLI commands: :doc:`apache-airflow-providers-celery:cli-ref`
+* Kubernetes Executor and related CLI commands: :doc:`apache-airflow-providers-cncf-kubernetes:cli-ref`
+
 .. argparse::
    :module: airflow.cli.cli_parser
    :func: get_parser

@@ -25,6 +25,68 @@
 
 Changelog
 ---------
+* ``A bug intoduced in provider-amazon version 8.0.0 caused all 'EcsRunTaskOperator' tasks to detach from the ECS task after 10 minutes and fail - even if the ECS task was still running. In this version we are fixing it by returning the default 'waiter_max_attempts' value to 'sys.maxsize'``
+
+8.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added Amazon SageMaker Notebook hook and operators (#33219)``
+* ``Add 'deferrable' option to 'LambdaCreateFunctionOperator' (#33327)``
+* ``Add Deferrable mode to GlueCatalogPartitionSensor (#33239)``
+* ``Add 'sql_hook_params' parameter to 'S3ToSqlOperator' (#33427)``
+* ``Add 'sql_hook_params' parameter to 'SqlToS3Operator' (#33425)``
+* ``Add parameter to pass role ARN to 'GlueJobOperator ' (#33408)``
+* ``Add new RdsStartExportTaskOperator parameters (#33251)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix bug in task logs when using AWS CloudWatch. Do not set 'start_time' (#33673)``
+* ``Fix AWS Batch waiter failure state (#33656)``
+* ``Fix AWS appflow waiter (#33613)``
+* ``Fix striping tags when falling back to update in 'SageMakerEndpointOperator' (#33487)``
+
+
+Misc
+~~~~
+
+* ``Simplify conditions on len() in providers/amazon (#33565)``
+* ``Remove non-public interface usage in EcsRunTaskOperator (#29447)``
+* ``Upgrade botocore/aiobotocore minimum requirements (#33649)``
+* ``Consolidate import and usage of itertools (#33479)``
+* ``Consolidate import and usage of pandas (#33480)``
+* ``always push ECS task ARN to xcom in 'EcsRunTaskOperator' (#33703)``
+* ``Use 'boto3.client' linked to resource meta instead of create new one for waiters (#33552)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add Appflow system test + improvements (#33614)``
+   * ``Fix typos (double words and it's/its) (#33623)``
+   * ``Refactor: Remove useless str() calls (#33629)``
+   * ``Replace strftime with f-strings where nicer (#33455)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+8.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Get failure information on EMR job failure (#32151)``
+* ``Fix get_log_events() in AWS logs hook (#33290)``
+
+Misc
+~~~~
+
+* ``Improve fetching logs from AWS (#33231)``
+* ``Refactor: Simplify code in providers/amazon (#33222)``
+* ``Implement EventBridge enable and disable rule operators (#33226)``
+* ``Update mypy-boto3-appflow dependency (#32930)``
+* ``use 'cached_property' from functools in 'RdsBaseOperator' (#33133)``
+* ``Use set for 'template_fields' of 'EcsDeregisterTaskDefinitionOperator' (#33129)``
 
 8.5.0
 .....

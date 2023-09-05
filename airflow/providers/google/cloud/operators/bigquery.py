@@ -21,11 +21,11 @@ from __future__ import annotations
 import enum
 import json
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 
 import attr
 from google.api_core.exceptions import Conflict
-from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 from google.cloud.bigquery.table import RowIterator
 
@@ -55,6 +55,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
 
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -253,6 +254,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -371,6 +373,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -440,6 +443,10 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                     method_name="execute_complete",
                 )
             self._handle_job_error(job)
+            # job.result() returns a RowIterator. Mypy expects an instance of SupportsNext[Any] for
+            # the next() call which the RowIterator does not resemble to. Hence, ignore the arg-type error.
+            records = next(job.result())  # type: ignore[arg-type]
+            self.check_value(records)
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     @staticmethod
@@ -509,6 +516,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         "labels",
     )
     ui_color = BigQueryUIColors.CHECK.value
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -634,6 +642,10 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     """
 
+    template_fields: Sequence[str] = tuple(set(SQLColumnCheckOperator.template_fields) | {"gcp_conn_id"})
+
+    conn_id_field = "gcp_conn_id"
+
     def __init__(
         self,
         *,
@@ -756,6 +768,10 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     """
+
+    template_fields: Sequence[str] = tuple(set(SQLTableCheckOperator.template_fields) | {"gcp_conn_id"})
+
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -1027,7 +1043,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             self.log.info("Total extracted rows: %s", len(rows))
 
             if self.as_dict:
-                table_data = [{k: v for k, v in row.items()} for row in rows]
+                table_data = [dict(row) for row in rows]
             else:
                 table_data = [row.values() for row in rows]
 
@@ -1785,6 +1801,22 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             default_project_id=bq_hook.project_id or "",
         )
 
+        external_data_configuration = {
+            "source_uris": source_uris,
+            "source_format": self.source_format,
+            "autodetect": self.autodetect,
+            "compression": self.compression,
+            "maxBadRecords": self.max_bad_records,
+        }
+        if self.source_format == "CSV":
+            external_data_configuration["csvOptions"] = {
+                "fieldDelimiter": self.field_delimiter,
+                "skipLeadingRows": self.skip_leading_rows,
+                "quote": self.quote_character,
+                "allowQuotedNewlines": self.allow_quoted_newlines,
+                "allowJaggedRows": self.allow_jagged_rows,
+            }
+
         table_resource = {
             "tableReference": {
                 "projectId": project_id,
@@ -1793,20 +1825,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             },
             "labels": self.labels,
             "schema": {"fields": schema_fields},
-            "externalDataConfiguration": {
-                "source_uris": source_uris,
-                "source_format": self.source_format,
-                "maxBadRecords": self.max_bad_records,
-                "autodetect": self.autodetect,
-                "compression": self.compression,
-                "csvOptions": {
-                    "fieldDelimiter": self.field_delimiter,
-                    "skipLeadingRows": self.skip_leading_rows,
-                    "quote": self.quote_character,
-                    "allowQuotedNewlines": self.allow_quoted_newlines,
-                    "allowJaggedRows": self.allow_jagged_rows,
-                },
-            },
+            "externalDataConfiguration": external_data_configuration,
             "location": self.location,
             "encryptionConfiguration": self.encryption_configuration,
         }
@@ -2726,7 +2745,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
-    @property
+    @cached_property
     def sql(self) -> str | None:
         try:
             return self.configuration["query"]["query"]

@@ -45,7 +45,7 @@ WORKER_PROCESS_NAME = "worker"
 @cli_utils.action_cli
 @providers_configuration_loaded
 def flower(args):
-    """Starts Flower, Celery monitoring tool."""
+    """Start Flower, Celery monitoring tool."""
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
 
@@ -94,7 +94,7 @@ def flower(args):
 
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False):
-    """Starts serve_logs sub-process."""
+    """Start serve_logs sub-process."""
     sub_proc = None
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)
@@ -137,7 +137,7 @@ def logger_setup_handler(logger, **kwargs):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def worker(args):
-    """Starts Airflow Celery worker."""
+    """Start Airflow Celery worker."""
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
 
@@ -245,7 +245,7 @@ def worker(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def stop_worker(args):
-    """Sends SIGTERM to Celery worker."""
+    """Send SIGTERM to Celery worker."""
     # Read PID from file
     if args.pid:
         pid_file_path = args.pid

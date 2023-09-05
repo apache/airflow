@@ -24,10 +24,9 @@ import subprocess
 import sys
 import textwrap
 import time
-import types
 from contextlib import suppress
 from time import sleep
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import daemon
 import psutil
@@ -43,6 +42,9 @@ from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+if TYPE_CHECKING:
+    import types
 
 log = logging.getLogger(__name__)
 
@@ -132,28 +134,28 @@ class GunicornMonitor(LoggingMixin):
         return hash_md5.hexdigest()
 
     def _get_num_ready_workers_running(self) -> int:
-        """Returns number of ready Gunicorn workers by looking for READY_PREFIX in process name."""
+        """Return number of ready Gunicorn workers by looking for READY_PREFIX in process name."""
         workers = psutil.Process(self.gunicorn_master_proc.pid).children()
 
         def ready_prefix_on_cmdline(proc):
             try:
                 cmdline = proc.cmdline()
-                if len(cmdline) > 0:
+                if cmdline:
                     return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
             except psutil.NoSuchProcess:
                 pass
             return False
 
-        ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
-        return len(ready_workers)
+        nb_ready_workers = sum(1 for proc in workers if ready_prefix_on_cmdline(proc))
+        return nb_ready_workers
 
     def _get_num_workers_running(self) -> int:
-        """Returns number of running Gunicorn workers processes."""
+        """Return number of running Gunicorn workers processes."""
         workers = psutil.Process(self.gunicorn_master_proc.pid).children()
         return len(workers)
 
     def _wait_until_true(self, fn, timeout: int = 0) -> None:
-        """Sleeps until fn is true."""
+        """Sleep until fn is true."""
         start_time = time.monotonic()
         while not fn():
             if 0 < timeout <= time.monotonic() - start_time:
@@ -207,7 +209,7 @@ class GunicornMonitor(LoggingMixin):
         )
 
     def start(self) -> NoReturn:
-        """Starts monitoring the webserver."""
+        """Start monitoring the webserver."""
         try:
             self._wait_until_true(
                 lambda: self.num_workers_expected == self._get_num_workers_running(),
@@ -323,7 +325,7 @@ class GunicornMonitor(LoggingMixin):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def webserver(args):
-    """Starts Airflow Webserver."""
+    """Start Airflow Webserver."""
     print(settings.HEADER)
 
     # Check for old/insecure config, and fail safe (i.e. don't launch) if the config is wildly insecure.
@@ -422,11 +424,17 @@ def webserver(args):
 
         run_args += ["airflow.www.app:cached_app()"]
 
-        # To prevent different workers creating the web app and
-        # all writing to the database at the same time, we use the --preload option.
-        # With the preload option, the app is loaded before the workers are forked, and each worker will
-        # then have a copy of the app
-        run_args += ["--preload"]
+        if conf.getboolean("webserver", "reload_on_plugin_change", fallback=False):
+            log.warning(
+                "Setting reload_on_plugin_change = true prevents running Gunicorn with preloading. "
+                "This means the app cannot be loaded before workers are forked, and each worker has a "
+                "separate copy of the app. This may cause IntegrityError during webserver startup, and "
+                "should be avoided in production."
+            )
+        else:
+            # To prevent different workers creating the web app and
+            # all writing to the database at the same time, we use the --preload option.
+            run_args += ["--preload"]
 
         gunicorn_master_proc: psutil.Process | subprocess.Popen
 
@@ -485,11 +493,10 @@ def webserver(args):
 
                     # Reading pid of gunicorn master as it will be different that
                     # the one of process spawned above.
-                    while True:
+                    gunicorn_master_proc_pid = None
+                    while not gunicorn_master_proc_pid:
                         sleep(0.1)
                         gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
-                        if gunicorn_master_proc_pid:
-                            break
 
                     # Run Gunicorn monitor
                     gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
