@@ -63,7 +63,7 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
-    * ``connection_string``: Connection string for use with connection string authentication.     It can be left out to fall back on DefaultAzureCredential_.
+    * ``connection_string``: Connection string for use with connection string authentication. It can be left out to fall back on DefaultAzureCredential_.
     * ``subscription_id``: The ID of the subscription used for the initial connection. This is needed for Azure Active Directory (DefaultAzureCredential_) authentication.
     * ``resource_group``: Azure Resource Group Name under which the desired Azure file volume resides. This is needed for Azure Active Directory (DefaultAzureCredential_) authentication.
 
