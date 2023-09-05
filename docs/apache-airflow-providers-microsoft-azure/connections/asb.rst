@@ -27,12 +27,14 @@ The Microsoft Azure Service Bus connection type enables the Azure Service Bus In
 Authenticating to Azure Service Bus
 ------------------------------------
 
-There are multiple ways to authenticate and authorize access to Azure Service Bus resources:
-Currently Supports Shared Access Signatures (SAS).
+There are two ways to authenticate and authorize access to Azure Service Bus resources:
 
 1. Use a `Connection String
    <https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-quickstart-portal#get-the-connection-string>`_
    i.e. Use connection string Field to add ``Connection String`` in the Airflow connection.
+2. Fallback on `DefaultAzureCredential
+   <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
+   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc.
 
 Default Connection IDs
 ----------------------
@@ -42,9 +44,15 @@ All hooks and operators related to Microsoft Azure Service Bus use ``azure_servi
 Configuring the Connection
 --------------------------
 
-Connection String
+Connection String (optional)
     Specify the Azure Service bus connection string ID used for the initial connection.
     Please find the documentation on how to generate connection string in azure service bus
     `Get connection string
     <https://docs.microsoft.com/en-gb/azure/service-bus-messaging/service-bus-create-namespace-portal#get-the-connection-string.>`_
     Use the key ``connection_string`` to pass in the Connection ID .
+    It can be left out to fall back on ``DefaultAzureCredential``.
+
+Fully Qualified Namespace (optional)
+   Specify the fully qualified Service Bus namespace that the connection is associated with. This is likely to be similar to ``{yournamespace}.servicebus.windows.net``.
+   Use the key ``fully_qualified_namespace`` to pass in the Connection ID .
+   This is required when fallbacking to `DefaultAzureCredential <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
