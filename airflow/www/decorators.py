@@ -110,7 +110,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                     event=event or f.__name__,
                     task_instance=None,
                     owner=user,
-                    friendly_owner=user_display,
+                    owner_display_name=user_display,
                     extra=str(extra_fields),
                     task_id=params.get("task_id"),
                     dag_id=params.get("dag_id"),

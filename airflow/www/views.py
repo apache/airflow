@@ -5503,7 +5503,7 @@ class LogModelView(AirflowModelView):
         "event",
         "execution_date",
         "owner",
-        "friendly_owner",
+        "owner_display_name",
         "extra",
     ]
     search_columns = [
@@ -5513,14 +5513,14 @@ class LogModelView(AirflowModelView):
         "event",
         "execution_date",
         "owner",
-        "friendly_owner",
+        "owner_display_name",
         "extra",
     ]
 
     label_columns = {
         "execution_date": "Logical Date",
         "owner": "Owner ID",
-        "friendly_owner": "Owner Name",
+        "owner_display_name": "Owner Name",
     }
 
     base_order = ("dttm", "desc")
