@@ -541,7 +541,7 @@ class DatabricksHook(BaseDatabricksHook):
         """
         self._do_api_call(START_CLUSTER_ENDPOINT, json)
 
-    def activate_cluster(self, json: dict, polling: int, timeout: int = -1) -> None:
+    def activate_cluster(self, json: dict, polling: int, timeout: int | None = None) -> None:
         """
         Start the cluster, and wait for it to be ready.
 
@@ -554,7 +554,7 @@ class DatabricksHook(BaseDatabricksHook):
         api_called = False
         elapsed_time = 0
 
-        while (timeout == -1) or (elapsed_time <= timeout):
+        while True:
             run_state = self.get_cluster_state(cluster_id)
 
             if run_state.is_running:
@@ -570,7 +570,10 @@ class DatabricksHook(BaseDatabricksHook):
 
             # wait for cluster to start
             time.sleep(polling)
+
             elapsed_time += polling
+            if timeout and elapsed_time <= timeout:
+                raise AirflowException(f"Cluster {cluster_id} start timed out after {timeout} seconds")
 
     def terminate_cluster(self, json: dict) -> None:
         """
