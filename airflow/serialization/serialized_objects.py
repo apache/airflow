@@ -840,7 +840,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return serialized_op
 
     @classmethod
-    def serialize_operator(cls, op: BaseOperator) -> dict[str, Any]:
+    def serialize_operator(cls, op: BaseOperator | MappedOperator) -> dict[str, Any]:
         return cls._serialize_node(op, include_deps=op.deps is not BaseOperator.deps)
 
     @classmethod

@@ -19,13 +19,15 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
-from pydantic import BaseModel as BaseModelPydantic
+from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValidator
+from typing_extensions import Annotated
 
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import pendulum
+    from pydantic_core.core_schema import ValidationInfo
     from sqlalchemy.orm import Session
 
     from airflow.models import Operator
@@ -35,6 +37,29 @@ if TYPE_CHECKING:
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.utils.context import Context
     from airflow.utils.state import DagRunState
+
+
+def serialize_operator(x: Operator) -> dict:
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+    return SerializedBaseOperator.serialize_operator(x)
+
+
+def validated_operator(x: dict[str, Any] | Operator, _info: ValidationInfo) -> Any:
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.serialized_objects import SerializedBaseOperator
+
+    if isinstance(x, BaseOperator) or isinstance(x, MappedOperator) or x is None:
+        return x
+    return SerializedBaseOperator.deserialize_operator(x)
+
+
+PydanticOperator = Annotated[
+    Operator,
+    PlainValidator(validated_operator),
+    PlainSerializer(serialize_operator, return_type=dict),
+]
 
 
 class TaskInstancePydantic(BaseModelPydantic):
@@ -72,14 +97,15 @@ class TaskInstancePydantic(BaseModelPydantic):
     next_method: Optional[str]
     next_kwargs: Optional[dict]
     run_as_user: Optional[str]
-    task: Operator
+    task: PydanticOperator
     test_mode: bool
-    dag_run: Optional[DagRun]
+    dag_run: Optional[DagRunPydantic]
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
 
     def xcom_pull(

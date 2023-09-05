@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Iterable, Optional
 
-from pydantic import BaseModel as BaseModelPydantic
+from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValidator, ValidationInfo
+from typing_extensions import Annotated
 
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -28,7 +29,29 @@ if TYPE_CHECKING:
 
     from airflow import DAG
     from airflow.jobs.scheduler_job_runner import TI
+    from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.utils.state import TaskInstanceState
+
+
+def serialize_operator(x: DAG) -> dict:
+    from airflow.serialization.serialized_objects import SerializedDAG
+
+    return SerializedDAG.serialize_dag(x)
+
+
+def validated_operator(x: DAG | dict[str, Any], _info: ValidationInfo) -> Any:
+    from airflow.serialization.serialized_objects import SerializedDAG
+
+    if isinstance(x, DAG):
+        return x
+    return SerializedDAG.deserialize_dag(x)
+
+
+PydanticDag = Annotated[
+    DAG,
+    PlainValidator(validated_operator),
+    PlainSerializer(serialize_operator, return_type=dict),
+]
 
 
 class DagRunPydantic(BaseModelPydantic):
@@ -52,8 +75,8 @@ class DagRunPydantic(BaseModelPydantic):
     last_scheduling_decision: Optional[datetime]
     dag_hash: Optional[str]
     updated_at: datetime
-    dag: Optional[DAG]
-    consumed_dataset_events: list
+    dag: Optional[PydanticDag]
+    consumed_dataset_events: list[DatasetEventPydantic]
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
