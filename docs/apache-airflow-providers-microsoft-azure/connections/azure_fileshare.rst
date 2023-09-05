@@ -38,6 +38,8 @@ There are four ways to connect to Azure File Share using Airflow.
 3. Use a `Connection String
    <https://learn.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string>`_
    i.e. add connection string to ``connection_string`` in the Airflow connection.
+4. Fallback on `DefaultAzureCredential`_.
+   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -51,11 +53,12 @@ Configuring the Connection
 --------------------------
 
 Login (optional)
-    Specify the login used for azure blob storage. For use with Shared Key Credential and SAS Token authentication.
+    Specify the login used for azure blob storage. For use with Shared Key Credential, SAS Token authentication and  `DefaultAzureCredential`_.
 
 Password (optional)
     Specify the password used for azure blob storage. For use with
     Active Directory (token credential) and shared key authentication.
+    It can be left out to fall back on DefaultAzureCredential_.
 
 Host (optional)
     Specify the account url for anonymous public read, Active Directory, shared access key authentication.
@@ -64,8 +67,8 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
-    * ``connection_string``: Connection string for use with connection string authentication.
-    * ``sas_token``: SAS Token for use with SAS Token authentication.
+    * ``connection_string``: Connection string for use with connection string authentication. It can be left out to fall back on DefaultAzureCredential_.
+    * ``sas_token``: SAS Token for use with SAS Token authentication. It can be left out to fall back on DefaultAzureCredential_.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -77,3 +80,6 @@ For example connect with token credentials:
 .. code-block:: bash
 
    export AIRFLOW_CONN_WASP_DEFAULT='azure_fileshare://blob%20username@myblob.com?sas_token=token'
+
+
+.. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential
