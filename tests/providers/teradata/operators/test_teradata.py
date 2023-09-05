@@ -39,8 +39,6 @@ from airflow import AirflowException
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
 
-
-
 class TestTeradataOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
