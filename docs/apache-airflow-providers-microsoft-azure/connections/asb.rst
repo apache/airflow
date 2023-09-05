@@ -29,11 +29,12 @@ Authenticating to Azure Service Bus
 
 There are two ways to authenticate and authorize access to Azure Service Bus resources:
 
-1. Use a `Connection String
-   <https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-quickstart-portal#get-the-connection-string>`_
+1. Use a `Connection String`_
    i.e. Use connection string Field to add ``Connection String`` in the Airflow connection.
 2. Fallback on DefaultAzureCredential_.
    This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc.
+   ``fully_qualified_namespace`` is required in this authentication mechanism.
+
 
 Default Connection IDs
 ----------------------
@@ -46,8 +47,7 @@ Configuring the Connection
 Connection String (optional)
     Specify the Azure Service bus connection string ID used for the initial connection.
     Please find the documentation on how to generate connection string in azure service bus
-    `Get connection string
-    <https://docs.microsoft.com/en-gb/azure/service-bus-messaging/service-bus-create-namespace-portal#get-the-connection-string.>`_
+    `Get connection string`_
     Use the key ``connection_string`` to pass in the Connection ID .
     It can be left out to fall back on DefaultAzureCredential_.
 
@@ -56,5 +56,6 @@ Fully Qualified Namespace (optional)
    Use the key ``fully_qualified_namespace`` to pass in the Connection ID .
    This is required when falling back to DefaultAzureCredential_.
 
-
+.. _Connection String: https://docs.microsoft.com/en-us/azure/service-bus-messaging/service-bus-quickstart-portal#get-the-connection-string
 .. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential
+.. _Get connection string: https://docs.microsoft.com/en-gb/azure/service-bus-messaging/service-bus-create-namespace-portal#get-the-connection-string
