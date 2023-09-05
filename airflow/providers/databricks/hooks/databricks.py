@@ -217,12 +217,12 @@ class DatabricksHook(BaseDatabricksHook):
             return matching_jobs[0]["job_id"]
 
     def list_pipelines(
-        self, max_results: int = 25, pipeline_name: str | None = None, notebook_path: str | None = None
+        self, batch_size: int = 25, pipeline_name: str | None = None, notebook_path: str | None = None
     ) -> list[dict[str, Any]]:
         """
         Lists the pipelines in Databricks Delta Live Tables.
 
-        :param max_results: The limit/batch size used to retrieve pipelines.
+        :param batch_size: The limit/batch size used to retrieve pipelines.
         :param pipeline_name: Optional name of a pipeline to search. Cannot be combined with path.
         :param notebook_path: Optional notebook of a pipeline to search. Cannot be combined with name.
         :return: A list of pipelines.
@@ -239,7 +239,7 @@ class DatabricksHook(BaseDatabricksHook):
         elif pipeline_name:
             filter = f"name LIKE '{pipeline_name}'"
         payload: dict[str, Any] = {
-            "max_results": max_results,
+            "max_results": batch_size,
         }
         if filter:
             payload["filter"] = filter

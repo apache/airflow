@@ -387,7 +387,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
     def execute(self, context: Context):
         if (
-            "pipeline_task" in self.json 
+            "pipeline_task" in self.json
             and self.json["pipeline_task"].get("pipeline_id") is None
             and self.json["pipeline_task"].get("pipeline_name")
         ):
