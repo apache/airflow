@@ -789,7 +789,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
             yield tabulate_ti_keys_set([ti.key for ti in ti_status.deadlocked])
 
     def _get_dag_with_subdags(self) -> list[DAG]:
-        return [self.dag] + self.dag.subdags
+        return [self.dag, *self.dag.subdags]
 
     @provide_session
     def _execute_dagruns(
