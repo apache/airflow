@@ -1755,10 +1755,7 @@ class TestSchedulerJob:
             # Need to use something that doesn't immediately get marked as success by the scheduler
             BashOperator(task_id="task", bash_command="true")
 
-        dag_run = dag_maker.create_dagrun(
-            state=State.RUNNING,
-            session=session,
-        )
+        dag_run = dag_maker.create_dagrun(state=State.RUNNING, session=session, run_type=DagRunType.SCHEDULED)
 
         # Reach max_active_runs
         for _ in range(3):
@@ -3459,7 +3456,50 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         assert excepted is self.job_runner._should_update_dag_next_dagruns(
-            dag, dag_model, number_running, session=session
+            dag, dag_model, total_active_runs=number_running, session=session
+        )
+
+    @pytest.mark.parametrize(
+        "run_type, should_update",
+        [
+            (DagRunType.MANUAL, False),
+            (DagRunType.SCHEDULED, True),
+            (DagRunType.BACKFILL_JOB, True),
+            (DagRunType.DATASET_TRIGGERED, False),
+        ],
+        ids=[
+            DagRunType.MANUAL.name,
+            DagRunType.SCHEDULED.name,
+            DagRunType.BACKFILL_JOB.name,
+            DagRunType.DATASET_TRIGGERED.name,
+        ],
+    )
+    def test_should_update_dag_next_dagruns_after_run_type(self, run_type, should_update, session, dag_maker):
+        """Test that whether next dagrun is updated depends on run type"""
+        with dag_maker(
+            dag_id="test_should_update_dag_next_dagruns_after_run_type",
+            schedule="*/1 * * * *",
+            max_active_runs=10,
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_model = dag_maker.dag_model
+
+        run = dag_maker.create_dagrun(
+            run_id="run",
+            run_type=run_type,
+            execution_date=DEFAULT_DATE,
+            start_date=timezone.utcnow(),
+            state=State.SUCCESS,
+            session=session,
+        )
+
+        session.flush()
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        assert should_update is self.job_runner._should_update_dag_next_dagruns(
+            dag, dag_model, last_dag_run=run, total_active_runs=0, session=session
         )
 
     def test_create_dag_runs(self, dag_maker):
