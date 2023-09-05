@@ -23,7 +23,6 @@ import zlib
 from datetime import timedelta
 from typing import TYPE_CHECKING, Collection
 
-import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_, select
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
@@ -37,7 +36,7 @@ from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE
 from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import JsonField, UtcDateTime
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -75,7 +74,7 @@ class SerializedDagModel(Base):
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     fileloc_hash = Column(BigInteger(), nullable=False)
-    _data = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+    _data = Column("data", JsonField, nullable=True)
     _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
     last_updated = Column(UtcDateTime, nullable=False)
     dag_hash = Column(String(32), nullable=False)

@@ -28,7 +28,7 @@ from alembic import op
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, text
 
 from airflow.models.base import StringID
-from airflow.utils.sqlalchemy import ExtendedJSON
+from airflow.utils.sqlalchemy import ExtendedJsonField
 
 # Revision identifiers, used by Alembic.
 revision = "e655c0453f75"
@@ -79,7 +79,7 @@ def upgrade():
         Column("run_id", StringID(), primary_key=True),
         Column("map_index", Integer, primary_key=True),
         Column("length", Integer, nullable=False),
-        Column("keys", ExtendedJSON, nullable=True),
+        Column("keys", ExtendedJsonField, nullable=True),
         CheckConstraint("length >= 0", name="task_map_length_not_negative"),
         ForeignKeyConstraint(
             ["dag_id", "task_id", "run_id", "map_index"],

@@ -29,7 +29,7 @@ from alembic import op
 from sqlalchemy import func
 
 from airflow.migrations.db_types import TIMESTAMP
-from airflow.utils.sqlalchemy import ExtendedJSON
+from airflow.utils.sqlalchemy import ExtendedJsonField
 
 # revision identifiers, used by Alembic.
 revision = "c97c2ab6aa23"
@@ -47,7 +47,7 @@ def upgrade():
         sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
         sa.Column("created_at", TIMESTAMP, default=func.now, nullable=False),
         sa.Column("priority_weight", sa.Integer(), default=1, nullable=False),
-        sa.Column("callback_data", ExtendedJSON, nullable=False),
+        sa.Column("callback_data", ExtendedJsonField, nullable=False),
         sa.Column("callback_type", sa.String(20), nullable=False),
         sa.Column("dag_directory", sa.String(length=1000), nullable=True),
         sa.PrimaryKeyConstraint("id"),

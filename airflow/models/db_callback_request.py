@@ -24,7 +24,7 @@ from sqlalchemy import Column, Integer, String
 
 from airflow.models.base import Base
 from airflow.utils import timezone
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJsonField, UtcDateTime
 
 if TYPE_CHECKING:
     from airflow.callbacks.callback_requests import CallbackRequest
@@ -38,7 +38,7 @@ class DbCallbackRequest(Base):
     id = Column(Integer(), nullable=False, primary_key=True)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     priority_weight = Column(Integer(), nullable=False)
-    callback_data = Column(ExtendedJSON, nullable=False)
+    callback_data = Column(ExtendedJsonField, nullable=False)
     callback_type = Column(String(20), nullable=False)
     processor_subdir = Column(String(2000), nullable=True)
 

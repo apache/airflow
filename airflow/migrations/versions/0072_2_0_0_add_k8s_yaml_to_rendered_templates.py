@@ -24,11 +24,10 @@ Create Date: 2020-10-23 23:01:52.471442
 """
 from __future__ import annotations
 
-import sqlalchemy_jsonfield
 from alembic import op
 from sqlalchemy import Column
 
-from airflow.settings import json
+from airflow.utils.sqlalchemy import JsonField
 
 # revision identifiers, used by Alembic.
 revision = "45ba3f1493b9"
@@ -38,7 +37,7 @@ depends_on = None
 airflow_version = "2.0.0"
 
 __tablename__ = "rendered_task_instance_fields"
-k8s_pod_yaml = Column("k8s_pod_yaml", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
+k8s_pod_yaml = Column("k8s_pod_yaml", JsonField, nullable=True)
 
 
 def upgrade():

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Collection
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
-from airflow.utils.sqlalchemy import ExtendedJSON
+from airflow.utils.sqlalchemy import ExtendedJsonField
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -58,7 +58,7 @@ class TaskMap(Base):
     map_index = Column(Integer, primary_key=True)
 
     length = Column(Integer, nullable=False)
-    keys = Column(ExtendedJSON, nullable=True)
+    keys = Column(ExtendedJsonField, nullable=True)
 
     __table_args__ = (
         CheckConstraint(length >= 0, name="task_map_length_not_negative"),

@@ -31,6 +31,7 @@ from sqlalchemy.sql.schema import ForeignKeyConstraint
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
 from airflow.migrations.utils import get_mssql_table_constraints
+from airflow.utils.sqlalchemy import JsonField
 
 ID_LEN = 250
 
@@ -44,7 +45,6 @@ airflow_version = "2.3.0"
 
 # Just Enough Table to run the conditions for update.
 def tables(for_downgrade=False):
-    import sqlalchemy_jsonfield
 
     global task_instance, rendered_task_instance_fields, dag_run
     metadata = sa.MetaData()
@@ -63,8 +63,8 @@ def tables(for_downgrade=False):
         sa.Column("task_id", StringID()),
         sa.Column("run_id", StringID()),
         sa.Column("execution_date", TIMESTAMP),
-        sa.Column("rendered_fields", sqlalchemy_jsonfield.JSONField(), nullable=False),
-        sa.Column("k8s_pod_yaml", sqlalchemy_jsonfield.JSONField(), nullable=True),
+        sa.Column("rendered_fields", JsonField, nullable=False),
+        sa.Column("k8s_pod_yaml", JsonField, nullable=True),
     )
 
     if for_downgrade:

@@ -25,12 +25,11 @@ Create Date: 2022-06-22 14:37:20.880672
 from __future__ import annotations
 
 import sqlalchemy as sa
-import sqlalchemy_jsonfield
 from alembic import op
 from sqlalchemy import Integer, String, func
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
-from airflow.settings import json
+from airflow.utils.sqlalchemy import JsonField
 
 revision = "0038cd0c28b4"
 down_revision = "44b7034f6bdc"
@@ -56,7 +55,7 @@ def _create_dataset_table():
             ),
             nullable=False,
         ),
-        sa.Column("extra", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
+        sa.Column("extra", JsonField, nullable=False, default={}),
         sa.Column("created_at", TIMESTAMP, nullable=False),
         sa.Column("updated_at", TIMESTAMP, nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused
@@ -135,7 +134,7 @@ def _create_dataset_event_table():
         "dataset_event",
         sa.Column("id", Integer, primary_key=True, autoincrement=True),
         sa.Column("dataset_id", Integer, nullable=False),
-        sa.Column("extra", sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={}),
+        sa.Column("extra", JsonField, nullable=False, default={}),
         sa.Column("source_task_id", String(250), nullable=True),
         sa.Column("source_dag_id", String(250), nullable=True),
         sa.Column("source_run_id", String(250), nullable=True),

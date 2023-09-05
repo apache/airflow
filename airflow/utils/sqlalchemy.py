@@ -20,20 +20,20 @@ from __future__ import annotations
 import contextlib
 import copy
 import datetime
-import json
 import logging
 from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
 import pendulum
 from dateutil import relativedelta
 from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
-from sqlalchemy.dialects import mssql, mysql
+from sqlalchemy.dialects import mssql, mysql, postgresql
 from sqlalchemy.sql import Select
 from sqlalchemy.types import JSON, Text, TypeDecorator, UnicodeText
 
 from airflow import settings
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
+from airflow.settings import json
 from airflow.utils.timezone import make_naive
 
 if TYPE_CHECKING:
@@ -105,21 +105,59 @@ class UtcDateTime(TypeDecorator):
         return super().load_dialect_impl(dialect)
 
 
-class ExtendedJSON(TypeDecorator):
+class JsonFieldMixin:
+    """
+    A mixin TypeDecorator for a JSON column which help resolve types for different DB backends.
+
+    :param use_jsonb: Whether or not use JSONB type for Postgres backend. Default to False
+    """
+
+    # Set as ``TEXT`` make FAB happy and prevent to get any error like 'Column %s Type not supported',
+    # SQLAlchemy will use ``load_dialect_impl`` anyway.
+    impl = Text
+
+    def __init__(self, *args, use_jsonb: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_jsonb = use_jsonb
+
+    def load_dialect_impl(self, dialect) -> TypeEngine:
+        if dialect.name == "postgres" and self.use_jsonb:
+            return dialect.type_descriptor(postgresql.JSONB)
+        elif dialect.name == "mssql":
+            return dialect.type_descriptor(UnicodeText)
+        return dialect.type_descriptor(JSON)
+
+
+class JsonField(JsonFieldMixin, TypeDecorator):
+    """
+    A version of the JSON column that uses the default JSON serialization.
+
+    See airflow.serialization.
+    """
+
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is None or dialect != "mssql":
+            return value
+        # If the database does not have native JSON support, encode it as a string.
+        return json.dumps(value)
+
+    def process_result_value(self, value, dialect):
+        if value is None or dialect != "mssql":
+            return value
+        # Deserialize from a string first if database does not have native JSON support.
+        return json.loads(value)
+
+
+class ExtendedJsonField(JsonFieldMixin, TypeDecorator):
     """
     A version of the JSON column that uses the Airflow extended JSON serialization.
 
     See airflow.serialization.
     """
 
-    impl = Text
-
     cache_ok = True
-
-    def load_dialect_impl(self, dialect) -> TypeEngine:
-        if dialect.name != "mssql":
-            return dialect.type_descriptor(JSON)
-        return dialect.type_descriptor(UnicodeText)
 
     def process_bind_param(self, value, dialect):
         from airflow.serialization.serialized_objects import BaseSerialization
@@ -606,3 +644,7 @@ def tuple_not_in_condition(
     if not clauses:
         return true()
     return and_(*clauses)
+
+
+# For compatibility with previous name
+ExtendedJSON = ExtendedJsonField

@@ -111,7 +111,7 @@ from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
-    ExtendedJSON,
+    ExtendedJsonField,
     UtcDateTime,
     tuple_in_condition,
     with_row_locks,
@@ -434,7 +434,7 @@ class TaskInstance(Base, LoggingMixin):
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
     next_method = Column(String(1000))
-    next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
+    next_kwargs = Column(MutableDict.as_mutable(ExtendedJsonField))
 
     # If adding new fields here then remember to add them to
     # refresh_from_db() or they won't display in the UI correctly

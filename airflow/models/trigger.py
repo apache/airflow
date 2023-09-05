@@ -30,7 +30,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import ExtendedJsonField, UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -62,7 +62,7 @@ class Trigger(Base):
 
     id = Column(Integer, primary_key=True)
     classpath = Column(String(1000), nullable=False)
-    kwargs = Column(ExtendedJSON, nullable=False)
+    kwargs = Column(ExtendedJsonField, nullable=False)
     created_date = Column(UtcDateTime, nullable=False)
     triggerer_id = Column(Integer, nullable=True)
 

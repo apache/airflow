@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from urllib.parse import urlsplit
 
-import sqlalchemy_jsonfield
 from sqlalchemy import (
     Boolean,
     Column,
@@ -36,9 +35,8 @@ from sqlalchemy.orm import relationship
 
 from airflow.datasets import Dataset
 from airflow.models.base import Base, StringID
-from airflow.settings import json
 from airflow.utils import timezone
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import JsonField, UtcDateTime
 
 
 class DatasetModel(Base):
@@ -62,7 +60,7 @@ class DatasetModel(Base):
         ),
         nullable=False,
     )
-    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    extra = Column(JsonField, nullable=False, default={})
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
     is_orphaned = Column(Boolean, default=False, nullable=False, server_default="0")
@@ -270,7 +268,7 @@ class DatasetEvent(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     dataset_id = Column(Integer, nullable=False)
-    extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+    extra = Column(JsonField, nullable=False, default={})
     source_task_id = Column(StringID(), nullable=True)
     source_dag_id = Column(StringID(), nullable=True)
     source_run_id = Column(StringID(), nullable=True)

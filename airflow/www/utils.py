@@ -828,14 +828,14 @@ class CustomSQLAInterface(SQLAInterface):
 
     def is_extendedjson(self, col_name):
         """Checks if it is a special extended JSON type."""
-        from airflow.utils.sqlalchemy import ExtendedJSON
+        from airflow.utils.sqlalchemy import ExtendedJsonField
 
         if col_name in self.list_columns:
             obj = self.list_columns[col_name].type
             return (
-                isinstance(obj, ExtendedJSON)
+                isinstance(obj, ExtendedJsonField)
                 or isinstance(obj, types.TypeDecorator)
-                and isinstance(obj.impl, ExtendedJSON)
+                and isinstance(obj.impl, ExtendedJsonField)
             )
         return False
 

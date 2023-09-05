@@ -27,7 +27,7 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.utils.sqlalchemy import ExtendedJSON
+from airflow.utils.sqlalchemy import ExtendedJsonField
 
 # revision identifiers, used by Alembic.
 revision = "54bebd308c5f"
@@ -43,7 +43,7 @@ def upgrade():
         "trigger",
         sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
         sa.Column("classpath", sa.String(length=1000), nullable=False),
-        sa.Column("kwargs", ExtendedJSON(), nullable=False),
+        sa.Column("kwargs", ExtendedJsonField(), nullable=False),
         sa.Column("created_date", sa.DateTime(), nullable=False),
         sa.Column("triggerer_id", sa.Integer(), nullable=True),
     )
@@ -51,7 +51,7 @@ def upgrade():
         batch_op.add_column(sa.Column("trigger_id", sa.Integer()))
         batch_op.add_column(sa.Column("trigger_timeout", sa.DateTime()))
         batch_op.add_column(sa.Column("next_method", sa.String(length=1000)))
-        batch_op.add_column(sa.Column("next_kwargs", ExtendedJSON()))
+        batch_op.add_column(sa.Column("next_kwargs", ExtendedJsonField()))
         batch_op.create_foreign_key(
             "task_instance_trigger_id_fkey", "trigger", ["trigger_id"], ["id"], ondelete="CASCADE"
         )
