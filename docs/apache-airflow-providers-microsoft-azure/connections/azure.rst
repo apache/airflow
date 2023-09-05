@@ -38,8 +38,7 @@ There are four ways to connect to Azure using Airflow.
 3. Use a `JSON dictionary
    <https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-a-json-dictionary>`_
    i.e. add a key config directly into the Airflow connection.
-2. Fallback on `DefaultAzureCredential
-   <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
+4. Fallback on `DefaultAzureCredential`_.
    This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
@@ -56,12 +55,12 @@ Configuring the Connection
 Login (optional)
     Specify the ``client_id`` used for the initial connection.
     This is only needed for *token credentials* authentication mechanism.
-    It can be left out to fall back on ``DefaultAzureCredential``.
+    It can be left out to fall back on DefaultAzureCredential_.
 
 Password (optional)
     Specify the ``secret`` used for the initial connection.
     This is only needed for *token credentials* authentication mechanism.
-    It can be left out to fall back on ``DefaultAzureCredential``.
+    It can be left out to fall back on DefaultAzureCredential_.
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
@@ -76,7 +75,7 @@ Extra (optional)
     * ``key_json``: If set, it uses the *JSON dictionary* authentication mechanism.
       It specifies the json that contains the authentication information.
 
-    The entire extra column can be left out to fall back on ``DefaultAzureCredential``.
+    The entire extra column can be left out to fall back on DefaultAzureCredential_.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -88,3 +87,6 @@ For example:
 .. code-block:: bash
 
    export AIRFLOW_CONN_AZURE_DEFAULT='azure://?key_path=%2Fkeys%2Fkey.json'
+
+
+.. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential
