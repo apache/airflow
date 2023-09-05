@@ -23,6 +23,8 @@ from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValid
 from typing_extensions import Annotated
 
 from airflow.models import Operator
+from airflow.models.baseoperator import BaseOperator
+from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -31,10 +33,8 @@ if TYPE_CHECKING:
     from pydantic_core.core_schema import ValidationInfo
     from sqlalchemy.orm import Session
 
-    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.utils.context import Context
     from airflow.utils.state import DagRunState
 
