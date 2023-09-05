@@ -610,16 +610,12 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
 
             for sentinel in ready:
-                if sentinel is self._direct_scheduler_conn:
-                    continue
-
-                processor = self.waitables.get(sentinel)
-                if not processor:
-                    continue
-
-                self._collect_results_from_processor(processor)
-                self.waitables.pop(sentinel)
-                self._processors.pop(processor.file_path)
+                if sentinel is not self._direct_scheduler_conn:
+                    processor = self.waitables.get(sentinel)
+                    if processor:
+                        self._collect_results_from_processor(processor)
+                        self.waitables.pop(sentinel)
+                        self._processors.pop(processor.file_path)
 
             if self.standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
@@ -1058,12 +1054,11 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
         for sentinel in ready:
-            if sentinel is self._direct_scheduler_conn:
-                continue
-            processor = cast(DagFileProcessorProcess, self.waitables[sentinel])
-            self.waitables.pop(processor.waitable_handle)
-            self._processors.pop(processor.file_path)
-            self._collect_results_from_processor(processor)
+            if sentinel is not self._direct_scheduler_conn:
+                processor = cast(DagFileProcessorProcess, self.waitables[sentinel])
+                self.waitables.pop(processor.waitable_handle)
+                self._processors.pop(processor.file_path)
+                self._collect_results_from_processor(processor)
 
         self.log.debug("%s/%s DAG parsing processes running", len(self._processors), self._parallelism)
 

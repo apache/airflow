@@ -447,7 +447,6 @@ def find_all_entities(
                                     f"It should not match {unexpected_class_name_pattern}",
                                 )
                             )
-                        continue
             found_entities.add(imported_name)
     return VerifiedEntities(all_entities=found_entities, wrong_entities=wrong_entities)
 

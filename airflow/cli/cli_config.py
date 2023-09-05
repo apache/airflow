@@ -92,12 +92,8 @@ class Arg:
         self.flags = flags
         self.kwargs = {}
         for k, v in locals().items():
-            if v is _UNSET:
-                continue
-            if k in ("self", "flags"):
-                continue
-
-            self.kwargs[k] = v
+            if k not in ("self", "flags") and v is not _UNSET:
+                self.kwargs[k] = v
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser."""

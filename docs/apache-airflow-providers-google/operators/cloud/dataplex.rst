@@ -217,6 +217,14 @@ To check that running Dataplex Data Quality scan succeeded you can use:
     :start-after: [START howto_dataplex_data_scan_job_state_sensor]
     :end-before: [END howto_dataplex_data_scan_job_state_sensor]
 
+Also for this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_run_data_quality_def_operator]
+    :end-before: [END howto_dataplex_run_data_quality_def_operator]
+
 Get a Data Quality scan job
 ---------------------------
 
@@ -229,6 +237,14 @@ To get a Data Quality scan job you can use:
     :dedent: 4
     :start-after: [START howto_dataplex_get_data_quality_job_operator]
     :end-before: [END howto_dataplex_get_data_quality_job_operator]
+
+Also for this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_get_data_quality_job_def_operator]
+    :end-before: [END howto_dataplex_get_data_quality_job_def_operator]
 
 Create a zone
 -------------

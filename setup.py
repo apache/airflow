@@ -648,9 +648,8 @@ def add_extras_for_all_deprecated_aliases() -> None:
     """
     for alias, extra in EXTRAS_DEPRECATED_ALIASES.items():
         dependencies = EXTRAS_DEPENDENCIES.get(extra) if extra != "" else []
-        if dependencies is None:
-            continue
-        EXTRAS_DEPENDENCIES[alias] = dependencies
+        if dependencies is not None:
+            EXTRAS_DEPENDENCIES[alias] = dependencies
 
 
 def add_all_deprecated_provider_packages() -> None:
@@ -661,9 +660,8 @@ def add_all_deprecated_provider_packages() -> None:
     {"kubernetes": ["apache-airflow-provider-cncf-kubernetes"]}
     """
     for alias, provider in EXTRAS_DEPRECATED_ALIASES.items():
-        if alias in EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS:
-            continue
-        replace_extra_dependencies_with_provider_packages(alias, [provider])
+        if alias not in EXTRAS_DEPRECATED_ALIASES_NOT_PROVIDERS:
+            replace_extra_dependencies_with_provider_packages(alias, [provider])
 
 
 add_extras_for_all_deprecated_aliases()
@@ -703,10 +701,9 @@ ALL_DB_PROVIDERS = [
 def get_all_db_dependencies() -> list[str]:
     _all_db_reqs: set[str] = set()
     for provider in ALL_DB_PROVIDERS:
-        if provider not in PROVIDER_DEPENDENCIES:
-            continue
-        for req in PROVIDER_DEPENDENCIES[provider][DEPS]:
-            _all_db_reqs.add(req)
+        if provider in PROVIDER_DEPENDENCIES:
+            for req in PROVIDER_DEPENDENCIES[provider][DEPS]:
+                _all_db_reqs.add(req)
     return list(_all_db_reqs)
 
 

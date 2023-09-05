@@ -1217,3 +1217,167 @@ def test_mapped_task_check_before_expand(dag_maker, session):
     results = list(result_iterator)
     assert len(results) == 1
     assert results[0].passed is False
+
+
+class TestTriggerRuleDepSetupConstraint:
+    @staticmethod
+    def get_ti(dr, task_id):
+        return next(ti for ti in dr.task_instances if ti.task_id == task_id)
+
+    def get_dep_statuses(self, dr, task_id, flag_upstream_failed=False, session=None):
+        return list(
+            TriggerRuleDep()._get_dep_statuses(
+                ti=self.get_ti(dr, task_id),
+                dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
+                session=session,
+            )
+        )
+
+    def test_setup_constraint_blocks_execution(self, dag_maker, session):
+        with dag_maker(session=session):
+
+            @task
+            def t1():
+                return 1
+
+            @task
+            def t2():
+                return 2
+
+            @task
+            def t3():
+                return 3
+
+            t1_task = t1()
+            t2_task = t2()
+            t3_task = t3()
+            t1_task >> t2_task >> t3_task
+            t1_task.as_setup()
+        dr = dag_maker.create_dagrun()
+
+        # setup constraint is not applied to t2 because it has a direct setup
+        # so even though the setup is not done, the check passes
+        # but trigger rule fails because the normal trigger rule dep behavior
+        statuses = self.get_dep_statuses(dr, "t2", session=session)
+        assert len(statuses) == 1
+        assert statuses[0].passed is False
+        assert statuses[0].reason.startswith("Task's trigger rule 'all_success' requires all upstream tasks")
+
+        # t3 has an indirect setup so the setup check fails
+        # trigger rule also fails
+        statuses = self.get_dep_statuses(dr, "t3", session=session)
+        assert len(statuses) == 2
+        assert statuses[0].passed is False
+        assert statuses[0].reason.startswith("All setup tasks must complete successfully")
+        assert statuses[1].passed is False
+        assert statuses[1].reason.startswith("Task's trigger rule 'all_success' requires all upstream tasks")
+
+    @pytest.mark.parametrize(
+        "setup_state, expected", [(None, None), ("failed", "upstream_failed"), ("skipped", "skipped")]
+    )
+    def test_setup_constraint_changes_state_appropriately(self, dag_maker, session, setup_state, expected):
+        with dag_maker(session=session):
+
+            @task
+            def t1():
+                return 1
+
+            @task
+            def t2():
+                return 2
+
+            @task
+            def t3():
+                return 3
+
+            t1_task = t1()
+            t2_task = t2()
+            t3_task = t3()
+            t1_task >> t2_task >> t3_task
+            t1_task.as_setup()
+        dr = dag_maker.create_dagrun()
+
+        # if the setup fails then now, in processing the trigger rule dep, the ti states
+        # will be updated
+        if setup_state:
+            self.get_ti(dr, "t1").state = setup_state
+        session.commit()
+        (status,) = self.get_dep_statuses(dr, "t2", flag_upstream_failed=True, session=session)
+        assert status.passed is False
+        # t2 fails on the non-setup-related trigger rule constraint since it has
+        # a direct setup
+        assert status.reason.startswith("Task's trigger rule 'all_success' requires")
+        assert self.get_ti(dr, "t2").state == expected
+        assert self.get_ti(dr, "t3").state is None  # hasn't been evaluated yet
+
+        # unlike t2, t3 fails on the setup constraint, and the normal trigger rule
+        # constraint is not actually evaluated, since it ain't gonna run anyway
+        if setup_state is None:
+            # when state is None, setup constraint doesn't mutate ti state, so we get
+            # two failure reasons -- setup constraint and trigger rule
+            (status, _) = self.get_dep_statuses(dr, "t3", flag_upstream_failed=True, session=session)
+        else:
+            (status,) = self.get_dep_statuses(dr, "t3", flag_upstream_failed=True, session=session)
+        assert status.reason.startswith("All setup tasks must complete successfully")
+        assert self.get_ti(dr, "t3").state == expected
+
+    @pytest.mark.parametrize(
+        "setup_state, expected", [(None, None), ("failed", "upstream_failed"), ("skipped", "skipped")]
+    )
+    def test_setup_constraint_will_fail_or_skip_fast(self, dag_maker, session, setup_state, expected):
+        """
+        When a setup fails or skips, the tasks that depend on it will immediately fail or skip
+        and not, for example, wait for all setups to complete before determining what is
+        the appropriate state.  This is a bit of a race condition, but it's consistent
+        with the behavior for many-to-one direct upstream task relationships, and it's
+        required if you want to fail fast.
+
+        So in this test we verify that if even one setup is failed or skipped, the
+        state will propagate to the in-scope work tasks.
+        """
+        with dag_maker(session=session):
+
+            @task
+            def s1():
+                return 1
+
+            @task
+            def s2():
+                return 1
+
+            @task
+            def w1():
+                return 2
+
+            @task
+            def w2():
+                return 3
+
+            s1 = s1().as_setup()
+            s2 = s2().as_setup()
+            [s1, s2] >> w1() >> w2()
+        dr = dag_maker.create_dagrun()
+
+        # if the setup fails then now, in processing the trigger rule dep, the ti states
+        # will be updated
+        if setup_state:
+            self.get_ti(dr, "s2").state = setup_state
+        session.commit()
+        (status,) = self.get_dep_statuses(dr, "w1", flag_upstream_failed=True, session=session)
+        assert status.passed is False
+        # t2 fails on the non-setup-related trigger rule constraint since it has
+        # a direct setup
+        assert status.reason.startswith("Task's trigger rule 'all_success' requires")
+        assert self.get_ti(dr, "w1").state == expected
+        assert self.get_ti(dr, "w2").state is None  # hasn't been evaluated yet
+
+        # unlike t2, t3 fails on the setup constraint, and the normal trigger rule
+        # constraint is not actually evaluated, since it ain't gonna run anyway
+        if setup_state is None:
+            # when state is None, setup constraint doesn't mutate ti state, so we get
+            # two failure reasons -- setup constraint and trigger rule
+            (status, _) = self.get_dep_statuses(dr, "w2", flag_upstream_failed=True, session=session)
+        else:
+            (status,) = self.get_dep_statuses(dr, "w2", flag_upstream_failed=True, session=session)
+        assert status.reason.startswith("All setup tasks must complete successfully")
+        assert self.get_ti(dr, "w2").state == expected
