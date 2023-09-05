@@ -83,7 +83,7 @@ Some important things to point out for remote logging in the context of the ECS 
 
 ECS can be configured to use the awslogs log driver to send log information to CloudWatch Logs for the ECS Tasks themselves. These logs will include the Airflow Task Operator logging and any other logging that occurs throughout the life of the process running in the container (in this case the Airflow CLI command `airflow tasks run ...`). This can be helpful for debugging issues with remote logging or while testing remote logging configuration.  Information on enabling this logging can be found [here](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_awslogs.html).
 
-***Note: These logs will _not_ be viewable from the Airflow Webserver UI.***
+___Note: These logs will _not_ be viewable from the Airflow Webserver UI.___
 
 # Dockerfile for Apache Airflow with AWS CLI Integration
 
@@ -93,7 +93,14 @@ supports AWS CLI integration, allowing you to interact with AWS services within 
 ## Base Image
 
 The Docker image is built upon the `apache/airflow:latest` image. See [here](https://hub.docker.com/r/apache/airflow) for more information about the image.
-Important note: The python version in the base image must match the python version of the Airflow instance associated with the ECS Executor.
+
+Important note: The python version in this image must match the python version on the host/container which is running the Airflow scheduler process (which in turn runs the executor). The python version of the image can be verified by running the container, and printing the python version as follows:
+
+```
+docker run <image_name> python --version
+```
+
+Ensure that this version matches the python version of the host/container which is running the Airflow scheduler process (and thus, the ECS executor.) Apache Airflow images with specific python versions can be downloaded from the Dockerhub registry, and filtering tags by the [python version](https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.8). For example, the tag `latest-python3.8` specifies that the image will have python 3.8 installed.
 
 ## Prerequisites
 
