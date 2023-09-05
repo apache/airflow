@@ -41,6 +41,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -3017,7 +3018,9 @@ class TaskInstanceNote(Base):
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(
+        Integer, nullable=True, foreign_key=ForeignKey("ab_user.id", name="task_instance_note_user_fkey")
+    )
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)
@@ -3042,11 +3045,6 @@ class TaskInstanceNote(Base):
             ],
             name="task_instance_note_ti_fkey",
             ondelete="CASCADE",
-        ),
-        ForeignKeyConstraint(
-            (user_id,),
-            ["ab_user.id"],
-            name="task_instance_note_user_fkey",
         ),
     )
 
