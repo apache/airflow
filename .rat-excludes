@@ -132,3 +132,6 @@ chart/*.iml
 
 # Sha files
 .*sha256
+
+# DOAP file
+doap_airflow.rdf
