@@ -154,8 +154,10 @@ class ClusterState:
         return self.state in ("RUNNING", "RESIZING")
 
     def __eq__(self, other) -> bool:
-        return self.state == other.state and \
+        return (
+            self.state == other.state and \
             self.state_message == other.state_message
+        )
 
     def __repr__(self) -> str:
         return str(self.__dict__)
