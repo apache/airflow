@@ -1307,9 +1307,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         self,
         dag: DAG,
         dag_model: DagModel,
+        *,
         last_dag_run: DagRun | None = None,
         total_active_runs: int | None = None,
-        *,
         session: Session,
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
@@ -1455,7 +1455,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
-            if self._should_update_dag_next_dagruns(dag, dag_model, dag_run, session=session):
+            if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
 
             callback_to_execute = DagCallbackRequest(
@@ -1483,7 +1483,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
 
-        if self._should_update_dag_next_dagruns(dag, dag_model, dag_run, session=session):
+        if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
             dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag

@@ -3455,7 +3455,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         assert excepted is self.job_runner._should_update_dag_next_dagruns(
-            dag, dag_model, None, number_running, session=session
+            dag, dag_model, total_active_runs=number_running, session=session
         )
 
     @pytest.mark.parametrize(
@@ -3498,7 +3498,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         assert should_update is self.job_runner._should_update_dag_next_dagruns(
-            dag, dag_model, run, 0, session=session
+            dag, dag_model, last_dag_run=run, total_active_runs=0, session=session
         )
 
     def test_create_dag_runs(self, dag_maker):
