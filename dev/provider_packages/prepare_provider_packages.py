@@ -26,6 +26,7 @@ import glob
 import json
 import logging
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -39,7 +40,6 @@ from enum import Enum
 from functools import lru_cache
 from os.path import dirname, relpath
 from pathlib import Path
-from random import choice
 from shutil import copyfile
 from typing import Any, Generator, Iterable, NamedTuple
 
@@ -1214,7 +1214,7 @@ def get_type_of_changes(answer: str | None) -> TypeOfChange:
     given_answer = ""
     if answer and answer.lower() in ["yes", "y"]:
         # Simulate all possible non-terminal answers
-        return choice(
+        return random.choice(
             [
                 TypeOfChange.DOCUMENTATION,
                 TypeOfChange.BUGFIX,
