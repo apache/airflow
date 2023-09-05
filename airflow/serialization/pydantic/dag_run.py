@@ -22,12 +22,12 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional
 from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValidator, ValidationInfo
 from typing_extensions import Annotated
 
+from airflow import DAG
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow import DAG
     from airflow.jobs.scheduler_job_runner import TI
     from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.utils.state import TaskInstanceState

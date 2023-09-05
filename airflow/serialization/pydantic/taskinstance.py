@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Optional
 from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValidator
 from typing_extensions import Annotated
 
+from airflow.models import Operator
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -30,7 +31,6 @@ if TYPE_CHECKING:
     from pydantic_core.core_schema import ValidationInfo
     from sqlalchemy.orm import Session
 
-    from airflow.models import Operator
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
