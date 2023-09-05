@@ -1676,7 +1676,7 @@ CONNECTIONS_COMMANDS = (
         name="add",
         help="Add a connection",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_add"),
-        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
+        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA, *ALTERNATIVE_CONN_SPECS_ARGS),
     ),
     ActionCommand(
         name="delete",

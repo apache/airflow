@@ -288,7 +288,7 @@ class SubCommand(threading.Thread):
     def run(self):
         """Run the actual process and captures it output to a queue."""
         self.process = subprocess.Popen(
-            ["airflow"] + self.command,
+            ["airflow", *self.command],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=self.env,

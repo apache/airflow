@@ -82,7 +82,7 @@ def _trigger_dag(
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
 
     dag_runs = []
-    dags_to_run = [dag] + dag.subdags
+    dags_to_run = [dag, *dag.subdags]
     for _dag in dags_to_run:
         dag_run = _dag.create_dagrun(
             run_id=run_id,
