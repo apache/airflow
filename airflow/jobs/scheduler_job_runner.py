@@ -1192,7 +1192,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 )
                 active_runs_of_dags[dag.dag_id] += 1
             if self._should_update_dag_next_dagruns(
-                dag, dag_model, None, active_runs_of_dags[dag.dag_id], session=session
+                dag,
+                dag_model,
+                last_dag_run=None,
+                total_active_runs=active_runs_of_dags[dag.dag_id],
+                session=session,
             ):
                 dag_model.calculate_dagrun_date_fields(dag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
