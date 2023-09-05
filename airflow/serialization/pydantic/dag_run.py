@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable, Optional
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional
 
 from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValidator, ValidationInfo
 from typing_extensions import Annotated
@@ -76,12 +76,13 @@ class DagRunPydantic(BaseModelPydantic):
     dag_hash: Optional[str]
     updated_at: datetime
     dag: Optional[PydanticDag]
-    consumed_dataset_events: list[DatasetEventPydantic]
+    consumed_dataset_events: List[DatasetEventPydantic]  # noqa
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
 
     @provide_session
