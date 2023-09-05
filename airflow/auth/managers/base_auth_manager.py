@@ -83,12 +83,12 @@ class BaseAuthManager(LoggingMixin):
         Return the security manager override class.
 
         The security manager override class is responsible for overriding the default security manager
-        class airflow.www.security.AirflowSecurityManager with a custom implementation. This class is
-        essentially inherited from airflow.www.security.AirflowSecurityManager.
+        class airflow.www.security_manager.AirflowSecurityManagerV2 with a custom implementation.
+        This class is essentially inherited from airflow.www.security_manager.AirflowSecurityManagerV2.
 
-        By default, return an empty class.
+        By default, return the generic AirflowSecurityManagerV2.
         """
-        return object
+        return AirflowSecurityManagerV2
 
     @property
     def security_manager(self) -> AirflowSecurityManagerV2:
