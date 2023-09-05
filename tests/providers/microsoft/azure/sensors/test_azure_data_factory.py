@@ -27,14 +27,11 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
 )
-from airflow.providers.microsoft.azure.sensors.data_factory import (
-    AzureDataFactoryPipelineRunStatusAsyncSensor,
-    AzureDataFactoryPipelineRunStatusSensor,
-)
+from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
 from airflow.providers.microsoft.azure.triggers.data_factory import ADFPipelineRunStatusSensorTrigger
 
 
-class TestPipelineRunStatusSensor:
+class TestAzureDataFactoryPipelineRunStatusSensor:
     def setup_method(self):
         self.config = {
             "azure_data_factory_conn_id": "azure_data_factory_test",
@@ -121,11 +118,10 @@ class TestPipelineRunStatusSensor:
             self.defered_sensor.execute_complete(context={}, event={"status": "error", "message": ""})
 
 
-class TestAzureDataFactoryPipelineRunStatusAsyncSensor:
+class TestAzureDataFactoryPipelineRunStatusSensorWithAsync:
     RUN_ID = "7f8c6c72-c093-11ec-a83d-0242ac120007"
-    SENSOR = AzureDataFactoryPipelineRunStatusAsyncSensor(
-        task_id="pipeline_run_sensor_async",
-        run_id=RUN_ID,
+    SENSOR = AzureDataFactoryPipelineRunStatusSensor(
+        task_id="pipeline_run_sensor_async", run_id=RUN_ID, deferrable=True
     )
 
     @mock.patch("airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryHook")

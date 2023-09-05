@@ -1233,18 +1233,36 @@ class TestTaskInstance:
                 2,
                 _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
                 True,
-                None,
+                (True, None),  # is_teardown=True, expect_state=None
                 True,
-                id="one setup failed one setup success --> should run",
+                id="is teardown one setup failed one setup success",
+            ),
+            param(
+                "all_done_setup_success",
+                2,
+                _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
+                True,
+                (False, "upstream_failed"),  # is_teardown=False, expect_state="upstream_failed"
+                True,
+                id="not teardown one setup failed one setup success",
             ),
             param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
                 True,
-                None,
+                (True, None),  # is_teardown=True, expect_state=None
                 True,
-                id="one setup success one setup skipped --> should run",
+                id="is teardown one setup success one setup skipped",
+            ),
+            param(
+                "all_done_setup_success",
+                2,
+                _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
+                True,
+                (False, "skipped"),  # is_teardown=False, expect_state="skipped"
+                True,
+                id="not teardown one setup success one setup skipped",
             ),
             param(
                 "all_done_setup_success",
@@ -1260,18 +1278,36 @@ class TestTaskInstance:
                 1,
                 _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
                 True,
-                None,
+                (True, None),  # is_teardown=True, expect_state=None
                 False,
-                id="not all done, one failed",
+                id="is teardown not all done one failed",
+            ),
+            param(
+                "all_done_setup_success",
+                1,
+                _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
+                True,
+                (False, "upstream_failed"),  # is_teardown=False, expect_state="upstream_failed"
+                False,
+                id="not teardown not all done one failed",
             ),
             param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
                 True,
-                None,
+                (True, None),  # is_teardown=True, expect_state=None
                 False,
-                id="not all done, one skipped",
+                id="not all done one skipped",
+            ),
+            param(
+                "all_done_setup_success",
+                1,
+                _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
+                True,
+                (False, "skipped"),  # is_teardown=False, expect_state="skipped'
+                False,
+                id="not all done one skipped",
             ),
         ],
     )
@@ -1286,6 +1322,13 @@ class TestTaskInstance:
         expect_state: State,
         expect_passed: bool,
     ):
+        # this allows us to change the expected state depending on whether the
+        # task is a teardown
+        set_teardown = False
+        if isinstance(expect_state, tuple):
+            set_teardown, expect_state = expect_state
+            assert isinstance(set_teardown, bool)
+
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 
         # sanity checks
@@ -1296,6 +1339,8 @@ class TestTaskInstance:
 
         with dag_maker() as dag:
             downstream = EmptyOperator(task_id="downstream", trigger_rule=trigger_rule)
+            if set_teardown:
+                downstream.as_teardown()
             for i in range(5):
                 task = EmptyOperator(task_id=f"work_{i}", dag=dag)
                 task.set_downstream(downstream)

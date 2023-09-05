@@ -179,7 +179,7 @@ There are certain expectations from the members of the security team:
 * They are supposed to be active in assessing, discussing, fixing and releasing the
   security issues in Airflow. While it is perfectly understood that as volunteers, we might have
   periods of lower activity, prolonged lack of activity and participation will result in removal
-  from the team, pending PMC decision (the decision on removal can be taken by LAZY CONSENSUS among
+  from the team, pending PMC decision (the decision on removal can be taken by `LAZY CONSENSUS <https://community.apache.org/committers/lazyConsensus.html>`_ among
   all the PMC members on private@airflow.apache.org mailing list).
 
 * They are not supposed to reveal the information about pending and unfixed security issues to anyone
@@ -1457,14 +1457,16 @@ We don't create new issues on JIRA anymore. The reason we still look at JIRA iss
 * The `Apache Airflow Slack <https://s.apache.org/airflow-slack>`_ for:
    * ad-hoc questions related to development (#development channel)
    * asking for review (#development channel)
-   * asking for help with PRs (#how-to-pr channel)
+   * asking for help with first contribution PRs (#development-first-pr-support channel)
    * troubleshooting (#troubleshooting channel)
    * group talks (including SIG - special interest groups) (#sig-* channels)
    * notifications (#announcements channel)
    * random queries (#random channel)
    * regional announcements (#users-* channels)
-   * newbie questions (#newbie-questions channel)
    * occasional discussions (wherever appropriate including group and 1-1 discussions)
+
+Please exercise caution against posting same questions across multiple channels. Doing so not only prevents
+redundancy but also promotes more efficient and effective communication for everyone involved.
 
 The devlist is the most important and official communication channel. Often at Apache project you can
 hear "if it is not in the devlist - it did not happen". If you discuss and agree with someone from the

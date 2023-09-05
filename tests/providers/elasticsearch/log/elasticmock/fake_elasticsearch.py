@@ -331,9 +331,8 @@ class FakeElasticsearch(Elasticsearch):
         i = 0
         for searchable_index in searchable_indexes:
             for document in self.__documents_dict[searchable_index]:
-                if searchable_doc_types and document.get("_type") not in searchable_doc_types:
-                    continue
-                i += 1
+                if not searchable_doc_types or document.get("_type") in searchable_doc_types:
+                    i += 1
         result = {"count": i, "_shards": {"successful": 1, "failed": 0, "total": 1}}
 
         return result
@@ -457,13 +456,11 @@ class FakeElasticsearch(Elasticsearch):
 
     def find_document_in_searchable_index(self, matches, must, searchable_doc_types, searchable_index):
         for document in self.__documents_dict[searchable_index]:
-            if searchable_doc_types and document.get("_type") not in searchable_doc_types:
-                continue
-
-            if "match_phrase" in must:
-                self.match_must_phrase(document, matches, must)
-            else:
-                matches.append(document)
+            if not searchable_doc_types or document.get("_type") in searchable_doc_types:
+                if "match_phrase" in must:
+                    self.match_must_phrase(document, matches, must)
+                else:
+                    matches.append(document)
 
     @staticmethod
     def match_must_phrase(document, matches, must):

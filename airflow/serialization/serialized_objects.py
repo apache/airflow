@@ -660,13 +660,10 @@ class BaseSerialization:
             return False
 
         for attr in attrs:
-            if attr not in param_dict:
-                continue
-            val = param_dict[attr]
-            if is_serialized(val):
-                deserialized_val = cls.deserialize(param_dict[attr])
-                kwargs[attr] = deserialized_val
-            else:
+            if attr in param_dict:
+                val = param_dict[attr]
+                if is_serialized(val):
+                    val = cls.deserialize(val)
                 kwargs[attr] = val
         return class_(**kwargs)
 

@@ -44,7 +44,7 @@ class FTPSensor(BaseSensorOperator):
     """Errors that are transient in nature, and where action can be retried"""
     transient_errors = [421, 425, 426, 434, 450, 451, 452]
 
-    error_code_pattern = re.compile(r"([\d]+)")
+    error_code_pattern = re.compile(r"\d+")
 
     def __init__(
         self, *, path: str, ftp_conn_id: str = "ftp_default", fail_on_transient_errors: bool = True, **kwargs
@@ -64,9 +64,10 @@ class FTPSensor(BaseSensorOperator):
         try:
             matches = self.error_code_pattern.match(str(e))
             code = int(matches.group(0))
-            return code
         except ValueError:
             return e
+        else:
+            return code
 
     def poke(self, context: Context) -> bool:
         with self._create_hook() as hook:

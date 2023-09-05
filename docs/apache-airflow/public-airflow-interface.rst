@@ -222,6 +222,16 @@ exposes:
 
   _api/airflow/exceptions/index
 
+Public Utility classes
+----------------------
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/utils/state/index
+
 
 Using Public Interface to extend Airflow capabilities
 =====================================================

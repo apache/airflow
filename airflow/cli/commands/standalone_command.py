@@ -94,8 +94,8 @@ class StandaloneCommand:
             command.start()
         # Run output loop
         shown_ready = False
-        while True:
-            try:
+        try:
+            while True:
                 # Print all the current lines onto the screen
                 self.update_output()
                 # Print info banner when all components are ready and the
@@ -111,8 +111,8 @@ class StandaloneCommand:
                     shown_ready = True
                 # Ensure we idle-sleep rather than fast-looping
                 time.sleep(0.1)
-            except KeyboardInterrupt:
-                break
+        except KeyboardInterrupt:
+            pass
         # Stop subcommand threads
         self.print_output("standalone", "Shutting down components")
         for command in self.subcommands.values():
@@ -291,7 +291,7 @@ class SubCommand(threading.Thread):
     def run(self):
         """Run the actual process and captures it output to a queue."""
         self.process = subprocess.Popen(
-            ["airflow"] + self.command,
+            ["airflow", *self.command],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=self.env,

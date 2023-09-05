@@ -295,9 +295,7 @@ class OracleHook(DbApiHook):
             for cell in row:
                 if isinstance(cell, str):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
-                elif cell is None:
-                    lst.append("NULL")
-                elif isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
+                elif cell is None or isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
                     lst.append("NULL")
                 elif numpy and isinstance(cell, numpy.datetime64):
                     lst.append("'" + str(cell) + "'")
