@@ -35,7 +35,7 @@ Currently, there are two ways to connect to Azure Data Lake Storage Gen2 using A
    i.e. add connection string to ``connection_string`` in the Airflow connection.
 3. Fallback on `DefaultAzureCredential
    <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
-   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI...
+   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI, etc.
 
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
