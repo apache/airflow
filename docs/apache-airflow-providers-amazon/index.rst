@@ -40,6 +40,7 @@
     Deferrable Operators <deferrable>
     Secrets backends <secrets-backends/index>
     Logging for Tasks <logging/index>
+    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:

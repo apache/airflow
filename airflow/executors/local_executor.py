@@ -24,6 +24,7 @@ LocalExecutor.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import subprocess
@@ -331,15 +332,13 @@ class LocalExecutor(BaseExecutor):
 
         def sync(self):
             """Sync will get called periodically by the heartbeat method."""
-            while True:
-                try:
+            with contextlib.suppress(Empty):
+                while True:
                     results = self.executor.result_queue.get_nowait()
                     try:
                         self.executor.change_state(*results)
                     finally:
                         self.executor.result_queue.task_done()
-                except Empty:
-                    break
 
         def end(self):
             """

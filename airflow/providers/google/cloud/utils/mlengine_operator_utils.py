@@ -193,7 +193,7 @@ def create_evaluate_ops(
 
     # Verify that task_prefix doesn't have any special characters except hyphen
     # '-', which is the only allowed non-alphanumeric character by Dataflow.
-    if not re.match(r"^[a-zA-Z][-A-Za-z0-9]*$", task_prefix):
+    if not re.fullmatch(r"[a-zA-Z][-A-Za-z0-9]*", task_prefix):
         raise AirflowException(
             "Malformed task_id for DataFlowPythonOperator (only alphanumeric "
             "and hyphens are allowed but got: " + task_prefix

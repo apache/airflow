@@ -443,6 +443,10 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                     method_name="execute_complete",
                 )
             self._handle_job_error(job)
+            # job.result() returns a RowIterator. Mypy expects an instance of SupportsNext[Any] for
+            # the next() call which the RowIterator does not resemble to. Hence, ignore the arg-type error.
+            records = next(job.result())  # type: ignore[arg-type]
+            self.check_value(records)
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     @staticmethod

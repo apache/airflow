@@ -870,8 +870,7 @@ def get_additional_package_info(provider_package_path: str) -> str:
         for line in additional_info_lines:
             if line.startswith(" -->"):
                 skip_comment = False
-                continue
-            if not skip_comment:
+            elif not skip_comment:
                 result += line
         return result
     return ""
@@ -1679,9 +1678,8 @@ def list_providers_packages():
     # this is useful for cases where provider is WIP for a long period thus we don't want to release it yet.
     providers_to_remove_from_release = []
     for provider in providers:
-        if provider in providers_to_remove_from_release:
-            continue
-        console.print(provider)
+        if provider not in providers_to_remove_from_release:
+            console.print(provider)
 
 
 @cli.command()

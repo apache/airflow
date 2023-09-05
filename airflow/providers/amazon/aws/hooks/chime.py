@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import re
+from functools import cached_property
 from typing import Any
 
 from airflow.exceptions import AirflowException
@@ -28,19 +29,19 @@ from airflow.providers.http.hooks.http import HttpHook
 
 
 class ChimeWebhookHook(HttpHook):
-    """Interact with Chime Web Hooks to create notifications.
+    """Interact with Amazon Chime Webhooks to create notifications.
 
     .. warning:: This hook is only designed to work with web hooks and not chat bots.
 
-    :param chime_conn_id: Chime connection ID with Endpoint as "https://hooks.chime.aws" and
-                         the webhook token in the form of ```{webhook.id}?token{webhook.token}```
-
+    :param chime_conn_id: :ref:`Amazon Chime Connection ID <howto/connection:chime>`
+        with Endpoint as `https://hooks.chime.aws` and the webhook token
+        in the form of ``{webhook.id}?token{webhook.token}``
     """
 
     conn_name_attr = "chime_conn_id"
     default_conn_name = "chime_default"
     conn_type = "chime"
-    hook_name = "Chime Web Hook"
+    hook_name = "Amazon Chime Webhook"
 
     def __init__(
         self,
@@ -49,7 +50,11 @@ class ChimeWebhookHook(HttpHook):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.webhook_endpoint = self._get_webhook_endpoint(chime_conn_id)
+        self._chime_conn_id = chime_conn_id
+
+    @cached_property
+    def webhook_endpoint(self):
+        return self._get_webhook_endpoint(self._chime_conn_id)
 
     def _get_webhook_endpoint(self, conn_id: str) -> str:
         """
@@ -65,7 +70,7 @@ class ChimeWebhookHook(HttpHook):
         url = conn.schema + "://" + conn.host
         endpoint = url + token
         # Check to make sure the endpoint matches what Chime expects
-        if not re.match(r"^[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+$", token):
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+", token):
             raise AirflowException(
                 "Expected Chime webhook token in the form of '{webhook.id}?token={webhook.token}'."
             )
@@ -104,7 +109,7 @@ class ChimeWebhookHook(HttpHook):
             "hidden_fields": ["login", "port", "extra"],
             "relabeling": {
                 "host": "Chime Webhook Endpoint",
-                "password": "Webhook Token",
+                "password": "Chime Webhook token",
             },
             "placeholders": {
                 "schema": "https",

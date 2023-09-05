@@ -80,9 +80,7 @@ class BatchOperatorTrigger(BaseTrigger):
 
         async with self.hook.async_conn as client:
             waiter = self.hook.get_waiter("batch_job_complete", deferrable=True, client=client)
-            attempt = 0
-            while attempt < self.max_retries:
-                attempt = attempt + 1
+            for attempt in range(1, 1 + self.max_retries):
                 try:
                     await waiter.wait(
                         jobs=[self.job_id],
@@ -91,7 +89,6 @@ class BatchOperatorTrigger(BaseTrigger):
                             "MaxAttempts": 1,
                         },
                     )
-                    break
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         yield TriggerEvent(
@@ -105,11 +102,11 @@ class BatchOperatorTrigger(BaseTrigger):
                         self.max_retries,
                     )
                     await asyncio.sleep(int(self.poll_interval))
-
-        if attempt >= self.max_retries:
-            yield TriggerEvent({"status": "failure", "message": "Job Failed - max attempts reached."})
-        else:
-            yield TriggerEvent({"status": "success", "job_id": self.job_id})
+                else:
+                    yield TriggerEvent({"status": "success", "job_id": self.job_id})
+                    break
+            else:
+                yield TriggerEvent({"status": "failure", "message": "Job Failed - max attempts reached."})
 
 
 @deprecated(reason="use BatchJobTrigger instead")

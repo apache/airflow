@@ -105,7 +105,6 @@ def _download_with_retries(num_tries, path, tool, url):
                 f"[warning]Retrying: {num_tries} retries  left on error "
                 f"while downloading {tool} tool: {e}"
             )
-            continue
 
 
 def _download_tool_if_needed(

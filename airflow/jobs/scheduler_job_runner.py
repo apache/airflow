@@ -897,13 +897,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             )
             for dag_run in paused_runs:
                 dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-                if dag is None:
-                    continue
-
-                dag_run.dag = dag
-                _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
-                if callback_to_run:
-                    self._send_dag_callbacks_to_processor(dag, callback_to_run)
+                if dag is not None:
+                    dag_run.dag = dag
+                    _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
+                    if callback_to_run:
+                        self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
             self.log.exception("Failed to update dag run state for paused dags due to %s", e)
 
@@ -1073,13 +1071,12 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         )
         for dag_run, callback_to_run in callback_tuples:
             dag = cached_get_dag(dag_run.dag_id)
-
-            if not dag:
+            if dag:
+                # Sending callbacks there as in standalone_dag_processor they are adding to the database,
+                # so it must be done outside of prohibit_commit.
+                self._send_dag_callbacks_to_processor(dag, callback_to_run)
+            else:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
-                continue
-            # Sending callbacks there as in standalone_dag_processor they are adding to the database,
-            # so it must be done outside of prohibit_commit.
-            self._send_dag_callbacks_to_processor(dag, callback_to_run)
 
         with prohibit_commit(session) as guard:
             # Without this, the session has an invalid view of the DB
@@ -1192,7 +1189,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 )
                 active_runs_of_dags[dag.dag_id] += 1
             if self._should_update_dag_next_dagruns(
-                dag, dag_model, active_runs_of_dags[dag.dag_id], session=session
+                dag,
+                dag_model,
+                last_dag_run=None,
+                total_active_runs=active_runs_of_dags[dag.dag_id],
+                session=session,
             ):
                 dag_model.calculate_dagrun_date_fields(dag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
@@ -1300,9 +1301,22 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 )
 
     def _should_update_dag_next_dagruns(
-        self, dag: DAG, dag_model: DagModel, total_active_runs: int | None = None, *, session: Session
+        self,
+        dag: DAG,
+        dag_model: DagModel,
+        *,
+        last_dag_run: DagRun | None = None,
+        total_active_runs: int | None = None,
+        session: Session,
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
+        # If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
+        # In such case, schedule next only if last_dag_run is finished and was an automated run.
+        if last_dag_run and not (
+            last_dag_run.state in State.finished_dr_states
+            and last_dag_run.run_type in [DagRunType.SCHEDULED, DagRunType.BACKFILL_JOB]
+        ):
+            return False
         # If the DAG never schedules skip save runtime
         if not dag.timetable.can_be_scheduled:
             return False
@@ -1437,8 +1451,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 session.merge(task_instance)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
-            # Work out if we should allow creating a new DagRun now?
-            if self._should_update_dag_next_dagruns(dag, dag_model, session=session):
+
+            if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
 
             callback_to_execute = DagCallbackRequest(
@@ -1465,11 +1479,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             return callback
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
-        # Check if DAG not scheduled then skip interval calculation to same scheduler runtime
-        if dag_run.state in State.finished_dr_states:
-            # Work out if we should allow creating a new DagRun now?
-            if self._should_update_dag_next_dagruns(dag, dag_model, session=session):
-                dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
+
+        if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
+            dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_

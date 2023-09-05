@@ -198,9 +198,8 @@ def prepare_bulk_issues(
     with open(csv_file) as f:
         read_issues = csv.reader(f)
         for index, row in enumerate(read_issues):
-            if index == 0:
-                continue
-            issues[row[0]].append(row)
+            if index:
+                issues[row[0]].append(row)
     names = sorted(issues.keys())[start_from:]
     total_issues = len(names)
     processed_issues = 0

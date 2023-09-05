@@ -112,16 +112,16 @@ def parse_body(body: str) -> dict[str, TestHistory]:
     for line in body.splitlines(keepends=False):
         if line.startswith("|-"):
             parse = True
-            continue
-        if parse:
+        elif parse:
             if not line.startswith("|"):
                 break
             try:
                 status = parse_test_history(line)
             except Exception:
                 continue
-            if status:
-                test_history_map[status.test_id] = status
+            else:
+                if status:
+                    test_history_map[status.test_id] = status
     return test_history_map
 
 
@@ -186,17 +186,17 @@ if __name__ == "__main__":
         print("Parsing: " + test["classname"] + "::" + test["name"])
         if test.contents and test.contents[0].name == "skipped":
             print(f"skipping {test['name']}")
-            continue
-        test_results.append(
-            TestResult(
-                test_id=test["classname"] + "::" + test["name"],
-                file=test["file"],
-                line=test["line"],
-                name=test["name"],
-                classname=test["classname"],
-                result=not test.contents,
+        else:
+            test_results.append(
+                TestResult(
+                    test_id=test["classname"] + "::" + test["name"],
+                    file=test["file"],
+                    line=test["line"],
+                    name=test["name"],
+                    classname=test["classname"],
+                    result=not test.contents,
+                )
             )
-        )
 
     token = os.environ.get("GITHUB_TOKEN")
     print(f"Token: {token}")

@@ -251,7 +251,7 @@ class TestPodManager:
         assert line == log_message
 
         real_timestamp = "2020-10-08T14:16:17.793417674Z"
-        timestamp, line = self.pod_manager.parse_log_line(" ".join([real_timestamp, log_message]))
+        timestamp, line = self.pod_manager.parse_log_line(f"{real_timestamp} {log_message}")
         assert timestamp == pendulum.parse(real_timestamp)
         assert line == log_message
 

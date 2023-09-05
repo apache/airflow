@@ -33,8 +33,8 @@ from airflow.version import version as airflow_version
 
 
 def _parse_version(val):
-    val = re.sub(r"(\d+\.\d+\.\d+).*", lambda x: x.group(1), val)
-    return tuple(int(x) for x in val.split("."))
+    match = re.search(r"(\d+)\.(\d+)\.(\d+)", val)
+    return tuple(int(x) for x in match.groups())
 
 
 class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):

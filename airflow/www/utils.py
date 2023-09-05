@@ -775,7 +775,8 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
             "is_extendedjson",
             [],
         ),
-    ) + fab_sqlafilters.SQLAFilterConverter.conversion_table
+        *fab_sqlafilters.SQLAFilterConverter.conversion_table,
+    )
 
     def __init__(self, datamodel):
         super().__init__(datamodel)
@@ -806,12 +807,11 @@ class CustomSQLAInterface(SQLAInterface):
         clean_column_names()
         # Support for AssociationProxy in search and list columns
         for obj_attr, desc in self.obj.__mapper__.all_orm_descriptors.items():
-            if not isinstance(desc, AssociationProxy):
-                continue
-            proxy_instance = getattr(self.obj, obj_attr)
-            if hasattr(proxy_instance.remote_attr.prop, "columns"):
-                self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
-                self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
+            if isinstance(desc, AssociationProxy):
+                proxy_instance = getattr(self.obj, obj_attr)
+                if hasattr(proxy_instance.remote_attr.prop, "columns"):
+                    self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
+                    self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
@@ -877,7 +877,8 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
 # place
 FieldConverter.conversion_table = (
     ("is_utcdatetime", DateTimeWithTimezoneField, AirflowDateTimePickerWidget),
-) + FieldConverter.conversion_table
+    *FieldConverter.conversion_table,
+)
 
 
 class UIAlert:

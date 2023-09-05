@@ -67,6 +67,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+from airflow.utils.task_instance_session import set_current_task_instance_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -650,7 +651,8 @@ def task_render(args, dag: DAG | None = None) -> None:
     ti, _ = _get_ti(
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
     )
-    ti.render_templates()
+    with create_session() as session, set_current_task_instance_session(session=session):
+        ti.render_templates()
     for attr in task.template_fields:
         print(
             textwrap.dedent(
