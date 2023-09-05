@@ -507,7 +507,7 @@ class DatabricksHook(BaseDatabricksHook):
         :return: state of the cluster
         """
         json = {"cluster_id": cluster_id}
-        response = self._do_api_call(GET_CLUSTE, json)
+        response = self._do_api_call(GET_CLUSTER_ENDPOINT, json)
         state = response["state"]
         state_message = response["state_message"]
         return ClusterState(state, state_message)
