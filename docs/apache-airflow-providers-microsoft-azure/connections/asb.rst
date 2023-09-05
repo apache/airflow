@@ -55,4 +55,4 @@ Connection String (optional)
 Fully Qualified Namespace (optional)
    Specify the fully qualified Service Bus namespace that the connection is associated with. This is likely to be similar to ``{yournamespace}.servicebus.windows.net``.
    Use the key ``fully_qualified_namespace`` to pass in the Connection ID .
-   This is required when fallbacking to `DefaultAzureCredential <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
+   This is required when falling back to `DefaultAzureCredential <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
