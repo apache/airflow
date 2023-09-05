@@ -554,13 +554,6 @@ class TestSparkKubernetesSensor:
         db.merge_conn(Connection(conn_id="kubernetes_default", conn_type="kubernetes", extra=json.dumps({})))
         db.merge_conn(
             Connection(
-                conn_id="kubernetes_default",
-                conn_type="kubernetes",
-                extra=json.dumps({}),
-            )
-        )
-        db.merge_conn(
-            Connection(
                 conn_id="kubernetes_with_namespace",
                 conn_type="kubernetes",
                 extra=json.dumps({"namespace": "mock_namespace"}),
@@ -568,6 +561,20 @@ class TestSparkKubernetesSensor:
         )
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
+
+    def test_init(self, mock_kubernetes_hook):
+        sensor = SparkKubernetesSensor(task_id="task", application_name="application")
+
+        assert sensor.task_id == "task"
+        assert sensor.application_name == "application"
+        assert sensor.attach_log is False
+        assert sensor.namespace is None
+        assert sensor.container_name == "spark-kubernetes-driver"
+        assert sensor.kubernetes_conn_id == "kubernetes_default"
+        assert sensor.api_group == "sparkoperator.k8s.io"
+        assert sensor.api_version == "v1beta2"
+
+        assert "hook" not in sensor.__dict__  # Cached property has not been accessed as part of construction.
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
