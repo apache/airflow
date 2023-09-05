@@ -41,11 +41,13 @@ from airflow.exceptions import (
     AirflowClusterPolicyViolation,
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
+    AirflowDagTaskOutOfBoundsValue,
     RemovedInAirflow3Warning,
 )
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
+from airflow.utils.dag_parameters_overflow import check_values_overflow
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -469,6 +471,7 @@ class DagBag(LoggingMixin):
         intended to only be used by the ``_bag_dag()`` implementation.
         """
         check_cycle(dag)  # throws if a task cycle is found
+        check_values_overflow(dag)
 
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
@@ -505,7 +508,7 @@ class DagBag(LoggingMixin):
                 )
             self.dags[dag.dag_id] = dag
             self.log.debug("Loaded DAG %s", dag)
-        except (AirflowDagCycleException, AirflowDagDuplicatedIdException):
+        except (AirflowDagCycleException, AirflowDagDuplicatedIdException, AirflowDagTaskOutOfBoundsValue):
             # There was an error in bagging the dag. Remove it from the list of dags
             self.log.exception("Exception bagging dag: %s", dag.dag_id)
             # Only necessary at the root level since DAG.subdags automatically

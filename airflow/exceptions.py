@@ -424,3 +424,7 @@ class DeserializingResultError(ValueError):
             "Error deserializing result. Note that result deserialization "
             "is not supported across major Python versions. Cause: " + str(self.__cause__)
         )
+
+
+class AirflowDagTaskOutOfBoundsValue(AirflowException):
+    """Raise when a parameter in DAG task can cause out-of-bounds on mapping insertion."""
