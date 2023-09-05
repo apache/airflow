@@ -58,6 +58,8 @@ CLUSTER_ID = "cluster_id"
 RUN_ID = 1
 JOB_ID = 42
 JOB_NAME = "job-name"
+PIPELINE_ID = "id"
+PIPELINE_FILTER_NAME = "name LIKE '%id%'"
 DEFAULT_RETRY_NUMBER = 3
 DEFAULT_RETRY_ARGS = dict(
     wait=tenacity.wait_none(),
@@ -97,22 +99,27 @@ LIST_JOBS_RESPONSE = {
     "has_more": False,
 }
 
-LIST_PIPELINES_RESPONSE = [
-    {
-        "pipeline_id": "abcd1234-1234-123a-12ab-123456abcdef",
-        "state": "ACTIVE",
-        "name": "Sample",
-        "latest_updates": [
-            {
-                "update_id": "abcd1234-ab12-cd34-ef56-abcd1234ef56",
-                "state": "COMPLETED",
-                "creation_time": "2023-09-01T20:58:17.413Z",
-            }
-        ],
-        "creator_user_name": "sample.email@example.com",
-        "run_as_user_name": "sample.email@example.com",
-    }
-]
+LIST_PIPELINES_RESPONSE = {
+    "statuses": [
+        {
+            "pipeline_id": "id",
+            "state": "DEPLOYING",
+            "cluster_id": "string",
+            "name": "string",
+            "latest_updates": [{"update_id": "string", "state": "QUEUED", "creation_time": "string"}],
+            "creator_user_name": "string",
+            "run_as_user_name": "string",
+        }
+    ],
+}
+
+LIST_NONE_PIPELINES_RESPONSE = {
+    "statuses": [
+        {
+            "pipeline_id": None,
+        }
+    ],
+}
 
 LIST_SPARK_VERSIONS_RESPONSE = {
     "versions": [
@@ -218,11 +225,13 @@ def list_jobs_endpoint(host):
     """
     return f"https://{host}/api/2.1/jobs/list"
 
+
 def list_pipelines_endpoint(host):
     """
     Utility function to generate the list pipelines endpoint given the host
     """
     return f"https://{host}/api/2.0/pipelines"
+
 
 def list_spark_versions_endpoint(host):
     """Utility function to generate the list spark versions endpoint given the host"""
@@ -854,18 +863,82 @@ class TestDatabricksHook:
         mock_requests.code.ok = 200
         mock_requests.get.return_value.json.return_value = LIST_PIPELINES_RESPONSE
 
-        pipelines = self.hook.list_pipelines()
-
+        pipelines = self.hook.list_pipelines(filter="name LIKE '%id%'")
         mock_requests.get.assert_called_once_with(
             list_pipelines_endpoint(HOST),
             json=None,
-            params={"limit": 25, "offset": 0},
+            params={"max_results": 25, "filter": PIPELINE_FILTER_NAME, "order_by": None, "page_token": None},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
 
-        assert pipelines == LIST_PIPELINES_RESPONSE["pipelines"]
+        assert pipelines == LIST_PIPELINES_RESPONSE["statuses"]
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_pipeline_id_by_name_success(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = LIST_PIPELINES_RESPONSE
+
+        pipeline_id = self.hook.find_pipeline_id_by_name(filter=PIPELINE_FILTER_NAME)
+
+        mock_requests.get.assert_called_once_with(
+            list_pipelines_endpoint(HOST),
+            json=None,
+            params={"max_results": 25, "filter": PIPELINE_FILTER_NAME, "order_by": None, "page_token": None},
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+        assert pipeline_id == PIPELINE_ID
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_pipeline_id_by_name_not_found(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = LIST_NONE_PIPELINES_RESPONSE
+
+        none_pipeline_id = self.hook.find_pipeline_id_by_name(filter="name LIKE '%NoneJob%'")
+
+        mock_requests.get.assert_called_once_with(
+            list_pipelines_endpoint(HOST),
+            json=None,
+            params={
+                "max_results": 25,
+                "filter": "name LIKE '%NoneJob%'",
+                "order_by": None,
+                "page_token": None,
+            },
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+        assert none_pipeline_id is None
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_pipeline_id_by_name_raise_exception_with_duplicates(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = {
+            **LIST_PIPELINES_RESPONSE,
+            "statuses": LIST_PIPELINES_RESPONSE["statuses"] * 2,
+        }
+
+        exception_message = (
+            f"There is more than one pipeline with the specified filter {PIPELINE_FILTER_NAME}. "
+        )
+        "Please delete duplicate pipelines or use a more specific filter."
+        with pytest.raises(AirflowException, match=exception_message):
+            self.hook.find_pipeline_id_by_name(PIPELINE_FILTER_NAME)
+
+        mock_requests.get.assert_called_once_with(
+            list_pipelines_endpoint(HOST),
+            json=None,
+            params={"max_results": 25, "filter": PIPELINE_FILTER_NAME, "order_by": None, "page_token": None},
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_connection_success(self, mock_requests):
