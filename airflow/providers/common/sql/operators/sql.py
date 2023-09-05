@@ -84,7 +84,7 @@ keep those methods to avoid 8.4.0 version from failing.
 """
 
 
-_PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*)\.hooks.*")
+_PROVIDERS_MATCHER = re.compile(r"airflow\.providers\.(.*?)\.hooks.*")
 
 _MIN_SUPPORTED_PROVIDERS_VERSION = {
     "amazon": "4.1.0",
@@ -827,10 +827,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         self.tol = tol if isinstance(tol, float) else None
         self.has_tolerance = self.tol is not None
 
-    def execute(self, context: Context):
-        self.log.info("Executing SQL check: %s", self.sql)
-        records = self.get_db_hook().get_first(self.sql)
-
+    def check_value(self, records):
         if not records:
             self._raise_exception(f"The following query returned zero rows: {self.sql}")
 
@@ -861,6 +858,11 @@ class SQLValueCheckOperator(BaseSQLOperator):
 
         if not all(tests):
             self._raise_exception(error_msg)
+
+    def execute(self, context: Context):
+        self.log.info("Executing SQL check: %s", self.sql)
+        records = self.get_db_hook().get_first(self.sql)
+        self.check_value(records)
 
     def _to_float(self, records):
         return [float(record) for record in records]

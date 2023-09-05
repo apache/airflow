@@ -351,6 +351,14 @@ breeze build-docs --clean-build --package-filter apache-airflow-providers \
    --package-filter 'apache-airflow-providers-*'
 ```
 
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. Example:
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+breeze build-docs cncf.kubernetes sftp --clean-build
+```
+
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
 means that unless we release just few selected packages or if we need to deliberately skip some packages
 we should release documentation for all provider packages and the above command is the one to use.
@@ -364,6 +372,14 @@ breeze build-docs --clean-build \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
   ...
+```
+
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. Example:
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+breeze build-docs package1 package2 --clean-build
 ```
 
 

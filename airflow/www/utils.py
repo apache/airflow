@@ -775,7 +775,8 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
             "is_extendedjson",
             [],
         ),
-    ) + fab_sqlafilters.SQLAFilterConverter.conversion_table
+        *fab_sqlafilters.SQLAFilterConverter.conversion_table,
+    )
 
     def __init__(self, datamodel):
         super().__init__(datamodel)
@@ -876,7 +877,8 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
 # place
 FieldConverter.conversion_table = (
     ("is_utcdatetime", DateTimeWithTimezoneField, AirflowDateTimePickerWidget),
-) + FieldConverter.conversion_table
+    *FieldConverter.conversion_table,
+)
 
 
 class UIAlert:

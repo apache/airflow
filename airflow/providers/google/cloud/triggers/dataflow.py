@@ -92,8 +92,8 @@ class TemplateJobStartTrigger(BaseTrigger):
         amount of time stored in self.poll_sleep variable.
         """
         hook = self._get_async_hook()
-        while True:
-            try:
+        try:
+            while True:
                 status = await hook.get_job_status(
                     project_id=self.project_id,
                     job_id=self.job_id,
@@ -129,10 +129,9 @@ class TemplateJobStartTrigger(BaseTrigger):
                     self.log.info("Current job status is: %s", status)
                     self.log.info("Sleeping for %s seconds.", self.poll_sleep)
                     await asyncio.sleep(self.poll_sleep)
-            except Exception as e:
-                self.log.exception("Exception occurred while checking for job completion.")
-                yield TriggerEvent({"status": "error", "message": str(e)})
-                return
+        except Exception as e:
+            self.log.exception("Exception occurred while checking for job completion.")
+            yield TriggerEvent({"status": "error", "message": str(e)})
 
     def _get_async_hook(self) -> AsyncDataflowHook:
         return AsyncDataflowHook(

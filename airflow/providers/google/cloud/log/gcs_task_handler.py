@@ -241,7 +241,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             old_log = blob.download_as_bytes().decode()
-            log = "\n".join([old_log, log]) if old_log else log
+            log = f"{old_log}\n{log}" if old_log else log
         except Exception as e:
             if not self.no_log_found(e):
                 log += self._add_message(
@@ -263,8 +263,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         :meta private:
         """
-        if exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]:
-            return True
-        elif getattr(exc, "resp", {}).get("status") == "404":
+        if (exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]) or getattr(
+            exc, "resp", {}
+        ).get("status") == "404":
             return True
         return False

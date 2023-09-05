@@ -104,7 +104,6 @@ class AzureBatchHook(BaseHook):
             credentials = AzureIdentityCredentialAdapter(
                 None, resource_id="https://batch.core.windows.net/.default"
             )
-            # credentials = AzureIdentityCredentialAdapter()
 
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)
         return batch_client

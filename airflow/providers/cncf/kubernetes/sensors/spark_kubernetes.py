@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from kubernetes import client
@@ -69,9 +70,12 @@ class SparkKubernetesSensor(BaseSensorOperator):
         self.namespace = namespace
         self.container_name = container_name
         self.kubernetes_conn_id = kubernetes_conn_id
-        self.hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
         self.api_group = api_group
         self.api_version = api_version
+
+    @cached_property
+    def hook(self) -> KubernetesHook:
+        return KubernetesHook(conn_id=self.kubernetes_conn_id)
 
     def _log_driver(self, application_state: str, response: dict) -> None:
         if not self.attach_log:

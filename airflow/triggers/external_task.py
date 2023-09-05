@@ -95,8 +95,8 @@ class TaskStateTrigger(BaseTrigger):
         If dag with specified name was not in the running state after _timeout_sec seconds
         after starting execution process of the trigger, terminate with status 'timeout'.
         """
-        while True:
-            try:
+        try:
+            while True:
                 delta = utcnow() - self.trigger_start_time
                 if delta.total_seconds() < self._timeout_sec:
                     # mypy confuses typing here
@@ -112,9 +112,8 @@ class TaskStateTrigger(BaseTrigger):
                     return
                 self.log.info("Task is still running, sleeping for %s seconds...", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
-            except Exception:
-                yield TriggerEvent({"status": "failed"})
-                return
+        except Exception:
+            yield TriggerEvent({"status": "failed"})
 
     @sync_to_async
     @provide_session

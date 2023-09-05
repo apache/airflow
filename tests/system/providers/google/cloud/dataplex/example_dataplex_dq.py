@@ -261,6 +261,31 @@ with models.DAG(
         data_scan_id=DATA_SCAN_ID,
     )
     # [END howto_dataplex_get_data_quality_job_operator]
+    # [START howto_dataplex_run_data_quality_def_operator]
+    run_data_scan_def = DataplexRunDataQualityScanOperator(
+        task_id="run_data_scan_def",
+        project_id=PROJECT_ID,
+        region=REGION,
+        data_scan_id=DATA_SCAN_ID,
+        deferrable=True,
+    )
+    # [END howto_dataplex_run_data_quality_def_operator]
+    run_data_scan_async_2 = DataplexRunDataQualityScanOperator(
+        task_id="run_data_scan_async_2",
+        project_id=PROJECT_ID,
+        region=REGION,
+        data_scan_id=DATA_SCAN_ID,
+        asynchronous=True,
+    )
+    # [START howto_dataplex_get_data_quality_job_def_operator]
+    get_data_scan_job_result_def = DataplexGetDataQualityScanResultOperator(
+        task_id="get_data_scan_job_result_def",
+        project_id=PROJECT_ID,
+        region=REGION,
+        data_scan_id=DATA_SCAN_ID,
+        deferrable=True,
+    )
+    # [END howto_dataplex_get_data_quality_job_def_operator]
     # [START howto_dataplex_delete_asset_operator]
     delete_asset = DataplexDeleteAssetOperator(
         task_id="delete_asset",
@@ -323,6 +348,9 @@ with models.DAG(
         run_data_scan_async,
         get_data_scan_job_status,
         get_data_scan_job_result_2,
+        run_data_scan_def,
+        run_data_scan_async_2,
+        get_data_scan_job_result_def,
         # TEST TEARDOWN
         delete_asset,
         delete_zone,

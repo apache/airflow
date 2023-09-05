@@ -29,7 +29,6 @@ import inspect
 import json
 import logging
 import os
-import uuid
 import warnings
 from copy import deepcopy
 from functools import cached_property, wraps
@@ -56,6 +55,8 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
+from airflow.providers.amazon.aws.utils.suppress import return_on_error
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -471,21 +472,17 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self._verify = verify
 
     @classmethod
+    @return_on_error("Unknown")
     def _get_provider_version(cls) -> str:
         """Check the Providers Manager for the package version."""
-        try:
-            manager = ProvidersManager()
-            hook = manager.hooks[cls.conn_type]
-            if not hook:
-                # This gets caught immediately, but without it MyPy complains
-                # Item "None" of "Optional[HookInfo]" has no attribute "package_name"
-                # on the following line and static checks fail.
-                raise ValueError(f"Hook info for {cls.conn_type} not found in the Provider Manager.")
-            provider = manager.providers[hook.package_name]
-            return provider.version
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "Unknown"
+        manager = ProvidersManager()
+        hook = manager.hooks[cls.conn_type]
+        if not hook:
+            # This gets caught immediately, but without it MyPy complains
+            # Item "None" of "Optional[HookInfo]" has no attribute "package_name"
+            # on the following line and static checks fail.
+            raise ValueError(f"Hook info for {cls.conn_type} not found in the Provider Manager.")
+        return manager.providers[hook.package_name].version
 
     @staticmethod
     def _find_class_name(target_function_name: str) -> str:
@@ -505,19 +502,17 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # Return the name of the class object.
         return frame_class_object.__name__
 
+    @return_on_error("Unknown")
     def _get_caller(self, target_function_name: str = "execute") -> str:
         """Given a function name, walk the stack and return the name of the class which called it last."""
-        try:
-            caller = self._find_class_name(target_function_name)
-            if caller == "BaseSensorOperator":
-                # If the result is a BaseSensorOperator, then look for whatever last called "poke".
-                return self._get_caller("poke")
-            return caller
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "Unknown"
+        caller = self._find_class_name(target_function_name)
+        if caller == "BaseSensorOperator":
+            # If the result is a BaseSensorOperator, then look for whatever last called "poke".
+            return self._get_caller("poke")
+        return caller
 
     @staticmethod
+    @return_on_error("00000000-0000-0000-0000-000000000000")
     def _generate_dag_key() -> str:
         """Generate a DAG key.
 
@@ -526,25 +521,17 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         can not (reasonably) be reversed.  No personal data can be inferred or
         extracted from the resulting UUID.
         """
-        try:
-            dag_id = os.environ["AIRFLOW_CTX_DAG_ID"]
-            return str(uuid.uuid5(uuid.NAMESPACE_OID, dag_id))
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "00000000-0000-0000-0000-000000000000"
+        return generate_uuid(os.environ.get("AIRFLOW_CTX_DAG_ID"))
 
     @staticmethod
+    @return_on_error("Unknown")
     def _get_airflow_version() -> str:
         """Fetch and return the current Airflow version."""
-        try:
-            # This can be a circular import under specific configurations.
-            # Importing locally to either avoid or catch it if it does happen.
-            from airflow import __version__ as airflow_version
+        # This can be a circular import under specific configurations.
+        # Importing locally to either avoid or catch it if it does happen.
+        from airflow import __version__ as airflow_version
 
-            return airflow_version
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "Unknown"
+        return airflow_version
 
     def _generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
         user_agent_extra_values = [

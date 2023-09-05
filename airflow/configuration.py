@@ -62,6 +62,10 @@ if not sys.warnoptions:
     warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
 
+    # Temporarily suppress warnings from pydantic until we upgrade minimum version of pydantic to v2
+    # Which should happen in Airflow 2.8.0
+    warnings.filterwarnings(action="ignore", category=UserWarning, module=r"pydantic._internal._config")
+
 _SQLITE3_VERSION_PATTERN = re2.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
 ConfigType = Union[str, int, float, bool]
@@ -464,7 +468,7 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "logging_level"): _available_logging_levels,
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
-        ("logging", "celery_logging_level"): _available_logging_levels + [""],
+        ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", ""],
     }
 
