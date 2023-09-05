@@ -118,9 +118,7 @@ class RunState:
 
 
 class ClusterState:
-    """
-    Utility class for the cluster state concept of Databricks cluster.
-    """
+    """Utility class for the cluster state concept of Databricks cluster."""
 
     CLUSTER_LIFE_CYCLE_STATES = [
         "PENDING",
@@ -141,12 +139,8 @@ class ClusterState:
     def is_terminal(self) -> bool:
         """True if the current state is a terminal state."""
         if self.state not in self.CLUSTER_LIFE_CYCLE_STATES:
-            raise AirflowException(
-                f"Unexpected cluster life cycle state: {self.state}"
-            )
-        return self.state in (
-            "TERMINATING", "TERMINATED", "ERROR", "UNKNOWN"
-        )
+            raise AirflowException(f"Unexpected cluster life cycle state: {self.state}")
+        return self.state in ("TERMINATING", "TERMINATED", "ERROR", "UNKNOWN")
 
     @property
     def is_running(self) -> bool:
