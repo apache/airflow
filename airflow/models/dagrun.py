@@ -846,8 +846,12 @@ class DagRun(Base, LoggingMixin):
             # TODO:
             #  Currently we only support one layer group concurrency limitation.
             #  If nest group expanding is supported in the future, we need to check all parent groups.
-            if ti.map_index in allow_mapping_index[task_group.group_id]:
-                return True  # allow
+            if (
+                task_group.max_active_groups_per_dagrun is None
+                or ti.map_index in allow_mapping_index.get[task_group.group_id]
+            ):
+                # has no limitation, or is in allow list, allow
+                return True
 
             return False  # deny
 
