@@ -70,6 +70,7 @@ class TestFabAuthManager:
             (1, "First", None, "user", None, "First"),
             (1, None, "Last", "user", "email", "Last"),
             (1, None, None, None, "email", None),
+            (1, None, None, None, "email", False),
         ],
     )
     @mock.patch.object(FabAuthManager, "get_user")
