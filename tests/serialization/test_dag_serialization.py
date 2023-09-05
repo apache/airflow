@@ -332,7 +332,6 @@ def get_timetable_based_simple_dag(timetable):
     dag.schedule_interval = timetable.summary
     return dag
 
-
 def serialize_subprocess(queue, dag_folder):
     """Validate pickle in a subprocess."""
     dags = collect_dags(dag_folder)
@@ -429,6 +428,19 @@ class TestStringifiedDAGs:
             for k, v in task.items():
                 print(task["task_id"], k, v)
         assert actual == expected
+
+    def test_dag_serialization_preserves_empty_access_roles(self):
+        """Verify that an explicitlty empty access_control dict is preserved through serialization and deserialization."""
+        dag = collect_dags(["airflow/example_dags"])["simple_dag"]
+        dag.access_control = {}
+        serialized_dag = SerializedDAG.to_dict(dag)
+        SerializedDAG.validate_schema(serialized_dag)
+
+        assert serialized_dag["dag"]["_access_control"] == {
+            "__type": "dict",
+            "__var": {}
+        }
+
 
     def test_dag_serialization_unregistered_custom_timetable(self):
         """Verify serialization fails without timetable registration."""
