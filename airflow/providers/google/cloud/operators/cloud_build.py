@@ -261,7 +261,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
             )
-            self.log.info("Cloud Build completed with response %s ", event["message"])
+            self.log.info("Cloud Build completed with response %s", event["message"])
             project_id = self.project_id or hook.project_id
             if project_id:
                 CloudBuildLink.persist(

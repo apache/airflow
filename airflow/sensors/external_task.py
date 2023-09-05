@@ -242,7 +242,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_task_ids:
             self.log.info(
-                "Poking for tasks %s in dag %s on %s ... ",
+                "Poking for tasks %s in dag %s on %s ...",
                 self.external_task_ids,
                 self.external_dag_id,
                 serialized_dttm_filter,
@@ -250,7 +250,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_task_group_id:
             self.log.info(
-                "Poking for task_group '%s' in dag '%s' on %s ... ",
+                "Poking for task_group '%s' in dag '%s' on %s ...",
                 self.external_task_group_id,
                 self.external_dag_id,
                 serialized_dttm_filter,
@@ -258,7 +258,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_dag_id and not self.external_task_group_id and not self.external_task_ids:
             self.log.info(
-                "Poking for DAG '%s' on %s ... ",
+                "Poking for DAG '%s' on %s ...",
                 self.external_dag_id,
                 serialized_dttm_filter,
             )

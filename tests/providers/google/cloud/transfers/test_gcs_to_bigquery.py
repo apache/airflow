@@ -1287,7 +1287,7 @@ class TestAsyncGCSToBigQueryOperator:
                 event={"status": "success", "message": "Job completed", "job_id": job_id},
             )
         mock_log_info.assert_called_with(
-            "%s completed with response %s ", "test-gcs-to-bq-operator", "Job completed"
+            "%s completed with response %s", "test-gcs-to-bq-operator", "Job completed"
         )
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))

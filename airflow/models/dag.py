@@ -536,14 +536,14 @@ class DAG(LoggingMixin):
         if schedule_interval is not NOTSET:
             warnings.warn(
                 "Param `schedule_interval` is deprecated and will be removed in a future release. "
-                "Please use `schedule` instead. ",
+                "Please use `schedule` instead.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         if timetable is not None:
             warnings.warn(
                 "Param `timetable` is deprecated and will be removed in a future release. "
-                "Please use `schedule` instead. ",
+                "Please use `schedule` instead.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
@@ -3586,7 +3586,7 @@ class DagModel(Base):
         :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
-        log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
+        log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table", cls.__tablename__)
         dag_models = session.scalars(
             select(cls).where(
                 cls.fileloc.is_not(None),

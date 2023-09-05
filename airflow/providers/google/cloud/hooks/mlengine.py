@@ -220,7 +220,7 @@ class MLEngineHook(GoogleBaseHook):
             return request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status == 404:
-                self.log.error("Job with job_id %s does not exist. ", job_id)
+                self.log.error("Job with job_id %s does not exist.", job_id)
                 raise
             elif e.resp.status == 400:
                 self.log.info("Job with job_id %s is already complete, cancellation aborted.", job_id)

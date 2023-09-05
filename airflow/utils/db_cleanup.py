@@ -358,7 +358,7 @@ def _suppress_with_logging(table, session):
     try:
         yield
     except (OperationalError, ProgrammingError):
-        logger.warning("Encountered error when attempting to clean table '%s'. ", table)
+        logger.warning("Encountered error when attempting to clean table '%s'.", table)
         logger.debug("Traceback for table '%s'", table, exc_info=True)
         if session.is_active:
             logger.debug("Rolling back transaction")

@@ -340,7 +340,7 @@ class S3ToGCSOperator(S3ListOperator):
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])
-        self.log.info("%s completed with response %s ", self.task_id, event["message"])
+        self.log.info("%s completed with response %s", self.task_id, event["message"])
 
     def get_transfer_hook(self):
         return CloudDataTransferServiceHook(

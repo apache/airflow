@@ -450,7 +450,7 @@ class GCSToBigQueryOperator(BaseOperator):
         if event["status"] == "error":
             raise AirflowException(event["message"])
         self.log.info(
-            "%s completed with response %s ",
+            "%s completed with response %s",
             self.task_id,
             event["message"],
         )

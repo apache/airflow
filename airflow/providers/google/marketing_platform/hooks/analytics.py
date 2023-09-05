@@ -135,7 +135,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         )
 
         self.log.info(
-            "Uploading file to GA file for accountId: %s, webPropertyId:%s and customDataSourceId:%s ",
+            "Uploading file to GA file for accountId: %s, webPropertyId:%s and customDataSourceId:%s",
             account_id,
             web_property_id,
             custom_data_source_id,
@@ -165,7 +165,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         """
         self.log.info(
             "Deleting previous uploads to GA file for accountId:%s, "
-            "webPropertyId:%s and customDataSourceId:%s ",
+            "webPropertyId:%s and customDataSourceId:%s",
             account_id,
             web_property_id,
             custom_data_source_id,
@@ -187,7 +187,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         :param custom_data_source_id: Custom Data Source Id to which this data import belongs.
         """
         self.log.info(
-            "Getting list of uploads for accountId:%s, webPropertyId:%s and customDataSourceId:%s ",
+            "Getting list of uploads for accountId:%s, webPropertyId:%s and customDataSourceId:%s",
             account_id,
             web_property_id,
             custom_data_source_id,

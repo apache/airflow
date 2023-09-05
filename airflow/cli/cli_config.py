@@ -624,7 +624,7 @@ ARG_READ_FROM_DB = Arg(("--read-from-db",), help="Read dag from DB instead of da
 # database
 ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
-    help="timeout to wait for db to migrate ",
+    help="timeout to wait for db to migrate",
     type=int,
     default=60,
 )
@@ -956,7 +956,7 @@ ARG_JOB_LIMIT = Arg(
     ("--limit",),
     default=1,
     type=positive_int(allow_zero=True),
-    help="The number of recent jobs that will be checked. To disable limit, set 0. ",
+    help="The number of recent jobs that will be checked. To disable limit, set 0.",
 )
 
 ARG_ALLOW_MULTIPLE = Arg(

@@ -153,7 +153,7 @@ class PodGenerator:
 
     def gen_pod(self) -> k8s.V1Pod:
         """Generates pod."""
-        warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
+        warnings.warn("This function is deprecated.", RemovedInAirflow3Warning)
         result = self.ud_pod
 
         result.metadata.name = add_pod_suffix(pod_name=result.metadata.name)

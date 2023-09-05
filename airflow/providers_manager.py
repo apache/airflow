@@ -717,7 +717,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     else:
                         log.warning(
                             "The connection type '%s' is already registered in the"
-                            " package '%s' with different class names: '%s' and '%s'. ",
+                            " package '%s' with different class names: '%s' and '%s'.",
                             connection_type,
                             package_name,
                             already_registered.hook_class_name,

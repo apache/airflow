@@ -255,7 +255,7 @@ class SerializedDagModel(Base):
         alive_fileloc_hashes = [DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
 
         log.debug(
-            "Deleting Serialized DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__
+            "Deleting Serialized DAGs (for which DAG files are deleted) from %s table", cls.__tablename__
         )
 
         session.execute(

@@ -1041,7 +1041,7 @@ def test_async_create_training_job_logging_should_execute_successfully():
             context=create_context(op),
             event={"status": "success", "message": "Job completed", "job_id": TEST_TASK_ID},
         )
-    mock_log_info.assert_called_with("%s completed with response %s ", TEST_TASK_ID, "Job completed")
+    mock_log_info.assert_called_with("%s completed with response %s", TEST_TASK_ID, "Job completed")
 
 
 @patch(MLENGINE_AI_PATH.format("MLEngineHook"))

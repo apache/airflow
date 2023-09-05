@@ -462,7 +462,7 @@ def test_async_create_build_correct_logging_should_execute_successfully(mock_hoo
                 "id_": BUILD_ID,
             },
         )
-    mock_log_info.assert_called_with("Cloud Build completed with response %s ", "Build completed")
+    mock_log_info.assert_called_with("Cloud Build completed with response %s", "Build completed")
 
 
 def test_async_create_build_error_event_should_throw_exception():

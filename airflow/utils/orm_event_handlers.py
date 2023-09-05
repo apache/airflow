@@ -85,7 +85,7 @@ def setup_event_handlers(engine):
             stack_info = ">".join([f"{f.filename.rpartition('/')[-1]}:{f.name}" for f in stack][-3:])
             conn.info.setdefault("query_start_time", []).append(time.monotonic())
             log.info(
-                "@SQLALCHEMY %s |$ %s |$ %s |$  %s ",
+                "@SQLALCHEMY %s |$ %s |$ %s |$  %s",
                 total,
                 file_name,
                 stack_info,

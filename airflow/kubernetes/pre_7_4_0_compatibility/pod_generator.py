@@ -169,7 +169,7 @@ class PodGenerator:
 
     def gen_pod(self) -> k8s.V1Pod:
         """Generate pod."""
-        warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
+        warnings.warn("This function is deprecated.", RemovedInAirflow3Warning)
         result = self.ud_pod
 
         result.metadata.name = add_pod_suffix(pod_name=result.metadata.name)
@@ -220,7 +220,7 @@ class PodGenerator:
             warnings.warn(
                 "Using a dictionary for the executor_config is deprecated and will soon be removed."
                 'please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
-                " instead. ",
+                " instead.",
                 category=RemovedInAirflow3Warning,
             )
             return PodGenerator.from_legacy_obj(obj)

@@ -463,7 +463,7 @@ class TestS3ToGoogleCloudStorageOperatorDeferrable:
         operator.execute_complete(context=mock.MagicMock(), event=event)
 
         mock_log.return_value.info.assert_called_once_with(
-            "%s completed with response %s ", TASK_ID, event["message"]
+            "%s completed with response %s", TASK_ID, event["message"]
         )
 
     @mock.patch(

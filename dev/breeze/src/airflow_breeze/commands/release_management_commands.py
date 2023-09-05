@@ -1233,7 +1233,7 @@ def generate_issue_content_providers(
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
         with Progress(console=get_console(), disable=disable_progress) as progress:
-            task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
+            task = progress.add_task(f"Retrieving {len(all_prs)} PRs", total=len(all_prs))
             for pr_number in all_prs:
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"

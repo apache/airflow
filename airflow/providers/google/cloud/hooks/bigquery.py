@@ -476,7 +476,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             dataset_reference["location"] = dataset_reference.get("location", location)
 
         dataset: Dataset = Dataset.from_api_repr(dataset_reference)
-        self.log.info("Creating dataset: %s in project: %s ", dataset.dataset_id, dataset.project)
+        self.log.info("Creating dataset: %s in project: %s", dataset.dataset_id, dataset.project)
         dataset_object = self.get_client(project_id=project_id, location=location).create_dataset(
             dataset=dataset, exists_ok=exists_ok
         )

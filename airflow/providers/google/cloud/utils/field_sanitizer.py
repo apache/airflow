@@ -134,7 +134,7 @@ class GcpBodyFieldSanitizer(LoggingMixin):
             child = dictionary.get(field_name)
             if child is None:
                 self.log.debug(
-                    "The field %s is missing in %s at the path %s. ", field_name, dictionary, current_path
+                    "The field %s is missing in %s at the path %s.", field_name, dictionary, current_path
                 )
             elif isinstance(child, dict):
                 self._sanitize(child, remaining_path, f"{current_path}.{field_name}")

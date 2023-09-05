@@ -166,7 +166,7 @@ class KylinCubeOperator(BaseOperator):
                 time.sleep(self.interval)
 
                 job_status = _hook.get_job_status(job_id)
-                self.log.info("Kylin job status is %s ", job_status)
+                self.log.info("Kylin job status is %s", job_status)
                 if job_status in self.jobs_error_status:
                     raise AirflowException(f"Kylin job {job_id} status {job_status} is error ")
 

@@ -745,7 +745,7 @@ class TestBeamRunPythonPipelineOperatorAsync:
                 event={"status": "success", "message": "Pipeline has finished SUCCESSFULLY"},
             )
         mock_log_info.assert_called_with(
-            "%s completed with response %s ", TASK_ID, "Pipeline has finished SUCCESSFULLY"
+            "%s completed with response %s", TASK_ID, "Pipeline has finished SUCCESSFULLY"
         )
 
     @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")

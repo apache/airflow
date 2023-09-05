@@ -238,7 +238,7 @@ def load_variables(file_path: str) -> dict[str, str]:
     if invalid_keys:
         raise AirflowException(f'The "{file_path}" file contains multiple values for keys: {invalid_keys}')
     variables = {key: values[0] if isinstance(values, list) else values for key, values in secrets.items()}
-    log.debug("Loaded %d variables: ", len(variables))
+    log.debug("Loaded %d variables.", len(variables))
     return variables
 
 

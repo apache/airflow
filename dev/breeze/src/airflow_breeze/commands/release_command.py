@@ -186,7 +186,7 @@ def push_tag_for_final_version(version, release_candidate):
     name="start-release",
     short_help="Start Airflow release process",
     help="Start the process of releasing an Airflow version. "
-    "This command will guide you through the release process. ",
+    "This command will guide you through the release process.",
 )
 @click.option("--release-candidate", required=True)
 @click.option("--previous-release", required=True)

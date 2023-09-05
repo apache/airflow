@@ -268,7 +268,7 @@ def generate_issue_content(
     users: dict[int, set[str]] = defaultdict(lambda: set())
     count_prs = limit_pr_count or len(prs)
     with Progress(console=console) as progress:
-        task = progress.add_task(f"Retrieving {count_prs} PRs ", total=count_prs)
+        task = progress.add_task(f"Retrieving {count_prs} PRs", total=count_prs)
         for pr_number in prs[:count_prs]:
             progress.console.print(
                 f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"

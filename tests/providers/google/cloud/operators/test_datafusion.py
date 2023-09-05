@@ -345,7 +345,7 @@ class TestCloudDataFusionStartPipelineOperatorAsynch:
                 context=mock.MagicMock(),
                 event={"status": "success", "message": "Pipeline completed", "pipeline_id": PIPELINE_ID},
             )
-        mock_log_info.assert_called_with("%s completed with response %s ", TASK_ID, "Pipeline completed")
+        mock_log_info.assert_called_with("%s completed with response %s", TASK_ID, "Pipeline completed")
 
     @mock.patch(HOOK_STR)
     def test_asynch_execute_check_hook_call_should_execute_successfully(self, mock_hook):

@@ -1222,7 +1222,7 @@ def _logs(python: str, kubernetes_version: str):
 @kubernetes_group.command(
     name="logs",
     help=f"Dump k8s logs to ${{TMP_DIR}}{os.sep}kind_logs_<cluster_name> directory "
-    f"(optionally all clusters). ",
+    f"(optionally all clusters).",
 )
 @option_python
 @option_kubernetes_version

@@ -94,7 +94,7 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         for task_manager in all_pods.items:
             task_manager_pod_name = task_manager.metadata.name
 
-            self.log.info("Starting logging of task manager pod %s ", task_manager_pod_name)
+            self.log.info("Starting logging of task manager pod %s", task_manager_pod_name)
             try:
                 log = ""
                 for line in self.hook.get_pod_logs(task_manager_pod_name, namespace=namespace):

@@ -113,7 +113,7 @@ class ConsumeFromTopicOperator(BaseOperator):
 
         if self.max_messages and self.max_batch_size > self.max_messages:
             self.log.warning(
-                "max_batch_size (%s) > max_messages (%s). Setting max_messages to %s ",
+                "max_batch_size (%s) > max_messages (%s). Setting max_messages to %s",
                 self.max_batch_size,
                 self.max_messages,
                 self.max_batch_size,

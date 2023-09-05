@@ -149,7 +149,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             )
             raise AirflowException(message)
         total_row_count = self._decide_and_flush(converted_rows_with_action=converted_rows_with_action)
-        self.log.info("Facebook Returned %s data points in total: ", total_row_count)
+        self.log.info("Facebook Returned %s data points in total.", total_row_count)
 
     def _generate_rows_with_action(self, type_check: bool):
         if type_check and self.upload_as_account:
@@ -173,7 +173,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             )
         else:
             converted_rows_with_action[FlushAction.EXPORT_ONCE].extend(converted_rows)
-            self.log.info("Facebook Returned %s data points ", len(converted_rows))
+            self.log.info("Facebook Returned %s data points", len(converted_rows))
         return converted_rows_with_action
 
     def _decide_and_flush(self, converted_rows_with_action: dict[FlushAction, list]):

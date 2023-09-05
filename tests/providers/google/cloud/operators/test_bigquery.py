@@ -1522,9 +1522,7 @@ class TestBigQueryInsertJobOperator:
                 context=MagicMock(),
                 event={"status": "success", "message": "Job completed", "job_id": job_id},
             )
-        mock_log_info.assert_called_with(
-            "%s completed with response %s ", "insert_query_job", "Job completed"
-        )
+        mock_log_info.assert_called_with("%s completed with response %s", "insert_query_job", "Job completed")
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_insert_job_operator_with_job_id_generate(
@@ -1724,7 +1722,7 @@ class TestBigQueryIntervalCheckOperator:
         with mock.patch.object(operator.log, "info") as mock_log_info:
             operator.execute_complete(context=None, event={"status": "success", "message": "Job completed"})
         mock_log_info.assert_called_with(
-            "%s completed with response %s ", "bq_interval_check_operator_execute_complete", "Job completed"
+            "%s completed with response %s", "bq_interval_check_operator_execute_complete", "Job completed"
         )
 
     def test_bigquery_interval_check_operator_execute_failure(self):

@@ -478,7 +478,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
         with NamedTemporaryFile("w+") as tmp_file:
             # Download file from GCS
             self.log.info(
-                "Downloading file from GCS: %s/%s ",
+                "Downloading file from GCS: %s/%s",
                 self.storage_bucket,
                 self.storage_name_object,
             )
@@ -498,7 +498,7 @@ class GoogleAnalyticsModifyFileHeadersDataImportOperator(BaseOperator):
 
             # Upload newly formatted file to cloud storage
             self.log.info(
-                "Uploading file to GCS: %s/%s ",
+                "Uploading file to GCS: %s/%s",
                 self.storage_bucket,
                 self.storage_name_object,
             )

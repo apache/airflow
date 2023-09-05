@@ -522,16 +522,16 @@ class GCSToGCSOperator(BaseOperator):
         elif self.last_modified_time is not None:
             # Check to see if object was modified after last_modified_time
             if hook.is_updated_after(self.source_bucket, source_object, self.last_modified_time):
-                self.log.info("Object has been modified after %s ", self.last_modified_time)
+                self.log.info("Object has been modified after %s", self.last_modified_time)
             else:
-                self.log.debug("Object was not modified after %s ", self.last_modified_time)
+                self.log.debug("Object was not modified after %s", self.last_modified_time)
                 return
         elif self.maximum_modified_time is not None:
             # Check to see if object was modified before maximum_modified_time
             if hook.is_updated_before(self.source_bucket, source_object, self.maximum_modified_time):
-                self.log.info("Object has been modified before %s ", self.maximum_modified_time)
+                self.log.info("Object has been modified before %s", self.maximum_modified_time)
             else:
-                self.log.debug("Object was not modified before %s ", self.maximum_modified_time)
+                self.log.debug("Object was not modified before %s", self.maximum_modified_time)
                 return
 
         self.log.info(
