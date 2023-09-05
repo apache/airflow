@@ -106,6 +106,15 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
         if es_kwargs.get("retry_timeout"):
             es_kwargs["retry_on_timeout"] = es_kwargs.pop("retry_timeout")
+        # This parameter was removed in elasticsearch>8, however until Airflow 2.7.1 this parameter
+        # provided by default as False in `[elasticsearch_configs] config` section
+        use_ssl = es_kwargs.pop("use_ssl", None)
+        if use_ssl:  # If user set this config param explicitly to True we could warn
+            warnings.warn(
+                "Passing `[elasticsearch_configs] use_ssl` to ElasticsearchTaskHandler has no effect. "
+                "Please remove it from Airflow Configuration.",
+                UserWarning,
+            )
         host = self.format_url(host)
         super().__init__(base_log_folder, filename_template)
         self.closed = False

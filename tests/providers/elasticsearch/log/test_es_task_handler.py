@@ -676,6 +676,42 @@ class TestElasticsearchTaskHandler:
         assert second_log["asctime"] == t2.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert third_log["asctime"] == t3.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
 
+    def test_elasticsearch_constructor_use_ssl(self):
+        """Test `[elasticsearch_configs] use_ssl` default parameter prior Airflow 2.7.1"""
+        with mock.patch(
+            "airflow.providers.elasticsearch.log.es_task_handler.elasticsearch.Elasticsearch"
+        ) as mock_es:
+            es_kwargs = {"use_ssl": False, "legit_es8_parameter": "foo"}
+            ElasticsearchTaskHandler(
+                base_log_folder="dummy_folder",
+                end_of_log_mark="end_of_log_mark",
+                write_stdout=False,
+                json_format=False,
+                json_fields="fields",
+                host_field="host",
+                offset_field="offset",
+                es_kwargs=es_kwargs,
+            )
+            mock_es.assert_called_once_with(mock.ANY, legit_es8_parameter="foo")
+
+    def test_elasticsearch_constructor_use_ssl_warn_on_true(self):
+        with mock.patch(
+            "airflow.providers.elasticsearch.log.es_task_handler.elasticsearch.Elasticsearch"
+        ) as mock_es:
+            es_kwargs = {"use_ssl": True, "legit_es8_parameter": "bar"}
+            with pytest.warns(UserWarning, match="Passing `\[elasticsearch_configs\] use_ssl`"):
+                ElasticsearchTaskHandler(
+                    base_log_folder="dummy_folder",
+                    end_of_log_mark="end_of_log_mark",
+                    write_stdout=False,
+                    json_format=False,
+                    json_fields="fields",
+                    host_field="host",
+                    offset_field="offset",
+                    es_kwargs=es_kwargs,
+                )
+            mock_es.assert_called_once_with(mock.ANY, legit_es8_parameter="bar")
+
 
 def test_safe_attrgetter():
     class A:
