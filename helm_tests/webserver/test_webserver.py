@@ -442,14 +442,6 @@ class TestWebserverDeployment:
             "spec.template.spec.topologySpreadConstraints[0]", docs[0]
         )
 
-    @pytest.mark.parametrize(
-        "log_persistence_values, expected_claim_name",
-        [
-            ({"enabled": False}, None),
-            ({"enabled": True}, "release-name-logs"),
-            ({"enabled": True, "existingClaim": "test-claim"}, "test-claim"),
-        ],
-    )
     def test_scheduler_name(self):
         docs = render_chart(
             values={"schedulerName": "airflow-scheduler"},
@@ -461,6 +453,14 @@ class TestWebserverDeployment:
             docs[0],
         )
 
+    @pytest.mark.parametrize(
+        "log_persistence_values, expected_claim_name",
+        [
+            ({"enabled": False}, None),
+            ({"enabled": True}, "release-name-logs"),
+            ({"enabled": True, "existingClaim": "test-claim"}, "test-claim"),
+        ],
+    )
     def test_logs_persistence_adds_volume_and_mount(self, log_persistence_values, expected_claim_name):
         docs = render_chart(
             values={"logs": {"persistence": log_persistence_values}},
