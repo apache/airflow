@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime
+import datetime
 from functools import cached_property
 from typing import TYPE_CHECKING, Optional
 
@@ -40,9 +40,9 @@ class JobPydantic(BaseModelPydantic):
     dag_id: Optional[str]
     state: Optional[str]
     job_type: Optional[str]
-    start_date: Optional[datetime]
-    end_date: Optional[datetime]
-    latest_heartbeat: datetime
+    start_date: Optional[datetime.datetime]
+    end_date: Optional[datetime.datetime]
+    latest_heartbeat: datetime.datetime
     executor_class: Optional[str]
     hostname: Optional[str]
     unixname: Optional[str]

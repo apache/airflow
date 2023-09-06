@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     from airflow.jobs.job import Job
     from airflow.serialization.pydantic.job import JobPydantic
 
-J = TypeVar("J", "Job", "JobPydantic", "Job | JobPydantic")
 
 class BaseJobRunner:
     """Abstract class for job runners to derive from."""

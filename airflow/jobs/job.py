@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from functools import cached_property
 from time import sleep
 from typing import TYPE_CHECKING, Callable, NoReturn
@@ -45,6 +44,8 @@ from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import JobState
 
 if TYPE_CHECKING:
+    import datetime
+
     from sqlalchemy.orm.session import Session
 
 
@@ -273,7 +274,7 @@ class Job(Base, LoggingMixin):
         job_type: str | None,
         heartrate: float,
         state: JobState | str | None,
-        latest_heartbeat: datetime,
+        latest_heartbeat: datetime.datetime,
         grace_multiplier: float = 2.1,
     ) -> bool:
         health_check_threshold: float
@@ -409,8 +410,8 @@ def execute_job(job: Job, execute_callable: Callable[[], int | None]) -> int | N
     database operations or over the Internal API call.
 
     :param job: Job to execute - it can be either DB job or it's Pydantic serialized version. It does
-    not really matter, because except of running the heartbeat and state setting,
-    the runner should not modify the job state.
+      not really matter, because except of running the heartbeat and state setting,
+      the runner should not modify the job state.
 
     :param execute_callable: callable to execute when running the job.
 
