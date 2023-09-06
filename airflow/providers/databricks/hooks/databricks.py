@@ -560,13 +560,13 @@ class DatabricksHook(BaseDatabricksHook):
             if run_state.is_running:
                 return
             elif run_state.is_terminal:
-                if not api_called:
-                    self.start_cluster(json)
-                    api_called = True
-                else:
+                if api_called:
                     raise AirflowException(
                         f"Cluster {cluster_id} start failed with '{run_state.state}' state: {run_state.state_message}"
                     )
+
+                self.start_cluster(json)
+                api_called = True
 
             # wait for cluster to start
             time.sleep(polling)
