@@ -450,6 +450,17 @@ class TestWebserverDeployment:
             ({"enabled": True, "existingClaim": "test-claim"}, "test-claim"),
         ],
     )
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     def test_logs_persistence_adds_volume_and_mount(self, log_persistence_values, expected_claim_name):
         docs = render_chart(
             values={"logs": {"persistence": log_persistence_values}},
