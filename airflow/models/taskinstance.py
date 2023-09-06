@@ -935,7 +935,7 @@ def _get_previous_dagrun(
     # `ignore_schedule` is `True`.
     ignore_schedule = state is not None or not dag.timetable.can_be_scheduled
     if dag.catchup is True and not ignore_schedule:
-        last_dagrun = DagRun.get_previous_scheduled_dagrun(dr.run_id, session=session)
+        last_dagrun = DagRun.get_previous_scheduled_dagrun(dr.id, session=session)
     else:
         last_dagrun = DagRun.get_previous_dagrun(dag_run=dr, session=session, state=state)
 
