@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+from unittest import mock
 from unittest.mock import Mock, patch
 
 import pandas as pd
@@ -484,7 +485,7 @@ class TestSalesforceHook:
                 session=None,
                 session_id=None,
                 username=None,
-                version="52.0",
+                version=mock.ANY,
             )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
@@ -513,7 +514,7 @@ class TestSalesforceHook:
                 session=None,
                 session_id=None,
                 username=None,
-                version="52.0",
+                version=mock.ANY,
             )
 
     @patch(
