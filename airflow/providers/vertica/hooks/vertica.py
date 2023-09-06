@@ -31,9 +31,10 @@ def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
     Returned value will not change after the initial call of fetch_all_handler, all the remaining code is here
     only to make vertica client throws error.
     With Vertica, if you run the following sql (with split_statements set to false):
-        INSERT INTO MyTable (Key, Label) values (1, 'test 1');
-        INSERT INTO MyTable (Key, Label) values (1, 'test 2');
-        INSERT INTO MyTable (Key, Label) values (3, 'test 3');
+
+    INSERT INTO MyTable (Key, Label) values (1, 'test 1');
+    INSERT INTO MyTable (Key, Label) values (1, 'test 2');
+    INSERT INTO MyTable (Key, Label) values (3, 'test 3');
 
     each insert will have its own result set and if you don't try to fetch data of those result sets
     you won't detect error on the second insert.
