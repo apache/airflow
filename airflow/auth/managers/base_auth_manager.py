@@ -38,7 +38,7 @@ class BaseAuthManager(LoggingMixin):
     Auth managers are responsible for any user management related operation such as login, logout, authz, ...
     """
 
-    def __init__(self, app: Flask):
+    def __init__(self, app: Flask) -> None:
         self._security_manager: AirflowSecurityManagerV2 | None = None
         self.app = app
 
