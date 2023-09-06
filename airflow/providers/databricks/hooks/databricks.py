@@ -549,7 +549,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param polling: polling interval in seconds.
         :param timeout: timeout in seconds. -1 means no timeout.
         """
-        cluster_id = json['cluster_id']
+        cluster_id = json["cluster_id"]
 
         api_called = False
         elapsed_time = 0
