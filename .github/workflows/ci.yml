@@ -506,7 +506,7 @@ jobs:
         if: always()
 
   static-checks:
-    timeout-minutes: 30
+    timeout-minutes: 45
     name: "Static checks"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
