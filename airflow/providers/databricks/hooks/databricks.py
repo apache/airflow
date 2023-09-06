@@ -58,25 +58,32 @@ LIST_PIPELINES_ENDPOINT = ("GET", "/api/2.0/pipelines")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
-RUN_LIFE_CYCLE_STATES = [
-    "PENDING",
-    "RUNNING",
-    "TERMINATING",
-    "TERMINATED",
-    "SKIPPED",
-    "INTERNAL_ERROR",
-    "QUEUED",
-]
-
 SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
 
 
 class RunState:
     """Utility class for the run state concept of Databricks runs."""
 
+    RUN_LIFE_CYCLE_STATES = [
+        "PENDING",
+        "RUNNING",
+        "TERMINATING",
+        "TERMINATED",
+        "SKIPPED",
+        "INTERNAL_ERROR",
+        "QUEUED",
+    ]
+
     def __init__(
         self, life_cycle_state: str, result_state: str = "", state_message: str = "", *args, **kwargs
     ) -> None:
+        if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
+            raise AirflowException(
+                f"Unexpected life cycle state: {self.life_cycle_state}: If the state has "
+                "been introduced recently, please check the Databricks user "
+                "guide for troubleshooting information"
+            )
+
         self.life_cycle_state = life_cycle_state
         self.result_state = result_state
         self.state_message = state_message
@@ -84,12 +91,6 @@ class RunState:
     @property
     def is_terminal(self) -> bool:
         """True if the current state is a terminal state."""
-        if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
-            raise AirflowException(
-                f"Unexpected life cycle state: {self.life_cycle_state}: If the state has "
-                "been introduced recently, please check the Databricks user "
-                "guide for troubleshooting information"
-            )
         return self.life_cycle_state in ("TERMINATED", "SKIPPED", "INTERNAL_ERROR")
 
     @property
@@ -132,14 +133,19 @@ class ClusterState:
     ]
 
     def __init__(self, state: str = "", state_message: str = "", *args, **kwargs) -> None:
+        if self.state not in self.CLUSTER_LIFE_CYCLE_STATES:
+            raise AirflowException(
+                f"Unexpected cluster life cycle state: {self.state}: If the state has "
+                "been introduced recently, please check the Databricks user "
+                "guide for troubleshooting information"
+            )
+
         self.state = state
         self.state_message = state_message
 
     @property
     def is_terminal(self) -> bool:
         """True if the current state is a terminal state."""
-        if self.state not in self.CLUSTER_LIFE_CYCLE_STATES:
-            raise AirflowException(f"Unexpected cluster life cycle state: {self.state}")
         return self.state in ("TERMINATING", "TERMINATED", "ERROR", "UNKNOWN")
 
     @property
