@@ -547,7 +547,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param json: json dictionary containing cluster specification.
         :param polling: polling interval in seconds.
-        :param timeout: timeout in seconds. -1 means no timeout.
+        :param timeout: timeout in seconds.
         """
         cluster_id = json["cluster_id"]
 
