@@ -26,9 +26,8 @@ from airflow import AirflowException
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 
 
-@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
-def test_spark_kubernetes_operator(mock_kubernetes_hook):
-    SparkKubernetesOperator(
+def test_spark_kubernetes_operator():
+    op = SparkKubernetesOperator(
         task_id="task_id",
         application_file="application_file",
         kubernetes_conn_id="kubernetes_conn_id",
@@ -37,12 +36,18 @@ def test_spark_kubernetes_operator(mock_kubernetes_hook):
         config_file="config_file",
     )
 
-    mock_kubernetes_hook.assert_called_once_with(
-        conn_id="kubernetes_conn_id",
-        in_cluster=True,
-        cluster_context="cluster_context",
-        config_file="config_file",
-    )
+    assert op.task_id == "task_id"
+    assert op.application_file == "application_file"
+    assert op.namespace is None
+    assert op.kubernetes_conn_id == "kubernetes_conn_id"
+    assert op.api_group == "sparkoperator.k8s.io"
+    assert op.api_version == "v1beta2"
+    assert op.in_cluster is True
+    assert op.cluster_context == "cluster_context"
+    assert op.config_file == "config_file"
+    assert op.watch is False
+
+    assert "hook" not in op.__dict__  # Cached property has not been accessed as part of construction.
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.Watch.stream")
