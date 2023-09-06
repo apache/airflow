@@ -155,8 +155,8 @@ class ClusterState:
 
     def __eq__(self, other) -> bool:
         return (
-            self.state == other.state and \
-            self.state_message == other.state_message
+            self.state == other.state
+            and self.state_message == other.state_message
         )
 
     def __repr__(self) -> str:
