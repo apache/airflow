@@ -1373,19 +1373,19 @@ class TestTaskInstance:
             #
             # Tests for all_success
             #
-            ["all_success", _UpstreamTIStates(5, 0, 0, 0, 0, 0, 0, 0), True, None, True],
-            ["all_success", _UpstreamTIStates(2, 0, 0, 0, 0, 0, 0, 0), True, None, False],
-            ["all_success", _UpstreamTIStates(2, 0, 1, 0, 0, 0, 0, 0), True, State.UPSTREAM_FAILED, False],
-            ["all_success", _UpstreamTIStates(2, 1, 0, 0, 0, 0, 0, 0), True, State.SKIPPED, False],
+            ["all_success", _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
+            ["all_success", _UpstreamTIStates(2, 0, 0, 0, 0, 5, 0, 0), True, None, False],
+            ["all_success", _UpstreamTIStates(2, 0, 1, 0, 0, 5, 0, 0), True, State.UPSTREAM_FAILED, False],
+            ["all_success", _UpstreamTIStates(2, 1, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
             # ti.map_index >= success
-            ["all_success", _UpstreamTIStates(3, 0, 0, 0, 2, 0, 0, 0), True, State.REMOVED, True],
+            ["all_success", _UpstreamTIStates(3, 0, 0, 0, 2, 5, 0, 0), True, State.REMOVED, True],
             #
             # Tests for one_success
             #
             ["one_success", _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, None, True],
-            ["one_success", _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, True],
-            ["one_success", _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, None, True],
-            ["one_success", _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, True],
+            ["one_success", _UpstreamTIStates(2, 0, 0, 0, 0, 5, 0, 0), True, None, True],
+            ["one_success", _UpstreamTIStates(2, 0, 1, 0, 0, 5, 0, 0), True, None, True],
+            ["one_success", _UpstreamTIStates(2, 1, 0, 0, 0, 5, 0, 0), True, None, True],
             ["one_success", _UpstreamTIStates(0, 5, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
             ["one_success", _UpstreamTIStates(0, 4, 1, 0, 0, 5, 0, 0), True, State.UPSTREAM_FAILED, False],
             ["one_success", _UpstreamTIStates(0, 3, 1, 1, 0, 5, 0, 0), True, State.UPSTREAM_FAILED, False],
@@ -1398,12 +1398,12 @@ class TestTaskInstance:
             #
             ["all_failed", _UpstreamTIStates(5, 0, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
             ["all_failed", _UpstreamTIStates(0, 0, 5, 0, 0, 5, 0, 0), True, None, True],
-            ["all_failed", _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, State.SKIPPED, False],
-            ["all_failed", _UpstreamTIStates(2, 0, 1, 0, 0, 3, 0, 0), True, State.SKIPPED, False],
-            ["all_failed", _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(2, 0, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(2, 0, 1, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
+            ["all_failed", _UpstreamTIStates(2, 1, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
             [
                 "all_failed",
-                _UpstreamTIStates(2, 1, 0, 0, 1, 4, 0, 0),
+                _UpstreamTIStates(2, 1, 0, 0, 1, 5, 0, 0),
                 True,
                 State.SKIPPED,
                 False,
@@ -1411,9 +1411,9 @@ class TestTaskInstance:
             #
             # Tests for one_failed
             #
-            ["one_failed", _UpstreamTIStates(5, 0, 0, 0, 0, 0, 0, 0), True, None, False],
-            ["one_failed", _UpstreamTIStates(2, 0, 0, 0, 0, 0, 0, 0), True, None, False],
-            ["one_failed", _UpstreamTIStates(2, 0, 1, 0, 0, 0, 0, 0), True, None, True],
+            ["one_failed", _UpstreamTIStates(5, 0, 0, 0, 0, 4, 0, 0), True, None, False],
+            ["one_failed", _UpstreamTIStates(2, 0, 0, 0, 0, 2, 0, 0), True, None, False],
+            ["one_failed", _UpstreamTIStates(2, 0, 1, 0, 0, 5, 0, 0), True, None, True],
             ["one_failed", _UpstreamTIStates(2, 1, 0, 0, 0, 3, 0, 0), True, None, False],
             ["one_failed", _UpstreamTIStates(2, 3, 0, 0, 0, 5, 0, 0), True, State.SKIPPED, False],
             [

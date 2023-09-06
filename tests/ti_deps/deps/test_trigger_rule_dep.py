@@ -31,7 +31,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
@@ -1381,3 +1381,114 @@ class TestTriggerRuleDepSetupConstraint:
             (status,) = self.get_dep_statuses(dr, "w2", flag_upstream_failed=True, session=session)
         assert status.reason.startswith("All setup tasks must complete successfully")
         assert self.get_ti(dr, "w2").state == expected
+
+
+def test_mapped_downstream_tasks_waits_for_the_upstream_to_complete_before_running(dag_maker, session):
+    """
+    If mapped downstream task has an upstream mapped task, the downstream must wait for the upstream to
+    finish before attempting to run.
+    """
+    with dag_maker() as dag:
+
+        @task
+        def my_work(val):
+            print(val)
+
+        @task
+        def my_setup(val):
+            return val
+
+        s = my_setup.expand(val=[1, 2, 3])
+        my_work(s)
+    # Expand and run the mapped task
+    dr = dag_maker.create_dagrun()
+    dec = dr.task_instance_scheduling_decisions()
+    schedulable_tis = dec.schedulable_tis
+    assert [ti.task_id for ti in schedulable_tis] == 3 * ["my_setup"]
+    ti = schedulable_tis[0]
+    ti.state = "skipped"
+    session.merge(ti)
+    session.flush()
+
+    # now let's verify where we're at
+    # we ran just one ti and it was marked skipped. everything else is in None state
+    states = {ti.state for ti in dr.get_task_instances()}
+    assert states == {"skipped", None, None, None}
+    # let's grab the work ti and see what happens when we evaluate its trigger rule
+    work_ti = dr.get_task_instance(task_id="my_work")
+    work_ti.refresh_from_task(dag.get_task("my_work"))
+    statuses = list(
+        TriggerRuleDep()._evaluate_trigger_rule(
+            ti=work_ti, dep_context=DepContext(flag_upstream_failed=True), session=session
+        )
+    )
+    assert len(statuses) == 1
+    status = statuses[0]
+    assert status.passed is False
+    assert not work_ti.state
+
+    # Now reset the mapped ti states and finish the ti, one is already skipped,
+    # mark the others as success.
+    mapped_tis = [ti for ti in dr.task_instances if ti.task_id == "my_setup"]
+    for ti in mapped_tis:
+        if not ti.state:
+            ti.state = "success"
+            session.merge(ti)
+    session.flush()
+    work_ti = dr.get_task_instance(task_id="my_work")
+    work_ti.refresh_from_task(dag.get_task("my_work"))
+    statuses = list(
+        TriggerRuleDep()._evaluate_trigger_rule(
+            ti=work_ti, dep_context=DepContext(flag_upstream_failed=True), session=session
+        )
+    )
+    assert len(statuses) == 1
+    status = statuses[0]
+    assert status.passed is False
+    # since one is skipped, the ti will be skipped
+    assert work_ti.state == TaskInstanceState.SKIPPED
+    # Now mark one of the mapped tis as failed, the others as success
+    mapped_tis = [ti for ti in dr.task_instances if ti.task_id == "my_setup"]
+    for ti in mapped_tis:
+        if ti.map_index == 1:
+            ti.state = "failed"
+        else:
+            ti.state = "success"
+        session.merge(ti)
+    session.flush()
+    work_ti = dr.get_task_instance(task_id="my_work")
+    work_ti.refresh_from_task(dag.get_task("my_work"))
+    work_ti.state = State.NONE
+    session.merge(work_ti)
+    session.flush()
+    statuses = list(
+        TriggerRuleDep()._evaluate_trigger_rule(
+            ti=work_ti, dep_context=DepContext(flag_upstream_failed=True), session=session
+        )
+    )
+    assert len(statuses) == 1
+    status = statuses[0]
+    assert status.passed is False
+    # since one is failed, the ti will be upstream_failed
+    assert work_ti.state == TaskInstanceState.UPSTREAM_FAILED
+
+    # Now mark all as success
+    mapped_tis = [ti for ti in dr.task_instances if ti.task_id == "my_setup"]
+    for ti in mapped_tis:
+        ti.state = "success"
+        session.merge(ti)
+    session.flush()
+    work_ti = dr.get_task_instance(task_id="my_work")
+    work_ti.refresh_from_task(dag.get_task("my_work"))
+    work_ti.state = State.NONE
+    session.merge(work_ti)
+    session.flush()
+    statuses = list(
+        TriggerRuleDep()._evaluate_trigger_rule(
+            ti=work_ti, dep_context=DepContext(flag_upstream_failed=True), session=session
+        )
+    )
+    assert len(statuses) == 0
+    assert status.passed is False
+    # since all is success, the ti state will be none
+    assert not work_ti.state

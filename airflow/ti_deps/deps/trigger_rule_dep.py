@@ -337,6 +337,10 @@ class TriggerRuleDep(BaseTIDep):
                 ).all()
                 upstream = sum(count for _, count in task_id_counts)
                 upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
+                if not done >= upstream:
+                    # if we don't have all upstreams done, we can't evaluate the trigger rule
+                    yield self._failing_status("Not all upstream tasks are done.")
+                    return
 
             upstream_done = done >= upstream
 
