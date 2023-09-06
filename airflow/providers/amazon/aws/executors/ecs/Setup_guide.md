@@ -35,6 +35,7 @@ There are different options for selecting a database backend. See [here](https:/
 2. Click "Create database" to start creating a new RDS instance.
 3. Choose the "Standard create" option, and select PostreSQL.
 4. Select the appropriate template, availability and durability.
+   - NOTE: At the time of this writing, the "Multi-AZ DB **Cluster**" option does not support setting the database name, which is a required step below.
 5. Set the DB Instance name, the username and password.
 7. Choose the instance configuration, and storage parameters.
 8. In the Connectivity section, select Don't connect to an EC2 compute resource
@@ -49,17 +50,18 @@ In order to be able to connect to the new RDS instance, you need to allow inboun
 
 
 1. Under the "Security" heading in the "Connectivity & security" tab of the RDS instance, find the link to the VPC security group for your new RDS DB instance.
-2. Create an inbound rule that allows traffic from your IP address(es) on port 5432 (PostgreSQL).
+2. Create an inbound rule that allows traffic from your IP address(es) on TCP port 5432 (PostgreSQL).
 
 3. Confirm that you can connect to the DB after modifying the security group. This will require having `psql` installed. Instructions for installing `psql` can be found [here](https://www.postgresql.org/download/).
 
 **NOTE**: Be sure that the status of your DB is Available before testing connectivity
 
 ```
-psql -h <hostname> -p 5432 -U <username> <db_name>
+psql -h <endpoint> -p 5432 -U <username> <db_name>
 ```
 
-where hostname is the public endpoint of the RDS instance, and the username (and password) are the credentials used when creating the database. The db_name should be `airflow_db` (unless a different one was used when creating the database.) The hostname of the RDS instance can be found on the Connectivity and Security tab, under the Endpoint heading.
+The endpoint can be found on the "Connectivity and Security" tab, the username (and password) are the credentials used when creating the database.
+The db_name should be `airflow_db` (unless a different one was used when creating the database.)
 
 You will be prompted to enter the password if the connection is successful.
 
@@ -82,9 +84,9 @@ Once the image is built, it needs to be put in a repository where it can be pull
 ### Create ECS Cluster
 
 1. Log in to your AWS Management Console and navigate to the Amazon Elastic Container Service.
-2. Click "Create Cluster"
-4. Make sure that AWS Fargate (Serverless) is selected under Infrastructure.
-5. Select other options as required and click Create to create the cluster.
+2. Click "Clusters" then click "Create Cluster".
+3. Make sure that AWS Fargate (Serverless) is selected under Infrastructure.
+4. Select other options as required and click Create to create the cluster.
 
 ### Create Task Definition
 
@@ -94,20 +96,14 @@ Once the image is built, it needs to be put in a repository where it can be pull
 4. Select a name for the container, and use the image URI of the image that was pushed in the previous section. Make sure the role being used has the required permissions to pull the image.
 5. Add the following environment variables to the container:
 
-- `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`, with the value being the PostgreSQL connection string in the following format:
-
+ - `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`, with the value being the PostgreSQL connection string in the following format using the values set during the [Database section](#create-the-rds-db-instance) above:
 ```
-postgresql+psycopg2://<username>:<password>@<hostname>/<database_name>
+postgresql+psycopg2://<username>:<password>@<endpoint>/<database_name>
 ```
-
-Using the values set during the [Database section](#create-the-rds-db-instance) above.
-
-- `AIRFLOW__ECS_EXECUTOR__SECURITY_GROUPS`, with the value being a comma separated list of security group IDs associated with the VPC used for the RDS instance.
-
-- `AIRFLOW__ECS_EXECUTOR__SUBNETS` with the value being a comma separated list of subnet IDs of the subnets associated with the RDS instance.
+ - `AIRFLOW__ECS_EXECUTOR__SECURITY_GROUPS`, with the value being a comma separated list of security group IDs associated with the VPC used for the RDS instance.
+ - `AIRFLOW__ECS_EXECUTOR__SUBNETS`, with the value being a comma separated list of subnet IDs of the subnets associated with the RDS instance.
 
 6. Add other configuration as necessary for Airflow generally ([see here](https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html)), the ECS executor ([see here](README.md#config-options)) or for remote logging ([see here](README.md#logging)).
-
 7. Click Create.
 
 ### Allow ECS Containers to Access RDS Database
