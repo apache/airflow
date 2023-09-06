@@ -80,7 +80,7 @@ class DatabricksExecutionTrigger(BaseTrigger):
     async def run(self):
         async with self.hook:
             while True:
-                run_state = await self.hook.a_get_run_state(self.run_id)
+                run_state = await self.hook.async_get_run_state(self.run_id)
                 if run_state.is_terminal:
                     yield TriggerEvent(
                         {

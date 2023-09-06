@@ -160,8 +160,8 @@ class ClusterState:
         return json.dumps(self.__dict__)
 
     @classmethod
-    def from_json(cls, data: str) -> RunState:
-        return RunState(**json.loads(data))
+    def from_json(cls, data: str) -> ClusterState:
+        return ClusterState(**json.loads(data))
 
 
 class DatabricksHook(BaseDatabricksHook):
@@ -337,7 +337,7 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response["run_page_url"]
 
-    async def a_get_run_page_url(self, run_id: int) -> str:
+    async def async_get_run_page_url(self, run_id: int) -> str:
         """
         Async version of `get_run_page_url()`.
 
@@ -379,7 +379,7 @@ class DatabricksHook(BaseDatabricksHook):
         state = response["state"]
         return RunState(**state)
 
-    async def a_get_run_state(self, run_id: int) -> RunState:
+    async def async_get_run_state(self, run_id: int) -> RunState:
         """
         Async version of `get_run_state()`.
 
@@ -402,7 +402,7 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response
 
-    async def a_get_run(self, run_id: int) -> dict[str, Any]:
+    async def async_get_run(self, run_id: int) -> dict[str, Any]:
         """
         Async version of `get_run`.
 
@@ -512,7 +512,7 @@ class DatabricksHook(BaseDatabricksHook):
         state_message = response["state_message"]
         return ClusterState(state, state_message)
 
-    async def a_get_cluster_state(self, cluster_id: str) -> ClusterState:
+    async def async_get_cluster_state(self, cluster_id: str) -> ClusterState:
         """
         Async version of `get_cluster_state`.
 
