@@ -17,9 +17,6 @@
 from __future__ import annotations
 
 # Resource Constants
-# The plan is to deprecate these constants and to use airflow.auth.managers.models.resource_type.ResourceType
-# instead. This is part of AIP-56 effort. Keeping these constants for the time being while transitioning to
-# the new enum `ResourceType`. See tracking issue: https://github.com/apache/airflow/issues/32205
 RESOURCE_ACTION = "Permissions"
 RESOURCE_ADMIN_MENU = "Admin"
 RESOURCE_AIRFLOW = "Airflow"

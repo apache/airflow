@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from itertools import chain
 from unittest import mock
 from unittest.mock import Mock
 
@@ -25,10 +26,33 @@ from airflow import AirflowException
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User
 from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
-from airflow.auth.managers.models.resource_details import ResourceDetails
+from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.auth.managers.models.resource_method import ResourceMethod
-from airflow.security.permissions import ACTION_CAN_ACCESS_MENU, ACTION_CAN_CREATE, ACTION_CAN_READ
+from airflow.security.permissions import (
+    ACTION_CAN_ACCESS_MENU,
+    ACTION_CAN_CREATE,
+    ACTION_CAN_DELETE,
+    ACTION_CAN_EDIT,
+    ACTION_CAN_READ,
+    RESOURCE_CLUSTER_ACTIVITY,
+    RESOURCE_CONFIG,
+    RESOURCE_CONNECTION,
+    RESOURCE_DAG,
+    RESOURCE_DAG_RUN,
+    RESOURCE_DATASET,
+    RESOURCE_TASK_INSTANCE,
+    RESOURCE_VARIABLE,
+    RESOURCE_WEBSITE,
+)
 from airflow.www.security import ApplessAirflowSecurityManager
+
+IS_AUTHORIZED_METHODS_SIMPLE = {
+    "is_authorized_configuration": RESOURCE_CONFIG,
+    "is_authorized_cluster_activity": RESOURCE_CLUSTER_ACTIVITY,
+    "is_authorized_connection": RESOURCE_CONNECTION,
+    "is_authorized_dataset": RESOURCE_DATASET,
+    "is_authorized_variable": RESOURCE_VARIABLE,
+}
 
 
 @pytest.fixture
@@ -82,109 +106,183 @@ class TestFabAuthManager:
         assert auth_manager.is_logged_in() is False
 
     @pytest.mark.parametrize(
-        "action, resource_type, resource_details, user_permissions, expected_result",
+        "api_name, method, user_permissions, expected_result",
+        chain(
+            *[
+                (
+                    # With permission
+                    (
+                        api_name,
+                        ResourceMethod.POST,
+                        [(ACTION_CAN_CREATE, resource_type)],
+                        True,
+                    ),
+                    # With permission
+                    (
+                        api_name,
+                        ResourceMethod.GET,
+                        [(ACTION_CAN_READ, resource_type)],
+                        True,
+                    ),
+                    # With permission (with several user permissions)
+                    (
+                        api_name,
+                        ResourceMethod.DELETE,
+                        [(ACTION_CAN_DELETE, resource_type), (ACTION_CAN_CREATE, "resource_test")],
+                        True,
+                    ),
+                    # With permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
+                    (
+                        api_name,
+                        ResourceMethod.GET,
+                        [(ACTION_CAN_ACCESS_MENU, resource_type)],
+                        True,
+                    ),
+                    # Without permission
+                    (
+                        api_name,
+                        ResourceMethod.POST,
+                        [(ACTION_CAN_READ, resource_type), (ACTION_CAN_CREATE, "resource_test")],
+                        False,
+                    ),
+                )
+                for api_name, resource_type in IS_AUTHORIZED_METHODS_SIMPLE.items()
+            ]
+        ),
+    )
+    def test_is_authorized(self, api_name, method, user_permissions, expected_result, auth_manager):
+        user = Mock()
+        user.perms = user_permissions
+        result = getattr(auth_manager, api_name)(
+            method=method,
+            user=user,
+        )
+        assert result == expected_result
+
+    @pytest.mark.parametrize(
+        "method, dag_access_entity, dag_details, user_permissions, expected_result",
         [
-            # Action with permission
-            (
-                ResourceMethod.POST,
-                "resource_test",
-                None,
-                [(ACTION_CAN_CREATE, "resource_test")],
-                True,
-            ),
-            # Action with permission
+            # Scenario 1 #
+            # With global permissions on Dags
             (
                 ResourceMethod.GET,
-                "resource_test",
+                None,
+                None,
+                [(ACTION_CAN_READ, RESOURCE_DAG)],
+                True,
+            ),
+            # On specific DAG with global permissions on Dags
+            (
+                ResourceMethod.GET,
+                None,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, RESOURCE_DAG)],
+                True,
+            ),
+            # With permission on a specific DAG
+            (
+                ResourceMethod.GET,
+                None,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "DAG:test_dag_id2")],
+                True,
+            ),
+            # Without permission on a specific DAG (wrong method)
+            (
+                ResourceMethod.POST,
+                None,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                False,
+            ),
+            # Without permission on a specific DAG
+            (
+                ResourceMethod.GET,
+                None,
+                DagDetails(id="test_dag_id2"),
+                [(ACTION_CAN_READ, "DAG:test_dag_id")],
+                False,
+            ),
+            # Without permission on DAGs
+            (
+                ResourceMethod.GET,
+                None,
                 None,
                 [(ACTION_CAN_READ, "resource_test")],
-                True,
-            ),
-            # Action with permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
-            (
-                ResourceMethod.GET,
-                "resource_test",
-                None,
-                [(ACTION_CAN_ACCESS_MENU, "resource_test")],
-                True,
-            ),
-            # Action with permission (with several user permissions)
-            (
-                ResourceMethod.POST,
-                "resource_test",
-                None,
-                [(ACTION_CAN_CREATE, "resource_test"), (ACTION_CAN_CREATE, "resource_test2")],
-                True,
-            ),
-            # Action without permission (action is different)
-            (
-                ResourceMethod.POST,
-                "resource_test",
-                None,
-                [(ACTION_CAN_READ, "resource_test")],
                 False,
             ),
-            # Action without permission (resource is different)
-            (
-                ResourceMethod.POST,
-                "resource_test",
-                None,
-                [(ACTION_CAN_CREATE, "resource_test2")],
-                False,
-            ),
-            # Action without permission (multiple permissions)
-            (
-                ResourceMethod.POST,
-                "resource_test",
-                None,
-                [(ACTION_CAN_READ, "resource_test"), (ACTION_CAN_CREATE, "resource_test2")],
-                False,
-            ),
-            # Action related to DAGs, with access to all DAGs
+            # Scenario 2 #
+            # With global permissions on DAGs
             (
                 ResourceMethod.GET,
-                "DAG:test",
-                None,
-                [(ACTION_CAN_READ, "DAGs"), (ACTION_CAN_CREATE, "resource_test2")],
+                DagAccessEntity.RUN,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
                 True,
             ),
-            # Action related to DAGs, with access specific to given DAG
+            # With read permissions on a specific DAG
             (
                 ResourceMethod.GET,
-                "DAGs",
-                ResourceDetails(id="test"),
-                [(ACTION_CAN_READ, "DAG:test")],
+                DagAccessEntity.TASK_INSTANCE,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
                 True,
             ),
-            # Action related to DAGs, with access specific to another DAG
+            # With edit permissions on a specific DAG and read on the DAG access entity
             (
-                ResourceMethod.GET,
-                "DAGs",
-                ResourceDetails(id="test"),
-                [(ACTION_CAN_READ, "DAG:test2")],
+                ResourceMethod.POST,
+                DagAccessEntity.RUN,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_EDIT, "DAG:test_dag_id"), (ACTION_CAN_CREATE, RESOURCE_DAG_RUN)],
+                True,
+            ),
+            # Without permissions to edit the DAG
+            (
+                ResourceMethod.POST,
+                DagAccessEntity.RUN,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_CREATE, RESOURCE_DAG_RUN)],
                 False,
             ),
-            # Action related to DAGs, with no access to all DAGs and no resource details
+            # Without read permissions on a specific DAG
             (
                 ResourceMethod.GET,
-                "DAGs",
-                None,
-                [(ACTION_CAN_READ, "DAG:other_test")],
+                DagAccessEntity.TASK_LOGS,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
                 False,
             ),
         ],
     )
-    def test_is_authorized(
-        self, action, resource_type, resource_details, user_permissions, expected_result, auth_manager
+    def test_is_authorized_dag(
+        self, method, dag_access_entity, dag_details, user_permissions, expected_result, auth_manager
     ):
         user = Mock()
         user.perms = user_permissions
-        result = auth_manager.is_authorized(
-            action=action,
-            resource_type=resource_type,
-            resource_details=resource_details,
-            user=user,
+        result = auth_manager.is_authorized_dag(
+            method=method, dag_access_entity=dag_access_entity, dag_details=dag_details, user=user
         )
+        assert result == expected_result
+
+    @pytest.mark.parametrize(
+        "user_permissions, expected_result",
+        [
+            # With permission
+            (
+                [(ACTION_CAN_READ, RESOURCE_WEBSITE)],
+                True,
+            ),
+            # Without permission
+            (
+                [(ACTION_CAN_READ, "resource_test"), (ACTION_CAN_CREATE, RESOURCE_WEBSITE)],
+                False,
+            ),
+        ],
+    )
+    def test_is_authorized_website(self, user_permissions, expected_result, auth_manager):
+        user = Mock()
+        user.perms = user_permissions
+        result = auth_manager.is_authorized_website(user=user)
         assert result == expected_result
 
     def test_get_security_manager_override_class_return_fab_security_manager_override(self, auth_manager):

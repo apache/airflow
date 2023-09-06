@@ -18,17 +18,19 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
-from airflow.auth.managers.models.authorized_action import AuthorizedAction
-from airflow.auth.managers.models.resource_details import ResourceDetails
-from airflow.auth.managers.models.resource_method import ResourceMethod
-from airflow.auth.managers.models.resource_type import ResourceType
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.auth.managers.models.resource_details import (
+        ConnectionDetails,
+        DagAccessEntity,
+        DagDetails,
+    )
+    from airflow.auth.managers.models.resource_method import ResourceMethod
     from airflow.cli.cli_config import CLICommand
     from airflow.www.security import AirflowSecurityManager
 
@@ -68,52 +70,109 @@ class BaseAuthManager(LoggingMixin):
         """Return whether the user is logged in."""
 
     @abstractmethod
-    def is_authorized(
+    def is_authorized_configuration(
         self,
-        action: ResourceMethod,
-        resource_type: ResourceType,
-        resource_details: ResourceDetails | None = None,
+        *,
+        method: ResourceMethod,
         user: BaseUser | None = None,
     ) -> bool:
         """
-        Return whether the user is authorized to perform a given action.
+        Return whether the user is authorized to perform a given action on configuration.
 
-        .. code-block:: python
-
-            # Check whether the logged-in user has permission to read the DAG "my_dag_id"
-            get_auth_manager().is_authorized(
-                Action.GET,
-                Resource.DAG,
-                ResourceDetails(
-                    id="my_dag_id",
-                ),
-            )
-
-        :param action: the action to perform
-        :param resource_type: the type of resource the user attempts to perform the action on
-        :param resource_details: optional details about the resource itself
+        :param method: the method to perform
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
-    def is_all_authorized(
+    @abstractmethod
+    def is_authorized_cluster_activity(
         self,
-        actions: Sequence[AuthorizedAction],
+        *,
+        method: ResourceMethod,
+        user: BaseUser | None = None,
     ) -> bool:
         """
-        Wrapper around `is_authorized` to check whether the user is authorized to perform several actions.
+        Return whether the user is authorized to perform a given action on the cluster activity.
 
-        :param actions: the list of actions to check. Each item represents the list of parameters of
-            `is_authorized`
+        :param method: the method to perform
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
-        return all(
-            self.is_authorized(
-                action=action.action,
-                resource_type=action.resource_type,
-                resource_details=action.resource_details,
-                user=action.user,
-            )
-            for action in actions
-        )
+
+    @abstractmethod
+    def is_authorized_connection(
+        self,
+        *,
+        method: ResourceMethod,
+        connection_details: ConnectionDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a connection.
+
+        :param method: the method to perform
+        :param connection_details: optional details about the connection
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_dag(
+        self,
+        *,
+        method: ResourceMethod,
+        dag_access_entity: DagAccessEntity | None = None,
+        dag_details: DagDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a DAG.
+
+        :param method: the method to perform
+        :param dag_access_entity: the kind of DAG information the authorization request is about.
+            If not provided, the authorization request is about the DAG itself
+        :param dag_details: optional details about the DAG
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_dataset(
+        self,
+        *,
+        method: ResourceMethod,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a dataset.
+
+        :param method: the method to perform
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_variable(
+        self,
+        *,
+        method: ResourceMethod,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a variable.
+
+        :param method: the method to perform
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_website(
+        self,
+        *,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to access the read-only state of the installation.
+
+        This includes the homepage, the list of installed plugins, the list of providers and list of triggers.
+
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
@@ -154,8 +213,3 @@ class BaseAuthManager(LoggingMixin):
         :param security_manager: the security manager
         """
         self._security_manager = security_manager
-
-    @staticmethod
-    def is_dag_resource(resource_type: ResourceType) -> bool:
-        """Determines if a resource relates to a DAG."""
-        return resource_type == ResourceType.DAG

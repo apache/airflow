@@ -18,14 +18,31 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 
 
 @dataclass
-class ResourceDetails:
-    """
-    Represents the details of a resource.
+class ConnectionDetails:
+    """Represents the details of a connection."""
 
-    All fields must be optional. These details can be used in authorization decision.
-    """
+    conn_id: str
 
-    id: str | None = None
+
+@dataclass
+class DagDetails:
+    """Represents the details of a DAG."""
+
+    id: str
+
+
+class DagAccessEntity(Enum):
+    """Enum of DAG entities the user tries to access."""
+
+    AUDIT_LOG = "AUDIT_LOG"
+    CODE = "CODE"
+    DATASET = "DATASET"
+    DEPENDENCIES = "DEPENDENCIES"
+    RUN = "RUN"
+    TASK_INSTANCE = "TASK_INSTANCE"
+    TASK_LOGS = "TASK_LOGS"
+    XCOM = "XCOM"

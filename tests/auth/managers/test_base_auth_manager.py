@@ -16,18 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
+from typing import TYPE_CHECKING
 
 import pytest
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.auth.managers.models.authorized_action import AuthorizedAction
-from airflow.auth.managers.models.base_user import BaseUser
-from airflow.auth.managers.models.resource_details import ResourceDetails
-from airflow.auth.managers.models.resource_method import ResourceMethod
-from airflow.auth.managers.models.resource_type import ResourceType
 from airflow.exceptions import AirflowException
 from airflow.www.security import ApplessAirflowSecurityManager
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.auth.managers.models.resource_details import ConnectionDetails, DagAccessEntity, DagDetails
+    from airflow.auth.managers.models.resource_method import ResourceMethod
 
 
 class EmptyAuthManager(BaseAuthManager):
@@ -40,16 +40,41 @@ class EmptyAuthManager(BaseAuthManager):
     def get_user_id(self) -> str:
         raise NotImplementedError()
 
-    def is_logged_in(self) -> bool:
+    def is_authorized_configuration(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
         raise NotImplementedError()
 
-    def is_authorized(
+    def is_authorized_cluster_activity(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_connection(
         self,
-        action: ResourceMethod,
-        resource_type: ResourceType,
-        resource_details: ResourceDetails | None = None,
+        *,
+        method: ResourceMethod,
+        connection_details: ConnectionDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_dag(
+        self,
+        *,
+        method: ResourceMethod,
+        dag_access_entity: DagAccessEntity | None = None,
+        dag_details: DagDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_dataset(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_variable(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_website(self, *, user: BaseUser | None = None) -> bool:
+        raise NotImplementedError()
+
+    def is_logged_in(self) -> bool:
         raise NotImplementedError()
 
     def get_url_login(self, **kwargs) -> str:
@@ -68,57 +93,6 @@ def auth_manager():
 
 
 class TestBaseAuthManager:
-    @pytest.mark.parametrize(
-        "actions, is_authorized_per_action, expected_result",
-        [
-            # Edge case: empty list of actions
-            (
-                [],
-                [],
-                True,
-            ),
-            # One action with permissions
-            (
-                [AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.VARIABLE)],
-                [True],
-                True,
-            ),
-            # One action without permissions
-            (
-                [AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.VARIABLE)],
-                [False],
-                False,
-            ),
-            # Several actions, one without permission
-            (
-                [
-                    AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.VARIABLE),
-                    AuthorizedAction(action=ResourceMethod.POST, resource_type=ResourceType.VARIABLE),
-                    AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.XCOM),
-                ],
-                [True, True, False],
-                False,
-            ),
-            # Several actions, all with permission
-            (
-                [
-                    AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.VARIABLE),
-                    AuthorizedAction(action=ResourceMethod.POST, resource_type=ResourceType.VARIABLE),
-                    AuthorizedAction(action=ResourceMethod.GET, resource_type=ResourceType.XCOM),
-                ],
-                [True, True, True],
-                True,
-            ),
-        ],
-    )
-    @mock.patch.object(EmptyAuthManager, "is_authorized")
-    def test_is_all_authorized(
-        self, mock_is_authorized, actions, is_authorized_per_action, expected_result, auth_manager
-    ):
-        mock_is_authorized.side_effect = is_authorized_per_action
-        result = auth_manager.is_all_authorized(actions)
-        assert result is expected_result
-
     def test_get_security_manager_override_class_return_empty_class(self, auth_manager):
         assert auth_manager.get_security_manager_override_class() is object
 
@@ -130,13 +104,3 @@ class TestBaseAuthManager:
         auth_manager.security_manager = ApplessAirflowSecurityManager()
         _security_manager = auth_manager.security_manager
         assert type(_security_manager) is ApplessAirflowSecurityManager
-
-    @pytest.mark.parametrize(
-        "resource_type, result",
-        [
-            (ResourceType.DAG, True),
-            (ResourceType.VARIABLE, False),
-        ],
-    )
-    def test_is_dag_resource(self, resource_type, result):
-        assert BaseAuthManager.is_dag_resource(resource_type) is result
