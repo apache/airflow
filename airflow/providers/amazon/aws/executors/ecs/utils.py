@@ -17,7 +17,8 @@
 
 from __future__ import annotations
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Dict, List
 
 from airflow.utils.state import State
@@ -27,9 +28,7 @@ if TYPE_CHECKING:
 
 CommandType = List[str]
 ExecutorConfigFunctionType = Callable[[CommandType], dict]
-EcsQueuedTask = namedtuple("EcsQueuedTask", ("key", "command", "queue", "executor_config"))
 ExecutorConfigType = Dict[str, Any]
-EcsTaskInfo = namedtuple("EcsTaskInfo", ("cmd", "queue", "config"))
 
 CONFIG_GROUP_NAME = "aws_ecs_executor"
 
@@ -39,7 +38,31 @@ RUN_TASK_KWARG_DEFAULTS = {
     "platform_version": "LATEST",
 }
 
-CONFIG_DEFAULTS = {"conn_id": "aws_default", **RUN_TASK_KWARG_DEFAULTS}
+CONFIG_DEFAULTS = {
+    "conn_id": "aws_default",
+    "max_run_task_attempts": "3",
+    **RUN_TASK_KWARG_DEFAULTS,
+}
+
+
+@dataclass
+class EcsQueuedTask:
+    """Represents an Ecs task that is queued. The task will be run in the next heartbeat."""
+
+    key: TaskInstanceKey
+    command: CommandType
+    queue: str
+    executor_config: ExecutorConfigType
+    attempt_number: int
+
+
+@dataclass
+class EcsTaskInfo:
+    """Contains information about a currently running Ecs task."""
+
+    cmd: CommandType
+    queue: str
+    config: ExecutorConfigType
 
 
 class BaseConfigKeys:
@@ -60,6 +83,7 @@ class RunTaskKwargsConfigKeys(BaseConfigKeys):
     SUBNETS = "subnets"
     TASK_DEFINITION = "task_definition"
     CONTAINER_NAME = "container_name"
+    MAX_RUN_TASK_ATTEMPTS = "max_run_task_attempts"
 
 
 class AllEcsConfigKeys(RunTaskKwargsConfigKeys):
@@ -139,6 +163,7 @@ class EcsTaskCollection:
         queue: str,
         airflow_cmd: CommandType,
         exec_config: ExecutorConfigType,
+        attempt_number: int,
     ):
         """Adds a task to the collection."""
         arn = task.task_arn
@@ -146,6 +171,7 @@ class EcsTaskCollection:
         self.key_to_arn[airflow_task_key] = arn
         self.arn_to_key[arn] = airflow_task_key
         self.key_to_task_info[airflow_task_key] = EcsTaskInfo(airflow_cmd, queue, exec_config)
+        self.key_to_failure_counts[airflow_task_key] = attempt_number
 
     def update_task(self, task: EcsExecutorTask):
         """Updates the state of the given task based on task ARN."""

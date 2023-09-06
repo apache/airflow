@@ -115,6 +115,13 @@ aws_ecs_executor:
       type: string
       example: executor_task_definition:LATEST
       default: ~
+    max_run_task_attempts:
+      description: |
+        The maximum number of times the Ecs Executor should attempt to run a task.
+      version_added: "2.8"
+      type: int
+      example: "3"
+      default: "3"
     run_task_kwargs:
       description: |
         A JSON string containing arguments to provide the ECS `run_task` API (see url above).

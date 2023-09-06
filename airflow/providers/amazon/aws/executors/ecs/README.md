@@ -59,6 +59,7 @@ The container should be specified in the ECS Task Definition. Required.
 - SECURITY_GROUPS - Up to 5 comma-seperated security group IDs associated with the ECS task. Defaults to the VPC default.
 - SUBNETS - Up to 16 comma-separated subnet IDs associated with the ECS task or service. Defaults to the VPC default.
 - TASK_DEFINITION - The family and revision (family:revision) or full ARN of the ECS task definition to run. Defaults to the latest ACTIVE revision.
+- MAX_RUN_TASK_ATTEMPTS - The maximum number of times the Ecs Executor should attempt to run a task.
 
 For a more detailed description of available options, including type hints and examples, see the `config_templates` folder in the Amazon provider package.
 

@@ -70,8 +70,13 @@ class AwsEcsExecutor(BaseExecutor):
      Airflow TaskInstance's executor_config.
     """
 
-    # Number of retries in the scenario where the API cannot find a task key.
-    MAX_FAILURE_CHECKS = 3
+    # Maximum number of retries to run an ECS task.
+    MAX_RUN_TASK_ATTEMPTS = conf.get(
+        CONFIG_GROUP_NAME,
+        AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
+        fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS],
+    )
+
     # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
 
@@ -152,19 +157,24 @@ class AwsEcsExecutor(BaseExecutor):
     def __handle_failed_task(self, task_arn: str, reason: str):
         """If an API failure occurs, the task is rescheduled."""
         task_key = self.active_workers.arn_to_key[task_arn]
-        task_cmd, queue, exec_info = self.active_workers.info_by_key(task_key)
+        task_info = self.active_workers.info_by_key(task_key)
+        task_cmd = task_info.cmd
+        queue = task_info.queue
+        exec_info = task_info.config
         failure_count = self.active_workers.failure_count_by_key(task_key)
-        if failure_count < self.__class__.MAX_FAILURE_CHECKS:
+        if int(failure_count) < int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
             self.log.warning(
                 "Task %s has failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
                 task_key,
                 reason,
                 failure_count,
-                self.__class__.MAX_FAILURE_CHECKS,
+                self.__class__.MAX_RUN_TASK_ATTEMPTS,
                 task_arn,
             )
             self.active_workers.increment_failure_count(task_key)
-            self.pending_tasks.appendleft(EcsQueuedTask(task_key, task_cmd, queue, exec_info))
+            self.pending_tasks.appendleft(
+                EcsQueuedTask(task_key, task_cmd, queue, exec_info, failure_count + 1)
+            )
         else:
             self.log.error(
                 "Task %s has failed a maximum of %s times. Marking as failed", task_key, failure_count
@@ -186,7 +196,11 @@ class AwsEcsExecutor(BaseExecutor):
         failure_reasons = defaultdict(int)
         for _ in range(queue_len):
             ecs_task = self.pending_tasks.popleft()
-            task_key, cmd, queue, exec_config = ecs_task
+            task_key = ecs_task.key
+            cmd = ecs_task.command
+            queue = ecs_task.queue
+            exec_config = ecs_task.executor_config
+            attempt_number = ecs_task.attempt_number
             _failure_reasons = []
             try:
                 run_task_response = self._run_task(task_key, cmd, queue, exec_config)
@@ -206,7 +220,17 @@ class AwsEcsExecutor(BaseExecutor):
             if _failure_reasons:
                 for reason in _failure_reasons:
                     failure_reasons[reason] += 1
-                self.pending_tasks.append(ecs_task)
+                # Make sure the number of attempts does not exceed MAX_RUN_TASK_ATTEMPTS
+                if int(attempt_number) <= int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
+                    ecs_task.attempt_number += 1
+                    self.pending_tasks.appendleft(ecs_task)
+                else:
+                    self.log.error(
+                        "Task %s has failed a maximum of %s times. Marking as failed",
+                        task_key,
+                        attempt_number,
+                    )
+                    self.fail(task_key)
             elif not run_task_response["tasks"]:
                 self.log.error("ECS RunTask Response: %s", run_task_response)
                 raise EcsExecutorException(
@@ -214,7 +238,7 @@ class AwsEcsExecutor(BaseExecutor):
                 )
             else:
                 task = run_task_response["tasks"][0]
-                self.active_workers.add_task(task, task_key, queue, cmd, exec_config)
+                self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
         if failure_reasons:
             self.log.error(
                 "Pending tasks failed to launch for the following reasons: %s. Will retry later.",
@@ -260,7 +284,7 @@ class AwsEcsExecutor(BaseExecutor):
         """Save the task to be executed in the next sync by inserting the commands into a queue."""
         if executor_config and ("name" in executor_config or "command" in executor_config):
             raise ValueError('Executor Config should never override "name" or "command"')
-        self.pending_tasks.append(EcsQueuedTask(key, command, queue, executor_config or {}))
+        self.pending_tasks.append(EcsQueuedTask(key, command, queue, executor_config or {}, 1))
 
     def end(self, heartbeat_interval=10):
         """Waits for all currently running tasks to end, and doesn't launch any tasks."""
