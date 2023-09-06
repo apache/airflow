@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 J = TypeVar("J", "Job", "JobPydantic", "Job | JobPydantic")
 
-class BaseJobRunner(Job):
+class BaseJobRunner:
     """Abstract class for job runners to derive from."""
 
     job_type = "undefined"
