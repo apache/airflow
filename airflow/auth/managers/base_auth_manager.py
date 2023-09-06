@@ -88,6 +88,8 @@ class BaseAuthManager(LoggingMixin):
 
         By default, return the generic AirflowSecurityManagerV2.
         """
+        from airflow.www.security_manager import AirflowSecurityManagerV2
+
         return AirflowSecurityManagerV2
 
     @property
