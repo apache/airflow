@@ -265,19 +265,15 @@ class FabAuthManager(BaseAuthManager):
 
         if dag_details and dag_details.id:
             # Check whether the user has permissions to access a specific DAG
-            if not user:
-                user = self.get_user()
-            fab_action = self._get_fab_action(method)
-            user_permissions = self._get_user_permissions(user)
             resource_dag_name = self._resource_name_for_dag(dag_details.id)
-            return (fab_action, resource_dag_name) in user_permissions
+            return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
 
         return False
 
     @staticmethod
     def _get_fab_action(method: ResourceMethod) -> str:
         """
-        Convert the action to a FAB action.
+        Convert the method to a FAB action.
 
         :param method: the method to convert
 

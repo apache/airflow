@@ -41,7 +41,7 @@ def get_access_denied_message():
     return conf.get("webserver", "access_denied_message")
 
 
-def _has_access_simple(is_authorized_callback: Callable[[], bool]) -> Callable[[T], T]:
+def _has_access_no_details(is_authorized_callback: Callable[[], bool]) -> Callable[[T], T]:
     """
     Generic Decorator that checks current user's permissions against required permissions.
 
@@ -96,11 +96,11 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
 
 
 def has_access_cluster_activity(method: ResourceMethod) -> Callable[[T], T]:
-    return _has_access_simple(lambda: get_auth_manager().is_authorized_cluster_activity(method=method))
+    return _has_access_no_details(lambda: get_auth_manager().is_authorized_cluster_activity(method=method))
 
 
 def has_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
-    return _has_access_simple(lambda: get_auth_manager().is_authorized_configuration(method=method))
+    return _has_access_no_details(lambda: get_auth_manager().is_authorized_configuration(method=method))
 
 
 def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
@@ -162,14 +162,14 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
 
 def has_access_dataset(method: ResourceMethod) -> Callable[[T], T]:
     """Decorator that checks current user's permissions against required permissions for datasets."""
-    return _has_access_simple(lambda: get_auth_manager().is_authorized_dataset(method=method))
+    return _has_access_no_details(lambda: get_auth_manager().is_authorized_dataset(method=method))
 
 
 def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
     """Decorator that checks current user's permissions against required permissions for variables."""
-    return _has_access_simple(lambda: get_auth_manager().is_authorized_variable(method=method))
+    return _has_access_no_details(lambda: get_auth_manager().is_authorized_variable(method=method))
 
 
 def has_access_website() -> Callable[[T], T]:
     """Decorator that checks current user's permissions to access the website."""
-    return _has_access_simple(lambda: get_auth_manager().is_authorized_website())
+    return _has_access_no_details(lambda: get_auth_manager().is_authorized_website())
