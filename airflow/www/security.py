@@ -626,7 +626,7 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
                 if (action_name, dag_resource_name) not in perms:
                     self._merge_perm(action_name, dag_resource_name)
 
-            if dag.access_control:
+            if dag.access_control is not None:
                 self.sync_perm_for_dag(dag_resource_name, dag.access_control)
 
     def update_admin_permission(self) -> None:

@@ -777,7 +777,7 @@ class DAG(LoggingMixin):
         will be replaced with 'can_read', in {'role2': {'can_dag_read', 'can_dag_edit'}}
         'can_dag_edit' will be replaced with 'can_edit', etc.
         """
-        if not access_control:
+        if access_control is None:
             return None
         new_perm_mapping = {
             permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,

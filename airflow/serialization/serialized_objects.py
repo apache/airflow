@@ -1386,6 +1386,14 @@ class SerializedDAG(DAG, BaseSerialization):
         return dag
 
     @classmethod
+    def _is_excluded(cls, var: Any, attrname: str, op: DAGNode):
+        # {} is explicitly different from None in the case of DAG-level access control
+        # and as a result we need to preserve empty dicts through serialization for this field
+        if attrname == "_access_control" and var is not None:
+            return False
+        return super()._is_excluded(var, attrname, op)
+
+    @classmethod
     def to_dict(cls, var: Any) -> dict:
         """Stringifies DAGs and operators contained by var and returns a dict of var."""
         json_dict = {"__version": cls.SERIALIZER_VERSION, "dag": cls.serialize_dag(var)}
