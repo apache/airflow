@@ -53,7 +53,7 @@ class TestDagTaskParameterOverflow:
             assert not check_values_overflow(dag)
 
     @pytest.mark.backend("postgres")
-    def test_cycle_no_test_priority_weight_negative_overflow(self):
+    def test_priority_weight_negative_overflow(self):
         # Test that priority_weight_total overflows
         dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
         with dag:
@@ -62,7 +62,7 @@ class TestDagTaskParameterOverflow:
             assert not check_values_overflow(dag)
 
     @pytest.mark.backend("postgres")
-    def test_cycle_no_test_priority_weight_positive_overflow(self):
+    def test_priority_weight_positive_overflow(self):
         # Test that priority_weight_total overflows
         dag = DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"})
         with dag:
