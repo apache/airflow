@@ -43,14 +43,12 @@ def check_values_overflow(dag: DAG) -> None:
     if _is_metadatabase_postgres():
         task_dict = dag.task_dict
 
-        for dag_task_id in dag.task_dict.keys():
-            task = task_dict[dag_task_id]
+        for task in task_dict.values():
             if (task.priority_weight_total > _POSTGRES_PRIORITY_WEIGHT_UPPER_BOUND) or (
                 task.priority_weight_total < _POSTGRES_PRIORITY_WEIGHT_LOWER_BOUND
             ):
                 msg = (
-                    f"DAG: {dag.dag_id}. Faulty task: {task} with total priority"
-                    f"weight: {task.priority_weight_total} exceeds max/min db value"
+                    f"Faulty DAG/Task: [{dag.dag_id}/{task.task_id}] with total "
+                    f"priority weight {task.priority_weight_total} exceeds max/min DB value"
                 )
                 raise AirflowDagTaskOutOfBoundsValue(msg)
-    return None
