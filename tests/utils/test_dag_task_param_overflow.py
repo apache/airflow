@@ -50,7 +50,7 @@ class TestDagTaskParameterOverflow:
             op2 = EmptyOperator(task_id="stage2", priority_weight=2147483647)
             op1.set_downstream(op2)
         with pytest.raises(AirflowDagTaskOutOfBoundsValue):
-            assert not check_values_overflow(dag)
+            assert check_values_overflow(dag)
 
     @pytest.mark.backend("postgres")
     def test_priority_weight_negative_overflow(self):
@@ -59,7 +59,7 @@ class TestDagTaskParameterOverflow:
         with dag:
             EmptyOperator(task_id="stage1", priority_weight=-3147483648)
         with pytest.raises(AirflowDagTaskOutOfBoundsValue):
-            assert not check_values_overflow(dag)
+            assert check_values_overflow(dag)
 
     @pytest.mark.backend("postgres")
     def test_priority_weight_positive_overflow(self):
@@ -68,4 +68,4 @@ class TestDagTaskParameterOverflow:
         with dag:
             EmptyOperator(task_id="stage1", priority_weight=2147483648)
         with pytest.raises(AirflowDagTaskOutOfBoundsValue):
-            assert not check_values_overflow(dag)
+            assert check_values_overflow(dag)
