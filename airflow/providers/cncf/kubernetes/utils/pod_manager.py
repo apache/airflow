@@ -28,7 +28,7 @@ from collections.abc import Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Generator, Protocol, cast
+from typing import TYPE_CHECKING, Callable, Generator, Protocol, cast
 
 import pendulum
 import tenacity
@@ -282,6 +282,7 @@ class PodManager(LoggingMixin):
     def __init__(
         self,
         kube_client: client.CoreV1Api,
+        progress_callback: Callable[[str], None] | None = None,
     ):
         """
         Creates the launcher.
@@ -290,6 +291,7 @@ class PodManager(LoggingMixin):
         """
         super().__init__()
         self._client = kube_client
+        self._progress_callback = progress_callback
         self._watch = watch.Watch()
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
