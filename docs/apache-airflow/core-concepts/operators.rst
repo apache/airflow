@@ -169,7 +169,17 @@ For example, consider a BashOperator which runs a multi-line bash script, this w
 
 By default, paths provided in this way should be provided relative to the DAG's folder (as this is the default Jinja template search path), but additional paths can be added by setting the ``template_searchpath`` arg on the DAG.
 
-In some cases you may want to disable template rendering on specific fields or prevent airflow from trying to read template files for a given suffix. Consider the following task:
+.. _concepts:extending-operators:
+
+Extending Operators
+-------------------
+
+If you need to extend or create new operator functionality, you have two choices:
+
+1. Create a :ref:`Custom Operator<custom_operator>`, or
+2. Dynamically set the operator attributes to your desired values
+
+When you create a new instance of a class (in this case, an operator) in Python, it is modifiable, which means you can override class (operator) attributes to your needs. For example, in some cases you may want to disable template rendering on specific fields or prevent airflow from trying to read template files for a given suffix. Consider the following task:
 
 .. code-block:: python
 
@@ -188,6 +198,11 @@ This will fail with ``TemplateNotFound: cat script.sh``, but we can prevent airf
         bash_callable="cat script.sh",
     )
     fixed_print_script.template_ext = ()
+
+For more examples, see the example dag:
+
+.. exampleinclude:: /../../airflow/example_dags/example_dynamic_operator_attributes.py
+    :language: python
 
 .. _concepts:templating-native-objects:
 
