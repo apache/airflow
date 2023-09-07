@@ -36,6 +36,7 @@ from airflow.providers.databricks.hooks.databricks import (
     SUBMIT_RUN_ENDPOINT,
     DatabricksHook,
     RunState,
+    ClusterState
 )
 from airflow.providers.databricks.hooks.databricks_base import (
     AZURE_DEFAULT_AD_ENDPOINT,
@@ -78,6 +79,12 @@ GET_RUN_RESPONSE = {
     "state": {"life_cycle_state": LIFE_CYCLE_STATE, "state_message": STATE_MESSAGE},
 }
 GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
+CLUSTER_STATE = "TERMINATED"
+CLUSTER_STATE_MESSAGE = "Inactive cluster terminated (inactive for 120 minutes)."
+GET_CLUSTER_RESPONSE = {
+    "state": CLUSTER_STATE,
+    "state_message": CLUSTER_STATE_MESSAGE
+}
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = ""
@@ -178,6 +185,13 @@ def terminate_cluster_endpoint(host):
     Utility function to generate the get run endpoint given the host.
     """
     return f"https://{host}/api/2.0/clusters/delete"
+
+
+def get_cluster_endpoint(host):
+    """
+    Utility function to generate the get run endpoint given the host.
+    """
+    return f"https://{host}/api/2.0/clusters/get"
 
 
 def install_endpoint(host):
@@ -599,6 +613,26 @@ class TestDatabricksHook:
         )
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_cluster_state(self, mock_requests):
+        """
+        Response example from https://docs.databricks.com/api/workspace/clusters/get
+        """
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = GET_CLUSTER_RESPONSE
+
+        cluster_state = self.hook.get_cluster_state(CLUSTER_ID)
+
+        assert cluster_state == ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        mock_requests.get.assert_called_once_with(
+            get_cluster_endpoint(HOST),
+            json={"cluster_id": CLUSTER_ID},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_start_cluster(self, mock_requests):
         mock_requests.codes.ok = 200
         mock_requests.post.return_value.json.return_value = {}
@@ -615,6 +649,64 @@ class TestDatabricksHook:
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
         )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_activate_cluster_with_running_state(self, mock_requests):
+        running_states = ["RUNNING", "RESIZING"]
+        json = {"cluster_id": CLUSTER_ID}
+        for state in running_states:
+            mock_requests.codes.ok = 200
+            mock_requests.get.return_value.json.return_value = {
+                "state": state,
+                "state_message": ""
+            }
+            self.hook.activate_cluster(json=json, polling=5, timeout=60)
+            mock_requests.get.assert_called_once_with(
+                get_cluster_endpoint(HOST),
+                json={"cluster_id": CLUSTER_ID},
+                params=None,
+                auth=HTTPBasicAuth(LOGIN, PASSWORD),
+                headers=self.hook.user_agent_header,
+                timeout=self.hook.timeout_seconds,
+            )
+            mock_requests.get.reset_mock()
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_activate_cluster_with_terminal_state(self, mock_requests):
+        terminal_states = ["TERMINATING", "TERMINATED", "ERROR", "UNKNOWN"]
+        json = {"cluster_id": CLUSTER_ID}
+        for state in terminal_states:
+            side_effect = [
+                {"state": state, "state_message": ""},
+                {"state": "RUNNING", "state_message": ""}
+            ]
+            mock_requests.codes.ok = 200
+            mock_requests.get.side_effect = side_effect
+            mock_requests.post.return_value.json.return_value = {}
+            status_code_mock = mock.PropertyMock(return_value=200)
+            type(mock_requests.post.return_value).status_code = status_code_mock
+
+            self.hook.activate_cluster(json=json, polling=5, timeout=60)
+
+            assert mock_requests.get.call_count == 2
+            mock_requests.get.assert_any_call(
+                get_cluster_endpoint(HOST),
+                json={"cluster_id": CLUSTER_ID},
+                params=None,
+                auth=HTTPBasicAuth(LOGIN, PASSWORD),
+                headers=self.hook.user_agent_header,
+                timeout=self.hook.timeout_seconds,
+            )
+            mock_requests.post.assert_called_once_with(
+                start_cluster_endpoint(HOST),
+                json={"cluster_id": CLUSTER_ID},
+                params=None,
+                auth=HTTPBasicAuth(LOGIN, PASSWORD),
+                headers=self.hook.user_agent_header,
+                timeout=self.hook.timeout_seconds,
+            )
+            mock_requests.get.reset_mock()
+            mock_requests.post.reset_mock()
 
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
     def test_restart_cluster(self, mock_requests):
@@ -967,6 +1059,44 @@ class TestRunState:
         assert expected == RunState.from_json(json.dumps(state))
 
 
+class TestClusterState:
+    """
+    Tests for ClusterState.
+    """
+    def test_is_terminal_true(self):
+        terminal_states = ["TERMINATING", "TERMINATED", "ERROR", "UNKNOWN"]
+        for state in terminal_states:
+            cluster_state = ClusterState(state, "")
+            assert cluster_state.is_terminal
+
+    def test_is_terminal_false(self):
+        non_terminal_states = ["PENDING", "RUNNING", "RESTARTING", "RESIZING"]
+        for state in non_terminal_states:
+            cluster_state = ClusterState(state, "")
+            assert not cluster_state.is_terminal
+
+    def test_is_terminal_with_nonexistent_life_cycle_state(self):
+        cluster_state = ClusterState("blah", "")
+        with pytest.raises(AirflowException):
+            assert cluster_state.is_terminal
+
+    def test_is_running(self):
+        running_states = ["RUNNING", "RESIZING"]
+        for state in running_states:
+            cluster_state = ClusterState(state, "")
+            assert cluster_state.is_running
+
+    def test_to_json(self):
+        cluster_state = ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        expected = json.dumps(GET_CLUSTER_RESPONSE)
+        assert expected == cluster_state.to_json()
+
+    def test_from_json(self):
+        state = GET_CLUSTER_RESPONSE
+        expected = ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        assert expected == ClusterState.from_json(json.dumps(state))
+
+
 def create_aad_token_for_resource(resource: str) -> dict:
     return {
         "token_type": "Bearer",
@@ -1250,7 +1380,7 @@ class TestDatabricksHookAsyncMethods:
     async def test_get_run_page_url(self, mock_get):
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
         async with self.hook:
-            run_page_url = await self.hook.a_get_run_page_url(RUN_ID)
+            run_page_url = await self.hook.async_get_run_page_url(RUN_ID)
 
         assert run_page_url == RUN_PAGE_URL
         mock_get.assert_called_once_with(
@@ -1267,12 +1397,29 @@ class TestDatabricksHookAsyncMethods:
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
 
         async with self.hook:
-            run_state = await self.hook.a_get_run_state(RUN_ID)
+            run_state = await self.hook.async_get_run_state(RUN_ID)
 
         assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
         mock_get.assert_called_once_with(
             get_run_endpoint(HOST),
             json={"run_id": RUN_ID},
+            auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_get_cluster_state(self, mock_get):
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_CLUSTER_RESPONSE)
+
+        async with self.hook:
+            cluster_state = await self.hook.async_get_cluster_state(CLUSTER_ID)
+
+        assert cluster_state == ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        mock_get.assert_called_once_with(
+            get_cluster_endpoint(HOST),
+            json={"cluster_id": CLUSTER_ID},
             auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
@@ -1309,7 +1456,7 @@ class TestDatabricksHookAsyncAadToken:
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
 
         async with self.hook:
-            run_state = await self.hook.a_get_run_state(RUN_ID)
+            run_state = await self.hook.async_get_run_state(RUN_ID)
 
         assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
         mock_get.assert_called_once_with(
@@ -1355,7 +1502,7 @@ class TestDatabricksHookAsyncAadTokenOtherClouds:
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
 
         async with self.hook:
-            run_state = await self.hook.a_get_run_state(RUN_ID)
+            run_state = await self.hook.async_get_run_state(RUN_ID)
 
         assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
 
@@ -1408,7 +1555,7 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
 
         async with self.hook:
-            run_state = await self.hook.a_get_run_state(RUN_ID)
+            run_state = await self.hook.async_get_run_state(RUN_ID)
 
         assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
 
@@ -1470,7 +1617,7 @@ class TestDatabricksHookAsyncAadTokenManagedIdentity:
         )
 
         async with self.hook:
-            run_state = await self.hook.a_get_run_state(RUN_ID)
+            run_state = await self.hook.async_get_run_state(RUN_ID)
 
         assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
 
@@ -1549,7 +1696,7 @@ class TestDatabricksHookAsyncSpToken:
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_RUN_RESPONSE)
 
         async with self.hook:
-            run_state = await self.hook.a_get_run_state(RUN_ID)
+            run_state = await self.hook.async_get_run_state(RUN_ID)
 
         assert run_state == RunState(LIFE_CYCLE_STATE, RESULT_STATE, STATE_MESSAGE)
         mock_get.assert_called_once_with(
