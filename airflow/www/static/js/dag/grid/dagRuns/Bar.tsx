@@ -31,6 +31,8 @@ import RunTypeIcon from "src/components/RunTypeIcon";
 
 import DagRunTooltip from "./Tooltip";
 import type { RunWithDuration } from ".";
+import { getDagRunLabel } from "src/utils";
+import { useGridData } from "src/api";
 
 const BAR_HEIGHT = 100;
 
@@ -86,6 +88,10 @@ const DagRunBar = ({
     inverseIndex === 4 || (inverseIndex > 4 && (inverseIndex - 4) % 10 === 0);
 
   const color = stateColors[state];
+  const {
+    data: { ordering },
+  } = useGridData();
+  const dagRun = run
 
   return (
     <Box
@@ -159,7 +165,7 @@ const DagRunBar = ({
             transform="rotate(-30deg) translateX(28px)"
             mt="-23px !important"
           >
-            <Time dateTime={executionDate} format="MMM DD, HH:mm" />
+            <Time dateTime={getDagRunLabel({ dagRun, ordering })} format="MMM DD, HH:mm" />
           </Text>
           <Box borderLeftWidth={1} opacity={0.7} height="100px" zIndex={0} />
         </VStack>
