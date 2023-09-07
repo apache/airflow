@@ -698,8 +698,8 @@
 <text text-anchor="start" x="490" y="-1153.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 <text text-anchor="start" x="567" y="-1153.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="472,-1119 472,-1144 759,-1144 759,-1119 472,-1119"/>
-<text text-anchor="start" x="477" y="-1128.8" font-family="Helvetica,sans-Serif" font-size="14.00">cleared</text>
-<text text-anchor="start" x="528" y="-1128.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
+<text text-anchor="start" x="477" y="-1128.8" font-family="Helvetica,sans-Serif" font-size="14.00">cleared_count</text>
+<text text-anchor="start" x="574" y="-1128.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
 <polygon fill="none" stroke="black" points="472,-1094 472,-1119 759,-1119 759,-1094 472,-1094"/>
 <text text-anchor="start" x="477" y="-1103.8" font-family="Helvetica,sans-Serif" font-size="14.00">conf</text>
 <text text-anchor="start" x="508" y="-1103.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BLOB]</text>

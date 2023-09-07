@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add new field 'cleared' to dagrun
+"""add new field 'cleared_count' to dagrun
 
 Revision ID: 375a816bbbf4
 Revises: 405de8318b3a
@@ -39,14 +39,17 @@ airflow_version = "2.8.0"
 def upgrade():
     """Apply add cleared column to dagrun"""
     with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.add_column(sa.Column("cleared", sa.Boolean))
-    # Different databases support different literal for FALSE. This is fine.
-    op.execute(sa.text(f"UPDATE dag_run SET cleared = {sa.false().compile(op.get_bind())}"))
-    with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.alter_column("cleared", existing_type=sa.Boolean, nullable=False)
+        batch_op.add_column(
+            sa.Column(
+                "cleared_count",
+                sa.Integer,
+                default=0,
+                nullable=False,
+            )
+        )
 
 
 def downgrade():
     """Unapply add cleared column to pool"""
     with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.drop_column("cleared")
+        batch_op.drop_column("cleared_count")
